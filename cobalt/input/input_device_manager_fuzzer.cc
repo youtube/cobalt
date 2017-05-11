@@ -16,16 +16,15 @@
 
 #include "base/basictypes.h"
 #include "base/bind.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/rand_util.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keycode.h"
 
 namespace cobalt {
 namespace input {
-
-using base::TimeDelta;
-using dom::KeyboardEvent;
 
 namespace {
 
@@ -77,7 +76,7 @@ int InputDeviceManagerFuzzer::KeyInfo::GetRandomKeyCode() const {
   return key_codes_[index];
 }
 
-TimeDelta InputDeviceManagerFuzzer::KeyInfo::GetRandomDelay() const {
+base::TimeDelta InputDeviceManagerFuzzer::KeyInfo::GetRandomDelay() const {
   if (minimum_delay_ == maximum_delay_) {
     return minimum_delay_;
   }
@@ -85,7 +84,8 @@ TimeDelta InputDeviceManagerFuzzer::KeyInfo::GetRandomDelay() const {
       (maximum_delay_ - minimum_delay_).InMicroseconds();
   diff_in_microseconds = static_cast<int64>(
       base::RandGenerator(static_cast<uint64>(diff_in_microseconds)));
-  return minimum_delay_ + TimeDelta::FromMicroseconds(diff_in_microseconds);
+  return minimum_delay_ +
+         base::TimeDelta::FromMicroseconds(diff_in_microseconds);
 }
 
 InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
@@ -94,13 +94,13 @@ InputDeviceManagerFuzzer::InputDeviceManagerFuzzer(
       next_key_index_(0),
       thread_("InputDeviceManagerFuzzer") {
   key_infos_.push_back(KeyInfo(kKeyCodes, arraysize(kKeyCodes),
-                               TimeDelta::FromMilliseconds(400)));
+                               base::TimeDelta::FromMilliseconds(400)));
   // Modify the key_infos_ to use different input patterns.  For example, the
   // following pattern can be used to test play and stop of a video repeatedly.
   //   key_infos_.push_back(KeyInfo(keycode::kReturn,
-  //                        TimeDelta::FromSeconds(1)));
+  //                        base::TimeDelta::FromSeconds(1)));
   //   key_infos_.push_back(KeyInfo(keycode::kEscape,
-  //                        TimeDelta::FromSeconds(1)));
+  //                        base::TimeDelta::FromSeconds(1)));
 
   // Schedule task to send the first key event.  Add an explicit delay to avoid
   // possible conflicts with debug console.
@@ -115,17 +115,11 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   DCHECK_LT(next_key_index_, key_infos_.size());
   int key_code = key_infos_[next_key_index_].GetRandomKeyCode();
 
-  KeyboardEvent::Data key_down_event(
-      KeyboardEvent::kTypeKeyDown, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, key_code, 0, false);
+  dom::KeyboardEventInit event_init;
+  event_init.set_char_code(key_code);
 
-  keyboard_event_callback_.Run(key_down_event);
-
-  KeyboardEvent::Data key_up_event(
-      KeyboardEvent::kTypeKeyUp, KeyboardEvent::kDomKeyLocationStandard,
-      KeyboardEvent::kNoModifier, key_code, 0, false);
-
-  keyboard_event_callback_.Run(key_up_event);
+  keyboard_event_callback_.Run(base::Tokens::keydown(), event_init);
+  keyboard_event_callback_.Run(base::Tokens::keyup(), event_init);
 
   MessageLoop::current()->PostDelayedTask(
       FROM_HERE, base::Bind(&InputDeviceManagerFuzzer::OnNextEvent,

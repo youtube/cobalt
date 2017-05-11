@@ -63,11 +63,15 @@ ElementDriver::ElementDriver(
     const protocol::ElementId& element_id,
     const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
     KeyboardEventInjector keyboard_event_injector,
+    PointerEventInjector pointer_event_injector,
+    WheelEventInjector wheel_event_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : element_id_(element_id),
       element_(element),
       element_mapping_(element_mapping),
-      keyboard_injector_(keyboard_event_injector),
+      keyboard_event_injector_(keyboard_event_injector),
+      pointer_event_injector_(pointer_event_injector),
+      wheel_event_injector_(wheel_event_injector),
       element_message_loop_(message_loop) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
@@ -179,7 +183,8 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
       return CommandResult(protocol::Response::kStaleElementReference);
     }
 
-    keyboard_injector_.Run(element_.get(), (*events)[i]);
+    keyboard_event_injector_.Run(element_.get(), (*events)[i].first,
+                                 (*events)[i].second);
   }
   return CommandResult(protocol::Response::kSuccess);
 }

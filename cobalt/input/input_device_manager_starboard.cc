@@ -19,10 +19,13 @@ namespace input {
 
 // static
 scoped_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
-    const KeyboardEventCallback& callback,
+    const KeyboardEventCallback& keyboard_event_callback,
+    const PointerEventCallback& pointer_event_callback,
+    const WheelEventCallback& wheel_event_callback,
     system_window::SystemWindow* system_window) {
-  return scoped_ptr<InputDeviceManager>(
-      new InputDeviceManagerDesktop(callback, system_window));
+  return scoped_ptr<InputDeviceManager>(new InputDeviceManagerDesktop(
+      keyboard_event_callback, pointer_event_callback, wheel_event_callback,
+      system_window));
 }
 
 }  // namespace input

@@ -866,7 +866,8 @@ void HTMLElement::RunFocusingSteps() {
   // before focus is shifted, and does bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusin
   DispatchEvent(new FocusEvent(base::Tokens::focusin(), Event::kBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // 3. Make the element the currently focused element in its top-level browsing
   // context.
@@ -881,7 +882,8 @@ void HTMLElement::RunFocusingSteps() {
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focus
   DispatchEvent(new FocusEvent(base::Tokens::focus(), Event::kNotBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
@@ -898,11 +900,12 @@ void HTMLElement::RunUnFocusingSteps() {
   // focus. This event type is similar to blur, but is dispatched before focus
   // is shifted, and does bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusout
+  Document* document = node_document();
+  scoped_refptr<Window> window(document ? document->window() : NULL);
   DispatchEvent(new FocusEvent(base::Tokens::focusout(), Event::kBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, window, this));
 
   // 2. Unfocus the element.
-  Document* document = node_document();
   if (document && document->active_element() == this->AsElement()) {
     document->SetActiveElement(NULL);
   }
@@ -914,7 +917,8 @@ void HTMLElement::RunUnFocusingSteps() {
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-blur
   DispatchEvent(new FocusEvent(base::Tokens::blur(), Event::kNotBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
@@ -1230,6 +1234,22 @@ void HTMLElement::UpdateComputedStyle(
   }
 
   computed_style_valid_ = true;
+}
+
+bool HTMLElement::IsDesignated() {
+  Document* document = node_document();
+  if (document) {
+    scoped_refptr<Element> element = document->indicated_element();
+    while (element) {
+      if (element == this) {
+        return true;
+      }
+      // The parent of an element that is :hover is also in that state.
+      //  https://www.w3.org/TR/selectors4/#hover-pseudo
+      element = element->parent_element();
+    }
+  }
+  return false;
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {

@@ -42,9 +42,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
  public:
   Impl(const std::string& name, const scoped_refptr<dom::Window>& window,
        const OnRenderTreeProducedCallback& on_render_tree_produced,
-       LayoutTrigger layout_trigger, int dom_max_element_depth,
-       float layout_refresh_rate, const std::string& language,
-       LayoutStatTracker* layout_stat_tracker);
+       const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
+       int dom_max_element_depth, float layout_refresh_rate,
+       const std::string& language, LayoutStatTracker* layout_stat_tracker);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -72,6 +72,7 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   const icu::Locale locale_;
   const scoped_ptr<UsedStyleProvider> used_style_provider_;
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
+  const OnLayoutCallback on_layout_callback_;
   const LayoutTrigger layout_trigger_;
 
   // This flag indicates whether or not we should do a re-layout.  The flag
@@ -150,15 +151,16 @@ scoped_refptr<render_tree::Node> AttachCameraNodes(
 LayoutManager::Impl::Impl(
     const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    LayoutTrigger layout_trigger, int dom_max_element_depth,
-    float layout_refresh_rate, const std::string& language,
-    LayoutStatTracker* layout_stat_tracker)
+    const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
+    int dom_max_element_depth, float layout_refresh_rate,
+    const std::string& language, LayoutStatTracker* layout_stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(new UsedStyleProvider(
           window->html_element_context(), window->document()->font_cache(),
           base::Bind(&AttachCameraNodes, window))),
       on_render_tree_produced_callback_(on_render_tree_produced),
+      on_layout_callback_(on_layout),
       layout_trigger_(layout_trigger),
       layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
                     "Non-zero when the layout is dirty and a new render tree "
@@ -361,17 +363,19 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
+
+  on_layout_callback_.Run();
 }
 
 LayoutManager::LayoutManager(
     const std::string& name, const scoped_refptr<dom::Window>& window,
     const OnRenderTreeProducedCallback& on_render_tree_produced,
-    LayoutTrigger layout_trigger, const int dom_max_element_depth,
-    const float layout_refresh_rate, const std::string& language,
-    LayoutStatTracker* layout_stat_tracker)
-    : impl_(new Impl(name, window, on_render_tree_produced, layout_trigger,
-                     dom_max_element_depth, layout_refresh_rate, language,
-                     layout_stat_tracker)) {}
+    const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
+    const int dom_max_element_depth, const float layout_refresh_rate,
+    const std::string& language, LayoutStatTracker* layout_stat_tracker)
+    : impl_(new Impl(name, window, on_render_tree_produced, on_layout,
+                     layout_trigger, dom_max_element_depth, layout_refresh_rate,
+                     language, layout_stat_tracker)) {}
 
 LayoutManager::~LayoutManager() {}
 

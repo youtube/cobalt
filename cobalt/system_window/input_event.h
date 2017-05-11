@@ -28,6 +28,10 @@ class InputEvent : public base::Event {
     kKeyDown,
     kKeyUp,
     kKeyMove,
+    kPointerDown,
+    kPointerUp,
+    kPointerMove,
+    kWheel,
   };
 
   // Bit-mask of key modifiers. These correspond to the |SbKeyModifiers| values
@@ -38,30 +42,66 @@ class InputEvent : public base::Event {
     kCtrlKey = 1 << 1,
     kMetaKey = 1 << 2,
     kShiftKey = 1 << 3,
+    kLeftButton = 1 << 4,
+    kRightButton = 1 << 5,
+    kMiddleButton = 1 << 6,
+    kBackButton = 1 << 7,
+    kForwardButton = 1 << 8,
   };
 
-  InputEvent(Type type, int key_code, uint32 modifiers, bool is_repeat,
-             const math::PointF& position = math::PointF())
+  InputEvent(Type type, int device_id, int key_code, uint32 modifiers,
+             bool is_repeat, const math::PointF& position = math::PointF(),
+             const math::PointF& delta = math::PointF()
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+                 ,
+             float pressure = 0, const math::PointF& size = math::PointF(),
+             const math::PointF& tilt = math::PointF()
+#endif
+                 )
       : type_(type),
+        device_id_(device_id),
         key_code_(key_code),
         modifiers_(modifiers),
         is_repeat_(is_repeat),
-        position_(position) {}
+        position_(position),
+        delta_(delta)
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+        ,
+        pressure_(pressure),
+        size_(size),
+        tilt_(tilt)
+#endif
+  {
+  }
 
   Type type() const { return type_; }
   int key_code() const { return key_code_; }
+  int device_id() const { return device_id_; }
   uint32 modifiers() const { return modifiers_; }
   bool is_repeat() const { return is_repeat_; }
   const math::PointF& position() const { return position_; }
+  const math::PointF& delta() const { return delta_; }
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  float pressure() const { return pressure_; }
+  const math::PointF& size() const { return size_; }
+  const math::PointF& tilt() const { return tilt_; }
+#endif
 
   BASE_EVENT_SUBCLASS(InputEvent);
 
  private:
   Type type_;
+  int device_id_;
   int key_code_;
   uint32 modifiers_;
   bool is_repeat_;
   math::PointF position_;
+  math::PointF delta_;
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  float pressure_;
+  math::PointF size_;
+  math::PointF tilt_;
+#endif
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on

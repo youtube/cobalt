@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/ui_event_with_key_state.h"
 
 namespace cobalt {
@@ -26,16 +27,9 @@ namespace dom {
 // The KeyboardEvent provides specific contextual information associated with
 // keyboard devices. Each keyboard event references a key using a value.
 // Keyboard events are commonly directed at the element that has the focus.
-//   https://www.w3.org/TR/DOM-Level-3-Events/#events-keyboardevents
+//   https://www.w3.org/TR/2016/WD-uievents-20160804/#events-keyboardevents
 class KeyboardEvent : public UIEventWithKeyState {
  public:
-  // Non-standard, used to make creating KeyboardEvents via C++ easier.
-  enum Type {
-    kTypeKeyDown,
-    kTypeKeyUp,
-    kTypeKeyPress,
-  };
-
   // Web API: KeyboardEvent
   //
   enum KeyLocationCode {
@@ -44,51 +38,40 @@ class KeyboardEvent : public UIEventWithKeyState {
     kDomKeyLocationRight = 0x02,
     kDomKeyLocationNumpad = 0x03,
   };
-
-  struct Data {
-    Data()
-        : type(kTypeKeyDown),
-          key_location(kDomKeyLocationStandard),
-          modifiers(0),
-          key_code(0),
-          char_code(0),
-          repeat(false) {}
-
-    Data(Type type, KeyLocationCode key_location, uint32_t modifiers,
-         int32_t key_code, int32_t char_code, bool repeat)
-        : type(type),
-          key_location(key_location),
-          modifiers(modifiers),
-          key_code(key_code),
-          char_code(char_code),
-          repeat(repeat) {}
-
-    Type type;
-    KeyLocationCode key_location;
-    uint32_t modifiers;
-    int32_t key_code;
-    int32_t char_code;
-    bool repeat;
-  };
-
   explicit KeyboardEvent(const std::string& type);
-  explicit KeyboardEvent(const Data& data);
-  KeyboardEvent(Type type, KeyLocationCode location, unsigned int modifiers,
-                int key_code, int char_code, bool is_repeat);
+  KeyboardEvent(const std::string& type, const KeyboardEventInit& init_dict);
+  KeyboardEvent(base::Token type, const scoped_refptr<Window>& view,
+                const KeyboardEventInit& init_dict);
+
+  // Creates an event with its "initialized flag" unset.
+  explicit KeyboardEvent(UninitializedFlag uninitialized_flag);
+
+  void InitKeyboardEvent(const std::string& type, bool bubbles, bool cancelable,
+                         const scoped_refptr<Window>& view,
+                         const std::string& key, uint32 location,
+                         const std::string& modifierslist, bool repeat);
 
   // Returns a string describing the key event, as defined here:
   //   https://www.w3.org/TR/DOM-Level-3-Events-key/
   std::string key() const;
 
-  KeyLocationCode location() const { return data_.key_location; }
-  bool repeat() const { return data_.repeat; }
+  // Return a string describing the physical key pressed, not affected by
+  // current keyboard layout or modifier state, as defined here:
+  //   https://www.w3.org/TR/uievents-code/
+  std::string code() const;
+
+  KeyLocationCode location() const { return key_location_; }
+  bool repeat() const { return repeat_; }
+  bool is_composing() const { return false; }
 
   // Non-standard and deprecated.
   // key code for keydown and keyup, character for keypress
-  //   https://www.w3.org/TR/DOM-Level-3-Events/#legacy-key-models
-  int key_code() const;
-  int char_code() const;
-  KeyLocationCode key_location() const { return data_.key_location; }
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-models
+  uint32 key_code() const;
+  uint32 char_code() const;
+  uint32 which() const;
+
+  KeyLocationCode key_location() const { return key_location_; }
 
   // keyIdentifier is deprecated and non-standard.
   // Here, we just map it to the standardized key() method, which matches some,
@@ -97,7 +80,7 @@ class KeyboardEvent : public UIEventWithKeyState {
 
   // Custom, not in any spec.
   // Utility functions for keycode/charcode conversion.
-  static int32 ComputeCharCode(int32 key_code, uint32 modifiers);
+  static int32 ComputeCharCode(int32 key_code, bool shift_key);
   static int KeyCodeToCharCodeWithShift(int key_code);
   static int KeyCodeToCharCodeNoShift(int key_code);
   static KeyLocationCode KeyCodeToKeyLocation(int key_code);
@@ -106,8 +89,12 @@ class KeyboardEvent : public UIEventWithKeyState {
 
  private:
   ~KeyboardEvent() OVERRIDE {}
+  std::string NonPrintableKey(int32_t key_code) const;
 
-  const Data data_;
+  KeyLocationCode key_location_;
+  uint32_t key_code_;
+  uint32_t char_code_;
+  bool repeat_;
 };
 
 }  // namespace dom

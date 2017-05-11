@@ -32,13 +32,17 @@
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
@@ -404,21 +408,23 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
   // Forward the event on to the correct object in DOM.
-  if (event->type() == base::Tokens::keydown() ||
-      event->type() == base::Tokens::keypress() ||
-      event->type() == base::Tokens::keyup()) {
+  if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keypress
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keyup
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keydown
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keypress
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keyup
     if (document_->active_element()) {
       document_->active_element()->DispatchEvent(event);
     } else {
       document_->DispatchEvent(event);
     }
+  } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
+             event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
+             event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
+    document_->QueuePointerEvent(event);
   } else {
-    NOTREACHED();
+    SB_NOTREACHED();
   }
 }
 

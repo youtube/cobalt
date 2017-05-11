@@ -81,31 +81,80 @@ void* SystemWindow::GetWindowHandle() {
   return SbWindowGetPlatformHandle(window_);
 }
 
+void SystemWindow::DispatchInputEvent(const SbInputData& data,
+                                      InputEvent::Type type, bool is_repeat) {
+  // Starboard handily uses the Microsoft key mapping, which is also what Cobalt
+  // uses.
+  int key_code = static_cast<int>(data.key);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  scoped_ptr<InputEvent> input_event(
+      new InputEvent(type, data.device_id, key_code, data.key_modifiers,
+                     is_repeat, math::PointF(data.position.x, data.position.y),
+                     math::PointF(data.delta.x, data.delta.y), data.pressure,
+                     math::PointF(data.size.x, data.size.y),
+                     math::PointF(data.tilt.x, data.tilt.y)));
+#else
+  scoped_ptr<InputEvent> input_event(
+      new InputEvent(type, data.device_id, key_code, data.key_modifiers,
+                     is_repeat, math::PointF(data.position.x, data.position.y),
+                     math::PointF(data.delta.x, data.delta.y)));
+#endif
+  event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
+}
+
+void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
+  switch (data.type) {
+    case kSbInputEventTypePress:
+    case kSbInputEventTypeUnpress: {
+      InputEvent::Type input_event_type = data.type == kSbInputEventTypePress
+                                              ? InputEvent::kPointerDown
+                                              : InputEvent::kPointerUp;
+      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
+      break;
+    }
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+    case kSbInputEventTypeWheel: {
+      DispatchInputEvent(data, InputEvent::kWheel, false /* is_repeat */);
+      break;
+    }
+#endif
+    case kSbInputEventTypeMove:
+      DispatchInputEvent(data, InputEvent::kPointerMove, false /* is_repeat */);
+      break;
+    default:
+      SB_NOTREACHED();
+      break;
+  }
+}
+
 void SystemWindow::HandleInputEvent(const SbInputData& data) {
   DCHECK_EQ(window_, data.window);
 
-  if (data.type == kSbInputEventTypePress) {
-    // Starboard handily uses the Microsoft key mapping, which is also what
-    // Cobalt uses.
-    int key_code = static_cast<int>(data.key);
-    scoped_ptr<InputEvent> input_event(
-        new InputEvent(InputEvent::kKeyDown, key_code, data.key_modifiers,
-                       key_down_ /* is_repeat */));
-    key_down_ = true;
-    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
-  } else if (data.type == kSbInputEventTypeUnpress) {
-    key_down_ = false;
-    int key_code = static_cast<int>(data.key);
-    scoped_ptr<InputEvent> input_event(
-        new InputEvent(InputEvent::kKeyUp, key_code, data.key_modifiers,
-                       false /* is_repeat */));
-    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
-  } else if (data.type == kSbInputEventTypeMove) {
-    int key_code = static_cast<int>(data.key);
-    scoped_ptr<InputEvent> input_event(new InputEvent(
-        InputEvent::kKeyMove, key_code, data.key_modifiers,
-        false /* is_repeat */, math::PointF(data.position.x, data.position.y)));
-    event_dispatcher()->DispatchEvent(input_event.PassAs<base::Event>());
+  // Handle supported pointer device types.
+  if ((kSbInputDeviceTypeMouse == data.device_type) ||
+      (kSbInputDeviceTypeTouchScreen == data.device_type)) {
+    HandlePointerInputEvent(data);
+    return;
+  }
+
+  // Handle all other input device types.
+  switch (data.type) {
+    case kSbInputEventTypePress: {
+      DispatchInputEvent(data, InputEvent::kKeyDown, key_down_);
+      key_down_ = true;
+      break;
+    }
+    case kSbInputEventTypeUnpress: {
+      DispatchInputEvent(data, InputEvent::kKeyUp, false /* is_repeat */);
+      key_down_ = false;
+      break;
+    }
+    case kSbInputEventTypeMove: {
+      DispatchInputEvent(data, InputEvent::kKeyMove, false /* is_repeat */);
+      break;
+    }
+    default:
+      break;
   }
 }
 
