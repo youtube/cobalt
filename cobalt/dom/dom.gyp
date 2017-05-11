@@ -321,6 +321,9 @@
             '<(DEPTH)/cobalt/media/media.gyp:media',
           ],
         }],
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
+        }],
       ],
       # This target doesn't generate any headers, but it exposes generated
       # header files (for idl dictionaries) through this module's public header
