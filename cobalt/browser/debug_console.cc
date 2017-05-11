@@ -199,10 +199,11 @@ DebugConsole::DebugConsole(
 
 DebugConsole::~DebugConsole() {}
 
-bool DebugConsole::FilterKeyEvent(const dom::KeyboardEvent::Data& event) {
+bool DebugConsole::FilterKeyEvent(base::Token type,
+                                  const dom::KeyboardEventInit& event) {
   // Assume here the full debug console is visible - pass all events to its
   // web module, and return false to indicate the event has been consumed.
-  web_module_->InjectKeyboardEvent(event);
+  web_module_->InjectKeyboardEvent(type, event);
   return false;
 }
 

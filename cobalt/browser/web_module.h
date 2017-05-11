@@ -38,9 +38,11 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/layout/layout_manager.h"
@@ -195,8 +197,19 @@ class WebModule : public LifecycleObserver {
             float layout_refresh_rate, const Options& options);
   ~WebModule();
 
-  // Call this to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  // Call this to inject a keyboard event into the web module. The value for
+  // type represents the event name, for example 'keydown' or 'keyup'.
+  void InjectKeyboardEvent(base::Token type,
+                           const dom::KeyboardEventInit& event);
+
+  // Call this to inject a pointer event into the web module. The value for type
+  // represents the event name, for example 'pointerdown', 'pointerup', or
+  // 'pointermove'.
+  void InjectPointerEvent(base::Token type, const dom::PointerEventInit& event);
+
+  // Call this to inject a wheel event into the web module. The value for type
+  // represents the event name, for example 'wheel'.
+  void InjectWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
   // Call this to execute Javascript code in this web module.  The calling
   // thread will block until the JavaScript has executed and the output results

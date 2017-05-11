@@ -47,6 +47,10 @@ class MessageEvent : public dom::Event {
         response_type_(response_type),
         data_(data) {}
 
+  // Creates an event with its "initialized flag" unset.
+  explicit MessageEvent(UninitializedFlag uninitialized_flag)
+      : Event(uninitialized_flag) {}
+
   ResponseType data() const;
 
   // These helper functions are custom, and not in any spec.

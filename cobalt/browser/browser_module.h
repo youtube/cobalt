@@ -35,7 +35,9 @@
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
@@ -160,15 +162,28 @@ class BrowserModule {
   // persist the user's preference.
   void SaveDebugConsoleMode();
 
-  // Glue function to deal with the production of an input event from the
-  // input device, and manage handing it off to the web module for
+  // Glue function to deal with the production of a keyboard input event from a
+  // keyboard input device, and manage handing it off to the web module for
   // interpretation.
-  void OnKeyEventProduced(const dom::KeyboardEvent::Data& event);
+  void OnKeyEventProduced(base::Token type,
+                          const dom::KeyboardEventInit& event);
+
+  // Glue function to deal with the production of a pointer input event from a
+  // pointer input device, and manage handing it off to the web module for
+  // interpretation.
+  void OnPointerEventProduced(base::Token type,
+                              const dom::PointerEventInit& event);
+
+  // Glue function to deal with the production of a wheel input event from a
+  // wheel input device, and manage handing it off to the web module for
+  // interpretation.
+  void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
   // web module and not filtered into the debug console.
-  void InjectKeyEventToMainWebModule(const dom::KeyboardEvent::Data& event);
+  void InjectKeyEventToMainWebModule(base::Token type,
+                                     const dom::KeyboardEventInit& event);
 
   // Error callback for any error that stops the program.
   void OnError(const GURL& url, const std::string& error);
@@ -176,12 +191,13 @@ class BrowserModule {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(const dom::KeyboardEvent::Data& event);
+  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
 
   // Filters a key event for hotkeys.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEventForHotkeys(const dom::KeyboardEvent::Data& event);
+  bool FilterKeyEventForHotkeys(base::Token type,
+                                const dom::KeyboardEventInit& event);
 
   // Tries all registered URL handlers for a URL. Returns true if one of the
   // handlers handled the URL, false if otherwise.

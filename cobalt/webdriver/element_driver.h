@@ -23,8 +23,11 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/base/token.h"
 #include "cobalt/dom/element.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/protocol/element_id.h"
@@ -45,14 +48,22 @@ class WindowDriver;
 // will map to a method on this class.
 class ElementDriver {
  public:
-  typedef base::Callback<void(scoped_refptr<dom::Element>,
-                              const dom::KeyboardEvent::Data&)>
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::KeyboardEventInit&)>
       KeyboardEventInjector;
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::PointerEventInit&)>
+      PointerEventInjector;
+  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
+                              const dom::WheelEventInit&)>
+      WheelEventInjector;
 
   ElementDriver(const protocol::ElementId& element_id,
                 const base::WeakPtr<dom::Element>& element,
                 ElementMapping* element_mapping,
-                KeyboardEventInjector keyboard_injector,
+                KeyboardEventInjector keyboard_event_injector,
+                PointerEventInjector pointer_event_injector,
+                WheelEventInjector wheel_event_injector,
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
@@ -93,7 +104,9 @@ class ElementDriver {
   // These should only be accessed from |element_message_loop_|.
   base::WeakPtr<dom::Element> element_;
   ElementMapping* element_mapping_;
-  KeyboardEventInjector keyboard_injector_;
+  KeyboardEventInjector keyboard_event_injector_;
+  PointerEventInjector pointer_event_injector_;
+  WheelEventInjector wheel_event_injector_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
 
   friend class WindowDriver;

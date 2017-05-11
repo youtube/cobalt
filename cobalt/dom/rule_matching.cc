@@ -260,8 +260,10 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // device that does not detect hovering) are still conforming.
   //   https://www.w3.org/TR/selectors4/#hover-pseudo
   void VisitHoverPseudoClass(cssom::HoverPseudoClass*) OVERRIDE {
-    NOTIMPLEMENTED();
-    element_ = NULL;
+    if (!element_->AsHTMLElement() ||
+        !element_->AsHTMLElement()->IsDesignated()) {
+      element_ = NULL;
+    }
   }
 
   // The negation pseudo-class, :not(), is a functional pseudo-class taking a
@@ -519,6 +521,14 @@ void ForEachChildOnNodes(
       if (node->HasPseudoClass(cssom::kFocusPseudoClass, combinator_type) &&
           element->HasFocus()) {
         GatherCandidateNodesFromSet(cssom::kFocusPseudoClass, combinator_type,
+                                    node->pseudo_class_nodes(),
+                                    &candidate_nodes);
+      }
+
+      // Hover pseudo class.
+      if (node->HasPseudoClass(cssom::kHoverPseudoClass, combinator_type) &&
+          element->IsDesignated()) {
+        GatherCandidateNodesFromSet(cssom::kHoverPseudoClass, combinator_type,
                                     node->pseudo_class_nodes(),
                                     &candidate_nodes);
       }

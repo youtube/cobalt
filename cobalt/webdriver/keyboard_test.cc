@@ -15,7 +15,9 @@
 #include <algorithm>
 #include <vector>
 
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -29,41 +31,53 @@ namespace cobalt {
 namespace webdriver {
 namespace {
 
-int32 GetKeyCode(const dom::KeyboardEvent::Data& event) {
+int32 GetKeyCode(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-            new dom::KeyboardEvent(event));
+      new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->key_code();
 }
 
-int32 GetCharCode(const dom::KeyboardEvent::Data& event) {
+int32 GetCharCode(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-            new dom::KeyboardEvent(event));
+      new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->char_code();
 }
 
-uint32 GetModifierBitfield(const dom::KeyboardEvent::Data& event) {
+const uint32 kNoModifier = 0;
+const uint32 kShift = 1;
+const uint32 kAlt = 2;
+const uint32 kOtherModifier = 4;
+const uint32 kAltAndShift = kAlt | kShift;
+
+uint32 GetModifierBitfield(
+    std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-            new dom::KeyboardEvent(event));
-  return keyboard_event->modifiers();
+      new dom::KeyboardEvent(event.first.c_str(), event.second));
+  uint32 modifiers = kNoModifier;
+  if (keyboard_event->shift_key()) {
+    modifiers |= kShift;
+  }
+  if (keyboard_event->alt_key()) {
+    modifiers |= kAlt;
+  }
+  if (keyboard_event->ctrl_key() || keyboard_event->meta_key()) {
+    modifiers |= kOtherModifier;
+  }
+  return modifiers;
 }
 
-std::string GetType(const dom::KeyboardEvent::Data& event) {
+std::string GetType(
+    std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-            new dom::KeyboardEvent(event));
+      new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->type().c_str();
 }
 
-int GetLocation(const dom::KeyboardEvent::Data& event) {
+int GetLocation(std::pair<base::Token, const dom::KeyboardEventInit&> event) {
   scoped_refptr<dom::KeyboardEvent> keyboard_event(
-            new dom::KeyboardEvent(event));
+      new dom::KeyboardEvent(event.first.c_str(), event.second));
   return keyboard_event->location();
 }
-
-// Less verbose redefinitions.
-const int kNoModifier = dom::UIEventWithKeyState::kNoModifier;
-const int kShift = dom::UIEventWithKeyState::kShiftKey;
-const int kAlt = dom::UIEventWithKeyState::kAltKey;
-const int kAltAndShift = kAlt | kShift;
 
 const int kLocationStandard =
     dom::KeyboardEvent::kDomKeyLocationStandard;

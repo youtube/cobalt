@@ -21,17 +21,10 @@
 namespace cobalt {
 namespace dom {
 
-Event::Event(UninitializedFlag uninitialized_flag)
+Event::Event(UninitializedFlag /* uninitialized_flag */)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  UNREFERENCED_PARAMETER(uninitialized_flag);
   InitEventInternal(base::Token(), false, false);
-}
-
-Event::Event(base::Token type)
-    : event_phase_(kNone),
-      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  InitEventInternal(type, false, false);
 }
 
 Event::Event(const std::string& type)
@@ -40,27 +33,33 @@ Event::Event(const std::string& type)
   InitEventInternal(base::Token(type), false, false);
 }
 
-Event::Event(base::Token type, const EventInit& eventInitDict)
+Event::Event(const std::string& type, const EventInit& init_dict)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  SB_DCHECK(eventInitDict.has_bubbles());
-  SB_DCHECK(eventInitDict.has_cancelable());
-  InitEventInternal(type, eventInitDict.bubbles(), eventInitDict.cancelable());
+  SB_DCHECK(init_dict.has_bubbles());
+  SB_DCHECK(init_dict.has_cancelable());
+  InitEventInternal(base::Token(type), init_dict.bubbles(),
+                    init_dict.cancelable());
 }
 
-Event::Event(const std::string& type, const EventInit& eventInitDict)
+Event::Event(base::Token type)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
-  SB_DCHECK(eventInitDict.has_bubbles());
-  SB_DCHECK(eventInitDict.has_cancelable());
-  InitEventInternal(base::Token(type), eventInitDict.bubbles(),
-                    eventInitDict.cancelable());
+  InitEventInternal(type, false, false);
 }
 
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
   InitEventInternal(type, bubbles == kBubbles, cancelable == kCancelable);
+}
+
+Event::Event(base::Token type, const EventInit& init_dict)
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+  SB_DCHECK(init_dict.has_bubbles());
+  SB_DCHECK(init_dict.has_cancelable());
+  InitEventInternal(type, init_dict.bubbles(), init_dict.cancelable());
 }
 
 Event::~Event() {
