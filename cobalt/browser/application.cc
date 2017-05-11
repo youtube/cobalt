@@ -330,7 +330,8 @@ int Application::network_disconnect_count_ = 0;
 void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
                           BrowserModule::Options* options) {
   std::stringstream ss;
-  ss << "\n\n" << auto_mem.ToPrettyPrintString() << "\n\n";
+  const bool enable_color = SbLogIsTty();
+  ss << "\n\n" << auto_mem.ToPrettyPrintString(enable_color) << "\n\n";
   SB_LOG(INFO) << ss.str();
 
   options->web_module_options.image_cache_capacity =
