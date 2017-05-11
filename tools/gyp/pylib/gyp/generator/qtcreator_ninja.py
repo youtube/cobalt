@@ -14,6 +14,7 @@
 """Gyp generator for QT Creator projects that invoke ninja."""
 
 import os
+import re
 
 PROJECT_DIR_RELATIVE_TO_OUTPUT_DIR = 'qtcreator_projects'
 
@@ -26,6 +27,14 @@ def RebaseRelativePaths(file_set, original_base, new_base):
       continue
     ret.add(os.path.relpath(os.path.join(original_base, item), new_base))
   return ret
+
+
+def SplitAssignmentDefine(line):
+  matched = re.match(r'([^=\b]+)=(.*)', line)
+  if matched:
+    return matched.group(1) + ' ' + matched.group(2)
+  else:
+    return line
 
 
 def GenProject(project_def, proj_dir):
@@ -53,7 +62,7 @@ def GenProject(project_def, proj_dir):
 
   with open(basefilename + '.config', 'w') as f:
     for define in configuration['defines']:
-      f.write('#define %s\n' % define)
+      f.write('#define %s\n' % SplitAssignmentDefine(define))
 
   with open(basefilename + '.files', 'w') as f:
     for source in project_def['sources']:
