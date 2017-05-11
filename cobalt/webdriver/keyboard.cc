@@ -17,6 +17,8 @@
 #include <limits>
 
 #include "base/i18n/char_iterator.h"
+#include "cobalt/base/token.h"
+#include "cobalt/base/tokens.h"
 #include "cobalt/dom/keycode.h"
 
 using cobalt::dom::KeyboardEvent;
@@ -404,37 +406,28 @@ class KeyTranslator {
   }
 
   void AddKeyDownEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(KeyboardEvent::kTypeKeyDown, key_code, char_code, location);
+    AddKeyEvent(base::Tokens::keydown(), key_code, char_code, location);
   }
 
   void AddKeyPressEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(KeyboardEvent::kTypeKeyPress, key_code, char_code, location);
+    AddKeyEvent(base::Tokens::keypress(), key_code, char_code, location);
   }
 
   void AddKeyUpEvent(int key_code, int char_code, KeyLocationCode location) {
-    AddKeyEvent(KeyboardEvent::kTypeKeyUp, key_code, char_code, location);
+    AddKeyEvent(base::Tokens::keyup(), key_code, char_code, location);
   }
 
-  void AddKeyEvent(KeyboardEvent::Type type, int key_code, int char_code,
+  void AddKeyEvent(base::Token type, int key_code, int char_code,
                    KeyLocationCode location) {
-    const bool kIsRepeat = false;
-    uint32 modifiers = GetModifierStateBitfield();
-    event_vector_->push_back(dom::KeyboardEvent::Data(
-        type, location, modifiers, key_code, char_code, kIsRepeat));
-  }
-
-  uint32 GetModifierStateBitfield() const {
-    uint32 modifier_state = 0;
-    if (shift_pressed_) {
-      modifier_state |= KeyboardEvent::kShiftKey;
-    }
-    if (ctrl_pressed_) {
-      modifier_state |= KeyboardEvent::kCtrlKey;
-    }
-    if (alt_pressed_) {
-      modifier_state |= KeyboardEvent::kAltKey;
-    }
-    return modifier_state;
+    dom::KeyboardEventInit event;
+    event.set_location(location);
+    event.set_shift_key(shift_pressed_);
+    event.set_ctrl_key(ctrl_pressed_);
+    event.set_alt_key(alt_pressed_);
+    event.set_key_code(key_code);
+    event.set_char_code(char_code);
+    event.set_repeat(false);
+    event_vector_->push_back(std::make_pair(type, event));
   }
 
   bool shift_pressed_;

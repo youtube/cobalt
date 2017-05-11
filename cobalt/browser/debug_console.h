@@ -22,9 +22,10 @@
 #include "base/callback.h"
 #include "base/logging.h"
 #include "cobalt/browser/lifecycle_observer.h"
+#include "cobalt/base/token.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -49,7 +50,7 @@ class DebugConsole : public LifecycleObserver {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(const dom::KeyboardEvent::Data& event);
+  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
 
   const WebModule& web_module() const { return *web_module_; }
   WebModule& web_module() { return *web_module_; }

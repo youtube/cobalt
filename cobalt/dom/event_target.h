@@ -90,6 +90,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::blur(), event_listener);
   }
 
+  const EventListenerScriptValue* onclick() {
+    return GetAttributeEventListener(base::Tokens::click());
+  }
+  void set_onclick(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::click(), event_listener);
+  }
+
   const EventListenerScriptValue* onerror() {
     return GetAttributeEventListener(base::Tokens::error());
   }
@@ -104,6 +111,27 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::focus(), event_listener);
   }
 
+  const EventListenerScriptValue* onkeydown() {
+    return GetAttributeEventListener(base::Tokens::keydown());
+  }
+  void set_onkeydown(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::keydown(), event_listener);
+  }
+
+  const EventListenerScriptValue* onkeypress() {
+    return GetAttributeEventListener(base::Tokens::keypress());
+  }
+  void set_onkeypress(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::keypress(), event_listener);
+  }
+
+  const EventListenerScriptValue* onkeyup() {
+    return GetAttributeEventListener(base::Tokens::keyup());
+  }
+  void set_onkeyup(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::keyup(), event_listener);
+  }
+
   const EventListenerScriptValue* onload() {
     return GetAttributeEventListener(base::Tokens::load());
   }
@@ -111,11 +139,207 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::load(), event_listener);
   }
 
+  const EventListenerScriptValue* onloadeddata() {
+    return GetAttributeEventListener(base::Tokens::loadeddata());
+  }
+  void set_onloadeddata(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::loadeddata(), event_listener);
+  }
+
+  const EventListenerScriptValue* onloadedmetadata() {
+    return GetAttributeEventListener(base::Tokens::loadedmetadata());
+  }
+  void set_onloadedmetadata(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::loadedmetadata(), event_listener);
+  }
+
+  const EventListenerScriptValue* onloadstart() {
+    return GetAttributeEventListener(base::Tokens::loadstart());
+  }
+  void set_onloadstart(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::loadstart(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmousedown() {
+    return GetAttributeEventListener(base::Tokens::mousedown());
+  }
+  void set_onmousedown(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mousedown(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmouseenter() {
+    return GetAttributeEventListener(base::Tokens::mouseenter());
+  }
+  void set_onmouseenter(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mouseenter(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmouseleave() {
+    return GetAttributeEventListener(base::Tokens::mouseleave());
+  }
+  void set_onmouseleave(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mouseleave(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmousemove() {
+    return GetAttributeEventListener(base::Tokens::mousemove());
+  }
+  void set_onmousemove(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mousemove(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmouseout() {
+    return GetAttributeEventListener(base::Tokens::mouseout());
+  }
+  void set_onmouseout(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mouseout(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmouseover() {
+    return GetAttributeEventListener(base::Tokens::mouseover());
+  }
+  void set_onmouseover(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mouseover(), event_listener);
+  }
+
+  const EventListenerScriptValue* onmouseup() {
+    return GetAttributeEventListener(base::Tokens::mouseup());
+  }
+  void set_onmouseup(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::mouseup(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpause() {
+    return GetAttributeEventListener(base::Tokens::pause());
+  }
+  void set_onpause(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pause(), event_listener);
+  }
+
+  const EventListenerScriptValue* onplay() {
+    return GetAttributeEventListener(base::Tokens::play());
+  }
+  void set_onplay(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::play(), event_listener);
+  }
+
+  const EventListenerScriptValue* onplaying() {
+    return GetAttributeEventListener(base::Tokens::playing());
+  }
+  void set_onplaying(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::playing(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerdown() {
+    return GetAttributeEventListener(base::Tokens::pointerdown());
+  }
+  void set_onpointerdown(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerdown(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerenter() {
+    return GetAttributeEventListener(base::Tokens::pointerenter());
+  }
+  void set_onpointerenter(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerenter(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerleave() {
+    return GetAttributeEventListener(base::Tokens::pointerleave());
+  }
+  void set_onpointerleave(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerleave(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointermove() {
+    return GetAttributeEventListener(base::Tokens::pointermove());
+  }
+  void set_onpointermove(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointermove(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerout() {
+    return GetAttributeEventListener(base::Tokens::pointerout());
+  }
+  void set_onpointerout(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerout(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerover() {
+    return GetAttributeEventListener(base::Tokens::pointerover());
+  }
+  void set_onpointerover(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerover(), event_listener);
+  }
+
+  const EventListenerScriptValue* onpointerup() {
+    return GetAttributeEventListener(base::Tokens::pointerup());
+  }
+  void set_onpointerup(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::pointerup(), event_listener);
+  }
+
+  const EventListenerScriptValue* onprogress() {
+    return GetAttributeEventListener(base::Tokens::progress());
+  }
+  void set_onprogress(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::progress(), event_listener);
+  }
+
+  const EventListenerScriptValue* onratechange() {
+    return GetAttributeEventListener(base::Tokens::ratechange());
+  }
+  void set_onratechange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::ratechange(), event_listener);
+  }
+
+  const EventListenerScriptValue* onseeked() {
+    return GetAttributeEventListener(base::Tokens::seeked());
+  }
+  void set_onseeked(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::seeked(), event_listener);
+  }
+
+  const EventListenerScriptValue* onseeking() {
+    return GetAttributeEventListener(base::Tokens::seeking());
+  }
+  void set_onseeking(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::seeking(), event_listener);
+  }
+
+  const EventListenerScriptValue* ontimeupdate() {
+    return GetAttributeEventListener(base::Tokens::timeupdate());
+  }
+  void set_ontimeupdate(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::timeupdate(), event_listener);
+  }
+
   const EventListenerScriptValue* onunload() {
     return GetAttributeEventListener(base::Tokens::unload());
   }
   void set_onunload(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::unload(), event_listener);
+  }
+
+  const EventListenerScriptValue* onvolumechange() {
+    return GetAttributeEventListener(base::Tokens::volumechange());
+  }
+  void set_onvolumechange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::volumechange(), event_listener);
+  }
+
+  const EventListenerScriptValue* onwaiting() {
+    return GetAttributeEventListener(base::Tokens::waiting());
+  }
+  void set_onwaiting(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::waiting(), event_listener);
+  }
+
+  const EventListenerScriptValue* onwheel() {
+    return GetAttributeEventListener(base::Tokens::wheel());
+  }
+  void set_onwheel(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::wheel(), event_listener);
   }
 
   // Set an event listener assigned as an attribute. Overwrite the existing one

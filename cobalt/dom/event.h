@@ -54,11 +54,11 @@ class Event : public script::Wrappable {
   explicit Event(UninitializedFlag uninitialized_flag);
 
   // Creates an event that cannot be bubbled and cancelled.
-  explicit Event(base::Token type);
   explicit Event(const std::string& type);
-  Event(base::Token type, const EventInit& eventInitDict);
-  Event(const std::string& type, const EventInit& eventInitDict);
+  explicit Event(base::Token type);
+  Event(const std::string& type, const EventInit& init_dict);
   Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
+  Event(base::Token type, const EventInit& init_dict);
 
   ~Event() OVERRIDE;
 

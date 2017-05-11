@@ -14,11 +14,10 @@
 
 // https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-UIEvent
 
-[Constructor(DOMString type)]
+[Constructor(DOMString type, optional UIEventInit eventInitDict)]
 interface UIEvent : Event {
-  void initUIEvent(DOMString type, boolean bubbles, boolean cancelable,
-                   Window? view, long detail);
   readonly attribute Window? view;
+  readonly attribute long detail;
 
   // Note that the following properties are not part of any specification but
   // are commonly implemented and required by Cobalt.
@@ -29,4 +28,10 @@ interface UIEvent : Event {
   // The numeric keyCode of the key pressed, or the character code (charCode)
   // for an alphanumeric key pressed.
   readonly attribute unsigned long which;
+
+  void initUIEvent(DOMString type,
+                   optional boolean bubbles = false,
+                   optional boolean cancelable = false,
+                   optional Window? view = null,
+                   optional long detail = 0);
 };

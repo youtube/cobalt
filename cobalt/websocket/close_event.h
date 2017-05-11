@@ -30,13 +30,25 @@ class CloseEvent : public dom::Event {
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {}
   explicit CloseEvent(const std::string& type)
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {}
-  CloseEvent(const base::Token type, const CloseEventInit& eventInitDict)
-      : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {
-    InitializeFromCloseEventInit(eventInitDict);
+  CloseEvent(const base::Token type, const CloseEventInit& init_dict)
+      : Event(type, init_dict),
+        was_clean_(true),
+        code_(net::kWebSocketNormalClosure) {
+    InitializeFromCloseEventInit(init_dict);
   }
-  CloseEvent(const std::string& type, const CloseEventInit& eventInitDict)
-      : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {
-    InitializeFromCloseEventInit(eventInitDict);
+  CloseEvent(const std::string& type, const CloseEventInit& init_dict)
+      : Event(type, init_dict),
+        was_clean_(true),
+        code_(net::kWebSocketNormalClosure) {
+    InitializeFromCloseEventInit(init_dict);
+  }
+
+  void InitCloseEvent(const std::string& type, bool can_bubble, bool cancelable,
+                      bool was_clean, uint16 code, const std::string& reason) {
+    InitEvent(type, can_bubble, cancelable);
+    was_clean_ = was_clean;
+    code_ = code;
+    reason_ = reason;
   }
 
   // Readonly Attributes.
@@ -47,15 +59,15 @@ class CloseEvent : public dom::Event {
   DEFINE_WRAPPABLE_TYPE(CloseEvent)
 
  private:
-  void InitializeFromCloseEventInit(const CloseEventInit& eventInitDict) {
-    if (eventInitDict.has_was_clean()) {
-      was_clean_ = eventInitDict.was_clean();
+  void InitializeFromCloseEventInit(const CloseEventInit& init_dict) {
+    if (init_dict.has_was_clean()) {
+      was_clean_ = init_dict.was_clean();
     }
-    if (eventInitDict.has_code()) {
-      code_ = eventInitDict.code();
+    if (init_dict.has_code()) {
+      code_ = init_dict.code();
     }
-    if (eventInitDict.has_reason()) {
-      reason_ = eventInitDict.reason();
+    if (init_dict.has_reason()) {
+      reason_ = init_dict.reason();
     }
   }
   bool was_clean_;

@@ -18,14 +18,20 @@ namespace cobalt {
 namespace dom {
 
 ProgressEvent::ProgressEvent(const std::string& type)
-    : Event(type), loaded_(0), total_(0), length_computable_(false) {}
+    : Event(base::Token(type), kNotBubbles, kNotCancelable),
+      loaded_(0),
+      total_(0),
+      length_computable_(false) {}
 
 ProgressEvent::ProgressEvent(base::Token type)
-    : Event(type), loaded_(0), total_(0), length_computable_(false) {}
+    : Event(type, kNotBubbles, kNotCancelable),
+      loaded_(0),
+      total_(0),
+      length_computable_(false) {}
 
 ProgressEvent::ProgressEvent(base::Token type, uint64 loaded, uint64 total,
                              bool length_computable)
-    : Event(type),
+    : Event(type, kNotBubbles, kNotCancelable),
       loaded_(loaded),
       total_(total),
       length_computable_(length_computable) {}
