@@ -440,12 +440,15 @@ def ClobberOutFolderForClang():
 
     package_version_filename = os.path.join(build_folder, 'cr_build_revision')
     package_version = None
-    try:
+    if os.path.isfile(package_version_filename):
       with open(package_version_filename, 'r') as f:
         package_version = f.read()
-    except IOError:
-      # File does not exist
-      pass
+    else:
+      # This could be a pre-existing build that used an old version of the
+      #   toolchain, or it could be a new config that hasn't been built.
+      if not os.path.exists(os.path.join(build_folder, '.ninja_log')):
+        # No build exists in this directory. No need to clean it.
+        continue
 
     if package_version == PACKAGE_VERSION:
       continue
