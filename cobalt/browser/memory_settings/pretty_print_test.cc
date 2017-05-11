@@ -42,7 +42,7 @@ TEST(MemorySettingsPrettyPrint, GeneratePrettyPrintTable) {
   TestSettingGroup setting_group;
   setting_group.LoadDefault();
   std::string actual_string =
-      GeneratePrettyPrintTable(setting_group.AsConstVector());
+      GeneratePrettyPrintTable(false, setting_group.AsConstVector());
 
   const char* expected_string =
       " SETTING NAME                           VALUE                   TYPE   SOURCE    \n"
@@ -73,7 +73,8 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithUnsetGpuMemory) {
   IntSetting gpu_memory_setting("max_gpu_memory");
 
   std::string actual_output =
-      GenerateMemoryTable(cpu_memory_setting,  // 256 MB CPU available
+      GenerateMemoryTable(false,               // No color.
+                          cpu_memory_setting,  // 256 MB CPU available
                           gpu_memory_setting,
                           128 * 1024 * 1024,  // 128 MB CPU consumption
                           0);                 // 0 MB GPU consumption.
@@ -100,7 +101,8 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryTableWithGpuMemory) {
       MemorySetting::kBuildSetting, 64 * 1024 * 1024);
 
   std::string actual_output =
-      GenerateMemoryTable(cpu_memory_setting,  // 256 MB CPU available.
+      GenerateMemoryTable(false,               // No color.
+                          cpu_memory_setting,  // 256 MB CPU available.
                           gpu_memory_setting,   // 64 MB GPU available.
                           128 * 1024 * 1024,  // 128 MB CPU consumption.
                           23592960);          // 22.5 MB GPU consumption.
@@ -123,6 +125,7 @@ TEST(MemorySettingsPrettyPrint, ToString) {
   test_setting_group.LoadDefault();
 
   std::string actual_string = GeneratePrettyPrintTable(
+      false,  // No color.
       test_setting_group.AsConstVector());
 
   const char* expected_string =
@@ -156,6 +159,7 @@ TEST(MemorySettingsPrettyPrint, GenerateMemoryWithInvalidGpuMemoryConsumption) {
 
   const base::optional<int64_t> no_gpu_memory;
   std::string actual_output = GenerateMemoryTable(
+      false,               // No color.
       cpu_memory_setting,  // 256 MB CPU available.
       gpu_memory_setting,  // Signals that no gpu memory is available
                            //   on this system.
