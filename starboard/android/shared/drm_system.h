@@ -45,7 +45,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
 
   jobject GetMediaCrypto() const { return j_media_crypto_; }
-  void CallUpdateRequestCallback(const void* session_id,
+  void CallUpdateRequestCallback(int ticket,
+                                 const void* session_id,
                                  int session_id_size,
                                  const void* content,
                                  int content_size,
