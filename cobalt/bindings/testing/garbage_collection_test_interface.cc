@@ -58,15 +58,6 @@ void GarbageCollectionTestInterface::set_next(
   Join(this, next.get());
 }
 
-// The value of |GetOpaqueRoot| in the .idl. This ensures that nodes in the
-// same list have the same "root".
-script::Wrappable* GarbageCollectionTestInterface::GetHead() {
-  if (previous_) {
-    return previous_->GetHead();
-  }
-  return this;
-}
-
 void GarbageCollectionTestInterface::MakeHead() {
   if (previous_) {
     DCHECK(previous_->next_ == this);
@@ -97,6 +88,11 @@ void GarbageCollectionTestInterface::Join(
 GarbageCollectionTestInterface::GarbageCollectionTestInterfaceVector&
 GarbageCollectionTestInterface::instances() {
   return ::cobalt::bindings::testing::instances.Get();
+}
+
+void GarbageCollectionTestInterface::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(previous_);
+  tracer->Trace(next_);
 }
 
 }  // namespace testing

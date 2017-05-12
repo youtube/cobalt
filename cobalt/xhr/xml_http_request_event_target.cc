@@ -123,5 +123,10 @@ void XMLHttpRequestEventTarget::set_ontimeout(
   }
   SetAttributeEventListener(base::Tokens::timeout(), listener);
 }
+
+void XMLHttpRequestEventTarget::TraceMembers(script::Tracer* tracer) {
+  dom::EventTarget::TraceMembers(tracer);
+}
+
 }  // namespace xhr
 }  // namespace cobalt

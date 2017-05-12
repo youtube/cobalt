@@ -25,7 +25,6 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/mozjs-45/interface_data.h"
-#include "cobalt/script/mozjs-45/opaque_root_tracker.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
 #include "cobalt/script/mozjs-45/weak_heap_object_manager.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
@@ -99,10 +98,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
 
-  OpaqueRootTracker* opaque_root_tracker() {
-    return opaque_root_tracker_.get();
-  }
-
   base::hash_set<Wrappable*>* visited_wrappables() {
     return &visited_wrappables_;
   }
@@ -172,13 +167,11 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   WeakHeapObjectManager weak_object_manager_;
   CachedWrapperMultiMap kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
-  scoped_ptr<OpaqueRootTracker> opaque_root_tracker_;
   CachedInterfaceData cached_interface_data_;
   STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
   scoped_ptr<MozjsScriptValueFactory> script_value_factory_;
-  scoped_ptr<OpaqueRootTracker::OpaqueRootState> opaque_root_state_;
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
