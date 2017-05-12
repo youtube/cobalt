@@ -14,7 +14,6 @@
 
 // https://www.w3.org/TR/dom/#domtokenlist
 
-[AddOpaqueRoots=(element)]
 interface DOMTokenList {
   readonly attribute unsigned long length;
   getter DOMString? item(unsigned long index);
