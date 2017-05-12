@@ -63,6 +63,8 @@ extern const char kSkiaTextureAtlasDimensions[];
 extern const char kMaxCobaltCpuUsage[];
 extern const char kMaxCobaltGpuUsage[];
 
+extern const char kVideoPlaybackRateMultiplier[];
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

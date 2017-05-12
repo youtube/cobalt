@@ -108,7 +108,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
     : HTMLElement(document, tag_name),
       load_state_(kWaitingForSource),
       ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
-      playback_rate_(1.0f),
+      playback_rate_(1.f),
       default_playback_rate_(1.0f),
       network_state_(kNetworkEmpty),
       ready_state_(WebMediaPlayer::kReadyStateHaveNothing),
@@ -492,13 +492,15 @@ float HTMLMediaElement::playback_rate() const {
 
 void HTMLMediaElement::set_playback_rate(float rate) {
   MLOG() << rate;
+
   if (playback_rate_ != rate) {
     playback_rate_ = rate;
     ScheduleOwnEvent(base::Tokens::ratechange());
   }
 
   if (player_ && PotentiallyPlaying()) {
-    player_->SetRate(rate);
+    player_->SetRate(rate *
+                     html_element_context()->video_playback_rate_multiplier());
   }
 }
 
@@ -1368,7 +1370,9 @@ void HTMLMediaElement::UpdatePlayState() {
       // Set rate, muted before calling play in case they were set before the
       // media engine was setup. The media engine should just stash the rate and
       // muted values since it isn't already playing.
-      player_->SetRate(playback_rate_);
+      player_->SetRate(
+          playback_rate_ *
+          html_element_context()->video_playback_rate_multiplier());
       player_->SetVolume(muted_ ? 0 : volume_);
 
       player_->Play();
