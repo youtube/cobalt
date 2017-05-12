@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_WIN32_TIME_UTILS_H_
 #define STARBOARD_SHARED_WIN32_TIME_UTILS_H_
 
+#include "starboard/log.h"
+
 namespace starboard {
 namespace shared {
 namespace win32 {
@@ -49,7 +51,10 @@ inline SbTime ConvertSystemTimeToSbTime(const SYSTEMTIME system_time) {
 // Many nplb tests assume waits are at least as long as requested, so
 // round up.
 inline DWORD ConvertSbTimeToMillisRoundUp(SbTime duration) {
-  return (duration + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+  const int64_t milliseconds_to_sleep =
+      (duration + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
+  SB_DCHECK(milliseconds_to_sleep <= kSbInt32Max);
+  return static_cast<DWORD>(milliseconds_to_sleep);
 }
 
 }  // namespace win32

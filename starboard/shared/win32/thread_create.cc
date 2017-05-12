@@ -107,8 +107,9 @@ SbThread SbThreadCreate(int64_t stack_size,
   // Create the thread suspended, and then resume once ThreadCreateInfo::handle_
   // has been set, so that it's alway valid in the ThreadCreateInfo
   // destructor.
-  uintptr_t handle = _beginthreadex(NULL, stack_size, ThreadTrampoline, info,
-                                    CREATE_SUSPENDED, NULL);
+  uintptr_t handle =
+      _beginthreadex(NULL, static_cast<unsigned int>(stack_size),
+                     ThreadTrampoline, info, CREATE_SUSPENDED, NULL);
 
   info->thread_private_.handle_ = reinterpret_cast<HANDLE>(handle);
 

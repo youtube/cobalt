@@ -35,7 +35,15 @@ inline bool IsValidHandle(HANDLE handle) {
 }  // namespace shared
 }  // namespace starboard
 
-struct SbFilePrivate {
+#pragma warning(push)
+
+// SbFilePrivate is defined as a struct, but for windows implementation
+// enough functionality has been added so that it warrants being a class
+// per Google's C++ style guide.  This mismatch causes the Microsoft's compiler
+// to generate a warning.
+#pragma warning(disable : 4099)
+
+class SbFilePrivate {
  public:
   explicit SbFilePrivate(HANDLE handle) : file_handle(handle) {}
 
@@ -49,6 +57,7 @@ struct SbFilePrivate {
   SbFilePrivate(const SbFilePrivate&) = delete;
   SbFilePrivate& operator=(const SbFilePrivate&) = delete;
 };
+#pragma warning(pop)
 
 namespace starboard {
 namespace shared {
@@ -77,7 +86,6 @@ HANDLE OpenFileOrDirectory(const char* path,
                            int flags,
                            bool* out_created,
                            SbFileError* out_error);
-
 
 }  // namespace win32
 }  // namespace shared

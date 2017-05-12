@@ -22,8 +22,8 @@ const wchar_t kInitial[] = L"ABCDEFGHIJ";
 
 void TestConcat(const wchar_t* initial, const wchar_t* source, bool is_short) {
   const int kDestinationOffset = 16;
-  int initial_length = SbStringGetLengthWide(initial);
-  int source_length = SbStringGetLengthWide(source);
+  int initial_length = static_cast<int>(SbStringGetLengthWide(initial));
+  int source_length = static_cast<int>(SbStringGetLengthWide(source));
   int destination_size =
       initial_length + source_length + kDestinationOffset * 2;
   int destination_limit = initial_length + source_length + 1;

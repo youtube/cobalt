@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_WIN32_DIRECTORY_INTERNAL_H_
-#define STARBOARD_WIN32_DIRECTORY_INTERNAL_H_
+#ifndef STARBOARD_SHARED_WIN32_DIRECTORY_INTERNAL_H_
+#define STARBOARD_SHARED_WIN32_DIRECTORY_INTERNAL_H_
 
 #include "starboard/directory.h"
 
@@ -25,6 +25,14 @@
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/win32/file_internal.h"
+
+#pragma warning(push)
+
+// SbFilePrivate is defined as a struct, but for windows implementation
+// enough functionality has been added so that it warrants being a class
+// per Google's C++ style guide.  This mismatch causes the Microsoft's compiler
+// to generate a warning.
+#pragma warning(disable : 4099)
 
 class SbDirectoryPrivate {
  public:
@@ -41,6 +49,7 @@ class SbDirectoryPrivate {
   SbDirectoryPrivate(const SbDirectoryPrivate&) = delete;
   SbDirectoryPrivate& operator=(const SbDirectoryPrivate&) = delete;
 };
+#pragma warning(pop)
 
 namespace starboard {
 namespace shared {
@@ -75,8 +84,9 @@ inline bool IsAbsolutePath(const std::wstring& path) {
     return false;
   }
 
+  int path_size = static_cast<int>(path.size());
   return CompareStringEx(LOCALE_NAME_USER_DEFAULT, NORM_IGNORECASE,
-                         path.c_str(), path.size(), full_path, full_path_size,
+                         path.c_str(), path_size, full_path, full_path_size,
                          NULL, NULL, 0) == CSTR_EQUAL;
 }
 
@@ -84,4 +94,4 @@ inline bool IsAbsolutePath(const std::wstring& path) {
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_WIN32_DIRECTORY_INTERNAL_H_
+#endif  // STARBOARD_SHARED_WIN32_DIRECTORY_INTERNAL_H_

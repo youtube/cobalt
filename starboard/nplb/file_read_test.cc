@@ -140,7 +140,7 @@ TYPED_TEST(SbFileReadTest, ReadPastEnd) {
   }
 
   // Read off the end of the file.
-  int position = SbFileSeek(file, kSbFileFromEnd, 0);
+  int position = static_cast<int>(SbFileSeek(file, kSbFileFromEnd, 0));
   EXPECT_EQ(kFileSize, position);
   int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_EQ(0, bytes_read);
@@ -210,7 +210,8 @@ TYPED_TEST(SbFileReadTest, ReadFromMiddle) {
   }
 
   // Read from the middle of the file.
-  int position = SbFileSeek(file, kSbFileFromBegin, kFileSize / 4);
+  int position =
+      static_cast<int>(SbFileSeek(file, kSbFileFromBegin, kFileSize / 4));
   EXPECT_EQ(kFileSize / 4, position);
   int bytes_read = TypeParam::Read(file, buffer, kBufferLength);
   EXPECT_GE(kBufferLength, bytes_read);

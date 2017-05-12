@@ -310,7 +310,7 @@ void decode_hex(scoped_array<uint8_t> *out, int *out_len, const char *in,
   }
 
   *out = buf.Pass();
-  *out_len = len / 2;
+  *out_len = static_cast<int>(len / 2);
 }
 
 std::string hexdump(const void *in, int len) {

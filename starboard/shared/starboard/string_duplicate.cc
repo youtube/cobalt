@@ -14,12 +14,15 @@
 
 #include "starboard/string.h"
 
+#include "starboard/log.h"
 #include "starboard/memory.h"
 
 char* SbStringDuplicate(const char* source) {
   size_t length = SbStringGetLength(source);
   char* result = static_cast<char*>(SbMemoryAllocate(length + 1));
-  SbStringCopy(result, source, length + 1);
+  SB_DCHECK(length < kSbInt32Max);
+  int int_length = static_cast<int>(length + 1);
+  SbStringCopy(result, source, int_length);
 
   return result;
 }

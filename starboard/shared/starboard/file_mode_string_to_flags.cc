@@ -33,7 +33,7 @@ int SbFileModeStringToFlags(const char* mode) {
     return 0;
   }
 
-  int length = SbStringGetLength(mode);
+  int length = static_cast<int>(SbStringGetLength(mode));
   if (length < 1) {
     return 0;
   }
