@@ -19,8 +19,9 @@
 #include "starboard/log.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
-  // Note that VirtualAllocEx is not in UWP
-  // https://social.msdn.microsoft.com/Forums/sqlserver/en-US/d76e99ec-5506-4969-8054-afcd2ffae71f/uwpcode-generation-capability?forum=wpdevelop
+  if (size_bytes == 0) {
+    return SB_MEMORY_MAP_FAILED;
+  }
   ULONG protect;
   // |flags| is a bitmask of SbMemoryMapFlags, but |protect| is not a bitmask.
   switch (flags) {
