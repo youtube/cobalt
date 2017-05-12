@@ -89,40 +89,13 @@ void Tracer::TraceFrom(Wrappable* wrappable) {
   }
 }
 
-Wrappable* WrapperPrivate::GetOpaqueRoot() const {
-  if (!get_opaque_root_function_.is_null()) {
-    return get_opaque_root_function_.Run(wrappable_);
-  }
-  return NULL;
-}
-
-void WrapperPrivate::GetReachableWrappables(
-    std::vector<Wrappable*>* reachable) {
-  if (!get_reachable_wrappables_function_.is_null()) {
-    return get_reachable_wrappables_function_.Run(wrappable_, reachable);
-  }
-}
-
-bool WrapperPrivate::ShouldKeepWrapperAliveIfReachable() {
-  const ProxyHandler* proxy_handler =
-      base::polymorphic_downcast<const ProxyHandler*>(
-          js::GetProxyHandler(wrapper_proxy_));
-
-  DCHECK(proxy_handler);
-  return proxy_handler->has_custom_property() ||
-         wrappable_->ShouldKeepWrapperAlive();
-}
-
 // static
-void WrapperPrivate::AddPrivateData(
-    JSContext* context, JS::HandleObject wrapper_proxy,
-    const scoped_refptr<Wrappable>& wrappable,
-    const GetOpaqueRootFunction& get_opaque_root_function,
-    const GetReachableWrappablesFunction& get_reachable_wrappables_function) {
+void WrapperPrivate::AddPrivateData(JSContext* context,
+                                    JS::HandleObject wrapper_proxy,
+                                    const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(js::IsProxy(wrapper_proxy));
-  WrapperPrivate* private_data = new WrapperPrivate(
-      context, wrappable, wrapper_proxy, get_opaque_root_function,
-      get_reachable_wrappables_function);
+  WrapperPrivate* private_data =
+      new WrapperPrivate(context, wrappable, wrapper_proxy);
   JS::RootedObject target_object(context,
                                  js::GetProxyTargetObject(wrapper_proxy));
   JS_SetPrivate(target_object, private_data);
@@ -220,32 +193,14 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
   }
 }
 
-WrapperPrivate::WrapperPrivate(
-    JSContext* context, const scoped_refptr<Wrappable>& wrappable,
-    JS::HandleObject wrapper_proxy,
-    const GetOpaqueRootFunction& get_opaque_root_function,
-    const GetReachableWrappablesFunction& get_reachable_wrappables_function)
-    : context_(context),
-      wrappable_(wrappable),
-      wrapper_proxy_(wrapper_proxy),
-      get_opaque_root_function_(get_opaque_root_function),
-      get_reachable_wrappables_function_(get_reachable_wrappables_function) {
+WrapperPrivate::WrapperPrivate(JSContext* context,
+                               const scoped_refptr<Wrappable>& wrappable,
+                               JS::HandleObject wrapper_proxy)
+    : context_(context), wrappable_(wrappable), wrapper_proxy_(wrapper_proxy) {
   DCHECK(js::IsProxy(wrapper_proxy));
-  if (!get_opaque_root_function_.is_null() ||
-      !get_reachable_wrappables_function_.is_null()) {
-    MozjsGlobalEnvironment* global_environment =
-        MozjsGlobalEnvironment::GetFromContext(context_);
-    global_environment->opaque_root_tracker()->AddObjectWithOpaqueRoot(this);
-  }
 }
 
 WrapperPrivate::~WrapperPrivate() {
-  if (!get_opaque_root_function_.is_null() ||
-      !get_reachable_wrappables_function_.is_null()) {
-    MozjsGlobalEnvironment* global_environment =
-        MozjsGlobalEnvironment::GetFromContext(context_);
-    global_environment->opaque_root_tracker()->RemoveObjectWithOpaqueRoot(this);
-  }
   wrapper_proxy_ = NULL;
 }
 

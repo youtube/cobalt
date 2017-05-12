@@ -17,7 +17,6 @@
 [
     Constructor,
     ConstructorCallWith=EnvironmentSettings,
-    AddOpaqueRoots=("upload_or_null","response_array_buffer_or_null"),
 ] interface XMLHttpRequest : XMLHttpRequestEventTarget {
     // event handler
     attribute EventHandler onreadystatechange;
