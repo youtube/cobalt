@@ -17,5 +17,8 @@
 #include <windows.h>
 
 void* SbMemoryReallocateUnchecked(void* memory, size_t size) {
+  if (memory == NULL) {
+    return SbMemoryAllocateUnchecked(size);
+  }
   return HeapReAlloc(GetProcessHeap(), 0, memory, size);
 }
