@@ -82,8 +82,7 @@ class HardwareRasterizer::Impl {
   // Note: We cannot store a SkAutoTUnref<SkSurface> in the map because it is
   // not copyable; so we must manually manage our references when adding /
   // removing SkSurfaces from it.
-  typedef base::linked_hash_map<
-    backend::RenderTarget*, SkSurface*> SkSurfaceMap;
+  typedef base::linked_hash_map<int32_t, SkSurface*> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
    public:
@@ -591,7 +590,8 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
 SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   SkSurface* sk_output_surface;
-  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(render_target);
+  int32_t surface_map_key = render_target->GetSerialNumber();
+  SkSurfaceMap::iterator iter = sk_output_surface_map_.find(surface_map_key);
   if (iter == sk_output_surface_map_.end()) {
     // Remove the least recently used SkSurface from the map if we exceed the
     // max allowed saved surfaces.
@@ -615,13 +615,13 @@ SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
     sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
-    sk_output_surface_map_[render_target] = sk_output_surface;
+    sk_output_surface_map_[surface_map_key] = sk_output_surface;
   } else {
-    sk_output_surface = sk_output_surface_map_[render_target];
+    sk_output_surface = sk_output_surface_map_[surface_map_key];
     // Mark this RenderTarget/SkCanvas pair as the most recently used by
     // popping it and re-adding it.
     sk_output_surface_map_.erase(iter);
-    sk_output_surface_map_[render_target] = sk_output_surface;
+    sk_output_surface_map_[surface_map_key] = sk_output_surface;
   }
   return sk_output_surface->getCanvas();
 }
