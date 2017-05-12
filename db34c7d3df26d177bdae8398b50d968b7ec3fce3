@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "20236fcf_3a069035",
+        "filename": "src/starboard/shared/starboard/media/mime_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 174,
+      "author": {
+        "id": 5245
+      },
+      "writtenOn": "2017-05-12T00:08:48Z",
+      "side": 0,
+      "message": "Done",
+      "parentUuid": "98b2b2b2_69b4e332",
+      "range": {
+        "startLine": 174,
+        "startChar": 2,
+        "endLine": 174,
+        "endChar": 54
+      },
+      "revId": "db34c7d3df26d177bdae8398b50d968b7ec3fce3",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "80a47205_3380f79a",
         "filename": "src/starboard/shared/starboard/media/mime_type.cc",
         "patchSetId": 1
@@ -36,6 +60,30 @@
       "writtenOn": "2017-05-10T17:01:22Z",
       "side": 0,
       "message": "Let\u0027s return 0.0 when the type is invalid, otherwise the function may return anything contained in \"f\".",
+      "range": {
+        "startLine": 184,
+        "startChar": 0,
+        "endLine": 185,
+        "endChar": 52
+      },
+      "revId": "db34c7d3df26d177bdae8398b50d968b7ec3fce3",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "2491c580_91ae78d7",
+        "filename": "src/starboard/shared/starboard/media/mime_type.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 185,
+      "author": {
+        "id": 5245
+      },
+      "writtenOn": "2017-05-12T00:08:48Z",
+      "side": 0,
+      "message": "Done",
+      "parentUuid": "80a47205_3380f79a",
       "range": {
         "startLine": 184,
         "startChar": 0,
