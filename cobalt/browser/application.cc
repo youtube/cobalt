@@ -471,6 +471,17 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // !defined(COBALT_FORCE_HTTPS)
 
+  if (command_line->HasSwitch(switches::kVideoPlaybackRateMultiplier)) {
+    double playback_rate = 1.0;
+    base::StringToDouble(command_line->GetSwitchValueASCII(
+                             switches::kVideoPlaybackRateMultiplier),
+                         &playback_rate);
+    options.web_module_options.video_playback_rate_multiplier =
+        static_cast<float>(playback_rate);
+    DLOG(INFO) << "Set video playback rate multiplier to "
+               << options.web_module_options.video_playback_rate_multiplier;
+  }
+
   EnableUsingStubImageDecoderIfRequired();
 
   if (command_line->HasSwitch(browser::switches::kDisableWebmVp9)) {

@@ -169,6 +169,10 @@ class WebModule {
     scoped_refptr<input::Camera3D> camera_3d;
 
     script::JavaScriptEngine::Options javascript_options;
+
+    // The video playback rate will be multiplied with the following value.  Its
+    // default value is 1.0.
+    float video_playback_rate_multiplier;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
