@@ -82,13 +82,13 @@ TEST(SbFileTruncateTest, TruncateUpInSize) {
     EXPECT_EQ(kStartSize, info.size);
   }
 
-  int position = SbFileSeek(file, kSbFileFromCurrent, 0);
+  int position = static_cast<int>(SbFileSeek(file, kSbFileFromCurrent, 0));
   EXPECT_EQ(0, position);
 
   bool result = SbFileTruncate(file, kEndSize);
   EXPECT_TRUE(result);
 
-  position = SbFileSeek(file, kSbFileFromCurrent, 0);
+  position = static_cast<int>(SbFileSeek(file, kSbFileFromCurrent, 0));
   EXPECT_EQ(0, position);
 
   {

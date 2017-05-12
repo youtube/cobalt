@@ -42,10 +42,11 @@ bool WriteZerosToFile(HANDLE file_handle,
   while (bytes_left_to_write > 0) {
     int64_t bytes_to_write =
         std::min<int64_t>(SB_ARRAY_SIZE(k4KZeroPage), bytes_left_to_write);
+    SB_DCHECK(bytes_to_write <= kSbInt32Max);
 
     DWORD bytes_written = 0;
-    if (!WriteFile(file_handle, k4KZeroPage, bytes_to_write, &bytes_written,
-                   NULL)) {
+    if (!WriteFile(file_handle, k4KZeroPage, static_cast<int>(bytes_to_write),
+                   &bytes_written, NULL)) {
       return false;
     }
 

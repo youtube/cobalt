@@ -72,7 +72,7 @@ TEST(SbDirectoryOpenTest, FailsInvalidPath) {
   EXPECT_TRUE(SbFileExists(path.c_str()));
 
   // Funny way to make sure the directory seems valid but doesn't exist.
-  int len = path.length();
+  int len = static_cast<int>(path.length());
   if (path[len - 1] != 'z') {
     path[len - 1] = 'z';
   } else {
