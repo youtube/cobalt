@@ -53,7 +53,6 @@ inline SbTime ConvertSystemTimeToSbTime(const SYSTEMTIME system_time) {
 inline DWORD ConvertSbTimeToMillisRoundUp(SbTime duration) {
   const int64_t milliseconds_to_sleep =
       (duration + kSbTimeMillisecond - 1) / kSbTimeMillisecond;
-  SB_DCHECK(milliseconds_to_sleep <= kSbInt32Max);
   return static_cast<DWORD>(milliseconds_to_sleep);
 }
 
