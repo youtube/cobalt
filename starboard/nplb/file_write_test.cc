@@ -100,7 +100,7 @@ TYPED_TEST(SbFileWriteTest, BasicWriting) {
   // Tests reading and writing from same opened file.
   bool result = SbFileFlush(file);
   ASSERT_TRUE(result);
-  int position = SbFileSeek(file, kSbFileFromBegin, 0);
+  int position = static_cast<int>(SbFileSeek(file, kSbFileFromBegin, 0));
   ASSERT_EQ(0, position);
 
   // Read and check the whole file.
