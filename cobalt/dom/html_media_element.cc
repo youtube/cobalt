@@ -1411,7 +1411,7 @@ bool HTMLMediaElement::PotentiallyPlaying() const {
 
 bool HTMLMediaElement::EndedPlayback() const {
   float dur = duration();
-  if (!player_ || isnan(dur)) {
+  if (!player_ || std::isnan(dur)) {
     return false;
   }
 
@@ -1529,7 +1529,7 @@ void HTMLMediaElement::TimeChanged() {
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
-  if (!isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0) {
+  if (!std::isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0) {
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
