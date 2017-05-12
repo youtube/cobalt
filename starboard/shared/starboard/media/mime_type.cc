@@ -67,8 +67,11 @@ Strings SplitAndTrim(const std::string& str, char ch) {
 
   for (;;) {
     size_t next = str.find(ch, pos);
-    result.push_back(str.substr(pos, next - pos));
-    Trim(&result.back());
+    std::string sub_str = str.substr(pos, next - pos);
+    Trim(&sub_str);
+    if (!sub_str.empty()) {
+      result.push_back(sub_str);
+    }
     if (next == str.npos) {
       break;
     }
@@ -85,7 +88,9 @@ const int MimeType::kInvalidParamIndex = -1;
 MimeType::MimeType(const std::string& content_type) : is_valid_(false) {
   Strings components = SplitAndTrim(content_type, ';');
 
-  SB_DCHECK(!components.empty());
+  if (components.empty()) {
+    return;
+  }
 
   // 1. Verify if there is a valid type/subtype in the very beginning.
   if (ContainsSpace(components.front())) {
@@ -171,7 +176,10 @@ const std::string& MimeType::GetParamName(int index) const {
 int MimeType::GetParamIntValue(int index) const {
   SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
-  SB_DCHECK(GetParamType(index) == kParamTypeInteger);
+
+  if (GetParamType(index) != kParamTypeInteger) {
+    return 0;
+  }
 
   int i;
   SbStringScanF(params_[index].value.c_str(), "%d", &i);
@@ -181,8 +189,11 @@ int MimeType::GetParamIntValue(int index) const {
 float MimeType::GetParamFloatValue(int index) const {
   SB_DCHECK(is_valid());
   SB_DCHECK(index < GetParamCount());
-  SB_DCHECK(GetParamType(index) == kParamTypeInteger ||
-            GetParamType(index) == kParamTypeFloat);
+
+  if (GetParamType(index) != kParamTypeInteger &&
+      GetParamType(index) != kParamTypeFloat) {
+    return 0.0f;
+  }
 
   float f;
   SbStringScanF(params_[index].value.c_str(), "%g", &f);
