@@ -45,8 +45,8 @@ TEST(SbCryptographyTransform, SunnyDay) {
     return;
   }
 
-  const int kInputSize = SbStringGetLength(kClearText);
-  const int kBufferSize = sizeof(kClearText);
+  const int kInputSize = static_cast<int>(SbStringGetLength(kClearText));
+  const int kBufferSize = static_cast<int>(sizeof(kClearText));
   char* cipher_text = new char[kBufferSize];
   SbMemorySet(cipher_text, 0, kBufferSize);
   int count = SbCryptographyTransform(transformer, kClearText, kInputSize,

@@ -37,7 +37,7 @@ void BasicTest(SbSystemPathId id,
   }
   if (result) {
     EXPECT_NE('\xCD', path[0]) << LOCAL_CONTEXT;
-    int len = strlen(path);
+    int len = static_cast<int>(strlen(path));
     EXPECT_GT(len, 0) << LOCAL_CONTEXT;
   } else {
     EXPECT_EQ('\xCD', path[0]) << LOCAL_CONTEXT;

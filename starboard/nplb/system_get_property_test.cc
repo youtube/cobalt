@@ -54,7 +54,7 @@ void BasicTest(SbSystemPropertyId id,
   }
   if (result) {
     EXPECT_NE('\xCD', value[0]) << LOCAL_CONTEXT;
-    int len = SbStringGetLength(value);
+    int len = static_cast<int>(SbStringGetLength(value));
     EXPECT_GT(len, 0) << LOCAL_CONTEXT;
   } else {
     EXPECT_EQ('\xCD', value[0]) << LOCAL_CONTEXT;
