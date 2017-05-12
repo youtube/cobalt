@@ -497,6 +497,13 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
+    LOG(ERROR) << "\n"
+               << "  *** Disabling the default navigation whitelist! ***\n"
+               << "  *** Do not run in this mode in production!      ***";
+    options.web_module_options.location_policy = "h5vcc-location-src *";
+  }
+
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
                                           account_manager_.get(), options));
