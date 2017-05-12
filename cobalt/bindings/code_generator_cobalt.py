@@ -467,10 +467,6 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
             'NoInterfaceObject' not in interface.extended_attributes),
         'conditional':
             interface.extended_attributes.get('Conditional', None),
-        'add_opaque_roots':
-            interface.extended_attributes.get('AddOpaqueRoots', None),
-        'get_opaque_root':
-            interface.extended_attributes.get('GetOpaqueRoot', None),
     }
     interfaces_info = self.info_provider.interfaces_info
     if is_global_interface(interface):
