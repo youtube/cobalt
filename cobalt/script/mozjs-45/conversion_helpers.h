@@ -154,19 +154,19 @@ inline const double LowerBound() {
 // https://heycam.github.io/webidl/#abstract-opdef-converttoint
 template <>
 inline const double UpperBound<int64_t>() {
-  const double kInt64UpperBound = static_cast<double>((1ull << 53) - 1);
+  const double kInt64UpperBound = static_cast<double>((1ll << 53) - 1);
   return kInt64UpperBound;
 }
 
 template <>
 inline const double LowerBound<int64_t>() {
-  const double kInt64LowerBound = static_cast<double>(-(1ull << 53) + 1);
+  const double kInt64LowerBound = static_cast<double>(-(1ll << 53) + 1);
   return kInt64LowerBound;
 }
 
 template <>
 inline const double UpperBound<uint64_t>() {
-  const double kUInt64UpperBound = static_cast<double>((1ull << 53) - 1);
+  const double kUInt64UpperBound = static_cast<double>((1ll << 53) - 1);
   return kUInt64UpperBound;
 }
 
