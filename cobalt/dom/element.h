@@ -71,6 +71,7 @@ class Element : public Node {
 
   // Web API: Element
   //
+  base::Token local_name() const { return local_name_; }
 
   base::Token tag_name() const;
 
@@ -125,8 +126,6 @@ class Element : public Node {
 
   // Custom, not in any spec.
   //
-
-  base::Token local_name() const { return local_name_; }
 
   // Returns whether the element has no children at all except comments or
   // processing instructions.

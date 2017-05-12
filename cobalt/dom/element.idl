@@ -15,6 +15,7 @@
 // https://www.w3.org/TR/dom/#element
 
 interface Element : Node {
+  readonly attribute DOMString localName;
   readonly attribute DOMString tagName;
   attribute DOMString id;
   attribute DOMString className;
