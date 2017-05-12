@@ -177,6 +177,10 @@ const char kMaxCobaltCpuUsage[] = "max_cobalt_cpu_usage";
 // Specifies the maximum GPU usage of the cobalt.
 const char kMaxCobaltGpuUsage[] = "max_cobalt_gpu_usage";
 
+// Specifies the multiplier of video playback rate.  Set to a value greater than
+// 1.0 to play video faster.  Set to a value less than 1.0 to play video slower.
+const char kVideoPlaybackRateMultiplier[] = "video_playback_rate_multiplier";
+
 }  // namespace switches
 }  // namespace browser
 }  // namespace cobalt

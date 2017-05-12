@@ -35,6 +35,7 @@ HTMLElementContext::HTMLElementContext()
       remote_typeface_cache_(NULL),
       mesh_cache_(NULL),
       dom_stat_tracker_(NULL),
+      video_playback_rate_multiplier_(1.f),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
@@ -54,7 +55,7 @@ HTMLElementContext::HTMLElementContext(
         reduced_image_cache_capacity_manager,
     loader::font::RemoteTypefaceCache* remote_typeface_cache,
     loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
-    const std::string& language)
+    const std::string& language, float video_playback_rate_multiplier)
     : fetcher_factory_(fetcher_factory),
       css_parser_(css_parser),
       dom_parser_(dom_parser),
@@ -72,6 +73,7 @@ HTMLElementContext::HTMLElementContext(
       mesh_cache_(mesh_cache),
       dom_stat_tracker_(dom_stat_tracker),
       language_(language),
+      video_playback_rate_multiplier_(video_playback_rate_multiplier),
       sync_load_thread_("Synchronous Load"),
       html_element_factory_(new HTMLElementFactory()) {
   sync_load_thread_.Start();
