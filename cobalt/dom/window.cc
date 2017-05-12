@@ -97,7 +97,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
                system_window::SystemWindow* system_window,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
-               int csp_insecure_allowed_token, int dom_max_element_depth)
+               int csp_insecure_allowed_token, int dom_max_element_depth,
+               float video_playback_rate_multiplier)
     : width_(width),
       height_(height),
       html_element_context_(new HTMLElementContext(
@@ -105,7 +106,8 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           web_media_player_factory, script_runner, script_value_factory,
           media_source_registry, resource_provider, animated_image_tracker,
           image_cache, reduced_image_cache_capacity_manager,
-          remote_typeface_cache, mesh_cache, dom_stat_tracker, language)),
+          remote_typeface_cache, mesh_cache, dom_stat_tracker, language,
+          video_playback_rate_multiplier)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
