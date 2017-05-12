@@ -205,7 +205,7 @@ class ConcurrentAllocationMap {
  private:
   SB_DISALLOW_COPY_AND_ASSIGN(ConcurrentAllocationMap);
   // Takes a pointer and generates a hash.
-  static size_t hash_ptr(const void* ptr);
+  static uint32_t hash_ptr(const void* ptr);
 
   int ToIndex(const void* ptr) const;
   AtomicAllocationMap pointer_map_array_[kNumElements];
