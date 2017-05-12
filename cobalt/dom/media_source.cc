@@ -100,7 +100,7 @@ double MediaSource::duration(script::ExceptionState* exception_state) const {
 
 void MediaSource::set_duration(double duration,
                                script::ExceptionState* exception_state) {
-  if (duration < 0.0 || isnan(duration)) {
+  if (duration < 0.0 || std::isnan(duration)) {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }

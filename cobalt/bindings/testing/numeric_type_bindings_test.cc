@@ -81,7 +81,7 @@ bool IsNan(T number) {
 // warning C4800: 'int' : forcing value to bool 'true' or 'false'
 #pragma warning(disable:4800)
 #endif
-  return isnan(number);
+  return std::isnan(number);
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif
