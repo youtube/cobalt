@@ -200,7 +200,8 @@ void AtomicAllocationMap::Clear() {
        it != pointer_map_.end(); ++it) {
     const AllocationRecord& rec = it->second;
     AllocationGroup* group = rec.allocation_group;
-    group->AddAllocation(-rec.size);
+    const int64_t size = static_cast<int64_t>(rec.size);
+    group->AddAllocation(-size);
   }
   return pointer_map_.clear();
 }
@@ -260,9 +261,8 @@ bool ConcurrentAllocationMap::Accept(AllocationVisitor* visitor) const {
   return true;
 }
 
-size_t ConcurrentAllocationMap::hash_ptr(const void* ptr) {
+uint32_t ConcurrentAllocationMap::hash_ptr(const void* ptr) {
   uintptr_t val = reinterpret_cast<uintptr_t>(ptr);
-
   return RuntimeHash32(reinterpret_cast<const char*>(&val), sizeof(val));
 }
 
