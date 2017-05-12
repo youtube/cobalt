@@ -23,7 +23,7 @@ const char kSource[] = "01234567890123456789";
 
 void TestCopy(const char* source, bool is_short) {
   const int kDestinationOffset = 16;
-  int source_length = SbStringGetLength(source);
+  int source_length = static_cast<int>(SbStringGetLength(source));
   int destination_size = source_length + kDestinationOffset * 2;
   int destination_limit = source_length + 1;
   if (is_short) {

@@ -23,16 +23,18 @@ namespace nplb {
 namespace {
 
 TEST(SbFileSeekTest, InvalidFileErrors) {
-  int result = SbFileSeek(kSbFileInvalid, kSbFileFromBegin, 50);
+  int result =
+      static_cast<int>(SbFileSeek(kSbFileInvalid, kSbFileFromBegin, 50));
   EXPECT_EQ(-1, result);
 
-  result = SbFileSeek(kSbFileInvalid, kSbFileFromEnd, -50);
+  result = static_cast<int>(SbFileSeek(kSbFileInvalid, kSbFileFromEnd, -50));
   EXPECT_EQ(-1, result);
 
-  result = SbFileSeek(kSbFileInvalid, kSbFileFromCurrent, -50);
+  result =
+      static_cast<int>(SbFileSeek(kSbFileInvalid, kSbFileFromCurrent, -50));
   EXPECT_EQ(-1, result);
 
-  result = SbFileSeek(kSbFileInvalid, kSbFileFromCurrent, 50);
+  result = static_cast<int>(SbFileSeek(kSbFileInvalid, kSbFileFromCurrent, 50));
   EXPECT_EQ(-1, result);
 }
 

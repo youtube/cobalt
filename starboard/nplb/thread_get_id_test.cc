@@ -46,7 +46,7 @@ TEST(SbThreadGetIdTest, SunnyDayDifferentIds) {
   for (int i = 0; i < kThreads; ++i) {
     void* result = NULL;
     EXPECT_TRUE(SbThreadJoin(threads[i], &result));
-    SbThreadId id = nplb::FromVoid(result);
+    SbThreadId id = static_cast<SbThreadId>(nplb::FromVoid(result));
     EXPECT_NE(id, SbThreadGetId());
     thread_ids[i] = id;
   }
