@@ -21,9 +21,11 @@ import argparse
 import functools
 import logging
 import os
+import re
 import signal
 import sys
 import textwrap
+import time
 
 import pexpect
 
@@ -68,6 +70,9 @@ def RunTest(test_path, raspi_ip, flags):
   if not os.path.isfile(test_path):
     raise ValueError('test_path ({}) must be a file.'.format(test_path))
 
+  # This is used to strip ansi color codes from output.
+  sanitize_line_re = re.compile(r'\x1b[^m]*m')
+
   sys.stdout.write('Process launched, ID={}\n'.format(os.getpid()))
   sys.stdout.flush()
 
@@ -81,19 +86,19 @@ def RunTest(test_path, raspi_ip, flags):
   options = '-avzh --exclude obj*'
   source = test_dir_path
   destination = raspi_user_hostname + ':~/'
-  command = 'rsync ' + options + ' ' + source + ' ' + destination
-  process = pexpect.spawn(command, timeout=120)
+  rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
+  rsync_process = pexpect.spawn(rsync_command, timeout=120)
 
   signal.signal(signal.SIGINT,
-                functools.partial(_SigIntOrSigTermHandler, process))
+                functools.partial(_SigIntOrSigTermHandler, rsync_process))
   signal.signal(signal.SIGTERM,
-                functools.partial(_SigIntOrSigTermHandler, process))
+                functools.partial(_SigIntOrSigTermHandler, rsync_process))
 
-  process.expect(r'\S+ password:')
-  process.sendline(_RASPI_PASSWORD)
+  rsync_process.expect(r'\S+ password:')
+  rsync_process.sendline(_RASPI_PASSWORD)
 
   while True:
-    line = process.readline()
+    line = sanitize_line_re.sub('', rsync_process.readline())
     if line:
       sys.stdout.write(line)
       sys.stdout.flush()
@@ -101,21 +106,24 @@ def RunTest(test_path, raspi_ip, flags):
       break
 
   # ssh into the raspi and run the test
-  command = 'ssh ' + raspi_user_hostname
-  process = pexpect.spawn(command, timeout=120)
+  ssh_command = 'ssh ' + raspi_user_hostname
+  ssh_process = pexpect.spawn(ssh_command, timeout=120)
 
   signal.signal(signal.SIGINT,
-                functools.partial(_SigIntOrSigTermHandler, process))
+                functools.partial(_SigIntOrSigTermHandler, ssh_process))
   signal.signal(signal.SIGTERM,
-                functools.partial(_SigIntOrSigTermHandler, process))
+                functools.partial(_SigIntOrSigTermHandler, ssh_process))
 
-  process.expect(r'\S+ password:')
-  process.sendline(_RASPI_PASSWORD)
-  process.sendline(raspi_test_path + ' ' + flags)
+  ssh_process.expect(r'\S+ password:')
+  ssh_process.sendline(_RASPI_PASSWORD)
+
+  test_command = raspi_test_path + ' ' + flags
+  test_end_tag = 'END_TEST-{time}'.format(time=time.time())
+  ssh_process.sendline(test_command + '; echo ' + test_end_tag)
 
   while True:
-    line = process.readline()
-    if line:
+    line = sanitize_line_re.sub('', ssh_process.readline())
+    if line and not line.startswith(test_end_tag):
       sys.stdout.write(line)
       sys.stdout.flush()
     else:
