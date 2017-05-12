@@ -123,7 +123,7 @@ TEST_F(ElementTest, AsElement) {
   EXPECT_EQ(NULL, text->AsElement());
 }
 
-TEST_F(ElementTest, TagName) {
+TEST_F(ElementTest, TagNameAndLocalName) {
   scoped_refptr<Element> element_in_html =
       new Element(document_, base::Token("eLeMeNt"));
   EXPECT_EQ("ELEMENT", element_in_html->tag_name());
