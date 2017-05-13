@@ -15,6 +15,7 @@
 #include "base/third_party/nspr/prtime.h"
 
 #include "base/logging.h"
+#include "starboard/double.h"
 
 namespace base {
 
@@ -137,7 +138,7 @@ time_t Time::ToTimeT() const {
 
 // static
 Time Time::FromDoubleT(double dt) {
-  if (dt == 0 || std::isnan(dt))
+  if (dt == 0 || SbDoubleIsNan(dt))
     return Time();  // Preserve 0 so we can tell it doesn't exist.
   if (dt == std::numeric_limits<double>::max())
     return Max();
