@@ -39,6 +39,7 @@
 #include "cobalt/media/fetcher_buffered_data_source.h"
 #include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/script/script_value_factory.h"
+#include "starboard/double.h"
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_encrypted_event.h"
@@ -1411,7 +1412,7 @@ bool HTMLMediaElement::PotentiallyPlaying() const {
 
 bool HTMLMediaElement::EndedPlayback() const {
   float dur = duration();
-  if (!player_ || std::isnan(dur)) {
+  if (!player_ || SbDoubleIsNan(dur)) {
     return false;
   }
 
@@ -1529,7 +1530,8 @@ void HTMLMediaElement::TimeChanged() {
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
-  if (!std::isnan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0) {
+  if (!SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur &&
+      playback_rate_ > 0) {
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
