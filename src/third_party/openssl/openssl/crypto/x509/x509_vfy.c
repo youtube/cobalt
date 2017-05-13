@@ -2029,9 +2029,10 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
     ctx->current_reasons = 0;
     ctx->tree = NULL;
     ctx->parent = NULL;
+    /* Zero ex_data to make sure we're cleanup-safe */
+    OPENSSL_port_memset(&ctx->ex_data, 0, sizeof(ctx->ex_data));
 
     ctx->param = X509_VERIFY_PARAM_new();
-
     if (!ctx->param) {
         X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
         return 0;
@@ -2040,7 +2041,6 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
     /*
      * Inherit callbacks and flags from X509_STORE if not set use defaults.
      */
-
     if (store)
         ret = X509_VERIFY_PARAM_inherit(ctx->param, store->param);
     else
@@ -2048,6 +2048,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     if (store) {
         ctx->verify_cb = store->verify_cb;
+        /* Seems to always be 0 in OpenSSL, else must be idempotent */
         ctx->cleanup = store->cleanup;
     } else
         ctx->cleanup = 0;
@@ -2058,7 +2059,7 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     if (ret == 0) {
         X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
-        return 0;
+        goto err;
     }
 
     if (store && store->check_issued)
@@ -2113,19 +2114,18 @@ int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *store, X509 *x509,
 
     ctx->check_policy = check_policy;
 
+    if (CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE_CTX, ctx,
+                           &ctx->ex_data))
+        return 1;
+    X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
+
+ err:
     /*
-     * This OPENSSL_port_memset() can't make any sense anyway, so it's removed. As
-     * X509_STORE_CTX_cleanup does a proper "free" on the ex_data, we put a
-     * corresponding "new" here and remove this bogus initialisation.
+     * On error clean up allocated storage, if the store context was not
+     * allocated with X509_STORE_CTX_new() this is our last chance to do so.
      */
-    /* OPENSSL_port_memset(&(ctx->ex_data),0,sizeof(CRYPTO_EX_DATA)); */
-    if (!CRYPTO_new_ex_data(CRYPTO_EX_INDEX_X509_STORE_CTX, ctx,
-                            &(ctx->ex_data))) {
-        OPENSSL_free(ctx);
-        X509err(X509_F_X509_STORE_CTX_INIT, ERR_R_MALLOC_FAILURE);
-        return 0;
-    }
-    return 1;
+    X509_STORE_CTX_cleanup(ctx);
+    return 0;
 }
 
 /*
@@ -2141,8 +2141,17 @@ void X509_STORE_CTX_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk)
 
 void X509_STORE_CTX_cleanup(X509_STORE_CTX *ctx)
 {
-    if (ctx->cleanup)
+    /*
+     * We need to be idempotent because, unfortunately, free() also calls
+     * cleanup(), so the natural call sequence new(), init(), cleanup(), free()
+     * calls cleanup() for the same object twice!  Thus we must zero the
+     * pointers below after they're freed!
+     */
+    /* Seems to always be 0 in OpenSSL, do this at most once. */
+    if (ctx->cleanup != NULL) {
         ctx->cleanup(ctx);
+        ctx->cleanup = NULL;
+    }
     if (ctx->param != NULL) {
         if (ctx->parent == NULL)
             X509_VERIFY_PARAM_free(ctx->param);

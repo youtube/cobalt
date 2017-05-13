@@ -23,26 +23,6 @@
 
 namespace {
 
-bool SbEventToCbLibKeyInputEvent(
-    const SbEvent* starboard_event,
-    CbLibKeyInputEvent* out_key_input_event) {
-  if (starboard_event == NULL ||
-      starboard_event->type != SbEventType::kSbEventTypeInput) {
-    return false;
-  }
-  const SbInputData* input_data =
-      static_cast<SbInputData*>(starboard_event->data);
-  if (input_data->device_type !=
-      SbInputDeviceType::kSbInputDeviceTypeKeyboard) {
-    return false;
-  }
-  out_key_input_event->pressed =
-      input_data->type == SbInputEventType::kSbInputEventTypePress;
-  out_key_input_event->keycode =
-      static_cast<unsigned char>(input_data->character);
-  return true;
-}
-
 cobalt::browser::Application* g_application = NULL;
 
 void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
@@ -62,9 +42,7 @@ void StopApplication() {
 }
 
 void HandleEvent(const SbEvent* starboard_event) {
-  CbLibKeyInputEvent key;
-  if (!SbEventToCbLibKeyInputEvent(starboard_event, &key) ||
-      CbLibHandleEvent(key)) {
+  if (!CbLibHandleEvent(starboard_event)) {
     cobalt::browser::EventHandler::HandleEvent(starboard_event);
   }
 }

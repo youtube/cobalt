@@ -90,9 +90,8 @@ TEST(Semaphore, ThreadTakesWait_PutBeforeTimeExpires) {
   thread.Join();
 
   EXPECT_TRUE(thread.result_signaled_);
-  EXPECT_NEAR(thread.result_wait_time_,
-              wait_time / 2,
-              kSbTimeMillisecond * 10);  // Error threshold
+  EXPECT_NEAR(thread.result_wait_time_ * 1.0, wait_time * 0.5,
+              kSbTimeMillisecond * 10.0);  // Error threshold
 }
 
 double IsDoubleNear(double first, double second, double diff_threshold) {
@@ -120,7 +119,8 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
     thread.Join();
     EXPECT_FALSE(thread.result_signaled_);
 
-    if (IsDoubleNear(wait_time, thread.result_wait_time_, kTimeThreshold)) {
+    if (IsDoubleNear(1.0 * wait_time, 1.0 * thread.result_wait_time_,
+                     kTimeThreshold * 1.0)) {
       return;  // Test passed.
     }
   }

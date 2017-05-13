@@ -495,7 +495,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.window_close_callback, data.window_minimize_callback,
       data.system_window_, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
-      data.options.csp_insecure_allowed_token, data.dom_max_element_depth);
+      data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
+      data.options.video_playback_rate_multiplier);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -779,10 +780,12 @@ void WebModule::Impl::FinishSuspend() {
   debug_overlay_->ClearInput();
 #endif
 
-  // Finally purge the resource provider's caches and mark that we have no
-  // resource provider.
-  resource_provider_->PurgeCaches();
   resource_provider_ = NULL;
+
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
 }
 
 void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
@@ -850,7 +853,8 @@ WebModule::Options::Options()
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
-      animated_image_decode_thread_priority(base::kThreadPriority_Low) {}
+      animated_image_decode_thread_priority(base::kThreadPriority_Low),
+      video_playback_rate_multiplier(1.f) {}
 
 WebModule::WebModule(
     const GURL& initial_url,

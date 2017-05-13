@@ -20,6 +20,9 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+// Allow millisecond-level precision.
+const SbTime kPrecision = kSbTimeMillisecond;
+
 TEST(SbThreadSleepTest, SunnyDay) {
   SbThreadSleep(0);
   // Well, my work here is done.
@@ -30,13 +33,15 @@ TEST(SbThreadSleepTest, SunnyDay) {
 // the thread can wake up, something I completely sympathize with.
 TEST(SbThreadSleepTest, SunnyDayAtLeastDelay) {
   const int kTrials = 12;
+  const int64_t one = 1;
   for (int trial = 0; trial < kTrials; ++trial) {
     // This tests several delays, between about 15 to about 4 milliseconds.
-    const SbTime kDelay = kSbTimeSecond / (1 << ((trial % 3) + 6));
+    const SbTime kDelay = kSbTimeSecond / (one << ((trial % 3) + 6));
     SbTimeMonotonic start = SbTimeGetMonotonicNow();
     SbThreadSleep(kDelay);
-    EXPECT_LE(start + kDelay, SbTimeGetMonotonicNow()) << "Trial " << trial
-                                                       << ", kDelay=" << kDelay;
+    SbTimeMonotonic end = SbTimeGetMonotonicNow();
+    EXPECT_LE(start + kDelay, end + kPrecision) << "Trial " << trial
+                                                << ", kDelay=" << kDelay;
   }
 }
 

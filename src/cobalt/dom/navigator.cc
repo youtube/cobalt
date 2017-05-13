@@ -14,7 +14,12 @@
 
 #include "cobalt/dom/navigator.h"
 
+#include "cobalt/dom/dom_exception.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/eme/media_key_system_access.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/script/script_value_factory.h"
 
 using cobalt::media_session::MediaSession;
 
@@ -47,10 +52,75 @@ const scoped_refptr<PluginArray>& Navigator::plugins() const {
   return plugins_;
 }
 
-const scoped_refptr<cobalt::media_session::MediaSession>&
-Navigator::media_session() const {
+const scoped_refptr<media_session::MediaSession>& Navigator::media_session()
+    const {
   return media_session_;
 }
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+
+namespace {
+
+// TODO: Implement "3.1.1.1 Get Supported Configuration" using
+//       SbMediaCanPlayMimeAndKeySystem().
+//       https://www.w3.org/TR/encrypted-media/#get-supported-configuration
+bool MaybeGetSupportedConfiguration(
+    const std::string& /*key_system*/,
+    const eme::MediaKeySystemConfiguration& candidate_configuration,
+    eme::MediaKeySystemConfiguration* supported_configuration) {
+  *supported_configuration = candidate_configuration;
+  return true;
+}
+
+}  // namespace
+
+// See
+// https://www.w3.org/TR/encrypted-media/#dom-navigator-requestmediakeysystemaccess.
+scoped_ptr<Navigator::InterfacePromiseValue>
+Navigator::RequestMediaKeySystemAccess(
+    const std::string& key_system,
+    const script::Sequence<eme::MediaKeySystemConfiguration>&
+        supported_configurations) {
+  scoped_ptr<InterfacePromiseValue> promise =
+      script_value_factory_
+          ->CreateInterfacePromise<scoped_refptr<eme::MediaKeySystemAccess> >();
+  InterfacePromiseValue::StrongReference promise_reference(*promise);
+
+  // 1. If |keySystem| is the empty string, return a promise rejected
+  //    with a newly created TypeError.
+  // 2. If |supportedConfigurations| is empty, return a promise rejected
+  //    with a newly created TypeError.
+  if (key_system.empty() || supported_configurations.empty()) {
+    promise_reference.value().Reject(script::kTypeError);
+    return promise.Pass();
+  }
+
+  // 6.3. For each value in |supportedConfigurations|:
+  for (size_t configuration_index = 0;
+       configuration_index < supported_configurations.size();
+       ++configuration_index) {
+    // 6.3.3. If supported configuration is not NotSupported:
+    eme::MediaKeySystemConfiguration supported_configuration;
+    if (MaybeGetSupportedConfiguration(
+            key_system, supported_configurations.at(configuration_index),
+            &supported_configuration)) {
+      // 6.3.3.1. Let access be a new MediaKeySystemAccess object.
+      scoped_refptr<eme::MediaKeySystemAccess> media_key_system_access(
+          new eme::MediaKeySystemAccess(key_system, supported_configuration,
+                                        script_value_factory_));
+      // 6.3.3.2. Resolve promise.
+      promise_reference.value().Resolve(media_key_system_access);
+      return promise.Pass();
+    }
+  }
+
+  // 6.4. Reject promise with a NotSupportedError.
+  promise_reference.value().Reject(
+      new DOMException(DOMException::kNotSupportedErr));
+  return promise.Pass();
+}
+
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 }  // namespace dom
 }  // namespace cobalt

@@ -31,6 +31,7 @@
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/media/can_play_type_handler.h"
+#include "starboard/double.h"
 
 namespace cobalt {
 namespace dom {
@@ -100,7 +101,7 @@ double MediaSource::duration(script::ExceptionState* exception_state) const {
 
 void MediaSource::set_duration(double duration,
                                script::ExceptionState* exception_state) {
-  if (duration < 0.0 || isnan(duration)) {
+  if (duration < 0.0 || SbDoubleIsNan(duration)) {
     DOMException::Raise(DOMException::kInvalidAccessErr, exception_state);
     return;
   }

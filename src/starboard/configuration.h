@@ -60,6 +60,7 @@
 
 // Adds kSbSystemPropertyUserAgentAuxField to the SbSystemPropertyId
 // enum to allow platform-specific  User-Agent suffix.
+// NOLINTNEXTLINE(whitespace/line_length)
 #define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Introduce 'starboard/speech_recognizer.h'
@@ -67,6 +68,10 @@
 // speech recognizer feature.
 #define SB_SPEECH_RECOGNIZER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Introduce pointer (mouse) input support. This extends the SbInput interface
+// with some enum values and data members to allow mouse, wheel, and more
+// generic pointer input.
+#define SB_POINTER_INPUT_API_VERSION SB_EXPERIMENTAL_API_VERSION
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)

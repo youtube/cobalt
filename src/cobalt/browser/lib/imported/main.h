@@ -18,25 +18,19 @@
 #ifndef COBALT_BROWSER_LIB_IMPORTED_MAIN_H_
 #define COBALT_BROWSER_LIB_IMPORTED_MAIN_H_
 
+#include "starboard/event.h"
+#include "starboard/export.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-// Structure representing an input event and its data. This provides a subset
-// of SbEvent so that clients don't have to copy the Starboard headers into
-// their codebase.
-typedef struct CbLibKeyInputEvent {
-  unsigned char keycode;
-  bool pressed;
-} CbLibKeyInputEvent;
-
 // Invoked after Cobalt has been initialized.
-void CbLibOnCobaltInitialized();
+SB_IMPORT_PLATFORM void CbLibOnCobaltInitialized();
 
 // Invoked when Cobalt is receiving an event from Starboard.
-// Returns true if the event should pass through to Cobalt; returns false if
-// the event was consumed.
-bool CbLibHandleEvent(const CbLibKeyInputEvent& event);
+// Returns true if the client consumed |event|; false otherwise.
+SB_IMPORT_PLATFORM bool CbLibHandleEvent(const SbEvent* event);
 
 #ifdef __cplusplus
 }  // extern "C"

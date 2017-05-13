@@ -81,17 +81,20 @@ $for ARG
     switch (measurement_type_$(ARG)) {\
       case cobalt::trace_event::FLOW_DURATION: {\
         results.push_back(\
-            Result(std::string(event_name_$(ARG)) + " flow duration in seconds",\
+            Result(std::string(event_name_$(ARG)) +\
+                   " flow duration in seconds", \
                    event_$(ARG)_samples_));\
       } break;\
       case cobalt::trace_event::IN_SCOPE_DURATION: {\
         results.push_back(\
-            Result(std::string(event_name_$(ARG)) + " in-scope duration in seconds",\
+            Result(std::string(event_name_$(ARG)) +\
+                   " in-scope duration in seconds", \
                    event_$(ARG)_samples_));\
       } break;\
       case cobalt::trace_event::TIME_BETWEEN_EVENT_STARTS: {\
         results.push_back(\
-            Result(std::string(event_name_$(ARG)) + " time between event starts in seconds",\
+            Result(std::string(event_name_$(ARG)) +\
+                   " time between event starts in seconds", \
                    event_$(ARG)_samples_));\
       } break;\
     }\

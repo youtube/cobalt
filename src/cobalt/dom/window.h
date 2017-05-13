@@ -133,7 +133,8 @@ class Window : public EventTarget {
       system_window::SystemWindow* system_window,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
-      int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0);
+      int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
+      float video_playback_rate_multiplier = 1.f);
 
   // Web API: Window
   //

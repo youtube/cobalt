@@ -471,6 +471,17 @@ Application::Application(const base::Closure& quit_closure)
   }
 #endif  // !defined(COBALT_FORCE_HTTPS)
 
+  if (command_line->HasSwitch(switches::kVideoPlaybackRateMultiplier)) {
+    double playback_rate = 1.0;
+    base::StringToDouble(command_line->GetSwitchValueASCII(
+                             switches::kVideoPlaybackRateMultiplier),
+                         &playback_rate);
+    options.web_module_options.video_playback_rate_multiplier =
+        static_cast<float>(playback_rate);
+    DLOG(INFO) << "Set video playback rate multiplier to "
+               << options.web_module_options.video_playback_rate_multiplier;
+  }
+
   EnableUsingStubImageDecoderIfRequired();
 
   if (command_line->HasSwitch(browser::switches::kDisableWebmVp9)) {
@@ -496,6 +507,13 @@ Application::Application(const base::Closure& quit_closure)
         memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+  if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
+    LOG(ERROR) << "\n"
+               << "  *** Disabling the default navigation whitelist! ***\n"
+               << "  *** Do not run in this mode in production!      ***";
+    options.web_module_options.location_policy = "h5vcc-location-src *";
+  }
 
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),

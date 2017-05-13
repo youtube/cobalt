@@ -199,7 +199,7 @@ TEST(RWLock, RWLockStressTest) {
   ThreadRWLockStressTest::SharedData shared_data;
   std::vector<AbstractTestThread*> threads;
 
-  for (size_t i = 0; i < NUM_STRESS_THREADS; ++i) {
+  for (int i = 0; i < NUM_STRESS_THREADS; ++i) {
     int32_t start_value = i * kNumValuesEachThread;
     int32_t end_value = (i + 1) * kNumValuesEachThread;
     ThreadRWLockStressTest* thread =

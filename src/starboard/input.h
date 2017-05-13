@@ -33,9 +33,9 @@ extern "C" {
 // device type produces correspond to |SbInputEventType| values.
 typedef enum SbInputDeviceType {
   // Input from a gesture-detection mechanism. Examples include Kinect,
-  // Wiimotes, LG Magic Remotes, etc...
+  // Wiimotes, etc...
   //
-  // Produces |Move|, |Grab|, |Ungrab|, |Press| and |Unpress| events.
+  // Produces |Move|, |Press| and |Unpress| events.
   kSbInputDeviceTypeGesture,
 
   // Input from a gamepad, following the layout provided in the W3C Web Gamepad
@@ -49,12 +49,14 @@ typedef enum SbInputDeviceType {
   // Produces |Press| and |Unpress| events.
   kSbInputDeviceTypeKeyboard,
 
+#if SB_API_VERSION <= 4
   // Input from a microphone that would provide audio data to the caller, who
   // may then find some way to detect speech or other sounds within it. It may
   // have processed or filtered the audio in some way before it arrives.
   //
   // Produces |Audio| events.
   kSbInputDeviceTypeMicrophone,
+#endif
 
   // Input from a traditional mouse.
   //
@@ -66,12 +68,14 @@ typedef enum SbInputDeviceType {
   // Produces |Press| and |Unpress| events.
   kSbInputDeviceTypeRemote,
 
+#if SB_API_VERSION <= 4
   // Input from a speech command analyzer, which is some hardware or software
   // that, given a set of known phrases, activates when one of the registered
   // phrases is heard.
   //
   // Produces |Command| events.
   kSbInputDeviceTypeSpeechCommand,
+#endif
 
   // Input from a single- or multi-touchscreen.
   //
@@ -86,15 +90,15 @@ typedef enum SbInputDeviceType {
 
 // The action that an input event represents.
 typedef enum SbInputEventType {
+#if SB_API_VERSION <= 4
   // Receipt of Audio. Some audio data was received by the input microphone.
   kSbInputEventTypeAudio,
-
   // Receipt of a command. A command was received from some semantic source,
   // like a speech recognizer.
   kSbInputEventTypeCommand,
-
   // Grab activation. This event type is deprecated.
   kSbInputEventTypeGrab,
+#endif
 
   // Device Movement. In the case of |Mouse|, and perhaps |Gesture|, the
   // movement tracks an absolute cursor position. In the case of |TouchPad|,
@@ -108,12 +112,19 @@ typedef enum SbInputEventType {
   // Injecting repeat presses is up to the client.
   kSbInputEventTypePress,
 
+#if SB_API_VERSION <= 4
   // Grab deactivation. This event type is deprecated.
   kSbInputEventTypeUngrab,
+#endif
 
   // Key or button deactivation. The counterpart to the |Press| event, this
   // event is sent when the key or button being pressed is released.
   kSbInputEventTypeUnpress,
+
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  // Wheel movement. Provides relative movements of the |Mouse| wheel.
+  kSbInputEventTypeWheel,
+#endif
 } SbInputEventType;
 
 // A 2-dimensional vector used to represent points and motion vectors.
@@ -168,6 +179,29 @@ typedef struct SbInputData {
   // The relative motion vector of this input. The value is |0| if this data
   // is not applicable.
   SbInputVector delta;
+
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  // The normalized pressure of the pointer input in the range of
+  // [0,1], where 0 and 1 represent the minimum and maximum pressure
+  // the hardware is capable of detecting, respectively. Use NaN for
+  // devices that do not report pressure. This value is only used for input
+  // events with device type mouse or touch screen.
+  float pressure;
+
+  // The (width, height) of the contact geometry of the pointer.
+  // This defines the limits of the values reported for the pointer
+  // coordinates in the 'position' field. If (NaN, NaN) is specified,
+  // the width and height of the window will be used. This value is only used
+  // for input events with device type mouse or touch screen.
+  SbInputVector size;
+
+  // The (x, y) angle in degrees, in the range of [-90, 90] of the
+  // pointer, relative to the z axis. Positive values are for tilt
+  // to the right (x), and towards the user (y). Use (NaN, NaN) for
+  // devices that do not report tilt. This value is only used for input events
+  // with device type mouse or touch screen.
+  SbInputVector tilt;
+#endif
 } SbInputData;
 
 #ifdef __cplusplus

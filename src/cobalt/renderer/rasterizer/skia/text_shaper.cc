@@ -119,6 +119,11 @@ float TextShaper::GetTextWidth(const char16* text_buffer, size_t text_length,
                    NULL, NULL, maybe_used_fonts);
 }
 
+void TextShaper::PurgeCaches() {
+  base::AutoLock lock(shaping_mutex_);
+  harfbuzz_font_provider_.PurgeCaches();
+}
+
 float TextShaper::ShapeText(const char16* text_buffer, size_t text_length,
                             const std::string& language, bool is_rtl,
                             render_tree::FontProvider* font_provider,
@@ -285,7 +290,8 @@ void TextShaper::ShapeComplexRun(const char16* text_buffer,
                                  float* total_width) {
   TryAddFontToUsedFonts(script_run.font, maybe_used_fonts);
 
-  hb_font_t* harfbuzz_font = CreateHarfBuzzFont(script_run.font);
+  hb_font_t* harfbuzz_font =
+      harfbuzz_font_provider_.GetHarfBuzzFont(script_run.font);
 
   // Ensure that the local text buffer is large enough to hold the normalized
   // string.

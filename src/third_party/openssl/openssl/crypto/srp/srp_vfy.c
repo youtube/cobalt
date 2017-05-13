@@ -198,7 +198,7 @@ static void SRP_user_pwd_free(SRP_user_pwd *user_pwd)
 
 static SRP_user_pwd *SRP_user_pwd_new()
 {
-    SRP_user_pwd *ret = OPENSSL_malloc(sizeof(SRP_user_pwd));
+    SRP_user_pwd *ret = OPENSSL_port_malloc(sizeof(SRP_user_pwd));
     if (ret == NULL)
         return NULL;
     ret->N = NULL;
@@ -249,7 +249,7 @@ static int SRP_user_pwd_set_sv_BN(SRP_user_pwd *vinfo, BIGNUM *s, BIGNUM *v)
 
 SRP_VBASE *SRP_VBASE_new(char *seed_key)
 {
-    SRP_VBASE *vb = (SRP_VBASE *)OPENSSL_malloc(sizeof(SRP_VBASE));
+    SRP_VBASE *vb = (SRP_VBASE *)OPENSSL_port_malloc(sizeof(SRP_VBASE));
 
     if (vb == NULL)
         return NULL;
@@ -285,7 +285,7 @@ static SRP_gN_cache *SRP_gN_new_init(const char *ch)
     int len;
 
     SRP_gN_cache *newgN =
-        (SRP_gN_cache *)OPENSSL_malloc(sizeof(SRP_gN_cache));
+        (SRP_gN_cache *)OPENSSL_port_malloc(sizeof(SRP_gN_cache));
     if (newgN == NULL)
         return NULL;
 
@@ -391,7 +391,7 @@ int SRP_VBASE_init(SRP_VBASE *vb, char *verifier_file)
              * we add this couple in the internal Stack
              */
 
-            if ((gN = (SRP_gN *) OPENSSL_malloc(sizeof(SRP_gN))) == NULL)
+            if ((gN = (SRP_gN *) OPENSSL_port_malloc(sizeof(SRP_gN))) == NULL)
                 goto err;
 
             if (!(gN->id = BUF_strdup(pp[DB_srpid]))
@@ -521,12 +521,12 @@ char *SRP_create_verifier(const char *user, const char *pass, char **salt,
                           char **verifier, const char *N, const char *g)
 {
     int len;
-    char *result = NULL;
-    char *vf;
+    char *result = NULL, *vf = NULL;
     BIGNUM *N_bn = NULL, *g_bn = NULL, *s = NULL, *v = NULL;
     unsigned char tmp[MAX_LEN];
     unsigned char tmp2[MAX_LEN];
     char *defgNid = NULL;
+    int vfsize = 0;
 
     if ((user == NULL) ||
         (pass == NULL) || (salt == NULL) || (verifier == NULL))
@@ -564,22 +564,23 @@ char *SRP_create_verifier(const char *user, const char *pass, char **salt,
         goto err;
 
     BN_bn2bin(v, tmp);
-    if (((vf = OPENSSL_malloc(BN_num_bytes(v) * 2)) == NULL))
+    vfsize = BN_num_bytes(v) * 2;
+    if (((vf = OPENSSL_port_malloc(vfsize)) == NULL))
         goto err;
     t_tob64(vf, tmp, BN_num_bytes(v));
 
-    *verifier = vf;
     if (*salt == NULL) {
         char *tmp_salt;
 
-        if ((tmp_salt = OPENSSL_malloc(SRP_RANDOM_SALT_LEN * 2)) == NULL) {
-            OPENSSL_free(vf);
+        if ((tmp_salt = OPENSSL_port_malloc(SRP_RANDOM_SALT_LEN * 2)) == NULL) {
             goto err;
         }
         t_tob64(tmp_salt, tmp2, SRP_RANDOM_SALT_LEN);
         *salt = tmp_salt;
     }
 
+    *verifier = vf;
+    vf = NULL;
     result = defgNid;
 
  err:
@@ -587,11 +588,21 @@ char *SRP_create_verifier(const char *user, const char *pass, char **salt,
         BN_free(N_bn);
         BN_free(g_bn);
     }
+    OPENSSL_cleanse(vf, vfsize);
+    OPENSSL_free(vf);
+    BN_clear_free(s);
+    BN_clear_free(v);
     return result;
 }
 
 /*
- * create a verifier (*salt,*verifier,g and N are BIGNUMs)
+ * create a verifier (*salt,*verifier,g and N are BIGNUMs). If *salt != NULL
+ * then the provided salt will be used. On successful exit *verifier will point
+ * to a newly allocated BIGNUM containing the verifier and (if a salt was not
+ * provided) *salt will be populated with a newly allocated BIGNUM containing a
+ * random salt.
+ * The caller is responsible for freeing the allocated *salt and *verifier
+ * BIGNUMS.
  */
 int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
                            BIGNUM **verifier, BIGNUM *N, BIGNUM *g)
@@ -600,6 +611,7 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
     BIGNUM *x = NULL;
     BN_CTX *bn_ctx = BN_CTX_new();
     unsigned char tmp2[MAX_LEN];
+    BIGNUM *salttmp = NULL;
 
     if ((user == NULL) ||
         (pass == NULL) ||
@@ -614,10 +626,12 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
         if (RAND_pseudo_bytes(tmp2, SRP_RANDOM_SALT_LEN) < 0)
             goto err;
 
-        *salt = BN_bin2bn(tmp2, SRP_RANDOM_SALT_LEN, NULL);
+        salttmp = BN_bin2bn(tmp2, SRP_RANDOM_SALT_LEN, NULL);
+    } else {
+        salttmp = *salt;
     }
 
-    x = SRP_Calc_x(*salt, user, pass);
+    x = SRP_Calc_x(salttmp, user, pass);
 
     *verifier = BN_new();
     if (*verifier == NULL)
@@ -631,9 +645,11 @@ int SRP_create_verifier_BN(const char *user, const char *pass, BIGNUM **salt,
     srp_bn_print(*verifier);
 
     result = 1;
+    *salt = salttmp;
 
  err:
-
+    if (*salt != salttmp)
+        BN_clear_free(salttmp);
     BN_clear_free(x);
     BN_CTX_free(bn_ctx);
     return result;

@@ -24,8 +24,8 @@ const char kInitial[] = "ABCDEFGHIJ";
 
 void TestConcat(const char* initial, const char* source, bool is_short) {
   const int kDestinationOffset = 16;
-  int initial_length = SbStringGetLength(initial);
-  int source_length = SbStringGetLength(source);
+  int initial_length = static_cast<int>(SbStringGetLength(initial));
+  int source_length = static_cast<int>(SbStringGetLength(source));
   int destination_size =
       initial_length + source_length + kDestinationOffset * 2;
   int destination_limit = initial_length + source_length + 1;

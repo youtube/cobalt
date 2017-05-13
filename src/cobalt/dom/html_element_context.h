@@ -61,7 +61,7 @@ class HTMLElementContext {
           reduced_image_cache_capacity_manager,
       loader::font::RemoteTypefaceCache* remote_typeface_cache,
       loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
-      const std::string& language);
+      const std::string& language, float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
 
   loader::FetcherFactory* fetcher_factory() { return fetcher_factory_; }
@@ -107,6 +107,10 @@ class HTMLElementContext {
 
   const std::string& language() const { return language_; }
 
+  float video_playback_rate_multiplier() const {
+    return video_playback_rate_multiplier_;
+  }
+
   base::Thread* sync_load_thread() { return &sync_load_thread_; }
 
   HTMLElementFactory* html_element_factory() {
@@ -136,6 +140,7 @@ class HTMLElementContext {
   loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
   const std::string language_;
+  const float video_playback_rate_multiplier_;
 
   base::Thread sync_load_thread_;
   scoped_ptr<HTMLElementFactory> html_element_factory_;

@@ -76,6 +76,10 @@ generator_supports_multiple_toolsets = (
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
+microsoft_flavors = ['win', 'xb1', 'xb1-future']
+sony_flavors = ['ps3', 'ps4']
+windows_host_flavors = microsoft_flavors + sony_flavors
+
 def StripPrefix(arg, prefix):
   if arg.startswith(prefix):
     return arg[len(prefix):]
@@ -89,9 +93,9 @@ def QuoteShellArgument(arg, flavor):
   # whitelist common OK ones and quote anything else.
   if re.match(r'^[a-zA-Z0-9_=.\\/-]+$', arg):
     return arg  # No quoting necessary.
-  if flavor in ['win', 'xb1']:
+  if flavor in microsoft_flavors:
     return gyp.msvs_emulation.QuoteForRspFile(arg)
-  elif flavor in ['ps3', 'ps4'] :
+  elif flavor in sony_flavors :
     # Escape double quotes.
     return '"' + arg.replace('\"', '\\\"') + '"'
   return "'" + arg.replace("'", "'" + '"\'"' + "'")  + "'"
@@ -100,7 +104,7 @@ def QuoteShellArgument(arg, flavor):
 def Define(d, flavor):
   """Takes a preprocessor define and returns a -D parameter that's ninja- and
   shell-escaped."""
-  if flavor in ['win', 'xb1']:
+  if flavor in microsoft_flavors:
     # cl.exe replaces literal # characters with = in preprocesor definitions for
     # some reason. Octal-encode to work around that.
     d = d.replace('#', '\\%03o' % ord('#'))
@@ -183,7 +187,7 @@ class Target:
     # For bundles, the .TOC should be produced for the binary, not for
     # FinalOutput(). But the naive approach would put the TOC file into the
     # bundle, so don't do this for bundles for now.
-    if flavor in ['win', 'xb1', 'ps3', 'ps4'] or self.bundle:
+    if flavor in windows_host_flavors or self.bundle:
       return False
     return self.type in ('shared_library', 'loadable_module')
 
@@ -251,7 +255,7 @@ class NinjaWriter:
 
     self.abs_build_dir = abs_build_dir
     self.obj_ext = '.obj' if flavor == 'win' else '.o'
-    if flavor in ['win', 'ps3', 'xb1', 'ps4']:
+    if flavor in windows_host_flavors:
       # See docstring of msvs_emulation.GenerateEnvironmentFiles().
       self.win_env = {}
       for arch in ('x86', 'x64'):
@@ -322,7 +326,7 @@ class NinjaWriter:
     if env:
       if self.flavor == 'mac':
         path = gyp.xcode_emulation.ExpandEnvVars(path, env)
-      elif self.flavor in ['win', 'xb1']:
+      elif self.flavor in microsoft_flavors:
         path = gyp.msvs_emulation.ExpandMacros(path, env)
     if path.startswith('$!'):
       expanded = self.ExpandSpecial(path)
@@ -411,7 +415,7 @@ class NinjaWriter:
     self.xcode_settings = self.msvs_settings = None
     if self.flavor == 'mac':
       self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
-    if (self.flavor in ['win', 'ps3', 'xb1', 'ps4']
+    if (self.flavor in windows_host_flavors
         and is_windows):
       self.msvs_settings = gyp.msvs_emulation.MsvsSettings(spec,
                                                            generator_flags)
@@ -461,7 +465,7 @@ class NinjaWriter:
     sources = spec.get('sources', []) + extra_sources
     if sources:
       pch = None
-      if self.flavor in ['win', 'xb1']:
+      if self.flavor in microsoft_flavors:
         gyp.msvs_emulation.VerifyMissingSources(
             sources, self.abs_build_dir, generator_flags, self.GypPathToNinja)
         pch = gyp.msvs_emulation.PrecompiledHeader(
@@ -477,7 +481,7 @@ class NinjaWriter:
       link_deps += [self.GypPathToNinja(f)
           for f in sources if f.endswith(self.obj_ext)]
 
-    if self.flavor in ['win', 'xb1'] and self.target.type == 'static_library':
+    if self.flavor in microsoft_flavors and self.target.type == 'static_library':
       self.target.component_objs = link_deps
 
     # Write out a link step, if needed.
@@ -524,7 +528,7 @@ class NinjaWriter:
 
   def WriteWinIdlFiles(self, spec, prebuild):
     """Writes rules to match MSVS's implicit idl handling."""
-    assert self.flavor in ('win', 'xb1')
+    assert self.flavor in microsoft_flavors
     if self.msvs_settings.HasExplicitIdlRules(spec):
       return []
     outputs = []
@@ -573,7 +577,7 @@ class NinjaWriter:
       return '%s %s: %s' % (verb, self.name, fallback)
 
   def IsCygwinRule(self, action):
-    if self.flavor in ['ps3', 'ps4']:
+    if self.flavor in sony_flavors:
       return str(action.get('msvs_cygwin_shell', 1)) != '0'
     return False
 
@@ -806,7 +810,7 @@ class NinjaWriter:
                     self.xcode_settings.GetCflagsObjC(config_name)
       cflags_objcc = ['$cflags_cc'] + \
                      self.xcode_settings.GetCflagsObjCC(config_name)
-    elif self.flavor in ['win', 'xb1']:
+    elif self.flavor in microsoft_flavors:
       cflags = self.msvs_settings.GetCflags(config_name)
       cflags_c = self.msvs_settings.GetCflagsC(config_name)
       cflags_cc = self.msvs_settings.GetCflagsCC(config_name)
@@ -829,7 +833,7 @@ class NinjaWriter:
 
     defines = config.get('defines', []) + extra_defines
     self.WriteVariableList('defines', [Define(d, self.flavor) for d in defines])
-    if self.flavor in ['win', 'xb1']:
+    if self.flavor in microsoft_flavors:
       self.WriteVariableList('rcflags',
           [QuoteShellArgument(self.ExpandSpecial(f), self.flavor)
            for f in self.msvs_settings.GetRcflags(config_name,
@@ -838,7 +842,7 @@ class NinjaWriter:
     include_dirs = config.get('include_dirs', [])
     include_dirs += config.get('include_dirs_' + self.toolset, [])
 
-    if self.flavor in ['win', 'xb1']:
+    if self.flavor in microsoft_flavors:
       include_dirs = self.msvs_settings.AdjustIncludeDirs(include_dirs,
                                                           config_name)
       self.WriteVariableList('includes',
@@ -897,7 +901,7 @@ class NinjaWriter:
         command = 'objc'
       elif self.flavor == 'mac' and ext == 'mm':
         command = 'objcxx'
-      elif self.flavor in ['win', 'xb1'] and ext == 'rc':
+      elif self.flavor in microsoft_flavors and ext == 'rc':
         command = 'rc'
         obj_ext = '.res'
       else:
@@ -910,7 +914,7 @@ class NinjaWriter:
       output = self.GypPathToUniqueOutput(filename + obj_ext)
       implicit = precompiled_header.GetObjDependencies([input], [output])
       variables = []
-      if self.flavor in ['win', 'xb1']:
+      if self.flavor in microsoft_flavors:
         variables, output, implicit = precompiled_header.GetFlagsModifications(
             input, output, implicit, command, cflags_c, cflags_cc,
             self.ExpandSpecial)
@@ -966,10 +970,10 @@ class NinjaWriter:
           continue
         linkable = target.Linkable()
         if linkable:
-          if (self.flavor in ['win', 'xb1'] and target.component_objs and
+          if (self.flavor in microsoft_flavors and target.component_objs and
               self.msvs_settings.IsUseLibraryDependencyInputs(config_name)):
             extra_link_deps.extend(target.component_objs)
-          elif (self.flavor in ['win', 'xb1', 'ps3'] and
+          elif (self.flavor in (microsoft_flavors + ['ps3']) and
                 target.import_lib):
             extra_link_deps.append(target.import_lib)
           elif target.UsesToc(self.flavor):
@@ -1000,7 +1004,7 @@ class NinjaWriter:
       ldflags = self.xcode_settings.GetLdflags(config_name,
           self.ExpandSpecial(generator_default_variables['PRODUCT_DIR']),
           self.GypPathToNinja)
-    elif self.flavor in ['win', 'xb1']:
+    elif self.flavor in microsoft_flavors:
       libflags = self.msvs_settings.GetLibFlags(config_name,
                                                 self.GypPathToNinja)
       self.WriteVariableList(
@@ -1034,7 +1038,7 @@ class NinjaWriter:
 
     if self.flavor == 'mac':
       libraries = self.xcode_settings.AdjustLibraries(libraries)
-    elif self.flavor in ['win', 'xb1']:
+    elif self.flavor in microsoft_flavors:
       libraries = self.msvs_settings.AdjustLibraries(libraries)
     self.WriteVariableList('libs', libraries)
 
@@ -1044,7 +1048,7 @@ class NinjaWriter:
       extra_bindings.append(('soname', os.path.split(output)[1]))
       extra_bindings.append(('lib',
                             gyp.common.EncodePOSIXShellArgument(output)))
-      if self.flavor in ['win', 'xb1']:
+      if self.flavor in microsoft_flavors:
         extra_bindings.append(('dll', output))
         if '/NOENTRY' not in ldflags:
           self.target.import_lib = output + '.lib'
@@ -1110,7 +1114,7 @@ class NinjaWriter:
     elif spec['type'] == 'static_library':
       self.target.binary = self.ComputeOutput(spec)
       variables = []
-      if self.flavor in ('win', 'xb1'):
+      if self.flavor in microsoft_flavors:
         libflags = self.msvs_settings.GetLibFlags(config_name,
                                                   self.GypPathToNinja)
         variables.append(('libflags', ' '.join(libflags)))
@@ -1121,7 +1125,7 @@ class NinjaWriter:
       if self.xcode_settings:
         variables.append(('libtool_flags',
                           self.xcode_settings.GetLibtoolflags(config_name)))
-      if (self.flavor not in ('mac', 'win', 'xb1') and not
+      if (self.flavor not in (['mac'] + microsoft_flavors) and not
           self.is_standalone_static_library):
         command = 'alink_thin'
       else:
@@ -1373,7 +1377,7 @@ class NinjaWriter:
     rspfile = None
     rspfile_content = None
     args = [self.ExpandSpecial(arg, self.base_to_build) for arg in args]
-    if (self.flavor in ['win', 'ps3', 'xb1', 'ps4']
+    if (self.flavor in windows_host_flavors
         and is_windows):
       rspfile = rule_name + '.$unique_name.rsp'
       # The cygwin case handles this inside the bash sub-shell.
@@ -1424,7 +1428,7 @@ def CalculateVariables(default_variables, params):
     global generator_extra_sources_for_rules
     generator_extra_sources_for_rules = getattr(xcode_generator,
         'generator_extra_sources_for_rules', [])
-  elif flavor in ['win', 'xb1']:
+  elif flavor in microsoft_flavors:
     default_variables.setdefault('OS', 'win')
     default_variables['EXECUTABLE_SUFFIX'] = '.exe'
     default_variables['STATIC_LIB_PREFIX'] = ''
@@ -1600,14 +1604,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   # - If there is no 'make_global_settings' for CC.host/CXX.host or
   #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
   #   to cc/cxx.
-  if (flavor == 'win' or (flavor in ['ps3', 'ps4'] and is_windows)):
+  if (flavor == 'win' or (flavor in sony_flavors and is_windows)):
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
     gyp.msvs_emulation.GenerateEnvironmentFiles(
         toplevel_build, generator_flags, OpenOutput)
     ld_host = '$ld'
-  elif flavor == 'xb1':
+  elif flavor in ['xb1', 'xb1-future']:
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
@@ -1665,14 +1669,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     python_exec = sys.executable
 
   ar_flags = ''
-  if flavor in ['win', 'xb1']:
+  if flavor in microsoft_flavors:
     master_ninja.variable('ld', ld)
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
     master_ninja.variable('rc', 'rc.exe')
     master_ninja.variable('asm', 'ml.exe')
     master_ninja.variable('mt', 'mt.exe')
     master_ninja.variable('use_dep_database', '1')
-  elif flavor in ['ps3', 'ps4']:
+  elif flavor in sony_flavors:
     # Require LD to be set.
     master_ninja.variable('ld', os.environ.get('LD'))
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
@@ -1728,8 +1732,8 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   master_ninja.pool('link_pool', depth=GetDefaultConcurrentLinks())
   master_ninja.newline()
 
-  if flavor not in ['win', 'xb1']:
-    if flavor in ['ps3', 'ps4'] :
+  if flavor not in microsoft_flavors:
+    if flavor in sony_flavors :
       # uca := Unnamed Console A
       dep_format = 'snc' if (flavor in ['ps3']) else 'uca'
       master_ninja.rule(
@@ -1809,14 +1813,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                '$arch $asm $defines $includes /c /Fo $out $in' %
                python_exec))
 
-  if flavor not in ['mac', 'win', 'xb1']:
+  if flavor not in (['mac'] + microsoft_flavors):
     alink_command = 'rm -f $out && $ar $arFlags $out @$out.rsp'
     # TODO: Use rcsT on Linux only.
     alink_thin_command = 'rm -f $out && $ar $arThinFlags $out @$out.rsp'
 
     ld_cmd = '$ld'
 
-    if flavor in ['ps3', 'ps4'] and is_windows:
+    if flavor in sony_flavors and is_windows:
       alink_command = 'cmd.exe /c ' + alink_command
       alink_thin_command = 'cmd.exe /c ' + alink_thin_command
       ld_cmd = '%s gyp-win-tool link-wrapper $arch $ld' % python_exec
@@ -1889,7 +1893,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
         command=(mtime_preserving_solink_base % {
             'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'}))
 
-    if flavor in ['ps3', 'ps4']:
+    if flavor in sony_flavors:
       # PS3 and PS4 linkers don't know about rpath.
       rpath = ''
     else:
@@ -1903,7 +1907,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       rspfile_content=('$ldflags -o $out %s -Wl,--start-group $in $solibs '
                        '-Wl,--end-group $libs' % rpath),
       pool='link_pool')
-  elif flavor in ['win', 'xb1']:
+  elif flavor in microsoft_flavors:
     master_ninja.rule(
         'alink',
         description='LIB $out',
@@ -1916,7 +1920,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     dllcmd = ('%s gyp-win-tool link-wrapper $arch '
               '$ld /nologo $implibflag /DLL /OUT:$dll '
               '/PDB:$dll.pdb @$dll.rsp' % python_exec)
-    if flavor != 'xb1':
+    if not flavor in ['xb1', 'xb1-future']:
       # XB1 doesn't need a manifest.
       dllcmd += (' && %s gyp-win-tool manifest-wrapper $arch '
                  '$mt -nologo -manifest $manifests -out:$dll.manifest' %
@@ -1938,7 +1942,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                    '$mt -nologo -manifest $manifests -out:$out.manifest' %
                    (python_exec, python_exec))
     else:
-      assert flavor == 'xb1'
+      assert flavor in ['xb1', 'xb1-future']
       # XB1 doesn't need a manifest.
       link_command=('%s gyp-win-tool link-wrapper $arch '
                    '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
@@ -2027,7 +2031,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       description='PACKAGE FRAMEWORK $out, POSTBUILDS',
       command='./gyp-mac-tool package-framework $out $version$postbuilds '
               '&& touch $out')
-  if flavor in ['win', 'xb1']:
+  if flavor in microsoft_flavors:
     master_ninja.rule(
       'stamp',
       description='STAMP $out',
@@ -2256,7 +2260,7 @@ def CallGenerateOutputForConfig(arglist):
 
 def GenerateOutput(target_list, target_dicts, data, params):
   user_config = params.get('generator_flags', {}).get('config', None)
-  if gyp.common.GetFlavor(params) in ['win', 'xb1']:
+  if gyp.common.GetFlavor(params) in microsoft_flavors:
     target_list, target_dicts = MSVSUtil.ShardTargets(target_list, target_dicts)
   if user_config:
     GenerateOutputForConfig(target_list, target_dicts, data, params,

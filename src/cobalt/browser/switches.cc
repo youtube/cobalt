@@ -112,6 +112,10 @@ const char kMemoryTracker[] = "memory_tracker";
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+// Disables the hard-coded navigation whitelist without disabling any other
+// security checks. This is enabled in Gold builds.
+const char kDisableNavigationWhitelist[] = "disable_navigation_whitelist";
+
 // Determines the capacity of the image cache which manages image surfaces
 // downloaded from a web page.  While it depends on the platform, often (and
 // ideally) these images are cached within GPU memory.
@@ -172,6 +176,10 @@ const char kMaxCobaltCpuUsage[] = "max_cobalt_cpu_usage";
 
 // Specifies the maximum GPU usage of the cobalt.
 const char kMaxCobaltGpuUsage[] = "max_cobalt_gpu_usage";
+
+// Specifies the multiplier of video playback rate.  Set to a value greater than
+// 1.0 to play video faster.  Set to a value less than 1.0 to play video slower.
+const char kVideoPlaybackRateMultiplier[] = "video_playback_rate_multiplier";
 
 }  // namespace switches
 }  // namespace browser

@@ -181,6 +181,9 @@ class FontCache {
   // the map.
   void SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map);
 
+  // Purge all caches within the font cache.
+  void PurgeCachedResources();
+
   // Process unused font lists and fonts, potentially purging them from the
   // cache if they meet the removal requirements.
   void ProcessInactiveFontListsAndFonts();

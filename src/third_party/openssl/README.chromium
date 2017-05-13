@@ -1,6 +1,6 @@
 Name: openssl
 URL: http://openssl.org/source/
-Version: 1.0.1p
+Version: 1.0.1r
 License: BSDish
 License File: openssl/LICENSE
 License Android Compatible: yes
