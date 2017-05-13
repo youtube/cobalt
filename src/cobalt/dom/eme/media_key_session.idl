@@ -12,18 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediakeysession-interface
+// https://www.w3.org/TR/encrypted-media/#mediakeysession-interface
 
 interface MediaKeySession : EventTarget {
   readonly attribute DOMString sessionId;
-  readonly attribute unrestricted double expiration;
+  // TODO: Implement |expiration|.
+  // readonly attribute unrestricted double expiration;
   readonly attribute Promise<void> closed;
-  readonly attribute MediaKeyStatusMap keyStatuses;
-  attribute EventHandler onkeystatuseschange;
+  // TODO: Implement |keyStatuses|.
+  // readonly attribute MediaKeyStatusMap keyStatuses;
+  // TODO: Implement |onkeystatuseschange|.
+  // attribute EventHandler onkeystatuseschange;
   attribute EventHandler onmessage;
-  Promise<void> generateRequest(DOMString initDataType, BufferSource initData);
-  Promise<boolean> load(DOMString sessionId);
+  Promise<void> generateRequest(DOMString initDataType,
+                                BufferSource initData);
+  // TODO: Trivially implement persistent sessions.
+  // Promise<boolean> load(DOMString sessionId);
   Promise<void> update(BufferSource response);
   Promise<void> close();
-  Promise<void> remove();
+  // TODO: Implement |remove|.
+  // Promise<void> remove();
 };

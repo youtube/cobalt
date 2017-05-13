@@ -17,6 +17,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
 #include "cobalt/bindings/testing/numeric_types_test_interface.h"
+#include "starboard/double.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -81,7 +82,7 @@ bool IsNan(T number) {
 // warning C4800: 'int' : forcing value to bool 'true' or 'false'
 #pragma warning(disable:4800)
 #endif
-  return isnan(number);
+  return SbDoubleIsNan(number);
 #if defined(_MSC_VER)
 #pragma warning(pop)
 #endif

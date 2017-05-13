@@ -12,14 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediakeystatusmap-interface
+// https://www.w3.org/TR/encrypted-media/#navigator-extension-requestmediakeysystemaccess
 
-enum MediaKeyStatus {
-    "usable",
-    "expired",
-    "released",
-    "output-restricted",
-    "output-downscaled",
-    "status-pending",
-    "internal-error"
+partial interface Navigator {
+  Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
+      DOMString keySystem,
+      sequence<MediaKeySystemConfiguration> supportedConfigurations);
 };

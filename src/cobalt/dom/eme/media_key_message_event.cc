@@ -12,16 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediakeysystemaccess-interface
+#include "cobalt/dom/eme/media_key_message_event.h"
 
-enum MediaKeysRequirement {
-  "required",
-  "optional",
-  "not-allowed"
-};
+#include "cobalt/base/tokens.h"
+#include "cobalt/dom/eme/media_key_message_type.h"
 
-interface MediaKeySystemAccess {
-  readonly attribute DOMString keySystem;
-  MediaKeySystemConfiguration getConfiguration();
-  Promise<MediaKeys> createMediaKeys();
-};
+namespace cobalt {
+namespace dom {
+namespace eme {
+
+// See step 2 in https://www.w3.org/TR/encrypted-media/#queue-message.
+MediaKeyMessageEvent::MediaKeyMessageEvent(
+    const std::string& type, const MediaKeyMessageEventInit& event_init_dict)
+    : Event(base::Token(type), kNotBubbles, kNotCancelable),
+      message_type_(event_init_dict.message_type()),
+      message_(event_init_dict.message()) {}
+
+}  // namespace eme
+}  // namespace dom
+}  // namespace cobalt

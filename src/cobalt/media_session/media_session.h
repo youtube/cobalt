@@ -48,6 +48,7 @@ class MediaSession : public script::Wrappable {
 
  public:
   explicit MediaSession(MediaSessionClient* client);
+  ~MediaSession() OVERRIDE;
 
   scoped_refptr<MediaMetadata> metadata() const { return metadata_; }
 

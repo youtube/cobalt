@@ -118,33 +118,9 @@ static BIO_METHOD methods_filep = {
     NULL,
 };
 
-BIO *BIO_new_file(const char *filename, const char *mode)
+#  if !defined(OPENSSL_SYS_STARBOARD)
+static FILE *file_fopen(const char *filename, const char *mode)
 {
-    BIO *ret = NULL;
-#  if defined(OPENSSL_SYS_STARBOARD)
-    SbFile sb_file = kSbFileInvalid;
-    SbFileError error = kSbFileOk;
-    sb_file = SbFileOpen(filename, SbFileModeStringToFlags(mode), NULL, &error);
-    if (!SbFileIsValid(sb_file)) {
-        SYSerr(SYS_F_FOPEN, error);
-        ERR_add_error_data(5, "SbFileOpen('", filename, "','", mode, "')");
-        if (error == kSbFileErrorNotFound) {
-            BIOerr(BIO_F_BIO_NEW_FILE, BIO_R_NO_SUCH_FILE);
-        } else {
-            BIOerr(BIO_F_BIO_NEW_FILE, ERR_R_SYS_LIB);
-        }
-
-        return (NULL);
-    }
-    ret = BIO_new(BIO_s_file());
-    if (ret == NULL) {
-        SbFileClose(sb_file);
-        return (NULL);
-    }
-
-    BIO_clear_flags(ret, BIO_FLAGS_UPLINK);
-    BIO_set_fp(ret, sb_file, BIO_CLOSE);
-#  else  // defined(OPENSSL_SYS_STARBOARD)
     FILE *file = NULL;
 
 #   if defined(_WIN32) && defined(CP_UTF8)
@@ -191,6 +167,40 @@ BIO *BIO_new_file(const char *filename, const char *mode)
 #   else
     file = fopen(filename, mode);
 #   endif
+    return (file);
+}
+
+#endif  // defined(OPENSSL_SYS_STARBOARD)
+
+BIO *BIO_new_file(const char *filename, const char *mode)
+{
+    BIO *ret = NULL;
+#  if defined(OPENSSL_SYS_STARBOARD)
+    SbFile sb_file = kSbFileInvalid;
+    SbFileError error = kSbFileOk;
+    sb_file = SbFileOpen(filename, SbFileModeStringToFlags(mode), NULL, &error);
+    if (!SbFileIsValid(sb_file)) {
+        SYSerr(SYS_F_FOPEN, error);
+        ERR_add_error_data(5, "SbFileOpen('", filename, "','", mode, "')");
+        if (error == kSbFileErrorNotFound) {
+            BIOerr(BIO_F_BIO_NEW_FILE, BIO_R_NO_SUCH_FILE);
+        } else {
+            BIOerr(BIO_F_BIO_NEW_FILE, ERR_R_SYS_LIB);
+        }
+
+        return (NULL);
+    }
+    ret = BIO_new(BIO_s_file());
+    if (ret == NULL) {
+        SbFileClose(sb_file);
+        return (NULL);
+    }
+
+    BIO_clear_flags(ret, BIO_FLAGS_UPLINK);
+    BIO_set_fp(ret, sb_file, BIO_CLOSE);
+#  else  // defined(OPENSSL_SYS_STARBOARD)
+    FILE *file = file_fopen(filename, mode);
+
     if (file == NULL) {
         SYSerr(SYS_F_FOPEN, get_last_sys_error());
         ERR_add_error_data(5, "fopen('", filename, "','", mode, "')");

@@ -18,9 +18,14 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#if defined(COBALT_MEDIA_SOURCE_2016)
+#include "cobalt/dom/eme/media_key_system_configuration.h"
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/mime_type_array.h"
 #include "cobalt/dom/plugin_array.h"
 #include "cobalt/media_session/media_session.h"
+#include "cobalt/script/promise.h"
+#include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -33,7 +38,8 @@ namespace dom {
 class Navigator : public script::Wrappable {
  public:
   Navigator(const std::string& user_agent, const std::string& language,
-            scoped_refptr<cobalt::media_session::MediaSession> media_session);
+            scoped_refptr<cobalt::media_session::MediaSession> media_session,
+            script::ScriptValueFactory* script_value_factory);
 
   // Web API: NavigatorID
   const std::string& user_agent() const;
@@ -52,6 +58,16 @@ class Navigator : public script::Wrappable {
   const scoped_refptr<cobalt::media_session::MediaSession>& media_session()
       const;
 
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  // Web API: extension defined in Encrypted Media Extensions (16 March 2017).
+  typedef script::ScriptValue<script::Promise<
+      scoped_refptr<script::Wrappable> > > InterfacePromiseValue;
+  scoped_ptr<InterfacePromiseValue> RequestMediaKeySystemAccess(
+      const std::string& key_system,
+      const script::Sequence<eme::MediaKeySystemConfiguration>&
+          supported_configurations);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
   DEFINE_WRAPPABLE_TYPE(Navigator);
 
  private:
@@ -62,6 +78,7 @@ class Navigator : public script::Wrappable {
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
   scoped_refptr<cobalt::media_session::MediaSession> media_session_;
+  script::ScriptValueFactory* script_value_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
 };

@@ -12,10 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#navigator-extension-requestmediakeysystemaccess
+#ifndef COBALT_DOM_BUFFER_SOURCE_H_
+#define COBALT_DOM_BUFFER_SOURCE_H_
 
-partial interface Navigator {
-    Promise<MediaKeySystemAccess> requestMediaKeySystemAccess(
-        DOMString keySystem,
-        sequence<MediaKeySystemConfiguration> supportedConfigurations);
-};
+#include "cobalt/script/union_type.h"
+
+namespace cobalt {
+namespace dom {
+
+class ArrayBuffer;
+class ArrayBufferView;
+
+typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
+                           scoped_refptr<ArrayBuffer> > BufferSource;
+
+}  // namespace dom
+}  // namespace cobalt
+
+#endif  // COBALT_DOM_BUFFER_SOURCE_H_

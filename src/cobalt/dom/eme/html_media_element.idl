@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediakeysystemmediacapability-dictionary
+// https://www.w3.org/TR/encrypted-media/#htmlmediaelement-extensions
 
-dictionary MediaKeySystemMediaCapability {
-  DOMString contentType = "";
-  DOMString robustness = "";
+partial interface HTMLMediaElement {
+  readonly attribute MediaKeys? mediaKeys;
+  attribute EventHandler onencrypted;
+  // TODO: Implement the event handler for the waitingforkey event.
+  // attribute EventHandler onwaitingforkey;
+  Promise<void> setMediaKeys(MediaKeys? mediaKeys);
 };

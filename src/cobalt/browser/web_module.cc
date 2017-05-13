@@ -484,7 +484,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(), data.media_module,
       data.media_module, execution_state_.get(), script_runner_.get(),
-      media_source_registry_.get(),
+      global_environment_->script_value_factory(), media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
@@ -781,10 +781,12 @@ void WebModule::Impl::FinishSuspend() {
   debug_overlay_->ClearInput();
 #endif
 
-  // Finally purge the resource provider's caches and mark that we have no
-  // resource provider.
-  resource_provider_->PurgeCaches();
   resource_provider_ = NULL;
+
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
 }
 
 void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {

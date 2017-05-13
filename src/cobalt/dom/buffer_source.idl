@@ -12,15 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#mediaencryptedevent
+// https://www.w3.org/TR/WebIDL-1/#common-BufferSource
 
-dictionary MediaEncryptedEventInit : EventInit {
-  DOMString initDataType = "";
-  ArrayBuffer? initData = null;
-};
-
-[Constructor(DOMString type, optional MediaEncryptedEventInit eventInitDict)]
-interface MediaEncryptedEvent : Event {
-  readonly attribute DOMString initDataType;
-  readonly attribute ArrayBuffer? initData;
-};
+typedef (ArrayBufferView or ArrayBuffer) BufferSource;

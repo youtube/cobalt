@@ -209,6 +209,7 @@ CERT *ssl_cert_dup(CERT *cert)
 
     OPENSSL_port_memset(ret, 0, sizeof(CERT));
 
+    ret->references = 1;
     ret->key = &ret->pkeys[cert->key - &cert->pkeys[0]];
     /*
      * or ret->key = ret->pkeys + (cert->key - cert->pkeys), if you find that
@@ -285,7 +286,6 @@ CERT *ssl_cert_dup(CERT *cert)
      * chain is held inside SSL_CTX
      */
 
-    ret->references = 1;
     /*
      * Set digests to defaults. NB: we don't copy existing values as they
      * will be set during handshake.

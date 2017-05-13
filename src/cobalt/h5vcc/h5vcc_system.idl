@@ -19,4 +19,21 @@ interface H5vccSystem {
   readonly attribute DOMString region;
   readonly attribute DOMString version;
   boolean triggerHelp();
+
+  // enum UserOnExitStrategy
+  //
+  // When a user requests to leave the application, window.close() should be
+  // called.
+  const unsigned long USER_ON_EXIT_STRATEGY_CLOSE = 0;
+  // When a user requests to leave the application, window.minimize() should be
+  // called.
+  const unsigned long USER_ON_EXIT_STRATEGY_MINIMIZE = 1;
+  // The user should not be allowed to initiate an application exit request.
+  const unsigned long USER_ON_EXIT_STRATEGY_NO_EXIT = 2;
+
+  // This variable defines what Cobalt's preferred strategy should be for
+  // handling internally triggered application exit requests (e.g. the user
+  // chooses to back out of the application).  See the comments in the
+  // enum above for more information about possible values.
+  readonly attribute unsigned long userOnExitStrategy;
 };

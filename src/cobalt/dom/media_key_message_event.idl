@@ -12,20 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/*
-enum MediaKeyMessageType {
-  "license-request",
-  "license-renewal",
-  "license-release",
-  "individualization-request"
-};
-
-[Constructor (DOMString type, optional MediaKeyMessageEventInit eventInitDict)]
-interface MediaKeyMessageEvent : Event {
-  readonly attribute MediaKeyMessageType messageType;
-  readonly attribute ArrayBuffer message;
-};
-*/
+// https://dvcs.w3.org/hg/html-media/raw-file/eme-v0.1b/encrypted-media/encrypted-media.html#dom-mediakeymessageevent
 
 interface MediaKeyMessageEvent : Event {
   readonly attribute DOMString keySystem;

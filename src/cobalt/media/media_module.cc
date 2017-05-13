@@ -86,6 +86,8 @@ void MediaModule::DeregisterDebugState() {
 void MediaModule::SuspendTask() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  suspended_ = true;
+
   for (Players::iterator iter = players_.begin(); iter != players_.end();
        ++iter) {
     DCHECK(!iter->second);
@@ -105,6 +107,8 @@ void MediaModule::ResumeTask() {
       iter->first->Resume();
     }
   }
+
+  suspended_ = false;
 }
 
 void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
@@ -115,6 +119,10 @@ void MediaModule::RegisterPlayerTask(WebMediaPlayer* player) {
 
   // Track debug state for the most recently added WebMediaPlayer instance.
   RegisterDebugState(player);
+
+  if (suspended_) {
+    player->Suspend();
+  }
 }
 
 void MediaModule::UnregisterPlayerTask(WebMediaPlayer* player) {

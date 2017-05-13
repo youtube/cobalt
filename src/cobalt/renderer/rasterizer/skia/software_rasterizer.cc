@@ -64,7 +64,8 @@ void ReturnScratchImage(SkSurface* surface) { surface->unref(); }
 
 class SoftwareRasterizer::Impl {
  public:
-  explicit Impl(int surface_cache_size);
+  explicit Impl(int surface_cache_size,
+                bool purge_skia_font_caches_on_destruction);
 
   // Consume the render tree and output the results to the render target passed
   // into the constructor.
@@ -80,8 +81,10 @@ class SoftwareRasterizer::Impl {
   base::optional<common::SurfaceCache> surface_cache_;
 };
 
-SoftwareRasterizer::Impl::Impl(int surface_cache_size)
-    : resource_provider_(new SoftwareResourceProvider()) {
+SoftwareRasterizer::Impl::Impl(int surface_cache_size,
+                               bool purge_skia_font_caches_on_destruction)
+    : resource_provider_(
+          new SoftwareResourceProvider(purge_skia_font_caches_on_destruction)) {
   TRACE_EVENT0("cobalt::renderer", "SoftwareRasterizer::SoftwareRasterizer()");
 
   if (surface_cache_size > 0) {
@@ -135,8 +138,9 @@ render_tree::ResourceProvider* SoftwareRasterizer::Impl::GetResourceProvider() {
   return resource_provider_.get();
 }
 
-SoftwareRasterizer::SoftwareRasterizer(int surface_cache_size)
-    : impl_(new Impl(surface_cache_size)) {}
+SoftwareRasterizer::SoftwareRasterizer(int surface_cache_size,
+                                       bool purge_caches_on_destruction)
+    : impl_(new Impl(surface_cache_size, purge_caches_on_destruction)) {}
 
 SoftwareRasterizer::~SoftwareRasterizer() {}
 

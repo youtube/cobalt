@@ -37,10 +37,24 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-SoftwareResourceProvider::SoftwareResourceProvider() {
+SoftwareResourceProvider::SoftwareResourceProvider(
+    bool purge_skia_font_caches_on_destruction)
+    : purge_skia_font_caches_on_destruction_(
+          purge_skia_font_caches_on_destruction) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
   SkSafeUnref(SkFontMgr::RefDefault());
+}
+
+SoftwareResourceProvider::~SoftwareResourceProvider() {
+  if (purge_skia_font_caches_on_destruction_) {
+    text_shaper_.PurgeCaches();
+
+    SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+    SkFontMgr_Cobalt* cobalt_font_manager =
+        base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
+    cobalt_font_manager->PurgeCaches();
+  }
 }
 
 bool SoftwareResourceProvider::PixelFormatSupported(
@@ -231,13 +245,6 @@ scoped_refptr<render_tree::Image> SoftwareResourceProvider::DrawOffscreenImage(
     const scoped_refptr<render_tree::Node>& root) {
   UNREFERENCED_PARAMETER(root);
   return scoped_refptr<render_tree::Image>(NULL);
-}
-
-void SoftwareResourceProvider::PurgeCaches() {
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkFontMgr_Cobalt* cobalt_font_manager =
-      base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
-  cobalt_font_manager->PurgeCaches();
 }
 
 }  // namespace skia

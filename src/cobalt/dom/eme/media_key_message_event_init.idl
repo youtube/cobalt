@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2016/CR-encrypted-media-20160705/#htmlmediaelement-extensions
+// https://www.w3.org/TR/encrypted-media/#mediakeymessageeventinit
 
-partial interface HTMLMediaElement {
-  readonly attribute MediaKeys? mediaKeys;
-  attribute EventHandler onencrypted;
-  attribute EventHandler onwaitingforkey;
-  Promise<void> setMediaKeys(MediaKeys? mediaKeys);
+dictionary MediaKeyMessageEventInit : EventInit {
+  required MediaKeyMessageType messageType;
+  required ArrayBuffer message;
 };

@@ -15,20 +15,40 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARFBUZZ_FONT_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARFBUZZ_FONT_H_
 
+#include <map>
+
 #include "cobalt/renderer/rasterizer/skia/font.h"
 
 #include "third_party/harfbuzz-ng/src/hb.h"
-
-class SkTypeface;
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
 
-class Font;
+class HarfBuzzFontProvider {
+ public:
+  // Returns the HarfBuzz font that corresponds to the given Skia font.
+  hb_font_t* GetHarfBuzzFont(Font* skia_font);
+  void PurgeCaches();
 
-hb_font_t* CreateHarfBuzzFont(Font* skia_font);
+ private:
+  // Wrapper class for a HarfBuzz face created from a given Skia face.
+  class HarfBuzzFace {
+   public:
+    HarfBuzzFace();
+    ~HarfBuzzFace();
+
+    void Init(SkTypeface* skia_face);
+
+    hb_face_t* get();
+
+   private:
+    hb_face_t* face_;
+  };
+
+  std::map<SkFontID, HarfBuzzFace> face_cache_;
+};
 
 }  // namespace skia
 }  // namespace rasterizer

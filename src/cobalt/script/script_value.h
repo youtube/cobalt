@@ -54,6 +54,12 @@ class ScriptValue {
   // constructor.
   class Reference {
    public:
+    Reference(Wrappable* wrappable, scoped_ptr<ScriptValue> script_value)
+        : owner_(wrappable), referenced_value_(script_value.Pass()) {
+      DCHECK(referenced_value_);
+      referenced_value_->RegisterOwner(owner_);
+    }
+
     Reference(Wrappable* wrappable, const ScriptValue& script_value)
         : owner_(wrappable), referenced_value_(script_value.MakeCopy()) {
       DCHECK(referenced_value_);
@@ -85,6 +91,12 @@ class ScriptValue {
   // doesn't need to be retained past the scope of the function.
   class StrongReference {
    public:
+    explicit StrongReference(scoped_ptr<ScriptValue> script_value)
+        : referenced_value_(script_value.Pass()) {
+      DCHECK(referenced_value_);
+      referenced_value_->PreventGarbageCollection();
+    }
+
     explicit StrongReference(const ScriptValue& script_value)
         : referenced_value_(script_value.MakeCopy()) {
       DCHECK(referenced_value_);

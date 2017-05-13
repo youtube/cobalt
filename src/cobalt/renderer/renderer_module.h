@@ -74,6 +74,12 @@ class RendererModule {
     // buffer will not be frequently swapped.
     bool submit_even_if_render_tree_is_unchanged;
 
+    // If this flag is set to true, which is the default value, then all of
+    // Skia's font caches are purged during destruction. These caches have
+    // lifespans that are uncoupled from the resource provider's, and will not
+    // be purged on destruction when this is set to false.
+    bool purge_skia_font_caches_on_destruction;
+
    private:
     // Implemented per-platform, and allows each platform to customize
     // the renderer options.

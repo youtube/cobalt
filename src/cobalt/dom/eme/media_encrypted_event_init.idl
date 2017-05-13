@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,16 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BASE_MATH_H_
-#define COBALT_BASE_MATH_H_
+// https://www.w3.org/TR/encrypted-media/#mediaencryptedeventinit
 
-#include <cmath>
-
-#include "build/build_config.h"
-
-// The MSVC compiler doesn't have roundf().
-#if defined(COMPILER_MSVC)
-float roundf(float x);
-#endif  // defined(COMPILER_MSVC)
-
-#endif  // COBALT_BASE_MATH_H_
+dictionary MediaEncryptedEventInit : EventInit {
+  DOMString initDataType = "";
+  ArrayBuffer? initData = null;
+};
