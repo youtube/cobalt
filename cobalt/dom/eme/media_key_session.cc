@@ -29,10 +29,11 @@ namespace eme {
 // See step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
 MediaKeySession::MediaKeySession(
-    scoped_ptr<media::DrmSystem::Session> drm_system_session,
+    const scoped_refptr<media::DrmSystem>& drm_system,
     script::ScriptValueFactory* script_value_factory,
     const ClosedCallback& closed_callback)
-    : drm_system_session_(drm_system_session.Pass()),
+    : drm_system_(drm_system),
+      drm_system_session_(drm_system->CreateSession()),
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
@@ -41,8 +42,9 @@ MediaKeySession::MediaKeySession(
           this, script_value_factory->CreateBasicPromise<void>())),
       initiated_by_generate_request_(false) {}
 
-// Session ID should be empty for uninitialized sessions according to step 3.1
-// of https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession.
+// According to the step 3.1 of
+// https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession,
+// session ID should be empty until the first request is generated successfully.
 std::string MediaKeySession::session_id() const {
   return drm_system_session_->id().value_or("");
 }
