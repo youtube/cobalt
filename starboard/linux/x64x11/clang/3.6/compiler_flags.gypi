@@ -123,11 +123,7 @@
       '-std=c99',
     ],
     'cflags_cc': [
-      # Limit to gnu++98. This allows Linux to be a canary build for any
-      # C++11 features that are not supported on some platforms' compilers.
-      # We do allow ourselves GNU extensions, which are assumed to exist
-      # by Chromium code.
-      '-std=gnu++98',
+      '-std=gnu++11',
     ],
     'target_conditions': [
       ['cobalt_code==1', {
@@ -149,6 +145,8 @@
           '-Wno-unused-parameter',
           # Do not warn for implicit type conversions that may change a value.
           '-Wno-conversion',
+          # Do not warn about an implicit exception spec mismatch.
+          '-Wno-implicit-exception-spec-mismatch',
         ],
       }],
       ['use_asan==1', {
