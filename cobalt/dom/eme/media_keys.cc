@@ -38,9 +38,12 @@ scoped_refptr<MediaKeySession> MediaKeys::CreateSession(
   }
 
   // 3. Let session be a new MediaKeySession object.
+  //
+  // |MediaKeys| are passed to |MediaKeySession| as weak pointer because the
+  // order of destruction is not guaranteed due to JavaScript memory management.
   scoped_refptr<MediaKeySession> session(new MediaKeySession(
-      drm_system_->CreateSession(), script_value_factory_,
-      base::Bind(&MediaKeys::OnSessionClosed, base::Unretained(this))));
+      drm_system_, script_value_factory_,
+      base::Bind(&MediaKeys::OnSessionClosed, AsWeakPtr())));
   open_sessions_.push_back(session);
   return session;
 }
