@@ -284,7 +284,8 @@ def _ConvertToCygpath(path):
   return path
 
 
-def _DetectVisualStudioVersions(versions_to_check, force_express):
+def _DetectVisualStudioVersions(versions_to_check, force_express,
+                                vs_install_dir=None):
   """Collect the list of installed visual studio versions.
 
   Returns:
@@ -306,7 +307,10 @@ def _DetectVisualStudioVersions(versions_to_check, force_express):
   for version in versions_to_check:
     if version == '15.0':
       # Version 15 does not include registry entries.
-      path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE'
+      if vs_install_dir:
+        path = os.path.join(vs_install_dir, r'Common7\IDE')
+      else:
+        path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE'
       path = _ConvertToCygpath(path)
       full_path = os.path.join(path, 'devenv.exe')
       if os.path.exists(full_path):
@@ -377,7 +381,9 @@ def SelectVisualStudioVersion(version='auto'):
   }
 
   version = str(version)
-  versions = _DetectVisualStudioVersions(version_map[version], 'e' in version)
+  vs_install_dir = os.environ.get('VS_INSTALL_DIR')
+  versions = _DetectVisualStudioVersions(version_map[version], 'e' in version,
+                                         vs_install_dir)
   if not versions:
     if version == 'auto':
       # Default to 2005 if we couldn't find anything
