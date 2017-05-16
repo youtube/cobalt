@@ -34,7 +34,10 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   typedef starboard::player::InputBuffer InputBuffer;
   typedef starboard::player::VideoFrame VideoFrame;
 
-  explicit VideoDecoder(SbMediaVideoCodec video_codec);
+  VideoDecoder(SbMediaVideoCodec video_codec,
+               SbPlayerOutputMode output_mode,
+               SbDecodeTargetGraphicsContextProvider*
+                   decode_target_graphics_context_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
@@ -71,6 +74,9 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   bool DecodePacket(AVPacket* packet);
   void InitializeCodec();
   void TeardownCodec();
+  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+
+  bool UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame);
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
@@ -89,6 +95,26 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_;
+
+  // Decode-to-texture related state.
+  SbPlayerOutputMode output_mode_;
+
+  SbDecodeTargetGraphicsContextProvider*
+      decode_target_graphics_context_provider_;
+
+  // If decode-to-texture is enabled, then we store the decode target texture
+  // inside of this |decode_target_| member.
+  SbDecodeTarget decode_target_;
+
+  // GetCurrentDecodeTarget() needs to be called from an arbitrary thread
+  // to obtain the current decode target (which ultimately ends up being a
+  // copy of |decode_target_|), we need to safe-guard access to |decode_target_|
+  // and we do so through this mutex.
+  Mutex decode_target_mutex_;
+  // Mutex frame_mutex_;
+
+  // int frame_last_rendered_pts_;
+  // scoped_refptr<VideoFrame> frame_;
 };
 
 }  // namespace ffmpeg
