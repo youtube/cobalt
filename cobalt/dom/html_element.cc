@@ -818,7 +818,7 @@ bool HTMLElement::IsBeingRendered() {
     return false;
   }
 
-  if (!computed_style_valid_) {
+  if (!matching_rules_valid_ || !computed_style_valid_) {
     document->UpdateComputedStyleOnElementAndAncestor(this);
   }
 
