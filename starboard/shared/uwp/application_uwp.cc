@@ -17,44 +17,105 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 
+using starboard::shared::starboard::Application;
+using starboard::shared::starboard::CommandLine;
+using starboard::shared::uwp::ApplicationUwp;
+using Windows::ApplicationModel::Activation::IActivatedEventArgs;
+using Windows::ApplicationModel::Core::CoreApplication;
+using Windows::ApplicationModel::Core::CoreApplicationView;
+using Windows::ApplicationModel::Core::IFrameworkView;
+using Windows::ApplicationModel::Core::IFrameworkViewSource;
+using Windows::Foundation::TypedEventHandler;
+using Windows::UI::Core::CoreWindow;
+using Windows::UI::Core::CoreProcessEventsOption;
+
+ref class App sealed : public IFrameworkView {
+ public:
+  App() {}
+
+  // IFrameworkView methods.
+  virtual void Initialize(
+      Windows::ApplicationModel::Core::CoreApplicationView^ applicationView) {
+    applicationView->Activated +=
+        ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
+            this, &App::OnActivated);
+  }
+  virtual void SetWindow(CoreWindow^ window) {}
+  virtual void Load(Platform::String^ entryPoint) {}
+  virtual void Run() {
+    CoreWindow ^window = CoreWindow::GetForCurrentThread();
+    window->Activate();
+    window->Dispatcher->ProcessEvents(
+        CoreProcessEventsOption::ProcessUntilQuit);
+  }
+  virtual void Uninitialize() {
+  }
+
+  void OnActivated(
+      CoreApplicationView^ applicationView, IActivatedEventArgs^ args) {
+    CoreWindow::GetForCurrentThread()->Activate();
+    ApplicationUwp::Get()->DispatchStart();
+  }
+};
+
+ref class Direct3DApplicationSource sealed : IFrameworkViewSource {
+ public:
+  Direct3DApplicationSource() {
+    SB_LOG(INFO) << "Direct3DApplicationSource";
+  }
+  virtual IFrameworkView^ CreateView() {
+    return ref new App();
+  }
+};
+
 namespace starboard {
 namespace shared {
 namespace uwp {
 
 ApplicationUwp::ApplicationUwp() {
-  SB_NOTIMPLEMENTED();
 }
 
 ApplicationUwp::~ApplicationUwp() {
-  SB_NOTIMPLEMENTED();
 }
 
 void ApplicationUwp::Initialize() {
-  SB_NOTIMPLEMENTED();
 }
 
 void ApplicationUwp::Teardown() {
-  SB_NOTIMPLEMENTED();
 }
 
-bool ApplicationUwp::MayHaveSystemEvents() {
-  SB_NOTIMPLEMENTED();
+Application::Event* ApplicationUwp::GetNextEvent() {
+  SB_NOTREACHED();
+  return nullptr;
+}
+
+bool ApplicationUwp::DispatchNextEvent() {
+  auto direct3DApplicationSource = ref new Direct3DApplicationSource();
+  CoreApplication::Run(direct3DApplicationSource);
   return false;
 }
 
-shared::starboard::Application::Event* ApplicationUwp::PollNextSystemEvent() {
+void ApplicationUwp::Inject(Application::Event* event) {
+  // TODO: Implement with CoreWindow->GetForCurrentThread->Dispatcher->RunAsync
   SB_NOTIMPLEMENTED();
-  return NULL;
 }
 
-shared::starboard::Application::Event*
-ApplicationUwp::WaitForSystemEventWithTimeout(SbTime time) {
+void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
   SB_NOTIMPLEMENTED();
-  return NULL;
 }
 
-void ApplicationUwp::WakeSystemEventWait() {
+void ApplicationUwp::CancelTimedEvent(SbEventId event_id) {
   SB_NOTIMPLEMENTED();
+}
+
+Application::TimedEvent* ApplicationUwp::GetNextDueTimedEvent() {
+  SB_NOTIMPLEMENTED();
+  return nullptr;
+}
+
+SbTimeMonotonic ApplicationUwp::GetNextTimedEventTargetTime() {
+  SB_NOTIMPLEMENTED();
+  return 0;
 }
 
 }  // namespace uwp

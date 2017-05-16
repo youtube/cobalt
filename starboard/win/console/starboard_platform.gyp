@@ -13,14 +13,15 @@
 # limitations under the License.
 {
   'includes': [ '../shared/starboard_platform.gypi' ],
-  'sources': [
-    'atomic_public.h',
-    'configuration_public.h',
-    'thread_types_public.h',
-  ],
   'variables': {
     'starboard_platform_dependent_sources': [
+      'atomic_public.h',
+      'configuration_public.h',
+      'main.cc',
+      'thread_types_public.h',
       '../shared/system_get_path.cc',
+      '<(DEPTH)/starboard/stub/application_stub.cc',
+      '<(DEPTH)/starboard/stub/application_stub.h',
     ],
   },
 }
