@@ -32,6 +32,16 @@ using starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr;
 using starboard::shared::starboard::cryptography::kAlgorithmAes128Ecb;
 using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
 
+namespace {
+inline void* AddPtr(void* pointer, int value) {
+  return reinterpret_cast<char*>(pointer) + value;
+}
+
+inline const void* AddPtr(const void* pointer, int value) {
+  return reinterpret_cast<const char*>(pointer) + value;
+}
+}  // namespace
+
 int SbCryptographyTransform(SbCryptographyTransformer transformer,
                             const void* in_data,
                             int in_data_size,
@@ -65,9 +75,21 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
       }
 
       if (transformer->direction == kSbCryptographyDirectionEncode) {
-        AES_encrypt(in_data, out_data, &transformer->key);
+        const void* in = in_data;
+        void* out = out_data;
+        for (int i = 0, blocks = in_data_size / 16; i < blocks; ++i) {
+          AES_encrypt(in, out, &transformer->key);
+          in = AddPtr(in, 16);
+          out = AddPtr(out, 16);
+        }
       } else if (transformer->direction == kSbCryptographyDirectionDecode) {
-        AES_decrypt(in_data, out_data, &transformer->key);
+        const void* in = in_data;
+        void* out = out_data;
+        for (int i = 0, blocks = in_data_size / 16; i < blocks; ++i) {
+          AES_decrypt(in, out, &transformer->key);
+          in = AddPtr(in, 16);
+          out = AddPtr(out, 16);
+        }
       } else {
         SB_NOTREACHED();
       }
