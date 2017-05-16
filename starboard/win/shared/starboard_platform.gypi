@@ -283,10 +283,7 @@
         '<(DEPTH)/starboard/shared/win32/time_zone_get_name.cc',
         '<(DEPTH)/starboard/shared/win32/time_utils.h',
         '<(DEPTH)/starboard/shared/win32/wchar_utils.h',
-        '<(DEPTH)/starboard/shared/uwp/application_uwp.cc',
-        '<(DEPTH)/starboard/shared/uwp/application_uwp.h',
         'configuration_public.h',
-        'main.cc',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
         '<@(starboard_platform_dependent_sources)',
