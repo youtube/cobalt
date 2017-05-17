@@ -155,6 +155,7 @@
         'socket_connect_test.cc',
         'socket_create_test.cc',
         'socket_destroy_test.cc',
+        'socket_get_interface_address_test.cc',
         'socket_get_last_error_test.cc',
         'socket_get_local_address_test.cc',
         'socket_get_local_interface_address_test.cc',
