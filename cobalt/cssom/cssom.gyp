@@ -234,8 +234,15 @@
         'url_value.cc',
         'url_value.h',
       ],
+      'export_dependent_settings': [
+        # Additionally, ensure that the include directories for generated
+        # headers are put on the include directories for targets that depend
+        # on this one.
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
+      ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
+        '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',

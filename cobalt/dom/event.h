@@ -19,6 +19,7 @@
 
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/token.h"
+#include "cobalt/dom/event_init.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -55,7 +56,10 @@ class Event : public script::Wrappable {
   // Creates an event that cannot be bubbled and cancelled.
   explicit Event(base::Token type);
   explicit Event(const std::string& type);
+  Event(base::Token type, const EventInit& eventInitDict);
+  Event(const std::string& type, const EventInit& eventInitDict);
   Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
+
   ~Event() OVERRIDE;
 
   // Web API: Event

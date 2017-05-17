@@ -30,13 +30,11 @@ class CloseEvent : public dom::Event {
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {}
   explicit CloseEvent(const std::string& type)
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {}
-  CloseEvent(const base::Token type,
-             const cobalt::websocket::CloseEventInit& eventInitDict)
+  CloseEvent(const base::Token type, const CloseEventInit& eventInitDict)
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {
     InitializeFromCloseEventInit(eventInitDict);
   }
-  CloseEvent(const std::string& type,
-             const cobalt::websocket::CloseEventInit& eventInitDict)
+  CloseEvent(const std::string& type, const CloseEventInit& eventInitDict)
       : Event(type), was_clean_(true), code_(net::kWebSocketNormalClosure) {
     InitializeFromCloseEventInit(eventInitDict);
   }
