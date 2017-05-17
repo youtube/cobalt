@@ -20,27 +20,23 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < 4
+
 TEST(SbSocketGetLocalInterfaceAddressTest, SunnyDay) {
   SbSocketAddress address;
   // Initialize to something invalid.
   SbMemorySet(&address, 0xFE, sizeof(address));
-#if SB_API_VERSION < 4
   EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
-#else
-  EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
-#endif  // SB_API_VERSION < 4
   EXPECT_EQ(0, address.port);
   EXPECT_FALSE(IsUnspecified(&address));
   EXPECT_FALSE(IsLocalhost(&address));
 }
 
 TEST(SbSocketGetLocalInterfaceAddressTest, RainyDayNull) {
-#if SB_API_VERSION < 4
   EXPECT_FALSE(SbSocketGetLocalInterfaceAddress(NULL));
-#else
-  EXPECT_FALSE(SbSocketGetInterfaceAddress(NULL, NULL, NULL));
-#endif  // SB_API_VERSION < 4
 }
+
+#endif  // SB_API_VERSION < 4
 
 }  // namespace
 }  // namespace nplb
