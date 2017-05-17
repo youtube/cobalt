@@ -259,6 +259,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     pseudo_elements_[type] = pseudo_element.Pass();
   }
 
+  bool computed_style_valid() const { return computed_style_valid_; }
+
+  bool matching_rules_valid() const { return matching_rules_valid_; }
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
