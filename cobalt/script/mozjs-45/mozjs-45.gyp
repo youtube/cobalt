@@ -89,10 +89,11 @@
         'output_path': '<(SHARED_INTERMEDIATE_DIR)/cobalt/script/mozjs-45/embedded_resources.h',
       },
       'sources': [
-        '<(DEPTH)/third_party/promise-polyfill/promise.min.js',
+        '<(DEPTH)/cobalt/fetch/embedded_scripts/fetch.js',
         '<(DEPTH)/cobalt/streams/embedded_scripts/byte_length_queuing_strategy.js',
         '<(DEPTH)/cobalt/streams/embedded_scripts/count_queuing_strategy.js',
         '<(DEPTH)/cobalt/streams/embedded_scripts/readable_stream.js',
+        '<(DEPTH)/third_party/promise-polyfill/promise.min.js',
       ],
       'actions': [
         {
