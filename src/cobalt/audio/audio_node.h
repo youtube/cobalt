@@ -62,7 +62,7 @@ class AudioNode : public dom::EventTarget {
   // Web API: AudioNode
   //
   // The AudioContext which owns this AudioNode.
-  AudioContext* context() const { return audio_context_; }
+  const scoped_refptr<AudioContext>& context() const { return audio_context_; }
 
   // The number of inputs feeding into the AudioNode. For source nodes, this
   // will be 0.
@@ -142,7 +142,7 @@ class AudioNode : public dom::EventTarget {
   AudioNodeInputVector inputs_;
   AudioNodeOutputVector outputs_;
 
-  AudioContext* audio_context_;
+  scoped_refptr<AudioContext> audio_context_;
 
   scoped_refptr<AudioLock> audio_lock_;
 
