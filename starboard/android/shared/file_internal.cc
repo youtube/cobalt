@@ -35,15 +35,13 @@ const char* g_app_cache_dir = NULL;
 namespace {
 AAssetManager* g_asset_manager;
 
-// Makes a JNI call to File.getAbsolutePath() and returns a newly allocated
-// buffer with the result.
-const char* GetAbsolutePath(JniEnvExt* env, jobject file_obj) {
-  SB_DCHECK(file_obj);
-  ScopedLocalJavaRef<jstring> abs_path(env->CallObjectMethodOrAbort(
-      file_obj, "getAbsolutePath", "()Ljava/lang/String;"));
-  const char* utf_chars = env->GetStringUTFChars(abs_path.Get(), 0);
+// Copies the characters from a jstring and returns a newly allocated buffer
+// with the result.
+const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
+  SB_DCHECK(j_string);
+  const char* utf_chars = env->GetStringUTFChars(j_string, 0);
   const char* result = SbStringDuplicate(utf_chars);
-  env->ReleaseStringUTFChars(abs_path.Get(), utf_chars);
+  env->ReleaseStringUTFChars(j_string, utf_chars);
   return result;
 }
 
@@ -54,18 +52,19 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
   g_asset_manager = activity->assetManager;
 
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> file_obj;
 
   SB_DCHECK(g_app_files_dir == NULL);
-  file_obj.Reset(
-      env->CallActivityObjectMethodOrAbort("getFilesDir", "()Ljava/io/File;"));
-  g_app_files_dir = GetAbsolutePath(env, file_obj.Get());
+  ScopedLocalJavaRef<jstring> j_string(
+      env->CallActivityObjectMethodOrAbort("getFilesAbsolutePath",
+                                           "()Ljava/lang/String;"));
+  g_app_files_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
-  file_obj.Reset(
-      env->CallActivityObjectMethodOrAbort("getCacheDir", "()Ljava/io/File;"));
-  g_app_cache_dir = GetAbsolutePath(env, file_obj.Get());
+  j_string.Reset(
+      env->CallActivityObjectMethodOrAbort("getCacheAbsolutePath",
+                                           "()Ljava/lang/String;"));
+  g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;
 }
 
