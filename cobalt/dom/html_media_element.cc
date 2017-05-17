@@ -776,8 +776,7 @@ void HTMLMediaElement::PrepareForLoad() {
     ScheduleOwnEvent(base::Tokens::abort());
   }
 
-  ClearMediaSource();
-
+  ClearMediaPlayer();
   CreateMediaPlayer();
 
   // 4 - If the media element's networkState is not set to kNetworkEmpty, then
