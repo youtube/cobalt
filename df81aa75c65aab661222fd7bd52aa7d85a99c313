@@ -2,6 +2,23 @@
   "comments": [
     {
       "key": {
+        "uuid": "f102c360_70964efa",
+        "filename": "src/cobalt/audio/audio_node.h",
+        "patchSetId": 1
+      },
+      "lineNbr": 65,
+      "author": {
+        "id": 5066
+      },
+      "writtenOn": "2017-05-17T21:19:43Z",
+      "side": 1,
+      "message": "Let\u0027s leave audio_context_ as a raw pointer in AudioNode and return scoped_refptr\u003cAudioContext\u003e for this function.",
+      "revId": "df81aa75c65aab661222fd7bd52aa7d85a99c313",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "12b2b286_12310cca",
         "filename": "src/cobalt/audio/audio_node.h",
         "patchSetId": 1
