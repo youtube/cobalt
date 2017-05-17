@@ -431,11 +431,15 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     referenced_interface_names = set(
         get_interface_type_names_from_typed_objects(self.info_provider,
                                                     dictionary.members))
+    if dictionary.parent:
+      referenced_interface_names.add(dictionary.parent)
+      context['parent'] = dictionary.parent
+
     referenced_class_contexts = self.referenced_class_contexts(
         referenced_interface_names, for_conversion)
 
-    context['includes'] = sorted((interface['include']
-                                  for interface in referenced_class_contexts))
+    context['includes'] = sorted(interface['include']
+                                 for interface in referenced_class_contexts)
     context['forward_declarations'] = sorted(
         referenced_class_contexts, key=lambda x: x['fully_qualified_name'])
     context['components'] = self.path_builder.NamespaceComponents(
