@@ -211,6 +211,7 @@
         '../audio/audio_node_channel_interpretation.idl',
         '../dom/blob_property_bag.idl',
         '../dom/dom_parser_supported_type.idl',
+        '../dom/event_init.idl',
         '../dom/media_source_end_of_stream_error.idl',
         '../dom/media_source_ready_state.idl',
         '../dom/mutation_observer_init.idl',
