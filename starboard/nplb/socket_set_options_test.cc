@@ -27,10 +27,9 @@ class SbSocketSetOptionsTest
   SbSocketAddressType GetAddressType() { return GetParam(); }
 };
 
-TEST_P(SbSocketSetOptionsTest, TryThemAll) {
+TEST_P(SbSocketSetOptionsTest, TryThemAllTCP) {
   SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
 
-  EXPECT_TRUE(SbSocketSetBroadcast(socket, true));
   EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
   EXPECT_TRUE(SbSocketSetReceiveBufferSize(socket, 16 * 1024));
   EXPECT_TRUE(SbSocketSetSendBufferSize(socket, 16 * 1024));
@@ -40,6 +39,17 @@ TEST_P(SbSocketSetOptionsTest, TryThemAll) {
   // Returns false on unsupported platforms, so we can't check the return value
   // generically.
   SbSocketSetTcpWindowScaling(socket, true);
+
+  EXPECT_TRUE(SbSocketDestroy(socket));
+}
+
+TEST_P(SbSocketSetOptionsTest, TryThemAllUDP) {
+  SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolUdp);
+
+  EXPECT_TRUE(SbSocketSetBroadcast(socket, true));
+  EXPECT_TRUE(SbSocketSetReuseAddress(socket, true));
+  EXPECT_TRUE(SbSocketSetReceiveBufferSize(socket, 16 * 1024));
+  EXPECT_TRUE(SbSocketSetSendBufferSize(socket, 16 * 1024));
 
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
