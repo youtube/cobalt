@@ -622,16 +622,23 @@ void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
 
   // Update computed styles on the ancestors and the element.
   HTMLElement* previous_element = NULL;
+  bool ancestors_were_valid = true;
   for (std::vector<HTMLElement*>::reverse_iterator it = ancestors.rbegin();
        it != ancestors.rend(); ++it) {
     HTMLElement* current_element = *it;
-    DCHECK(initial_computed_style_declaration_);
-    DCHECK(initial_computed_style_data_);
-    current_element->UpdateComputedStyle(
-        previous_element ? previous_element->css_computed_style_declaration()
-                         : initial_computed_style_declaration_,
-        initial_computed_style_data_, style_change_event_time);
+    bool is_valid = ancestors_were_valid &&
+                    current_element->matching_rules_valid() &&
+                    current_element->computed_style_valid();
+    if (!is_valid) {
+      DCHECK(initial_computed_style_declaration_);
+      DCHECK(initial_computed_style_data_);
+      current_element->UpdateComputedStyle(
+          previous_element ? previous_element->css_computed_style_declaration()
+                           : initial_computed_style_declaration_,
+          initial_computed_style_data_, style_change_event_time);
+    }
     previous_element = current_element;
+    ancestors_were_valid = is_valid;
   }
 }
 
