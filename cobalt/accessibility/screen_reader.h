@@ -47,6 +47,7 @@ class ScreenReader : public dom::DocumentObserver {
  private:
   typedef script::Sequence<scoped_refptr<dom::MutationRecord> >
       MutationRecordSequence;
+  void FocusChangedCallback();
   // MutationObserver callback for tracking live regions.
   void MutationObserverCallback(
       const MutationRecordSequence& sequence,
@@ -56,6 +57,7 @@ class ScreenReader : public dom::DocumentObserver {
   dom::Document* document_;
   TTSEngine* tts_engine_;
   scoped_refptr<dom::MutationObserver> live_region_observer_;
+  bool focus_changed_;
 
   friend class scoped_ptr<ScreenReader>;
   DISALLOW_COPY_AND_ASSIGN(ScreenReader);
