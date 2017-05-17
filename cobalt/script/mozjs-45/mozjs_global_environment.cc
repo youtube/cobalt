@@ -378,6 +378,10 @@ void MozjsGlobalEnvironment::EvaluateAutomatics() {
       MozjsEmbeddedResources::readable_stream_js,
       sizeof(MozjsEmbeddedResources::readable_stream_js),
       "readable_stream.js");
+  EvaluateEmbeddedScript(
+      MozjsEmbeddedResources::fetch_js,
+      sizeof(MozjsEmbeddedResources::fetch_js),
+      "fetch.js");
 }
 
 InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
