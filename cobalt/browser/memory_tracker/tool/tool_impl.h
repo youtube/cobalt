@@ -58,6 +58,7 @@ class AbstractLogger {
  public:
   virtual ~AbstractLogger() {}
   virtual void Output(const char* str) = 0;
+  void Output(const std::string& str) { Output(str.c_str()); }
   virtual void Flush() = 0;
 };
 
