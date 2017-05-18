@@ -114,12 +114,18 @@ scoped_ptr<IntSetting> CreateSystemMemorySetting(
 }
 
 void EnsureValuePositive(IntSetting* setting) {
+  if (!setting->valid()) {
+    return;
+  }
   if (setting->value() < 0) {
     setting->set_value(setting->source_type(), 0);
   }
 }
 
 void EnsureValuePositive(DimensionSetting* setting) {
+  if (!setting->valid()) {
+    return;
+  }
   const TextureDimensions value = setting->value();
   if (value.width() < 0 || value.height() < 0 || value.bytes_per_pixel() < 0) {
     setting->set_value(setting->source_type(), TextureDimensions());
@@ -127,6 +133,9 @@ void EnsureValuePositive(DimensionSetting* setting) {
 }
 
 void EnsureTwoBytesPerPixel(DimensionSetting* setting) {
+  if (!setting->valid()) {
+    return;
+  }
   TextureDimensions value = setting->value();
   if (value.bytes_per_pixel() != 2) {
     LOG(ERROR) << "Only two bytes per pixel are allowed for setting: "
@@ -150,7 +159,6 @@ int64_t SumMemoryConsumption(
   }
   return sum;
 }
-
 
 // Creates the GPU setting.
 // This setting is unique because it may not be defined by command line, or
