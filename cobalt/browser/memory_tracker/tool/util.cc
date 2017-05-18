@@ -125,12 +125,11 @@ base::TimeTicks Timer::Now() {
   }
 }
 
-void Timer::ScaleTimerAndReset(double scale) {
+void Timer::ScaleTriggerTime(double scale) {
   int64_t old_dt = time_before_expiration_.InMicroseconds();
   int64_t new_dt =
       static_cast<int64_t>(static_cast<double>(old_dt) * scale);
   time_before_expiration_ = base::TimeDelta::FromMicroseconds(new_dt);
-  Restart();
 }
 
 const char* BaseNameFast(const char* file_name) {

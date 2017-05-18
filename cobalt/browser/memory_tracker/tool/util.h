@@ -72,7 +72,7 @@ void RemoveOddElements(VectorType* v) {
   v->erase(write_it, v->end());
 }
 
-// Simple timer class that fires periodically after dt time has elapsed.
+// Simple timer class that fires periodically after time has elapsed.
 class Timer {
  public:
   typedef base::Callback<base::TimeTicks(void)> TimeFunctor;
@@ -82,7 +82,7 @@ class Timer {
 
   void Restart();
   bool UpdateAndIsExpired();  // Returns true if the expiration was triggered.
-  void ScaleTimerAndReset(double scale);
+  void ScaleTriggerTime(double scale);
 
  private:
   base::TimeTicks Now();
