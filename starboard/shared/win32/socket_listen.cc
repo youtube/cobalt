@@ -27,12 +27,28 @@ SbSocketError SbSocketListen(SbSocket socket) {
   }
 
   SB_DCHECK(socket->socket_handle != INVALID_SOCKET);
+
+  // Under winsock, a socket must be bound before we can listen on it.
+  if (socket->bound_to == SbSocketPrivate::BindTarget::kUnbound) {
+    // By listening on ::, we can accept both IPv4 and IPv6 connections.
+    SbSocketAddress any_address = {0};
+    any_address.type = socket->address_type;
+    if (SbSocketBind(socket, &any_address) != kSbSocketOk) {
+      SB_DLOG(ERROR) << "Unable to bind a socket during SbListen.";
+      return (socket->error = kSbSocketErrorFailed);
+    }
+
+    socket->bound_to = SbSocketPrivate::BindTarget::kAny;
+  }
+
   // TODO: Determine if we need to specify a > 0 backlog. It can go up to
   // SOMAXCONN according to the documentation. Several places in chromium
   // specify the literal "10" with the comment "maybe dont allow any backlog?"
   int result = listen(socket->socket_handle, 0);
   if (result == SOCKET_ERROR) {
-    return (socket->error = sbwin32::TranslateSocketErrorStatus(result));
+    int last_error = WSAGetLastError();
+    SB_LOG(ERROR) << "listen() failed with last_error = " << last_error;
+    return (socket->error = sbwin32::TranslateSocketErrorStatus(last_error));
   }
 
   return (socket->error = kSbSocketOk);
