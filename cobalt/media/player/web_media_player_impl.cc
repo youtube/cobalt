@@ -32,6 +32,9 @@ namespace media {
 
 namespace {
 
+// Used to ensure that there is no more than one instance of WebMediaPlayerImpl.
+WebMediaPlayerImpl* s_instance;
+
 // Limits the range of playback rate.
 //
 // TODO(kylep): Revisit these.
@@ -124,6 +127,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       drm_system_(NULL) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::WebMediaPlayerImpl");
 
+  DCHECK(!s_instance);
+  s_instance = this;
+
   DCHECK(buffer_allocator_);
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
@@ -144,6 +150,9 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::~WebMediaPlayerImpl");
 
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
+
+  DCHECK_EQ(s_instance, this);
+  s_instance = NULL;
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
