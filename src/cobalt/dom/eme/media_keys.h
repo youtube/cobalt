@@ -19,7 +19,7 @@
 #include <vector>
 
 #include "base/memory/ref_counted.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "cobalt/dom/buffer_source.h"
 #include "cobalt/dom/eme/media_key_session.h"
 #include "cobalt/dom/eme/media_key_session_type.h"
@@ -34,7 +34,8 @@ namespace eme {
 // Represents a set of keys that an associated HTMLMediaElement can use
 // for decryption of media data during playback.
 //   https://www.w3.org/TR/encrypted-media/#mediakeys-interface
-class MediaKeys : public script::Wrappable {
+class MediaKeys : public script::Wrappable,
+                  public base::SupportsWeakPtr<MediaKeys> {
  public:
   // Custom, not in any spec.
 
@@ -57,7 +58,7 @@ class MediaKeys : public script::Wrappable {
   void OnSessionClosed(MediaKeySession* session);
 
   script::ScriptValueFactory* script_value_factory_;
-  scoped_ptr<media::DrmSystem> drm_system_;
+  scoped_refptr<media::DrmSystem> drm_system_;
 
   // A MediaKeySession object shall not be destroyed and shall continue
   // to receive events if it is not closed and the MediaKeys object that created

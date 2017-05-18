@@ -17,6 +17,7 @@
 
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 
+#include "base/debug/leak_annotations.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
@@ -72,6 +73,13 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   bgra_format_supported_ = HasExtension("GL_EXT_texture_format_BGRA8888");
 
   SetupBlitObjects();
+
+  {
+    // The current mesa egl drivers leak memory on the first call to glDraw*.
+    // Get that first draw out of the way, and do something useful with it.
+    ANNOTATE_SCOPED_MEMORY_LEAK;
+    ComputeReadPixelsNeedVerticalFlip();
+  }
 }
 
 GraphicsSystemEGL* GraphicsContextEGL::system_egl() {

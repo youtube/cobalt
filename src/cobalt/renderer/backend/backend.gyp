@@ -16,7 +16,11 @@
   'targets': [
     {
       'target_name': 'renderer_backend',
-      'type': 'none',
+      'type': 'static_library',
+      'sources': [
+        'render_target.cc',
+        'render_target.h',
+      ],
 
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',

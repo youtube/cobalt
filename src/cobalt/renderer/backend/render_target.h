@@ -34,6 +34,8 @@ struct SurfaceInfo;
 // after rendering is completed.
 class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
  public:
+  RenderTarget();
+
   // Return metadata about the render target such as dimensions and format.
   virtual const math::Size& GetSize() = 0;
 
@@ -41,10 +43,16 @@ class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
   // passed into platform-specific code.
   virtual intptr_t GetPlatformHandle() = 0;
 
+  // Each render is assigned a unique serial number on construction.
+  int32_t GetSerialNumber() const { return serial_number_; }
+
  protected:
   // Concrete child classes should declare their destructors as private.
   friend class base::RefCountedThreadSafe<RenderTarget>;
   virtual ~RenderTarget() {}
+
+  static SbAtomic32 serial_counter_;
+  int32_t serial_number_;
 };
 
 }  // namespace backend

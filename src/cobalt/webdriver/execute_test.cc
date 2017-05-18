@@ -18,10 +18,10 @@
 #include "base/json/json_reader.h"
 #include "base/run_loop.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/testing/stub_window.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/webdriver/script_executor.h"
-#include "cobalt/webdriver/testing/stub_window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -62,7 +62,7 @@ class JSONScriptExecutorResult : public ScriptExecutorResult::ResultHandler {
 class ScriptExecutorTest : public ::testing::Test {
  protected:
   void SetUp() OVERRIDE {
-    stub_window_.reset(new testing::StubWindow());
+    stub_window_.reset(new dom::testing::StubWindow());
     script_executor_ =
         ScriptExecutor::Create(&element_mapping_, global_environment());
 
@@ -78,7 +78,7 @@ class ScriptExecutorTest : public ::testing::Test {
   }
 
  protected:
-  scoped_ptr<testing::StubWindow> stub_window_;
+  scoped_ptr<dom::testing::StubWindow> stub_window_;
   MockElementMapping element_mapping_;
   scoped_refptr<ScriptExecutor> script_executor_;
 };

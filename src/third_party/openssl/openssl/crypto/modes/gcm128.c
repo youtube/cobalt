@@ -86,6 +86,62 @@
         } \
 } while(0)
 
+
+#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+static const int kBlockSizeBits = 128;
+static const int kBlockSizeBytes = 16;
+static inline void sb_block128(GCM128_CONTEXT *ctx,
+                               block128_f block,
+                               const unsigned char in[16],
+                               unsigned char out[16],
+                               const void *key) {
+  if (SbCryptographyIsTransformerValid(ctx->ecb_transformer)) {
+    int result = SbCryptographyTransform(ctx->ecb_transformer, in,
+                                         kBlockSizeBytes, out);
+    SB_DCHECK(result == kBlockSizeBytes);
+  } else {
+    (*block)(in, out, key);
+  }
+}
+
+static inline void sb_ctr128(GCM128_CONTEXT *ctx,
+                             ctr128_f ctr,
+                             const unsigned char *in,
+                             unsigned char *out,
+                             size_t blocks,
+                             const void *key,
+                             const unsigned char ivec[16]) {
+  if (SbCryptographyIsTransformerValid(ctx->ctr_transformer)) {
+    SbCryptographySetInitializationVector(ctx->ctr_transformer, ivec, 16);
+    int len = (int)(blocks) * kBlockSizeBytes;
+    int result = SbCryptographyTransform(ctx->ctr_transformer, in, len, out);
+    SB_DCHECK(result == len);
+  } else {
+    (*ctr)(in, out, blocks, key, ivec);
+  }
+}
+#else  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+static inline void sb_block128(GCM128_CONTEXT *ctx,
+                               block128_f block,
+                               const unsigned char in[16],
+                               unsigned char out[16],
+                               const void *key) {
+  SB_UNREFERENCED_PARAMETER(ctx);
+  (*block)(in, out, key);
+}
+
+static inline void sb_ctr128(GCM128_CONTEXT *ctx,
+                             ctr128_f ctr,
+                             const unsigned char *in,
+                             unsigned char *out,
+                             size_t blocks,
+                             const void *key,
+                             const unsigned char ivec[16]) {
+  SB_UNREFERENCED_PARAMETER(ctx);
+  (*ctr)(in, out, blocks, key, ivec);
+}
+#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+
 /*-
  * Even though permitted values for TABLE_BITS are 8, 4 and 1, it should
  * never be set to 8. 8 is effectively reserved for testing purposes.
@@ -749,7 +805,7 @@ void CRYPTO_gcm128_init(GCM128_CONTEXT *ctx, void *key, block128_f block)
     ctx->block = block;
     ctx->key = key;
 
-    (*block) (ctx->H.c, ctx->H.c, key);
+    sb_block128(ctx, block, ctx->H.c, ctx->H.c, key);
 
     if (is_endian.little) {
         /* H is stored in host byte order */
@@ -882,7 +938,7 @@ void CRYPTO_gcm128_setiv(GCM128_CONTEXT *ctx, const unsigned char *iv,
             ctr = ctx->Yi.d[3];
     }
 
-    (*ctx->block) (ctx->Yi.c, ctx->EK0.c, ctx->key);
+    sb_block128(ctx, ctx->block, ctx->Yi.c, ctx->EK0.c, ctx->key);
     ++ctr;
     if (is_endian.little)
 #ifdef BSWAP4
@@ -1030,7 +1086,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
                     size_t *out_t = (size_t *)out;
                     const size_t *in_t = (const size_t *)in;
 
-                    (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                    sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                     ++ctr;
                     if (is_endian.little)
 #  ifdef BSWAP4
@@ -1056,7 +1112,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
                     size_t *out_t = (size_t *)out;
                     const size_t *in_t = (const size_t *)in;
 
-                    (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                    sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                     ++ctr;
                     if (is_endian.little)
 #  ifdef BSWAP4
@@ -1079,7 +1135,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
                 size_t *out_t = (size_t *)out;
                 const size_t *in_t = (const size_t *)in;
 
-                (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                 ++ctr;
                 if (is_endian.little)
 #  ifdef BSWAP4
@@ -1098,7 +1154,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
             }
 # endif
             if (len) {
-                (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                 ++ctr;
                 if (is_endian.little)
 # ifdef BSWAP4
@@ -1121,7 +1177,7 @@ int CRYPTO_gcm128_encrypt(GCM128_CONTEXT *ctx,
 #endif
     for (i = 0; i < len; ++i) {
         if (n == 0) {
-            (*block) (ctx->Yi.c, ctx->EKi.c, key);
+            sb_block128(ctx, *block, ctx->Yi.c, ctx->EKi.c, key);
             ++ctr;
             if (is_endian.little)
 #ifdef BSWAP4
@@ -1217,7 +1273,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
                     size_t *out_t = (size_t *)out;
                     const size_t *in_t = (const size_t *)in;
 
-                    (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                    sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                     ++ctr;
                     if (is_endian.little)
 #  ifdef BSWAP4
@@ -1241,7 +1297,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
                     size_t *out_t = (size_t *)out;
                     const size_t *in_t = (const size_t *)in;
 
-                    (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                    sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                     ++ctr;
                     if (is_endian.little)
 #  ifdef BSWAP4
@@ -1263,7 +1319,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
                 size_t *out_t = (size_t *)out;
                 const size_t *in_t = (const size_t *)in;
 
-                (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                 ++ctr;
                 if (is_endian.little)
 #  ifdef BSWAP4
@@ -1285,7 +1341,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
             }
 # endif
             if (len) {
-                (*block) (ctx->Yi.c, ctx->EKi.c, key);
+                sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
                 ++ctr;
                 if (is_endian.little)
 # ifdef BSWAP4
@@ -1311,7 +1367,7 @@ int CRYPTO_gcm128_decrypt(GCM128_CONTEXT *ctx,
     for (i = 0; i < len; ++i) {
         u8 c;
         if (n == 0) {
-            (*block) (ctx->Yi.c, ctx->EKi.c, key);
+            sb_block128(ctx, block, ctx->Yi.c, ctx->EKi.c, key);
             ++ctr;
             if (is_endian.little)
 #ifdef BSWAP4
@@ -1392,7 +1448,7 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx,
     }
 #if defined(GHASH) && !defined(OPENSSL_SMALL_FOOTPRINT)
     while (len >= GHASH_CHUNK) {
-        (*stream) (in, out, GHASH_CHUNK / 16, key, ctx->Yi.c);
+        sb_ctr128(ctx, stream, in, out, GHASH_CHUNK / 16, key, ctx->Yi.c);
         ctr += GHASH_CHUNK / 16;
         if (is_endian.little)
 # ifdef BSWAP4
@@ -1411,7 +1467,7 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx,
     if ((i = (len & (size_t)-16))) {
         size_t j = i / 16;
 
-        (*stream) (in, out, j, key, ctx->Yi.c);
+        sb_ctr128(ctx, stream, in, out, j, key, ctx->Yi.c);
         ctr += (unsigned int)j;
         if (is_endian.little)
 #ifdef BSWAP4
@@ -1436,7 +1492,7 @@ int CRYPTO_gcm128_encrypt_ctr32(GCM128_CONTEXT *ctx,
 #endif
     }
     if (len) {
-        (*ctx->block) (ctx->Yi.c, ctx->EKi.c, key);
+        sb_block128(ctx, ctx->block, ctx->Yi.c, ctx->EKi.c, key);
         ++ctr;
         if (is_endian.little)
 #ifdef BSWAP4
@@ -1517,7 +1573,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
 #if defined(GHASH) && !defined(OPENSSL_SMALL_FOOTPRINT)
     while (len >= GHASH_CHUNK) {
         GHASH(ctx, in, GHASH_CHUNK);
-        (*stream) (in, out, GHASH_CHUNK / 16, key, ctx->Yi.c);
+        sb_ctr128(ctx, stream, in, out, GHASH_CHUNK / 16, key, ctx->Yi.c);
         ctr += GHASH_CHUNK / 16;
         if (is_endian.little)
 # ifdef BSWAP4
@@ -1548,7 +1604,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
         j = i / 16;
         in -= i;
 #endif
-        (*stream) (in, out, j, key, ctx->Yi.c);
+        sb_ctr128(ctx, stream, in, out, j, key, ctx->Yi.c);
         ctr += (unsigned int)j;
         if (is_endian.little)
 #ifdef BSWAP4
@@ -1563,7 +1619,7 @@ int CRYPTO_gcm128_decrypt_ctr32(GCM128_CONTEXT *ctx,
         len -= i;
     }
     if (len) {
-        (*ctx->block) (ctx->Yi.c, ctx->EKi.c, key);
+        sb_block128(ctx, ctx->block, ctx->Yi.c, ctx->EKi.c, key);
         ++ctr;
         if (is_endian.little)
 #ifdef BSWAP4

@@ -36,6 +36,8 @@ class UIEvent : public Event {
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
 
+  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable);
+
   // Web API: UIEvent
   //
   void InitUIEvent(const std::string& type, bool bubbles, bool cancelable,
@@ -52,7 +54,6 @@ class UIEvent : public Event {
 
  protected:
   explicit UIEvent(base::Token type);
-  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable);
 
   ~UIEvent() OVERRIDE {}
 

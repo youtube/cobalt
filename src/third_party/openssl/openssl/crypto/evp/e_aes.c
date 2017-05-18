@@ -118,17 +118,8 @@ static bool sb_translate_mode(int flags, SbCryptographyBlockCipherMode *mode) {
     case EVP_CIPH_CBC_MODE:
       *mode = kSbCryptographyBlockCipherModeCbc;
       return true;
-    case EVP_CIPH_CFB_MODE:
-      *mode = kSbCryptographyBlockCipherModeCfb;
-      return true;
     case EVP_CIPH_CTR_MODE:
       *mode = kSbCryptographyBlockCipherModeCtr;
-      return true;
-    case EVP_CIPH_ECB_MODE:
-      *mode = kSbCryptographyBlockCipherModeEcb;
-      return true;
-    case EVP_CIPH_OFB_MODE:
-      *mode = kSbCryptographyBlockCipherModeOfb;
       return true;
     default:
       break;
@@ -143,6 +134,14 @@ static inline bool sb_has_stream(EVP_CIPHER_CTX *context) {
 
 static inline bool sb_gcm_has_stream(GCM128_CONTEXT *context) {
   return SbCryptographyIsTransformerValid(context->gcm_transformer);
+}
+
+static inline bool sb_gcm_has_ctr_stream(GCM128_CONTEXT *context) {
+  return SbCryptographyIsTransformerValid(context->ctr_transformer);
+}
+
+static inline bool sb_gcm_has_ecb_stream(GCM128_CONTEXT *context) {
+  return SbCryptographyIsTransformerValid(context->ecb_transformer);
 }
 
 static int sb_init_key(EVP_CIPHER_CTX* context,
@@ -187,27 +186,75 @@ static inline int sb_cipher(EVP_CIPHER_CTX *context,
   return (result == len);
 }
 
-static bool sb_gcm_init(GCM128_CONTEXT *context, const void *key, int key_length,
-                        int encrypt) {
+static inline SbCryptographyTransformer sb_create_ctr128(
+    SbCryptographyDirection direction, const void *key, int key_length) {
+  return SbCryptographyCreateTransformer(
+      kSbCryptographyAlgorithmAes,
+      128,
+      direction,
+      kSbCryptographyBlockCipherModeCtr,
+      NULL,
+      0,
+      key,
+      key_length);
+}
+
+static inline SbCryptographyTransformer sb_create_ecb128(
+    SbCryptographyDirection direction, const void *key, int key_length) {
+  return SbCryptographyCreateTransformer(
+      kSbCryptographyAlgorithmAes,
+      128,
+      direction,
+      kSbCryptographyBlockCipherModeEcb,
+      NULL,
+      0,
+      key,
+      key_length);
+}
+
+static inline SbCryptographyTransformer sb_create_gcm128(
+    SbCryptographyDirection direction, const void *key, int key_length) {
+  return SbCryptographyCreateTransformer(
+      kSbCryptographyAlgorithmAes,
+      128,
+      direction,
+      kSbCryptographyBlockCipherModeGcm,
+      NULL,
+      0,
+      key,
+      key_length);
+}
+
+static bool sb_gcm_init(GCM128_CONTEXT *context, const void *key,
+                        int key_length, int encrypt) {
+  context->ctr_transformer = kSbCryptographyInvalidTransformer;
+  context->ecb_transformer = kSbCryptographyInvalidTransformer;
+  context->encrypt = encrypt;
+  context->raw_key_length = key_length;
+  SbMemoryCopy(context->raw_key, key, key_length);
+
   SbCryptographyDirection direction =
       (encrypt ? kSbCryptographyDirectionEncode :
        kSbCryptographyDirectionDecode);
-  context->gcm_transformer =
-      SbCryptographyCreateTransformer(
-          kSbCryptographyAlgorithmAes,
-          128,
-          direction,
-          kSbCryptographyBlockCipherModeGcm,
-          NULL,
-          0,
-          key,
-          key_length);
-  return sb_gcm_has_stream(context);
+  context->gcm_transformer = sb_create_gcm128(direction, key, key_length);
+  if (sb_gcm_has_stream(context)) {
+    return true;
+  }
+
+  return false;
 }
 
-static inline void sb_gcm_setiv(GCM128_CONTEXT *context,
-                                const unsigned char *initialization_vector,
-                                size_t initialization_vector_size) {
+static void sb_gcm_init_backup(GCM128_CONTEXT *context, const void *key,
+                               int key_length) {
+  context->ctr_transformer = sb_create_ctr128(kSbCryptographyDirectionEncode,
+                                              key, key_length);
+  context->ecb_transformer = sb_create_ecb128(kSbCryptographyDirectionEncode,
+                                              key, key_length);
+}
+
+static void sb_gcm_setiv(GCM128_CONTEXT *context,
+                         const unsigned char *initialization_vector,
+                         size_t initialization_vector_size) {
   if (sb_gcm_has_stream(context)) {
     SbCryptographySetInitializationVector(context->gcm_transformer,
                                           initialization_vector,
@@ -230,7 +277,7 @@ static inline int sb_gcm_aad(GCM128_CONTEXT *context,
   return CRYPTO_gcm128_aad(context, data, data_size);
 }
 
-static inline int sb_gcm_encrypt(GCM128_CONTEXT *context,
+static inline int sb_gcm_encrypt(GCM128_CONTEXT *context, ctr128_f ctr,
                                  const unsigned char *in, unsigned char *out,
                                  size_t len) {
   if (sb_gcm_has_stream(context)) {
@@ -239,10 +286,13 @@ static inline int sb_gcm_encrypt(GCM128_CONTEXT *context,
     return result == len ? 0 : -1;
   }
 
+  if (ctr || sb_gcm_has_ctr_stream(context)) {
+    return CRYPTO_gcm128_encrypt_ctr32(context, in, out, len, ctr);
+  }
   return CRYPTO_gcm128_encrypt(context, in, out, len);
 }
 
-static inline int sb_gcm_decrypt(GCM128_CONTEXT *context,
+static inline int sb_gcm_decrypt(GCM128_CONTEXT *context, ctr128_f ctr,
                                  const unsigned char *in, unsigned char *out,
                                  size_t len) {
   if (sb_gcm_has_stream(context)) {
@@ -251,6 +301,9 @@ static inline int sb_gcm_decrypt(GCM128_CONTEXT *context,
     return result == len ? 0 : -1;
   }
 
+  if (ctr || sb_gcm_has_ctr_stream(context)) {
+    return CRYPTO_gcm128_decrypt_ctr32(context, in, out, len, ctr);
+  }
   return CRYPTO_gcm128_decrypt(context, in, out, len);
 }
 
@@ -295,10 +348,21 @@ static inline bool sb_gcm_has_stream(GCM128_CONTEXT *context) {
   return false;
 }
 
+static inline bool sb_gcm_has_ctr_stream(GCM128_CONTEXT *context) {
+  return false;
+}
+
+static inline bool sb_gcm_has_ecb_stream(GCM128_CONTEXT *context) {
+  return false;
+}
+
 static bool sb_gcm_init(GCM128_CONTEXT *context, const void *key, int key_length,
                         int encrypt) {
   return false;
 }
+
+static void sb_gcm_init_backup(GCM128_CONTEXT *context, const void *key,
+                               int key_length) {}
 
 static inline void sb_gcm_setiv(GCM128_CONTEXT *context,
                                 const unsigned char *initialization_vector,
@@ -313,15 +377,21 @@ static inline int sb_gcm_aad(GCM128_CONTEXT *context,
   return CRYPTO_gcm128_aad(context, data, data_size);
 }
 
-static inline int sb_gcm_encrypt(GCM128_CONTEXT *context,
+static inline int sb_gcm_encrypt(GCM128_CONTEXT *context, ctr128_f ctr,
                                  const unsigned char *in, unsigned char *out,
                                  size_t len) {
+  if (ctr) {
+    return CRYPTO_gcm128_encrypt_ctr32(context, in, out, len, ctr);
+  }
   return CRYPTO_gcm128_encrypt(context, in, out, len);
 }
 
-static inline int sb_gcm_decrypt(GCM128_CONTEXT *context,
+static inline int sb_gcm_decrypt(GCM128_CONTEXT *context, ctr128_f ctr,
                                  const unsigned char *in, unsigned char *out,
                                  size_t len) {
+  if (ctr) {
+    return CRYPTO_gcm128_decrypt_ctr32(context, in, out, len, ctr);
+  }
   return CRYPTO_gcm128_decrypt(context, in, out, len);
 }
 
@@ -1076,6 +1146,7 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                     CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
                                        (block128_f) AES_encrypt);
                     gctx->ctr = (ctr128_f) bsaes_ctr32_encrypt_blocks;
+                    sb_gcm_init_backup(&gctx->gcm, key, ctx->key_len);
                 }
                 break;
             } else
@@ -1087,6 +1158,7 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
                     CRYPTO_gcm128_init(&gctx->gcm, &gctx->ks,
                                        (block128_f) vpaes_encrypt);
                     gctx->ctr = NULL;
+                    sb_gcm_init_backup(&gctx->gcm, key, ctx->key_len);
                 }
                 break;
             } else
@@ -1102,6 +1174,7 @@ static int aes_gcm_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 #  else
                 gctx->ctr = NULL;
 #  endif
+                sb_gcm_init_backup(&gctx->gcm, key, ctx->key_len);
             }
         } while (0);
 
@@ -1139,6 +1212,7 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 {
     EVP_AES_GCM_CTX *gctx = ctx->cipher_data;
     int rv = -1;
+
     /* Encrypt/decrypt must be performed in place */
     if (out != in
         || len < (EVP_GCM_TLS_EXPLICIT_IV_LEN + EVP_GCM_TLS_TAG_LEN))
@@ -1160,28 +1234,16 @@ static int aes_gcm_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
     len -= EVP_GCM_TLS_EXPLICIT_IV_LEN + EVP_GCM_TLS_TAG_LEN;
     if (ctx->encrypt) {
         /* Encrypt payload */
-        if (gctx->ctr) {
-            if (CRYPTO_gcm128_encrypt_ctr32(&gctx->gcm,
-                                            in, out, len, gctx->ctr))
-                goto err;
-        } else {
-            if (sb_gcm_encrypt(&gctx->gcm, in, out, len))
-                goto err;
-        }
+        if (sb_gcm_encrypt(&gctx->gcm, gctx->ctr, in, out, len))
+            goto err;
         out += len;
         /* Finally write tag */
         sb_gcm_tag(&gctx->gcm, out, EVP_GCM_TLS_TAG_LEN);
         rv = len + EVP_GCM_TLS_EXPLICIT_IV_LEN + EVP_GCM_TLS_TAG_LEN;
     } else {
         /* Decrypt */
-        if (gctx->ctr) {
-            if (CRYPTO_gcm128_decrypt_ctr32(&gctx->gcm,
-                                            in, out, len, gctx->ctr))
-                goto err;
-        } else {
-            if (sb_gcm_decrypt(&gctx->gcm, in, out, len))
-                goto err;
-        }
+        if (sb_gcm_decrypt(&gctx->gcm, gctx->ctr, in, out, len))
+            goto err;
         /* Retrieve tag */
         sb_gcm_tag(&gctx->gcm, ctx->buf, EVP_GCM_TLS_TAG_LEN);
         /* If tag mismatch wipe buffer */
@@ -1216,23 +1278,11 @@ static int aes_gcm_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             if (sb_gcm_aad(&gctx->gcm, in, len))
                 return -1;
         } else if (ctx->encrypt) {
-            if (gctx->ctr) {
-                if (CRYPTO_gcm128_encrypt_ctr32(&gctx->gcm,
-                                                in, out, len, gctx->ctr))
-                    return -1;
-            } else {
-                if (sb_gcm_encrypt(&gctx->gcm, in, out, len))
-                    return -1;
-            }
+          if (sb_gcm_encrypt(&gctx->gcm, gctx->ctr, in, out, len))
+            return -1;
         } else {
-            if (gctx->ctr) {
-                if (CRYPTO_gcm128_decrypt_ctr32(&gctx->gcm,
-                                                in, out, len, gctx->ctr))
-                    return -1;
-            } else {
-                if (sb_gcm_decrypt(&gctx->gcm, in, out, len))
-                    return -1;
-            }
+          if (sb_gcm_decrypt(&gctx->gcm, gctx->ctr, in, out, len))
+            return -1;
         }
         return len;
     } else {

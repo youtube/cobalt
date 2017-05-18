@@ -25,8 +25,6 @@ UIEvent::UIEvent(const std::string& type) : Event(type) {}
 UIEvent::UIEvent(UninitializedFlag uninitialized_flag)
     : Event(uninitialized_flag) {}
 
-UIEvent::UIEvent(base::Token type) : Event(type) {}
-
 UIEvent::UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : Event(type, bubbles, cancelable) {}
 
@@ -37,6 +35,8 @@ void UIEvent::InitUIEvent(const std::string& type, bool bubbles,
   InitEvent(type, bubbles, cancelable);
   view_ = view;
 }
+
+UIEvent::UIEvent(base::Token type) : Event(type) {}
 
 }  // namespace dom
 }  // namespace cobalt
