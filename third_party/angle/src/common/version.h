@@ -7,7 +7,12 @@
 #ifndef COMMON_VERSION_H_
 #define COMMON_VERSION_H_
 
+#if defined(STARBOARD)
+// Just use the default commit hash header.
+#include "../commit.h"
+#else
 #include "id/commit.h"
+#endif
 
 #define ANGLE_MAJOR_VERSION 2
 #define ANGLE_MINOR_VERSION 1
@@ -24,5 +29,4 @@
     ANGLE_MACRO_STRINGIFY(ANGLE_MINOR_VERSION) "." \
     ANGLE_MACRO_STRINGIFY(ANGLE_REVISION) "." \
     ANGLE_COMMIT_HASH
-
 #endif // COMMON_VERSION_H_
