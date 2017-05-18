@@ -27,6 +27,9 @@ namespace {
 bool IsIpv6InaddrAny(const SbSocketAddress* local_address) {
   return SbMemoryIsZero(local_address->address, sbwin32::kAddressLengthIpv6);
 }
+bool IsIpv4InaddrAny(const SbSocketAddress* local_address) {
+  return SbMemoryIsZero(local_address->address, sbwin32::kAddressLengthIpv4);
+}
 
 }  // namespace
 
@@ -51,16 +54,30 @@ SbSocketError SbSocketBind(SbSocket socket,
     return (socket->error = sbwin32::TranslateSocketErrorStatus(EAFNOSUPPORT));
   }
 
-  // When binding to the IPV6 any address, ensure that the IPV6_V6ONLY flag is
-  // off to allow incoming IPV4 connections on the same socket.
-  // See https://www.ietf.org/rfc/rfc3493.txt for details.
-  if (local_address && (local_address->type == kSbSocketAddressTypeIpv6) &&
-      IsIpv6InaddrAny(local_address)) {
-    if (!sbwin32::SetBooleanSocketOption(socket, IPPROTO_IPV6, IPV6_V6ONLY,
-                                         "IPV6_V6ONLY", false)) {
-      // Silently ignore errors, assume the default behavior is as expected.
-      socket->error = kSbSocketOk;
+  switch (local_address->type) {
+    case kSbSocketAddressTypeIpv6:
+      if (!IsIpv6InaddrAny(local_address)) {
+        socket->bound_to = SbSocketPrivate::BindTarget::kOther;
+        break;
+      }
+
+      socket->bound_to = SbSocketPrivate::BindTarget::kAny;
+
+      // When binding to the IPV6 any address, ensure that the IPV6_V6ONLY flag
+      // is off to allow incoming IPV4 connections on the same socket.
+      // See https://www.ietf.org/rfc/rfc3493.txt for details.
+      if (!sbwin32::SetBooleanSocketOption(socket, IPPROTO_IPV6, IPV6_V6ONLY,
+                                           "IPV6_V6ONLY", false)) {
+        // Silently ignore errors, assume the default behavior is as expected.
+        socket->error = kSbSocketOk;
     }
+
+    break;
+    case kSbSocketAddressTypeIpv4:
+      socket->bound_to = IsIpv4InaddrAny(local_address)
+                             ? SbSocketPrivate::BindTarget::kAny
+                             : SbSocketPrivate::BindTarget::kOther;
+      break;
   }
 
   int result =

@@ -47,5 +47,6 @@ SbSocket SbSocketAccept(SbSocket socket) {
 
   // Adopt the newly accepted socket.
   return new SbSocketPrivate(socket->address_type, socket->protocol,
-                             socket_handle);
+                             socket_handle,
+                             SbSocketPrivate::BindTarget::kAccepted);
 }

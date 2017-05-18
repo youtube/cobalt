@@ -24,14 +24,23 @@
 #include "starboard/types.h"
 
 struct SbSocketPrivate {
+  enum struct BindTarget {
+    kUnbound = 0,
+    kAny = 1,
+    kOther = 2,
+    kAccepted = 3,
+  };
+
   SbSocketPrivate(SbSocketAddressType address_type,
                   SbSocketProtocol protocol,
-                  SOCKET fd)
+                  SOCKET handle,
+                  BindTarget bound_to)
       : address_type(address_type),
         protocol(protocol),
-        socket_handle(fd),
+        socket_handle(handle),
         error(kSbSocketOk),
-        waiter(kSbSocketWaiterInvalid) {}
+        waiter(kSbSocketWaiterInvalid),
+        bound_to(bound_to) {}
   ~SbSocketPrivate() {}
 
   // The address domain of this socket, IPv4 or IPv6.
@@ -48,6 +57,8 @@ struct SbSocketPrivate {
 
   // The waiter this socket is registered with, or kSbSocketWaiterInvalid.
   SbSocketWaiter waiter;
+
+  BindTarget bound_to;
 };
 
 namespace starboard {
