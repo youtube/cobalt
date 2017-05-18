@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/hash_tables.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop.h"
@@ -35,7 +36,7 @@ namespace media {
 //
 // Ensures that callbacks are always asynchronous and performed
 // from the same thread where |DrmSystem| was instantiated.
-class DrmSystem {
+class DrmSystem : public base::RefCounted<DrmSystem> {
  public:
   typedef base::Callback<void(scoped_array<uint8> message, int message_size)>
       SessionUpdateRequestGeneratedCallback;
@@ -44,7 +45,8 @@ class DrmSystem {
   typedef base::Callback<void()> SessionDidNotUpdateCallback;
 
   // Flyweight that provides RAII semantics for sessions.
-  // Most of logic is implemented by |DrmSystem|.
+  // Most of logic is implemented by |DrmSystem| and thus sessions must be
+  // destroyed before |DrmSystem|.
   class Session {
    public:
     ~Session();

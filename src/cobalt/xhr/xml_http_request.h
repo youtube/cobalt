@@ -169,6 +169,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
     return response_array_buffer_.get();
   }
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   friend std::ostream& operator<<(std::ostream& os, const XMLHttpRequest& xhr);
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequest);
 

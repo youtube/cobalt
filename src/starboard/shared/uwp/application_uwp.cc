@@ -12,51 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/win32/application_stub.h"
+#include "starboard/shared/uwp/application_uwp.h"
 
 #include "starboard/event.h"
 #include "starboard/log.h"
 
 namespace starboard {
 namespace shared {
-namespace win32 {
+namespace uwp {
 
-ApplicationStub::ApplicationStub() {
+ApplicationUwp::ApplicationUwp() {
   SB_NOTIMPLEMENTED();
 }
 
-ApplicationStub::~ApplicationStub() {
+ApplicationUwp::~ApplicationUwp() {
   SB_NOTIMPLEMENTED();
 }
 
-void ApplicationStub::Initialize() {
+void ApplicationUwp::Initialize() {
   SB_NOTIMPLEMENTED();
 }
 
-void ApplicationStub::Teardown() {
+void ApplicationUwp::Teardown() {
   SB_NOTIMPLEMENTED();
 }
 
-bool ApplicationStub::MayHaveSystemEvents() {
+bool ApplicationUwp::MayHaveSystemEvents() {
   SB_NOTIMPLEMENTED();
   return false;
 }
 
-shared::starboard::Application::Event* ApplicationStub::PollNextSystemEvent() {
+shared::starboard::Application::Event* ApplicationUwp::PollNextSystemEvent() {
   SB_NOTIMPLEMENTED();
   return NULL;
 }
 
 shared::starboard::Application::Event*
-ApplicationStub::WaitForSystemEventWithTimeout(SbTime time) {
+ApplicationUwp::WaitForSystemEventWithTimeout(SbTime time) {
   SB_NOTIMPLEMENTED();
   return NULL;
 }
 
-void ApplicationStub::WakeSystemEventWait() {
+void ApplicationUwp::WakeSystemEventWait() {
   SB_NOTIMPLEMENTED();
 }
 
-}  // namespace win32
+}  // namespace uwp
 }  // namespace shared
 }  // namespace starboard

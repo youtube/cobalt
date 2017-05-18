@@ -20,7 +20,11 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
+#include "base/logging.h"
 #include "base/time.h"
+#include "starboard/string.h"
+#include "starboard/types.h"
 
 namespace cobalt {
 namespace browser {
@@ -71,13 +75,20 @@ void RemoveOddElements(VectorType* v) {
 // Simple timer class that fires periodically after dt time has elapsed.
 class Timer {
  public:
-  explicit Timer(base::TimeDelta dt);
+  typedef base::Callback<base::TimeTicks(void)> TimeFunctor;
+
+  explicit Timer(base::TimeDelta delta_time);
+  Timer(base::TimeDelta delta_time, TimeFunctor f);
+
   void Restart();
   bool UpdateAndIsExpired();  // Returns true if the expiration was triggered.
+  void ScaleTimerAndReset(double scale);
 
  private:
+  base::TimeTicks Now();
   base::TimeTicks start_time_;
   base::TimeDelta time_before_expiration_;
+  TimeFunctor time_function_override_;
 };
 
 struct AllocationSamples {

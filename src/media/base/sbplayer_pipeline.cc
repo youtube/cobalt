@@ -326,6 +326,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
 
   if (!player_) {
     seek_cb.Run(PIPELINE_ERROR_INVALID_STATE);
+    return;
   }
 
   player_->PrepareForSeek();

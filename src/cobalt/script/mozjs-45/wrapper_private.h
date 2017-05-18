@@ -58,10 +58,6 @@ class Tracer : public ::cobalt::script::Tracer {
 class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
   typedef std::vector<Wrappable*> WrappableVector;
-  typedef base::Callback<Wrappable*(const scoped_refptr<Wrappable>&)>
-      GetOpaqueRootFunction;
-  typedef base::Callback<void(const scoped_refptr<Wrappable>&,
-                              WrappableVector*)> GetReachableWrappablesFunction;
 
   template <typename T>
   scoped_refptr<T> wrappable() const {
@@ -70,25 +66,9 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
 
   JSObject* js_object_proxy() const { return wrapper_proxy_; }
 
-  Wrappable* GetOpaqueRoot() const;
-  void GetReachableWrappables(std::vector<Wrappable*>* reachable);
-
-  // Return true if the GC should avoid collecting this wrapper. Note that if
-  // the wrapper is unreachable, it may still be collected.
-  bool ShouldKeepWrapperAliveIfReachable();
-
   // Create a new WrapperPrivate instance and associate it with the wrapper.
-  static void AddPrivateData(
-      JSContext* context, JS::HandleObject wrapper_proxy,
-      const scoped_refptr<Wrappable>& wrappable,
-      const GetOpaqueRootFunction& get_opaque_root_function,
-      const GetReachableWrappablesFunction& get_reachable_wrappables_function);
-
   static void AddPrivateData(JSContext* context, JS::HandleObject wrapper_proxy,
-                             const scoped_refptr<Wrappable>& wrappable) {
-    AddPrivateData(context, wrapper_proxy, wrappable, GetOpaqueRootFunction(),
-                   GetReachableWrappablesFunction());
-  }
+                             const scoped_refptr<Wrappable>& wrappable);
 
   // Return true if the object has wrapper private.
   static bool HasWrapperPrivate(JSContext* context, JS::HandleObject object);
@@ -118,18 +98,13 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   static void Trace(JSTracer* trace, JSObject* object);
 
  private:
-  WrapperPrivate(
-      JSContext* context, const scoped_refptr<Wrappable>& wrappable,
-      JS::HandleObject wrapper_proxy,
-      const GetOpaqueRootFunction& get_opaque_root_function,
-      const GetReachableWrappablesFunction& get_reachable_wrappables_function);
+  WrapperPrivate(JSContext* context, const scoped_refptr<Wrappable>& wrappable,
+                 JS::HandleObject wrapper_proxy);
   ~WrapperPrivate();
 
   JSContext* context_;
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
-  GetOpaqueRootFunction get_opaque_root_function_;
-  GetReachableWrappablesFunction get_reachable_wrappables_function_;
 
   friend Tracer;
 };

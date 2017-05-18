@@ -45,11 +45,9 @@ class GarbageCollectionTestInterface : public script::Wrappable {
   void set_next(const scoped_refptr<GarbageCollectionTestInterface>& next);
   scoped_refptr<GarbageCollectionTestInterface> next() { return next_; }
 
-  // The value of |GetOpaqueRoot| in the .idl. This ensures that nodes in the
-  // same list have the same "root".
-  script::Wrappable* GetHead();
-
   static GarbageCollectionTestInterfaceVector& instances();
+
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(GarbageCollectionTestInterface);
 

@@ -18,16 +18,33 @@
 #include <utility>
 #include <vector>
 
+#include "base/bind.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_tracker {
+namespace {
+
+class FakeTimeSource {
+ public:
+  explicit FakeTimeSource(base::TimeTicks value) : static_time_(value) {}
+  void set_static_time(base::TimeTicks value) {
+    static_time_ = value;
+  }
+  base::TimeTicks GetTime() {
+    return static_time_;
+  }
+ private:
+  base::TimeTicks static_time_;
+};
+
+}  // namespace.
 
 // Tests the expectation that AllocationSizeBinner will correctly bin
 // allocations.
-TEST(MemoryTrackerUtilTest, RemoveString) {
+TEST(UtilTest, RemoveString) {
   std::string value = "abba";
   value = RemoveString(value, "bb");
   EXPECT_STREQ("aa", value.c_str());
@@ -35,14 +52,14 @@ TEST(MemoryTrackerUtilTest, RemoveString) {
 
 // Tests the expectation that AllocationSizeBinner will correctly bin
 // allocations.
-TEST(MemoryTrackerUtilTest, InsertCommasIntoNumberString) {
+TEST(UtilTest, InsertCommasIntoNumberString) {
   std::string value = "2345.54";
   std::string value_with_commas = InsertCommasIntoNumberString(value);
 
   EXPECT_STREQ("2,345.54", value_with_commas.c_str());
 }
 
-TEST(MemoryTrackerUtilTest, NumberFormatWithCommas) {
+TEST(UtilTest, NumberFormatWithCommas) {
   int value = 1000;
   std::string value_with_commas = NumberFormatWithCommas<int>(value);
 
@@ -51,7 +68,7 @@ TEST(MemoryTrackerUtilTest, NumberFormatWithCommas) {
 
 // Tests the expectation that RemoveOddElements() removes the odd elements of
 // a vector and resizes it.
-TEST(MemoryTrackerUtilTest, RemoveOddElements) {
+TEST(UtilTest, RemoveOddElements) {
   std::vector<int> values;
 
   // EVEN TEST.
@@ -84,7 +101,7 @@ TEST(MemoryTrackerUtilTest, RemoveOddElements) {
 
 // Tests the expectation that GetLinearFit() generates the expected linear
 // regression values.
-TEST(MemoryTrackerUtilTest, GetLinearFit) {
+TEST(UtilTest, GetLinearFit) {
   std::vector<std::pair<int, int> > data;
   for (int i = 0; i < 10; ++i) {
     data.push_back(std::pair<int, int>(i+1, 2*i));
@@ -99,12 +116,38 @@ TEST(MemoryTrackerUtilTest, GetLinearFit) {
 
 // Test the expectation that BaseNameFast() works correctly for both windows
 // and linux path types.
-TEST(MemoryTrackerUtilTest, BaseNameFast) {
+TEST(UtilTest, BaseNameFast) {
   const char* linux_path = "directory/filename.cc";
   const char* win_path = "directory\\filename.cc";
 
   EXPECT_STREQ("filename.cc", BaseNameFast(linux_path));
   EXPECT_STREQ("filename.cc", BaseNameFast(win_path));
+}
+
+TEST(UtilTest, TimerUse) {
+  base::TimeTicks initial_time = base::TimeTicks::Now();
+  FakeTimeSource time_source(initial_time);
+
+  Timer::TimeFunctor time_functor =
+      base::Bind(&FakeTimeSource::GetTime, base::Unretained(&time_source));
+
+  Timer test_timer(base::TimeDelta::FromSeconds(30), time_functor);
+  EXPECT_FALSE(test_timer.UpdateAndIsExpired());  // 0 time has elapsed.
+
+  time_source.set_static_time(initial_time + base::TimeDelta::FromSeconds(29));
+  // 29 seconds has elapsed, which is less than the 30 seconds required for
+  // the timer to fire.
+  EXPECT_FALSE(test_timer.UpdateAndIsExpired());
+  time_source.set_static_time(initial_time + base::TimeDelta::FromSeconds(30));
+  // 31 seconds has elapsed, which means that the next call to
+  // UpdateAndIsExpired() should succeed.
+  EXPECT_TRUE(test_timer.UpdateAndIsExpired());
+  // Now that the value fired, expect that it won't fire again (until the next
+  // 30 seconds has passed).
+  EXPECT_FALSE(test_timer.UpdateAndIsExpired());
+  time_source.set_static_time(initial_time + base::TimeDelta::FromSeconds(60));
+  EXPECT_TRUE(test_timer.UpdateAndIsExpired());
+  EXPECT_FALSE(test_timer.UpdateAndIsExpired());
 }
 
 }  // namespace memory_tracker

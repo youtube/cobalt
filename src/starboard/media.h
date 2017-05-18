@@ -359,7 +359,7 @@ typedef struct SbMediaColorMetadata {
   SbMediaTransferId transfer;
 
   // [Color Space field] The Matrix Coefficients of the video used to
-  // derive luma and chroma values from reg, green, and blue color
+  // derive luma and chroma values from red, green, and blue color
   // primaries. For clarity, the value and meanings for
   // MatrixCoefficients are adopted from Table 4 of ISO/IEC
   // 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3:
@@ -368,14 +368,9 @@ typedef struct SbMediaColorMetadata {
   // Luminance)
   SbMediaMatrixId matrix;
 
-  // [Color Space field] The Matrix Coefficients of the video used to
-  // derive luma and chroma values from reg, green, and blue color
-  // primaries. For clarity, the value and meanings for
-  // MatrixCoefficients are adopted from Table 4 of ISO/IEC
-  // 23001-8:2013/DCOR1. (0:GBR, 1: BT709, 2: Unspecified, 3:
-  // Reserved, 4: FCC, 5: BT470BG, 6: SMPTE 170M, 7: SMPTE 240M, 8:
-  // YCOCG, 9: BT2020 Non-constant Luminance, 10: BT2020 Constant
-  // Luminance)
+  // [Color Space field] Clipping of the color ranges. (0:
+  // Unspecified, 1: Broadcast Range, 2: Full range (no clipping), 3:
+  // Defined by MatrixCoefficients/TransferCharacteristics)
   SbMediaRangeId range;
 
   // [Color Space field] Only used if primaries ==

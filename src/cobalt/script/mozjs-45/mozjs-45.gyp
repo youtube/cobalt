@@ -27,7 +27,6 @@
         'mozjs_property_enumerator.cc',
         'mozjs_script_value_factory.cc',
         'mozjs_source_code.cc',
-        'opaque_root_tracker.cc',
         'promise_wrapper.cc',
         'proxy_handler.cc',
         'referenced_object_map.cc',

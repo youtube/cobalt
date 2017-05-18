@@ -12,10 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/time.h"
+#include "starboard/socket.h"
 
-SbTimeMonotonic SbTimeGetMonotonicThreadNow() {
-  // Neither QueryThreadCycleTime nor GetThreadTimes are listed as being
-  // available in UWP.
-  return SbTimeGetMonotonicNow();
+#include <winsock2.h>
+
+#include "starboard/shared/win32/socket_internal.h"
+
+namespace sbwin32 = starboard::shared::win32;
+
+bool SbSocketSetSendBufferSize(SbSocket socket, int32_t size) {
+  return sbwin32::SetIntegerSocketOption(socket, SOL_SOCKET, SO_SNDBUF,
+                                         "SO_SNDBUF", size);
 }

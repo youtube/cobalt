@@ -62,7 +62,11 @@ using {{used_class.fully_qualified_name}};
 namespace {{component}} {
 {% endfor %}
 
+{% if parent %}
+class {{class_name}} : public {{parent}} {
+{% else %}
 class {{class_name}} {
+{% endif %}
  public:
   {{class_name}}() {
 {% for member in members %}

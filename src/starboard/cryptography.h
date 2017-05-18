@@ -25,18 +25,22 @@
 // to maximize usage for SSL.
 //
 //   1. GCM - The preferred block cipher mode for OpenSSL, mainly due to speed.
-//   2. CBC - If GCM is disabled, then SSL will use the CBC stream cipher.
-//      Normally this is less desirable because GCM is faster, but if CBC is
-//      hardware-accelerated, it is likely to be better than software GCM. CBC
-//      is also considered by some to be more secure.
-//   3. CTR - This can be used internally with GCM, as long as the CTR
-//      implementation only uses the last 4 bytes of the IV for the counter.
-//      (i.e. 96-bit IV, 32-bit counter)
-//   4. ECB - This is for if you only have core AES block encryption. It can be
-//      used with any of the other cipher block modes to accelerate the core AES
-//      algorithm if none of the streaming modes can be accelerated.
+//   2. CTR - This can be used internally with GCM, as long as the CTR
+//            implementation only uses the last 4 bytes of the IV for the
+//            counter. (i.e. 96-bit IV, 32-bit counter)
+//   3. ECB - This can be used (with a null IV) with any of the other cipher
+//            block modes to accelerate the core AES algorithm if none of the
+//            streaming modes can be accelerated.
+//   4. CBC - GCM is always preferred if the server and client both support
+//            it. If not, they will generally negotiate down to AES-CBC. If this
+//            happens, and CBC is supported by SbCryptography, then it will be
+//            accelerated appropriately. But, most servers should support GCM,
+//            so it is not likely to come up much, which is why it is the lowest
+//            priority.
 //
-// Further reading on GCM vs CBC vs CTR:
+// Further reading on block cipher modes:
+// https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+// https://crbug.com/442572
 // https://crypto.stackexchange.com/questions/10775/practical-disadvantages-of-gcm-mode-encryption
 
 #ifndef STARBOARD_CRYPTOGRAPHY_H_

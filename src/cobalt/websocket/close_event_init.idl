@@ -12,12 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Copyright © 2015 W3C® (MIT, ERCIM, Keio, Beihang).
-// This software or document includes material copied from or derived from
-// The WebSocket API https://www.w3.org/TR/websockets/#event-definitions
-
-// From:
 // https://html.spec.whatwg.org/multipage/comms.html#the-closeevent-interfaces
+
 dictionary CloseEventInit : EventInit {
   boolean wasClean = false;
   unsigned short code = 0;

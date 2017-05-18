@@ -191,33 +191,42 @@ void HTMLElement::set_tab_index(int32 tab_index) {
   SetAttribute("tabindex", base::Int32ToString(tab_index));
 }
 
+// Algorithm for Focus:
+//   https://www.w3.org/TR/html5/editing.html#dom-focus
 void HTMLElement::Focus() {
-  if (!IsFocusable()) {
+  // 1. If the element is marked as locked for focus, then abort these steps.
+  if (locked_for_focus_) {
     return;
   }
 
+  // 2. Mark the element as locked for focus.
+  locked_for_focus_ = true;
+
+  // 3. Run the focusing steps for the element.
+  RunFocusingSteps();
+
+  // 4. Unmark the element as locked for focus.
+  locked_for_focus_ = false;
+
+  // Custom, not in any spec.
   Document* document = node_document();
-  Element* old_active_element = document->active_element();
-  if (old_active_element == this->AsElement()) {
-    return;
+  if (document) {
+    document->OnFocusChange();
   }
-
-  document->SetActiveElement(this);
-
-  if (old_active_element) {
-    old_active_element->DispatchEvent(
-        new FocusEvent(base::Tokens::blur(), this));
-  }
-
-  DispatchEvent(new FocusEvent(base::Tokens::focus(), old_active_element));
 }
 
+// Algorithm for Blur:
+//   https://www.w3.org/TR/html5/editing.html#dom-blur
 void HTMLElement::Blur() {
-  Document* document = node_document();
-  if (document->active_element() == this->AsElement()) {
-    document->SetActiveElement(NULL);
+  // The blur() method, when invoked, should run the unfocusing steps for the
+  // element on which the method was called instead. User agents may selectively
+  // or uniformly ignore calls to this method for usability reasons.
+  RunUnFocusingSteps();
 
-    DispatchEvent(new FocusEvent(base::Tokens::blur(), NULL));
+  // Custom, not in any spec.
+  Document* document = node_document();
+  if (document) {
+    document->OnFocusChange();
   }
 }
 
@@ -519,6 +528,7 @@ void HTMLElement::RemoveStyleAttribute() {
 void HTMLElement::OnCSSMutation() {
   // Invalidate the computed style of this node.
   computed_style_valid_ = false;
+  descendant_computed_styles_valid_ = false;
 
   // Remove the style attribute value from the Element.
   Element::RemoveStyleAttribute();
@@ -650,16 +660,23 @@ void HTMLElement::UpdateComputedStyleRecursively(
     return;
   }
 
-  // Update computed style for this element's descendants.
+  // Update computed style for this element's descendants. Note that if
+  // descendant_computed_styles_valid_ flag is not set, the ancestors should
+  // still be considered invalid, which forces the computes styles to be updated
+  // on all children.
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     if (html_element) {
       html_element->UpdateComputedStyleRecursively(
           css_computed_style_declaration(), root_computed_style,
-          style_change_event_time, is_valid, current_element_depth + 1);
+          style_change_event_time,
+          is_valid && descendant_computed_styles_valid_,
+          current_element_depth + 1);
     }
   }
+
+  descendant_computed_styles_valid_ = true;
 }
 
 void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
@@ -667,12 +684,14 @@ void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   if (!cached_background_images_.empty()) {
     cached_background_images_.clear();
     computed_style_valid_ = false;
+    descendant_computed_styles_valid_ = false;
   }
   PurgeCachedBackgroundImagesOfDescendants();
 }
 
 void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
   computed_style_valid_ = false;
+  descendant_computed_styles_valid_ = false;
   InvalidateComputedStylesOfDescendants();
 }
 
@@ -707,10 +726,12 @@ void HTMLElement::InvalidateLayoutBoxRenderTreeNodes() {
 HTMLElement::HTMLElement(Document* document, base::Token local_name)
     : Element(document, local_name),
       dom_stat_tracker_(document->html_element_context()->dom_stat_tracker()),
+      locked_for_focus_(false),
       directionality_(kNoExplicitDirectionality),
       style_(new cssom::CSSDeclaredStyleDeclaration(
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
+      descendant_computed_styles_valid_(false),
       css_computed_style_declaration_(new cssom::CSSComputedStyleDeclaration()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           transitions_adapter_(new DOMAnimatable(this))),
@@ -739,6 +760,25 @@ void HTMLElement::CopyDirectionality(const HTMLElement& other) {
 
 void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
+void HTMLElement::OnRemovedFromDocument() {
+  Node::OnRemovedFromDocument();
+
+  // When an element that is focused stops being a focusable element, or stops
+  // being focused without another element being explicitly focused in its
+  // stead, the user agent should synchronously run the unfocusing steps for the
+  // affected element only.
+  // For example, this might happen because the element is removed from its
+  // Document, or has a hidden attribute added. It would also happen to an input
+  // element when the element gets disabled.
+  //   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
+  Document* document = node_document();
+  DCHECK(document);
+  if (document->active_element() == this->AsElement()) {
+    RunUnFocusingSteps();
+    document->OnFocusChange();
+  }
+}
+
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
   if (name == "class" || name == "id") {
@@ -754,6 +794,117 @@ void HTMLElement::OnRemoveAttribute(const std::string& name) {
   } else if (name == "dir") {
     SetDirectionality("");
   }
+}
+
+// Algorithm for IsFocusable:
+//   https://www.w3.org/TR/html5/editing.html#focusable
+bool HTMLElement::IsFocusable() {
+  return HasTabindexFocusFlag() && IsBeingRendered();
+}
+
+// Algorithm for HasTabindexFocusFlag:
+//  https://www.w3.org/TR/html5/editing.html#specially-focusable
+bool HTMLElement::HasTabindexFocusFlag() const {
+  int32 tabindex;
+  return base::StringToInt32(GetAttribute("tabindex").value_or(""), &tabindex);
+}
+
+// An element is being rendered if it has any associated CSS layout boxes, SVG
+// layout boxes, or some equivalent in other styling languages.
+//   https://www.w3.org/TR/html5/rendering.html#being-rendered
+bool HTMLElement::IsBeingRendered() {
+  Document* document = node_document();
+  if (!document) {
+    return false;
+  }
+
+  document->UpdateComputedStyleOnElementAndAncestor(this);
+
+  return computed_style()->display() != cssom::KeywordValue::GetNone() &&
+         computed_style()->visibility() == cssom::KeywordValue::GetVisible();
+}
+
+// Algorithm for RunFocusingSteps:
+//   https://www.w3.org/TR/html5/editing.html#focusing-steps
+void HTMLElement::RunFocusingSteps() {
+  // 1. If the element is not in a Document, or if the element's Document has
+  // no browsing context, or if the element's Document's browsing context has no
+  // top-level browsing context, or if the element is not focusable, or if the
+  // element is already focused, then abort these steps.
+  Document* document = node_document();
+  if (!document || !document->HasBrowsingContext() || !IsFocusable()) {
+    return;
+  }
+  Element* old_active_element = document->active_element();
+  if (old_active_element == this) {
+    return;
+  }
+
+  // 2. If focusing the element will remove the focus from another element,
+  // then run the unfocusing steps for that element.
+  if (old_active_element && old_active_element->AsHTMLElement()) {
+    old_active_element->AsHTMLElement()->RunUnFocusingSteps();
+  }
+
+  // focusin: A user agent MUST dispatch this event when an event target is
+  // about to receive focus. This event type MUST be dispatched before the
+  // element is given focus. The event target MUST be the element which is about
+  // to receive focus. This event type is similar to focus, but is dispatched
+  // before focus is shifted, and does bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusin
+  DispatchEvent(new FocusEvent(base::Tokens::focusin(), Event::kBubbles,
+                               Event::kNotCancelable, this));
+
+  // 3. Make the element the currently focused element in its top-level browsing
+  // context.
+  document->SetActiveElement(this);
+
+  // 4. Not needed by Cobalt.
+
+  // 5. Fire a simple event named focus at the element.
+  // focus: A user agent MUST dispatch this event when an event target receives
+  // focus. The focus MUST be given to the element before the dispatch of this
+  // event type. This event type is similar to focusin, but is dispatched after
+  // focus is shifted, and does not bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focus
+  DispatchEvent(new FocusEvent(base::Tokens::focus(), Event::kNotBubbles,
+                               Event::kNotCancelable, this));
+
+  // Custom, not in any sepc.
+  InvalidateMatchingRulesRecursively();
+}
+
+// Algorithm for RunUnFocusingSteps:
+//   https://www.w3.org/TR/html5/editing.html#unfocusing-steps
+void HTMLElement::RunUnFocusingSteps() {
+  // 1. Not needed by Cobalt.
+
+  // focusout: A user agent MUST dispatch this event when an event target is
+  // about to lose focus. This event type MUST be dispatched before the element
+  // loses focus. The event target MUST be the element which is about to lose
+  // focus. This event type is similar to blur, but is dispatched before focus
+  // is shifted, and does bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusout
+  DispatchEvent(new FocusEvent(base::Tokens::focusout(), Event::kBubbles,
+                               Event::kNotCancelable, this));
+
+  // 2. Unfocus the element.
+  Document* document = node_document();
+  if (document && document->active_element() == this->AsElement()) {
+    document->SetActiveElement(NULL);
+  }
+
+  // 3. Fire a simple event named blur at the element.
+  // blur: A user agent MUST dispatch this event when an event target loses
+  // focus. The focus MUST be taken from the element before the dispatch of this
+  // event type. This event type is similar to focusout, but is dispatched after
+  // focus is shifted, and does not bubble.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-blur
+  DispatchEvent(new FocusEvent(base::Tokens::blur(), Event::kNotBubbles,
+                               Event::kNotCancelable, this));
+
+  // Custom, not in any sepc.
+  InvalidateMatchingRulesRecursively();
 }
 
 void HTMLElement::SetDirectionality(const std::string& value) {

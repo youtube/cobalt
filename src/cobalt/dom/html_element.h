@@ -219,6 +219,15 @@ class HTMLElement : public Element, public cssom::MutationObserver {
           root_computed_style,
       const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
       int current_element_depth);
+
+  // Updates the cached computed style of this element and its anecstors.
+  void UpdateComputedStyleAlongAncestors(
+      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+          parent_computed_style,
+      const scoped_refptr<const cssom::CSSComputedStyleData>&
+          root_computed_style,
+      const base::TimeDelta& style_change_event_time);
+
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
@@ -238,9 +247,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   LayoutBoxes* layout_boxes() const { return layout_boxes_.get(); }
 
-  // Determines whether this element is focusable.
-  bool IsFocusable() const { return HasAttribute("tabindex"); }
-
   PseudoElement* pseudo_element(PseudoElementType type) const {
     DCHECK(type < kMaxPseudoElementType);
     return pseudo_elements_[type].get();
@@ -252,6 +258,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     DCHECK(type < kMaxPseudoElementType);
     pseudo_elements_[type] = pseudo_element.Pass();
   }
+
+  bool computed_style_valid() const { return computed_style_valid_; }
+
+  bool matching_rules_valid() const { return matching_rules_valid_; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
@@ -269,11 +279,19 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  private:
   // From Node.
   void OnMutation() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 
   // From Element.
   void OnSetAttribute(const std::string& name,
                       const std::string& value) OVERRIDE;
   void OnRemoveAttribute(const std::string& name) OVERRIDE;
+
+  bool IsFocusable();
+  bool HasTabindexFocusFlag() const;
+  bool IsBeingRendered();
+
+  void RunFocusingSteps();
+  void RunUnFocusingSteps();
 
   // This both updates the directionality based upon the string value and
   // invalidates layout box caching if the value has changed.
@@ -298,6 +316,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
 
+  bool locked_for_focus_;
+
   // The directionality of the html element is determined by the 'dir'
   // attribute.
   // https://dev.w3.org/html5/spec-preview/global-attributes.html#the-directionality
@@ -315,6 +335,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Keeps track of whether the HTML element's current computed style is out
   // of date or not.
   bool computed_style_valid_;
+  // Keeps track of whether the HTML element's descendants' computed styles are
+  // out of date or not.
+  bool descendant_computed_styles_valid_;
 
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;

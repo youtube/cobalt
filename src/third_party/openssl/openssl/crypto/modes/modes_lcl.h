@@ -122,10 +122,14 @@ struct gcm128_context {
     void *key;
 
 #if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
-    // A handle to a HW-accelerated transformer for the GCM block cipher
-    // mode. If valid, then this is used instead of any other state in the
-    // context.
-    SbCryptographyTransformer gcm_transformer;
+    // Whether in decrypt or encrypt mode.
+    int encrypt;
+
+    // The raw key specified to gcm_init.
+    char raw_key[512 / 8];
+
+    // The length of raw_key in bytes.
+    int raw_key_length;
 
     // A handle to a HW-accelerated transformer for the CTR block cipher
     // mode. If valid, then the software GCM code will wrap the hardware CTR
@@ -136,7 +140,12 @@ struct gcm128_context {
     // mode. If valid, then the software GCM code will wrap the hardware ECB
     // block cipher.
     SbCryptographyTransformer ecb_transformer;
-#endif
+
+    // A handle to a HW-accelerated transformer for the GCM block cipher
+    // mode. If valid, then this is used instead of any other state in the
+    // context.
+    SbCryptographyTransformer gcm_transformer;
+#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
 };
 
 struct xts128_context {

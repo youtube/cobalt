@@ -431,11 +431,15 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     referenced_interface_names = set(
         get_interface_type_names_from_typed_objects(self.info_provider,
                                                     dictionary.members))
+    if dictionary.parent:
+      referenced_interface_names.add(dictionary.parent)
+      context['parent'] = dictionary.parent
+
     referenced_class_contexts = self.referenced_class_contexts(
         referenced_interface_names, for_conversion)
 
-    context['includes'] = sorted((interface['include']
-                                  for interface in referenced_class_contexts))
+    context['includes'] = sorted(interface['include']
+                                 for interface in referenced_class_contexts)
     context['forward_declarations'] = sorted(
         referenced_class_contexts, key=lambda x: x['fully_qualified_name'])
     context['components'] = self.path_builder.NamespaceComponents(
@@ -467,10 +471,6 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
             'NoInterfaceObject' not in interface.extended_attributes),
         'conditional':
             interface.extended_attributes.get('Conditional', None),
-        'add_opaque_roots':
-            interface.extended_attributes.get('AddOpaqueRoots', None),
-        'get_opaque_root':
-            interface.extended_attributes.get('GetOpaqueRoot', None),
     }
     interfaces_info = self.info_provider.interfaces_info
     if is_global_interface(interface):

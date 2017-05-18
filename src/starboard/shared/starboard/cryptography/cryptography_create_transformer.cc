@@ -29,6 +29,7 @@ using starboard::shared::starboard::cryptography::AES_gcm128_init;
 using starboard::shared::starboard::cryptography::Algorithm;
 using starboard::shared::starboard::cryptography::kAlgorithmAes128Cbc;
 using starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Ecb;
 using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
 
 SbCryptographyTransformer SbCryptographyCreateTransformer(
@@ -50,11 +51,35 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     return kSbCryptographyInvalidTransformer;
   }
 
-  // TODO: Support 64-bit IV with CTR mode.
-  if ((mode == kSbCryptographyBlockCipherModeGcm &&
-       initialization_vector_size != 0) ||
-      (mode != kSbCryptographyBlockCipherModeGcm &&
-       initialization_vector_size != block_size_bits / 8)) {
+  Algorithm combined_algorithm;
+  if (mode == kSbCryptographyBlockCipherModeCbc) {
+    combined_algorithm = kAlgorithmAes128Cbc;
+  } else if (mode == kSbCryptographyBlockCipherModeCtr) {
+    combined_algorithm = kAlgorithmAes128Ctr;
+  } else if (mode == kSbCryptographyBlockCipherModeEcb) {
+    combined_algorithm = kAlgorithmAes128Ecb;
+  } else if (mode == kSbCryptographyBlockCipherModeGcm) {
+    combined_algorithm = kAlgorithmAes128Gcm;
+  } else {
+    SB_DLOG(WARNING) << "Unsupported block cipher mode: " << mode;
+    return kSbCryptographyInvalidTransformer;
+  }
+
+  if (mode == kSbCryptographyBlockCipherModeGcm ||
+      mode == kSbCryptographyBlockCipherModeEcb) {
+    if (initialization_vector_size != 0) {
+      SB_DLOG(WARNING) << "Unsupported initialization_vector_size: "
+                       << initialization_vector_size;
+      return kSbCryptographyInvalidTransformer;
+    }
+  } else if (mode == kSbCryptographyBlockCipherModeCtr) {
+    if (initialization_vector_size != 0 && initialization_vector_size != 12 &&
+        initialization_vector_size != 16 && initialization_vector_size != 32) {
+      SB_DLOG(WARNING) << "Unsupported CTR initialization_vector_size: "
+                       << initialization_vector_size;
+      return kSbCryptographyInvalidTransformer;
+    }
+  } else if (initialization_vector_size != block_size_bits / 8) {
     SB_DLOG(WARNING) << "Unsupported initialization_vector_size: "
                      << initialization_vector_size;
     return kSbCryptographyInvalidTransformer;
@@ -65,22 +90,11 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
     return kSbCryptographyInvalidTransformer;
   }
 
-  Algorithm combined_algorithm;
-  if (mode == kSbCryptographyBlockCipherModeCbc) {
-    combined_algorithm = kAlgorithmAes128Cbc;
-  } else if (mode == kSbCryptographyBlockCipherModeCtr) {
-    combined_algorithm = kAlgorithmAes128Ctr;
-  } else if (mode == kSbCryptographyBlockCipherModeGcm) {
-    combined_algorithm = kAlgorithmAes128Gcm;
-  } else {
-    SB_DLOG(WARNING) << "Unsupported block cipher mode: " << mode;
-    return kSbCryptographyInvalidTransformer;
-  }
-
   AES_KEY aeskey = {0};
   int result = -1;
   if (direction == kSbCryptographyDirectionDecode &&
       mode != kSbCryptographyBlockCipherModeCtr &&
+      mode != kSbCryptographyBlockCipherModeEcb &&
       mode != kSbCryptographyBlockCipherModeGcm) {
     result = AES_set_decrypt_key(key, key_size * 8, &aeskey);
   } else {

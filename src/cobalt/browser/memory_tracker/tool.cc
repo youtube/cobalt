@@ -23,11 +23,13 @@
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
+#include "cobalt/browser/memory_tracker/tool/malloc_stats_tool.h"
 #include "cobalt/browser/memory_tracker/tool/memory_size_binner_tool.h"
 #include "cobalt/browser/memory_tracker/tool/print_csv_tool.h"
 #include "cobalt/browser/memory_tracker/tool/print_tool.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
+
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/lexical_cast.h"
 #include "starboard/log.h"
@@ -62,6 +64,7 @@ enum SwitchEnum {
   kAllocationLogger,
   kLeakTracer,
   kJavascriptLeakTracer,
+  kMallocStats,
 };
 
 struct SwitchVal {
@@ -185,6 +188,12 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       "Automatically detects Javascript leaks and reports them in CSV format.",
       kJavascriptLeakTracer);
 
+  SwitchVal malloc_stats_tool(
+      "malloc_stats",
+      "Queries the allocation system for memory usage. This is the most "
+      "lightweight tool. Output is CSV format.",
+      kMallocStats);
+
   SwitchMap switch_map;
   switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
   switch_map[ParseToolName(continuous_printer_tool.tool_name)] =
@@ -197,6 +206,8 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
   switch_map[ParseToolName(js_leak_tracing_tool.tool_name)] =
       js_leak_tracing_tool;
+
+  switch_map[ParseToolName(malloc_stats_tool.tool_name)] = malloc_stats_tool;
 
   std::string tool_name = ParseToolName(command_arg);
   std::string tool_arg = ParseToolArg(command_arg);
@@ -344,6 +355,10 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       memory_tracker->InstallGlobalTrackingHooks();
       memory_tracker->SetMemoryTrackerDebugCallback(leak_finder.get());
       tool_ptr.reset(leak_finder.release());
+      break;
+    }
+    case kMallocStats: {
+      tool_ptr.reset(new MallocStatsTool);
       break;
     }
     default: {

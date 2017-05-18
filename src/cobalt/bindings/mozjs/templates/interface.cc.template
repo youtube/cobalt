@@ -90,30 +90,6 @@ JSObject* DummyFunctor(
 {% block implementation %}
 namespace {
 
-{% if get_opaque_root %}
-Wrappable* GetOpaqueRootFromWrappable(
-    const scoped_refptr<Wrappable>& wrappable) {
-  {{impl_class}}* impl =
-      base::polymorphic_downcast<{{impl_class}}*>(wrappable.get());
-  return impl->{{get_opaque_root}}();
-}
-
-{% endif %}
-{% if add_opaque_roots %}
-void GetReachableWrappables(const scoped_refptr<Wrappable>& wrappable,
-    WrapperPrivate::WrappableVector* reachable) {
-  DCHECK(reachable);
-  {{impl_class}}* impl =
-      base::polymorphic_downcast<{{impl_class}}*>(wrappable.get());
-{% for reachable_object in add_opaque_roots %}
-  Wrappable* reachable_{{loop.index0}} = impl->{{reachable_object}}();
-  if (reachable_{{loop.index0}}) {
-    reachable->push_back(reachable_{{loop.index0}});
-  }
-{% endfor %}
-}
-
-{% endif %}
 {% if named_property_getter %}
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
@@ -843,20 +819,7 @@ JSObject* {{binding_class}}::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(context, new_object, prototype, NULL,
                              proxy_handler.Pointer()));
-{% if add_opaque_roots or get_opaque_root %}
-  WrapperPrivate::GetOpaqueRootFunction get_root;
-  WrapperPrivate::GetReachableWrappablesFunction get_reachable_wrappables;
-{% if get_opaque_root %}
-  get_root = base::Bind(&GetOpaqueRootFromWrappable);
-{% endif %}
-{% if add_opaque_roots %}
-  get_reachable_wrappables = base::Bind(&GetReachableWrappables);
-{% endif %}
-  WrapperPrivate::AddPrivateData(
-      context, proxy, wrappable, get_root, get_reachable_wrappables);
-{% else %}
   WrapperPrivate::AddPrivateData(context, proxy, wrappable);
-{% endif %}
   return proxy;
 }
 

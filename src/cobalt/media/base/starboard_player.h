@@ -157,6 +157,10 @@ class StarboardPlayer {
   bool paused_;
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
+  // If |SetBounds| is called while we are in a suspended state, then the
+  // |Rect| that we are passed will be saved to here, and then immediately set
+  // on the new player that we construct when we are resumed.
+  base::optional<gfx::Rect> pending_set_bounds_rect_;
 
   // The following variables can be accessed from GetInfo(), which can be called
   // from any threads.  So some of their usages have to be guarded by |lock_|.

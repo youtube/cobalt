@@ -46,7 +46,6 @@
 #include "cobalt/bindings/testing/exceptions_interface.h"
 #include "cobalt/bindings/testing/extended_idl_attributes_interface.h"
 #include "cobalt/bindings/testing/garbage_collection_test_interface.h"
-#include "cobalt/bindings/testing/get_opaque_root_interface.h"
 #include "cobalt/bindings/testing/global_interface_parent.h"
 #include "cobalt/bindings/testing/implemented_interface.h"
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
@@ -74,7 +73,6 @@
 #include "cobalt/bindings/testing/mozjs_exceptions_interface.h"
 #include "cobalt/bindings/testing/mozjs_extended_idl_attributes_interface.h"
 #include "cobalt/bindings/testing/mozjs_garbage_collection_test_interface.h"
-#include "cobalt/bindings/testing/mozjs_get_opaque_root_interface.h"
 #include "cobalt/bindings/testing/mozjs_global_interface_parent.h"
 #include "cobalt/bindings/testing/mozjs_implemented_interface.h"
 #include "cobalt/bindings/testing/mozjs_indexed_getter_interface.h"
@@ -175,7 +173,6 @@ using cobalt::bindings::testing::ExceptionObjectInterface;
 using cobalt::bindings::testing::ExceptionsInterface;
 using cobalt::bindings::testing::ExtendedIDLAttributesInterface;
 using cobalt::bindings::testing::GarbageCollectionTestInterface;
-using cobalt::bindings::testing::GetOpaqueRootInterface;
 using cobalt::bindings::testing::GlobalInterfaceParent;
 using cobalt::bindings::testing::ImplementedInterface;
 using cobalt::bindings::testing::IndexedGetterInterface;
@@ -207,7 +204,6 @@ using cobalt::bindings::testing::MozjsExceptionObjectInterface;
 using cobalt::bindings::testing::MozjsExceptionsInterface;
 using cobalt::bindings::testing::MozjsExtendedIDLAttributesInterface;
 using cobalt::bindings::testing::MozjsGarbageCollectionTestInterface;
-using cobalt::bindings::testing::MozjsGetOpaqueRootInterface;
 using cobalt::bindings::testing::MozjsGlobalInterfaceParent;
 using cobalt::bindings::testing::MozjsImplementedInterface;
 using cobalt::bindings::testing::MozjsIndexedGetterInterface;
@@ -1155,10 +1151,6 @@ void GlobalEnvironment::CreateGlobalObject<Window>(
       GarbageCollectionTestInterface::GarbageCollectionTestInterfaceWrappableType(),
       base::Bind(MozjsGarbageCollectionTestInterface::CreateProxy),
       base::Bind(MozjsGarbageCollectionTestInterface::PrototypeClass));
-  wrapper_factory->RegisterWrappableType(
-      GetOpaqueRootInterface::GetOpaqueRootInterfaceWrappableType(),
-      base::Bind(MozjsGetOpaqueRootInterface::CreateProxy),
-      base::Bind(MozjsGetOpaqueRootInterface::PrototypeClass));
   wrapper_factory->RegisterWrappableType(
       GlobalInterfaceParent::GlobalInterfaceParentWrappableType(),
       base::Bind(MozjsGlobalInterfaceParent::CreateProxy),

@@ -16,9 +16,32 @@
 
 #include <windows.h>
 
-SbTimeMonotonic SbTimeGetMonotonicNow() {
-  ULONGLONG result;
-  QueryUnbiasedInterruptTimePrecise(&result);
+#include "starboard/log.h"
 
-  return static_cast<SbTimeMonotonic>(result) / 10;
+SbTimeMonotonic SbTimeGetMonotonicNow() {
+  LARGE_INTEGER counts;
+  bool success;
+
+  success = QueryPerformanceCounter(&counts);
+
+  // "On systems that run Windows XP or later,
+  // the function will always succeed and will thus never return zero."
+  // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644904(v=vs.85).aspx
+  SB_DCHECK(success);
+
+  LARGE_INTEGER countsPerSecond;
+  success = QueryPerformanceFrequency(&countsPerSecond);
+  // "On systems that run Windows XP or later,
+  // the function will always succeed and will thus never return zero."
+  // https://msdn.microsoft.com/en-us/library/windows/desktop/ms644905(v=vs.85).aspx
+  SB_DCHECK(success);
+
+  // An observed value of countsPerSecond on a desktop x86 machine is
+  // ~2.5e6. With this frequency, it will take ~37500 days to exceed
+  // 2^53, which is the mantissa precision of a double.
+  // Hence, we can safely convert to a double here without losing precision.
+  double result = static_cast<double>(counts.QuadPart);
+  result *= (1000.0 * 1000.0) / countsPerSecond.QuadPart;
+
+  return static_cast<SbTimeMonotonic>(result);
 }

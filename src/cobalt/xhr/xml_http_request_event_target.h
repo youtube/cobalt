@@ -43,6 +43,8 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
   void set_onprogress(const EventListenerScriptValue& listener);
   void set_ontimeout(const EventListenerScriptValue& listener);
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequestEventTarget);
 
  protected:

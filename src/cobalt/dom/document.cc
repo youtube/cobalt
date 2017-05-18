@@ -75,7 +75,9 @@ Document::Document(HTMLElementContext* html_element_context,
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
       partial_layout_is_enabled_(true),
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-      navigation_start_clock_(options.navigation_start_clock),
+      navigation_start_clock_(options.navigation_start_clock
+                                  ? options.navigation_start_clock
+                                  : new base::SystemMonotonicClock()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           default_timeline_(new DocumentTimeline(this, 0))),
       user_agent_style_sheet_(options.user_agent_style_sheet),
@@ -329,7 +331,11 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   return NULL;
 }
 
+// https://www.w3.org/TR/html5/editing.html#dom-document-activeelement
 scoped_refptr<Element> Document::active_element() const {
+  // The activeElement attribute on Document objects must return the element in
+  // the document that is focused. If no element in the Document is focused,
+  // this must return the body element.
   if (!active_element_) {
     return body();
   } else {
@@ -385,27 +391,11 @@ scoped_refptr<HTMLHtmlElement> Document::html() const {
 }
 
 void Document::SetActiveElement(Element* active_element) {
-  // Invalidate matching rules on old and new active element.
-  if (active_element_) {
-    HTMLElement* html_element = active_element_->AsHTMLElement();
-    if (html_element) {
-      html_element->InvalidateMatchingRulesRecursively();
-    }
-  }
   if (active_element) {
-    HTMLElement* html_element = active_element->AsHTMLElement();
-    if (html_element) {
-      html_element->InvalidateMatchingRulesRecursively();
-    }
     active_element_ = base::AsWeakPtr(active_element);
   } else {
     active_element_.reset();
   }
-
-  // Record mutation and trigger layout.
-  is_computed_style_dirty_ = true;
-  RecordMutation();
-  FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
 }
 
 void Document::IncreaseLoadingCounter() { ++loading_counter_; }
@@ -459,6 +449,12 @@ void Document::DoSynchronousLayout() {
 void Document::NotifyUrlChanged(const GURL& url) {
   location_->set_url(url);
   csp_delegate_->NotifyUrlChanged(url);
+}
+
+void Document::OnFocusChange() {
+  is_computed_style_dirty_ = true;
+  RecordMutation();
+  FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
 }
 
 void Document::OnCSSMutation() {
@@ -591,6 +587,58 @@ void Document::UpdateComputedStyles() {
     }
 
     is_computed_style_dirty_ = false;
+  }
+}
+
+void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
+  if (!element || element->node_document() != this ||
+      !is_computed_style_dirty_) {
+    return;
+  }
+
+  UpdateSelectorTree();
+  UpdateKeyframes();
+  UpdateFontFaces();
+
+  base::TimeDelta style_change_event_time =
+      base::TimeDelta::FromMillisecondsD(*default_timeline_->current_time());
+
+  // Find all ancestors of the element until the document.
+  std::vector<HTMLElement*> ancestors;
+  while (true) {
+    ancestors.push_back(element);
+    if (element->parent_node() == dynamic_cast<Node*>(this)) {
+      break;
+    }
+    Element* parent_element = element->parent_element();
+    if (!parent_element) {
+      return;
+    }
+    element = parent_element->AsHTMLElement();
+    if (!element) {
+      return;
+    }
+  }
+
+  // Update computed styles on the ancestors and the element.
+  HTMLElement* previous_element = NULL;
+  bool ancestors_were_valid = true;
+  for (std::vector<HTMLElement*>::reverse_iterator it = ancestors.rbegin();
+       it != ancestors.rend(); ++it) {
+    HTMLElement* current_element = *it;
+    bool is_valid = ancestors_were_valid &&
+                    current_element->matching_rules_valid() &&
+                    current_element->computed_style_valid();
+    if (!is_valid) {
+      DCHECK(initial_computed_style_declaration_);
+      DCHECK(initial_computed_style_data_);
+      current_element->UpdateComputedStyle(
+          previous_element ? previous_element->css_computed_style_declaration()
+                           : initial_computed_style_declaration_,
+          initial_computed_style_data_, style_change_event_time);
+    }
+    previous_element = current_element;
+    ancestors_were_valid = is_valid;
   }
 }
 

@@ -28,7 +28,6 @@
         'mozjs_script_value_factory.cc',
         'mozjs_source_code.cc',
         'mozjs_trace_logging.cc',
-        'opaque_root_tracker.cc',
         'promise_wrapper.cc',
         'proxy_handler.cc',
         'referenced_object_map.cc',

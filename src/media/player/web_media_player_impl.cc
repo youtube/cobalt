@@ -29,7 +29,11 @@
 #include "media/filters/video_renderer_base.h"
 #include "media/player/web_media_player_proxy.h"
 
+namespace media {
 namespace {
+
+// Used to ensure that there is no more than one instance of WebMediaPlayerImpl.
+WebMediaPlayerImpl* s_instance;
 
 // Limits the range of playback rate.
 //
@@ -92,8 +96,6 @@ base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
 
 }  // namespace
 
-namespace media {
-
 #define BIND_TO_RENDER_LOOP(function)          \
   BindToLoop(main_loop_->message_loop_proxy(), \
              base::Bind(function, AsWeakPtr()))
@@ -137,6 +139,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
+  DCHECK(!s_instance);
+  s_instance = this;
+
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -180,6 +185,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
+
+  DCHECK_EQ(s_instance, this);
+  s_instance = NULL;
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);

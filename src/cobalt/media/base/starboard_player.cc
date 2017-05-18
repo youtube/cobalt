@@ -124,7 +124,9 @@ StarboardPlayer::~StarboardPlayer() {
       ->ResetGetCurrentSbDecodeTargetFunction();
 #endif  // SB_API_VERSION >= 4
 
-  SbPlayerDestroy(player_);
+  if (SbPlayerIsValid(player_)) {
+    SbPlayerDestroy(player_);
+  }
 }
 
 void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
@@ -203,8 +205,13 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
 }
 
 void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
-  DCHECK(SbPlayerIsValid(player_));
+  if (state_ == kSuspended) {
+    DCHECK(!SbPlayerIsValid(player_));
+    pending_set_bounds_rect_ = rect;
+    return;
+  }
 
+  DCHECK(SbPlayerIsValid(player_));
 #if SB_API_VERSION >= 4
   const int kZIndex = 0;
   SbPlayerSetBounds(player_, kZIndex, rect.x(), rect.y(), rect.width(),
@@ -216,13 +223,20 @@ void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
 
 void StarboardPlayer::PrepareForSeek() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  seek_pending_ = true;
+
+  if (state_ == kSuspended) {
+    DCHECK(!SbPlayerIsValid(player_));
+    return;
+  }
+
   ++ticket_;
 #if SB_API_VERSION < 4
   SbPlayerSetPause(player_, true);
 #else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, 0.f);
 #endif  // SB_API_VERSION < 4
-  seek_pending_ = true;
 }
 
 void StarboardPlayer::Seek(base::TimeDelta time) {
@@ -270,9 +284,14 @@ void StarboardPlayer::SetVolume(float volume) {
 
 void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(SbPlayerIsValid(player_));
 
   playback_rate_ = playback_rate;
+
+  if (state_ == kSuspended) {
+    DCHECK(!SbPlayerIsValid(player_));
+    return;
+  }
+
 #if SB_API_VERSION < 4
   SbPlayerSetPause(player_, playback_rate == 0.0);
 #else   // SB_API_VERSION < 4
@@ -451,6 +470,11 @@ void StarboardPlayer::CreatePlayer() {
 #endif  // SB_API_VERSION >= 4
 
   set_bounds_helper_->SetPlayer(this);
+
+  if (pending_set_bounds_rect_) {
+    SetBounds(*pending_set_bounds_rect_);
+    pending_set_bounds_rect_ = base::nullopt_t();
+  }
 }
 
 #if SB_API_VERSION >= 4

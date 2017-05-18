@@ -57,20 +57,6 @@ PrimaryGlobal
 # http://heycam.github.io/webidl/#Exposed
 Exposed=*
 
-# The value of this attribute is a list of functions to be called that will
-# return a scoped_refptr<Wrappable>.
-# The raw pointer will be added as an opaque root when an instance of this
-# interface is visited during garbage collection.
-AddOpaqueRoots=|*
-
-# The value of this attribute is a function to be called that will return a
-# scoped_refptr<Wrappable> that represents an opaque root of an object
-# implementing this interface.
-# If opaque root of an object is in the set of opaque roots that have been
-# collected during garbage collection, the object's wrapper will be kept alive
-# as well.
-GetOpaqueRoot=*
-
 # Call the Cobalt function this property is bound to with the corresponding
 # object added to the head of the function's parameters.
 # StackTrace is a custom addition to CallWith for the purpose of testing

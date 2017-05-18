@@ -347,6 +347,7 @@
         'testing/stub_css_parser.h',
         'testing/stub_script_runner.cc',
         'testing/stub_script_runner.h',
+        'testing/stub_window.h',
       ],
       'dependencies': [
         # TODO: Remove the dependency below, it works around the fact that

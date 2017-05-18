@@ -93,20 +93,44 @@ std::string InsertCommasIntoNumberString(const std::string& input) {
   return ss.str();
 }
 
-Timer::Timer(base::TimeDelta dt)
-    : start_time_(base::TimeTicks::Now()), time_before_expiration_(dt) {}
+Timer::Timer(base::TimeDelta delta_time) {
+  start_time_ = Now();
+  time_before_expiration_ = delta_time;
+}
 
-void Timer::Restart() { start_time_ = base::TimeTicks::Now(); }
+Timer::Timer(base::TimeDelta delta_time, Timer::TimeFunctor time_functor) {
+  time_function_override_ = time_functor;
+  start_time_ = Now();
+  time_before_expiration_ = delta_time;
+}
+
+void Timer::Restart() { start_time_ = Now(); }
 
 bool Timer::UpdateAndIsExpired() {
-  base::TimeTicks now_time = base::TimeTicks::Now();
-  base::TimeDelta dt = now_time - start_time_;
-  if (dt > time_before_expiration_) {
+  base::TimeTicks now_time = Now();
+  base::TimeDelta delta_time = now_time - start_time_;
+  if (delta_time >= time_before_expiration_) {
     start_time_ = now_time;
     return true;
   } else {
     return false;
   }
+}
+
+base::TimeTicks Timer::Now() {
+  if (time_function_override_.is_null()) {
+    return base::TimeTicks::HighResNow();
+  } else {
+    return time_function_override_.Run();
+  }
+}
+
+void Timer::ScaleTimerAndReset(double scale) {
+  int64_t old_dt = time_before_expiration_.InMicroseconds();
+  int64_t new_dt =
+      static_cast<int64_t>(static_cast<double>(old_dt) * scale);
+  time_before_expiration_ = base::TimeDelta::FromMicroseconds(new_dt);
+  Restart();
 }
 
 const char* BaseNameFast(const char* file_name) {

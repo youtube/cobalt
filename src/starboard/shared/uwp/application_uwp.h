@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_WIN32_APPLICATION_STUB_H_
-#define STARBOARD_SHARED_WIN32_APPLICATION_STUB_H_
+#ifndef STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
+#define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
@@ -23,16 +23,16 @@
 
 namespace starboard {
 namespace shared {
-namespace win32 {
+namespace uwp {
 
 // Stub application engine using the generic queue and a stub implementation.
-class ApplicationStub : public shared::starboard::QueueApplication {
+class ApplicationUwp : public shared::starboard::QueueApplication {
  public:
-  ApplicationStub();
-  ~ApplicationStub() SB_OVERRIDE;
+  ApplicationUwp();
+  ~ApplicationUwp() SB_OVERRIDE;
 
-  static ApplicationStub* Get() {
-    return static_cast<ApplicationStub*>(shared::starboard::Application::Get());
+  static ApplicationUwp* Get() {
+    return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
   }
 
  protected:
@@ -47,8 +47,8 @@ class ApplicationStub : public shared::starboard::QueueApplication {
   void WakeSystemEventWait() SB_OVERRIDE;
 };
 
-}  // namespace win32
+}  // namespace uwp
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_WIN32_APPLICATION_STUB_H_
+#endif  // STARBOARD_SHARED_UWP_APPLICATION_UWP_H_

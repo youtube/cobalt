@@ -93,13 +93,6 @@ namespace testing {
 
 namespace {
 
-Wrappable* GetOpaqueRootFromWrappable(
-    const scoped_refptr<Wrappable>& wrappable) {
-  GarbageCollectionTestInterface* impl =
-      base::polymorphic_downcast<GarbageCollectionTestInterface*>(wrappable.get());
-  return impl->GetHead();
-}
-
 class MozjsGarbageCollectionTestInterfaceHandler : public ProxyHandler {
  public:
   MozjsGarbageCollectionTestInterfaceHandler()
@@ -515,11 +508,7 @@ JSObject* MozjsGarbageCollectionTestInterface::CreateProxy(
   JS::RootedObject proxy(context,
       ProxyHandler::NewProxy(
           context, proxy_handler.Pointer(), new_object, prototype));
-  WrapperPrivate::GetOpaqueRootFunction get_root;
-  WrapperPrivate::GetReachableWrappablesFunction get_reachable_wrappables;
-  get_root = base::Bind(&GetOpaqueRootFromWrappable);
-  WrapperPrivate::AddPrivateData(
-      context, proxy, wrappable, get_root, get_reachable_wrappables);
+  WrapperPrivate::AddPrivateData(context, proxy, wrappable);
   return proxy;
 }
 

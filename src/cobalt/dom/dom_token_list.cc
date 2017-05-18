@@ -188,6 +188,10 @@ const std::vector<base::Token>& DOMTokenList::GetTokens() const {
   return tokens_;
 }
 
+void DOMTokenList::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(element());
+}
+
 DOMTokenList::~DOMTokenList() { GlobalStats::GetInstance()->Remove(this); }
 
 // Algorithm for RunUpdateSteps:

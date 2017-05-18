@@ -40,7 +40,7 @@ class MediaKeySession : public EventTarget {
   typedef base::Callback<void(MediaKeySession* session)> ClosedCallback;
 
   // Custom, not in any spec.
-  MediaKeySession(scoped_ptr<media::DrmSystem::Session> drm_system_session,
+  MediaKeySession(const scoped_refptr<media::DrmSystem>& drm_system,
                   script::ScriptValueFactory* script_value_factory,
                   const ClosedCallback& closed_callback);
 
@@ -68,6 +68,11 @@ class MediaKeySession : public EventTarget {
   void OnSessionDidNotUpdate(VoidPromiseValue::Reference* promise_reference);
   void OnClosed();
 
+  // Although it doesn't make much sense, it's possible to call session methods
+  // when |MediaKeys| are destroyed. This behavior is underspecified but is
+  // consistent with Chromium. For this reason we need to hold to |drm_system_|
+  // from each session.
+  const scoped_refptr<media::DrmSystem> drm_system_;
   scoped_ptr<media::DrmSystem::Session> drm_system_session_;
   script::ScriptValueFactory* const script_value_factory_;
   bool uninitialized_;

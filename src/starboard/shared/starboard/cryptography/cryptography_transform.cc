@@ -21,6 +21,17 @@
 #error "SbCryptography requires SB_API_VERSION >= 4."
 #endif
 
+using starboard::shared::starboard::cryptography::AES_cbc_encrypt;
+using starboard::shared::starboard::cryptography::AES_ctr128_encrypt;
+using starboard::shared::starboard::cryptography::AES_decrypt;
+using starboard::shared::starboard::cryptography::AES_encrypt;
+using starboard::shared::starboard::cryptography::AES_gcm128_decrypt;
+using starboard::shared::starboard::cryptography::AES_gcm128_encrypt;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Cbc;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Ecb;
+using starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm;
+
 int SbCryptographyTransform(SbCryptographyTransformer transformer,
                             const void* in_data,
                             int in_data_size,
@@ -33,32 +44,50 @@ int SbCryptographyTransform(SbCryptographyTransformer transformer,
     return 0;
   }
 
-  if (transformer->algorithm ==
-      starboard::shared::starboard::cryptography::kAlgorithmAes128Cbc) {
-    int enc = transformer->direction == kSbCryptographyDirectionEncode
-                  ? SB_AES_ENCRYPT
-                  : SB_AES_DECRYPT;
-    starboard::shared::starboard::cryptography::AES_cbc_encrypt(
-        in_data, out_data, in_data_size, &(transformer->key), transformer->ivec,
-        enc);
-  } else if (transformer->algorithm ==
-             starboard::shared::starboard::cryptography::kAlgorithmAes128Ctr) {
-    starboard::shared::starboard::cryptography::AES_ctr128_encrypt(
-        in_data, out_data, in_data_size, &(transformer->key), transformer->ivec,
-        transformer->ecount_buf, &transformer->counter);
-  } else if (transformer->algorithm ==
-             starboard::shared::starboard::cryptography::kAlgorithmAes128Gcm) {
-    if (transformer->direction == kSbCryptographyDirectionEncode) {
-      starboard::shared::starboard::cryptography::AES_gcm128_encrypt(
-          &transformer->gcm_context, &transformer->key, in_data, out_data,
-          in_data_size);
-    } else if (transformer->direction == kSbCryptographyDirectionDecode) {
-      starboard::shared::starboard::cryptography::AES_gcm128_decrypt(
-          &transformer->gcm_context, &transformer->key, in_data, out_data,
-          in_data_size);
-    } else {
+  switch (transformer->algorithm) {
+    case kAlgorithmAes128Cbc:
+      AES_cbc_encrypt(in_data, out_data, in_data_size, &(transformer->key),
+                      transformer->ivec,
+                      transformer->direction == kSbCryptographyDirectionEncode ?
+                      SB_AES_ENCRYPT : SB_AES_DECRYPT);
+      break;
+
+    case kAlgorithmAes128Ctr:
+      AES_ctr128_encrypt(in_data, out_data, in_data_size, &(transformer->key),
+                         transformer->ivec, transformer->ecount_buf,
+                         &transformer->counter);
+      break;
+
+    case kAlgorithmAes128Ecb:
+      if (in_data_size % 16 != 0) {
+        SB_DLOG(ERROR) << "ECB called with a non-multiple of the block size.";
+        return -1;
+      }
+
+      if (transformer->direction == kSbCryptographyDirectionEncode) {
+        AES_encrypt(in_data, out_data, &transformer->key);
+      } else if (transformer->direction == kSbCryptographyDirectionDecode) {
+        AES_decrypt(in_data, out_data, &transformer->key);
+      } else {
+        SB_NOTREACHED();
+      }
+      break;
+
+    case kAlgorithmAes128Gcm:
+      if (transformer->direction == kSbCryptographyDirectionEncode) {
+        AES_gcm128_encrypt(&transformer->gcm_context, &transformer->key,
+                           in_data, out_data, in_data_size);
+      } else if (transformer->direction == kSbCryptographyDirectionDecode) {
+        AES_gcm128_decrypt(&transformer->gcm_context, &transformer->key,
+                           in_data, out_data, in_data_size);
+      } else {
+        SB_NOTREACHED();
+      }
+      break;
+
+    default:
       SB_NOTREACHED();
-    }
+      return -1;
   }
 
   return in_data_size;

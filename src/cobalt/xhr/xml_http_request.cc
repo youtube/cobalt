@@ -686,6 +686,13 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
   }
 }
 
+void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
+  XMLHttpRequestEventTarget::TraceMembers(tracer);
+
+  tracer->Trace(upload_or_null());
+  tracer->Trace(response_array_buffer_or_null());
+}
+
 XMLHttpRequest::~XMLHttpRequest() {
   DCHECK(thread_checker_.CalledOnValidThread());
   dom::GlobalStats::GetInstance()->Remove(this);

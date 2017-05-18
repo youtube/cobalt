@@ -40,6 +40,23 @@ Event::Event(const std::string& type)
   InitEventInternal(base::Token(type), false, false);
 }
 
+Event::Event(base::Token type, const EventInit& eventInitDict)
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+  SB_DCHECK(eventInitDict.has_bubbles());
+  SB_DCHECK(eventInitDict.has_cancelable());
+  InitEventInternal(type, eventInitDict.bubbles(), eventInitDict.cancelable());
+}
+
+Event::Event(const std::string& type, const EventInit& eventInitDict)
+    : event_phase_(kNone),
+      time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
+  SB_DCHECK(eventInitDict.has_bubbles());
+  SB_DCHECK(eventInitDict.has_cancelable());
+  InitEventInternal(base::Token(type), eventInitDict.bubbles(),
+                    eventInitDict.cancelable());
+}
+
 Event::Event(base::Token type, Bubbles bubbles, Cancelable cancelable)
     : event_phase_(kNone),
       time_stamp_(static_cast<uint64>(base::Time::Now().ToJsTime())) {
@@ -59,6 +76,15 @@ const scoped_refptr<EventTarget>& Event::current_target() const {
 }
 
 void Event::InitEvent(const std::string& type, bool bubbles, bool cancelable) {
+  // Our event is for single use only.
+  DCHECK(!IsBeingDispatched());
+  DCHECK(!target());
+  DCHECK(!current_target());
+
+  if (IsBeingDispatched() || target() || current_target()) {
+    return;
+  }
+
   InitEventInternal(base::Token(type), bubbles, cancelable);
 }
 
@@ -71,15 +97,6 @@ void Event::set_current_target(const scoped_refptr<EventTarget>& target) {
 }
 
 void Event::InitEventInternal(base::Token type, bool bubbles, bool cancelable) {
-  // Our event is for single use only.
-  DCHECK(!IsBeingDispatched());
-  DCHECK(!target());
-  DCHECK(!current_target());
-
-  if (IsBeingDispatched() || target() || current_target()) {
-    return;
-  }
-
   type_ = type;
   bubbles_ = bubbles;
   cancelable_ = cancelable;
