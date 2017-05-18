@@ -438,7 +438,7 @@
     # during system startup.  To allocate a large chunk at startup helps with
     # reducing frafmentation and can avoid failures to allocate incrementally.
     # This can be set to 0.
-    'cobalt_media_buffer_initial_capacity%': 26 * 1024 * 1024,
+    'cobalt_media_buffer_initial_capacity%': 0 * 1024 * 1024,
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
     # This can be set to 0, in which case the media stack will allocate extra
