@@ -31,6 +31,9 @@
 
 namespace {
 
+// Used to ensure that there is no more than one instance of WebMediaPlayerImpl.
+WebMediaPlayerImpl* s_instance;
+
 // Limits the range of playback rate.
 //
 // TODO(kylep): Revisit these.
@@ -137,6 +140,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
+  DCHECK(!s_instance);
+  s_instance = this;
+
   media_log_->AddEvent(
       media_log_->CreateEvent(MediaLogEvent::WEBMEDIAPLAYER_CREATED));
 
@@ -180,6 +186,9 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
+
+  DCHECK_EQ(s_instance, this);
+  s_instance = NULL;
 
   if (delegate_) {
     delegate_->UnregisterPlayer(this);
