@@ -19,8 +19,8 @@
       'type': 'none',
 
       'dependencies': [
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libEGL',
-        '<(DEPTH)/third_party/angle/src/build_angle.gyp:libGLESv2',
+        '<(DEPTH)/third_party/angle/angle.gyp:libEGL',
+        '<(DEPTH)/third_party/angle/angle.gyp:libGLESv2',
       ],
       'direct_dependent_settings': {
         'include_dirs': [
