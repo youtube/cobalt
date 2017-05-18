@@ -22,32 +22,52 @@ namespace cobalt {
 namespace media {
 
 namespace {
-bool kPreAllocateAllMemory = true;
+const bool kPreAllocateAllMemory = true;
 }  // namespace
 
-DecoderBufferAllocator::DecoderBufferAllocator()
-    : memory_block_(
-          SbMemoryAllocateAligned(DecoderBuffer::kAlignmentSize,
-                                  COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)) {
-  memory_pool_.set(starboard::make_scoped_ptr(
-      new nb::MemoryPool(memory_block_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
-                         kPreAllocateAllMemory)));
+DecoderBufferAllocator::DecoderBufferAllocator() : memory_block_(NULL) {
+  if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0) {
+    memory_block_ = SbMemoryAllocateAligned(
+        DecoderBuffer::kAlignmentSize, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY);
+  }
+
+  if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 ||
+      COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0) {
+    // TODO: Support COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0.
+    memory_pool_.set(starboard::make_scoped_ptr(
+        new nb::MemoryPool(memory_block_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
+                           kPreAllocateAllMemory)));
+  }
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  DCHECK_EQ(memory_pool_->GetAllocated(), 0);
-  SbMemoryDeallocateAligned(memory_block_);
+  if (memory_pool_.is_valid()) {
+    DCHECK_EQ(memory_pool_->GetAllocated(), 0);
+  }
+
+  if (memory_block_) {
+    SbMemoryDeallocateAligned(memory_block_);
+  }
 }
 
 void* DecoderBufferAllocator::Allocate(Type type, size_t size,
                                        size_t alignment) {
   UNREFERENCED_PARAMETER(type);
-  return memory_pool_->Allocate(size, alignment);
+  if (memory_pool_.is_valid()) {
+    return memory_pool_->Allocate(size, alignment);
+  }
+
+  return SbMemoryAllocateAligned(alignment, size);
 }
 
 void DecoderBufferAllocator::Free(Type type, void* ptr) {
   UNREFERENCED_PARAMETER(type);
-  memory_pool_->Free(ptr);
+  if (memory_pool_.is_valid()) {
+    memory_pool_->Free(ptr);
+    return;
+  }
+
+  SbMemoryDeallocateAligned(ptr);
 }
 
 }  // namespace media
