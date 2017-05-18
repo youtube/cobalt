@@ -46,9 +46,15 @@
  * KHRONOS_APICALL and KHRONOS_APIENTRY are defined in KHR/khrplatform.h
  */
 
+#if defined(STARBOARD)
+// Don't trust any previous definitions of GL_APICALL. We really want nothing.
+#undef EGLAPI
+#define EGLAPI  /* nothing */
+#else
 #ifndef EGLAPI
 #define EGLAPI KHRONOS_APICALL
 #endif
+#endif  // defined(STARBOARD)
 
 #ifndef EGLAPIENTRY
 #define EGLAPIENTRY  KHRONOS_APIENTRY
