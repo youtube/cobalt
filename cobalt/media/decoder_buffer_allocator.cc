@@ -14,6 +14,7 @@
 
 #include "cobalt/media/decoder_buffer_allocator.h"
 
+#include "nb/memory_scope.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/memory.h"
@@ -26,6 +27,7 @@ const bool kPreAllocateAllMemory = true;
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator() : memory_block_(NULL) {
+  TRACK_MEMORY_SCOPE("Media");
   if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0) {
     memory_block_ = SbMemoryAllocateAligned(
         DecoderBuffer::kAlignmentSize, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY);
@@ -52,6 +54,7 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 
 void* DecoderBufferAllocator::Allocate(Type type, size_t size,
                                        size_t alignment) {
+  TRACK_MEMORY_SCOPE("Media");
   UNREFERENCED_PARAMETER(type);
   if (memory_pool_.is_valid()) {
     return memory_pool_->Allocate(size, alignment);
