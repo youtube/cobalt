@@ -294,7 +294,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Updates the computed styles of the element and all its ancestors.
   // Matching rules, media rules, font faces and key frames are also updated.
-  void UpdateComputedStyleOnElementAndAncestor(HTMLElement* element);
+  // Returns whether the computed style is valid after the call.
+  bool UpdateComputedStyleOnElementAndAncestor(HTMLElement* element);
 
   // Manages the clock used by Web Animations.
   //     https://www.w3.org/TR/web-animations
