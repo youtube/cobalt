@@ -34,6 +34,10 @@ AudioNode::~AudioNode() {
   RemoveAllOutputs();
 }
 
+scoped_refptr<AudioContext> AudioNode::context() const {
+  return audio_context_;
+}
+
 void AudioNode::set_channel_count(uint32 channel_count,
                                   script::ExceptionState* exception_state) {
   AudioLock::AutoLock lock(audio_lock());
