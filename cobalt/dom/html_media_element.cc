@@ -1618,11 +1618,11 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture");
 
 #if defined(ENABLE_MAP_TO_MESH)
-  node_document()->UpdateComputedStyleOnElementAndAncestor(this);
-
-  if (!computed_style()) {
+  if (!node_document()->UpdateComputedStyleOnElementAndAncestor(this)) {
+    NOTREACHED();
     return false;
   }
+  DCHECK(computed_style());
 
   const cssom::MapToMeshFunction* map_to_mesh_filter =
       cssom::MapToMeshFunction::ExtractFromFilterList(

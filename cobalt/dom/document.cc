@@ -590,13 +590,15 @@ void Document::UpdateComputedStyles() {
   }
 }
 
-void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
+bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   TRACE_EVENT0(
       "cobalt::dom", "Document::UpdateComputedStyleOnElementAndAncestor");
+  if (!element || element->node_document() != this) {
+    return false;
+  }
 
-  if (!element || element->node_document() != this ||
-      !is_computed_style_dirty_) {
-    return;
+  if (!is_computed_style_dirty_) {
+    return true;
   }
 
   UpdateSelectorTree();
@@ -615,11 +617,11 @@ void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
     }
     Element* parent_element = element->parent_element();
     if (!parent_element) {
-      return;
+      return false;
     }
     element = parent_element->AsHTMLElement();
     if (!element) {
-      return;
+      return false;
     }
   }
 
@@ -643,6 +645,8 @@ void Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
     previous_element = current_element;
     ancestors_were_valid = is_valid;
   }
+
+  return true;
 }
 
 void Document::SampleTimelineTime() { default_timeline_->Sample(); }
