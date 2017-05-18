@@ -103,12 +103,15 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     cl = _QuotePath(os.path.join(vs_cl_path, 'cl.exe'))
     lib = _QuotePath(os.path.join(vs_cl_path, 'lib.exe'))
     link = _QuotePath(os.path.join(vs_cl_path, 'link.exe'))
+    rc = _QuotePath(os.path.join(windows_sdk_bin_dir, required_sdk_version,
+                                 'x64', 'rc.exe'))
     env_variables = {
         'AR' : lib,
         'AR_HOST' : lib,
         'CC': cl,
         'CXX': cl,
         'LD': link,
+        'RC': rc,
         'VS_INSTALL_DIR': vs_install_dir,
         'CC_HOST': cl,
         'CXX_HOST': cl,
