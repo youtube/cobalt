@@ -19,9 +19,15 @@
 
 #include <KHR/khrplatform.h>
 
+#if defined(STARBOARD)
+// Don't trust any previous definitions of GL_APICALL. We really want nothing.
+#undef GL_APICALL
+#define GL_APICALL  /* nothing */
+#else
 #ifndef GL_APICALL
 #define GL_APICALL  KHRONOS_APICALL
 #endif
+#endif  // defined(STARBOARD)
 
 #ifndef GL_APIENTRY
 #define GL_APIENTRY KHRONOS_APIENTRY

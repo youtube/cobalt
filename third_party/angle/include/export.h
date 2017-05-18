@@ -10,7 +10,9 @@
 #define LIBGLESV2_EXPORT_H_
 
 #if !defined(ANGLE_EXPORT)
-#if defined(_WIN32)
+#if defined(STARBOARD)
+#       define ANGLE_EXPORT /* nothing */
+#elif defined(_WIN32)
 #if defined(LIBGLESV2_IMPLEMENTATION) || defined(LIBANGLE_IMPLEMENTATION) || \
     defined(LIBANGLE_UTIL_IMPLEMENTATION)
 #       define ANGLE_EXPORT __declspec(dllexport)
