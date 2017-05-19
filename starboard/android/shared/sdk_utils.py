@@ -28,8 +28,14 @@ import zipfile
 
 import gyp_utils
 
-# The api level of NDK standalone toolchain to install.
-_ANDROID_NDK_API_LEVEL = '24' # There is no 25 (no NDK changes in Nougat MR1)
+# The API level of NDK standalone toolchain to install. This should be the
+# minimum API level on which the app is expected to run. If some feature from a
+# newer NDK level is needed, this may be increased with caution.
+# https://developer.android.com/ndk/guides/stable_apis.html
+#
+# Using 24 will lead to missing symbols on API 23 devices.
+# https://github.com/android-ndk/ndk/issues/126
+_ANDROID_NDK_API_LEVEL = '21'
 
 # Packages to install in the Android SDK.
 # Get available packages from "sdkmanager --list --verbose"
