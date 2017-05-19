@@ -26,6 +26,8 @@
 // WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 // Contact GitHub API Training Shop Blog About
 
+// Fetch API: https://fetch.spec.whatwg.org/
+
 (function(self) {
   'use strict';
 
@@ -33,9 +35,16 @@
     return
   }
 
+  var Array = self.Array;
+  var Error = self.Error;
+  var Map = self.Map;
+  var RangeError = self.RangeError;
+  var TypeError = self.TypeError;
+
+  var err_InvalidHeadersInit = 'Constructing Headers with invalid parameters'
+
   var support = {
     searchParams: 'URLSearchParams' in self,
-    iterable: 'Symbol' in self && 'iterator' in Symbol,
     blob: 'FileReader' in self && 'Blob' in self && (function() {
       try {
         new Blob()
@@ -84,39 +93,61 @@
     if (typeof value !== 'string') {
       value = String(value)
     }
+
+    // https://fetch.spec.whatwg.org/#concept-header-value
+    // The web platform tests don't quite abide by the current spec. Use a
+    // permissive approach that passes the tests while following the spirit
+    // of the spec. Essentially, leading & trailing HTTP whitespace bytes
+    // are trimmed first before checking validity.
+    var c, first, last, i
+
+    //value = value.replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, '')
+    for (first = 0; first < value.length; first++) {
+      c = value.charCodeAt(first)
+      if (c !== 9 && c !== 10 && c !== 13 && c !== 32) {
+        break
+      }
+    }
+    for (last = value.length - 1; last > first; last--) {
+      c = value.charCodeAt(last)
+      if (c !== 9 && c !== 10 && c !== 13 && c !== 32) {
+        break
+      }
+    }
+    value = value.substring(first, last + 1)
+
+    // Follow the chromium implementation of IsValidHTTPHeaderValue(). This
+    // should be updated once the web platform test abides by the fetch spec.
+    for (i = 0; i < value.length; i++) {
+      c = value.charCodeAt(i)
+      if (c >= 256 || c === 0 || c === 10 || c === 13) {
+        throw new TypeError('Invalid character in header field value')
+      }
+    }
     return value
   }
 
-  // Build a destructive iterator for the value list
-  function iteratorFor(items) {
-    var iterator = {
-      next: function() {
-        var value = items.shift()
-        return {done: value === undefined, value: value}
-      }
-    }
-
-    if (support.iterable) {
-      iterator[Symbol.iterator] = function() {
-        return iterator
-      }
-    }
-
-    return iterator
-  }
-
   function Headers(headers) {
-    this.map = {}
+    this.map = new Map();
 
-    if (headers instanceof Headers) {
+    if (headers === undefined) {
+      return
+    } else if (headers === null || typeof headers !== 'object') {
+      throw new TypeError(err_InvalidHeadersInit)
+    } else if (headers instanceof Headers) {
+      // Should use for..of in case |headers| has a custom Symbol.iterator.
+      // However, this results in the ClosureCompiler polyfilling Symbol.
       headers.forEach(function(value, name) {
         this.append(name, value)
       }, this)
     } else if (Array.isArray(headers)) {
       headers.forEach(function(header) {
+        if (header.length !== 2) {
+          throw new TypeError(err_InvalidHeadersInit)
+        }
         this.append(header[0], header[1])
       }, this)
-    } else if (headers) {
+    } else {
       Object.getOwnPropertyNames(headers).forEach(function(name) {
         this.append(name, headers[name])
       }, this)
@@ -124,58 +155,72 @@
   }
 
   Headers.prototype.append = function(name, value) {
+    if (arguments.length !== 2) {
+      throw TypeError('Invalid parameters to append')
+    }
     name = normalizeName(name)
     value = normalizeValue(value)
-    var oldValue = this.map[name]
-    this.map[name] = oldValue ? oldValue+','+value : value
-  }
-
-  Headers.prototype['delete'] = function(name) {
-    delete this.map[normalizeName(name)]
-  }
-
-  Headers.prototype.get = function(name) {
-    name = normalizeName(name)
-    return this.has(name) ? this.map[name] : null
-  }
-
-  Headers.prototype.has = function(name) {
-    return this.map.hasOwnProperty(normalizeName(name))
-  }
-
-  Headers.prototype.set = function(name, value) {
-    this.map[normalizeName(name)] = normalizeValue(value)
-  }
-
-  Headers.prototype.forEach = function(callback, thisArg) {
-    for (var name in this.map) {
-      if (this.map.hasOwnProperty(name)) {
-        callback.call(thisArg, this.map[name], name, this)
-      }
+    if (this.map.has(name)) {
+      this.map.set(name, this.map.get(name) + ', ' + value)
+    } else {
+      this.map.set(name, value)
     }
   }
 
+  Headers.prototype['delete'] = function(name) {
+    if (arguments.length !== 1) {
+      throw TypeError('Invalid parameters to delete')
+    }
+    this.map.delete(normalizeName(name))
+  }
+
+  Headers.prototype.get = function(name) {
+    if (arguments.length !== 1) {
+      throw TypeError('Invalid parameters to get')
+    }
+    name = normalizeName(name)
+    var value = this.map.get(name)
+    return value !== undefined ? value : null
+  }
+
+  Headers.prototype.has = function(name) {
+    if (arguments.length !== 1) {
+      throw TypeError('Invalid parameters to has')
+    }
+    return this.map.has(normalizeName(name))
+  }
+
+  Headers.prototype.set = function(name, value) {
+    if (arguments.length !== 2) {
+      throw TypeError('Invalid parameters to set')
+    }
+    this.map.set(normalizeName(name), normalizeValue(value))
+  }
+
+  Headers.prototype.forEach = function(callback, thisArg) {
+    var sorted_array = Array.from(this.map.entries()).sort()
+    var that = this
+    sorted_array.forEach(function(value) {
+      callback.call(thisArg, value[1], value[0], that)
+    })
+  }
+
   Headers.prototype.keys = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push(name) })
-    return iteratorFor(items)
+    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    return sorted_map.keys()
   }
 
   Headers.prototype.values = function() {
-    var items = []
-    this.forEach(function(value) { items.push(value) })
-    return iteratorFor(items)
+    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    return sorted_map.values()
   }
 
   Headers.prototype.entries = function() {
-    var items = []
-    this.forEach(function(value, name) { items.push([name, value]) })
-    return iteratorFor(items)
+    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    return sorted_map.entries()
   }
 
-  if (support.iterable) {
-    Headers.prototype[Symbol.iterator] = Headers.prototype.entries
-  }
+  Headers.prototype[Symbol.iterator] = Headers.prototype.entries
 
   function consumed(body) {
     if (body.bodyUsed) {
