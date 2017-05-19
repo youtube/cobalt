@@ -1740,6 +1740,18 @@ TEST_F(PixelTest, EllipticalViewportOverImage) {
       new ImageNode(image)));
 }
 
+TEST_F(PixelTest, LargeEllipticalViewportOverImage) {
+  // This image has rounded corners that are just large enough to result in
+  // older skia implementations using uniform values that overflow 16-bit float
+  // exponents.
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), math::Size(300, 100));
+
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(0, 0, 300, 100), RoundedCorners(150, 50)),
+      new ImageNode(image)));
+}
+
 TEST_F(PixelTest, EllipticalViewportOverWrappingImage) {
   scoped_refptr<Image> image =
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
