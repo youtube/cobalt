@@ -1656,6 +1656,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
   master_ninja.variable('cxx', cxx)
   ld = GetEnvironFallback(['LD_target', 'LD'], ld)
+  rc = GetEnvironFallback(['RC'], 'rc.exe')
 
   if not cc_host:
     cc_host = cc
@@ -1672,7 +1673,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   if flavor in microsoft_flavors:
     master_ninja.variable('ld', ld)
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    master_ninja.variable('rc', 'rc.exe')
+    master_ninja.variable('rc', rc)
     master_ninja.variable('asm', 'ml.exe')
     master_ninja.variable('mt', 'mt.exe')
     master_ninja.variable('use_dep_database', '1')
