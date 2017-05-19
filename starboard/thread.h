@@ -65,7 +65,7 @@ typedef enum SbThreadPriority {
   //
   // For platforms where that is not offered, or otherwise not meaningful, this
   // will just be the highest priority available in the platform's scheme, which
-  // may be the same as kThreadPriority_Highest.
+  // may be the same as kSbThreadPriorityHighest.
   kSbThreadPriorityRealTime,
 
   // Well-defined constant value to mean "no priority."  This means to use the
