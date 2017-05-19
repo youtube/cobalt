@@ -354,6 +354,20 @@
     # SbSystemGetTotalGPUMemory().
     'max_cobalt_gpu_usage%': -1,
 
+    # When specified this value will reduce the cpu memory consumption by
+    # the specified amount. -1 disables the value.
+    # When this value is specified then max_cobalt_cpu_usage will not be
+    # used in memory_constrainer, but will still be used for triggering
+    # a warning if the engine consumes more memory than this value specifies.
+    'reduce_cpu_memory_by%': -1,
+
+    # When specified this value will reduce the gpu memory consumption by
+    # the specified amount. -1 disables the value.
+    # When this value is specified then max_cobalt_gpu_usage will not be
+    # used in memory_constrainer, but will still be used for triggering
+    # a warning if the engine consumes more memory than this value specifies.
+    'reduce_gpu_memory_by%': -1,
+
     # Compiler configuration.
 
     # The following variables are used to specify compiler and linker

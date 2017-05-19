@@ -30,8 +30,15 @@
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
+namespace {
 
 const math::Size kResolution1080p(1920, 1080);
+
+// Represents what the cobalt engine can scale down to under a default
+// environment.
+const int64_t kSmallEngineCpuMemorySize = 130 * 1024 * 1024;
+
+const int64_t kSmallEngineGpuMemorySize = 68 * 1024 * 1024;
 
 #define EXPECT_MEMORY_SETTING(SETTING, SOURCE, MEMORY_TYPE, VALUE)          \
   EXPECT_EQ(VALUE, SETTING->value()) << " failure for " << SETTING->name(); \
@@ -39,6 +46,15 @@ const math::Size kResolution1080p(1920, 1080);
                                                  << SETTING->memory_type(); \
   EXPECT_EQ(SOURCE, SETTING->source_type()) << " failure for "              \
                                             << SETTING->name();
+
+scoped_ptr<AutoMem> CreateDefaultAutoMem() {
+  CommandLine empty_command_line(CommandLine::NO_PROGRAM);
+  BuildSettings build_settings;
+  scoped_ptr<AutoMem> auto_mem(
+      new AutoMem(kResolution1080p, empty_command_line, build_settings));
+  return auto_mem.Pass();
+}
+}  // namespace.
 
 // Tests the expectation that the command-line overrides will be applied.
 // Settings which are enabled/disabled when blitter is enabled/disabled are
@@ -56,10 +72,10 @@ TEST(AutoMem, CommandLineOverrides) {
                                  "4567");
 
   for (int i = 0; i <= 1; ++i) {
-    BuildSettings builtin_settings = GetDefaultBuildSettings();
-    builtin_settings.has_blitter = (i == 0);
+    BuildSettings build_settings = GetDefaultBuildSettings();
+    build_settings.has_blitter = (i == 0);
 
-    AutoMem auto_mem(kResolution1080p, command_line, builtin_settings);
+    AutoMem auto_mem(kResolution1080p, command_line, build_settings);
 
     // image_cache_size_in_bytes and javascript_gc_threshold_in_bytes settings
     // ignore the blitter type.
@@ -71,7 +87,7 @@ TEST(AutoMem, CommandLineOverrides) {
 
     // Certain features are only available for the blitter, and some features
     // are disabled, vice versa.
-    if (builtin_settings.has_blitter) {
+    if (build_settings.has_blitter) {
       // When blitter is active then skia_atlas_texture_dimensions are
       // not applicable because this is an OpenGl egl feature.
       EXPECT_MEMORY_SETTING(
@@ -123,15 +139,15 @@ TEST(AutoMem, CommandLineSpecifiesAutoset) {
 // been set.
 TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
-  BuildSettings builtin_settings_with_default;
+  BuildSettings build_settings;
+  BuildSettings build_settings_with_default;
 
-  builtin_settings_with_default.skia_texture_atlas_dimensions =
+  build_settings_with_default.skia_texture_atlas_dimensions =
       TextureDimensions(1234, 5678, 2);
 
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
   AutoMem auto_mem_with_default(kResolution1080p, empty_command_line,
-                                builtin_settings_with_default);
+                                build_settings_with_default);
 
   // Expect that when the skia_atlas_texture_dimensions is specified in the
   // build settings that it will bind to the auto-set value (computed from
@@ -151,16 +167,16 @@ TEST(AutoMem, SkiaGlyphAtlasTextureSize) {
 // it has been set.
 TEST(AutoMem, SoftwareSurfaceCacheSizeInBytes) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
-  BuildSettings builtin_settings_with_default;
+  BuildSettings build_settings;
+  BuildSettings build_settings_with_default;
   // Enable the setting by enabling the blitter.
-  builtin_settings.has_blitter = true;
-  builtin_settings_with_default.has_blitter = true;
-  builtin_settings_with_default.software_surface_cache_size_in_bytes = 1234;
+  build_settings.has_blitter = true;
+  build_settings_with_default.has_blitter = true;
+  build_settings_with_default.software_surface_cache_size_in_bytes = 1234;
 
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
   AutoMem auto_mem_with_surface_cache(kResolution1080p, empty_command_line,
-                                      builtin_settings_with_default);
+                                      build_settings_with_default);
 
   // Expect that when the software_surface_cache_size_in_bytes is specified in
   // the/ build settings that it will bind to the auto-set value (computed from
@@ -179,13 +195,13 @@ TEST(AutoMem, SoftwareSurfaceCacheSizeInBytes) {
 // it has been set.
 TEST(AutoMem, SkiaCacheSizeInBytes) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
-  BuildSettings builtin_settings_with_default;
-  builtin_settings_with_default.skia_cache_size_in_bytes = 1234;
+  BuildSettings build_settings;
+  BuildSettings build_settings_with_default;
+  build_settings_with_default.skia_cache_size_in_bytes = 1234;
 
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
   AutoMem auto_mem_with_skia_cache(kResolution1080p, empty_command_line,
-                                   builtin_settings_with_default);
+                                   build_settings_with_default);
 
   EXPECT_MEMORY_SETTING(auto_mem.skia_cache_size_in_bytes(),
                         MemorySetting::kAutoSet, MemorySetting::kGPU,
@@ -198,9 +214,9 @@ TEST(AutoMem, SkiaCacheSizeInBytes) {
 
 TEST(AutoMem, AllMemorySettingsAreOrderedByName) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
+  BuildSettings build_settings;
 
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
 
   std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
 
@@ -209,35 +225,209 @@ TEST(AutoMem, AllMemorySettingsAreOrderedByName) {
   }
 }
 
-// Tests the expectation that constraining the CPU memory to 130MB will result
-// in AutoMem reducing the the memory footprint.
+// Tests the expectation that constraining the CPU memory to kSmallEngineSize
+// will result in AutoMem reducing to the expected memory footprint.
 TEST(AutoMem, ConstrainedCPUEnvironment) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
-  builtin_settings.max_cpu_in_bytes = 130 * 1024 * 1024;
+  BuildSettings build_settings;
+  build_settings.max_cpu_in_bytes = kSmallEngineCpuMemorySize;
 
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
-
-  std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
 
   const int64_t cpu_memory_consumption =
-      SumMemoryConsumption(MemorySetting::kCPU, settings);
-
-  EXPECT_LE(cpu_memory_consumption, 130 * 1024 * 1024);
+      auto_mem.SumAllMemoryOfType(MemorySetting::kCPU);
+  EXPECT_LE(cpu_memory_consumption, kSmallEngineCpuMemorySize);
 }
 
 // Tests the expectation that constraining the CPU memory to 40MB will result
 // in AutoMem reducing the the memory footprint.
 TEST(AutoMem, ConstrainedGPUEnvironment) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
-  BuildSettings builtin_settings;
-  builtin_settings.max_gpu_in_bytes = 57 * 1024 * 1024;
-  AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
+  BuildSettings build_settings;
+  build_settings.max_gpu_in_bytes = 57 * 1024 * 1024;
+  AutoMem auto_mem(kResolution1080p, empty_command_line, build_settings);
 
   std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
   const int64_t gpu_memory_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, settings);
   EXPECT_LE(gpu_memory_consumption, 57 * 1024 * 1024);
+}
+
+// Tests the expectation that constraining the CPU memory to 40MB will result
+// in AutoMem reducing the the memory footprint.
+TEST(AutoMem, ExplicitReducedCPUMemoryConsumption) {
+  // STEP ONE: Get the "natural" size of the engine at the default test
+  // settings.
+  scoped_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
+
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  command_line.AppendSwitchASCII(switches::kReduceCpuMemoryBy, "5MB");
+  BuildSettings build_settings;
+  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line,
+                                      build_settings);
+
+  EXPECT_EQ(5*1024*1024,
+            reduced_cpu_memory_auto_mem.reduced_cpu_bytes_->value());
+
+  const int64_t original_memory_consumption =
+      default_auto_mem->SumAllMemoryOfType(MemorySetting::kCPU);
+  const int64_t reduced_memory_consumption =
+      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kCPU);
+
+  EXPECT_LE(5*1024*1024,
+            original_memory_consumption - reduced_memory_consumption);
+}
+
+// Tests the expectation that constraining the CPU memory to 40MB will result
+// in AutoMem reducing the the memory footprint.
+TEST(AutoMem, ExplicitReducedGPUMemoryConsumption) {
+  // STEP ONE: Get the "natural" size of the engine at the default test
+  // settings.
+  scoped_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
+
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  command_line.AppendSwitchASCII(switches::kReduceGpuMemoryBy, "5MB");
+  BuildSettings build_settings;
+  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line,
+                                      build_settings);
+  EXPECT_EQ(5*1024*1024,
+            reduced_cpu_memory_auto_mem.reduced_gpu_bytes_->value());
+
+  const int64_t original_memory_consumption =
+      default_auto_mem->SumAllMemoryOfType(MemorySetting::kGPU);
+  const int64_t reduced_memory_consumption =
+      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kGPU);
+
+  EXPECT_LE(5*1024*1024,
+            original_memory_consumption - reduced_memory_consumption);
+}
+
+// Tests the expectation that the max cpu value is ignored when reducing
+// memory.
+TEST(AutoMem, MaxCpuIsIgnoredDuringExplicitMemoryReduction) {
+  // STEP ONE: Get the "natural" size of the engine at the default test
+  // settings.
+  scoped_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
+
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  command_line.AppendSwitchASCII(switches::kReduceCpuMemoryBy, "5MB");
+  BuildSettings build_settings;
+  build_settings.max_cpu_in_bytes = 1;
+  AutoMem reduced_cpu_memory_auto_mem(kResolution1080p, command_line,
+                                      build_settings);
+
+  EXPECT_EQ(5*1024*1024,
+            reduced_cpu_memory_auto_mem.reduced_cpu_bytes_->value());
+
+  const int64_t original_memory_consumption =
+      default_auto_mem->SumAllMemoryOfType(MemorySetting::kCPU);
+  const int64_t reduced_memory_consumption =
+      reduced_cpu_memory_auto_mem.SumAllMemoryOfType(MemorySetting::kCPU);
+
+  // Max_cpu_in_bytes specifies one byte of memory, but reduce must override
+  // this for this test to pass.
+  EXPECT_LE(5*1024*1024,
+            original_memory_consumption - reduced_memory_consumption);
+}
+
+// Tests the expectation that the constrainer will not run on cpu memory if
+// --reduce_cpu_memory_by is set to 0.
+TEST(AutoMem, MaxCpuIsIgnoredWithZeroValueReduceCPUCommand) {
+  // STEP ONE: Get the "natural" size of the engine at the default test
+  // settings.
+  scoped_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
+
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  BuildSettings build_settings;
+
+  // Max memory is 1-byte. We expect that the kReduceCpuMemoryBy = "0" will
+  // override the max_cpu_in_bytes setting.
+  build_settings.max_cpu_in_bytes = 1;
+  command_line.AppendSwitchASCII(switches::kReduceCpuMemoryBy, "0");
+
+  AutoMem auto_mem_no_reduce_cpu(kResolution1080p, command_line,
+                                 build_settings);
+
+  const int64_t original_memory_consumption =
+      default_auto_mem->SumAllMemoryOfType(MemorySetting::kCPU);
+  const int64_t new_memory_consumption =
+      auto_mem_no_reduce_cpu.SumAllMemoryOfType(MemorySetting::kCPU);
+
+  // Max_cpu_in_bytes specifies one byte of memory, but reduce must override
+  // this for this test to pass.
+  EXPECT_EQ(original_memory_consumption, new_memory_consumption);
+}
+
+// Tests the expectation that the constrainer will not run on gpu memory if
+// --reduce_gpu_memory_by is set to 0.
+TEST(AutoMem, MaxCpuIsIgnoredWithZeroValueReduceGPUCommand) {
+  // STEP ONE: Get the "natural" size of the engine at the default test
+  // settings.
+  scoped_ptr<AutoMem> default_auto_mem = CreateDefaultAutoMem();
+
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  BuildSettings build_settings;
+
+  // Max memory is 1-byte. We expect that the kReduceCpuMemoryBy = "0" will
+  // override the max_cpu_in_bytes setting.
+  build_settings.max_gpu_in_bytes = 1;
+  command_line.AppendSwitchASCII(switches::kReduceGpuMemoryBy, "0");
+
+  AutoMem auto_mem_no_reduce_cpu(kResolution1080p, command_line,
+                                 build_settings);
+
+  const int64_t original_memory_consumption =
+      default_auto_mem->SumAllMemoryOfType(MemorySetting::kGPU);
+  const int64_t new_memory_consumption =
+      auto_mem_no_reduce_cpu.SumAllMemoryOfType(MemorySetting::kGPU);
+
+  // Max_gpu_in_bytes specifies one byte of memory, but reduce must override
+  // this for this test to pass.
+  EXPECT_EQ(original_memory_consumption, new_memory_consumption);
+}
+
+// Tests the expectation that if --reduce_cpu_memory_by is set to -1 that it
+// will be effectively disabled and --max_cpu_bytes be used as the memory
+// reduction means.
+TEST(AutoMem, MaxCpuIsEnabledWhenReduceCpuMemoryIsExplicitlyDisabled) {
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  BuildSettings build_settings;
+
+  // Max memory is 1-byte. We expect that the kReduceCpuMemoryBy = "-1"
+  // passed to the command line will cause max_cpu_in_bytes to be the
+  // dominating memory reduction mechanism.
+  build_settings.max_cpu_in_bytes = kSmallEngineGpuMemorySize;
+  command_line.AppendSwitchASCII(switches::kReduceCpuMemoryBy, "-1");
+
+  AutoMem auto_mem_no_reduce_cpu(kResolution1080p, command_line,
+                                 build_settings);
+  const int64_t memory_consumption =
+      auto_mem_no_reduce_cpu.SumAllMemoryOfType(MemorySetting::kCPU);
+  // Max_cpu_in_bytes specifies one byte of memory, but reduce must override
+  // this for this test to pass.
+  EXPECT_LE(memory_consumption, kSmallEngineCpuMemorySize);
+}
+
+// Tests the expectation that if --reduce_gpu_memory_by is set to -1 that it
+// will be effectively disabled and --max_gpu_bytes be used as the memory
+// reduction means.
+TEST(AutoMem, MaxGpuIsEnabledWhenReduceCpuMemoryIsExplicitlyDisabled) {
+  CommandLine command_line(CommandLine::NO_PROGRAM);
+  BuildSettings build_settings;
+
+  // Max memory is 1-byte. We expect that the kReduceCpuMemoryBy = "-1"
+  // passed to the command line will cause max_cpu_in_bytes to be the
+  // dominating memory reduction mechanism.
+  build_settings.max_cpu_in_bytes = kSmallEngineGpuMemorySize;
+  command_line.AppendSwitchASCII(switches::kReduceGpuMemoryBy, "-1");
+
+  AutoMem auto_mem_no_reduce_cpu(kResolution1080p, command_line,
+                                 build_settings);
+  const int64_t memory_consumption =
+      auto_mem_no_reduce_cpu.SumAllMemoryOfType(MemorySetting::kGPU);
+  // Max_cpu_in_bytes specifies one byte of memory, but reduce must override
+  // this for this test to pass.
+  EXPECT_LE(memory_consumption, kSmallEngineGpuMemorySize);
 }
 
 }  // namespace memory_settings

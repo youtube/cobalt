@@ -183,7 +183,7 @@ std::string MakeBorder(const std::string& body, const char border_ch) {
 }
 
 std::string StringifySourceType(const MemorySetting& setting) {
-  if (!setting.valid()) {
+  if (setting.memory_type() == MemorySetting::kNotApplicable) {
     return "N/A";
   }
 

@@ -38,12 +38,10 @@ namespace memory_settings {
 //
 // The output variable error_msgs will be populated with any error messages
 // that result from this function call.
-void ConstrainToMemoryLimits(
-    const int64_t& max_cpu_memory,
-    const base::optional<int64_t>& max_gpu_memory,
-    std::vector<MemorySetting*>* memory_settings,
-    std::vector<std::string>* error_msgs);
-
+void ConstrainToMemoryLimits(int64_t max_cpu_memory,
+                             int64_t max_gpu_memory,
+                             std::vector<MemorySetting*>* memory_settings,
+                             std::vector<std::string>* error_msgs);
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt

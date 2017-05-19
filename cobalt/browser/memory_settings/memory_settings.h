@@ -90,7 +90,10 @@ class MemorySetting {
   ClassType class_type() const { return class_type_; }
   MemoryType memory_type() const { return memory_type_; }
 
-  bool valid() const { return kNotApplicable != memory_type_; }
+  bool valid() const {
+    return (kNotApplicable != memory_type_) && (kUnset != source_type_);
+  }
+
  protected:
   MemorySetting(ClassType type, const std::string& name);
 
