@@ -20,7 +20,9 @@
 #include <iterator>
 #include <vector>
 
+#include "base/logging.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
+#include "cobalt/browser/memory_settings/pretty_print.h"
 #include "starboard/configuration.h"
 
 namespace cobalt {
@@ -164,39 +166,62 @@ void ConstrainToMemoryLimit(int64_t memory_limit,
   }
 }
 
+void ConstrainMemoryType(MemorySetting::MemoryType memory_type,
+                         int64_t max_memory,
+                         std::vector<MemorySetting*>* memory_settings,
+                         std::vector<std::string>* error_msgs) {
+  if (max_memory == 0) {
+    return;
+  }
+  DCHECK_NE(MemorySetting::kNotApplicable, memory_type);
+  const char* memory_type_str = "UNKNOWN";
+  switch (memory_type) {
+    case MemorySetting::kCPU: { memory_type_str = "CPU"; break; }
+    case MemorySetting::kGPU: { memory_type_str = "GPU"; break; }
+    case MemorySetting::kNotApplicable: { memory_type_str = "ERROR"; break; }
+  }
+
+  std::vector<MemorySetting*> filtered_settings =
+      FilterSettings(memory_type, *memory_settings);
+
+  const int64_t current_consumption =
+      SumMemoryConsumption(memory_type, *memory_settings);
+
+  if (current_consumption < max_memory) {
+    return;
+  }
+
+  ConstrainToMemoryLimit(max_memory, &filtered_settings);
+
+  const int64_t new_memory_size = SumMemoryConsumption(memory_type,
+                                                       *memory_settings);
+
+  if (new_memory_size > max_memory) {
+    std::stringstream ss;
+    ss << "WARNING - ATTEMPTED TO CONSTRAIN " << memory_type_str
+       << " MEMORY FROM " << ToMegabyteString(current_consumption, 2)
+       << " TO " << ToMegabyteString(max_memory, 2) << ".\nBUT STOPPED"
+       << " AT " << ToMegabyteString(new_memory_size, 2) << " because"
+       << " there was nothing left to\n"
+       << "constrain (settings refused to reduce any more memory). Try\n"
+       << "setting more memory setting(s) to -1 to allow autoset.\n"
+       << "Example: --image_cache_size_in_bytes=-1";
+    error_msgs->push_back(ss.str());
+  }
+}
+
 }  // namespace.
 
-void ConstrainToMemoryLimits(
-    const int64_t& max_cpu_memory,
-    const base::optional<int64_t>& max_gpu_memory,
-    std::vector<MemorySetting*>* memory_settings,
-    std::vector<std::string>* error_msgs) {
-
-  // Some platforms may just return 0 for the max_cpu memory, in this case
-  // we don't want to constrain the memory.
-  if (max_cpu_memory > 0) {
-    std::vector<MemorySetting*> cpu_memory_settings =
-        FilterSettings(MemorySetting::kCPU, *memory_settings);
-    ConstrainToMemoryLimit(max_cpu_memory, &cpu_memory_settings);
-  } else {
-    error_msgs->push_back(
-        "ERROR - COULD NOT CONSTRAIN CPU MEMORY "
-        "BECAUSE max_cobalt_cpu_usage WAS 0.");
-  }
-
-  // Some platforms may just return 0 for the max_gpu memory, in this case
-  // we don't want to constrain the memory.
-  if (max_gpu_memory) {
-    if (*max_gpu_memory > 0) {
-      std::vector<MemorySetting*> gpu_memory_settings =
-          FilterSettings(MemorySetting::kGPU, *memory_settings);
-      ConstrainToMemoryLimit(*max_gpu_memory, &gpu_memory_settings);
-    } else {
-      error_msgs->push_back(
-          "ERROR - COULD NOT CONSTRAIN GPU MEMORY "
-          "BECAUSE max_cobalt_gpu_usage WAS 0.");
-    }
-  }
+void ConstrainToMemoryLimits(int64_t max_cpu_memory,
+                             int64_t max_gpu_memory,
+                             std::vector<MemorySetting*>* memory_settings,
+                             std::vector<std::string>* error_msgs) {
+  // Constrain cpu memory.
+  ConstrainMemoryType(MemorySetting::kCPU, max_cpu_memory,
+                      memory_settings, error_msgs);
+  // Constrain gpu memory.
+  ConstrainMemoryType(MemorySetting::kGPU, max_gpu_memory,
+                      memory_settings, error_msgs);
 }
 
 }  // namespace memory_settings
