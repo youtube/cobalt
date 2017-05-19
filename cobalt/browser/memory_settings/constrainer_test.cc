@@ -29,7 +29,7 @@ namespace {
 const int64_t kOneMegabyte = 1 * 1024 * 1024;
 const int64_t kTwoMegabytes = 2 * 1024 * 1024;
 const int64_t kFiveMegabytes = 5 * 1024 * 1024;
-const base::optional<int64_t> kNoGpuMemory;
+const int64_t kNoGpuMemory = 0;
 
 ScalingFunction MakeLinearConstrainer() {
   // Linearly scale, but clamp between 0 and 1.

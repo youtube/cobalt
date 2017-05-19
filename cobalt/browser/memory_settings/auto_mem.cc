@@ -17,6 +17,7 @@
 #include "cobalt/browser/memory_settings/auto_mem.h"
 
 #include <algorithm>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/math/clamp.h"
 #include "nb/lexical_cast.h"
 
 namespace cobalt {
@@ -230,15 +232,65 @@ void CheckConstrainingValues(const MemorySetting& memory_setting) {
          "monotonically decreasing values as input goes from 1.0 -> 0.0";
 }
 
+int64_t GenerateTargetMemoryBytes(
+    int64_t max_memory_bytes,
+    int64_t current_memory_bytes,
+    base::optional<int64_t> reduce_memory_bytes) {
+
+  // Make sure values are sanitized.
+  max_memory_bytes = std::max<int64_t>(0, max_memory_bytes);
+  current_memory_bytes = std::max<int64_t>(0, current_memory_bytes);
+
+  // If reduce_memory_bytes is valid and it's a zero or positive value then
+  // this is a signal that the calculation should be based off of this setting.
+  bool use_reduce_memory_input =
+      (reduce_memory_bytes && (-1 < *reduce_memory_bytes));
+
+  if (use_reduce_memory_input) {
+    // If reducing_memory_bytes is set exactly to 0, then this
+    // this will disable max_memory_bytes setting. current_memory_bytes
+    // will be returned as the target memory consumption,
+    // which will prevent memory constraining.
+    if (*reduce_memory_bytes == 0) {
+      return current_memory_bytes;
+    } else {
+      // Reduce memory bytes will subtract from the current memory
+      // consumption.
+      const int64_t target_value = current_memory_bytes - *reduce_memory_bytes;
+      return math::Clamp<int64_t>(target_value, 0, std::abs(target_value));
+    }
+  } else {  // reduce_memory_bytes is not used. Use max_memory_bytes instead.
+    // max_memory_bytes == 0 is special, and signals that no constraining
+    // should happen.
+    if (max_memory_bytes == 0) {
+      return current_memory_bytes;
+    } else {
+      // A non-zero value means that max_memory_bytes is valid and should
+      // be used as the target value.
+      return max_memory_bytes;
+    }
+  }
+}
+
 }  // namespace
 
 AutoMem::AutoMem(const math::Size& ui_resolution,
                  const CommandLine& command_line,
                  const BuildSettings& build_settings) {
   ConstructSettings(ui_resolution, command_line, build_settings);
+
+  const int64_t target_cpu_memory =
+      GenerateTargetMemoryBytes(max_cpu_bytes_->value(),
+                                SumAllMemoryOfType(MemorySetting::kCPU),
+                                reduced_cpu_bytes_->optional_value());
+  const int64_t target_gpu_memory =
+      GenerateTargetMemoryBytes(max_gpu_bytes_->value(),
+                                SumAllMemoryOfType(MemorySetting::kGPU),
+                                reduced_gpu_bytes_->optional_value());
+
   std::vector<MemorySetting*> memory_settings = AllMemorySettingsMutable();
-  ConstrainToMemoryLimits(max_cpu_bytes_->value(),
-                          max_gpu_bytes_->optional_value(),
+  ConstrainToMemoryLimits(target_cpu_memory,
+                          target_gpu_memory,
                           &memory_settings,
                           &error_msgs_);
 }
@@ -351,9 +403,9 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
     std::stringstream ss_error;
     ss_error << "AutoMem had errors:\n";
     for (size_t i = 0; i < error_msgs.size(); ++i) {
-      ss_error << "   " << error_msgs[i] << "\n";
+      ss_error << "   " << error_msgs[i] << "\n\n";
     }
-    ss_error << "\nPlease see cobalt/docs/memory_tuning.md "
+    ss_error << "Please see cobalt/docs/memory_tuning.md "
                 "for more information.";
     ss << MakeBorder(ss_error.str(), '*');
   }
@@ -362,12 +414,39 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
   return output_str;
 }
 
+int64_t AutoMem::SumAllMemoryOfType(
+    MemorySetting::MemoryType memory_type) const {
+  return SumMemoryConsumption(memory_type, AllMemorySettings());
+}
+
 void AutoMem::ConstructSettings(
     const math::Size& ui_resolution,
     const CommandLine& command_line,
     const BuildSettings& build_settings) {
   max_cpu_bytes_ = CreateCpuSetting(command_line, build_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line, build_settings);
+
+  reduced_cpu_bytes_ = CreateSystemMemorySetting(
+      switches::kReduceCpuMemoryBy,
+      MemorySetting::kCPU,
+      command_line,
+      build_settings.reduce_cpu_memory_by,
+      -1);
+  if (reduced_cpu_bytes_->value() == -1) {
+    // This effectively disables the value from being used in the constrainer.
+    reduced_cpu_bytes_->set_value(MemorySetting::kUnset, 0);
+  }
+
+  reduced_gpu_bytes_ = CreateSystemMemorySetting(
+      switches::kReduceGpuMemoryBy,
+      MemorySetting::kGPU,
+      command_line,
+      build_settings.reduce_gpu_memory_by,
+      -1);
+  if (reduced_cpu_bytes_->value() == -1) {
+    // This effectively disables the value from being used in the constrainer.
+    reduced_gpu_bytes_->set_value(MemorySetting::kUnset, 0);
+  }
 
   // Set the ImageCache
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
