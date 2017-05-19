@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_WIN32_THREAD_PRIVATE_H_
-#define STARBOARD_WIN32_THREAD_PRIVATE_H_
+#ifndef STARBOARD_SHARED_WIN32_THREAD_PRIVATE_H_
+#define STARBOARD_SHARED_WIN32_THREAD_PRIVATE_H_
 
 #include <windows.h>
 #include <string>
@@ -106,4 +106,4 @@ SbThreadPrivate* GetCurrentSbThreadPrivate();
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_WIN32_THREAD_PRIVATE_H_
+#endif  // STARBOARD_SHARED_WIN32_THREAD_PRIVATE_H_
