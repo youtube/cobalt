@@ -62,6 +62,8 @@ extern const char kSkiaTextureAtlasDimensions[];
 
 extern const char kMaxCobaltCpuUsage[];
 extern const char kMaxCobaltGpuUsage[];
+extern const char kReduceCpuMemoryBy[];
+extern const char kReduceGpuMemoryBy[];
 
 extern const char kVideoPlaybackRateMultiplier[];
 

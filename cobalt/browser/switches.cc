@@ -177,6 +177,14 @@ const char kMaxCobaltCpuUsage[] = "max_cobalt_cpu_usage";
 // Specifies the maximum GPU usage of the cobalt.
 const char kMaxCobaltGpuUsage[] = "max_cobalt_gpu_usage";
 
+// Reduces the cpu-memory of the system by this amount. This causes AutoMem to
+// reduce the runtime size of the CPU-Memory caches.
+const char kReduceCpuMemoryBy[] = "reduce_cpu_memory_by";
+
+// Reduces the gpu-memory of the system by this amount. This causes AutoMem to
+// reduce the runtime size of the GPU-Memory caches.
+const char kReduceGpuMemoryBy[] = "reduce_gpu_memory_by";
+
 // Specifies the multiplier of video playback rate.  Set to a value greater than
 // 1.0 to play video faster.  Set to a value less than 1.0 to play video slower.
 const char kVideoPlaybackRateMultiplier[] = "video_playback_rate_multiplier";
