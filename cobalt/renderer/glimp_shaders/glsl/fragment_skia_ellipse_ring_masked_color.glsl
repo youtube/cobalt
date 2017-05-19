@@ -1,7 +1,9 @@
 #version 100
 precision mediump float;
+uniform vec2 uscale_Stage1;
 uniform vec4 uellipse_Stage1;
 uniform float uRTHeight;
+uniform vec2 uscale_Stage2;
 uniform vec4 uellipse_Stage2;
 varying vec4 vColor;
 varying vec2 vEllipseOffsets_Stage0;
@@ -25,11 +27,13 @@ void main()
 	{
 		// Stage 1: Ellipse
 		vec2 d = fragCoordYDown.xy - uellipse_Stage1.xy;
+		d *= uscale_Stage1.y;
 		vec2 Z = d * uellipse_Stage1.zw;
 		float implicit = dot(Z, d) - 1.0;
 		float grad_dot = 4.0 * dot(Z, Z);
 		grad_dot = max(grad_dot, 1.0e-4);
 		float approx_dist = implicit * inversesqrt(grad_dot);
+		approx_dist *= uscale_Stage1.x;
 		float alpha = clamp(0.5 + approx_dist, 0.0, 1.0);
 		output_Stage1 = (output_Stage0 * alpha);
 	}
@@ -37,11 +41,13 @@ void main()
 	{
 		// Stage 2: Ellipse
 		vec2 d = fragCoordYDown.xy - uellipse_Stage2.xy;
+		d *= uscale_Stage2.y;
 		vec2 Z = d * uellipse_Stage2.zw;
 		float implicit = dot(Z, d) - 1.0;
 		float grad_dot = 4.0 * dot(Z, Z);
 		grad_dot = max(grad_dot, 1.0e-4);
 		float approx_dist = implicit * inversesqrt(grad_dot);
+		approx_dist *= uscale_Stage2.x;
 		float alpha = clamp(0.5 - approx_dist, 0.0, 1.0);
 		output_Stage2 = (output_Stage1 * alpha);
 	}
