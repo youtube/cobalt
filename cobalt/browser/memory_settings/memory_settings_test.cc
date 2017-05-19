@@ -28,6 +28,13 @@
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
+namespace {
+int64_t TestIntSettingParse(const std::string& value) {
+  IntSetting int_setting("dummy");
+  EXPECT_TRUE(int_setting.TryParseValue(MemorySetting::kCmdLine, value));
+  return int_setting.value();
+}
+}  // namespace
 
 TEST(IntSetting, ParseFromString) {
   scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
@@ -38,39 +45,46 @@ TEST(IntSetting, ParseFromString) {
   EXPECT_EQ(std::string("123"), int_setting->ValueToString());
 }
 
-TEST(IntSetting, ParseFromKbString) {
-  scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
-  EXPECT_EQ(std::string("dummy"), int_setting->name());
-  std::vector<std::string> one_kb_values;
-  one_kb_values.push_back("1KB");
-  one_kb_values.push_back("1Kb");
-  one_kb_values.push_back("1kB");
-  one_kb_values.push_back("1kb");
+// Tests the expectation that numerous string variations (whole numbers vs
+// fractions vs units) parse correctly.
+TEST(IntSetting, ParseFromStrings) {
+  // Bytes.
+  EXPECT_EQ(1, TestIntSettingParse("1"));
+  EXPECT_EQ(1, TestIntSettingParse("1B"));
+  EXPECT_EQ(1, TestIntSettingParse("1b"));
+  EXPECT_EQ(1, TestIntSettingParse("1B"));
+  EXPECT_EQ(1, TestIntSettingParse("1b"));
 
-  for (size_t i = 0; i < one_kb_values.size(); ++i) {
-    const std::string& value = one_kb_values[i];
-    ASSERT_TRUE(int_setting->TryParseValue(MemorySetting::kCmdLine, value));
-    EXPECT_EQ(1024, int_setting->value());
-    EXPECT_EQ(MemorySetting::kCmdLine, int_setting->source_type());
-    EXPECT_EQ(std::string("1024"), int_setting->ValueToString());
-  }
-}
+  // Kilobytes and fractional amounts.
+  EXPECT_EQ(1024, TestIntSettingParse("1KB"));
+  EXPECT_EQ(1024, TestIntSettingParse("1Kb"));
+  EXPECT_EQ(1024, TestIntSettingParse("1kB"));
+  EXPECT_EQ(1024, TestIntSettingParse("1kb"));
 
-TEST(IntSetting, ParseFromMbString) {
-  scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
-  EXPECT_EQ(std::string("dummy"), int_setting->name());
-  std::vector<std::string> one_mb_values;
-  one_mb_values.push_back("1MB");
-  one_mb_values.push_back("1Mb");
-  one_mb_values.push_back("1mB");
-  one_mb_values.push_back("1mb");
-  for (size_t i = 0; i < one_mb_values.size(); ++i) {
-    const std::string& value = one_mb_values[i];
-    ASSERT_TRUE(int_setting->TryParseValue(MemorySetting::kCmdLine, value));
-    EXPECT_EQ(1024*1024, int_setting->value());
-    EXPECT_EQ(MemorySetting::kCmdLine, int_setting->source_type());
-    EXPECT_EQ(std::string("1048576"), int_setting->ValueToString());
-  }
+  EXPECT_EQ(512, TestIntSettingParse(".5kb"));
+  EXPECT_EQ(512, TestIntSettingParse("0.5kb"));
+  EXPECT_EQ(1536, TestIntSettingParse("1.5kb"));
+  EXPECT_EQ(1536, TestIntSettingParse("1.50kb"));
+
+  // Megabytes and fractional amounts.
+  EXPECT_EQ(1024*1024, TestIntSettingParse("1MB"));
+  EXPECT_EQ(1024*1024, TestIntSettingParse("1Mb"));
+  EXPECT_EQ(1024*1024, TestIntSettingParse("1mB"));
+  EXPECT_EQ(1024*1024, TestIntSettingParse("1mb"));
+
+  EXPECT_EQ(512*1024, TestIntSettingParse(".5mb"));
+  EXPECT_EQ(512*1024, TestIntSettingParse("0.5mb"));
+  EXPECT_EQ(1536*1024, TestIntSettingParse("1.5mb"));
+  EXPECT_EQ(1536*1024, TestIntSettingParse("1.50mb"));
+
+  // Gigabytes and fractional amounts.
+  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1GB"));
+  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1Gb"));
+  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1gB"));
+  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1gb"));
+
+  EXPECT_EQ(512*1024*1024, TestIntSettingParse(".5gb"));
+  EXPECT_EQ(1536*1024*1024, TestIntSettingParse("1.50gb"));
 }
 
 TEST(DimensionSetting, ParseFromString) {
