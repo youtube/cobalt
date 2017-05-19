@@ -75,12 +75,14 @@ bool StringEndsWith(const std::string& value, const std::string& ending) {
 // Handles bytes: "12435"
 // Handles kilobytes: "128KB"
 // Handles megabytes: "64MB"
+// Handles gigabytes: "1GB"
+// Handles fractional units for kilo/mega/gigabytes
 int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
   // nb::lexical_cast<> will parse out the number but it will ignore the
   // unit part, such as "kb" or "mb".
-  int64_t numerical_value = nb::lexical_cast<int64_t>(value, parse_ok);
-  if (!(*parse_ok) || value.size() < 2) {
-    return numerical_value;
+  double numerical_value = nb::lexical_cast<double>(value, parse_ok);
+  if (!(*parse_ok)) {
+    return static_cast<int64_t>(numerical_value);
   }
 
   // Lowercasing the string makes the units easier to detect.
@@ -93,8 +95,10 @@ int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
     numerical_value *= 1024;  // convert kb -> bytes.
   } else if (StringEndsWith(value_lower_case, "mb")) {
     numerical_value *= 1024 * 1024;  // convert mb -> bytes.
+  } else if (StringEndsWith(value_lower_case, "gb")) {
+    numerical_value *= 1024 * 1024 * 1024;  // convert gb -> bytes.
   }
-  return numerical_value;
+  return static_cast<int64_t>(numerical_value);
 }
 }  // namespace
 
