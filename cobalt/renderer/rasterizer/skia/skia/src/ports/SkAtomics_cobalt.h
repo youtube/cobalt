@@ -18,7 +18,9 @@
 #include "base/atomicops.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/atomic_type_conversions.h"
 
-#if defined(ARCH_CPU_64_BITS) || defined(__LB_XB360__)
+#if defined(STARBOARD)
+/* Don't undefine MemoryBarrier */
+#elif defined(ARCH_CPU_64_BITS) || defined(__LB_XB360__)
 // windows.h #defines this (only on x64). This causes problems because the
 // public API also uses MemoryBarrier at the public name for this fence.
 #undef MemoryBarrier
