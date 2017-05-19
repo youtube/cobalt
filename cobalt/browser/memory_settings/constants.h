@@ -23,8 +23,9 @@ namespace memory_settings {
 
 // These internal values are exposed for testing.
 enum MemorySizes {
-  // Size of the engine, minus all caches.
-  kMiscCobaltSizeInBytes = 32 * 1024 * 1024,
+  // Size of the engine + unaccounted caches.
+  // This was experimentally selected.
+  kMiscCobaltCpuSizeInBytes = 119 * 1024 * 1024,
 
   kMinImageCacheSize = 20 * 1024 * 1024,  // 20mb.
   kMaxImageCacheSize = 64 * 1024 * 1024,  // 64mb
