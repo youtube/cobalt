@@ -501,16 +501,9 @@ void GraphicsContextEGL::SwapBuffers(RenderTargetEGL* surface) {
 }
 
 void GraphicsContextEGL::SecurityClear() {
-#if defined(COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR)
-  // Clear the screen to a color that is bright and gross to exaggerate that
-  // this is a problem if it is witnessed.
-  GL_CALL(glClearColor(1.0f, 0.4f, 1.0f, 1.0f));
-#else
-  // In release builds we certainly still want to perform this security
-  // clear, but should a poor user actually encounter it, we don't need
-  // to shock them with an ugly pink color.
-  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 1.0f));
-#endif  // defined(COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR)
+  // Explicitly clear the screen to transparent to ensure that data from a
+  // previous use of the surface is not visible.
+  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }
 
