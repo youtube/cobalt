@@ -21,39 +21,31 @@ namespace starboard {
 namespace stub {
 
 ApplicationStub::ApplicationStub() {
-  SB_NOTIMPLEMENTED();
 }
 
 ApplicationStub::~ApplicationStub() {
-  SB_NOTIMPLEMENTED();
 }
 
 void ApplicationStub::Initialize() {
-  SB_NOTIMPLEMENTED();
 }
 
 void ApplicationStub::Teardown() {
-  SB_NOTIMPLEMENTED();
 }
 
 bool ApplicationStub::MayHaveSystemEvents() {
-  SB_NOTIMPLEMENTED();
   return false;
 }
 
 shared::starboard::Application::Event* ApplicationStub::PollNextSystemEvent() {
-  SB_NOTIMPLEMENTED();
   return NULL;
 }
 
 shared::starboard::Application::Event*
 ApplicationStub::WaitForSystemEventWithTimeout(SbTime time) {
-  SB_NOTIMPLEMENTED();
   return NULL;
 }
 
 void ApplicationStub::WakeSystemEventWait() {
-  SB_NOTIMPLEMENTED();
 }
 
 }  // namespace stub
