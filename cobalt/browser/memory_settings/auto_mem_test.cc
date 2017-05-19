@@ -209,12 +209,12 @@ TEST(AutoMem, AllMemorySettingsAreOrderedByName) {
   }
 }
 
-// Tests the expectation that constraining the CPU memory to 40MB will result
+// Tests the expectation that constraining the CPU memory to 130MB will result
 // in AutoMem reducing the the memory footprint.
 TEST(AutoMem, ConstrainedCPUEnvironment) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
   BuildSettings builtin_settings;
-  builtin_settings.max_cpu_in_bytes = 40 * 1024 * 1024;
+  builtin_settings.max_cpu_in_bytes = 130 * 1024 * 1024;
 
   AutoMem auto_mem(kResolution1080p, empty_command_line, builtin_settings);
 
@@ -223,7 +223,7 @@ TEST(AutoMem, ConstrainedCPUEnvironment) {
   const int64_t cpu_memory_consumption =
       SumMemoryConsumption(MemorySetting::kCPU, settings);
 
-  EXPECT_LE(cpu_memory_consumption, 40 * 1024 * 1024);
+  EXPECT_LE(cpu_memory_consumption, 130 * 1024 * 1024);
 }
 
 // Tests the expectation that constraining the CPU memory to 40MB will result
