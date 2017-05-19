@@ -394,7 +394,7 @@ void AutoMem::ConstructSettings(
   misc_cobalt_cpu_size_in_bytes_.reset(
       new IntSetting("misc_cobalt_cpu_size_in_bytes"));
   misc_cobalt_cpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, kMiscCobaltSizeInBytes);
+      MemorySetting::kAutoSet, kMiscCobaltCpuSizeInBytes);
 
   // Set the misc cobalt size to a specific size.
   misc_cobalt_gpu_size_in_bytes_.reset(
