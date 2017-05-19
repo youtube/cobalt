@@ -69,10 +69,10 @@ TEST(TablePrinter, ToStringWithColor) {
 
   std::string table_str = table.ToString();
   std::string expected_table_str =
-      R(" col1     col2     ") "\n"
+      " col1     col2     \n"
       G(" _________________ ") "\n"
       G("|        |        |") "\n"
-      G("|") R(" value1 ") G("|") R(" value2 ") G("|") "\n"
+      G("|") " " R("value1") " " G("|") " " R("value2") " " G("|") "\n"
       G("|________|________|") "\n";
 
 #undef R
