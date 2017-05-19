@@ -106,6 +106,8 @@
         'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
         'COBALT_MAX_CPU_USAGE_IN_BYTES=<(max_cobalt_cpu_usage)',
         'COBALT_MAX_GPU_USAGE_IN_BYTES=<(max_cobalt_gpu_usage)',
+        'COBALT_REDUCE_CPU_MEMORY_BY=<(reduce_cpu_memory_by)',
+        'COBALT_REDUCE_GPU_MEMORY_BY=<(reduce_gpu_memory_by)',
       ],
       'dependencies': [
         '<@(cobalt_platform_dependencies)',

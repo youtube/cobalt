@@ -65,6 +65,10 @@ class AutoMem {
   // information.
   std::string ToPrettyPrintString(bool use_color_ascii) const;
 
+  // Reports the total memory that all settings that match memory_type
+  // consume.
+  int64_t SumAllMemoryOfType(MemorySetting::MemoryType memory_type) const;
+
  private:
   void ConstructSettings(const math::Size& ui_resolution,
                          const CommandLine& command_line,
@@ -74,6 +78,7 @@ class AutoMem {
   std::vector<const MemorySetting*> AllMemorySettings() const;
   std::vector<MemorySetting*> AllMemorySettingsMutable();
 
+  // All of the following are included in AllMemorySettings().
   scoped_ptr<IntSetting> image_cache_size_in_bytes_;
   scoped_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
   scoped_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
@@ -83,14 +88,21 @@ class AutoMem {
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
 
-  // These settings are used for constraining the memory.
+  // These settings are used for constraining the memory and are NOT included
+  // in AllMemorySettings().
   scoped_ptr<IntSetting> max_cpu_bytes_;
   scoped_ptr<IntSetting> max_gpu_bytes_;
+  scoped_ptr<IntSetting> reduced_cpu_bytes_;  // Forces CPU memory reduction.
+  scoped_ptr<IntSetting> reduced_gpu_bytes_;  // Forces GPU memory reduction.
+
   std::vector<std::string> error_msgs_;
 
   FRIEND_TEST(AutoMem, AllMemorySettingsAreOrderedByName);
   FRIEND_TEST(AutoMem, ConstrainedCPUEnvironment);
   FRIEND_TEST(AutoMem, ConstrainedGPUEnvironment);
+  FRIEND_TEST(AutoMem, ExplicitReducedCPUMemoryConsumption);
+  FRIEND_TEST(AutoMem, ExplicitReducedGPUMemoryConsumption);
+  FRIEND_TEST(AutoMem, MaxCpuIsIgnoredDuringExplicitMemoryReduction);
 };
 
 }  // namespace memory_settings
