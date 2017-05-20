@@ -119,6 +119,13 @@ class AudioRendererImpl : public AudioRenderer {
   SbAudioSink audio_sink_;
   scoped_refptr<DecodedAudio> pending_decoded_audio_;
   Closure read_from_decoder_closure_;
+
+  // Our owner will attempt to seek to pts 0 when playback begins.  In
+  // general, seeking could require a full reset of the underlying decoder on
+  // some platforms, so we make an effort to improve playback startup
+  // performance by keeping track of whether we already have a fresh decoder,
+  // and can thus avoid doing a full reset.
+  bool decoder_needs_full_reset_;
 };
 
 }  // namespace filter
