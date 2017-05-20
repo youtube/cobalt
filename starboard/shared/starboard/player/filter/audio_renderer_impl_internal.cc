@@ -46,7 +46,8 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
       end_of_stream_written_(false),
       end_of_stream_decoded_(false),
       decoder_(decoder.Pass()),
-      audio_sink_(kSbAudioSinkInvalid) {
+      audio_sink_(kSbAudioSinkInvalid),
+      decoder_needs_full_reset_(false) {
   SB_DCHECK(job_queue != NULL);
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -94,6 +95,7 @@ void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   }
 
   decoder_->Decode(input_buffer);
+  decoder_needs_full_reset_ = true;
 
   ScopedLock lock(mutex_);
   if (!read_from_decoder_closure_.is_valid()) {
@@ -112,6 +114,7 @@ void AudioRendererImpl::WriteEndOfStream() {
     return;
   }
   decoder_->WriteEndOfStream();
+  decoder_needs_full_reset_ = true;
 
   ScopedLock lock(mutex_);
   end_of_stream_written_ = true;
@@ -167,7 +170,10 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   end_of_stream_decoded_ = false;
   pending_decoded_audio_ = NULL;
 
-  decoder_->Reset();
+  if (decoder_needs_full_reset_) {
+    decoder_->Reset();
+    decoder_needs_full_reset_ = false;
+  }
 }
 
 bool AudioRendererImpl::IsEndOfStreamPlayed() const {
