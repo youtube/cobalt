@@ -97,6 +97,13 @@ class VideoRendererImpl : public VideoRenderer,
   int dropped_frames_;
 
   scoped_ptr<HostedVideoDecoder> decoder_;
+
+  // Our owner will attempt to seek to pts 0 when playback begins.  In
+  // general, seeking could require a full reset of the underlying decoder on
+  // some platforms, so we make an effort to improve playback startup
+  // performance by keeping track of whether we already have a fresh decoder,
+  // and can thus avoid doing a full reset.
+  bool decoder_needs_full_reset_;
 };
 
 }  // namespace filter
