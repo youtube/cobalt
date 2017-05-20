@@ -290,7 +290,10 @@ VideoCodec StringToVideoCodec(const std::string& codec_id) {
   uint8_t level = 0;
   if (ParseAVCCodecId(codec_id, &profile, &level)) return kCodecH264;
   if (codec_id == "vp8" || codec_id == "vp8.0") return kCodecVP8;
-  if (codec_id == "vp9" || codec_id == "vp9.0") return kCodecVP9;
+  if (codec_id == "vp9" || codec_id == "vp9.0" || codec_id == "vp9.1" ||
+      codec_id == "vp9.2") {
+    return kCodecVP9;
+  }
   if (codec_id == "theora") return kCodecTheora;
   if (ParseHEVCCodecId(codec_id, &profile, &level)) return kCodecHEVC;
 
