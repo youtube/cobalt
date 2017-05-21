@@ -38,8 +38,9 @@ _XSSI_PREFIX = ")]}'\n"
 
 # The list of directories, relative to "src/", to search through for ports.
 _PORT_SEARCH_PATH = [
-    'third_party/starboard',
     'starboard',
+    os.path.join('starboard', 'port'),
+    os.path.join('third_party', 'starboard'),
 ]
 
 # The path to the build.id file that preserves a build ID.
@@ -279,22 +280,28 @@ def GetConstantValue(file_path, constant_name):
 def _FindThirdPartyPlatforms():
   """Workhorse for GetThirdPartyPlatforms().
 
-  Search through directories listed in _PORT_SEARCH_PATH to find valid ports, so
-  that they can be added to the VALID_PLATFORMS list. This allows gyp_cobalt to
-  register new ports without needing to modify code in src/cobalt/.
+  Search through directories listed in _PORT_SEARCH_PATH to find valid
+  ports, so that they can be added to the VALID_PLATFORMS list. This
+  allows gyp_cobalt to register new ports without needing to modify
+  code in src/cobalt/.
 
   Returns:
     A dictionary of name->absolute paths to the port directory.
+
   """
 
   result = {}
-  for path_element in _PORT_SEARCH_PATH:
-    root = os.path.join(paths.REPOSITORY_ROOT, path_element)
-    if not os.path.isdir(root):
-      logging.warning('Port search path directory not found: %s', path_element)
+  search_path = [os.path.realpath(os.path.join(paths.REPOSITORY_ROOT, x))
+                 for x in _PORT_SEARCH_PATH]
+
+  # Ignore search path directories inside other search path directories.
+  exclusion_set = set(search_path)
+
+  for entry in search_path:
+    if not os.path.isdir(entry):
       continue
-    root = os.path.realpath(root)
-    for platform_info in platform.PlatformInfo.EnumeratePorts(root):
+    for platform_info in platform.PlatformInfo.EnumeratePorts(entry,
+                                                              exclusion_set):
       if platform_info.port_name in result:
         logging.error('Found duplicate port name "%s" at "%s" and "%s"',
                       platform_info.port_name, result[platform_info.port_name],
