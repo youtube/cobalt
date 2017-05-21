@@ -81,6 +81,15 @@ class AudioRendererImpl : public AudioRenderer {
   void ConsumeFrames(int frames_consumed);
   void LogFramesConsumed();
 
+  // It is possible that we enter a state in which we will freeze because all
+  // encoded audio has already been written, and we don't have an audio sink,
+  // which means that there is nothing left to drive playback forward. This
+  // can happen, for example, on platforms without synchronous decoders on a
+  // very short video, in which our initial seek to pts 0 will destroy the
+  // audio sink. This low frequency update function guards us from this
+  // scenario.
+  void EndOfStreamWrittenUpdate();
+
   void ReadFromDecoder();
   bool AppendDecodedAudio_Locked(
       const scoped_refptr<DecodedAudio>& decoded_audio);
@@ -126,6 +135,8 @@ class AudioRendererImpl : public AudioRenderer {
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
   bool decoder_needs_full_reset_;
+
+  Closure end_of_stream_written_update_closure_;
 };
 
 }  // namespace filter
