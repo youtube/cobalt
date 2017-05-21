@@ -26,6 +26,12 @@ namespace starboard {
 namespace player {
 namespace filter {
 
+namespace {
+
+const SbTime kEndOfStreamWrittenUpdateInterval = 5 * kSbTimeMillisecond;
+
+}  // namespace
+
 AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
                                      scoped_ptr<AudioDecoder> decoder,
                                      const SbMediaAudioHeader& audio_header)
@@ -67,6 +73,9 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
         Bind(&AudioRendererImpl::LogFramesConsumed, this);
     job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
+
+  end_of_stream_written_update_closure_ =
+      Bind(&AudioRendererImpl::EndOfStreamWrittenUpdate, this);
 }
 
 AudioRendererImpl::~AudioRendererImpl() {
@@ -82,6 +91,10 @@ AudioRendererImpl::~AudioRendererImpl() {
 
   if (log_frames_consumed_closure_.is_valid()) {
     job_queue_->Remove(log_frames_consumed_closure_);
+  }
+
+  if (end_of_stream_written_update_closure_.is_valid()) {
+    job_queue_->Remove(end_of_stream_written_update_closure_);
   }
 }
 
@@ -123,6 +136,8 @@ void AudioRendererImpl::WriteEndOfStream() {
   if (seeking_) {
     seeking_ = false;
   }
+
+  job_queue_->Schedule(end_of_stream_written_update_closure_);
 }
 
 void AudioRendererImpl::Play() {
@@ -256,6 +271,20 @@ void AudioRendererImpl::LogFramesConsumed() {
                      << (!!pending_decoded_audio_ ? "" : "not ") << "ready.";
   }
   job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
+}
+
+void AudioRendererImpl::EndOfStreamWrittenUpdate() {
+  ScopedLock lock(mutex_);
+  if (end_of_stream_written_ && !end_of_stream_decoded_) {
+    if (audio_sink_ == kSbAudioSinkInvalid &&
+        !read_from_decoder_closure_.is_valid()) {
+      read_from_decoder_closure_ =
+          Bind(&AudioRendererImpl::ReadFromDecoder, this);
+      job_queue_->Schedule(read_from_decoder_closure_);
+    }
+    job_queue_->Schedule(end_of_stream_written_update_closure_,
+                         kEndOfStreamWrittenUpdateInterval);
+  }
 }
 
 // Try to read some audio data from the decoder.  Note that this operation is
