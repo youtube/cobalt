@@ -28,6 +28,10 @@ std::size_t BufferedAmountTracker::Pop(const std::size_t number_bytes_to_pop) {
     Entry& entry(entries_[0]);
 
     std::size_t potential_payload_delta = 0;
+
+    // Cache this variable in case we do a |pop_front|.
+    const bool is_user_payload = entry.is_user_payload_;
+
     if (entry.message_size_ > size_left_pop) {
       potential_payload_delta = size_left_pop;
       entry.message_size_ -= size_left_pop;
@@ -36,7 +40,7 @@ std::size_t BufferedAmountTracker::Pop(const std::size_t number_bytes_to_pop) {
       entries_.pop_front();
     }
 
-    if (entry.is_user_payload_) {
+    if (is_user_payload) {
       payload_amount += potential_payload_delta;
     }
 
