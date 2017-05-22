@@ -19,9 +19,12 @@
 #include <WS2tcpip.h>
 
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/win32/auto_event_handle.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/types.h"
+
+namespace sbwin32 = starboard::shared::win32;
 
 struct SbSocketPrivate {
   enum struct BindTarget {
@@ -38,6 +41,7 @@ struct SbSocketPrivate {
       : address_type(address_type),
         protocol(protocol),
         socket_handle(handle),
+        socket_event(WSA_INVALID_EVENT),
         error(kSbSocketOk),
         waiter(kSbSocketWaiterInvalid),
         bound_to(bound_to) {}
@@ -49,8 +53,11 @@ struct SbSocketPrivate {
   // The protocol of this socket, UDP or TCP.
   SbSocketProtocol protocol;
 
-  // The file descriptor for this socket.
+  // The handle for this socket.
   SOCKET socket_handle;
+
+  // The event related to the socket_handle.  Used for SbSocketWaiter.
+  sbwin32::AutoEventHandle socket_event;
 
   // The last error that occurred on this socket, or kSbSocketOk.
   SbSocketError error;
