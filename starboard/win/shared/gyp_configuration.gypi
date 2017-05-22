@@ -19,8 +19,8 @@
     # Use a stub rasterizer and graphical setup.
     'rasterizer_type': 'stub',
 
-    # No GL drivers available.
-    'gl_type': 'none',
+    # Link with angle
+    'gl_type': 'angle',
 
     'cobalt_media_source_2016': 1,
 
