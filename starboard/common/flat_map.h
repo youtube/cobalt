@@ -154,7 +154,9 @@ class FlatMap {
 
     vector_.erase(new_end, vector_.end());
 
-    return std::distance(vector_.begin() + partition_idx, new_end);
+    // partition_idx was the previous size of the vector_.
+    const size_t num_elements_added = vector_.size() - partition_idx;
+    return num_elements_added;
   }
 
   std::pair<iterator, bool> insert(const value_type& entry) {
