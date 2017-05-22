@@ -14,10 +14,12 @@
 
 #include "starboard/log.h"
 
+#include <algorithm>
 #include <iomanip>
 #include <sstream>
 #include <string>
 
+#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/mutex.h"
 #include "starboard/system.h"
 #include "starboard/thread.h"
@@ -124,7 +126,11 @@ LogMessage::~LogMessage() {
     // Ensure the first characters of the string are on the stack so they
     // are contained in minidumps for diagnostic purposes.
     char str_stack[1024];
-    str_newline.copy(str_stack, SB_ARRAY_SIZE(str_stack));
+    const size_t copy_bytes =
+        std::min(SB_ARRAY_SIZE(str_stack), str_newline.length());
+    PoemStringCopyN(str_stack, str_newline.c_str(),
+                    static_cast<int>(copy_bytes));
+
     Alias(str_stack);
     Break();
   }
