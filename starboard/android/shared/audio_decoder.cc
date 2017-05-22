@@ -49,77 +49,122 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header,
-                           JobQueue* job_queue,
                            SbDrmSystem drm_system)
     : stream_ended_(false),
       audio_codec_(audio_codec),
       audio_header_(audio_header),
-      job_queue_(job_queue),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      sample_type_(GetSupportedSampleType()) {
-  SB_DCHECK(job_queue_);
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+      sample_type_(GetSupportedSampleType()),
+      decoder_thread_(kSbThreadInvalid) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
     TeardownCodec();
     return;
   }
-
-  update_closure_ =
-      ::starboard::shared::starboard::player::Bind(&AudioDecoder::Update, this);
-  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 AudioDecoder::~AudioDecoder() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  JoinOnDecoderThread();
   TeardownCodec();
-  job_queue_->Remove(update_closure_);
 }
 
 void AudioDecoder::Decode(const InputBuffer& input_buffer) {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
   }
 
-  pending_work_.push(Event(input_buffer));
+  if (!SbThreadIsValid(decoder_thread_)) {
+    decoder_thread_ =
+        SbThreadCreate(0, kSbThreadPriorityNormal, kSbThreadNoAffinity, true,
+                       "audio_decoder", &AudioDecoder::ThreadEntryPoint, this);
+    SB_DCHECK(SbThreadIsValid(decoder_thread_));
+  }
+
+  event_queue_.PushBack(Event(input_buffer));
 }
 
 void AudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  pending_work_.push(Event(Event::kWriteEndOfStream));
+  event_queue_.PushBack(Event(Event::kWriteEndOfStream));
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
   scoped_refptr<DecodedAudio> result;
-  if (!decoded_audios_.empty()) {
-    result = decoded_audios_.front();
-    decoded_audios_.pop();
+  {
+    starboard::ScopedLock lock(decoded_audios_mutex_);
+    if (!decoded_audios_.empty()) {
+      result = decoded_audios_.front();
+      decoded_audios_.pop();
+    }
   }
   return result;
 }
 
 void AudioDecoder::Reset() {
-  stream_ended_ = false;
-  jint status = media_codec_bridge_->Flush();
-  if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "|flush| failed with status: " << status;
-  }
-
-  while (!pending_work_.empty()) {
-    pending_work_.pop();
-  }
-
-  while (!decoded_audios_.empty()) {
-    decoded_audios_.pop();
-  }
-
+  JoinOnDecoderThread();
   TeardownCodec();
   if (!InitializeCodec()) {
     // TODO: Communicate this failure to our clients somehow.
     SB_LOG(ERROR) << "Failed to initialize codec after reset.";
   }
+
+  stream_ended_ = false;
+
+  while (!decoded_audios_.empty()) {
+    decoded_audios_.pop();
+  }
+}
+
+// static
+void* AudioDecoder::ThreadEntryPoint(void* context) {
+  SB_DCHECK(context);
+  AudioDecoder* decoder = static_cast<AudioDecoder*>(context);
+  decoder->DecoderThreadFunc();
+  return NULL;
+}
+
+void AudioDecoder::DecoderThreadFunc() {
+  // A second staging queue that holds events of type |kWriteInputBuffer| and
+  // |kWriteEndOfStream| only, and is only accessed from the decoder thread,
+  // so it does not need to be thread-safe.
+  std::deque<Event> pending_work;
+
+  for (;;) {
+    Event event = event_queue_.PollFront();
+
+    if (event.type == Event::kWriteInputBuffer ||
+        event.type == Event::kWriteEndOfStream ||
+        event.type == Event::kWriteCodecConfig) {
+      pending_work.push_back(event);
+    }
+
+    if (event.type == Event::kReset) {
+      SB_LOG(INFO) << "Reset event occurred.";
+      jint status = media_codec_bridge_->Flush();
+      if (status != MEDIA_CODEC_OK) {
+        SB_LOG(ERROR) << "Failed to flush video media codec.";
+      }
+      return;
+    }
+
+    bool did_work = false;
+    did_work |= ProcessOneInputBuffer(&pending_work);
+    did_work |= ProcessOneOutputBuffer();
+
+    if (event.type == Event::kInvalid && !did_work) {
+      SbThreadSleep(kSbTimeMillisecond);
+      continue;
+    }
+  }
+}
+
+void AudioDecoder::JoinOnDecoderThread() {
+  if (SbThreadIsValid(decoder_thread_)) {
+    event_queue_.Clear();
+    event_queue_.PushBack(Event(Event::kReset));
+    SbThreadJoin(decoder_thread_, NULL);
+  }
+  decoder_thread_ = kSbThreadInvalid;
 }
 
 bool AudioDecoder::InitializeCodec() {
@@ -131,7 +176,7 @@ bool AudioDecoder::InitializeCodec() {
     return false;
   }
   if (audio_header_.audio_specific_config_size > 0) {
-    pending_work_.push(Event(Event::kWriteCodecConfig));
+    event_queue_.PushBack(Event(Event::kWriteCodecConfig));
   }
   return true;
 }
@@ -140,7 +185,9 @@ void AudioDecoder::TeardownCodec() {
   media_codec_bridge_.reset();
 }
 
-bool AudioDecoder::ProcessOneInputBuffer() {
+bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
+  SB_DCHECK(pending_work);
+  std::deque<Event>& pending_work_ = *pending_work;
   if (pending_work_.empty()) {
     return false;
   }
@@ -166,8 +213,10 @@ bool AudioDecoder::ProcessOneInputBuffer() {
   DequeueInputResult dequeue_input_result =
       media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
   if (dequeue_input_result.index < 0) {
-    SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
-                  << dequeue_input_result.status;
+    if (dequeue_input_result.status != MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
+      SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
+                    << dequeue_input_result.status;
+    }
     return false;
   }
   ScopedJavaByteBuffer byte_buffer(
@@ -226,7 +275,7 @@ bool AudioDecoder::ProcessOneInputBuffer() {
     return false;
   }
 
-  pending_work_.pop();
+  pending_work_.pop_front();
   return true;
 }
 
@@ -241,7 +290,10 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
                                                false);
     }
     stream_ended_ = true;
-    decoded_audios_.push(new DecodedAudio());
+    {
+      starboard::ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(new DecodedAudio());
+    }
     return false;
   }
 
@@ -267,23 +319,15 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
                  IncrementPointerByBytes(byte_buffer.address(),
                                          dequeue_output_result.offset),
                  dequeue_output_result.num_bytes);
-    decoded_audios_.push(decoded_audio);
+    {
+      starboard::ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(decoded_audio);
+    }
   }
 
   media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, false);
 
   return true;
-}
-
-void AudioDecoder::Update() {
-  SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  bool did_input = true;
-  bool did_output = true;
-  while (did_input || did_output) {
-    did_input = ProcessOneInputBuffer();
-    did_output = ProcessOneOutputBuffer();
-  }
-  job_queue_->Schedule(update_closure_, kUpdateInterval);
 }
 
 }  // namespace shared
