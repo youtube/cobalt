@@ -84,41 +84,6 @@ class VideoDecoder
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
-  // A simple thread-safe queue for |Event|s, that supports polling based
-  // access only.
-  class EventQueue {
-   public:
-    Event PollFront() {
-      ScopedLock lock(mutex_);
-      if (!deque_.empty()) {
-        Event event = deque_.front();
-        deque_.pop_front();
-        return event;
-      }
-
-      return Event();
-    }
-
-    void PushBack(const Event& event) {
-      ScopedLock lock(mutex_);
-      deque_.push_back(event);
-    }
-
-    void Clear() {
-      ScopedLock lock(mutex_);
-      deque_.clear();
-    }
-
-    size_t size() {
-      ScopedLock lock(mutex_);
-      return deque_.size();
-    }
-
-   private:
-    ::starboard::Mutex mutex_;
-    std::deque<Event> deque_;
-  };
-
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
   void JoinOnDecoderThread();
@@ -144,7 +109,7 @@ class VideoDecoder
 
   // Events are processed in a queue, except for when handling events of type
   // |kReset|, which are allowed to cut to the front.
-  EventQueue event_queue_;
+  EventQueue<Event> event_queue_;
 
   bool stream_ended_;
 
