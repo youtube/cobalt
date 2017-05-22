@@ -15,10 +15,13 @@
 #ifndef STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 #define STARBOARD_ANDROID_SHARED_MEDIA_COMMON_H_
 
+#include <deque>
+
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/mutex.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -62,6 +65,42 @@ inline const char* SupportedVideoCodecToMimeType(
   }
   return NULL;
 }
+
+// A simple thread-safe queue for events of type |E|, that supports polling
+// based access only.
+template <typename E>
+class EventQueue {
+ public:
+  E PollFront() {
+    ScopedLock lock(mutex_);
+    if (!deque_.empty()) {
+      E event = deque_.front();
+      deque_.pop_front();
+      return event;
+    }
+
+    return E();
+  }
+
+  void PushBack(const E& event) {
+    ScopedLock lock(mutex_);
+    deque_.push_back(event);
+  }
+
+  void Clear() {
+    ScopedLock lock(mutex_);
+    deque_.clear();
+  }
+
+  size_t size() {
+    ScopedLock lock(mutex_);
+    return deque_.size();
+  }
+
+ private:
+  ::starboard::Mutex mutex_;
+  std::deque<E> deque_;
+};
 
 }  // namespace shared
 }  // namespace android
