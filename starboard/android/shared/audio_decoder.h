@@ -17,6 +17,7 @@
 
 #include <jni.h>
 
+#include <deque>
 #include <queue>
 
 #include "starboard/android/shared/drm_system.h"
@@ -43,7 +44,6 @@ class AudioDecoder
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
-               JobQueue* job_queue,
                SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
@@ -64,12 +64,14 @@ class AudioDecoder
  private:
   struct Event {
     enum Type {
+      kInvalid,
+      kReset,
       kWriteCodecConfig,
       kWriteInputBuffer,
       kWriteEndOfStream,
     };
 
-    explicit Event(Type type) : type(type) {
+    explicit Event(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer);
     }
     explicit Event(const InputBuffer& input_buffer)
@@ -79,27 +81,33 @@ class AudioDecoder
     InputBuffer input_buffer;
   };
 
+  static void* ThreadEntryPoint(void* context);
+  void DecoderThreadFunc();
+  void JoinOnDecoderThread();
+
   bool InitializeCodec();
   void TeardownCodec();
 
-  bool ProcessOneInputBuffer();
+  bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
   bool ProcessOneOutputBuffer();
-  void Update();
 
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbMediaAudioSampleType sample_type_;
 
   bool stream_ended_;
-  std::queue<Event> pending_work_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   SbMediaAudioCodec audio_codec_;
   SbMediaAudioHeader audio_header_;
 
-  JobQueue* job_queue_;
-  Closure update_closure_;
-
   DrmSystem* drm_system_;
+
+  // Working thread to avoid lengthy decoding work block the player thread.
+  SbThread decoder_thread_;
+  // Events are processed in a queue, except for when handling events of type
+  // |kReset|, which are allowed to cut to the front.
+  EventQueue<Event> event_queue_;
+  starboard::Mutex decoded_audios_mutex_;
 };
 
 }  // namespace shared
