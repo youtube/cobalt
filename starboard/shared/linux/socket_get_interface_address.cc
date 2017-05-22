@@ -126,7 +126,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     }
 
     sbposix::SockAddr sock_addr;
-    sock_addr.FromSockaddr(interface->ifa_addr);
+    sock_addr.FromSockaddr(interface->ifa_netmask);
     if (sock_addr.ToSbSocketAddress(out_netmask)) {
       found_netmask = true;
       break;
