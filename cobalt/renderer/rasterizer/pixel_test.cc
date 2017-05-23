@@ -30,6 +30,7 @@
 #include "cobalt/render_tree/glyph_buffer.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/image_node.h"
+#include "cobalt/render_tree/matrix_transform_3d_node.h"
 #include "cobalt/render_tree/matrix_transform_node.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
@@ -40,6 +41,8 @@
 #include "cobalt/render_tree/typeface.h"
 #include "cobalt/renderer/rasterizer/pixel_test_fixture.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/glm/glm/gtc/matrix_transform.hpp"
+#include "third_party/glm/glm/gtx/transform.hpp"
 
 #define BILINEAR_FILTERING_SUPPORTED 1
 #define NV12_TEXTURE_SUPPORTED 1
@@ -86,7 +89,10 @@ using cobalt::render_tree::ImageData;
 using cobalt::render_tree::ImageDataDescriptor;
 using cobalt::render_tree::ImageNode;
 using cobalt::render_tree::LinearGradientBrush;
+using cobalt::render_tree::MapToMeshFilter;
+using cobalt::render_tree::MatrixTransform3DNode;
 using cobalt::render_tree::MatrixTransformNode;
+using cobalt::render_tree::Mesh;
 using cobalt::render_tree::MultiPlaneImageDataDescriptor;
 using cobalt::render_tree::Node;
 using cobalt::render_tree::OpacityFilter;
@@ -3290,6 +3296,114 @@ TEST_F(PixelTest, DrawOffscreenImage) {
       GetResourceProvider()->DrawOffscreenImage(root);
   TestTree(new ImageNode(offscreen_image));
 }
+
+#if defined(ENABLE_MAP_TO_MESH)
+
+namespace {
+scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
+  // Defines a cube mesh where each face faces inward.  Each face has the entire
+  // texture mapped over it.
+  scoped_ptr<std::vector<Mesh::Vertex> > vertices(
+      new std::vector<Mesh::Vertex>);
+
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
+
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 0.0f, 1.0f));
+
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 1.0f));
+
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 1.0f));
+
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+
+  return resource_provider->CreateMesh(
+      vertices.Pass(), Mesh::kDrawModeTriangles);
+}
+
+// Creates a cube mesh with a perspective transform applied to it such that the
+// camera is facing a corner of the cube, from the inside of the cube.
+scoped_refptr<Node> CreateMapToMeshTestRenderTree(
+    ResourceProvider* resource_provider, const scoped_refptr<Image>& texture) {
+  scoped_refptr<Mesh> cube_mesh = CreateCubeMesh(resource_provider);
+  MapToMeshFilter::Builder map_to_mesh_builder;
+  map_to_mesh_builder.SetDefaultMeshes(cube_mesh, cube_mesh);
+  scoped_refptr<FilterNode> map_to_mesh_filter(
+      new FilterNode(MapToMeshFilter(render_tree::kMono, map_to_mesh_builder),
+                     new ImageNode(texture)));
+
+  glm::mat4 model_view =
+      glm::rotate(static_cast<float>(M_PI / 4.0f), glm::vec3(1.0f, 0, 0)) *
+      glm::rotate(static_cast<float>(M_PI / 4.0f), glm::vec3(0, 1.0f, 0));
+
+  const float kNearZ = 0.01f;
+  const float kFarZ = 1000.0f;
+  const float kVerticalFOV = M_PI / 2.0f;
+  const float kAspectRatio = 1.0f;
+  glm::mat4 projection =
+      glm::perspectiveRH(kVerticalFOV, kAspectRatio, kNearZ, kFarZ);
+
+  return new MatrixTransform3DNode(map_to_mesh_filter, projection * model_view);
+}
+}  // namespace
+
+TEST_F(PixelTest, MapToMeshRGBTest) {
+  // Tests that MapToMesh filter works as expected with an RGBA texture.
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), Size(200, 200));
+  TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
+}
+
+#if NV12_TEXTURE_SUPPORTED
+
+TEST_F(PixelTest, MapToMeshNV12Test) {
+  // Tests that MapToMesh filter works as expected with a NV12 YUV texture.
+  scoped_refptr<Image> image =
+      MakeNV12Image(GetResourceProvider(), Size(200, 200));
+  TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
+}
+
+#endif  // #if NV12_TEXTURE_SUPPORTED
+
+TEST_F(PixelTest, MapToMeshI420Test) {
+  // Tests that MapToMesh filter works as expected with a I420 YUV texture.
+  scoped_refptr<Image> image =
+      MakeI420Image(GetResourceProvider(), Size(200, 200));
+  TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
+}
+
+#endif  // defined(ENABLE_MAP_TO_MESH)
 
 }  // namespace rasterizer
 }  // namespace renderer

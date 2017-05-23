@@ -79,6 +79,9 @@
       'fragment_skia_texture_domain_masked_texture_domain.glsl',
       'fragment_skia_texture_masked_texture.glsl',
       'fragment_skia_yuv.glsl',
+      'fragment_textured_vbo_rgba.glsl',
+      'fragment_textured_vbo_yuv_2plane.glsl',
+      'fragment_textured_vbo_yuv_3plane.glsl',
       'vertex_mesh.glsl',
       'vertex_position_and_texcoord.glsl',
       'vertex_skia_antialiased_circle.glsl',
@@ -93,6 +96,9 @@
       'vertex_skia_two_texcoords_and_color_with_texcoord_matrices.glsl',
       'vertex_skia_two_texcoords_derived_from_position.glsl',
       'vertex_skia_yuv.glsl',
+      'vertex_textured_vbo_rgba.glsl',
+      'vertex_textured_vbo_yuv_2plane.glsl',
+      'vertex_textured_vbo_yuv_3plane.glsl',
     ],
   }
 }
