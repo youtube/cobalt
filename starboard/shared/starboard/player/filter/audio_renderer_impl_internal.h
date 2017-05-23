@@ -73,6 +73,9 @@ class AudioRendererImpl : public AudioRenderer {
   // 2. Have the audio cache full to simulate the state that the renderer can
   //    no longer accept more data.
   static const size_t kMaxCachedFrames = 256 * 1024;
+  // When there are more than |kMaxBuffersInDecoder| buffers inside the audio
+  // decoder, the renderer won't accept more data.
+  static const int kMaxbuffersInDecoder = 32;
 
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
@@ -80,15 +83,6 @@ class AudioRendererImpl : public AudioRenderer {
                           bool* is_eos_reached);
   void ConsumeFrames(int frames_consumed);
   void LogFramesConsumed();
-
-  // It is possible that we enter a state in which we will freeze because all
-  // encoded audio has already been written, and we don't have an audio sink,
-  // which means that there is nothing left to drive playback forward. This
-  // can happen, for example, on platforms without synchronous decoders on a
-  // very short video, in which our initial seek to pts 0 will destroy the
-  // audio sink. This low frequency update function guards us from this
-  // scenario.
-  void EndOfStreamWrittenUpdate();
 
   void ReadFromDecoder();
   bool AppendDecodedAudio_Locked(
@@ -136,7 +130,7 @@ class AudioRendererImpl : public AudioRenderer {
   // and can thus avoid doing a full reset.
   bool decoder_needs_full_reset_;
 
-  Closure end_of_stream_written_update_closure_;
+  int buffers_in_decoder_;
 };
 
 }  // namespace filter
