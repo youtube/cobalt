@@ -517,14 +517,15 @@ void ShellDemuxer::SeekTask(base::TimeDelta time, const PipelineStatusCB& cb) {
     return;
   }
   // if both streams had finished downloading, we need to restart the request
-  if (audio_reached_eos_ && video_reached_eos_) {
-    DLOG(INFO) << "restarting stopped request loop";
-    Request(DemuxerStream::AUDIO);
-  }
+  bool issue_new_request = audio_reached_eos_ && video_reached_eos_;
   audio_reached_eos_ = false;
   video_reached_eos_ = false;
   flushing_ = true;
   cb.Run(PIPELINE_OK);
+  if (issue_new_request) {
+    DLOG(INFO) << "restarting stopped request loop";
+    Request(DemuxerStream::AUDIO);
+  }
 }
 
 DemuxerStream* ShellDemuxer::GetStream(media::DemuxerStream::Type type) {
