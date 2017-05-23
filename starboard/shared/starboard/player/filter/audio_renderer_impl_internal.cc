@@ -53,7 +53,8 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
       end_of_stream_decoded_(false),
       decoder_(decoder.Pass()),
       audio_sink_(kSbAudioSinkInvalid),
-      decoder_needs_full_reset_(false) {
+      decoder_needs_full_reset_(false),
+      buffers_in_decoder_(0) {
   SB_DCHECK(job_queue != NULL);
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -73,9 +74,6 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
         Bind(&AudioRendererImpl::LogFramesConsumed, this);
     job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
-
-  end_of_stream_written_update_closure_ =
-      Bind(&AudioRendererImpl::EndOfStreamWrittenUpdate, this);
 }
 
 AudioRendererImpl::~AudioRendererImpl() {
@@ -92,10 +90,6 @@ AudioRendererImpl::~AudioRendererImpl() {
   if (log_frames_consumed_closure_.is_valid()) {
     job_queue_->Remove(log_frames_consumed_closure_);
   }
-
-  if (end_of_stream_written_update_closure_.is_valid()) {
-    job_queue_->Remove(end_of_stream_written_update_closure_);
-  }
 }
 
 void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
@@ -108,9 +102,10 @@ void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   }
 
   decoder_->Decode(input_buffer);
-  decoder_needs_full_reset_ = true;
 
   ScopedLock lock(mutex_);
+  buffers_in_decoder_++;
+  decoder_needs_full_reset_ = true;
   if (!read_from_decoder_closure_.is_valid()) {
     read_from_decoder_closure_ =
         Bind(&AudioRendererImpl::ReadFromDecoder, this);
@@ -126,18 +121,18 @@ void AudioRendererImpl::WriteEndOfStream() {
   if (end_of_stream_written_) {
     return;
   }
+
   decoder_->WriteEndOfStream();
-  decoder_needs_full_reset_ = true;
 
   ScopedLock lock(mutex_);
+  buffers_in_decoder_++;
   end_of_stream_written_ = true;
+  decoder_needs_full_reset_ = true;
   // If we are seeking, we consider the seek is finished if end of stream is
   // reached as there won't be any audio data in future.
   if (seeking_) {
     seeking_ = false;
   }
-
-  job_queue_->Schedule(end_of_stream_written_update_closure_);
 }
 
 void AudioRendererImpl::Play() {
@@ -184,6 +179,7 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   end_of_stream_written_ = false;
   end_of_stream_decoded_ = false;
   pending_decoded_audio_ = NULL;
+  buffers_in_decoder_ = 0;
 
   if (decoder_needs_full_reset_) {
     decoder_->Reset();
@@ -205,7 +201,7 @@ bool AudioRendererImpl::CanAcceptMoreData() const {
   if (end_of_stream_written_) {
     return false;
   }
-  return pending_decoded_audio_ == NULL;
+  return buffers_in_decoder_ < kMaxbuffersInDecoder;
 }
 
 bool AudioRendererImpl::IsSeekingInProgress() const {
@@ -232,6 +228,16 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
 
   *is_eos_reached = end_of_stream_decoded_;
 
+  if (!end_of_stream_decoded_ && !read_from_decoder_closure_.is_valid()) {
+    read_from_decoder_closure_ =
+        Bind(&AudioRendererImpl::ReadFromDecoder, this);
+    if (paused_ || seeking_) {
+      job_queue_->Schedule(read_from_decoder_closure_, 10 * kSbTimeMillisecond);
+    } else {
+      job_queue_->Schedule(read_from_decoder_closure_);
+    }
+  }
+
   if (paused_ || seeking_) {
     *is_playing = false;
     *frames_in_buffer = *offset_in_frames = 0;
@@ -241,12 +247,6 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
   *is_playing = true;
   *frames_in_buffer = frames_in_buffer_;
   *offset_in_frames = offset_in_frames_;
-
-  if (!end_of_stream_decoded_ && !read_from_decoder_closure_.is_valid()) {
-    read_from_decoder_closure_ =
-        Bind(&AudioRendererImpl::ReadFromDecoder, this);
-    job_queue_->Schedule(read_from_decoder_closure_);
-  }
 }
 
 void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
@@ -273,20 +273,6 @@ void AudioRendererImpl::LogFramesConsumed() {
   job_queue_->Schedule(log_frames_consumed_closure_, kSbTimeSecond);
 }
 
-void AudioRendererImpl::EndOfStreamWrittenUpdate() {
-  ScopedLock lock(mutex_);
-  if (end_of_stream_written_ && !end_of_stream_decoded_) {
-    if (audio_sink_ == kSbAudioSinkInvalid &&
-        !read_from_decoder_closure_.is_valid()) {
-      read_from_decoder_closure_ =
-          Bind(&AudioRendererImpl::ReadFromDecoder, this);
-      job_queue_->Schedule(read_from_decoder_closure_);
-    }
-    job_queue_->Schedule(end_of_stream_written_update_closure_,
-                         kEndOfStreamWrittenUpdateInterval);
-  }
-}
-
 // Try to read some audio data from the decoder.  Note that this operation is
 // valid across seeking.  If a seek happens immediately after a ReadFromDecoder
 // request is scheduled, the seek will reset the decoder.  So the
@@ -298,8 +284,34 @@ void AudioRendererImpl::ReadFromDecoder() {
   SB_DCHECK(read_from_decoder_closure_.is_valid());
   read_from_decoder_closure_.reset();
 
-  scoped_refptr<DecodedAudio> decoded_audio =
-      pending_decoded_audio_ ? pending_decoded_audio_ : decoder_->Read();
+  // Create the audio sink if it is the first incoming AU after seeking.
+  if (audio_sink_ == kSbAudioSinkInvalid) {
+    int sample_rate = decoder_->GetSamplesPerSecond();
+    // TODO: Implement resampler.
+    SB_DCHECK(sample_rate ==
+              SbAudioSinkGetNearestSupportedSampleFrequency(sample_rate));
+    // TODO: Handle sink creation failure.
+    audio_sink_ = SbAudioSinkCreate(
+        channels_, sample_rate, decoder_->GetSampleType(),
+        kSbMediaAudioFrameStorageTypeInterleaved,
+        reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
+        kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
+        &AudioRendererImpl::ConsumeFramesFunc, this);
+#if SB_API_VERSION >= 4
+    audio_sink_->SetPlaybackRate(playback_rate_);
+#endif  // SB_API_VERSION >= 4
+  }
+
+  scoped_refptr<DecodedAudio> decoded_audio;
+  if (pending_decoded_audio_) {
+    decoded_audio = pending_decoded_audio_;
+  } else {
+    decoded_audio = decoder_->Read();
+    if (decoded_audio) {
+      SB_DCHECK(buffers_in_decoder_ > 0);
+      buffers_in_decoder_--;
+    }
+  }
   pending_decoded_audio_ = NULL;
   if (!decoded_audio) {
     return;
@@ -325,24 +337,6 @@ void AudioRendererImpl::ReadFromDecoder() {
 
   if (seeking_ && frame_buffer_.size() > kPrerollFrames * bytes_per_frame_) {
     seeking_ = false;
-  }
-
-  // Create the audio sink if it is the first incoming AU after seeking.
-  if (audio_sink_ == kSbAudioSinkInvalid) {
-    int sample_rate = decoder_->GetSamplesPerSecond();
-    // TODO: Implement resampler.
-    SB_DCHECK(sample_rate ==
-              SbAudioSinkGetNearestSupportedSampleFrequency(sample_rate));
-    // TODO: Handle sink creation failure.
-    audio_sink_ = SbAudioSinkCreate(
-        channels_, sample_rate, decoder_->GetSampleType(),
-        kSbMediaAudioFrameStorageTypeInterleaved,
-        reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
-        kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
-        &AudioRendererImpl::ConsumeFramesFunc, this);
-#if SB_API_VERSION >= 4
-    audio_sink_->SetPlaybackRate(playback_rate_);
-#endif  // SB_API_VERSION >= 4
   }
 }
 
