@@ -423,6 +423,15 @@ void StarboardPlayer::CreatePlayer() {
   audio_header.average_bytes_per_second = 1;
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_config_.bits_per_channel();
+#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+  audio_header.audio_specific_config_size =
+      static_cast<uint16_t>(audio_config_.extra_data().size());
+  if (audio_header.audio_specific_config_size == 0) {
+    audio_header.audio_specific_config = NULL;
+  } else {
+    audio_header.audio_specific_config = &audio_config_.extra_data()[0];
+  }
+#else   // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
   audio_header.audio_specific_config_size = static_cast<uint16_t>(
       std::min(audio_config_.extra_data().size(),
                sizeof(audio_header.audio_specific_config)));
@@ -431,6 +440,7 @@ void StarboardPlayer::CreatePlayer() {
                  &audio_config_.extra_data()[0],
                  audio_header.audio_specific_config_size);
   }
+#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
 
   SbMediaAudioCodec audio_codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
