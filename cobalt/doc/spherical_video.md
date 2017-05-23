@@ -36,5 +36,42 @@ function checkForMapToMeshSupport() {
 }
 ```
 
-Finally, it is required that your platform provides
+It is required that your platform provides
 [decode-to-texture support](../../starboard/doc/howto_decode_to_texture.md).
+
+## Input
+
+Cobalt currently supports input mappings from the following keys (defined in [starboard/key.h](../../starboard/key.h)):
+
+ - `kSbKeyLeft`
+ - `kSbKeyUp`
+ - `kSbKeyRight`
+ - `kSbKeyDown`
+ - `kSbKeyGamepadDPadUp`
+ - `kSbKeyGamepadDPadDown`
+ - `kSbKeyGamepadDPadLeft`
+ - `kSbKeyGamepadDPadRight`
+ - `kSbKeyGamepadLeftStickUp`
+ - `kSbKeyGamepadLeftStickDown`
+ - `kSbKeyGamepadLeftStickLeft`
+ - `kSbKeyGamepadLeftStickRight`
+ - `kSbKeyGamepadRightStickUp`
+ - `kSbKeyGamepadRightStickDown`
+ - `kSbKeyGamepadRightStickLeft`
+ - `kSbKeyGamepadRightStickRight`
+
+Additionally, if your platform generates `kSbInputEventTypeMove` (from
+[starboard/input.h](../../starboard/input.h)) events with
+`SbInputData::position` set to values in the range `[-1, 1]`, for the following
+keys,
+
+ - `kSbKeyGamepadLeftStickUp`
+ - `kSbKeyGamepadLeftStickDown`
+ - `kSbKeyGamepadLeftStickLeft`
+ - `kSbKeyGamepadLeftStickRight`
+ - `kSbKeyGamepadRightStickUp`
+ - `kSbKeyGamepadRightStickDown`
+ - `kSbKeyGamepadRightStickLeft`
+ - `kSbKeyGamepadRightStickRight`
+
+then they will be treated as analog inputs when controlling the camera.
