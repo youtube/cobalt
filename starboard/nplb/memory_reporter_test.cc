@@ -328,7 +328,7 @@ TEST_F(MemoryReportingTest, CapturesMemMapUnmap) {
     return;
   }
   const int64_t kMemSize = 4096;
-  const int kFlags = 0;
+  const int kFlags = kSbMemoryMapProtectReadWrite;
   EXPECT_EQ_NO_TRACKING(0, mem_reporter()->number_allocs());
   void* mem_chunk = SbMemoryMap(kMemSize, kFlags, "TestMemMap");
   EXPECT_EQ_NO_TRACKING(1, mem_reporter()->number_allocs());
