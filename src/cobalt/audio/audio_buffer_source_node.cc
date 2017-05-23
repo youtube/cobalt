@@ -18,6 +18,7 @@
 
 #include "cobalt/audio/audio_context.h"
 #include "cobalt/audio/audio_node_output.h"
+#include "cobalt/audio/audio_param.h"
 
 namespace cobalt {
 namespace audio {
@@ -31,7 +32,8 @@ typedef ::media::ShellAudioBus ShellAudioBus;
 // numberOfInputs  : 0
 // numberOfOutputs : 1
 AudioBufferSourceNode::AudioBufferSourceNode(AudioContext* context)
-    : AudioNode(context), state_(kNone), read_index_(0) {
+    : AudioNode(context), playback_rate_(new AudioParam(1.0)),
+      state_(kNone), read_index_(0) {
   AudioLock::AutoLock lock(audio_lock());
 
   AddOutput(new AudioNodeOutput(this));

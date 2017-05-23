@@ -12,16 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/webaudio/#AudioBufferSourceNode
+// https://www.w3.org/TR/webaudio/#AudioParam
 
-interface AudioBufferSourceNode : AudioNode {
-  attribute AudioBuffer? buffer;
-  readonly attribute AudioParam playbackRate;
-
-  [RaisesException] void start(optional double when = 0,
-                               optional double offset = 0,
-                               optional double duration);
-  [RaisesException] void stop(optional double when = 0);
-
-  attribute EventHandler onended;
+interface AudioParam {
+  attribute float value;
+  readonly attribute float defaultValue;
 };

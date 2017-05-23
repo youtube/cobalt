@@ -30,6 +30,7 @@
         '../audio/audio_context.idl',
         '../audio/audio_destination_node.idl',
         '../audio/audio_node.idl',
+        '../audio/audio_param.idl',
 
         '../cssom/css.idl',
         '../cssom/css_condition_rule.idl',

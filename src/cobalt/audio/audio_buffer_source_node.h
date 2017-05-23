@@ -29,6 +29,8 @@
 namespace cobalt {
 namespace audio {
 
+class AudioParam;
+
 // This represents an audio source from an in-memory audio asset in an
 // AudioBuffer. It is useful for playing short audio assets which require a high
 // degree of scheduling flexibility (can playback in rhythmically perfect ways).
@@ -48,6 +50,8 @@ class AudioBufferSourceNode : public AudioNode {
   // Represents the audio asset to be played.
   const scoped_refptr<AudioBuffer>& buffer() const { return buffer_; }
   void set_buffer(const scoped_refptr<AudioBuffer>& buffer);
+
+  const scoped_refptr<AudioParam>& playback_rate() const { return playback_rate_; }
 
   // The Start method is used to schedule a sound to playback at an exact time.
   // The parameters are used to define the time to start playing based on the
@@ -93,6 +97,7 @@ class AudioBufferSourceNode : public AudioNode {
   };
 
   scoped_refptr<AudioBuffer> buffer_;
+  scoped_refptr<AudioParam> playback_rate_;
 
   State state_;
 
