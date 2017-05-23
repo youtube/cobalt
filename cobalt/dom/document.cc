@@ -612,7 +612,7 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   std::vector<HTMLElement*> ancestors;
   while (true) {
     ancestors.push_back(element);
-    if (element->parent_node() == dynamic_cast<Node*>(this)) {
+    if (element->parent_node() == static_cast<Node*>(this)) {
       break;
     }
     Element* parent_element = element->parent_element();
