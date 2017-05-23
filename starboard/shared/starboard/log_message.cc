@@ -127,7 +127,7 @@ LogMessage::~LogMessage() {
     // are contained in minidumps for diagnostic purposes.
     char str_stack[1024];
     const size_t copy_bytes =
-        std::min(SB_ARRAY_SIZE(str_stack), str_newline.length());
+        std::min(SB_ARRAY_SIZE(str_stack), str_newline.length() + 1);
     PoemStringCopyN(str_stack, str_newline.c_str(),
                     static_cast<int>(copy_bytes));
 
