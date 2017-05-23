@@ -20,7 +20,7 @@
   ],
   'variables': {
     'starboard_platform_dependent_sources': [
-      'system_get_path.cc',
+      '../shared/system_get_path.cc',
     ],
   },
 }
