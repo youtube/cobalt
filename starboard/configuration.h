@@ -72,6 +72,11 @@
 // with some enum values and data members to allow mouse, wheel, and more
 // generic pointer input.
 #define SB_POINTER_INPUT_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// SbMediaAudioHeader::audio_specific_config will be a pointer instead of an
+// array.
+#define SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
