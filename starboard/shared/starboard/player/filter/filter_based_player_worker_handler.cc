@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -71,6 +72,17 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       decode_target_provider_(provider)
 #endif  // SB_API_VERSION >= 4
 {
+#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+  if (audio_header_.audio_specific_config_size > 0) {
+    audio_specific_config_.reset(
+        new int8_t[audio_header_.audio_specific_config_size]);
+    audio_header_.audio_specific_config = audio_specific_config_.get();
+    SbMemoryCopy(audio_specific_config_.get(),
+                 audio_header.audio_specific_config,
+                 audio_header.audio_specific_config_size);
+  }
+#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+
   bounds_ = PlayerWorker::Bounds();
 }
 
