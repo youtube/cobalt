@@ -17,5 +17,10 @@
     'atomic_public.h',
     'configuration_public.h',
     'thread_types_public.h',
-  ]
+  ],
+  'variables': {
+    'starboard_platform_dependent_sources': [
+      'system_get_path.cc',
+    ],
+  },
 }

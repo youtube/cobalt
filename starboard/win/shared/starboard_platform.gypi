@@ -285,9 +285,9 @@
         '<(DEPTH)/starboard/shared/uwp/application_uwp.h',
         'configuration_public.h',
         'main.cc',
-        'system_get_path.cc',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
+        '<@(starboard_platform_dependent_sources)',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
