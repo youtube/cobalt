@@ -16,6 +16,9 @@
 #define COBALT_RENDERER_RASTERIZER_EGL_TEXTURED_MESH_RENDERER_H_
 
 #include <map>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "base/optional.h"
 #include "cobalt/math/rect.h"
@@ -37,42 +40,92 @@ class TexturedMeshRenderer {
   explicit TexturedMeshRenderer(backend::GraphicsContextEGL* graphics_context);
   ~TexturedMeshRenderer();
 
+  // The Image structure acts as an interface for describing an image, which
+  // in the case of YUV formats, may be composed of multiple textures.
+  struct Image {
+    enum Type {
+      // YUV BT709 image, where the Y component is on one plane and the UV
+      // components are on a second plane.  NV12 would for example choose
+      // this format type.
+      YUV_2PLANE_BT709,
+      // YUV BT709 image where the Y, U and V components are all on different
+      // textures.
+      YUV_3PLANE_BT709,
+      RGBA,  // 1 texture is used that contains RGBA pixels.
+    };
+
+    struct Texture {
+      const backend::TextureEGL* texture;
+      math::Rect content_region;
+    };
+
+    // Returns the number of valid textures in this image, based on its format.
+    int num_textures() const {
+      switch (type) {
+        case YUV_2PLANE_BT709:
+          return 2;
+        case YUV_3PLANE_BT709:
+          return 3;
+        case RGBA:
+          return 1;
+        default:
+          NOTREACHED();
+      }
+      return 0;
+    }
+
+    Type type;
+    Texture textures[3];
+  };
+
   // A context must be current before this method is called.  Before calling
   // this function, please configure glViewport() and glScissor() as desired.
   // The content region indicates which source rectangle of the input texture
   // should be used (i.e. the VBO's texture coordinates will be transformed to
   // lie within this rectangle).
-  void RenderVBO(uint32 vbo, int num_vertices, uint32 mode,
-                 const backend::TextureEGL* texture,
-                 const math::Rect& content_region,
+  void RenderVBO(uint32 vbo, int num_vertices, uint32 mode, const Image& image,
                  const glm::mat4& mvp_transform);
 
   // This method will call into RenderVBO(), so the comments pertaining to that
   // method also apply to this method.  This method renders with vertex
   // positions (-1, -1) -> (1, 1), so it will occupy the entire viewport
   // specified by glViewport().
-  void RenderQuad(const backend::TextureEGL* texture,
-                  const math::Rect& content_region,
-                  const glm::mat4& mvp_transform);
+  void RenderQuad(const Image& image, const glm::mat4& mvp_transform);
 
  private:
+  struct TextureInfo {
+    TextureInfo(const std::string& name, const std::string& components)
+        : name(name), components(components) {}
+
+    std::string name;
+    std::string components;
+  };
   struct ProgramInfo {
     uint32 mvp_transform_uniform;
-    uint32 texcoord_scale_translate_uniform;
+    uint32 texcoord_scale_translate_uniforms[3];
+    uint32 texture_uniforms[3];
     uint32 gl_program_id;
   };
-  typedef std::map<uint32, ProgramInfo> ProgramMap;
+  // We key each program off of their GL texture type and image type.
+  typedef std::pair<uint32, Image::Type> CacheKey;
+  typedef std::map<CacheKey, ProgramInfo> ProgramCache;
 
   uint32 GetQuadVBO();
-  ProgramInfo GetBlitProgram(uint32 texture_target);
+  ProgramInfo GetBlitProgram(Image::Type type, uint32 texture_target);
 
+  static ProgramInfo MakeBlitProgram(const float* color_matrix,
+                                     uint32 texture_target,
+                                     const std::vector<TextureInfo>& textures);
+  static uint32 CreateFragmentShader(uint32 texture_target,
+                                     const std::vector<TextureInfo>& textures);
+  static uint32 CreateVertexShader(const std::vector<TextureInfo>& textures);
 
   backend::GraphicsContextEGL* graphics_context_;
 
   // Since different texture targets can warrant different shaders/programs,
   // we keep a map of blit programs for each texture target, and initialize
   // them lazily.
-  ProgramMap blit_program_per_texture_target_;
+  ProgramCache blit_program_cache_;
 
   static const int kBlitPositionAttribute = 0;
   static const int kBlitTexcoordAttribute = 1;
