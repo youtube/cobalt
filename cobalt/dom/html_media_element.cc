@@ -1619,10 +1619,19 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
 
 #if defined(ENABLE_MAP_TO_MESH)
   if (!node_document()->UpdateComputedStyleOnElementAndAncestor(this)) {
+    LOG(WARNING) << "Could not update computed style.";
     NOTREACHED();
     return false;
   }
-  DCHECK(computed_style());
+
+  if (!computed_style()) {
+    // This has been found to occur when HTMLMediaElement::OnLoadTimer() is on
+    // the callstack, though the visual inspection of the display shows that
+    // we are in the settings menu.
+    LOG(WARNING) << "PreferDecodeToTexture() could not get the computed style.";
+    NOTREACHED();
+    return false;
+  }
 
   const cssom::MapToMeshFunction* map_to_mesh_filter =
       cssom::MapToMeshFunction::ExtractFromFilterList(
