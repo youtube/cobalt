@@ -204,6 +204,11 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
     return planes_[plane_index]->GetTextureEGL();
   }
 
+  scoped_refptr<HardwareFrontendImage> GetHardwareFrontendImage(
+      int plane_index) const {
+    return planes_[plane_index];
+  }
+
   bool EnsureInitialized() OVERRIDE;
 
  private:
