@@ -292,6 +292,10 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
     return;
   }
 
+  if (seek_pending_) {
+    return;
+  }
+
 #if SB_API_VERSION < 4
   SbPlayerSetPause(player_, playback_rate == 0.0);
 #else   // SB_API_VERSION < 4
