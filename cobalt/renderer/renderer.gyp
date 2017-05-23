@@ -103,6 +103,11 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'render_tree_pixel_tester',
       ],
+      'conditions': [
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
+        }],
+      ],
       'actions': [
         {
           'action_name': 'renderer_copy_test_data',
