@@ -172,27 +172,28 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
   // We define a transformation from GLES normalized device coordinates (e.g.
   // [-1.0, 1.0]) into Skia coordinates (e.g. [0, canvas_size.width()]).  This
   // lets us apply Skia's transform inside of Skia's coordinate space.
-  glm::mat3 gl_norm_coords_to_skia_canvas_coords(
-      canvas_size.width() * 0.5f, 0, 0, 0, -canvas_size.height() * 0.5f, 0,
-      canvas_size.width() * 0.5f, canvas_size.height() * 0.5f, 1);
+  glm::mat4 gl_norm_coords_to_skia_canvas_coords(
+      canvas_size.width() * 0.5f, 0, 0, 0, 0, -canvas_size.height() * 0.5f, 0,
+      0, 0, 0, 1, 0, canvas_size.width() * 0.5f, canvas_size.height() * 0.5f, 0,
+      1);
 
   // Convert Skia's current transform from the 3x3 row-major Skia matrix to a
   // 4x4 column-major GLSL matrix.  This is in Skia's coordinate system.
-  glm::mat3 skia_transform_matrix(
-      total_matrix[0], total_matrix[3], total_matrix[6], total_matrix[1],
-      total_matrix[4], total_matrix[7], total_matrix[2],
-      total_matrix[5], total_matrix[8]);
+  glm::mat4 skia_transform_matrix(
+      total_matrix[0], total_matrix[3], 0, total_matrix[6], total_matrix[1],
+      total_matrix[4], 0, total_matrix[7], 0, 0, 1, 0, total_matrix[2],
+      total_matrix[5], 0, total_matrix[8]);
 
   // Finally construct a matrix to map from full screen coordinates into the
   // destination rectangle.  This is in Skia's coordinate system.
-  glm::mat3 dest_rect_matrix(
-      destination_rect.width() / canvas_size.width(), 0, 0, 0,
-      destination_rect.height() / canvas_size.height(), 0,
-      destination_rect.x(), destination_rect.y(), 1);
+  glm::mat4 dest_rect_matrix(
+      destination_rect.width() / canvas_size.width(), 0, 0, 0, 0,
+      destination_rect.height() / canvas_size.height(), 0, 0, 0, 0, 1, 0,
+      destination_rect.x(), destination_rect.y(), 0, 1);
 
   // Since these matrices are applied in LIFO order, read the followin inlined
   // comments in reverse order.
-  return glm::mat4(
+  return
       // Finally transform back into normalized device coordinates so that
       // GL can digest the results.
       glm::affineInverse(gl_norm_coords_to_skia_canvas_coords) *
@@ -204,62 +205,8 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
       // First transform from normalized device coordinates which the VBO
       // referenced by the RenderQuad() function will have its positions defined
       // within (e.g. [-1, 1]).
-      gl_norm_coords_to_skia_canvas_coords);
+      gl_norm_coords_to_skia_canvas_coords;
 }
-
-}  // namespace
-
-void HardwareRasterizer::Impl::RenderTextureEGL(
-    const render_tree::ImageNode* image_node,
-    RenderTreeNodeVisitorDrawState* draw_state) {
-  HardwareFrontendImage* image =
-      base::polymorphic_downcast<HardwareFrontendImage*>(
-          image_node->data().source.get());
-
-  const backend::TextureEGL* texture = image->GetTextureEGL();
-
-  // Flush the Skia draw state to ensure that all previously issued Skia calls
-  // are rendered so that the following draw command will appear in the correct
-  // order.
-  draw_state->render_target->flush();
-
-  SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
-  GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
-
-  SkIRect canvas_boundsi;
-  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
-  GL_CALL(glScissor(canvas_boundsi.x(), canvas_boundsi.y(),
-                    canvas_boundsi.width(), canvas_boundsi.height()));
-
-  if (image->IsOpaque()) {
-    GL_CALL(glDisable(GL_BLEND));
-  } else {
-    GL_CALL(glEnable(GL_BLEND));
-  }
-  GL_CALL(glDisable(GL_DEPTH_TEST));
-  GL_CALL(glDisable(GL_STENCIL_TEST));
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
-
-  if (!textured_mesh_renderer_) {
-    textured_mesh_renderer_.emplace(graphics_context_);
-  }
-  math::Rect content_region(image->GetSize());
-  if (image->GetContentRegion()) {
-    content_region = *image->GetContentRegion();
-  }
-
-  // Invoke our TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderQuad(
-      texture, content_region,
-      GetFallbackTextureModelViewProjectionMatrix(
-          canvas_size, draw_state->render_target->getTotalMatrix(),
-          image_node->data().destination_rect));
-
-  // Let Skia know that we've modified GL state.
-  gr_context_->resetContext();
-}
-
-namespace {
 
 // For stereoscopic video, the actual video is split (either horizontally or
 // vertically) in two, one video for the left eye and one for the right eye.
@@ -293,21 +240,141 @@ math::Rect AdjustContentRegionForStereoMode(render_tree::StereoMode stereo_mode,
   return content_region;
 }
 
+egl::TexturedMeshRenderer::Image::Texture GetTextureFromHardwareFrontendImage(
+    HardwareFrontendImage* image, render_tree::StereoMode stereo_mode) {
+  egl::TexturedMeshRenderer::Image::Texture result;
+
+  if (image->GetContentRegion()) {
+    result.content_region = *image->GetContentRegion();
+  } else {
+    // If no content region is explicitly provided, we take this to mean that
+    // the image was created from render_tree::ImageData in which case image
+    // data is defined to be specified top-to-bottom, and so we must flip the
+    // y-axis before passing it on to a GL renderer.
+    math::Size image_size(image->GetSize());
+    result.content_region = math::Rect(
+        0, image_size.height(), image_size.width(), -image_size.height());
+  }
+
+  result.content_region =
+      AdjustContentRegionForStereoMode(stereo_mode, result.content_region);
+  result.texture = image->GetTextureEGL();
+
+  return result;
+}
+
+egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
+    Image* image, render_tree::StereoMode stereo_mode) {
+  egl::TexturedMeshRenderer::Image result;
+
+  if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
+    HardwareFrontendImage* hardware_image =
+        base::polymorphic_downcast<HardwareFrontendImage*>(image);
+
+    result.type = egl::TexturedMeshRenderer::Image::RGBA;
+    result.textures[0] =
+        GetTextureFromHardwareFrontendImage(hardware_image, stereo_mode);
+  } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
+    HardwareMultiPlaneImage* hardware_image =
+        base::polymorphic_downcast<HardwareMultiPlaneImage*>(image);
+    if (hardware_image->GetFormat() ==
+        render_tree::kMultiPlaneImageFormatYUV2PlaneBT709) {
+      result.type = egl::TexturedMeshRenderer::Image::YUV_2PLANE_BT709;
+      result.textures[0] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(0), stereo_mode);
+      result.textures[1] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(1), stereo_mode);
+    } else if (hardware_image->GetFormat() ==
+               render_tree::kMultiPlaneImageFormatYUV3PlaneBT709) {
+      result.type = egl::TexturedMeshRenderer::Image::YUV_3PLANE_BT709;
+      result.textures[0] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(0), stereo_mode);
+      result.textures[1] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(1), stereo_mode);
+      result.textures[2] = GetTextureFromHardwareFrontendImage(
+          hardware_image->GetHardwareFrontendImage(2), stereo_mode);
+    }
+  } else {
+    NOTREACHED();
+  }
+
+  return result;
+}
+
+void SetupGLStateForImageRender(Image* image) {
+  if (image->IsOpaque()) {
+    GL_CALL(glDisable(GL_BLEND));
+  } else {
+    GL_CALL(glEnable(GL_BLEND));
+  }
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
+  GL_CALL(glEnable(GL_SCISSOR_TEST));
+  GL_CALL(glEnable(GL_CULL_FACE));
+  GL_CALL(glCullFace(GL_BACK));
+  GL_CALL(glFrontFace(GL_CCW));
+}
+
 }  // namespace
+
+void HardwareRasterizer::Impl::RenderTextureEGL(
+    const render_tree::ImageNode* image_node,
+    RenderTreeNodeVisitorDrawState* draw_state) {
+  Image* image =
+      base::polymorphic_downcast<Image*>(image_node->data().source.get());
+  if (!image) {
+    return;
+  }
+  image->EnsureInitialized();
+
+  // Flush the Skia draw state to ensure that all previously issued Skia calls
+  // are rendered so that the following draw command will appear in the correct
+  // order.
+  draw_state->render_target->flush();
+
+  SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
+  GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
+
+  SkIRect canvas_boundsi;
+  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
+  // We need to translate from Skia's top-left corner origin to GL's bottom-left
+  // corner origin.
+  GL_CALL(glScissor(
+      canvas_boundsi.x(),
+      canvas_size.height() - canvas_boundsi.height() - canvas_boundsi.y(),
+      canvas_boundsi.width(), canvas_boundsi.height()));
+
+  SetupGLStateForImageRender(image);
+
+  if (!textured_mesh_renderer_) {
+    textured_mesh_renderer_.emplace(graphics_context_);
+  }
+
+  // Invoke our TexturedMeshRenderer to actually perform the draw call.
+  textured_mesh_renderer_->RenderQuad(
+      SkiaImageToTexturedMeshRendererImage(image, render_tree::kMono),
+      GetFallbackTextureModelViewProjectionMatrix(
+          canvas_size, draw_state->render_target->getTotalMatrix(),
+          image_node->data().destination_rect));
+
+  // Let Skia know that we've modified GL state.
+  uint32_t untouched_states =
+      kMSAAEnable_GrGLBackendState | kStencil_GrGLBackendState |
+      kPixelStore_GrGLBackendState | kFixedFunction_GrGLBackendState |
+      kPathRendering_GrGLBackendState;
+  gr_context_->resetContext(~untouched_states & kAll_GrBackendState);
+}
 
 void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
     const render_tree::ImageNode* image_node,
     const render_tree::MapToMeshFilter& mesh_filter,
     RenderTreeNodeVisitorDrawState* draw_state) {
-  if (!image_node->data().source) {
+  Image* image =
+      base::polymorphic_downcast<Image*>(image_node->data().source.get());
+  if (!image) {
     return;
   }
-
-  HardwareFrontendImage* image =
-      base::polymorphic_downcast<HardwareFrontendImage*>(
-          image_node->data().source.get());
-
-  const backend::TextureEGL* texture = image->GetTextureEGL();
+  image->EnsureInitialized();
 
   SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
 
@@ -320,39 +387,22 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
   GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
   GL_CALL(glScissor(0, 0, canvas_size.width(), canvas_size.height()));
 
-  if (image->IsOpaque()) {
-    GL_CALL(glDisable(GL_BLEND));
-  } else {
-    GL_CALL(glEnable(GL_BLEND));
-  }
-  GL_CALL(glDisable(GL_DEPTH_TEST));
-  GL_CALL(glDisable(GL_STENCIL_TEST));
-  GL_CALL(glEnable(GL_SCISSOR_TEST));
-  GL_CALL(glEnable(GL_CULL_FACE));
-  GL_CALL(glCullFace(GL_BACK));
+  SetupGLStateForImageRender(image);
 
   if (!textured_mesh_renderer_) {
     textured_mesh_renderer_.emplace(graphics_context_);
   }
-  math::Rect content_region(image->GetSize());
-  if (image->GetContentRegion()) {
-    content_region = *image->GetContentRegion();
-  }
 
   const VertexBufferObject* mono_vbo =
       base::polymorphic_downcast<HardwareMesh*>(
-          mesh_filter.mono_mesh(math::Size(content_region.width(),
-                                           content_region.height()))
-              .get())
+          mesh_filter.mono_mesh(image->GetSize()).get())
           ->GetVBO();
-
-  math::Rect stereo_adjusted_content_region = AdjustContentRegionForStereoMode(
-      mesh_filter.stereo_mode(), content_region);
 
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderVBO(
       mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
-      mono_vbo->GetDrawMode(), texture, stereo_adjusted_content_region,
+      mono_vbo->GetDrawMode(),
+      SkiaImageToTexturedMeshRendererImage(image, mesh_filter.stereo_mode()),
       draw_state->transform_3d);
 
   // Let Skia know that we've modified GL state.
