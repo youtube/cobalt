@@ -14,6 +14,12 @@
 
 #include "media/base/starboard_player.h"
 
+#error This implementation of StarboardPlayer is deprecated and will be removed
+#error in the next release.  You should upgrade to Starboard version 4 and
+#error Cobalt 9 to use the StarboardPlayer implementation in cobalt/media.
+#error Please contact us *immediately* if the upcoming removal of this file
+#error will break your port.
+
 #include <algorithm>
 
 #include "base/bind.h"
