@@ -24,7 +24,8 @@ namespace browser {
 const char SplashScreen::Options::kDefaultSplashScreenURL[] =
     "h5vcc-embedded://splash_screen.html";
 
-SplashScreen::SplashScreen(const WebModule::OnRenderTreeProducedCallback&
+SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
+                           const WebModule::OnRenderTreeProducedCallback&
                                render_tree_produced_callback,
                            network::NetworkModule* network_module,
                            const math::Size& window_dimensions,
@@ -44,7 +45,7 @@ SplashScreen::SplashScreen(const WebModule::OnRenderTreeProducedCallback&
       base::kThreadPriority_High;
 
   web_module_.reset(new WebModule(
-      options.url,
+      options.url, initial_application_state,
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
@@ -58,11 +59,6 @@ SplashScreen::~SplashScreen() {
   // Destroy the web module first to prevent our callbacks from being called
   // (from another thread) while member objects are being destroyed.
   web_module_.reset();
-}
-
-void SplashScreen::Suspend() { web_module_->Suspend(); }
-void SplashScreen::Resume(render_tree::ResourceProvider* resource_provider) {
-  web_module_->Resume(resource_provider);
 }
 
 void SplashScreen::WaitUntilReady() {

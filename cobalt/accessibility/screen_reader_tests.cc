@@ -161,7 +161,8 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
   // Create the webmodule and let it run.
   DLOG(INFO) << url.spec();
   browser::WebModule web_module(
-      url, base::Bind(&LiveRegionMutationTest::OnRenderTreeProducedStub),
+      url, base::kApplicationStateStarted,
+      base::Bind(&LiveRegionMutationTest::OnRenderTreeProducedStub),
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
