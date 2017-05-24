@@ -187,6 +187,8 @@
         '<(DEPTH)/starboard/shared/win32/directory_get_next.cc',
         '<(DEPTH)/starboard/shared/win32/directory_internal.h',
         '<(DEPTH)/starboard/shared/win32/directory_open.cc',
+        '<(DEPTH)/starboard/shared/win32/error_utils.cc',
+        '<(DEPTH)/starboard/shared/win32/error_utils.h',
         '<(DEPTH)/starboard/shared/win32/file_can_open.cc',
         '<(DEPTH)/starboard/shared/win32/file_close.cc',
         '<(DEPTH)/starboard/shared/win32/file_delete.cc',
