@@ -221,24 +221,29 @@ class LogMessageVoidify {
 #if SB_LOGGING_IS_OFFICIAL_BUILD
 #define SB_CHECK(condition) \
   !(condition) ? ::starboard::logging::Break() : SB_EAT_STREAM_PARAMETERS
-#define SB_DCHECK(condition) SB_EAT_STREAM_PARAMETERS
 #elif defined(_PREFAST_)
 #define SB_CHECK(condition) \
   __analysis_assume(condition), SB_EAT_STREAM_PARAMETERS
-#define SB_DCHECK(condition) SB_CHECK(condition)
 #else
 #define SB_CHECK(condition) \
   SB_LOG_IF(FATAL, !(condition)) << "Check failed: " #condition ". "
-#define SB_DCHECK(condition) SB_CHECK(condition)
 #endif  // SB_LOGGING_IS_OFFICIAL_BUILD
 
-#if SB_LOGGING_IS_OFFICIAL_BUILD
+#if SB_LOGGING_IS_OFFICIAL_BUILD || \
+    (defined(NDEBUG) && !defined(__LB_SHELL__FORCE_LOGGING__))
 #define SB_DLOG_IS_ON(severity) false
 #define SB_DLOG_IF(severity, condition) SB_EAT_STREAM_PARAMETERS
-#else  // SB_LOGGING_IS_OFFICIAL_BUILD
+#else
 #define SB_DLOG_IS_ON(severity) SB_LOG_IS_ON(severity)
 #define SB_DLOG_IF(severity, condition) SB_LOG_IF(severity, condition)
-#endif  // SB_LOGGING_IS_OFFICIAL_BUILD
+#endif
+
+#if SB_LOGGING_IS_OFFICIAL_BUILD || \
+    (defined(NDEBUG) && !defined(DCHECK_ALWAYS_ON))
+#define SB_DCHECK(condition) SB_EAT_STREAM_PARAMETERS
+#else
+#define SB_DCHECK(condition) SB_CHECK(condition)
+#endif
 
 #define SB_DLOG(severity) SB_DLOG_IF(severity, SB_DLOG_IS_ON(severity))
 #define SB_DSTACK(severity) SB_STACK_IF(severity, SB_DLOG_IS_ON(severity))
