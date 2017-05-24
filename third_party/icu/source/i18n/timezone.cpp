@@ -413,7 +413,33 @@ createSystemTimeZone(const UnicodeString& id) {
     return createSystemTimeZone(id, ec);
 }
 
+// winIdOut is only modified if the creation of TimeZone was successful. This
+// allows the input variable to also be the output variable.
+TimeZone* CreateTimeZoneFromWindowsID(const UnicodeString& id,
+                                      UnicodeString* winIdOut) {
+  UErrorCode status = U_ZERO_ERROR;
+  UnicodeString idOut;
+  TimeZone::getIDForWindowsID(id, NULL, idOut, status);
+
+  if ((idOut.length() > 0) && (status == U_ZERO_ERROR)) {
+    idOut.append((UChar)0);
+    idOut.truncate(idOut.length()-1);
+
+    TimeZone* time_zone = createSystemTimeZone(idOut);
+    if (time_zone) {
+      // SUCCESS!!
+      // Update variables.
+      if (winIdOut) {
+        *winIdOut = idOut;
+      }
+      return time_zone;
+    }
+  }
+
+  return NULL;
 }
+
+}  // namespace anonymous.
 
 TimeZone* U_EXPORT2
 TimeZone::createTimeZone(const UnicodeString& ID)
@@ -477,6 +503,16 @@ TimeZone::detectHostTimeZone()
     hostStrID.append((UChar)0);
     hostStrID.truncate(hostStrID.length()-1);
     hostZone = createSystemTimeZone(hostStrID);
+
+#ifdef STARBOARD
+    // Certain platforms may return an id that is un-abbreviated, such as
+    // "Pacific Standard Time". Therefore attempt to create a TimeZone for
+    // these platforms.
+    if (!hostZone) {
+      // hostStrID will be mutated iff hostZone was successfully created.
+      hostZone = CreateTimeZoneFromWindowsID(hostStrID, &hostStrID);
+    }
+#endif
 
 #if U_PLATFORM_USES_ONLY_WIN32_API || defined(__LB_XB1__)
     // hostID points to a heap-allocated location on Windows.
