@@ -68,9 +68,9 @@ HTMLDecoderTest::HTMLDecoderTest()
           &fetcher_factory_, &stub_css_parser_, dom_parser_.get(),
           NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
           &stub_script_runner_, NULL /* script_value_factory */, NULL, NULL,
-          NULL, NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), ""),
-      document_(
-          new dom::Document(&html_element_context_, dom::Document::Options())),
+          NULL, NULL, NULL, NULL, NULL, dom_stat_tracker_.get(), "",
+          base::kApplicationStateStarted),
+      document_(new dom::Document(&html_element_context_)),
       root_(new dom::Element(document_, base::Token("element"))),
       source_location_(base::SourceLocation("[object HTMLDecoderTest]", 1, 1)) {
 }

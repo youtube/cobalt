@@ -21,6 +21,7 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event.h"
@@ -31,9 +32,10 @@ namespace browser {
 
 // DebugConsole wraps the web module and all components used to implement the
 // debug console.
-class DebugConsole {
+class DebugConsole : public LifecycleObserver {
  public:
   DebugConsole(
+      base::ApplicationState initial_application_state,
       const WebModule::OnRenderTreeProducedCallback&
           render_tree_produced_callback,
       media::MediaModule* media_module, network::NetworkModule* network_module,
@@ -59,8 +61,16 @@ class DebugConsole {
   // Returns the currently set debug console visibility mode.
   int GetMode();
 
-  void Suspend();
-  void Resume(render_tree::ResourceProvider* resource_provider);
+  // LifecycleObserver implementation.
+  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    web_module_->Start(resource_provider);
+  }
+  void Pause() OVERRIDE { web_module_->Pause(); }
+  void Unpause() OVERRIDE { web_module_->Unpause(); }
+  void Suspend() OVERRIDE { web_module_->Suspend(); }
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    web_module_->Resume(resource_provider);
+  }
 
  private:
   void OnError(const GURL& /* url */, const std::string& error) {

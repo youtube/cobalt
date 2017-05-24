@@ -56,6 +56,7 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session_test.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',
+        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:*',
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
@@ -72,6 +73,7 @@
         '<(DEPTH)/cobalt/websocket/websocket.gyp:*',
         '<(DEPTH)/cobalt/xhr/xhr.gyp:*',
         '<(DEPTH)/crypto/crypto.gyp:crypto_unittests',
+        '<(DEPTH)/net/net.gyp:net_unittests',
         '<(DEPTH)/sql/sql.gyp:sql_unittests',
       ],
       'conditions': [

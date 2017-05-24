@@ -20,6 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
@@ -29,7 +30,7 @@ namespace browser {
 
 // SplashScreen uses a WebModule to present a splash screen.
 //
-class SplashScreen {
+class SplashScreen : public LifecycleObserver {
  public:
   struct Options {
     Options() : url(kDefaultSplashScreenURL) {}
@@ -37,7 +38,8 @@ class SplashScreen {
     GURL url;
   };
 
-  SplashScreen(const WebModule::OnRenderTreeProducedCallback&
+  SplashScreen(base::ApplicationState initial_application_state,
+               const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                network::NetworkModule* network_module,
                const math::Size& window_dimensions,
@@ -45,8 +47,16 @@ class SplashScreen {
                float layout_refresh_rate, const Options& options = Options());
   ~SplashScreen();
 
-  void Suspend();
-  void Resume(render_tree::ResourceProvider* resource_provider);
+  // LifecycleObserver implementation.
+  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    web_module_->Start(resource_provider);
+  }
+  void Pause() OVERRIDE { web_module_->Pause(); }
+  void Unpause() OVERRIDE { web_module_->Unpause(); }
+  void Suspend() OVERRIDE { web_module_->Suspend(); }
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+    web_module_->Resume(resource_provider);
+  }
 
   // Block the caller until the splash screen is ready to be rendered.
   void WaitUntilReady();

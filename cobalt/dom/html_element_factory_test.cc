@@ -60,7 +60,8 @@ class HTMLElementFactoryTest : public ::testing::Test {
             NULL /* image_cache */,
             NULL /* reduced_image_cache_capacity_manager */,
             NULL /* remote_typeface_cache */, NULL /* mesh_cache */,
-            dom_stat_tracker_.get(), "" /* language */),
+            dom_stat_tracker_.get(), "" /* language */,
+            base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementFactoryTest() OVERRIDE {}
 

@@ -159,6 +159,7 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
 }  // namespace
 
 DebugConsole::DebugConsole(
+    base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
@@ -187,7 +188,8 @@ DebugConsole::DebugConsole(
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
                  get_debug_server_callback);
   web_module_.reset(new WebModule(
-      GURL(kInitialDebugConsoleUrl), render_tree_produced_callback,
+      GURL(kInitialDebugConsoleUrl), initial_application_state,
+      render_tree_produced_callback,
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       base::Closure(), /* window_close_callback */
       base::Closure(), /* window_minimize_callback */
@@ -227,12 +229,6 @@ void DebugConsole::CycleMode() {
 int DebugConsole::GetMode() {
   base::AutoLock lock(mode_mutex_);
   return mode_;
-}
-
-void DebugConsole::Suspend() { web_module_->Suspend(); }
-
-void DebugConsole::Resume(render_tree::ResourceProvider* resource_provider) {
-  web_module_->Resume(resource_provider);
 }
 
 }  // namespace browser
