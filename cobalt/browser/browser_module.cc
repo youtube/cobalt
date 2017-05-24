@@ -330,6 +330,11 @@ BrowserModule::BrowserModule(const GURL& url,
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
   }
+  if (command_line->HasSwitch(switches::kSuspendFuzzer)) {
+#if SB_API_VERSION >= 4
+    suspend_fuzzer_.emplace();
+#endif
+  }
 #endif  // ENABLE_DEBUG_CONSOLE && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 #if defined(ENABLE_DEBUG_CONSOLE)
