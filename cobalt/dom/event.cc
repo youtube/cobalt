@@ -76,11 +76,6 @@ const scoped_refptr<EventTarget>& Event::current_target() const {
 }
 
 void Event::InitEvent(const std::string& type, bool bubbles, bool cancelable) {
-  // Our event is for single use only.
-  DCHECK(!IsBeingDispatched());
-  DCHECK(!target());
-  DCHECK(!current_target());
-
   if (IsBeingDispatched() || target() || current_target()) {
     return;
   }
