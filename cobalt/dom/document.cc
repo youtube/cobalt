@@ -86,6 +86,7 @@ Document::Document(HTMLElementContext* html_element_context,
       dom_max_element_depth_(options.dom_max_element_depth) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
+  html_element_context_->page_visibility_state()->AddObserver(this);
 
   if (options.viewport_size) {
     SetViewport(*options.viewport_size);
@@ -707,6 +708,7 @@ void Document::SetViewport(const math::Size& viewport_size) {
 }
 
 Document::~Document() {
+  html_element_context_->page_visibility_state()->RemoveObserver(this);
   // Ensure that all outstanding weak ptrs become invalid.
   // Some objects that will be released while this destructor runs may
   // have weak ptrs to |this|.
@@ -768,6 +770,18 @@ void Document::DisableJit() {
       ->script_runner()
       ->GetGlobalEnvironment()
       ->DisableJit();
+}
+
+void Document::OnWindowFocusChanged(bool has_focus) {
+  UNREFERENCED_PARAMETER(has_focus);
+  // Ignored by this class.
+}
+
+void Document::OnVisibilityStateChanged(
+    page_visibility::VisibilityState visibility_state) {
+  UNREFERENCED_PARAMETER(visibility_state);
+  DispatchEvent(new Event(base::Tokens::visibilitychange(), Event::kBubbles,
+                          Event::kNotCancelable));
 }
 
 void Document::TraceMembers(script::Tracer* tracer) {

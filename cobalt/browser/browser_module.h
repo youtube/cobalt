@@ -19,12 +19,15 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/account/account_manager.h"
+#include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
@@ -76,7 +79,9 @@ class BrowserModule {
   // a URL before using it to initialize a new WebModule.
   typedef std::vector<URLHandler::URLHandlerCallback> URLHandlerCollection;
 
-  BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
+  BrowserModule(const GURL& url,
+                base::ApplicationState initial_application_state,
+                system_window::SystemWindow* system_window,
                 account::AccountManager* account_manager,
                 const Options& options);
   ~BrowserModule();
@@ -116,11 +121,11 @@ class BrowserModule {
   // Change the network proxy settings while the application is running.
   void SetProxy(const std::string& proxy_rules);
 
-  // Suspends the browser module from activity, and releases all graphical
-  // resources, placing the application into a low-memory state.
+  // LifecycleObserver-similar interface.
+  void Start();
+  void Pause();
+  void Unpause();
   void Suspend();
-
-  // Undoes the call to Suspend(), returning to normal functionality.
   void Resume();
 
  private:
@@ -229,6 +234,8 @@ class BrowserModule {
   // Poll for render timeout. Called from timeout_polling_thread_.
   void OnPollForRenderTimeout(const GURL& url);
 #endif
+
+  render_tree::ResourceProvider* GetResourceProvider();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -372,9 +379,13 @@ class BrowserModule {
   // ensure synchronous access.
   base::Lock quit_lock_;
 
-  bool suspended_;
-
   system_window::SystemWindow* system_window_;
+
+  // The current application state.
+  base::ApplicationState application_state_;
+
+  // The list of LifecycleObserver that need to be managed.
+  ObserverList<LifecycleObserver> lifecycle_observers_;
 };
 
 }  // namespace browser

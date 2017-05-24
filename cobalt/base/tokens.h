@@ -106,6 +106,7 @@ namespace base {
     MacroOpWithNameOnly(update)                                      \
     MacroOpWithNameOnly(updateend)                                   \
     MacroOpWithNameOnly(updatestart)                                 \
+    MacroOpWithNameOnly(visibilitychange)                            \
     MacroOpWithNameOnly(voiceschanged)                               \
     MacroOpWithNameOnly(volumechange)                                \
     MacroOpWithNameOnly(waiting)

@@ -29,6 +29,7 @@
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/css_parser/parser.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/debug_server.h"
@@ -74,7 +75,7 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule {
+class WebModule : public LifecycleObserver {
  public:
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>(
@@ -181,6 +182,7 @@ class WebModule {
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
 
   WebModule(const GURL& initial_url,
+            base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
             const base::Closure& window_close_callback,
@@ -217,13 +219,12 @@ class WebModule {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
-  // Suspends the WebModule from creating new render trees, and releases this
-  // web module's reference to the resource provider, clearing it out and
-  // releasing all references to any resources created from it.
-  void Suspend();
-  // Resumes the WebModule, possibly with a new resource provider.  This method
-  // can only be called if we have previously suspended the WebModule.
-  void Resume(render_tree::ResourceProvider* resource_provider);
+  // LifecycleObserver implementation
+  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+  void Pause() OVERRIDE;
+  void Unpause() OVERRIDE;
+  void Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
@@ -231,6 +232,7 @@ class WebModule {
   struct ConstructionData {
     ConstructionData(
         const GURL& initial_url,
+        base::ApplicationState initial_application_state,
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
         const base::Closure& window_close_callback,
@@ -242,6 +244,7 @@ class WebModule {
         int dom_max_element_depth, system_window::SystemWindow* system_window,
         float layout_refresh_rate, const Options& options)
         : initial_url(initial_url),
+          initial_application_state(initial_application_state),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
           window_close_callback(window_close_callback),
@@ -256,6 +259,7 @@ class WebModule {
           options(options) {}
 
     GURL initial_url;
+    base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
     const base::Closure& window_close_callback;

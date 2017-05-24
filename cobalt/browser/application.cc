@@ -514,8 +514,9 @@ Application::Application(const base::Closure& quit_closure)
   }
 
   account_manager_.reset(new account::AccountManager());
-  browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
-                                          account_manager_.get(), options));
+  browser_module_.reset(
+      new BrowserModule(initial_url, base::kApplicationStateStarted,
+                        system_window_.get(), account_manager_.get(), options));
   UpdateAndMaybeRegisterUserAgent();
 
   app_status_ = kRunningAppStatus;
@@ -641,10 +642,12 @@ void Application::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got pause event.";
     app_status_ = kPausedAppStatus;
     ++app_pause_count_;
+    browser_module_->Pause();
   } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
     DLOG(INFO) << "Got unpause event.";
     app_status_ = kRunningAppStatus;
     ++app_unpause_count_;
+    browser_module_->Unpause();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kSuspendedAppStatus;

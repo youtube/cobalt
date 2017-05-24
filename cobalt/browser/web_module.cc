@@ -43,6 +43,7 @@
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/media_session/media_session_client.h"
+#include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
@@ -125,6 +126,27 @@ class StartupTimer {
 
 SB_ONCE_INITIALIZE_FUNCTION(StartupTimer, StartupTimer::Instance);
 StartupTimer* s_on_startup_init_dont_use = StartupTimer::Instance();
+
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
+  task.Run();
+  event->Signal();
+}
+
+// Posts a task to a message loop, and then waits for it to complete.
+// TODO: Move into base::MessageLoop.
+void PostBlockingTask(MessageLoop* message_loop,
+                      const tracked_objects::Location& from_here,
+                      const base::Closure& task) {
+  base::WaitableEvent task_finished(false /* automatic reset */,
+                                    false /* initially unsignaled */);
+  message_loop->PostTask(
+      from_here,
+      base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
+
+  // Wait for the task to complete before proceeding.
+  task_finished.Wait();
+}
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -176,11 +198,21 @@ class WebModule::Impl {
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Sets the application state, asserts preconditions to transition to that
+  // state, and dispatches any precipitate web events.
+  void SetApplicationState(base::ApplicationState state);
+
   // Suspension of the WebModule is a two-part process since a message loop
   // gap is needed in order to give a chance to handle loader callbacks
   // that were initiated from a loader thread.
   void SuspendLoaders();
   void FinishSuspend();
+
+  // See LifecycleObserver. These functions do not implement the interface, but
+  // have the same basic function.
+  void Start(render_tree::ResourceProvider* resource_provider);
+  void Pause();
+  void Unpause();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
   void ReportScriptError(const base::SourceLocation& source_location,
@@ -365,9 +397,9 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
 };
 
 WebModule::Impl::Impl(const ConstructionData& data)
-    : name_(data.options.name), is_running_(false) {
-  resource_provider_ = data.resource_provider;
-
+    : name_(data.options.name),
+      is_running_(false),
+      resource_provider_(data.resource_provider) {
   // Currently we rely on a platform to explicitly specify that it supports
   // the map-to-mesh filter via the ENABLE_MAP_TO_MESH define (and the
   // 'enable_map_to_mesh' gyp variable).  When we have better support for
@@ -477,8 +509,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
-      css_parser_.get(), dom_parser_.get(), fetcher_factory_.get(),
-      &resource_provider_, animated_image_tracker_.get(), image_cache_.get(),
+      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
+      fetcher_factory_.get(), &resource_provider_,
+      animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(), data.media_module,
       data.media_module, execution_state_.get(), script_runner_.get(),
@@ -526,8 +559,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.layout_refresh_rate, data.network_module->preferred_language(),
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
-
-  resource_provider_ = data.resource_provider;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_.reset(
@@ -751,8 +782,31 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   }
 }
 
+void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
+  window_->SetApplicationState(state);
+}
+
+void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Start()");
+  SetApplicationState(base::kApplicationStateStarted);
+  // TODO: Initialize resource provider here rather than constructor.
+  DCHECK(resource_provider == resource_provider_);
+}
+
+void WebModule::Impl::Pause() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Pause()");
+  SetApplicationState(base::kApplicationStatePaused);
+}
+
+void WebModule::Impl::Unpause() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Unpause()");
+  SetApplicationState(base::kApplicationStateStarted);
+}
+
 void WebModule::Impl::SuspendLoaders() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::SuspendLoaders()");
+
+  SetApplicationState(base::kApplicationStateSuspended);
 
   // Purge the resource caches before running any suspend logic. This will force
   // any pending callbacks that the caches are batching to run.
@@ -810,6 +864,8 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   // invalidated with the call to Suspend(), so the layout manager's first task
   // will be to perform a full re-layout.
   layout_manager_->Resume();
+
+  SetApplicationState(base::kApplicationStatePaused);
 }
 
 void WebModule::Impl::ReportScriptError(
@@ -866,7 +922,7 @@ WebModule::Options::Options()
       video_playback_rate_multiplier(1.f) {}
 
 WebModule::WebModule(
-    const GURL& initial_url,
+    const GURL& initial_url, base::ApplicationState initial_application_state,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     const OnErrorCallback& error_callback,
     const base::Closure& window_close_callback,
@@ -878,10 +934,10 @@ WebModule::WebModule(
     const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
-      initial_url, render_tree_produced_callback, error_callback,
-      window_close_callback, window_minimize_callback, media_module,
-      network_module, window_dimensions, resource_provider, kDOMMaxElementDepth,
-      system_window, layout_refresh_rate, options);
+      initial_url, initial_application_state, render_tree_produced_callback,
+      error_callback, window_close_callback, window_minimize_callback,
+      media_module, network_module, window_dimensions, resource_provider,
+      kDOMMaxElementDepth, system_window, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1055,47 +1111,64 @@ debug::DebugServer* WebModule::GetDebugServer() {
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-void WebModule::Suspend() {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Suspend()");
-
-  // Suspend() must only be called by a thread external from the WebModule
-  // thread.
+void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
+  // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  base::WaitableEvent task_finished(false /* automatic reset */,
-                                    false /* initially unsignaled */);
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Start, base::Unretained(impl_.get()),
+                 base::Unretained(resource_provider)));
+}
 
-  // Suspension of the WebModule is orchestrated here in two phases.
-  // 1) Send a signal to suspend WebModule loader activity and cancel any
-  //    in-progress loads.  Since loading may occur from any thread, this may
-  //    result in cancel/completion callbacks being posted to message_loop().
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::SuspendLoaders,
-                                      base::Unretained(impl_.get())));
+void WebModule::Pause() {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // Wait for the suspension task to complete before proceeding.
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&base::WaitableEvent::Signal,
-                                      base::Unretained(&task_finished)));
-  task_finished.Wait();
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
+  PostBlockingTask(
+      message_loop(), FROM_HERE,
+      base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get())));
+}
 
-  // 2) Now append to the task queue a task to complete the suspension process.
-  //    Between 1 and 2, tasks may have been registered to handle resource load
-  //    completion events, and so this FinishSuspend task will be executed after
-  //    the load completions are all resolved.
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::FinishSuspend,
-                                      base::Unretained(impl_.get())));
+void WebModule::Unpause() {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // Wait for suspension to fully complete on the WebModule thread before
-  // continuing.
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&base::WaitableEvent::Signal,
-                                      base::Unretained(&task_finished)));
-  task_finished.Wait();
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Unpause, base::Unretained(impl_.get())));
+}
+
+void WebModule::Suspend() {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  // We must block here so that we don't queue the finish until after
+  // SuspendLoaders has run to completion, and therefore has already queued any
+  // precipitate tasks.
+  PostBlockingTask(message_loop(), FROM_HERE,
+                   base::Bind(&WebModule::Impl::SuspendLoaders,
+                              base::Unretained(impl_.get())));
+
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
+  PostBlockingTask(message_loop(), FROM_HERE,
+                   base::Bind(&WebModule::Impl::FinishSuspend,
+                              base::Unretained(impl_.get())));
 }
 
 void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  // We must block here so that the call doesn't return until the web
+  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
