@@ -19,42 +19,22 @@
 
 #include "starboard/log.h"
 #include "starboard/once.h"
+#include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-using starboard::shared::win32::GetThreadSubsystemSingleton;
-using starboard::shared::win32::SbThreadPrivate;
-using starboard::shared::win32::ThreadSubsystemSingleton;
-using starboard::shared::win32::wchar_tToUTF8;
+namespace sbwin32 = starboard::shared::win32;
+
+using sbwin32::DebugLogWinError;
+using sbwin32::GetThreadSubsystemSingleton;
+using sbwin32::SbThreadPrivate;
+using sbwin32::ThreadSubsystemSingleton;
+using sbwin32::wchar_tToUTF8;
 
 namespace {
 
 void ResetWinError() {
   SetLastError(0);
-}
-
-// Checks for system errors and logs a human-readable error if GetLastError()
-// returns an error code. Noops on non-debug builds.
-void DebugLogWinError() {
-#if defined(_DEBUG)
-  DWORD error_code = GetLastError();
-  if (!error_code)
-    return;
-
-  LPWSTR error_message;
-  HRESULT hresult = HRESULT_FROM_WIN32(error_code);
-  int message_size = FormatMessage(
-      FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER |
-          FORMAT_MESSAGE_IGNORE_INSERTS,
-      nullptr,  // Unused with FORMAT_MESSAGE_FROM_SYSTEM.
-      hresult, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-      (LPTSTR)&error_message,
-      0,  // Minimum size for output buffer.
-      nullptr);
-  SB_DCHECK(message_size);
-  SB_LOG(ERROR) << wchar_tToUTF8(error_message);
-  LocalFree(error_message);
-#endif  // defined(_DEBUG)
 }
 
 class ThreadCreateInfo {
