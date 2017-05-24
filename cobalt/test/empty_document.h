@@ -15,6 +15,7 @@
 #ifndef COBALT_TEST_EMPTY_DOCUMENT_H_
 #define COBALT_TEST_EMPTY_DOCUMENT_H_
 
+#include "cobalt/base/application_state.h"
 #include "cobalt/css_parser/parser.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -32,7 +33,8 @@ class EmptyDocument {
         dom_stat_tracker_(new dom::DomStatTracker("EmptyDocument")),
         html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              dom_stat_tracker_.get(), ""),
+                              dom_stat_tracker_.get(), "",
+                              base::kApplicationStateStarted),
         document_(new dom::Document(&html_element_context_)) {}
 
   dom::Document* document() { return document_.get(); }

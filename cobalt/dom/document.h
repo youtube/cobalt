@@ -40,6 +40,8 @@
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
+#include "cobalt/page_visibility/page_visibility_state.h"
+#include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
@@ -81,7 +83,9 @@ class DocumentObserver {
 // (the DOM tree, including elements such as <head> and <body>) and provides
 // functionality which is global to the document.
 //   https://www.w3.org/TR/dom/#document
-class Document : public Node, public cssom::MutationObserver {
+class Document : public Node,
+                 public cssom::MutationObserver,
+                 public page_visibility::PageVisibilityState::Observer {
  public:
   struct Options {
     Options()
@@ -347,12 +351,39 @@ class Document : public Node, public cssom::MutationObserver {
   // Disable just-in-time compilation of JavaScript code.
   void DisableJit();
 
+  // Page Visibility fields.
+  bool hidden() const {
+    return visibility_state() == page_visibility::kVisibilityStateHidden;
+  }
+  page_visibility::VisibilityState visibility_state() const {
+    return page_visibility_state()->GetVisibilityState();
+  }
+  const EventListenerScriptValue* onvisibilitychange() const {
+    return GetAttributeEventListener(base::Tokens::visibilitychange());
+  }
+  void set_onvisibilitychange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::visibilitychange(), event_listener);
+  }
+
+  // page_visibility::PageVisibilityState::Observer implementation.
+  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnVisibilityStateChanged(
+      page_visibility::VisibilityState visibility_state) OVERRIDE;
+
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
   ~Document() OVERRIDE;
+
+  page_visibility::PageVisibilityState* page_visibility_state() {
+    return html_element_context_->page_visibility_state();
+  }
+
+  const page_visibility::PageVisibilityState* page_visibility_state() const {
+    return html_element_context_->page_visibility_state();
+  }
 
  private:
   void DispatchOnLoadEvent();

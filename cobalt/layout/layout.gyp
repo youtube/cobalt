@@ -94,6 +94,11 @@
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
       ],
+      # Exporting dom so that layout_test gets the transitive include paths to
+      # include generated headers.
+      'export_dependent_settings': [
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
+      ],
     },
 
     {

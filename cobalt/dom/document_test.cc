@@ -65,7 +65,8 @@ DocumentTest::DocumentTest()
       dom_stat_tracker_(new DomStatTracker("DocumentTest")),
       html_element_context_(NULL, css_parser_.get(), NULL, NULL, NULL, NULL,
                             NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                            dom_stat_tracker_.get(), "") {
+                            dom_stat_tracker_.get(), "",
+                            base::kApplicationStateStarted) {
   EXPECT_TRUE(GlobalStats::GetInstance()->CheckNoLeaks());
 }
 

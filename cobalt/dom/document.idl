@@ -20,6 +20,7 @@ interface Document : Node {
   readonly attribute DOMString documentURI;
   readonly attribute Element? documentElement;
 
+  // user interaction
   // Non-standard return type, should be WindowProxy.
   // https://www.w3.org/TR/html5/single-page.html#dom-document-defaultview
   readonly attribute Window? defaultView;

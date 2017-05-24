@@ -28,7 +28,7 @@ scoped_refptr<dom::Document> Parser::ParseDocument(
     const base::SourceLocation& input_location) {
   DCHECK(html_element_context);
   scoped_refptr<dom::Document> document =
-      new dom::Document(html_element_context, dom::Document::Options());
+      new dom::Document(html_element_context);
   HTMLDecoder html_decoder(document, document, NULL, dom_max_element_depth_,
                            input_location, base::Closure(), error_callback_,
                            false);

@@ -105,6 +105,14 @@ class RendererModule {
     return display_->GetRenderTarget();
   }
 
+  render_tree::ResourceProvider* resource_provider() {
+    if (!pipeline_) {
+      return NULL;
+    }
+
+    return pipeline_->GetResourceProvider();
+  }
+
  private:
   system_window::SystemWindow* system_window_;
   Options options_;

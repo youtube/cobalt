@@ -45,7 +45,8 @@ class RuleMatchingTest : public ::testing::Test {
         dom_stat_tracker_(new DomStatTracker("RuleMatchingTest")),
         html_element_context_(NULL, css_parser_.get(), dom_parser_.get(), NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              NULL, NULL, dom_stat_tracker_.get(), ""),
+                              NULL, NULL, dom_stat_tracker_.get(), "",
+                              base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)),
         root_(document_->CreateElement("html")->AsHTMLElement()) {
     document_->AppendChild(root_);
