@@ -229,6 +229,11 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   DCHECK(SbPlayerIsValid(player_));
 
   playback_rate_ = playback_rate;
+
+  if (seek_pending_) {
+    return;
+  }
+
 #if SB_API_VERSION < 4
   SbPlayerSetPause(player_, playback_rate == 0.0);
 #else   // SB_API_VERSION < 4

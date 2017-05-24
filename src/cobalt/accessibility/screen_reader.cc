@@ -34,7 +34,8 @@ const char kRemovedFormatString[] = "Removed. %s";
 
 ScreenReader::ScreenReader(dom::Document* document, TTSEngine* tts_engine,
                            dom::MutationObserverTaskManager* task_manager)
-    : enabled_(true), document_(document), tts_engine_(tts_engine) {
+    : enabled_(true), document_(document), tts_engine_(tts_engine),
+      focus_changed_(false) {
   document_->AddObserver(this);
   live_region_observer_ = new dom::MutationObserver(
       base::Bind(&ScreenReader::MutationObserverCallback,
@@ -64,6 +65,17 @@ void ScreenReader::OnLoad() {
 }
 
 void ScreenReader::OnFocusChanged() {
+  if (focus_changed_) {
+    return;
+  }
+  focus_changed_ = true;
+  MessageLoop::current()->PostTask(
+      FROM_HERE,
+      base::Bind(&ScreenReader::FocusChangedCallback, base::Unretained(this)));
+}
+
+void ScreenReader::FocusChangedCallback() {
+  focus_changed_ = false;
   if (!enabled_) {
     return;
   }
@@ -74,7 +86,7 @@ void ScreenReader::OnFocusChanged() {
   }
 }
 
-// MutationObserver callback for tracking the creationg and destruction of
+// MutationObserver callback for tracking the creation and destruction of
 // live regions.
 void ScreenReader::MutationObserverCallback(
     const MutationRecordSequence& sequence,

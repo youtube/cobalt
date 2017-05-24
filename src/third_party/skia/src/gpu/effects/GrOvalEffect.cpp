@@ -290,6 +290,7 @@ public:
 
 private:
     GrGLProgramDataManager::UniformHandle fEllipseUniform;
+    GrGLProgramDataManager::UniformHandle fScaleUniform;
     SkPoint                               fPrevCenter;
     SkVector                              fPrevRadii;
 
@@ -309,6 +310,15 @@ void GLEllipseEffect::emitCode(GrGLProgramBuilder* builder,
                                const char* inputColor,
                                const TransformedCoordsArray&,
                                const TextureSamplerArray& samplers) {
+    // If we're on a device with a "real" mediump then we'll do the distance computation in a space
+    // that is normalized by the larger radius. The scale uniform will be scale, 1/scale. The
+    // inverse squared radii uniform values are already in this normalized space. The center is
+    // not.
+    const char* scaleName = NULL;
+    fScaleUniform = builder->addUniform(
+        GrGLProgramBuilder::kFragment_Visibility, kVec2f_GrSLType,
+        "scale", &scaleName);
+
     const EllipseEffect& ee = fp.cast<EllipseEffect>();
     const char *ellipseName;
     // The ellipse uniform is (center.x, center.y, 1 / rx^2, 1 / ry^2)
@@ -322,6 +332,9 @@ void GLEllipseEffect::emitCode(GrGLProgramBuilder* builder,
 
     // d is the offset to the ellipse center
     fsBuilder->codeAppendf("\t\tvec2 d = %s.xy - %s.xy;\n", fragmentPos, ellipseName);
+    if (scaleName) {
+        fsBuilder->codeAppendf("d *= %s.y;", scaleName);
+    }
     fsBuilder->codeAppendf("\t\tvec2 Z = d * %s.zw;\n", ellipseName);
     // implicit is the evaluation of (x/rx)^2 + (y/ry)^2 - 1.
     fsBuilder->codeAppend("\t\tfloat implicit = dot(Z, d) - 1.0;\n");
@@ -330,6 +343,9 @@ void GLEllipseEffect::emitCode(GrGLProgramBuilder* builder,
     // avoid calling inversesqrt on zero.
     fsBuilder->codeAppend("\t\tgrad_dot = max(grad_dot, 1.0e-4);\n");
     fsBuilder->codeAppendf("\t\tfloat approx_dist = implicit * inversesqrt(grad_dot);\n");
+    if (scaleName) {
+        fsBuilder->codeAppendf("approx_dist *= %s.x;", scaleName);
+    }
 
     switch (ee.getEdgeType()) {
         case kFillAA_GrProcessorEdgeType:
@@ -361,8 +377,26 @@ void GLEllipseEffect::GenKey(const GrProcessor& effect, const GrGLCaps&,
 void GLEllipseEffect::setData(const GrGLProgramDataManager& pdman, const GrProcessor& effect) {
     const EllipseEffect& ee = effect.cast<EllipseEffect>();
     if (ee.getRadii() != fPrevRadii || ee.getCenter() != fPrevCenter) {
-        SkScalar invRXSqd = 1.f / (ee.getRadii().fX * ee.getRadii().fX);
-        SkScalar invRYSqd = 1.f / (ee.getRadii().fY * ee.getRadii().fY);
+        float invRXSqd;
+        float invRYSqd;
+        // If we're using a scale factor to work around precision issues, choose the larger radius
+        // as the scale factor. The inv radii need to be pre-adjusted by the scale factor.
+        if (fScaleUniform.isValid()) {
+            if (ee.getRadii().fX > ee.getRadii().fY) {
+                invRXSqd = 1.f;
+                invRYSqd = (ee.getRadii().fX * ee.getRadii().fX) /
+                           (ee.getRadii().fY * ee.getRadii().fY);
+                pdman.set2f(fScaleUniform, ee.getRadii().fX, 1.f / ee.getRadii().fX);
+            } else {
+                invRXSqd = (ee.getRadii().fY * ee.getRadii().fY) /
+                           (ee.getRadii().fX * ee.getRadii().fX);
+                invRYSqd = 1.f;
+                pdman.set2f(fScaleUniform, ee.getRadii().fY, 1.f / ee.getRadii().fY);
+            }
+        } else {
+            invRXSqd = 1.f / (ee.getRadii().fX * ee.getRadii().fX);
+            invRYSqd = 1.f / (ee.getRadii().fY * ee.getRadii().fY);
+        }
         pdman.set4f(fEllipseUniform, ee.getCenter().fX, ee.getCenter().fY, invRXSqd, invRYSqd);
         fPrevCenter = ee.getCenter();
         fPrevRadii = ee.getRadii();

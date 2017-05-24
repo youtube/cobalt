@@ -520,6 +520,8 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
       CreateSkiaRenderTargetSurface(skia_render_target);
   SkCanvas* canvas = sk_output_surface->getCanvas();
 
+  canvas->clear(SkColorSetARGB(0, 0, 0, 0));
+
   // Render to the canvas and clean up.
   RasterizeRenderTreeToCanvas(render_tree, canvas);
   canvas->flush();

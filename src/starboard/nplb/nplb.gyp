@@ -82,6 +82,8 @@
         'condition_variable_wait_timed_test.cc',
         'configuration_test.cc',
         'cryptography_create_transformer_test.cc',
+        'cryptography_helpers.cc',
+        'cryptography_helpers.h',
         'cryptography_transform_test.cc',
         'cryptography_transform_gcm_test.cc',
         'decode_target_create_test.cc',
