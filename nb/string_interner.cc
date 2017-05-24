@@ -118,7 +118,7 @@ size_t ConcurrentStringInterner::Size() const {
 
 nb::StringInterner&
 ConcurrentStringInterner::GetBucket(const char* string, size_t n) {
-  uint32_t hash_value = nb::RuntimeHash32(string, n);
+  uint32_t hash_value = nb::RuntimeHash32(string, static_cast<int>(n));
   size_t index =
     static_cast<size_t>(hash_value % string_interner_table_.size());
   return *string_interner_table_[index];
@@ -126,7 +126,7 @@ ConcurrentStringInterner::GetBucket(const char* string, size_t n) {
 
 const nb::StringInterner&
 ConcurrentStringInterner::GetBucket(const char* string, size_t n) const {
-  uint32_t hash_value = nb::RuntimeHash32(string, n);
+  uint32_t hash_value = nb::RuntimeHash32(string, static_cast<int>(n));
   size_t index =
     static_cast<size_t>(hash_value % string_interner_table_.size());
   return *string_interner_table_[index];

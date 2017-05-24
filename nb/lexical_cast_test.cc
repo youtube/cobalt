@@ -55,9 +55,9 @@ TEST(lexical_cast, PositiveBasicTypes) {
   EXPECT_FLOAT_EQ(1234.5f, lexical_cast<float>("1234.5f", &cast_ok));
   EXPECT_TRUE(cast_ok);
 
-  EXPECT_FLOAT_EQ(1234.5f, lexical_cast<double>("1234.5", &cast_ok));
+  EXPECT_DOUBLE_EQ(1234.5, lexical_cast<double>("1234.5", &cast_ok));
   EXPECT_TRUE(cast_ok);
-  EXPECT_FLOAT_EQ(1234.5f, lexical_cast<double>("1234.5f", &cast_ok));
+  EXPECT_DOUBLE_EQ(1234.5, lexical_cast<double>("1234.5f", &cast_ok));
   EXPECT_TRUE(cast_ok);
 }
 
@@ -88,9 +88,9 @@ TEST(lexical_cast, NegativeBasicTypes) {
   EXPECT_FLOAT_EQ(-1234.5f, lexical_cast<float>("-1234.5f", &cast_ok));
   EXPECT_TRUE(cast_ok);
 
-  EXPECT_FLOAT_EQ(-1234.5f, lexical_cast<double>("-1234.5", &cast_ok));
+  EXPECT_DOUBLE_EQ(-1234.5f, lexical_cast<double>("-1234.5", &cast_ok));
   EXPECT_TRUE(cast_ok);
-  EXPECT_FLOAT_EQ(-1234.5f, lexical_cast<double>("-1234.5f", &cast_ok));
+  EXPECT_DOUBLE_EQ(-1234.5f, lexical_cast<double>("-1234.5f", &cast_ok));
   EXPECT_TRUE(cast_ok);
 }
 
@@ -109,7 +109,7 @@ TEST(lexical_cast, StringIsNonNumerical) {
 
   EXPECT_FLOAT_EQ(0.f, lexical_cast<float>("not a number", &cast_ok));
   EXPECT_FALSE(cast_ok);
-  EXPECT_FLOAT_EQ(0.0, lexical_cast<double>("not a number", &cast_ok));
+  EXPECT_DOUBLE_EQ(0.0, lexical_cast<double>("not a number", &cast_ok));
   EXPECT_FALSE(cast_ok);
 }
 
