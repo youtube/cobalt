@@ -225,6 +225,7 @@
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
         '../media_session/media_session_playback_state.idl',
+        '../page_visibility/visibility_state.idl',
         '../speech/speech_recognition_error_code.idl',
         '../speech/speech_synthesis_error_code.idl',
         '../web_animations/animation_fill_mode.idl',
@@ -268,6 +269,7 @@
         '../dom/window_session_storage.idl',
         '../dom/window_timers.idl',
         '../media_session/navigator_media_session.idl',
+        '../page_visibility/document.idl',
     ],
 
     'conditions': [

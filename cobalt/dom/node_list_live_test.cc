@@ -29,7 +29,8 @@ class NodeListLiveTest : public ::testing::Test {
       : dom_stat_tracker_("NodeListLiveTest"),
         html_element_context_(NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL,
-                              &dom_stat_tracker_, ""),
+                              &dom_stat_tracker_, "",
+                              base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
 
   ~NodeListLiveTest() OVERRIDE {}

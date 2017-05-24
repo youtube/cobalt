@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script type="text/javascript">
+    console.log("document.visibilityState: " + document.visibilityState);
+
+    window.onblur = function() {
+      console.log("window.onblur");
+    };
+
+    window.onfocus = function() {
+      console.log("window.onfocus");
+    };
+
+    document.onblur = function() {
+      console.log("document.onblur?!");
+    };
+
+    document.onfocus = function() {
+      console.log("document.onfocus?!");
+    };
+
+    document.onvisibilitychange = function() {
+      console.log("document.onvisibilitychange: " + document.visibilityState);
+    };
+  </script>
+</head>
+<body style="background-color:#ccc"></body>
+</html>

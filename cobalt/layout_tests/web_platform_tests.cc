@@ -172,14 +172,14 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   // Create the WebModule and wait for a layout to occur.
   browser::WebModule web_module(
-      url, base::Bind(&WebModuleOnRenderTreeProducedCallback, &results,
-                      &run_loop, MessageLoop::current()),
+      url, base::kApplicationStateStarted,
+      base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
+                 MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       base::Closure() /* window_close_callback */,
-      base::Closure() /* window_minimize_callback */,
-      media_module.get(), &network_module, kDefaultViewportSize,
-      &resource_provider, media_module->system_window(), 60.0f,
-      web_module_options);
+      base::Closure() /* window_minimize_callback */, media_module.get(),
+      &network_module, kDefaultViewportSize, &resource_provider,
+      media_module->system_window(), 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
