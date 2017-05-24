@@ -96,7 +96,8 @@ bool GetPotentialMatch(const sockaddr* input_addr,
 template <typename in_addr_type>
 bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
                                    SbSocketAddress* out_netmask) {
-  SB_DCHECK(interface_address.type == kSbSocketAddressTypeIpv4);
+  SB_DCHECK((interface_address.type == kSbSocketAddressTypeIpv4) ||
+            (interface_address.type == kSbSocketAddressTypeIpv6));
   struct ifaddrs* interface_addrs = NULL;
 
   int retval = getifaddrs(&interface_addrs);
@@ -125,7 +126,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
     }
 
     sbposix::SockAddr sock_addr;
-    sock_addr.FromSockaddr(interface->ifa_addr);
+    sock_addr.FromSockaddr(interface->ifa_netmask);
     if (sock_addr.ToSbSocketAddress(out_netmask)) {
       found_netmask = true;
       break;
@@ -137,29 +138,18 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
   return found_netmask;
 }
 
-bool GetNetMaskForIPv4InterfaceAddress(const SbSocketAddress& interface_address,
-                                       SbSocketAddress* out_netmask) {
-  return GetNetmaskForInterfaceAddress<in_addr>(interface_address, out_netmask);
-}
-
-#if SB_HAS(IPV6)
-bool GetNetMaskForIPv6InterfaceAddress(const SbSocketAddress& interface_address,
-                                       SbSocketAddress* out_netmask) {
-  return GetNetmaskForInterfaceAddress<in6_addr>(interface_address,
-                                                 out_netmask);
-}
-#endif
-
 bool GetNetMaskForInterfaceAddress(const SbSocketAddress& interface_address,
                                    SbSocketAddress* out_netmask) {
   SB_DCHECK(out_netmask);
 
   switch (interface_address.type) {
     case kSbSocketAddressTypeIpv4:
-      return GetNetMaskForIPv4InterfaceAddress(interface_address, out_netmask);
+      return GetNetmaskForInterfaceAddress<in_addr>(interface_address,
+                                                    out_netmask);
 #if SB_HAS(IPV6)
     case kSbSocketAddressTypeIpv6:
-      return GetNetMaskForIPv6InterfaceAddress(interface_address, out_netmask);
+      return GetNetmaskForInterfaceAddress<in6_addr>(interface_address,
+                                                     out_netmask);
 #endif
     default:
       SB_NOTREACHED() << "Invalid address type " << interface_address.type;

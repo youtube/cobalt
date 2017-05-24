@@ -270,14 +270,19 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
       render_target_blitter->GetSbRenderTarget();
   CHECK(SbBlitterSetRenderTarget(context, visitor_render_target));
 
-  BoundsStack start_bounds(context_->GetSbBlitterContext(),
-                           math::Rect(render_target_blitter->GetSize()));
+  math::Size size(render_target_blitter->GetSize());
+  BoundsStack start_bounds(context, math::Rect(size));
 
   RenderState initial_render_state(visitor_render_target, Transform(),
                                    start_bounds);
 
+  CHECK(SbBlitterSetBlending(context, false));
+  CHECK(SbBlitterSetColor(context, SbBlitterColorFromRGBA(0, 0, 0, 0)));
+  CHECK(SbBlitterFillRect(
+      context, SbBlitterMakeRect(0, 0, size.width(), size.height())));
+
   RenderTreeNodeVisitor visitor(
-      context_->GetSbBlitterDevice(), context_->GetSbBlitterContext(),
+      context_->GetSbBlitterDevice(), context,
       initial_render_state, NULL, NULL, NULL, NULL, NULL);
   render_tree->Accept(&visitor);
 

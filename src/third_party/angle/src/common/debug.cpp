@@ -7,108 +7,207 @@
 // debug.cpp: Debugging utilities.
 
 #include "common/debug.h"
-#if !defined(ANGLE_DISABLE_PERF)
-#include "common/debugperf.h"
-#else
-typedef void (*PerfOutputFunction)();
-#endif
-#include "common/system.h"
+
+#include <stdarg.h>
+
+#include <array>
+#include <cstdio>
+#include <fstream>
+#include <ostream>
+#include <vector>
+
+#include "common/angleutils.h"
+#include "common/Optional.h"
 
 namespace gl
 {
 
-static void output(bool traceFileDebugOnly, PerfOutputFunction perfFunc, const char *format, va_list vararg)
+namespace
 {
-#if !defined(ANGLE_DISABLE_PERF)
-    if (gl::perfActive())
-    {
-        char message[32768];
-        int len = vsprintf_s(message, format, vararg);
-        if (len < 0)
-        {
-            return;
-        }
 
-        // There are no ASCII variants of these D3DPERF functions.
-        wchar_t wideMessage[32768];
-        for (int i = 0; i < len; ++i)
-        {
-            wideMessage[i] = message[i];
-        }
-        wideMessage[len] = 0;
+DebugAnnotator *g_debugAnnotator = nullptr;
 
-        perfFunc(0, wideMessage);
-    } else {
-#if defined(__LB_SHELL__FORCE_LOGGING__)
-        vprintf(format, vararg);
-#endif
-    }
-#endif
+constexpr std::array<const char *, LOG_NUM_SEVERITIES> g_logSeverityNames = {
+    {"EVENT", "WARN", "ERR"}};
 
-#if !defined(ANGLE_DISABLE_TRACE)
-#if defined(NDEBUG)
-    if (traceFileDebugOnly)
-    {
-        return;
-    }
-#endif
-
-    FILE* file = fopen(TRACE_OUTPUT_FILE, "a");
-    if (file)
-    {
-        vfprintf(file, format, vararg);
-        fclose(file);
-    }
-#endif
+constexpr const char *LogSeverityName(int severity)
+{
+    return (severity >= 0 && severity < LOG_NUM_SEVERITIES) ? g_logSeverityNames[severity]
+                                                            : "UNKNOWN";
 }
 
-void trace(bool traceFileDebugOnly, const char *format, ...)
+bool ShouldCreateLogMessage(LogSeverity severity)
 {
-#if !defined(ANGLE_DISABLE_PERF) || !defined(ANGLE_DISABLE_TRACE)
-    va_list vararg;
-    va_start(vararg, format);
-#if defined(ANGLE_DISABLE_PERF)
-    output(traceFileDebugOnly, NULL, format, vararg);
+#if defined(ANGLE_TRACE_ENABLED)
+    return true;
+#elif defined(ANGLE_ENABLE_ASSERTS)
+    return severity == LOG_ERR;
 #else
-    output(traceFileDebugOnly, gl::perfSetMarker, format, vararg);
-#endif
-    va_end(vararg);
-#endif
-}
-
-bool perfActive()
-{
-#if defined(ANGLE_DISABLE_PERF)
     return false;
-#else
-    static bool active = gl::perfCheckActive();
-    return active;
 #endif
 }
 
-ScopedPerfEventHelper::ScopedPerfEventHelper(const char* format, ...)
+}  // namespace
+
+namespace priv
 {
-#if !defined(ANGLE_DISABLE_PERF)
-#if defined(ANGLE_DISABLE_TRACE)
-    if (!perfActive())
+
+bool ShouldCreatePlatformLogMessage(LogSeverity severity)
+{
+#if defined(ANGLE_TRACE_ENABLED)
+    return true;
+#else
+    return severity != LOG_EVENT;
+#endif
+}
+
+}  // namespace priv
+
+bool DebugAnnotationsActive()
+{
+#if defined(ANGLE_ENABLE_DEBUG_ANNOTATIONS)
+    return g_debugAnnotator != nullptr && g_debugAnnotator->getStatus();
+#else
+    return false;
+#endif
+}
+
+bool DebugAnnotationsInitialized()
+{
+    return g_debugAnnotator != nullptr;
+}
+
+void InitializeDebugAnnotations(DebugAnnotator *debugAnnotator)
+{
+    UninitializeDebugAnnotations();
+    g_debugAnnotator = debugAnnotator;
+}
+
+void UninitializeDebugAnnotations()
+{
+    // Pointer is not managed.
+    g_debugAnnotator = nullptr;
+}
+
+ScopedPerfEventHelper::ScopedPerfEventHelper(const char *format, ...)
+{
+#if !defined(ANGLE_ENABLE_DEBUG_TRACE)
+    if (!DebugAnnotationsActive())
     {
         return;
     }
-#endif
+#endif  // !ANGLE_ENABLE_DEBUG_TRACE
+
     va_list vararg;
     va_start(vararg, format);
-    output(true, reinterpret_cast<PerfOutputFunction>(gl::perfBeginEvent), format, vararg);
+    std::vector<char> buffer(512);
+    size_t len = FormatStringIntoVector(format, vararg, buffer);
+    ANGLE_LOG(EVENT) << std::string(&buffer[0], len);
     va_end(vararg);
-#endif
 }
 
 ScopedPerfEventHelper::~ScopedPerfEventHelper()
 {
-#if !defined(ANGLE_DISABLE_PERF)
-    if (gl::perfActive())
+    if (DebugAnnotationsActive())
     {
-        gl::perfEndEvent();
+        g_debugAnnotator->endEvent();
+    }
+}
+
+LogMessage::LogMessage(const char *function, int line, LogSeverity severity)
+    : mFunction(function), mLine(line), mSeverity(severity)
+{
+    // EVENT() does not require additional function(line) info.
+    if (mSeverity != LOG_EVENT)
+    {
+        mStream << mFunction << "(" << mLine << "): ";
+    }
+}
+
+LogMessage::~LogMessage()
+{
+    if (DebugAnnotationsInitialized() && (mSeverity == LOG_ERR || mSeverity == LOG_WARN))
+    {
+        g_debugAnnotator->logMessage(*this);
+    }
+    else
+    {
+        Trace(getSeverity(), getMessage().c_str());
+    }
+}
+
+void Trace(LogSeverity severity, const char *message)
+{
+    if (!ShouldCreateLogMessage(severity))
+    {
+        return;
+    }
+
+    std::string str(message);
+
+    if (DebugAnnotationsActive())
+    {
+        std::wstring formattedWideMessage(str.begin(), str.end());
+
+        switch (severity)
+        {
+            case LOG_EVENT:
+                g_debugAnnotator->beginEvent(formattedWideMessage.c_str());
+                break;
+            default:
+                g_debugAnnotator->setMarker(formattedWideMessage.c_str());
+                break;
+        }
+    }
+
+    if (severity == LOG_ERR)
+    {
+        // Note: we use fprintf because <iostream> includes static initializers.
+        fprintf(stderr, "%s: %s\n", LogSeverityName(severity), str.c_str());
+    }
+
+#if defined(ANGLE_PLATFORM_WINDOWS) && \
+    (defined(ANGLE_ENABLE_DEBUG_TRACE_TO_DEBUGGER) || !defined(NDEBUG))
+#if !defined(ANGLE_ENABLE_DEBUG_TRACE_TO_DEBUGGER)
+    if (severity == LOG_ERR)
+#endif  // !defined(ANGLE_ENABLE_DEBUG_TRACE_TO_DEBUGGER)
+    {
+        OutputDebugStringA(str.c_str());
     }
 #endif
+
+#if defined(ANGLE_ENABLE_DEBUG_TRACE)
+#if defined(NDEBUG)
+    if (severity == LOG_EVENT || severity == LOG_WARN)
+    {
+        return;
+    }
+#endif  // defined(NDEBUG)
+    static std::ofstream file(TRACE_OUTPUT_FILE, std::ofstream::app);
+    if (file)
+    {
+        file << LogSeverityName(severity) << ": " << str << std::endl;
+        file.flush();
+    }
+#endif  // defined(ANGLE_ENABLE_DEBUG_TRACE)
 }
+
+LogSeverity LogMessage::getSeverity() const
+{
+    return mSeverity;
 }
+
+std::string LogMessage::getMessage() const
+{
+    return mStream.str();
+}
+
+#if defined(ANGLE_PLATFORM_WINDOWS)
+std::ostream &operator<<(std::ostream &os, const FmtHR &fmt)
+{
+    os << "HRESULT: ";
+    return FmtHexInt(os, fmt.mHR);
+}
+#endif  // defined(ANGLE_PLATFORM_WINDOWS)
+
+}  // namespace gl

@@ -92,7 +92,8 @@ bool ProxyHandler::ownPropertyKeys(JSContext* context, JS::HandleObject proxy,
 bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
                            JS::HandleId id, JS::ObjectOpResult& result) const {
   // https://www.w3.org/TR/WebIDL/#delete
-  if (supports_named_properties() || supports_indexed_properties()) {
+  if (!JSID_IS_SYMBOL(id) &&
+      (supports_named_properties() || supports_indexed_properties())) {
     // Convert the id to a JSValue, so we can easily convert it to Uint32 and
     // JSString.
     JS::RootedValue id_value(context);
@@ -163,7 +164,8 @@ bool ProxyHandler::delete_(JSContext* context, JS::HandleObject proxy,
 bool ProxyHandler::LegacyPlatformObjectGetOwnPropertyDescriptor(
     JSContext* context, JS::HandleObject proxy, JS::HandleId id,
     JS::MutableHandle<JSPropertyDescriptor> descriptor) const {
-  if (supports_named_properties() || supports_indexed_properties()) {
+  if (!JSID_IS_SYMBOL(id) &&
+      (supports_named_properties() || supports_indexed_properties())) {
     // Convert the id to a JSValue, so we can easily convert it to Uint32 and
     // JSString.
     JS::RootedValue id_value(context);
@@ -221,6 +223,9 @@ bool ProxyHandler::IsArrayIndexPropertyName(JSContext* context,
                                             uint32_t* out_index) const {
   // https://www.w3.org/TR/WebIDL/#dfn-array-index-property-name
   // 1. Let i be ToUint32(P).
+  if (property_value.isSymbol()) {
+    return false;
+  }
   uint32_t index;
   if (!JS::ToUint32(context, property_value, &index)) {
     return false;

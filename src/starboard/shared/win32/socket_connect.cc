@@ -44,11 +44,13 @@ SbSocketError SbSocketConnect(SbSocket socket, const SbSocketAddress* address) {
       connect(socket->socket_handle, sock_addr.sockaddr(), sock_addr.length);
 
   if (result != SOCKET_ERROR) {
+    socket->bound_to = SbSocketPrivate::BindTarget::kAny;
     return (socket->error = kSbSocketOk);
   }
 
   const int last_error = WSAGetLastError();
   if (last_error == WSAEWOULDBLOCK) {
+    socket->bound_to = SbSocketPrivate::BindTarget::kAny;
     return (socket->error = kSbSocketPending);
   }
 

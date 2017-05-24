@@ -28,7 +28,8 @@ VideoRendererImpl::VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder)
       end_of_stream_written_(false),
       need_more_input_(true),
       dropped_frames_(0),
-      decoder_(decoder.Pass()) {
+      decoder_(decoder.Pass()),
+      decoder_needs_full_reset_(false) {
   SB_DCHECK(decoder_ != NULL);
   decoder_->SetHost(this);
 }
@@ -48,6 +49,7 @@ void VideoRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   }
 
   decoder_->WriteInputBuffer(input_buffer);
+  decoder_needs_full_reset_ = true;
 }
 
 void VideoRendererImpl::WriteEndOfStream() {
@@ -60,13 +62,17 @@ void VideoRendererImpl::WriteEndOfStream() {
   }
   end_of_stream_written_ = true;
   decoder_->WriteEndOfStream();
+  decoder_needs_full_reset_ = true;
 }
 
 void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(seek_to_pts >= 0);
 
-  decoder_->Reset();
+  if (decoder_needs_full_reset_) {
+    decoder_->Reset();
+    decoder_needs_full_reset_ = false;
+  }
 
   ScopedLock lock(mutex_);
 

@@ -76,7 +76,7 @@ generator_supports_multiple_toolsets = (
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'xb1', 'xb1-future']
+microsoft_flavors = ['win', 'win-console', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
@@ -1604,14 +1604,14 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   # - If there is no 'make_global_settings' for CC.host/CXX.host or
   #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
   #   to cc/cxx.
-  if (flavor == 'win' or (flavor in sony_flavors and is_windows)):
+  if (flavor in sony_flavors and is_windows):
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
     gyp.msvs_emulation.GenerateEnvironmentFiles(
         toplevel_build, generator_flags, OpenOutput)
     ld_host = '$ld'
-  elif flavor in ['xb1', 'xb1-future']:
+  elif flavor in microsoft_flavors:
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
@@ -1656,6 +1656,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
   master_ninja.variable('cxx', cxx)
   ld = GetEnvironFallback(['LD_target', 'LD'], ld)
+  rc = GetEnvironFallback(['RC'], 'rc.exe')
 
   if not cc_host:
     cc_host = cc
@@ -1672,7 +1673,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   if flavor in microsoft_flavors:
     master_ninja.variable('ld', ld)
     master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    master_ninja.variable('rc', 'rc.exe')
+    master_ninja.variable('rc', rc)
     master_ninja.variable('asm', 'ml.exe')
     master_ninja.variable('mt', 'mt.exe')
     master_ninja.variable('use_dep_database', '1')
@@ -1920,7 +1921,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     dllcmd = ('%s gyp-win-tool link-wrapper $arch '
               '$ld /nologo $implibflag /DLL /OUT:$dll '
               '/PDB:$dll.pdb @$dll.rsp' % python_exec)
-    if not flavor in ['xb1', 'xb1-future']:
+    if not flavor in microsoft_flavors:
       # XB1 doesn't need a manifest.
       dllcmd += (' && %s gyp-win-tool manifest-wrapper $arch '
                  '$mt -nologo -manifest $manifests -out:$dll.manifest' %
@@ -1942,7 +1943,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
                    '$mt -nologo -manifest $manifests -out:$out.manifest' %
                    (python_exec, python_exec))
     else:
-      assert flavor in ['xb1', 'xb1-future']
+      assert flavor in microsoft_flavors
       # XB1 doesn't need a manifest.
       link_command=('%s gyp-win-tool link-wrapper $arch '
                    '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %

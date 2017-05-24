@@ -135,7 +135,7 @@ bool GetAdapters(const SbSocketAddressType address_type,
       address_length_bytes = sbwin32::kAddressLengthIpv6;
       break;
     default:
-      SB_NOTREACHED() << "Invalid address type.";
+      SB_NOTREACHED() << "Invalid address type: " << address_type;
       return false;
   }
 

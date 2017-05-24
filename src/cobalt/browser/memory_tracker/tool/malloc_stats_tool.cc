@@ -55,8 +55,7 @@ std::string MallocStatsTool::tool_name() const  {
 }
 
 void MallocStatsTool::Run(Params* params) {
-  // Run function does almost nothing.
-  params->logger()->Output("MallocStatsTool running...");
+  params->logger()->Output("MallocStatsTool running...\n");
 
   Timer output_timer(base::TimeDelta::FromSeconds(30));
   Timer sample_timer(base::TimeDelta::FromMilliseconds(50));
@@ -102,7 +101,8 @@ void MallocStatsTool::Run(Params* params) {
       // By double the sampling time this keeps the table linear with
       // respect to time. If sampling time was not doubled then there
       // would be time distortion in the graph.
-      sample_timer.ScaleTimerAndReset(2.0);
+      sample_timer.ScaleTriggerTime(2.0);
+      sample_timer.Restart();
     }
   }
 }

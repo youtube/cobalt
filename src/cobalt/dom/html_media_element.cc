@@ -1614,8 +1614,22 @@ std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
 }
 
-bool HTMLMediaElement::PreferDecodeToTexture() const {
+bool HTMLMediaElement::PreferDecodeToTexture() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture");
+
+#if defined(ENABLE_MAP_TO_MESH)
+  if (!node_document()->UpdateComputedStyleOnElementAndAncestor(this)) {
+    LOG(WARNING) << "Could not update computed style.";
+    NOTREACHED();
+    return false;
+  }
+
   if (!computed_style()) {
+    // This has been found to occur when HTMLMediaElement::OnLoadTimer() is on
+    // the callstack, though the visual inspection of the display shows that
+    // we are in the settings menu.
+    LOG(WARNING) << "PreferDecodeToTexture() could not get the computed style.";
+    NOTREACHED();
     return false;
   }
 
@@ -1624,6 +1638,10 @@ bool HTMLMediaElement::PreferDecodeToTexture() const {
           computed_style()->filter());
 
   return map_to_mesh_filter;
+#else  // defined(ENABLE_MAP_TO_MESH)
+  // If map-to-mesh is disabled, we never prefer decode-to-texture.
+  return false;
+#endif  // defined(ENABLE_MAP_TO_MESH)
 }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)

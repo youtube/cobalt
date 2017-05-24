@@ -818,7 +818,10 @@ bool HTMLElement::IsBeingRendered() {
     return false;
   }
 
-  document->UpdateComputedStyleOnElementAndAncestor(this);
+  if (!document->UpdateComputedStyleOnElementAndAncestor(this)) {
+    return false;
+  }
+  DCHECK(computed_style());
 
   return computed_style()->display() != cssom::KeywordValue::GetNone() &&
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();

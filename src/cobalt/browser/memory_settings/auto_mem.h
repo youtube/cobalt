@@ -27,6 +27,7 @@
 #include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/math/size.h"
+#include "testing/gtest/include/gtest/gtest_prod.h"
 
 namespace cobalt {
 namespace browser {
@@ -44,25 +45,39 @@ class AutoMem {
 
   const IntSetting* image_cache_size_in_bytes() const;
   const IntSetting* javascript_gc_threshold_in_bytes() const;
-  const IntSetting* misc_engine_cpu_size_in_bytes() const;
+  // This setting represents all others cpu-memory consuming systems within
+  // the engine. This value has been hard coded.
+  const IntSetting* misc_cobalt_cpu_size_in_bytes() const;
+  const IntSetting* misc_cobalt_gpu_size_in_bytes() const;
   const IntSetting* remote_typeface_cache_size_in_bytes() const;
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
 
-  // AllMemorySettings - does not include cpu & gpu max memory.
-  std::vector<const MemorySetting*> AllMemorySettings() const;
-  std::vector<MemorySetting*> AllMemorySettingsMutable();
+  // max_cpu/gpu_bytes represents the maximum amount of memory that should
+  // be consumed by the engine. These values can be set by the command line
+  // or else they are set automatically.
+  const IntSetting* max_cpu_bytes() const;
+  const IntSetting* max_gpu_bytes() const;
 
   // Generates a string table of the memory settings and available memory for
   // cpu and gpu. This is used during startup to display memory configuration
   // information.
-  std::string ToPrettyPrintString() const;
+  std::string ToPrettyPrintString(bool use_color_ascii) const;
 
  private:
+  void ConstructSettings(const math::Size& ui_resolution,
+                         const CommandLine& command_line,
+                         const BuildSettings& build_settings);
+
+  // AllMemorySettings - does not include cpu & gpu max memory.
+  std::vector<const MemorySetting*> AllMemorySettings() const;
+  std::vector<MemorySetting*> AllMemorySettingsMutable();
+
   scoped_ptr<IntSetting> image_cache_size_in_bytes_;
   scoped_ptr<IntSetting> javascript_gc_threshold_in_bytes_;
   scoped_ptr<IntSetting> misc_cobalt_cpu_size_in_bytes_;
+  scoped_ptr<IntSetting> misc_cobalt_gpu_size_in_bytes_;
   scoped_ptr<IntSetting> remote_typeface_cache_size_in_bytes_;
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
@@ -71,6 +86,11 @@ class AutoMem {
   // These settings are used for constraining the memory.
   scoped_ptr<IntSetting> max_cpu_bytes_;
   scoped_ptr<IntSetting> max_gpu_bytes_;
+  std::vector<std::string> error_msgs_;
+
+  FRIEND_TEST(AutoMem, AllMemorySettingsAreOrderedByName);
+  FRIEND_TEST(AutoMem, ConstrainedCPUEnvironment);
+  FRIEND_TEST(AutoMem, ConstrainedGPUEnvironment);
 };
 
 }  // namespace memory_settings

@@ -66,6 +66,7 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
+#include "starboard/nplb/cryptography_helpers.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -108,34 +109,43 @@ const struct test_case test_cases[] = {
   },
   {
     "feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
     NULL,
     "cafebabefacedbaddecaf888",
-    "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091473f5985",
+    "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b254"
+    "66931c7d8f6a5aac84aa051ba30b396a0aac973d58e091473f5985",
     "4d5c2af327cd64a62cf35abd2ba6fab4",
   },
   {
     "feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbaddecaf888",
-    "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b25466931c7d8f6a5aac84aa051ba30b396a0aac973d58e091",
+    "42831ec2217774244b7221b784d0d49ce3aa212f2c02a4e035c17e2329aca12e21d514b254"
+    "66931c7d8f6a5aac84aa051ba30b396a0aac973d58e091",
     "5bc94fbc3221a5db94fae95ae7121a47",
   },
   {
     "feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbad",
-    "61353b4c2806934a777ff51fa22a4755699b2a714fcdc6f83766e5f97b6c742373806900e49f24b22b097544d4896b424989b5e1ebac0f07c23f4598",
+    "61353b4c2806934a777ff51fa22a4755699b2a714fcdc6f83766e5f97b6c742373806900e4"
+    "9f24b22b097544d4896b424989b5e1ebac0f07c23f4598",
     "3612d2e79e3b0785561be14aaca2fccb",
   },
   {
     "feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
-    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
-    "8ce24998625615b603a033aca13fb894be9112a5c3a211a8ba262a3cca7e2ca701e4a9a4fba43c90ccdcb281d48c7c6fd62875d2aca417034c34aee5",
+    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156"
+    "809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
+    "8ce24998625615b603a033aca13fb894be9112a5c3a211a8ba262a3cca7e2ca701e4a9a4fb"
+    "a43c90ccdcb281d48c7c6fd62875d2aca417034c34aee5",
     "619cc5aefffe0bfa462af43c1699d050",
   },
   {
@@ -156,42 +166,53 @@ const struct test_case test_cases[] = {
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
     NULL,
     "cafebabefacedbaddecaf888",
-    "3980ca0b3c00e841eb06fac4872a2757859e1ceaa6efd984628593b40ca1e19c7d773d00c144c525ac619d18c84a3f4718e2448b2fe324d9ccda2710acade256",
+    "3980ca0b3c00e841eb06fac4872a2757859e1ceaa6efd984628593b40ca1e19c7d773d00c1"
+    "44c525ac619d18c84a3f4718e2448b2fe324d9ccda2710acade256",
     "9924a7c8587336bfb118024db8674a14",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbaddecaf888",
-    "3980ca0b3c00e841eb06fac4872a2757859e1ceaa6efd984628593b40ca1e19c7d773d00c144c525ac619d18c84a3f4718e2448b2fe324d9ccda2710",
+    "3980ca0b3c00e841eb06fac4872a2757859e1ceaa6efd984628593b40ca1e19c7d773d00c1"
+    "44c525ac619d18c84a3f4718e2448b2fe324d9ccda2710",
     "2519498e80f1478f37ba55bd6d27618c",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbad",
-    "0f10f599ae14a154ed24b36e25324db8c566632ef2bbb34f8347280fc4507057fddc29df9a471f75c66541d4d4dad1c9e93a19a58e8b473fa0f062f7",
+    "0f10f599ae14a154ed24b36e25324db8c566632ef2bbb34f8347280fc4507057fddc29df9a"
+    "471f75c66541d4d4dad1c9e93a19a58e8b473fa0f062f7",
     "65dcc57fcf623a24094fcca40d3533f8",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbad",
-    "0f10f599ae14a154ed24b36e25324db8c566632ef2bbb34f8347280fc4507057fddc29df9a471f75c66541d4d4dad1c9e93a19a58e8b473fa0f062f7",
+    "0f10f599ae14a154ed24b36e25324db8c566632ef2bbb34f8347280fc4507057fddc29df9a"
+    "471f75c66541d4d4dad1c9e93a19a58e8b473fa0f062f7",
     "65dcc57fcf623a24094fcca40d3533f8",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
-    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
-    "d27e88681ce3243c4830165a8fdcf9ff1de9a1d8e6b447ef6ef7b79828666e4581e79012af34ddd9e2f037589b292db3e67c036745fa22e7e9b7373b",
+    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156"
+    "809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
+    "d27e88681ce3243c4830165a8fdcf9ff1de9a1d8e6b447ef6ef7b79828666e4581e79012af"
+    "34ddd9e2f037589b292db3e67c036745fa22e7e9b7373b",
     "dcf566ff291c25bbb8568fc3d376a6d9",
   },
   {
@@ -212,119 +233,81 @@ const struct test_case test_cases[] = {
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255",
     NULL,
     "cafebabefacedbaddecaf888",
-    "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
+    "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e4859"
+    "0dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
     "b094dac5d93471bdec1a502270e3cc6c",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbaddecaf888",
-    "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662",
+    "522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e4859"
+    "0dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662",
     "76fc6ece0f4e1768cddf8853bb2d551b",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
     "cafebabefacedbad",
-    "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0feb582d33934a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f",
+    "c3762df1ca787d32ae47c13bf19844cbaf1ae14d0b976afac52ff7d79bba9de0feb582d339"
+    "34a4f0954cc2363bc73f7862ac430e64abe499f47c9b1f",
     "3a337dbf46a792c45e454913fe2ea8f2",
   },
   {
     "feffe9928665731c6d6a8f9467308308feffe9928665731c6d6a8f9467308308",
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b39",
     "feedfacedeadbeeffeedfacedeadbeefabaddad2",
-    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
-    "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf40fc0c3b780f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f",
+    "9313225df88406e555909c5aff5269aa6a7a9538534f7da1e4c303d2a318a728c3c0c95156"
+    "809539fcf0e2429a6b525416aedbf5a0de6a57a637b39b",
+    "5a8def2f0c9e53f1f75d7853659e2a20eeb2b22aafde6419a058ab4f6f746bf40fc0c3b780"
+    "f244452da3ebf1c5d82cdea2418997200ef82e44ae7e3f",
     "a44a8266ee1c8eb0c8b5d4cf5ae9f19a",
   },
   {
     "00000000000000000000000000000000",
     NULL,
-    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c95956809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255522dc1f099567d07f47f37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b1056828838c5f61e6393ba7a0abcc9f662898015ad",
+    "d9313225f88406e5a55909c5aff5269a86a7a9531534f7da2e4c303d8a318a721c3c0c9595"
+    "6809532fcf0e2449a6b525b16aedf5aa0de657ba637b391aafd255522dc1f099567d07f47f"
+    "37a32a84427d643a8cdcbfe5c0c97598a2bd2555d1aa8cb08e48590dbb3da7b08b10568288"
+    "38c5f61e6393ba7a0abcc9f662898015ad",
     "000000000000000000000000",
     NULL,
     "5fea793a2d6f974d37e68e0cb8ff9492",
   },
   {
     "00000000000000000000000000000000",
-    "000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "00000000000000000000000000000000000000000000000000000000000000000000000000"
+    "0000000000000000000000000000000000000000000000000000000000",
     NULL,
     /* This nonce results in 0xfff in counter LSB. */
-    "ffffffff000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-    "56b3373ca9ef6e4a2b64fe1e9a17b61425f10d47a75a5fce13efc6bc784af24f4141bdd48cf7c770887afd573cca5418a9aeffcd7c5ceddfc6a78397b9a85b499da558257267caab2ad0b23ca476a53cb17fb41c4b8b475cb4f3f7165094c229c9e8c4dc0a2a5ff1903e501511221376a1cdb8364c5061a20cae74bc4acd76ceb0abc9fd3217ef9f8c90be402ddf6d8697f4f880dff15bfb7a6b28241ec8fe183c2d59e3f9dfff653c7126f0acb9e64211f42bae12af462b1070bef1ab5e3606872ca10dee15b3249b1a1b958f23134c4bccb7d03200bce420a2f8eb66dcf3644d1423c1b5699003c13ecef4bf38a3b60eedc34033bac1902783dc6d89e2e774188a439c7ebcc0672dbda4ddcfb2794613b0be41315ef778708a70ee7d75165c",
+    "ffffffff000000000000000000000000000000000000000000000000000000000000000000"
+    "000000000000000000000000000000000000000000000000000000",
+    "56b3373ca9ef6e4a2b64fe1e9a17b61425f10d47a75a5fce13efc6bc784af24f4141bdd48c"
+    "f7c770887afd573cca5418a9aeffcd7c5ceddfc6a78397b9a85b499da558257267caab2ad0"
+    "b23ca476a53cb17fb41c4b8b475cb4f3f7165094c229c9e8c4dc0a2a5ff1903e5015112213"
+    "76a1cdb8364c5061a20cae74bc4acd76ceb0abc9fd3217ef9f8c90be402ddf6d8697f4f880"
+    "dff15bfb7a6b28241ec8fe183c2d59e3f9dfff653c7126f0acb9e64211f42bae12af462b10"
+    "70bef1ab5e3606872ca10dee15b3249b1a1b958f23134c4bccb7d03200bce420a2f8eb66dc"
+    "f3644d1423c1b5699003c13ecef4bf38a3b60eedc34033bac1902783dc6d89e2e774188a43"
+    "9c7ebcc0672dbda4ddcfb2794613b0be41315ef778708a70ee7d75165c",
     "8b307f6b33286d0ab026a9ed3fe1e85f",
   },
 };
-
-int from_hex(uint8_t *out, char in) {
-  if (in >= '0' && in <= '9') {
-    *out = in - '0';
-    return 1;
-  }
-  if (in >= 'a' && in <= 'f') {
-    *out = in - 'a' + 10;
-    return 1;
-  }
-  if (in >= 'A' && in <= 'F') {
-    *out = in - 'A' + 10;
-    return 1;
-  }
-
-  return 0;
-}
-
-void decode_hex(scoped_array<uint8_t> *out, int *out_len, const char *in,
-                int test_num, const char *description) {
-  if (in == NULL) {
-    out->reset();
-    *out_len = 0;
-    return;
-  }
-
-  size_t len = SbStringGetLength(in);
-  if (len & 1) {
-    ADD_FAILURE() << description << ": Odd length.";
-    return;
-  }
-
-  scoped_array<uint8_t> buf(new uint8_t[len / 2]);
-  if (!buf) {
-    ADD_FAILURE() << description << ": Memory fail.";
-    return;
-  }
-
-  for (size_t i = 0; i < len; i += 2) {
-    uint8_t v, v2;
-    bool result = from_hex(&v, in[i]) && from_hex(&v2, in[i + 1]);
-    if (!result) {
-      ADD_FAILURE() << description << ": Invalid character at " << i << ".";
-      continue;
-    }
-
-    buf[i / 2] = (v << 4) | v2;
-  }
-
-  *out = buf.Pass();
-  *out_len = static_cast<int>(len / 2);
-}
-
-std::string hexdump(const void *in, int len) {
-  const uint8_t* data = reinterpret_cast<const uint8_t*>(in);
-
-  std::string result;
-  for (size_t i = 0; i < len; i++) {
-    char hex[3] = {0};
-    SbStringFormatF(hex, 3, "%02x", data[i]);
-    result += hex;
-  }
-
-  return result;
-}
 
 class Gcm
     : public ::testing::TestWithParam<int> {
@@ -350,15 +333,15 @@ TEST_P(Gcm, TestCase) {
   scoped_array<uint8_t> tag;
   scoped_array<uint8_t> out;
 
-  decode_hex(&key, &key_len, test->key, test_num, "key");
-  decode_hex(&plaintext, &plaintext_len, test->plaintext, test_num,
+  DecodeHex(&key, &key_len, test->key, test_num, "key");
+  DecodeHex(&plaintext, &plaintext_len, test->plaintext, test_num,
              "plaintext");
-  decode_hex(&additional_data, &additional_data_len,
+  DecodeHex(&additional_data, &additional_data_len,
              test->additional_data, test_num, "additional_data");
-  decode_hex(&nonce, &nonce_len, test->nonce, test_num, "nonce");
-  decode_hex(&ciphertext, &ciphertext_len, test->ciphertext, test_num,
+  DecodeHex(&nonce, &nonce_len, test->nonce, test_num, "nonce");
+  DecodeHex(&ciphertext, &ciphertext_len, test->ciphertext, test_num,
              "ciphertext");
-  decode_hex(&tag, &tag_len, test->tag, test_num, "tag");
+  DecodeHex(&tag, &tag_len, test->tag, test_num, "tag");
 
   if (plaintext_len != ciphertext_len) {
     FAIL() << "Plaintext and ciphertext have differing lengths.";
@@ -407,13 +390,13 @@ TEST_P(Gcm, TestCase) {
   SbMemorySet(actual_tag.get(), 0, tag_len);
   SbCryptographyGetTag(encrypter, actual_tag.get(), tag_len);
   if (tag) {
-    EXPECT_STREQ(hexdump(tag.get(), tag_len).c_str(),
-                 hexdump(actual_tag.get(), tag_len).c_str());
+    EXPECT_STREQ(HexDump(tag.get(), tag_len).c_str(),
+                 HexDump(actual_tag.get(), tag_len).c_str());
   }
 
   if (ciphertext) {
-    EXPECT_STREQ(hexdump(ciphertext.get(), plaintext_len).c_str(),
-                 hexdump(out.get(), plaintext_len).c_str());
+    EXPECT_STREQ(HexDump(ciphertext.get(), plaintext_len).c_str(),
+                 HexDump(out.get(), plaintext_len).c_str());
   }
 
   SbCryptographyDestroyTransformer(encrypter);
@@ -443,13 +426,13 @@ TEST_P(Gcm, TestCase) {
   SbMemorySet(actual_tag.get(), 0, tag_len);
   SbCryptographyGetTag(decrypter, actual_tag.get(), tag_len);
   if (tag) {
-    EXPECT_STREQ(hexdump(tag.get(), tag_len).c_str(),
-                 hexdump(actual_tag.get(), tag_len).c_str());
+    EXPECT_STREQ(HexDump(tag.get(), tag_len).c_str(),
+                 HexDump(actual_tag.get(), tag_len).c_str());
   }
 
   if (plaintext) {
-    EXPECT_STREQ(hexdump(plaintext.get(), plaintext_len).c_str(),
-                 hexdump(out.get(), plaintext_len).c_str());
+    EXPECT_STREQ(HexDump(plaintext.get(), plaintext_len).c_str(),
+                 HexDump(out.get(), plaintext_len).c_str());
   }
   SbCryptographyDestroyTransformer(decrypter);
 }

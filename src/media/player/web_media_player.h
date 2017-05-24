@@ -244,7 +244,7 @@ class WebMediaPlayerClient {
   // the preferred output mode is not supported, the player will fallback to
   // one that is.  This can be used to indicate that, say, for spherical video
   // playback, we would like a decode-to-texture output mode.
-  virtual bool PreferDecodeToTexture() const { return false; }
+  virtual bool PreferDecodeToTexture() { return false; }
   // TODO: Make the EME related functions pure virtual again once
   // we have proper EME implementation. Currently empty implementation are
   // provided to make media temporarily work.

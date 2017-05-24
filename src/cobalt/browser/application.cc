@@ -34,6 +34,8 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
+#include "cobalt/browser/memory_settings/checker.h"
+#include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -328,7 +330,8 @@ int Application::network_disconnect_count_ = 0;
 void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
                           BrowserModule::Options* options) {
   std::stringstream ss;
-  ss << "\n\n" << auto_mem.ToPrettyPrintString() << "\n\n";
+  const bool enable_color = SbLogIsTty();
+  ss << "\n\n" << auto_mem.ToPrettyPrintString(enable_color) << "\n\n";
   SB_LOG(INFO) << ss.str();
 
   options->web_module_options.image_cache_capacity =
@@ -419,9 +422,13 @@ Application::Application(const base::Closure& quit_closure)
     options.web_module_options.javascript_options.disable_jit = true;
   }
 
-  memory_settings::AutoMem auto_mem(window_size, *command_line,
-                                    memory_settings::GetDefaultBuildSettings());
-  ApplyAutoMemSettings(auto_mem, &options);
+  auto_mem_.reset(
+      new memory_settings::AutoMem(
+          window_size,
+          *command_line,
+          memory_settings::GetDefaultBuildSettings()));
+
+  ApplyAutoMemSettings(*auto_mem_, &options);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
@@ -807,45 +814,25 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
 
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
-#if defined(__LB_SHELL__)
-  bool memory_stats_updated = false;
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-  if (LB::Memory::IsCountEnabled()) {
-    memory_stats_updated = true;
-
-    LB::Memory::Info memory_info;
-    lb_memory_get_info(&memory_info);
-
-    available_memory_ = memory_info.free_memory;
-    c_val_stats_.free_cpu_memory =
-        static_cast<size_t>(memory_info.free_memory);
-    c_val_stats_.used_cpu_memory =
-        static_cast<size_t>(memory_info.application_memory);
-    c_val_stats_.exe_memory = static_cast<size_t>(memory_info.executable_size);
-  }
-#endif  // defined(__LB_SHELL__FOR_RELEASE__)
-  // If the memory stats have not been updated yet, then simply use the
-  // unallocated memory as the available memory.
-  if (!memory_stats_updated) {
-    available_memory_ = lb_get_unallocated_memory();
-    c_val_stats_.free_cpu_memory = static_cast<size_t>(available_memory_);
-    c_val_stats_.used_cpu_memory =
-        lb_get_total_system_memory() - lb_get_unallocated_memory();
-  }
-#elif defined(OS_STARBOARD)
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
+  base::optional<int64_t> used_gpu_memory;
+  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
+    used_gpu_memory = SbSystemGetUsedGPUMemory();
+  }
+
   available_memory_ =
       static_cast<ssize_t>(SbSystemGetTotalCPUMemory() - used_cpu_memory);
   c_val_stats_.free_cpu_memory = available_memory_;
   c_val_stats_.used_cpu_memory = used_cpu_memory;
 
-  if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
-    int64_t used_gpu_memory = SbSystemGetUsedGPUMemory();
+  if (used_gpu_memory) {
     *c_val_stats_.free_gpu_memory =
-        SbSystemGetTotalGPUMemory() - used_gpu_memory;
-    *c_val_stats_.used_gpu_memory = used_gpu_memory;
+        SbSystemGetTotalGPUMemory() - *used_gpu_memory;
+    *c_val_stats_.used_gpu_memory = *used_gpu_memory;
   }
-#endif
+
+  memory_settings_checker_.RunChecks(
+      *auto_mem_, used_cpu_memory, used_gpu_memory);
 }
 
 }  // namespace browser

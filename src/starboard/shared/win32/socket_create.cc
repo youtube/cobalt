@@ -114,5 +114,6 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
     return kSbSocketInvalid;
   }
 
-  return new SbSocketPrivate(address_type, protocol, socket_handle);
+  return new SbSocketPrivate(address_type, protocol, socket_handle,
+                             SbSocketPrivate::BindTarget::kUnbound);
 }

@@ -50,6 +50,7 @@ namespace memory_settings {
 //  | software_surface_cache_size_in_bytes |         N/A |     N/A |  N/A |     N/A |
 //  |______________________________________|_____________|_________|______|_________|
 std::string GeneratePrettyPrintTable(
+    bool use_color_ascii,
     const std::vector<const MemorySetting*>& memory_settings);
 
 // Generates a table, ie:
@@ -64,10 +65,28 @@ std::string GeneratePrettyPrintTable(
 //  |______|__________|__________|
 // When optional total_gpu_memory is null then the the value in the output
 // table will be <UNKNOWN>.
-std::string GenerateMemoryTable(const IntSetting& total_cpu_memory,
+std::string GenerateMemoryTable(bool use_color_ascii,
+                                const IntSetting& total_cpu_memory,
                                 const IntSetting& total_gpu_memory,
                                 int64_t settings_cpu_consumption,
                                 int64_t settings_gpu_consumption);
+
+// Example:
+//   ToMegabyteString(1 * 1024 * 1024, 1)
+// Returns: "1.0MB".
+std::string ToMegabyteString(int64_t bytes, int decimal_places);
+
+// Takes in a body such as "aaaabbbb" and generates a border around it:
+// MakeBoarder("aaaabbbb", '*')
+// Returns:
+//   ************
+//   * aaaabbbb *
+//   ************
+// Works with multiple lines.
+std::string MakeBorder(const std::string& body, const char border_ch);
+
+// Stringify's the MemorySetting::source_type() to a readable string value.
+std::string StringifySourceType(const MemorySetting& setting);
 
 }  // namespace memory_settings
 }  // namespace browser

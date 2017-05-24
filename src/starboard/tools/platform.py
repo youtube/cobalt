@@ -65,9 +65,15 @@ class PlatformInfo(object):
   """Information about a specific starboard port."""
 
   @classmethod
-  def EnumeratePorts(cls, root_path):
+  def EnumeratePorts(cls, root_path, exclusion_set = None):
     """Generator that iterates over starboard ports found under |path|."""
-    for current_path, _, filenames in os.walk(root_path):
+    if not exclusion_set:
+      exclusion_set = set()
+    for current_path, directories, filenames in os.walk(root_path):
+      # Don't walk into any directories in the exclusion set.
+      directories[:] = (x for x in directories
+                        if os.path.join(current_path, x) not in exclusion_set)
+      # Determine if the current directory is a valid port directory.
       if _IsValidPortFilenameList(current_path, filenames):
         if current_path == root_path:
           logging.warning('Found port at search path root: %s', current_path)

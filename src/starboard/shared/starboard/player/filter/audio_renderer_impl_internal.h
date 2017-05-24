@@ -73,6 +73,9 @@ class AudioRendererImpl : public AudioRenderer {
   // 2. Have the audio cache full to simulate the state that the renderer can
   //    no longer accept more data.
   static const size_t kMaxCachedFrames = 256 * 1024;
+  // When there are more than |kMaxBuffersInDecoder| buffers inside the audio
+  // decoder, the renderer won't accept more data.
+  static const int kMaxbuffersInDecoder = 32;
 
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
@@ -119,6 +122,15 @@ class AudioRendererImpl : public AudioRenderer {
   SbAudioSink audio_sink_;
   scoped_refptr<DecodedAudio> pending_decoded_audio_;
   Closure read_from_decoder_closure_;
+
+  // Our owner will attempt to seek to pts 0 when playback begins.  In
+  // general, seeking could require a full reset of the underlying decoder on
+  // some platforms, so we make an effort to improve playback startup
+  // performance by keeping track of whether we already have a fresh decoder,
+  // and can thus avoid doing a full reset.
+  bool decoder_needs_full_reset_;
+
+  int buffers_in_decoder_;
 };
 
 }  // namespace filter

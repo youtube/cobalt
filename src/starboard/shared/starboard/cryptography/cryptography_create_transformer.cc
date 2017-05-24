@@ -94,7 +94,6 @@ SbCryptographyTransformer SbCryptographyCreateTransformer(
   int result = -1;
   if (direction == kSbCryptographyDirectionDecode &&
       mode != kSbCryptographyBlockCipherModeCtr &&
-      mode != kSbCryptographyBlockCipherModeEcb &&
       mode != kSbCryptographyBlockCipherModeGcm) {
     result = AES_set_decrypt_key(key, key_size * 8, &aeskey);
   } else {

@@ -506,6 +506,7 @@ public:
 private:
     GrGLProgramDataManager::UniformHandle fInnerRectUniform;
     GrGLProgramDataManager::UniformHandle fInvRadiiSqdUniform;
+    GrGLProgramDataManager::UniformHandle fScaleUniform;
     SkRRect                               fPrevRRect;
     typedef GrGLFragmentProcessor INHERITED;
 };
@@ -546,6 +547,14 @@ void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
     // need be computed to determine the min alpha.
     fsBuilder->codeAppendf("\t\tvec2 dxy0 = %s.xy - %s.xy;\n", rectName, fragmentPos);
     fsBuilder->codeAppendf("\t\tvec2 dxy1 = %s.xy - %s.zw;\n", fragmentPos, rectName);
+
+    // If we're on a device with a "real" mediump then we'll do the distance computation in a space
+    // that is normalized by the largest radius. The scale uniform will be scale, 1/scale. The
+    // radii uniform values are already in this normalized space.
+    const char* scaleName = NULL;
+    fScaleUniform = builder->addUniform(GrGLProgramBuilder::kFragment_Visibility,
+                                        kVec2f_GrSLType, "scale", &scaleName);
+
     switch (erre.getRRect().getType()) {
         case SkRRect::kSimple_Type: {
             const char *invRadiiXYSqdName;
@@ -554,7 +563,9 @@ void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
                                                       "invRadiiXY",
                                                       &invRadiiXYSqdName);
             fsBuilder->codeAppend("\t\tvec2 dxy = max(max(dxy0, dxy1), 0.0);\n");
-            // Z is the x/y offsets divided by squared radii.
+            if (scaleName) {
+                fsBuilder->codeAppendf("dxy *= %s.y;", scaleName);
+            }            // Z is the x/y offsets divided by squared radii.
             fsBuilder->codeAppendf("\t\tvec2 Z = dxy * %s;\n", invRadiiXYSqdName);
             break;
         }
@@ -565,7 +576,10 @@ void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
                                                       "invRadiiLTRB",
                                                       &invRadiiLTRBSqdName);
             fsBuilder->codeAppend("\t\tvec2 dxy = max(max(dxy0, dxy1), 0.0);\n");
-            // Z is the x/y offsets divided by squared radii. We only care about the (at most) one
+            if (scaleName) {
+                fsBuilder->codeAppendf("dxy0 *= %s.y;", scaleName);
+                fsBuilder->codeAppendf("dxy1 *= %s.y;", scaleName);
+            }            // Z is the x/y offsets divided by squared radii. We only care about the (at most) one
             // corner where both the x and y offsets are positive, hence the maxes. (The inverse
             // squared radii will always be positive.)
             fsBuilder->codeAppendf("\t\tvec2 Z = max(max(dxy0 * %s.xy, dxy1 * %s.zw), 0.0);\n",
@@ -582,6 +596,9 @@ void GLEllipticalRRectEffect::emitCode(GrGLProgramBuilder* builder,
     // avoid calling inversesqrt on zero.
     fsBuilder->codeAppend("\t\tgrad_dot = max(grad_dot, 1.0e-4);\n");
     fsBuilder->codeAppendf("\t\tfloat approx_dist = implicit * inversesqrt(grad_dot);\n");
+    if (scaleName) {
+        fsBuilder->codeAppendf("approx_dist *= %s.x;", scaleName);
+    }
 
     if (kFillAA_GrProcessorEdgeType == erre.getEdgeType()) {
         fsBuilder->codeAppend("\t\tfloat alpha = clamp(0.5 - approx_dist, 0.0, 1.0);\n");
@@ -612,8 +629,18 @@ void GLEllipticalRRectEffect::setData(const GrGLProgramDataManager& pdman,
         switch (erre.getRRect().getType()) {
             case SkRRect::kSimple_Type:
                 rect.inset(r0.fX, r0.fY);
-                pdman.set2f(fInvRadiiSqdUniform, 1.f / (r0.fX * r0.fX),
-                                                1.f / (r0.fY * r0.fY));
+                if (fScaleUniform.isValid()) {
+                    if (r0.fX > r0.fY) {
+                        pdman.set2f(fInvRadiiSqdUniform, 1.f, (r0.fX * r0.fX) / (r0.fY * r0.fY));
+                        pdman.set2f(fScaleUniform, r0.fX, 1.f / r0.fX);
+                    } else {
+                        pdman.set2f(fInvRadiiSqdUniform, (r0.fY * r0.fY) / (r0.fX * r0.fX), 1.f);
+                        pdman.set2f(fScaleUniform, r0.fY, 1.f / r0.fY);
+                    }
+                } else {
+                    pdman.set2f(fInvRadiiSqdUniform, 1.f / (r0.fX * r0.fX),
+                                                     1.f / (r0.fY * r0.fY));
+                }
                 break;
             case SkRRect::kNinePatch_Type: {
                 const SkVector& r1 = rrect.radii(SkRRect::kLowerRight_Corner);
@@ -623,10 +650,20 @@ void GLEllipticalRRectEffect::setData(const GrGLProgramDataManager& pdman,
                 rect.fTop += r0.fY;
                 rect.fRight -= r1.fX;
                 rect.fBottom -= r1.fY;
-                pdman.set4f(fInvRadiiSqdUniform, 1.f / (r0.fX * r0.fX),
-                                                1.f / (r0.fY * r0.fY),
-                                                1.f / (r1.fX * r1.fX),
-                                                1.f / (r1.fY * r1.fY));
+                if (fScaleUniform.isValid()) {
+                    float scale = SkTMax(SkTMax(r0.fX, r0.fY), SkTMax(r1.fX, r1.fY));
+                    float scaleSqd = scale * scale;
+                    pdman.set4f(fInvRadiiSqdUniform, scaleSqd / (r0.fX * r0.fX),
+                                                     scaleSqd / (r0.fY * r0.fY),
+                                                     scaleSqd / (r1.fX * r1.fX),
+                                                     scaleSqd / (r1.fY * r1.fY));
+                    pdman.set2f(fScaleUniform, scale, 1.f / scale);
+                } else {
+                    pdman.set4f(fInvRadiiSqdUniform, 1.f / (r0.fX * r0.fX),
+                                                     1.f / (r0.fY * r0.fY),
+                                                     1.f / (r1.fX * r1.fX),
+                                                     1.f / (r1.fY * r1.fY));
+                }
                 break;
             }
         default:

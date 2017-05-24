@@ -139,7 +139,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
       is_local_source_(false),
       supports_save_(true),
       suppress_destruction_errors_(false) {
-  DCHECK(!s_instance);
+  DLOG_IF(ERROR, s_instance)
+      << "More than one WebMediaPlayerImpl has been created.";
   s_instance = this;
 
   media_log_->AddEvent(
@@ -186,7 +187,8 @@ WebMediaPlayerImpl::WebMediaPlayerImpl(
 WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   DCHECK(!main_loop_ || main_loop_ == MessageLoop::current());
 
-  DCHECK_EQ(s_instance, this);
+  DLOG_IF(ERROR, s_instance != this)
+      << "More than one WebMediaPlayerImpl has been created.";
   s_instance = NULL;
 
   if (delegate_) {

@@ -11,6 +11,7 @@
       'sources': [
         'box_f.cc',
         'box_f.h',
+        'clamp.h',
         'cubic_bezier.cc',
         'cubic_bezier.h',
         'insets.cc',

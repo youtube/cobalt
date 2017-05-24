@@ -208,7 +208,7 @@ class WebMediaPlayerClient {
   // the preferred output mode is not supported, the player will fallback to
   // one that is.  This can be used to indicate that, say, for spherical video
   // playback, we would like a decode-to-texture output mode.
-  virtual bool PreferDecodeToTexture() const { return false; }
+  virtual bool PreferDecodeToTexture() { return false; }
   // Notifies the client that a video is encrypted. Client is supposed to call
   // |WebMediaPlayer::SetDrmSystem| as soon as possible to avoid stalling
   // playback.

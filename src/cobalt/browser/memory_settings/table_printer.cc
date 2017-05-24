@@ -22,6 +22,7 @@
 #include <string>
 
 #include "base/logging.h"
+#include "starboard/log.h"
 
 namespace cobalt {
 namespace browser {
@@ -55,6 +56,14 @@ std::string AddColor(TablePrinter::Color color, const std::string& value) {
 
   ss << value;
   ss << COLOR_END;
+  return ss.str();
+}
+
+std::string MakeFill(const char* str, size_t n) {
+  std::stringstream ss;
+  for (size_t i = 0; i < n; ++i) {
+    ss << str;
+  }
   return ss.str();
 }
 
@@ -200,35 +209,41 @@ std::string TablePrinterImpl::MakeHeaderRow(const Row& header_row) const {
     }
   }
   ss << " ";
-  std::string output = AddColor(text_color_, ss.str());
-  return output;
+  return ss.str();
 }
 
 std::string TablePrinterImpl::MakeDataRow(const Row& row) const {
-  std::stringstream output_ss;
+  // Safe integer math for creating a fill size. Because this size is based on
+  // subtraction of size_t values, it's possible that an empty string could
+  // cause a rollover of size_t as an input to string creation, causing
+  // a crash.
+  // This math is made safe by doing the integer calculations in int64_t and
+  // then clamping to positive values.
+  struct F {
+    static size_t CreateFillSize(size_t col_size, size_t element_size) {
+      int64_t value = static_cast<int64_t>(col_size) -
+                      static_cast<int64_t>(element_size) - 1;
+      value = std::max<int64_t>(0, value);
+      return static_cast<size_t>(value);
+    }
+  };
 
+  std::stringstream output_ss;
   const std::string vertical_bar = AddColor(table_color_, "|");
 
   for (size_t i = 0; i < row.size(); ++i) {
-    std::stringstream token_ss;
-    token_ss << " ";  // Padding
-    token_ss << row[i];
-    token_ss << " ";
-
-    std::string token = token_ss.str();
+    std::string token = AddColor(text_color_, row[i]);
 
     std::stringstream row_ss;
     const int col_size = static_cast<int>(column_sizes_[i]);
     row_ss << vertical_bar;
-    row_ss << std::setfill(' ');
-    row_ss << std::setw(col_size);
+    const size_t fill_size = F::CreateFillSize(col_size, row[i].size());
     if (i == 0) {
-      row_ss << std::left;  // Left justification for first column.
+      row_ss << " " << token << MakeFill(" ", fill_size);
     } else {
-      row_ss << std::right;  // Right justification for all other columns.
+      row_ss << MakeFill(" ", fill_size) << token << " ";
     }
 
-    row_ss << AddColor(text_color_, token);
     output_ss << row_ss.str();
   }
   output_ss << vertical_bar;
@@ -283,6 +298,10 @@ std::string TablePrinterImpl::MakeTopSeperatorRowAbove() const {
 }
 
 }  // namespace.
+
+bool TablePrinter::SystemSupportsColor() {
+  return SbLogIsTty();
+}
 
 TablePrinter::TablePrinter() : text_color_(kDefault), table_color_(kDefault) {
 }

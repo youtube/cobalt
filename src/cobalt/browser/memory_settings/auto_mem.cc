@@ -21,14 +21,17 @@
 #include <vector>
 
 #include "base/optional.h"
+#include "base/stl_util.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/stringprintf.h"
 #include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/constants.h"
+#include "cobalt/browser/memory_settings/constrainer.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/browser/memory_settings/pretty_print.h"
+#include "cobalt/browser/memory_settings/scaling_function.h"
 #include "cobalt/browser/switches.h"
 #include "nb/lexical_cast.h"
 
@@ -48,15 +51,13 @@ bool StringValueSignalsAutoset(const std::string& value) {
   return is_autoset;
 }
 
-// Creates the specified memory setting type and binds it to (1) command line
-// or else (2) build setting or else (3) an auto_set value.
 template <typename MemorySettingType, typename ValueType>
-scoped_ptr<MemorySettingType> CreateMemorySetting(
-    const char* setting_name,
+void SetMemorySetting(
     const CommandLine& cmd_line,  // Optional.
     const base::optional<ValueType>& build_setting,
-    const ValueType& autoset_value) {
-  scoped_ptr<MemorySettingType> output(new MemorySettingType(setting_name));
+    const ValueType& autoset_value,
+    MemorySettingType* setting) {
+  const std::string setting_name = setting->name();
 
   // True when the command line explicitly requests the variable to be autoset.
   bool force_autoset = false;
@@ -68,19 +69,31 @@ scoped_ptr<MemorySettingType> CreateMemorySetting(
     std::string value = cmd_line.GetSwitchValueNative(setting_name);
     if (StringValueSignalsAutoset(value)) {
       force_autoset = true;
-    } else if (output->TryParseValue(MemorySetting::kCmdLine, value)) {
-      return output.Pass();
+    } else if (setting->TryParseValue(MemorySetting::kCmdLine, value)) {
+      return;
     }
   }
 
   // 2) Is there a build setting? Then set to build_setting, unless the command
   //    line specifies that it should be autoset.
   if (build_setting && !force_autoset) {
-    output->set_value(MemorySetting::kBuildSetting, *build_setting);
+    setting->set_value(MemorySetting::kBuildSetting, *build_setting);
   } else {
     // 3) Otherwise bind to the autoset_value.
-    output->set_value(MemorySetting::kAutoSet, autoset_value);
+    setting->set_value(MemorySetting::kAutoSet, autoset_value);
   }
+}
+
+// Creates the specified memory setting type and binds it to (1) command line
+// or else (2) build setting or else (3) an auto_set value.
+template <typename MemorySettingType, typename ValueType>
+scoped_ptr<MemorySettingType> CreateMemorySetting(
+    const char* setting_name,
+    const CommandLine& cmd_line,  // Optional.
+    const base::optional<ValueType>& build_setting,
+    const ValueType& autoset_value) {
+  scoped_ptr<MemorySettingType> output(new MemorySettingType(setting_name));
+  SetMemorySetting(cmd_line, build_setting, autoset_value, output.get());
   return output.Pass();
 }
 
@@ -187,7 +200,7 @@ scoped_ptr<IntSetting> CreateCpuSetting(const CommandLine& command_line,
                                         const BuildSettings& build_settings) {
   scoped_ptr<IntSetting> cpu_setting =
       CreateSystemMemorySetting(
-          switches::kMaxCobaltGpuUsage,
+          switches::kMaxCobaltCpuUsage,
           MemorySetting::kCPU,
           command_line,
           build_settings.max_cpu_in_bytes,
@@ -197,11 +210,158 @@ scoped_ptr<IntSetting> CreateCpuSetting(const CommandLine& command_line,
   return cpu_setting.Pass();
 }
 
+void CheckConstrainingValues(const MemorySetting& memory_setting) {
+  const size_t kNumTestPoints = 10;
+
+  std::vector<double> values;
+  for (size_t i = 0; i < kNumTestPoints; ++i) {
+    const double requested_constraining_value =
+        static_cast<double>(i) / static_cast<double>(kNumTestPoints - 1);
+
+    const double actual_constraining_value =
+        memory_setting.ComputeAbsoluteMemoryScale(
+            requested_constraining_value);
+
+    values.push_back(actual_constraining_value);
+  }
+
+  DCHECK(base::STLIsSorted(values))
+      << "Constrainer in " << memory_setting.name() << " does not produce "
+         "monotonically decreasing values as input goes from 1.0 -> 0.0";
+}
+
 }  // namespace
 
 AutoMem::AutoMem(const math::Size& ui_resolution,
                  const CommandLine& command_line,
                  const BuildSettings& build_settings) {
+  ConstructSettings(ui_resolution, command_line, build_settings);
+  std::vector<MemorySetting*> memory_settings = AllMemorySettingsMutable();
+  ConstrainToMemoryLimits(max_cpu_bytes_->value(),
+                          max_gpu_bytes_->optional_value(),
+                          &memory_settings,
+                          &error_msgs_);
+}
+
+AutoMem::~AutoMem() {}
+
+const IntSetting* AutoMem::misc_cobalt_cpu_size_in_bytes() const {
+  return misc_cobalt_cpu_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::misc_cobalt_gpu_size_in_bytes() const {
+  return misc_cobalt_gpu_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
+  return remote_typeface_cache_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::image_cache_size_in_bytes() const {
+  return image_cache_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::javascript_gc_threshold_in_bytes() const {
+  return javascript_gc_threshold_in_bytes_.get();
+}
+
+const DimensionSetting* AutoMem::skia_atlas_texture_dimensions() const {
+  return skia_atlas_texture_dimensions_.get();
+}
+
+const IntSetting* AutoMem::skia_cache_size_in_bytes() const {
+  return skia_cache_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::software_surface_cache_size_in_bytes() const {
+  return software_surface_cache_size_in_bytes_.get();
+}
+
+const IntSetting* AutoMem::max_cpu_bytes() const {
+  return max_cpu_bytes_.get();
+}
+
+const IntSetting* AutoMem::max_gpu_bytes() const {
+  return max_gpu_bytes_.get();
+}
+
+std::vector<const MemorySetting*> AutoMem::AllMemorySettings() const {
+  AutoMem* this_unconst = const_cast<AutoMem*>(this);
+  std::vector<MemorySetting*> all_settings_mutable =
+      this_unconst->AllMemorySettingsMutable();
+
+  std::vector<const MemorySetting*> all_settings;
+  all_settings.assign(all_settings_mutable.begin(),
+                      all_settings_mutable.end());
+  return all_settings;
+}
+
+// Make sure that this is the same as AllMemorySettings().
+std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
+  std::vector<MemorySetting*> all_settings;
+  // Keep these in alphabetical order.
+  all_settings.push_back(image_cache_size_in_bytes_.get());
+  all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
+  all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
+  all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
+  all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
+  all_settings.push_back(skia_atlas_texture_dimensions_.get());
+  all_settings.push_back(skia_cache_size_in_bytes_.get());
+  all_settings.push_back(software_surface_cache_size_in_bytes_.get());
+  return all_settings;
+}
+
+std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
+  std::stringstream ss;
+
+  ss << "AutoMem:\n\n";
+  std::vector<const MemorySetting*> all_settings = AllMemorySettings();
+  ss << GeneratePrettyPrintTable(use_color_ascii, all_settings) << "\n";
+
+  int64_t cpu_consumption =
+      SumMemoryConsumption(MemorySetting::kCPU, all_settings);
+  int64_t gpu_consumption =
+      SumMemoryConsumption(MemorySetting::kGPU, all_settings);
+
+  ss << GenerateMemoryTable(use_color_ascii,
+                            *max_cpu_bytes_, *max_gpu_bytes_,
+                            cpu_consumption, gpu_consumption);
+
+  // Copy strings and optionally add more.
+  std::vector<std::string> error_msgs = error_msgs_;
+
+  if (max_cpu_bytes_->value() <= 0) {
+    error_msgs.push_back("ERROR - max_cobalt_cpu_usage WAS 0 BYTES.");
+  } else if (cpu_consumption > max_cpu_bytes_->value()) {
+    error_msgs.push_back("ERROR - CPU CONSUMED WAS MORE THAN AVAILABLE.");
+  }
+
+  if (max_gpu_bytes_->value() <= 0) {
+    error_msgs.push_back("ERROR - max_cobalt_gpu_usage WAS 0 BYTES.");
+  } else if (gpu_consumption > max_gpu_bytes_->value()) {
+    error_msgs.push_back("ERROR - GPU CONSUMED WAS MORE THAN AVAILABLE.");
+  }
+
+  // Stringify error messages.
+  if (!error_msgs.empty()) {
+    std::stringstream ss_error;
+    ss_error << "AutoMem had errors:\n";
+    for (size_t i = 0; i < error_msgs.size(); ++i) {
+      ss_error << "   " << error_msgs[i] << "\n";
+    }
+    ss_error << "\nPlease see cobalt/docs/memory_tuning.md "
+                "for more information.";
+    ss << MakeBorder(ss_error.str(), '*');
+  }
+
+  std::string output_str = ss.str();
+  return output_str;
+}
+
+void AutoMem::ConstructSettings(
+    const math::Size& ui_resolution,
+    const CommandLine& command_line,
+    const BuildSettings& build_settings) {
   max_cpu_bytes_ = CreateCpuSetting(command_line, build_settings);
   max_gpu_bytes_ = CreateGpuSetting(command_line, build_settings);
 
@@ -213,20 +373,35 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
       CalculateImageCacheSize(ui_resolution));
   EnsureValuePositive(image_cache_size_in_bytes_.get());
   image_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
+  // ImageCache releases memory linearly until a progress value of 75%, then
+  // it will not reduce memory any more. It will also clamp at 100% and won't
+  // be increased beyond that.
+  image_cache_size_in_bytes_->set_memory_scaling_function(
+      MakeLinearMemoryScaler(.75, 1.0));
 
   // Set javascript gc threshold
-  javascript_gc_threshold_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
-      switches::kJavaScriptGcThresholdInBytes,
+  JavaScriptGcThresholdSetting* js_setting = new JavaScriptGcThresholdSetting;
+  SetMemorySetting<IntSetting, int64_t>(
       command_line,
       build_settings.javascript_garbage_collection_threshold_in_bytes,
-      kDefaultJsGarbageCollectionThresholdSize);
-  EnsureValuePositive(javascript_gc_threshold_in_bytes_.get());
+      kDefaultJsGarbageCollectionThresholdSize,
+      js_setting);
+  EnsureValuePositive(js_setting);
+  js_setting->PostInit();
+  javascript_gc_threshold_in_bytes_.reset(js_setting);
 
   // Set the misc cobalt size to a specific size.
   misc_cobalt_cpu_size_in_bytes_.reset(
       new IntSetting("misc_cobalt_cpu_size_in_bytes"));
   misc_cobalt_cpu_size_in_bytes_->set_value(
-      MemorySetting::kAutoSet, kMiscCobaltSizeInBytes);
+      MemorySetting::kAutoSet, kMiscCobaltCpuSizeInBytes);
+
+  // Set the misc cobalt size to a specific size.
+  misc_cobalt_gpu_size_in_bytes_.reset(
+      new IntSetting("misc_cobalt_gpu_size_in_bytes"));
+  misc_cobalt_gpu_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
+  misc_cobalt_gpu_size_in_bytes_->set_value(
+      MemorySetting::kAutoSet, CalculateMiscCobaltGpuSize(ui_resolution));
 
   // Set remote_type_face_cache size.
   remote_typeface_cache_size_in_bytes_ =
@@ -237,13 +412,14 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
         kDefaultRemoteTypeFaceCacheSize);
   EnsureValuePositive(remote_typeface_cache_size_in_bytes_.get());
 
-  // Set skia_atlas_texture_dimensions
-  skia_atlas_texture_dimensions_ =
-      CreateMemorySetting<DimensionSetting, TextureDimensions>(
-          switches::kSkiaTextureAtlasDimensions,
-          command_line,
-          build_settings.skia_texture_atlas_dimensions,
-          CalculateSkiaGlyphAtlasTextureSize(ui_resolution));
+  // Skia atlas texture dimensions.
+  skia_atlas_texture_dimensions_.reset(new SkiaGlyphAtlasTextureSetting());
+  SetMemorySetting(command_line,
+                   build_settings.skia_texture_atlas_dimensions,
+                   CalculateSkiaGlyphAtlasTextureSize(ui_resolution),
+                   skia_atlas_texture_dimensions_.get());
+  EnsureValuePositive(skia_atlas_texture_dimensions_.get());
+
   // Not available for non-blitter platforms.
   if (build_settings.has_blitter) {
     skia_atlas_texture_dimensions_->set_memory_type(
@@ -283,78 +459,14 @@ AutoMem::AutoMem(const math::Size& ui_resolution,
         MemorySetting::kNotApplicable);
   }
   EnsureValuePositive(software_surface_cache_size_in_bytes_.get());
-}
 
-AutoMem::~AutoMem() {}
-
-const IntSetting* AutoMem::misc_engine_cpu_size_in_bytes() const {
-  return misc_cobalt_cpu_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::remote_typeface_cache_size_in_bytes() const {
-  return remote_typeface_cache_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::image_cache_size_in_bytes() const {
-  return image_cache_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::javascript_gc_threshold_in_bytes() const {
-  return javascript_gc_threshold_in_bytes_.get();
-}
-
-const DimensionSetting* AutoMem::skia_atlas_texture_dimensions() const {
-  return skia_atlas_texture_dimensions_.get();
-}
-
-const IntSetting* AutoMem::skia_cache_size_in_bytes() const {
-  return skia_cache_size_in_bytes_.get();
-}
-
-const IntSetting* AutoMem::software_surface_cache_size_in_bytes() const {
-  return software_surface_cache_size_in_bytes_.get();
-}
-
-std::vector<const MemorySetting*> AutoMem::AllMemorySettings() const {
-  AutoMem* this_unconst = const_cast<AutoMem*>(this);
-  std::vector<MemorySetting*> all_settings_mutable =
-      this_unconst->AllMemorySettingsMutable();
-
-  std::vector<const MemorySetting*> all_settings;
-  all_settings.assign(all_settings_mutable.begin(),
-                      all_settings_mutable.end());
-  return all_settings;
-}
-
-// Make sure that this is the same as AllMemorySettings().
-std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
-  std::vector<MemorySetting*> all_settings;
-  // Keep these in alphabetical order.
-  all_settings.push_back(image_cache_size_in_bytes_.get());
-  all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
-  all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
-  all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
-  all_settings.push_back(skia_atlas_texture_dimensions_.get());
-  all_settings.push_back(skia_cache_size_in_bytes_.get());
-  all_settings.push_back(software_surface_cache_size_in_bytes_.get());
-  return all_settings;
-}
-
-std::string AutoMem::ToPrettyPrintString() const {
-  std::stringstream ss;
-  std::vector<const MemorySetting*> all_settings = AllMemorySettings();
-  ss << GeneratePrettyPrintTable(all_settings) << "\n";
-
-  int64_t cpu_consumption =
-      SumMemoryConsumption(MemorySetting::kCPU, all_settings);
-  int64_t gpu_consumption =
-      SumMemoryConsumption(MemorySetting::kGPU, all_settings);
-
-  ss << GenerateMemoryTable(*max_cpu_bytes_, *max_gpu_bytes_,
-                            cpu_consumption, gpu_consumption);
-
-  std::string output_str = ss.str();
-  return output_str;
+  // Final stage: Check that all constraining functions are monotonically
+  // increasing.
+  const std::vector<const MemorySetting*> all_memory_settings =
+      AllMemorySettings();
+  for (size_t i = 0; i < all_memory_settings.size(); ++i) {
+    CheckConstrainingValues(*all_memory_settings[i]);
+  }
 }
 
 }  // namespace memory_settings

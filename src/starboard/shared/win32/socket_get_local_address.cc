@@ -17,6 +17,7 @@
 #include <winsock2.h>
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 namespace sbwin32 = starboard::shared::win32;
@@ -24,6 +25,25 @@ namespace sbwin32 = starboard::shared::win32;
 bool SbSocketGetLocalAddress(SbSocket socket, SbSocketAddress* out_address) {
   if (!SbSocketIsValid(socket)) {
     return false;
+  }
+
+  // winsock2 considers calling getsockname() on unbound sockets to be an error.
+  // Therefore, SbSocketListen() will call SbSocketBind().
+  if (socket->bound_to == SbSocketPrivate::BindTarget::kUnbound) {
+    out_address->type = socket->address_type;
+    switch (socket->address_type) {
+      case kSbSocketAddressTypeIpv4:
+        SbMemorySet(out_address->address, 0, sbwin32::kAddressLengthIpv4);
+        out_address->port = 0;
+        return true;
+      case kSbSocketAddressTypeIpv6:
+        SbMemorySet(out_address->address, 0, sbwin32::kAddressLengthIpv6);
+        out_address->port = 0;
+        return true;
+      default:
+        SB_NOTREACHED() << "Invalid address type: " << socket->address_type;
+        return false;
+    }
   }
 
   SB_DCHECK(socket->socket_handle != INVALID_SOCKET);
