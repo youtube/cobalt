@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include "starboard/audio_sink.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
@@ -31,6 +32,14 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const VideoParameters& video_parameters) {
   typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
   typedef ::starboard::shared::ffmpeg::VideoDecoder VideoDecoderImpl;
+
+  // TODO: This is not ideal as we should really handle the creation failure of
+  // audio sink inside the audio renderer to give the renderer a chance to
+  // resample the decoded audio.
+  const int audio_channels = audio_parameters.audio_header.number_of_channels;
+  if (audio_channels >= SbAudioSinkGetMaxChannels()) {
+    return scoped_ptr<PlayerComponents>(NULL);
+  }
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header);
