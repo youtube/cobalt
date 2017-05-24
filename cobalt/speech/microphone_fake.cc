@@ -19,11 +19,11 @@
 #include <algorithm>
 
 #include "base/file_util.h"
+#include "base/logging.h"
 #include "base/path_service.h"
 #include "base/rand_util.h"
 #include "cobalt/audio/audio_file_reader.h"
 #include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/time.h"
 
@@ -63,18 +63,18 @@ MicrophoneFake::MicrophoneFake(const Options& options)
       read_index_(0),
       is_valid_(!ShouldFail(kCreationRange)) {
   if (!is_valid_) {
-    SB_DLOG(WARNING) << "Mocking microphone creation failed.";
+    DLOG(WARNING) << "Mocking microphone creation failed.";
     return;
   }
 
   if (read_data_from_file_) {
     if (options.file_path) {
-      SB_DCHECK(!options.file_path->empty());
+      DCHECK(!options.file_path->empty());
       // External input file.
       file_paths_.push_back(options.file_path.value());
     } else {
       FilePath audio_files_path;
-      SB_CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &audio_files_path));
+      CHECK(PathService::Get(base::DIR_SOURCE_ROOT, &audio_files_path));
       audio_files_path = audio_files_path.Append(FILE_PATH_LITERAL("cobalt"))
                              .Append(FILE_PATH_LITERAL("speech"))
                              .Append(FILE_PATH_LITERAL("testdata"));
@@ -89,31 +89,31 @@ MicrophoneFake::MicrophoneFake(const Options& options)
     }
   } else {
     file_length_ = std::min(options.audio_data_size, kMaxBufferSize);
-    SB_DCHECK(file_length_ > 0);
+    DCHECK(file_length_ > 0);
     file_buffer_.reset(new uint8[file_length_]);
     SbMemoryCopy(file_buffer_.get(), options.external_audio_data, file_length_);
   }
 }
 
 bool MicrophoneFake::Open() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   if (ShouldFail(kOpenRange)) {
-    SB_DLOG(WARNING) << "Mocking microphone open failed.";
+    DLOG(WARNING) << "Mocking microphone open failed.";
     return false;
   }
 
   if (read_data_from_file_) {
     // Read from local files.
-    SB_DCHECK(file_paths_.size() != 0);
+    DCHECK(file_paths_.size() != 0);
     size_t random_index =
         static_cast<size_t>(base::RandGenerator(file_paths_.size()));
     starboard::ScopedFile file(file_paths_[random_index].value().c_str(),
                                kSbFileOpenOnly | kSbFileRead, NULL, NULL);
-    SB_DCHECK(file.IsValid());
+    DCHECK(file.IsValid());
     int file_buffer_size =
         std::min(static_cast<int>(file.GetSize()), kMaxBufferSize);
-    SB_DCHECK(file_buffer_size > 0);
+    DCHECK(file_buffer_size > 0);
 
     scoped_array<char> audio_input(new char[file_buffer_size]);
     int read_bytes = file.ReadAll(audio_input.get(), file_buffer_size);
@@ -151,10 +151,10 @@ bool MicrophoneFake::Open() {
 }
 
 int MicrophoneFake::Read(char* out_data, int data_size) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   if (ShouldFail(kReadRange)) {
-    SB_DLOG(WARNING) << "Mocking microphone read failed.";
+    DLOG(WARNING) << "Mocking microphone read failed.";
     return -1;
   }
 
@@ -169,7 +169,7 @@ int MicrophoneFake::Read(char* out_data, int data_size) {
 }
 
 bool MicrophoneFake::Close() {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(thread_checker_.CalledOnValidThread());
 
   if (read_data_from_file_) {
     file_buffer_.reset();
@@ -179,7 +179,7 @@ bool MicrophoneFake::Close() {
   read_index_ = 0;
 
   if (ShouldFail(kCloseRange)) {
-    SB_DLOG(WARNING) << "Mocking microphone close failed.";
+    DLOG(WARNING) << "Mocking microphone close failed.";
     return false;
   }
 
