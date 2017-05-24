@@ -509,7 +509,7 @@ TEST_F(MemoryTrackerImplTest, MacrosGroupAccounting) {
       EXPECT_EQ_NO_TRACKING(0, num_allocations);
       EXPECT_EQ_NO_TRACKING(0, allocation_bytes);
 
-      num_allocations = allocation_bytes = -1;
+      allocation_bytes = num_allocations = -1;
       group_b->GetAggregateStats(&num_allocations, &allocation_bytes);
       EXPECT_EQ_NO_TRACKING(2, num_allocations);
       EXPECT_EQ_NO_TRACKING(8, allocation_bytes);
