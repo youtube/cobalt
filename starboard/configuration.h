@@ -77,6 +77,11 @@
 // array.
 #define SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER SB_EXPERIMENTAL_API_VERSION
 
+// Removes SbTimeZoneGetDstName() - Daylight saving time version of time zone.
+// Changes SbTimeZoneGetName() is more flexible now in what it is allowed to
+// return.
+#define SB_TIME_ZONE_FLEXIBLE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Common Detected Features ----------------------------------------------
 
 #if defined(__GNUC__)
