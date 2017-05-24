@@ -20,6 +20,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 TEST(SbTimeZoneGetDstNameTest, IsKindOfSane) {
   const char* name = SbTimeZoneGetDstName();
 
@@ -34,6 +35,7 @@ TEST(SbTimeZoneGetDstNameTest, IsKindOfSane) {
   EXPECT_GE(i, 3);
   EXPECT_LE(i, 5);
 }
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 
 }  // namespace
 }  // namespace nplb
