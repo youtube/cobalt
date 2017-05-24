@@ -269,6 +269,7 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
+        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
@@ -334,10 +335,10 @@
       'hard_dependency': 1,
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated
-        # headers are put on the include directories for targets that depend
-        # on this one.
+        # headers are put on the include directories for targets that depend on
+        # this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-      ]
+      ],
     },
 
     {

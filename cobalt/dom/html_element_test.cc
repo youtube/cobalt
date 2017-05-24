@@ -114,7 +114,8 @@ class HTMLElementTest : public ::testing::Test {
       : dom_stat_tracker_(new DomStatTracker("HTMLElementTest")),
         html_element_context_(NULL, &css_parser_, NULL, NULL, NULL, NULL, NULL,
                               NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                              dom_stat_tracker_.get(), ""),
+                              dom_stat_tracker_.get(), "",
+                              base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
   ~HTMLElementTest() OVERRIDE {}
 

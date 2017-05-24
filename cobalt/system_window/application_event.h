@@ -23,11 +23,13 @@ namespace system_window {
 class ApplicationEvent : public base::Event {
  public:
   enum Type {
-    kQuit,
     kPause,
-    kUnpause,
-    kSuspend,
+    kPreload,
+    kQuit,
     kResume,
+    kStart,
+    kSuspend,
+    kUnpause,
   };
 
   explicit ApplicationEvent(Type type) : type_(type) {}

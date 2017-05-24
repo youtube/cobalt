@@ -52,9 +52,9 @@ class StubWindow {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     window_ = new dom::Window(
-        1920, 1080, css_parser_.get(), dom_parser_.get(),
-        fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL, NULL,
-        &local_storage_database_, stub_media_module_.get(),
+        1920, 1080, base::kApplicationStateStarted, css_parser_.get(),
+        dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
+        NULL, &local_storage_database_, stub_media_module_.get(),
         stub_media_module_.get(), NULL, NULL, NULL, NULL,
         dom_stat_tracker_.get(), url_, "", "en-US",
         base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
@@ -63,8 +63,7 @@ class StubWindow {
         base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         base::Closure() /* window_close */,
-        base::Closure() /* window_minimize */,
-        NULL, NULL, NULL);
+        base::Closure() /* window_minimize */, NULL, NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 
