@@ -15,7 +15,7 @@ void main() {
     vec2 uv = vtextureCoords_Stage0;
     vec2 st = uv*uTextureSize_Stage0;
     float afwidth;
-    afwidth = 0.7071*dFdx(st.x);
+    afwidth = abs(0.7071*dFdy(st.y));
     float val = smoothstep(-afwidth, afwidth, distance);
     output_Stage0 = vec4(val);
   }
