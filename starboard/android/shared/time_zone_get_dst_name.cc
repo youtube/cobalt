@@ -16,6 +16,7 @@
 
 #include <time.h>
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 const char* SbTimeZoneGetDstName() {
   // Note tzset() is called in ApplicationAndroid::Initialize()
 
@@ -29,3 +30,4 @@ const char* SbTimeZoneGetDstName() {
     return tzname[1];
   }
 }
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION

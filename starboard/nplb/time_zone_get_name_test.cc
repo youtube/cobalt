@@ -30,14 +30,16 @@ TEST(SbTimeZoneGetNameTest, IsKindOfSane) {
     ++i;
   }
 
-  // Most time zones are 3 letters.
-  // I haven't been able to get Linux to produce a 2 or 1 letter time zone.
+  // All time zones are 3 letters or more. This can include names like "PST"
+  // or "Pacific Standard Time" or like "America/Los_Angeles"
   EXPECT_GE(i, 3);
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
   // Some, like WART for Western Argentina, are 4.
   // A very few, like ANAST, or CHAST is 5
   // http://www.timeanddate.com/time/zones/
   EXPECT_LE(i, 5);
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 
   // On Linux, TZ=":Pacific/Chatham" is a good test of boundary conditions.
   // ":Pacific/Kiritimati" is the western-most timezone at UTC+14.
