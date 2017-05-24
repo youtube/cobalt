@@ -28,6 +28,7 @@
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
+#include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/array_buffer.h"
@@ -337,6 +338,8 @@ class BrowserModule {
   // Command handler object for screenshot command from the debug console.
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
 #endif  // defined(ENABLE_SCREENSHOT)
+
+  base::optional<SuspendFuzzer> suspend_fuzzer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.

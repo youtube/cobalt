@@ -84,6 +84,8 @@
         'splash_screen.h',
         'storage_upgrade_handler.cc',
         'storage_upgrade_handler.h',
+        'suspend_fuzzer.cc',
+        'suspend_fuzzer.h',
         'switches.cc',
         'switches.h',
         'trace_manager.cc',

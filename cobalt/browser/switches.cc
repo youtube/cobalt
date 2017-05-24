@@ -82,6 +82,11 @@ const char kShutdownAfter[] = "shutdown_after";
 // Decode all images using StubImageDecoder.
 const char kStubImageDecoder[] = "stub_image_decoder";
 
+// If this flag is set, alternating calls to |SbSystemRequestSuspend| and
+// |SbSystemRequestUnpause| will be made periodically. Requires
+// SB_API_VERSION >= 4, and will otherwise just no-op.
+const char kSuspendFuzzer[] = "suspend_fuzzer";
+
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
 // the duration in seconds of how long the trace will be done for before ending
