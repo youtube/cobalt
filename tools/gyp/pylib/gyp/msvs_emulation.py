@@ -484,11 +484,6 @@ class MsvsSettings(object):
     ld('Profile', map={ 'true': '/PROFILE'})
     # TODO(scottmg): This should sort of be somewhere else (not really a flag).
     ld('AdditionalDependencies', prefix='')
-    # TODO(scottmg): These too.
-    if not config.startswith('XB1') and not config.startswith('XB360'):
-      ldflags.extend(('kernel32.lib', 'user32.lib', 'gdi32.lib', 'winspool.lib',
-          'comdlg32.lib', 'advapi32.lib', 'shell32.lib', 'ole32.lib',
-          'oleaut32.lib', 'uuid.lib', 'odbc32.lib', 'DelayImp.lib'))
 
     if not config.startswith('XB360'):
       # If the base address is not specifically controlled, DYNAMICBASE should
@@ -517,19 +512,12 @@ class MsvsSettings(object):
   def _GetLdManifestFlags(self, config, name, allow_isolation):
     """Returns the set of flags that need to be added to the link to generate
     a default manifest, as well as the name of the generated file."""
-    # Add manifest flags that mirror the defaults in VS. Chromium dev builds
-    # do not currently use any non-default settings, but we could parse
-    # VCManifestTool blocks if Chromium or other projects need them in the
-    # future. Of particular note, we do not yet support EmbedManifest because
-    # it complicates incremental linking.
     output_name = name + '.intermediate.manifest'
+    # Manifests are off for UWP. If needed by another target,
+    # please find a way to configure them per target.
     flags = [
-      '/MANIFEST',
-      '/ManifestFile:' + output_name,
-      '''/MANIFESTUAC:"level='asInvoker' uiAccess='false'"'''
+      '/MANIFEST:NO',
     ]
-    if allow_isolation:
-      flags.append('/ALLOWISOLATION')
     return flags, output_name
 
   def _GetAdditionalManifestFiles(self, config, gyp_to_build_path):
