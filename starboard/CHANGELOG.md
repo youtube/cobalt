@@ -13,7 +13,7 @@ Introduce `starboard/speech_recognizer.h`.
 This newly-introduced `starboard/speech_recognizer.h` adds the on-device speech
 recognizer feature.
 
-### Added new system property to allow platform-specific user agent prefixes
+### Added new system property to allow platform-specific user agent suffixes
 Adds `kSbSystemPropertyUserAgentAuxField` to the `SbSystemPropertyId` enum to
 allow platform-specific User-Agent suffix.
 
