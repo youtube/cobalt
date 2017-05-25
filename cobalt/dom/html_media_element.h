@@ -291,6 +291,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   float last_seek_time_;
   double previous_progress_time_;
 
+  double duration_;
+
   bool playing_;
   bool have_fired_loaded_data_;
   bool autoplaying_;
