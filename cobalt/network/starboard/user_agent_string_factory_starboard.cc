@@ -72,13 +72,13 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
       youtube_tv_info_->network_operator = value;
     }
 
-#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+#if SB_API_VERSION >= 5
     result = SbSystemGetProperty(kSbSystemPropertyUserAgentAuxField, value,
                                  kSystemPropertyMaxLength);
     if (result) {
       aux_field_ = value;
     }
-#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+#endif  // SB_API_VERSION >= 5
 
     // Device Type
     switch (device_type) {
