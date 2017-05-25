@@ -336,10 +336,14 @@ std::string AutoMem::ToPrettyPrintString(bool use_color_ascii) const {
     error_msgs.push_back("ERROR - CPU CONSUMED WAS MORE THAN AVAILABLE.");
   }
 
-  if (max_gpu_bytes_->value() <= 0) {
-    error_msgs.push_back("ERROR - max_cobalt_gpu_usage WAS 0 BYTES.");
-  } else if (gpu_consumption > max_gpu_bytes_->value()) {
-    error_msgs.push_back("ERROR - GPU CONSUMED WAS MORE THAN AVAILABLE.");
+  const base::optional<int64_t> max_gpu_value =
+      max_gpu_bytes_->optional_value();
+  if (max_gpu_value) {
+    if (*max_gpu_value <= 0) {
+      error_msgs.push_back("ERROR - max_cobalt_gpu_usage WAS 0 BYTES.");
+    } else if (gpu_consumption > *max_gpu_value) {
+      error_msgs.push_back("ERROR - GPU CONSUMED WAS MORE THAN AVAILABLE.");
+    }
   }
 
   // Stringify error messages.
