@@ -49,7 +49,7 @@ typedef enum SbInputDeviceType {
   // Produces |Press| and |Unpress| events.
   kSbInputDeviceTypeKeyboard,
 
-#if SB_API_VERSION <= 4
+#if SB_API_VERSION < 5
   // Input from a microphone that would provide audio data to the caller, who
   // may then find some way to detect speech or other sounds within it. It may
   // have processed or filtered the audio in some way before it arrives.
@@ -68,7 +68,7 @@ typedef enum SbInputDeviceType {
   // Produces |Press| and |Unpress| events.
   kSbInputDeviceTypeRemote,
 
-#if SB_API_VERSION <= 4
+#if SB_API_VERSION < 5
   // Input from a speech command analyzer, which is some hardware or software
   // that, given a set of known phrases, activates when one of the registered
   // phrases is heard.
@@ -90,7 +90,7 @@ typedef enum SbInputDeviceType {
 
 // The action that an input event represents.
 typedef enum SbInputEventType {
-#if SB_API_VERSION <= 4
+#if SB_API_VERSION < 5
   // Receipt of Audio. Some audio data was received by the input microphone.
   kSbInputEventTypeAudio,
   // Receipt of a command. A command was received from some semantic source,
@@ -112,7 +112,7 @@ typedef enum SbInputEventType {
   // Injecting repeat presses is up to the client.
   kSbInputEventTypePress,
 
-#if SB_API_VERSION <= 4
+#if SB_API_VERSION < 5
   // Grab deactivation. This event type is deprecated.
   kSbInputEventTypeUngrab,
 #endif
