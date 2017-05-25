@@ -64,7 +64,10 @@ bool WrapperFactory::HasWrapperProxy(
 }
 
 bool WrapperFactory::IsWrapper(JS::HandleObject wrapper) const {
-  return JS_GetPrivate(wrapper) != NULL;
+  // If the object doesn't have a wrapper private, it means that it is not a
+  // platform object.
+  return (JS_GetClass(wrapper)->flags & JSCLASS_HAS_PRIVATE) &&
+         JS_GetPrivate(wrapper) != NULL;
 }
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
