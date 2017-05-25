@@ -39,34 +39,25 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 5
+#define SB_MAXIMUM_API_VERSION 6
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 5
+#define SB_EXPERIMENTAL_API_VERSION 6
 
 // --- Experimental Feature Defines ------------------------------------------
 
 // Note that experimental feature comments will be moved into
 // starboard/CHANGELOG.md when released.  Thus, you can find examples of the
-// format your feature comments should take by checking that file.
+// format your feature comments should take by checking that file.  Please
+// see starboard/doc/versioning.md for more information.
 
 // EXAMPLE:
 //   // Introduce new experimental feature.
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Adds kSbSystemPropertyUserAgentAuxField to the SbSystemPropertyId
-// enum to allow platform-specific  User-Agent suffix.
-// NOLINTNEXTLINE(whitespace/line_length)
-#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce 'starboard/speech_recognizer.h'
-// This newly-introduced 'starboard/speech_recognizer.h' adds the on-device
-// speech recognizer feature.
-#define SB_SPEECH_RECOGNIZER_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Introduce pointer (mouse) input support. This extends the SbInput interface
 // with some enum values and data members to allow mouse, wheel, and more
@@ -567,11 +558,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= SB_EXPERIMENTAL_API_VERSION
+#endif  // SB_API_VERSION >= 5
 
 // --- Derived Configuration -------------------------------------------------
 
