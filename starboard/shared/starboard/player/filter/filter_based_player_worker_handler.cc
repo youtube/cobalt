@@ -71,6 +71,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       decode_target_provider_(provider)
 #endif  // SB_API_VERSION >= 4
 {
+  update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
   bounds_ = PlayerWorker::Bounds();
 }
 
@@ -123,7 +124,6 @@ bool FilterBasedPlayerWorkerHandler::Init(
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
   media_components->GetRenderers(&audio_renderer_, &video_renderer_);
 
-  update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
   job_queue_->Schedule(update_closure_, kUpdateInterval);
 
   return true;
@@ -131,6 +131,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
 bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!audio_renderer_ || !video_renderer_) {
+    return false;
+  }
 
   if (seek_to_pts < 0) {
     SB_DLOG(ERROR) << "Try to seek to negative timestamp " << seek_to_pts;
@@ -147,6 +151,10 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
                                                  bool* written) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   SB_DCHECK(written != NULL);
+
+  if (!audio_renderer_ || !video_renderer_) {
+    return false;
+  }
 
   *written = true;
 
@@ -198,6 +206,10 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
 bool FilterBasedPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
+  if (!audio_renderer_ || !video_renderer_) {
+    return false;
+  }
+
   if (sample_type == kSbMediaTypeAudio) {
     if (audio_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write audio EOS after EOS is enqueued";
@@ -220,6 +232,10 @@ bool FilterBasedPlayerWorkerHandler::WriteEndOfStream(SbMediaType sample_type) {
 bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
+  if (!audio_renderer_) {
+    return false;
+  }
+
   paused_ = pause;
 
   if (pause) {
@@ -236,6 +252,10 @@ bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
 #if SB_API_VERSION >= 4
 bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!audio_renderer_) {
+    return false;
+  }
 
   audio_renderer_->SetPlaybackRate(playback_rate);
   return true;
@@ -259,6 +279,10 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
 // TODO: This should be driven by callbacks instead polling.
 void FilterBasedPlayerWorkerHandler::Update() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  if (!audio_renderer_ || !video_renderer_) {
+    return;
+  }
 
   if ((*player_worker_.*get_player_state_cb_)() == kSbPlayerStatePrerolling) {
     if (!audio_renderer_->IsSeekingInProgress() &&
@@ -324,6 +348,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 #if SB_API_VERSION >= 4
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
+
   if (video_renderer_) {
     return video_renderer_->GetCurrentDecodeTarget();
   } else {
