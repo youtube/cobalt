@@ -31,11 +31,9 @@ namespace lib {
 
 class ExternalRasterizer::Impl {
  public:
-  Impl(backend::GraphicsContext* graphics_context,
-       int skia_atlas_width, int skia_atlas_height,
-       int skia_cache_size_in_bytes,
-       int scratch_surface_cache_size_in_bytes,
-       int surface_cache_size_in_bytes,
+  Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
+       int skia_atlas_height, int skia_cache_size_in_bytes,
+       int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
        bool purge_skia_font_caches_on_destruction);
   ~Impl();
 
@@ -68,11 +66,10 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)),
-      hardware_rasterizer_(graphics_context, skia_atlas_width,
-                           skia_atlas_height, skia_cache_size_in_bytes,
-                           scratch_surface_cache_size_in_bytes,
-                           surface_cache_size_in_bytes,
-                           purge_skia_font_caches_on_destruction) {
+      hardware_rasterizer_(
+          graphics_context, skia_atlas_width, skia_atlas_height,
+          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
+          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction) {
   options_.flags = skia::HardwareRasterizer::kSubmitFlags_Clear;
   graphics_context_->MakeCurrent();
 
@@ -93,11 +90,18 @@ ExternalRasterizer::Impl::~Impl() { graphics_context_->MakeCurrent(); }
 void ExternalRasterizer::Impl::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target) {
-  glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-  glClear(0);
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
           render_target.get());
+  // When the provided RenderTarget is not a window RenderTarget, then this
+  // implies the rasterized RenderTree should not be shown directly to the user
+  // and thus should not be rasterized into a texture and sent through to the
+  // client implementing CbLibRenderFrame.
+  if (!render_target_egl->IsWindowRenderTarget()) {
+    hardware_rasterizer_.Submit(render_tree, render_target, options_);
+    return;
+  }
+
   graphics_context_->MakeCurrentWithSurface(render_target_egl);
 
   backend::RenderTargetEGL* main_texture_render_target_egl =
@@ -107,10 +111,10 @@ void ExternalRasterizer::Impl::Submit(
                               options_);
 
   const intptr_t texture_handle = main_texture_->GetPlatformHandle();
-  // TODO: Provide mesh data to clients for map-to-mesh playbacks and a separate
-  // video texture handle.
-  // TODO: Allow clients to specify arbitrary subtrees to render into different
-  // textures?
+  // TODO: Provide mesh data to clients for map-to-mesh playbacks and a
+  // separate video texture handle.
+  // TODO: Allow clients to specify arbitrary subtrees to render into
+  // different textures?
   CbLibRenderFrame(texture_handle);
 
   graphics_context_->SwapBuffers(render_target_egl);
@@ -125,11 +129,11 @@ ExternalRasterizer::ExternalRasterizer(
     int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
-    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
-                     skia_cache_size_in_bytes,
-                     scratch_surface_cache_size_in_bytes,
-                     surface_cache_size_in_bytes,
-                     purge_skia_font_caches_on_destruction)) {}
+    : impl_(new Impl(
+          graphics_context, skia_atlas_width, skia_atlas_height,
+          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
+          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction)) {
+}
 
 ExternalRasterizer::~ExternalRasterizer() {}
 
