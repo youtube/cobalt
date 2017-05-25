@@ -18,7 +18,7 @@ Adds `kSbSystemPropertyUserAgentAuxField` to the `SbSystemPropertyId` enum to
 allow platform-specific User-Agent suffix.
 
 ### Remove unused enums from `starboard/input.h`
-The followin unused enum values are removed from `starboard/input.h`: 
+The following unused enum values are removed from `starboard/input.h`:
   * `kSbInputDeviceTypeMicrophone`
   * `kSbInputDeviceTypeSpeechCommand`
   * `kSbInputEventTypeAudio`
