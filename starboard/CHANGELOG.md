@@ -6,6 +6,26 @@ be updated each time a new Starboard version is released.  Each section in
 this file describes the changes made to the Starboard interface since the
 version previous to it.
 
+## Version 5
+
+### Add Speech Recognizer API
+Introduce `starboard/speech_recognizer.h`.
+This newly-introduced `starboard/speech_recognizer.h` adds the on-device speech
+recognizer feature.
+
+### Added new system property to allow platform-specific user agent prefixes
+Adds `kSbSystemPropertyUserAgentAuxField` to the `SbSystemPropertyId` enum to
+allow platform-specific User-Agent suffix.
+
+### Remove unused enums from `starboard/input.h`
+The followin unused enum values are removed from `starboard/input.h`: 
+  * `kSbInputDeviceTypeMicrophone`
+  * `kSbInputDeviceTypeSpeechCommand`
+  * `kSbInputEventTypeAudio`
+  * `kSbInputEventTypeCommand`
+  * `kSbInputEventTypeGrab`
+  * `kSbInputEventTypeUngrab`
+
 ## Version 4
 
 ### Decode-to-Texture Player Output Mode
