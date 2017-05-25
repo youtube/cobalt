@@ -312,6 +312,15 @@ bool ApplicationAndroid::OnSearchRequested() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
+jboolean Java_foo_cobalt_coat_CobaltActivity_nativeReleaseBuild() {
+#ifdef __LB_SHELL__FOR_RELEASE__
+  return true;
+#else
+  return false;
+#endif
+}
+
+extern "C" SB_EXPORT_PLATFORM
 jboolean Java_foo_cobalt_coat_CobaltActivity_nativeOnSearchRequested() {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
