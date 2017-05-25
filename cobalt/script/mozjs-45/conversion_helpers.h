@@ -509,25 +509,24 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
   DCHECK(js_object);
-  if (js::IsProxy(js_object)) {
-    JS::RootedObject wrapper(context, js::GetProxyTargetObject(js_object));
-    MozjsGlobalEnvironment* global_environment =
-        static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-    const WrapperFactory* wrapper_factory =
-        global_environment->wrapper_factory();
-    if (wrapper_factory->IsWrapper(wrapper)) {
-      bool object_implements_interface =
-          wrapper_factory->DoesObjectImplementInterface(js_object,
-                                                        base::GetTypeId<T>());
-      if (!object_implements_interface) {
-        exception_state->SetSimpleException(kDoesNotImplementInterface);
-        return;
-      }
-      WrapperPrivate* wrapper_private =
-          WrapperPrivate::GetFromWrapperObject(wrapper);
-      *out_object = wrapper_private->wrappable<T>();
+  JS::RootedObject wrapper(context, js::IsProxy(js_object)
+                                        ? js::GetProxyTargetObject(js_object)
+                                        : js_object);
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  const WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (wrapper_factory->IsWrapper(wrapper)) {
+    bool object_implements_interface =
+        wrapper_factory->DoesObjectImplementInterface(js_object,
+                                                      base::GetTypeId<T>());
+    if (!object_implements_interface) {
+      exception_state->SetSimpleException(kDoesNotImplementInterface);
       return;
     }
+    WrapperPrivate* wrapper_private =
+        WrapperPrivate::GetFromWrapperObject(wrapper);
+    *out_object = wrapper_private->wrappable<T>();
+    return;
   }
   // This is not a platform object. Return a type error.
   exception_state->SetSimpleException(kDoesNotImplementInterface);
