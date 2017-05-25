@@ -2,3 +2,5 @@
 *.sublime-workspace
 *.swp
 gomacc.lock
+xcuserdata
+.DS_Store
