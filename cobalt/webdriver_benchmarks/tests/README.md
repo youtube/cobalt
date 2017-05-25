@@ -5,18 +5,20 @@ for Cobalt.
 
 Each file should contain a set of tests in Python "unittest" format.
 
-All tests in all of the files included within [all.py](all.py) will be run on
-the build system. Results can be recorded in the build results database.
+All tests in all of the files included within
+[performance_tests_all.py](performance_tests_all.py) will be run on the build
+system. Results can be recorded in the build results database.
 
 ## Running the tests
 
-In most cases, you will want to run all tests, and you can do so by executing
-the script [all.py](all.py).  You can call `python all.py --help` to see a list
-of commandline parameters to call it with.  For example, to run tests on the
-raspi-2 QA build, you should run the following command:
+In most cases, you will want to run all performance tests, and you can do so by
+executing the script [performance_tests_all.py](performance_tests_all.py). You
+can call `python performance_tests_all.py --help` to see a list of commandline
+parameters to call it with.  For example, to run tests on the raspi-2 QA build,
+you should run the following command:
 
 ```
-python all.py -p raspi-2 -c qa -d $RASPI_ADDR
+python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR
 ```
 
 Where `RASPI_ADDR` is set to the IP of the target Raspberry Pi device.
@@ -31,8 +33,9 @@ it must be specified via commandline parameters.
     an existing simple file, such as
     [browse_horizontal.py](browse_horizontal.py).
 
- 2. Add the file name to the tests added within [all.py](all.py), causing it run
-    when [all.py](all.py) is run.
+ 2. Add the file name to the tests added within
+    [performance_tests_all.py](performance_tests_all.py), causing it run
+    when [performance_tests_all.py](performance_tests_all.py) is run.
 
  3. If this file contains internal names or details, consider adding it
     to the "EXCLUDE.FILES" list.
@@ -44,37 +47,15 @@ it must be specified via commandline parameters.
     the internal
     [README-Updating-Result-Schema.md](README-Updating-Result-Schema.md) file.
 
-## Testing arbitrary loaders
+## Testing against specific loaders/labels
 
-Unfortunately we haven't yet had the time to implement an easy way to adjust
-the test URL query parameters.  In order to adjust the query parameters to test,
-you should do the following:
+To run the benchmarks against any desired loader, a --url command line parameter
+can be provided. This will be the url that the tests will run against.
 
-Open [../tv_testcase_util.py](../tv_testcase_util.py) and in the function
-`get_url()`, replace the line
+It should have the following format:
 
 ```
-query_dict = BASE_PARAMS.copy()
-```
-
-with
-
-```
-query_dict = {}
-```
-
-and then append the following else-clause to the `if query_params:` statement,
-
-```
-else:
-  query_dict = BASE_PARAMS.copy()
-```
-
-and then finally, near the top of the file, modify `BASE_PARAMS` to include all
-query parameters you would like to test.  For example,
-
-```
-BASE_PARAMS = {"loader": "airc"}
+python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR --url https://www.youtube.com/tv?loader=nllive
 ```
 
 ## Benchmark Results
@@ -157,7 +138,7 @@ in a few.  You will have to manually filter only the metrics that you are
 interested in.  You can do so with `grep`, for example:
 
 ```
-python all.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
+python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
 echo "" > filtered_results.txt
 grep -o "wbStartupDurBlankToBrowseUs.*$" results.txt >> filtered_results.txt
 grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt

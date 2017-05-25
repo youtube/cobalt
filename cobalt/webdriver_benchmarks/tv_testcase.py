@@ -72,11 +72,14 @@ class TvTestCase(unittest.TestCase):
       # include experiments. Additionally, loading this URL triggers a reload.
       query_params = {"env_forcedOffAllExperiments": True}
       triggers_reload = True
-      self.load_tv(None, query_params, triggers_reload)
+      self.load_tv(query_params, triggers_reload)
       _is_initialized = True
 
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
+
+  def get_default_url(self):
+    return tv_testcase_runner.GetDefaultUrl()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -103,26 +106,18 @@ class TvTestCase(unittest.TestCase):
     self.get_webdriver().get("about:blank")
     self.wait_for_url_loaded_events()
 
-  def load_tv(self,
-              label=None,
-              additional_query_params=None,
-              triggers_reload=False):
+  def load_tv(self, query_params=None, triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
     Args:
-      label: A value for the label query parameter.
-      additional_query_params: A dict containing additional query parameters.
+      query_params: A dict containing additional query parameters.
       triggers_reload: Whether or not the navigation will trigger a reload.
     Raises:
       Underlying WebDriver exceptions
     """
-    query_params = {}
-    if label is not None:
-      query_params = {"label": label}
-    if additional_query_params is not None:
-      query_params.update(additional_query_params)
     self.clear_url_loaded_events()
-    self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
+    self.get_webdriver().get(
+        tv_testcase_util.generate_url(self.get_default_url(), query_params))
     self.wait_for_url_loaded_events()
     if triggers_reload:
       self.clear_url_loaded_events()
