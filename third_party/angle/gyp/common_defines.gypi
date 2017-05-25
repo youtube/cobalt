@@ -52,6 +52,10 @@
         {
             'defines': [ 'COMPONENT_BUILD' ],
         }],
+        ['target_os=="win"',
+        {
+            'defines': [ 'ANGLE_ENABLE_WINDOWS_STORE' ],
+        }],
     ],
     'msvs_settings':
     {
