@@ -1057,23 +1057,23 @@
   // Exports to Blink
   //
 
+  global.AcquireReadableStreamDefaultReader = AcquireReadableStreamDefaultReader;
+  global.IsReadableStream = IsReadableStream;
+  global.IsReadableStreamDisturbed = IsReadableStreamDisturbed;
+  global.IsReadableStreamLocked = IsReadableStreamLocked;
+  global.IsReadableStreamReadable = IsReadableStreamReadable;
+  global.IsReadableStreamClosed = IsReadableStreamClosed;
+  global.IsReadableStreamErrored = IsReadableStreamErrored;
+  global.IsReadableStreamDefaultReader = IsReadableStreamDefaultReader;
+  global.ReadableStreamDefaultReaderRead = ReadableStreamDefaultReaderRead;
+  global.ReadableStreamTee = ReadableStreamTee;
+
+  global.ReadableStreamDefaultControllerClose = ReadableStreamDefaultControllerClose;
+  global.ReadableStreamDefaultControllerGetDesiredSize = ReadableStreamDefaultControllerGetDesiredSize;
+  global.ReadableStreamDefaultControllerEnqueue = ReadableStreamDefaultControllerEnqueue;
+  global.ReadableStreamDefaultControllerError = ReadableStreamDefaultControllerError;
+
 /*
-  binding.AcquireReadableStreamDefaultReader = AcquireReadableStreamDefaultReader;
-  binding.IsReadableStream = IsReadableStream;
-  binding.IsReadableStreamDisturbed = IsReadableStreamDisturbed;
-  binding.IsReadableStreamLocked = IsReadableStreamLocked;
-  binding.IsReadableStreamReadable = IsReadableStreamReadable;
-  binding.IsReadableStreamClosed = IsReadableStreamClosed;
-  binding.IsReadableStreamErrored = IsReadableStreamErrored;
-  binding.IsReadableStreamDefaultReader = IsReadableStreamDefaultReader;
-  binding.ReadableStreamDefaultReaderRead = ReadableStreamDefaultReaderRead;
-  binding.ReadableStreamTee = ReadableStreamTee;
-
-  binding.ReadableStreamDefaultControllerClose = ReadableStreamDefaultControllerClose;
-  binding.ReadableStreamDefaultControllerGetDesiredSize = ReadableStreamDefaultControllerGetDesiredSize;
-  binding.ReadableStreamDefaultControllerEnqueue = ReadableStreamDefaultControllerEnqueue;
-  binding.ReadableStreamDefaultControllerError = ReadableStreamDefaultControllerError;
-
   binding.createReadableStreamWithExternalController =
       (underlyingSource, strategy) => {
         return new ReadableStream(
