@@ -30,6 +30,11 @@
     'enable_account_manager': 1,
     'enable_map_to_mesh': 1,
 
+    # Some Android devices do not advertise their support for
+    # EGL_SWAP_BEHAVIOR_PRESERVED_BIT properly, so, we play it safe and disable
+    # relying on it for Android.
+    'render_dirty_region_only': 0,
+
     # The 'android_system' font package installs only minimal fonts, with a
     # fonts.xml referencing the superset of font files we expect to find on any
     # Android platform. The Android SbFileOpen implementation falls back to
