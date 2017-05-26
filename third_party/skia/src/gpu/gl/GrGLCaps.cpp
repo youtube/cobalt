@@ -143,6 +143,7 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
         GrGLenum error;
         GrGLuint texture_id;
         GR_GL_CALL(gli, GenTextures(1, &texture_id));
+        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, texture_id));
         GR_GL_CALL_NOERRCHECK(gli, TexImage2D(GR_GL_TEXTURE_2D, 0, GR_GL_RED,
                                               64, 64, 0, GR_GL_RED,
                                               GR_GL_UNSIGNED_BYTE, 0));
@@ -152,6 +153,7 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
             // support.
             fTextureRedSupport = false;
         }
+        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, 0));
         GR_GL_CALL(gli, DeleteTextures(1, &texture_id));
     }
 
