@@ -43,6 +43,7 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
     : message_loop_(message_loop),
       url_(url),
       network_module_(network_module),
+      is_downloading_(false),
       buffer_(kInitialBufferCapacity, CircularBufferShell::kReserve),
       buffer_offset_(0),
       error_occured_(false),
@@ -108,6 +109,15 @@ bool FetcherBufferedDataSource::GetSize(int64* size_out) {
     *size_out = kInvalidSize;
   }
   return *size_out != kInvalidSize;
+}
+
+void FetcherBufferedDataSource::SetDownloadingStatusCB(
+    const DownloadingStatusCB& downloading_status_cb) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  DCHECK(!downloading_status_cb.is_null());
+  DCHECK(downloading_status_cb_.is_null());
+  downloading_status_cb_ = downloading_status_cb;
 }
 
 void FetcherBufferedDataSource::OnURLFetchResponseStarted(
@@ -194,6 +204,7 @@ void FetcherBufferedDataSource::OnURLFetchDownloadData(
     // stop the current request.
     fetcher_.reset();
     ProcessPendingRead_Locked();
+    UpdateDownloadingStatus(/* is_downloading = */ false);
     return;
   }
 
@@ -265,6 +276,7 @@ void FetcherBufferedDataSource::OnURLFetchComplete(
   fetcher_.reset();
 
   ProcessPendingRead_Locked();
+  UpdateDownloadingStatus(/* is_downloading = */ false);
 }
 
 void FetcherBufferedDataSource::CreateNewFetcher() {
@@ -285,6 +297,7 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
     if (!pending_read_cb_.is_null()) {
       base::ResetAndReturn(&pending_read_cb_).Run(-1);
     }
+    UpdateDownloadingStatus(/* is_downloading = */ false);
     return;
   }
 
@@ -297,6 +310,20 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
       base::Uint64ToString(last_request_offset_ + last_request_size_ - 1);
   fetcher_->AddExtraRequestHeader(range_request);
   fetcher_->Start();
+  UpdateDownloadingStatus(/* is_downloading = */ true);
+}
+
+void FetcherBufferedDataSource::UpdateDownloadingStatus(bool is_downloading) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (is_downloading_ == is_downloading) {
+    return;
+  }
+
+  is_downloading_ = is_downloading;
+  if (!downloading_status_cb_.is_null()) {
+    downloading_status_cb_.Run(is_downloading_);
+  }
 }
 
 void FetcherBufferedDataSource::Read_Locked(uint64 position, size_t size,
