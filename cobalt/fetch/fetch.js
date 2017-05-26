@@ -35,48 +35,41 @@
     return
   }
 
-  var Array = self.Array;
-  var Error = self.Error;
-  var Map = self.Map;
-  var RangeError = self.RangeError;
-  var TypeError = self.TypeError;
+  var Array = self.Array
+  var ArrayBuffer = self.ArrayBuffer
+  var Error = self.Error
+  var Symbol_iterator = self.Symbol.iterator
+  var Map = self.Map
+  var RangeError = self.RangeError
+  var TypeError = self.TypeError
+  var Uint8Array = self.Uint8Array
+
+  var Promise = self.Promise
+  var Promise_reject = Promise.reject
+  var Promise_resolve = Promise.resolve
+
+  var ReadableStream = self.ReadableStream
+  var ReadableStreamTee = self.ReadableStreamTee
+  var IsReadableStreamDisturbed = self.IsReadableStreamDisturbed
+  var IsReadableStreamLocked = self.IsReadableStreamLocked
 
   var err_InvalidHeadersInit = 'Constructing Headers with invalid parameters'
+  var err_NetworkRequestFailed = 'Network request failed'
 
-  var support = {
-    searchParams: 'URLSearchParams' in self,
-    blob: 'FileReader' in self && 'Blob' in self && (function() {
-      try {
-        new Blob()
-        return true
-      } catch(e) {
-        return false
-      }
-    })(),
-    formData: 'FormData' in self,
-    arrayBuffer: 'ArrayBuffer' in self
-  }
+  var viewClasses = [
+    '[object Int8Array]',
+    '[object Uint8Array]',
+    '[object Uint8ClampedArray]',
+    '[object Int16Array]',
+    '[object Uint16Array]',
+    '[object Int32Array]',
+    '[object Uint32Array]',
+    '[object Float32Array]',
+    '[object Float64Array]'
+  ]
 
-  if (support.arrayBuffer) {
-    var viewClasses = [
-      '[object Int8Array]',
-      '[object Uint8Array]',
-      '[object Uint8ClampedArray]',
-      '[object Int16Array]',
-      '[object Uint16Array]',
-      '[object Int32Array]',
-      '[object Uint32Array]',
-      '[object Float32Array]',
-      '[object Float64Array]'
-    ]
-
-    var isDataView = function(obj) {
-      return obj && DataView.prototype.isPrototypeOf(obj)
-    }
-
-    var isArrayBufferView = ArrayBuffer.isView || function(obj) {
-      return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
-    }
+  var isArrayBufferView = ArrayBuffer.isView || function(obj) {
+    return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
   }
 
   function normalizeName(name) {
@@ -99,10 +92,10 @@
     // permissive approach that passes the tests while following the spirit
     // of the spec. Essentially, leading & trailing HTTP whitespace bytes
     // are trimmed first before checking validity.
-    var c, first, last, i
+    var c, first, last, i, len
 
     //value = value.replace(/^[ \t\n\r]+|[ \t\n\r]+$/g, '')
-    for (first = 0; first < value.length; first++) {
+    for (first = 0, len = value.length; first < len; first++) {
       c = value.charCodeAt(first)
       if (c !== 9 && c !== 10 && c !== 13 && c !== 32) {
         break
@@ -118,7 +111,7 @@
 
     // Follow the chromium implementation of IsValidHTTPHeaderValue(). This
     // should be updated once the web platform test abides by the fetch spec.
-    for (i = 0; i < value.length; i++) {
+    for (i = 0, len = value.length; i < len; i++) {
       c = value.charCodeAt(i)
       if (c >= 256 || c === 0 || c === 10 || c === 13) {
         throw new TypeError('Invalid character in header field value')
@@ -127,6 +120,7 @@
     return value
   }
 
+  // https://fetch.spec.whatwg.org/#headers-class
   function Headers(headers) {
     this.map = new Map();
 
@@ -220,144 +214,130 @@
     return sorted_map.entries()
   }
 
-  Headers.prototype[Symbol.iterator] = Headers.prototype.entries
+  Headers.prototype[Symbol_iterator] = Headers.prototype.entries
 
-  function consumed(body) {
+  function consumeBodyAsUint8Array(body) {
     if (body.bodyUsed) {
-      return Promise.reject(new TypeError('Already read'))
+      return Promise_reject(new TypeError('Body already read'))
     }
-    body.bodyUsed = true
-  }
 
-  function fileReaderReady(reader) {
-    return new Promise(function(resolve, reject) {
-      reader.onload = function() {
-        resolve(reader.result)
-      }
-      reader.onerror = function() {
-        reject(reader.error)
+    if (body.body === null) {
+      return Promise_resolve(new Uint8Array(0))
+    }
+
+    if (IsReadableStreamLocked(body.body)) {
+      return Promise_reject(new TypeError('ReadableStream already locked'))
+    }
+
+    var reader = body.body.getReader()
+    var results = []
+    var resultsLength = 0
+    return reader.read().then(function addResult(result) {
+      if (result.done) {
+        var data
+        if (results.length === 0) {
+          data = new Uint8Array(0)
+        } else if (results.length === 1) {
+          data = new Uint8Array(results[0])
+        } else {
+          data = new Uint8Array(resultsLength)
+          for (var i = 0, len = results.length, offset = 0; i < len; i++) {
+            data.set(results[i], offset)
+            offset += results[i].length
+          }
+        }
+        return data
+      } else if (result.value instanceof Uint8Array) {
+        resultsLength += result.value.length
+        results.push(result.value)
+        return reader.read().then(addResult)
+      } else {
+        return Promise_reject(new TypeError('Invalid stream read value type'))
       }
     })
   }
 
-  function readBlobAsArrayBuffer(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsArrayBuffer(blob)
-    return promise
-  }
-
-  function readBlobAsText(blob) {
-    var reader = new FileReader()
-    var promise = fileReaderReady(reader)
-    reader.readAsText(blob)
-    return promise
-  }
-
-  function readArrayBufferAsText(buf) {
-    var view = new Uint8Array(buf)
-    var chars = new Array(view.length)
-
-    for (var i = 0; i < view.length; i++) {
-      chars[i] = String.fromCharCode(view[i])
+  function encodeStringToUint8Array(str) {
+    // Encode string to UTF-8 then store it in an Uint8Array.
+    var utf8 = unescape(encodeURIComponent(str))
+    var uint8 = new Uint8Array(utf8.length)
+    for (var i = 0, len = utf8.length; i < len; i++) {
+      uint8[i] = utf8.charCodeAt(i)
     }
-    return chars.join('')
+    return uint8
   }
 
-  function bufferClone(buf) {
-    if (buf.slice) {
-      return buf.slice(0)
+  function decodeStringFromUint8Array(uint8) {
+    // Decode string from UTF-8 that is stored in the Uint8Array.
+    return decodeURIComponent(escape(String.fromCharCode.apply(null, uint8)))
+  }
+
+  // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
+  function extractBody(controller, data, errorString) {
+    if (!data) {
+    } else if (typeof data === 'string') {
+      controller.enqueue(encodeStringToUint8Array(data))
+    } else if (ArrayBuffer.prototype.isPrototypeOf(data)) {
+      controller.enqueue(new Uint8Array(data))
+    } else if (isArrayBufferView(data)) {
+      controller.enqueue(new Uint8Array(data.buffer))
     } else {
-      var view = new Uint8Array(buf.byteLength)
-      view.set(new Uint8Array(buf))
-      return view.buffer
+      throw new TypeError(errorString)
     }
   }
 
+  // https://fetch.spec.whatwg.org/#body-mixin
+  // However, our engine does not fully support URLSearchParams, FormData, nor
+  //   Blob types. So only support text(), arrayBuffer(), and json().
   function Body() {
-    this.bodyUsed = false
-
     this._initBody = function(body) {
-      this._bodyInit = body
-      if (!body) {
-        this._bodyText = ''
-      } else if (typeof body === 'string') {
-        this._bodyText = body
-      } else if (support.blob && Blob.prototype.isPrototypeOf(body)) {
-        this._bodyBlob = body
-      } else if (support.formData && FormData.prototype.isPrototypeOf(body)) {
-        this._bodyFormData = body
-      } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-        this._bodyText = body.toString()
-      } else if (support.arrayBuffer && support.blob && isDataView(body)) {
-        this._bodyArrayBuffer = bufferClone(body.buffer)
-        // IE 10-11 can't handle a DataView body.
-        this._bodyInit = new Blob([this._bodyArrayBuffer])
-      } else if (support.arrayBuffer && (ArrayBuffer.prototype.isPrototypeOf(body) || isArrayBufferView(body))) {
-        this._bodyArrayBuffer = bufferClone(body)
+      this._bodyUsed = false
+      if (body === null || body === undefined) {
+        this.body = null
+      } else if (body instanceof ReadableStream) {
+        this.body = body
       } else {
-        throw new Error('unsupported BodyInit type')
+        this.body = new ReadableStream({
+          start(controller) {
+            extractBody(controller, body, 'Unsupported BodyInit type')
+            controller.close()
+          }
+        })
       }
 
       if (!this.headers.get('content-type')) {
         if (typeof body === 'string') {
           this.headers.set('content-type', 'text/plain;charset=UTF-8')
-        } else if (this._bodyBlob && this._bodyBlob.type) {
-          this.headers.set('content-type', this._bodyBlob.type)
-        } else if (support.searchParams && URLSearchParams.prototype.isPrototypeOf(body)) {
-          this.headers.set('content-type', 'application/x-www-form-urlencoded;charset=UTF-8')
         }
       }
     }
 
-    if (support.blob) {
-      this.blob = function() {
-        var rejected = consumed(this)
-        if (rejected) {
-          return rejected
-        }
-
-        if (this._bodyBlob) {
-          return Promise.resolve(this._bodyBlob)
-        } else if (this._bodyArrayBuffer) {
-          return Promise.resolve(new Blob([this._bodyArrayBuffer]))
-        } else if (this._bodyFormData) {
-          throw new Error('could not read FormData body as blob')
+    Object.defineProperty(this, 'bodyUsed', {
+      get: function() {
+        if (this._bodyUsed) {
+          return true
+        } else if (this.body) {
+          return !!IsReadableStreamDisturbed(this.body)
         } else {
-          return Promise.resolve(new Blob([this._bodyText]))
+          return false
         }
       }
+    })
 
-      this.arrayBuffer = function() {
-        if (this._bodyArrayBuffer) {
-          return consumed(this) || Promise.resolve(this._bodyArrayBuffer)
-        } else {
-          return this.blob().then(readBlobAsArrayBuffer)
-        }
-      }
+    this.arrayBuffer = function() {
+      return consumeBodyAsUint8Array(this).then(function(data) {
+        return data.buffer
+      })
     }
 
     this.text = function() {
-      var rejected = consumed(this)
-      if (rejected) {
-        return rejected
-      }
-
-      if (this._bodyBlob) {
-        return readBlobAsText(this._bodyBlob)
-      } else if (this._bodyArrayBuffer) {
-        return Promise.resolve(readArrayBufferAsText(this._bodyArrayBuffer))
-      } else if (this._bodyFormData) {
-        throw new Error('could not read FormData body as text')
-      } else {
-        return Promise.resolve(this._bodyText)
-      }
-    }
-
-    if (support.formData) {
-      this.formData = function() {
-        return this.text().then(decode)
-      }
+      return consumeBodyAsUint8Array(this).then(function(data) {
+        if (data.length === 0) {
+          return ''
+        } else {
+          return decodeStringFromUint8Array(data)
+        }
+      })
     }
 
     this.json = function() {
@@ -375,35 +355,37 @@
     return (methods.indexOf(upcased) > -1) ? upcased : method
   }
 
-  function Request(input, options) {
-    options = options || {}
-    var body = options.body
+  // https://fetch.spec.whatwg.org/#request-class
+  function Request(input, init) {
+    init = init || {}
+    var body = init.body
 
     if (input instanceof Request) {
       if (input.bodyUsed) {
-        throw new TypeError('Already read')
+        throw new TypeError('Request body already read')
       }
       this.url = input.url
       this.credentials = input.credentials
-      if (!options.headers) {
+      if (!init.headers) {
         this.headers = new Headers(input.headers)
       }
       this.method = input.method
       this.mode = input.mode
-      if (!body && input._bodyInit != null) {
-        body = input._bodyInit
-        input.bodyUsed = true
+      if (!body && input.body !== null) {
+        // Take ownership of the stream and mark |input| as disturbed.
+        body = input.body
+        input._bodyUsed = true
       }
     } else {
       this.url = String(input)
     }
 
-    this.credentials = options.credentials || this.credentials || 'omit'
-    if (options.headers || !this.headers) {
-      this.headers = new Headers(options.headers)
+    this.credentials = init.credentials || this.credentials || 'omit'
+    if (init.headers || !this.headers) {
+      this.headers = new Headers(init.headers)
     }
-    this.method = normalizeMethod(options.method || this.method || 'GET')
-    this.mode = options.mode || this.mode || null
+    this.method = normalizeMethod(init.method || this.method || 'GET')
+    this.mode = init.mode || this.mode || null
     this.referrer = null
 
     if ((this.method === 'GET' || this.method === 'HEAD') && body) {
@@ -413,20 +395,13 @@
   }
 
   Request.prototype.clone = function() {
-    return new Request(this, { body: this._bodyInit })
-  }
-
-  function decode(body) {
-    var form = new FormData()
-    body.trim().split('&').forEach(function(bytes) {
-      if (bytes) {
-        var split = bytes.split('=')
-        var name = split.shift().replace(/\+/g, ' ')
-        var value = split.join('=').replace(/\+/g, ' ')
-        form.append(decodeURIComponent(name), decodeURIComponent(value))
-      }
-    })
-    return form
+    var cloneBody = null
+    if (this.body !== null) {
+      var streams = ReadableStreamTee(this.body, true /* cloneForBranch2 */)
+      this.body = streams[0]
+      cloneBody = streams[1]
+    }
+    return new Request(this, { body: cloneBody })
   }
 
   function parseHeaders(rawHeaders) {
@@ -447,24 +422,31 @@
 
   Body.call(Request.prototype)
 
-  function Response(bodyInit, options) {
-    if (!options) {
-      options = {}
+  // https://fetch.spec.whatwg.org/#response-class
+  function Response(body, init) {
+    if (!init) {
+      init = {}
     }
 
     this.type = 'default'
-    this.status = 'status' in options ? options.status : 200
+    this.status = 'status' in init ? init.status : 200
     this.ok = this.status >= 200 && this.status < 300
-    this.statusText = 'statusText' in options ? options.statusText : 'OK'
-    this.headers = new Headers(options.headers)
-    this.url = options.url || ''
-    this._initBody(bodyInit)
+    this.statusText = 'statusText' in init ? init.statusText : 'OK'
+    this.headers = new Headers(init.headers)
+    this.url = init.url || ''
+    this._initBody(body)
   }
 
   Body.call(Response.prototype)
 
   Response.prototype.clone = function() {
-    return new Response(this._bodyInit, {
+    var cloneBody = null
+    if (this.body !== null) {
+      var streams = ReadableStreamTee(this.body, true /* cloneForBranch2 */)
+      this.body = streams[0]
+      cloneBody = streams[1]
+    }
+    return new Response(cloneBody, {
       status: this.status,
       statusText: this.statusText,
       headers: new Headers(this.headers),
@@ -494,26 +476,46 @@
 
   self.fetch = function(input, init) {
     return new Promise(function(resolve, reject) {
+      var cancelled = false
       var request = new Request(input, init)
       var xhr = new XMLHttpRequest()
 
-      xhr.onload = function() {
-        var options = {
-          status: xhr.status,
-          statusText: xhr.statusText,
-          headers: parseHeaders(xhr.getAllResponseHeaders() || '')
+      var responseStreamController = null
+      var responseStream = new ReadableStream({
+        start(controller) {
+          responseStreamController = controller
+        },
+        cancel(controller) {
+          cancelled = true
+          xhr.abort()
         }
-        options.url = 'responseURL' in xhr ? xhr.responseURL : options.headers.get('X-Request-URL')
-        var body = 'response' in xhr ? xhr.response : xhr.responseText
-        resolve(new Response(body, options))
+      })
+
+      xhr.onload = function() {
+        extractBody(responseStreamController, xhr.response, 'Unhandled response type')
+        responseStreamController.close()
+      }
+
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === xhr.HEADERS_RECEIVED) {
+          var init = {
+            status: xhr.status,
+            statusText: xhr.statusText,
+            headers: parseHeaders(xhr.getAllResponseHeaders() || '')
+          }
+          init.url = 'responseURL' in xhr ? xhr.responseURL : init.headers.get('X-Request-URL')
+          resolve(new Response(responseStream, init))
+        }
       }
 
       xhr.onerror = function() {
-        reject(new TypeError('Network request failed'))
+        responseStreamController.error(new TypeError(err_NetworkRequestFailed))
+        reject(new TypeError(err_NetworkRequestFailed))
       }
 
       xhr.ontimeout = function() {
-        reject(new TypeError('Network request failed'))
+        responseStreamController.error(new TypeError(err_NetworkRequestFailed))
+        reject(new TypeError(err_NetworkRequestFailed))
       }
 
       xhr.open(request.method, request.url, true)
@@ -522,15 +524,17 @@
         xhr.withCredentials = true
       }
 
-      if ('responseType' in xhr && support.blob) {
-        xhr.responseType = 'blob'
-      }
-
       request.headers.forEach(function(value, name) {
         xhr.setRequestHeader(name, value)
       })
 
-      xhr.send(typeof request._bodyInit === 'undefined' ? null : request._bodyInit)
+      if (request.body === null) {
+        xhr.send(null)
+      } else {
+        consumeBodyAsUint8Array(request).then(function(data) {
+          xhr.send(data)
+        })
+      }
     })
   }
   self.fetch.polyfill = true
