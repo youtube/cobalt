@@ -308,8 +308,18 @@ INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
 
 INSTANTIATE_TEST_CASE_P(
+    fetch, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch",
+        "'fetch' in this")));
+
+INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
+
+INSTANTIATE_TEST_CASE_P(
+    streams, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("streams",
+        "'ReadableStream' in this")));
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests
