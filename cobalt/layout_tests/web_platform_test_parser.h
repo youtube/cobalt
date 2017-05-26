@@ -51,8 +51,10 @@ std::ostream& operator<<(std::ostream& out,
                          const WebPlatformTestInfo& test_info);
 
 // Similar to EnumerateLayoutTests(), but reads web_platform_tests.txt
+// |precondition| may optionally be supplied. It represents a javascript
+//   expression which must return "true" for tests to be enumerated.
 std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
-    const std::string& top_level);
+    const std::string& top_level, const char* precondition = NULL);
 
 }  // namespace layout_tests
 }  // namespace cobalt
