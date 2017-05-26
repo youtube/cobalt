@@ -604,10 +604,155 @@ bool InputEventsGenerator::ProcessKeyEvent(AInputEvent* android_event,
   return true;
 }
 
+namespace {
+
+SbKey ButtonStateToSbKey(int32_t button_state) {
+  if (button_state & AMOTION_EVENT_BUTTON_PRIMARY) {
+    return kSbKeyMouse1;
+  } else if (button_state & AMOTION_EVENT_BUTTON_SECONDARY) {
+    return kSbKeyMouse2;
+  } else if (button_state & AMOTION_EVENT_BUTTON_TERTIARY) {
+    return kSbKeyMouse3;
+  } else if (button_state & AMOTION_EVENT_BUTTON_BACK) {
+    return kSbKeyBrowserBack;
+  } else if (button_state & AMOTION_EVENT_BUTTON_FORWARD) {
+    return kSbKeyBrowserForward;
+  }
+  return kSbKeyUnknown;
+}
+
+// Get an SbKeyModifiers from a button state
+unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
+  unsigned int key_modifiers = kSbKeyModifiersNone;
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  if (button_state & AMOTION_EVENT_BUTTON_PRIMARY) {
+    key_modifiers |= kSbKeyModifiersPointerButtonLeft;
+  }
+  if (button_state & AMOTION_EVENT_BUTTON_SECONDARY) {
+    key_modifiers |= kSbKeyModifiersPointerButtonMiddle;
+  }
+  if (button_state & AMOTION_EVENT_BUTTON_TERTIARY) {
+    key_modifiers |= kSbKeyModifiersPointerButtonRight;
+  }
+  if (button_state & AMOTION_EVENT_BUTTON_BACK) {
+    key_modifiers |= kSbKeyModifiersPointerButtonBack;
+  }
+  if (button_state & AMOTION_EVENT_BUTTON_FORWARD) {
+    key_modifiers |= kSbKeyModifiersPointerButtonForward;
+  }
+#endif
+  return key_modifiers;
+}
+
+#if SB_API_VERSION < SB_POINTER_INPUT_API_VERSION
+SbKey ScrollAxisToKey(float hscroll, float vscroll) {
+  if (vscroll != 0) {
+    return vscroll < 0 ? kSbKeyDown : kSbKeyUp;
+  } else if (hscroll != 0) {
+    return hscroll > 0 ? kSbKeyLeft : kSbKeyRight;
+  }
+  return kSbKeyUnknown;
+}
+#endif
+
+}  // namespace
+
+bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
+                                               Events* events) {
+  float offset_x =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_X, 0);
+  float offset_y =
+      AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_Y, 0);
+
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window_;
+  SB_DCHECK(SbWindowIsValid(data->window));
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  data->pressure = NAN;
+  data->size = {NAN, NAN};
+  data->tilt = {NAN, NAN};
+#endif
+  unsigned int button_state = AMotionEvent_getButtonState(android_event);
+  unsigned int button_modifiers = ButtonStateToSbModifiers(button_state);
+
+  // Default to reporting pointer events as mouse events.
+  data->device_type = kSbInputDeviceTypeMouse;
+
+  // Report both stylus and touchscreen events as touchscreen device events.
+  int32_t event_source = AInputEvent_getSource(android_event);
+  if (((event_source & AINPUT_SOURCE_TOUCHSCREEN) != 0) ||
+      ((event_source & AINPUT_SOURCE_STYLUS) != 0)) {
+    data->device_type = kSbInputDeviceTypeTouchScreen;
+  }
+
+  data->device_id = AInputEvent_getDeviceId(android_event);
+  data->key_modifiers =
+      button_modifiers | AInputEventToSbModifiers(android_event);
+  data->position.x = offset_x;
+  data->position.y = offset_y;
+  data->key = ButtonStateToSbKey(button_state);
+
+  switch (AKeyEvent_getAction(android_event) & AMOTION_EVENT_ACTION_MASK) {
+    case AMOTION_EVENT_ACTION_UP:
+      data->type = kSbInputEventTypeUnpress;
+      break;
+    case AMOTION_EVENT_ACTION_DOWN:
+      data->type = kSbInputEventTypePress;
+      break;
+    case AMOTION_EVENT_ACTION_MOVE:
+    case AMOTION_EVENT_ACTION_HOVER_MOVE:
+      data->type = kSbInputEventTypeMove;
+      break;
+    case AMOTION_EVENT_ACTION_SCROLL: {
+      float hscroll = AMotionEvent_getAxisValue(
+          android_event, AMOTION_EVENT_AXIS_HSCROLL, 0);  // left is -1
+      float vscroll = AMotionEvent_getAxisValue(
+          android_event, AMOTION_EVENT_AXIS_VSCROLL, 0);  // down is -1
+      float wheel =
+          AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_WHEEL, 0);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+      data->type = kSbInputEventTypeWheel;
+      data->key = kSbKeyUnknown;
+      data->delta.y = -vscroll;
+      data->delta.x = hscroll;
+#else
+      // This version of Starboard does not support wheel event types, send
+      // keyboard event types instead.
+      data->device_type = kSbInputDeviceTypeKeyboard;
+      data->key = ScrollAxisToKey(hscroll, vscroll);
+
+      SbInputData* data_press = new SbInputData();
+      SbMemoryCopy(data_press, data, sizeof(*data_press));
+
+      // Send a press and unpress event.
+      data_press->type = kSbInputEventTypePress;
+      events->push_back(std::unique_ptr<Event>(
+          new Application::Event(kSbEventTypeInput, data_press,
+                                 &Application::DeleteDestructor<SbInputData>)));
+
+      data->type = kSbInputEventTypeUnpress;
+#endif
+      break;
+    }
+    default:
+      return false;
+  }
+
+  events->push_back(std::unique_ptr<Event>(new Application::Event(
+      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
+  return true;
+}
+
 bool InputEventsGenerator::ProcessMotionEvent(AInputEvent* android_event,
                                               Events* events) {
-  if ((AInputEvent_getSource(android_event) & AINPUT_SOURCE_JOYSTICK) == 0) {
-    // Only handles joystick motion events.
+  int32_t event_source = AInputEvent_getSource(android_event);
+  if ((event_source & AINPUT_SOURCE_CLASS_POINTER) != 0) {
+    return ProcessPointerEvent(android_event, events);
+  }
+  if ((event_source & AINPUT_SOURCE_JOYSTICK) == 0) {
+    // Only handles joystick events in the code below.
     return false;
   }
 

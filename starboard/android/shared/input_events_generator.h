@@ -56,6 +56,7 @@ class InputEventsGenerator {
   };
 
   bool ProcessKeyEvent(AInputEvent* android_event, Events* events);
+  bool ProcessPointerEvent(AInputEvent* android_event, Events* events);
   bool ProcessMotionEvent(AInputEvent* android_event, Events* events);
   void ProcessJoyStickEvent(FlatAxis axis,
                             int32_t motion_axis,
