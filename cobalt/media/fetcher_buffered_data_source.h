@@ -81,6 +81,9 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   bool IsStreaming() OVERRIDE { return false; }
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
+  // BufferedDataSource methods.
+  void SetDownloadingStatusCB(const DownloadingStatusCB& downloading_status_cb);
+
  private:
   class CancelableClosure
       : public base::RefCountedThreadSafe<CancelableClosure> {
@@ -105,6 +108,7 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
 
   void CreateNewFetcher();
+  void UpdateDownloadingStatus(bool is_downloading);
   void Read_Locked(uint64 position, size_t size, uint8* data,
                    const ReadCB& read_cb);
   void ProcessPendingRead_Locked();
@@ -115,6 +119,10 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   GURL url_;
   network::NetworkModule* network_module_;
   scoped_ptr<net::URLFetcher> fetcher_;
+
+  bool is_downloading_;
+  DownloadingStatusCB downloading_status_cb_;
+
   // |fetcher_| has to be destroyed on the thread it's created.  So it cannot be
   // safely destroyed inside Read_Locked().  Save |fetcher_| into
   // |fetcher_to_be_destroyed_| to ensure that it is properly destroyed either
