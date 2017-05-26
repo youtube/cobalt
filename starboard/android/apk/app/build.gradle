@@ -86,12 +86,14 @@ android {
 // so we can only hook up to them after that's done.
 afterEvaluate {
     android.buildTypes.each {
-        def buildType = it.name.capitalize()
+        def buildType = it.name
+        def capBuildType = buildType.capitalize()
+        def configType = COBALT_BUILD_TYPE_MAP[buildType]
 
-        def nativeBuildTask = tasks.findByName("externalNativeBuild${buildType}")
+        def nativeBuildTask = tasks.findByName("externalNativeBuild${capBuildType}")
 
         // Find all the assemble task flavors actually being built
-        def assembleTask = tasks.findByName("assemble${buildType}")
+        def assembleTask = tasks.findByName("assemble${capBuildType}")
         def assembleFlavors = assembleTask.taskDependencies.getDependencies(assembleTask).findAll {
             it.name.startsWith('assemble')
         }
@@ -110,6 +112,14 @@ afterEvaluate {
             // (not using 'dependsOn' since we only want to run for flavors being assembled)
             nativeBuildTask.mustRunAfter cobaltCopyTaskName
         }
+
+        // Include the Cobalt content directory as assets in the APK. Take it from the first flavor
+        // for all architectures since we only need one and they're all the same.
+        def abi = assembleFlavors.first().name
+            .replaceFirst('assemble', '').replace(capBuildType, '').toLowerCase()
+        def arch = COBALT_ARCH_MAP[abi]
+        def cobaltContentDir = "${getProductDir(configType, arch)}/content/data"
+        android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
     }
 }
 
@@ -135,11 +145,6 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
     // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
     def cobaltBuildDir = "${buildDir}/intermediates/cobalt/${buildType}"
     android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
-
-    // Include the Cobalt content directory as assets in the APK.
-    // Uses the x86 build for all architectures since we only need one and they're all the same.
-    def cobaltContentDir = "${getProductDir(configType, 'x86')}/content/data"
-    android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
 
     // Add build/copy tasks for each (buildType, abi) tuple to produce the Cobalt native library.
     COBALT_ARCH_MAP.each { abi, arch ->
