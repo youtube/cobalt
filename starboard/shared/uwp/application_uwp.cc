@@ -16,6 +16,8 @@
 
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/shared/starboard/application.h"
+#include "starboard/shared/uwp/window_internal.h"
 
 using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
@@ -72,21 +74,45 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
-ApplicationUwp::ApplicationUwp() {
-}
+ApplicationUwp::ApplicationUwp() : window_(kSbWindowInvalid) {}
 
-ApplicationUwp::~ApplicationUwp() {
-}
+ApplicationUwp::~ApplicationUwp() {}
 
-void ApplicationUwp::Initialize() {
-}
+void ApplicationUwp::Initialize() {}
 
-void ApplicationUwp::Teardown() {
-}
+void ApplicationUwp::Teardown() {}
 
 Application::Event* ApplicationUwp::GetNextEvent() {
   SB_NOTREACHED();
   return nullptr;
+}
+
+SbWindow ApplicationUwp::CreateWindow(const SbWindowOptions* options) {
+  // TODO: Determine why SB_DCHECK(IsCurrentThread()) fails in nplb, fix it,
+  // and add back this check.
+
+  if (SbWindowIsValid(window_)) {
+    return kSbWindowInvalid;
+  }
+
+  window_ = new SbWindowPrivate(options);
+  return window_;
+}
+
+bool ApplicationUwp::DestroyWindow(SbWindow window) {
+  // TODO: Determine why SB_DCHECK(IsCurrentThread()) fails in nplb, fix it,
+  // and add back this check.
+
+  if (!SbWindowIsValid(window)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": Invalid context.";
+    return false;
+  }
+
+  SB_DCHECK(window_ == window);
+  delete window;
+  window_ = kSbWindowInvalid;
+
+  return true;
 }
 
 bool ApplicationUwp::DispatchNextEvent() {

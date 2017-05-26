@@ -20,6 +20,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/types.h"
+#include "starboard/window.h"
 
 namespace __winRT {
 // TODO: without this, we get the following error at CoreApplication::Run:
@@ -47,6 +48,13 @@ class ApplicationUwp : public shared::starboard::Application {
     return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
   }
 
+// Do not use the macro from windows.h.
+#undef CreateWindow
+#undef CreateWindowW
+  SbWindow CreateWindow(const SbWindowOptions* options);
+
+  bool DestroyWindow(SbWindow window);
+
   void DispatchStart() {
     shared::starboard::Application::DispatchStart();
   }
@@ -64,6 +72,8 @@ class ApplicationUwp : public shared::starboard::Application {
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
   SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
 
+  // The single open window, if any.
+  SbWindow window_;
 };
 
 }  // namespace uwp
