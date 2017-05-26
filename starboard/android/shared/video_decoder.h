@@ -60,7 +60,6 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
   void SetHost(VideoRenderer* host);
-  int GetPendingWorkSize() { return event_queue_.size(); }
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
  private:
