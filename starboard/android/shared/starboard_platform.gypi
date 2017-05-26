@@ -124,6 +124,7 @@
         'system_platform_error.cc',
         'system_request_stop.cc',
         'system_request_suspend.cc',
+        'thread_create_priority.cc',
         'thread_get_name.cc',
         'thread_types_public.h',
         'time_zone_get_dst_name.cc',
