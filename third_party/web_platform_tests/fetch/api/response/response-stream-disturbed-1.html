@@ -22,9 +22,11 @@ function createResponseWithReadableStream(callback) {
 
 promise_test(function() {
     return createResponseWithReadableStream(function(response) {
-        return response.blob().then(function(blob) {
-            assert_true(blob instanceof Blob);
-        });
+        if ('blob' in response) {
+            return response.blob().then(function(blob) {
+                assert_true(blob instanceof Blob);
+            });
+        }
     });
 }, "Getting blob after getting the Response body - not disturbed, not locked");
 

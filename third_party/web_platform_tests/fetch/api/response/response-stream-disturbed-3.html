@@ -22,7 +22,9 @@ function createResponseWithDisturbedReadableStream(callback) {
 
 promise_test(function(test) {
     return createResponseWithDisturbedReadableStream(function(response) {
-        return promise_rejects(test, new TypeError(), response.blob());
+        if ('blob' in response) {
+            return promise_rejects(test, new TypeError(), response.blob());
+        }
     });
 }, "Getting blob after reading the Response body");
 
