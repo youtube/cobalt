@@ -17,8 +17,8 @@
 // Other source files should never include this header directly, but should
 // include the generic "starboard/configuration.h" instead.
 
-#ifndef STARBOARD_RASPI_1_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_RASPI_1_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_RASPI_0_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_RASPI_0_CONFIGURATION_PUBLIC_H_
 
 // --- Architecture Configuration --------------------------------------------
 
@@ -92,4 +92,4 @@
 
 #include "starboard/raspi/shared/configuration_public.h"
 
-#endif  // STARBOARD_RASPI_1_CONFIGURATION_PUBLIC_H_
+#endif  // STARBOARD_RASPI_0_CONFIGURATION_PUBLIC_H_
