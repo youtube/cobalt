@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Raspberry Pi 1 platform configuration for gyp_cobalt."""
+"""Starboard Raspberry Pi 0 platform configuration for gyp_cobalt."""
 
 import logging
 import os
@@ -26,7 +26,7 @@ from shared.gyp_configuration import RaspiPlatformConfig
 
 def CreatePlatformConfig():
   try:
-    return RaspiPlatformConfig('raspi-1')
+    return RaspiPlatformConfig('raspi-0')
   except RuntimeError as e:
     logging.critical(e)
     return None

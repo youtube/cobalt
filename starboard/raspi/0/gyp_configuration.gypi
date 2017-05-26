@@ -31,18 +31,18 @@
   },
 
   'target_defaults': {
-    'default_configuration': 'raspi-1_debug',
+    'default_configuration': 'raspi-0_debug',
     'configurations': {
-      'raspi-1_debug': {
+      'raspi-0_debug': {
         'inherit_from': ['debug_base'],
       },
-      'raspi-1_devel': {
+      'raspi-0_devel': {
         'inherit_from': ['devel_base'],
       },
-      'raspi-1_qa': {
+      'raspi-0_qa': {
         'inherit_from': ['qa_base'],
       },
-      'raspi-1_gold': {
+      'raspi-0_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
