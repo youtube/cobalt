@@ -21,6 +21,33 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 
+// Can be locally set to |1| for verbose audio decoding.  Verbose audio
+// decoding will log the following transitions that take place for each audio
+// unit:
+//   T1: Our client passes an |InputBuffer| of audio data into us.
+//   T2: We pass the |InputBuffer| into our |MediaCodecBridge|.
+//   T3: We receive a corresponding media codec output buffer back from our
+//       |MediaCodecBridge|.
+//   T4: Our client reads a corresponding |DecodedAudio| out of us.
+//
+// Example usage for debugging audio playback:
+//   $ adb logcat -c
+//   $ adb logcat | tee log.txt
+//   # Play video and get to frozen point.
+//   $ CTRL-C
+//   $ cat log.txt | grep -P 'T3: pts \d+' | wc -l
+//   523
+//   $ cat log.txt | grep -P 'T4: pts \d+' | wc -l
+//   522
+//   # Oh no, why isn't our client reading the audio we have ready to go?
+//   # Time to go find out...
+#define STARBOARD_ANDROID_SHARED_AUDIO_DECODER_VERBOSE 0
+#if STARBOARD_ANDROID_SHARED_AUDIO_DECODER_VERBOSE
+#define VERBOSE_MEDIA_LOG() SB_LOG(INFO)
+#else
+#define VERBOSE_MEDIA_LOG() SB_EAT_STREAM_PARAMETERS
+#endif
+
 namespace starboard {
 namespace android {
 namespace shared {
@@ -81,6 +108,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer) {
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
 
+  VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer.pts();
   event_queue_.PushBack(Event(input_buffer));
 }
 
@@ -94,6 +122,7 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
     starboard::ScopedLock lock(decoded_audios_mutex_);
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
+      VERBOSE_MEDIA_LOG() << "T4: pts " << result->pts();
       decoded_audios_.pop();
     }
   }
@@ -202,6 +231,7 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     const InputBuffer& input_buffer = event.input_buffer;
     data = input_buffer.data();
     size = input_buffer.size();
+    VERBOSE_MEDIA_LOG() << "T2: pts " << input_buffer.pts();
   } else if (event.type == Event::kWriteEndOfStream) {
     data = NULL;
     size = 0;
@@ -322,6 +352,7 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);
+      VERBOSE_MEDIA_LOG() << "T3: pts " << decoded_audios_.front()->pts();
     }
   }
 
