@@ -173,7 +173,7 @@ the platform configuration name `bobbox-mipseb`.)
 
   1. Recursively copy `src/starboard/stub` to
      `src/third_party/starboard/<family-name>/<binary-variant>`.  You may also
-     consider copying from another reference platform, like `raspi-1` or
+     consider copying from another reference platform, like `raspi-2` or
      `linux-x64x11`.
   1. In `gyp_configuration.py`
       1. In the `CreatePlatformConfig()` function, pass your

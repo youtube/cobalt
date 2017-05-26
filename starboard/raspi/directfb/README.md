@@ -2,7 +2,7 @@
 
 Starboard's Blitter API contains a DirectFB implementation.  There does not
 currently exist a supported Starboard configuration for DirectFB on the
-Raspberry Pi, but it can be created easily by copying the raspi-1 configuration
+Raspberry Pi, but it can be created easily by copying the raspi-0 configuration
 and modifying the setup to use the Blitter API with DirectFB instead of Dispmanx
 and EGL/GLES2.
 
