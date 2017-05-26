@@ -5,20 +5,19 @@ for Cobalt.
 
 Each file should contain a set of tests in Python "unittest" format.
 
-All tests in all of the files included within
-[performance_tests_all.py](performance_tests_all.py) will be run on the build
-system. Results can be recorded in the build results database.
+All tests included within [performance.py](performance.py) will be run on the
+build system. Results can be recorded in the build results database.
 
 ## Running the tests
 
 In most cases, you will want to run all performance tests, and you can do so by
-executing the script [performance_tests_all.py](performance_tests_all.py). You
-can call `python performance_tests_all.py --help` to see a list of commandline
-parameters to call it with.  For example, to run tests on the raspi-2 QA build,
-you should run the following command:
+executing the script [performance.py](performance.py). You can call
+`python performance.py --help` to see a list of commandline parameters to call
+it with.  For example, to run tests on the raspi-2 QA build, you should run the
+following command:
 
 ```
-python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR
+python performance.py -p raspi-2 -c qa -d $RASPI_ADDR
 ```
 
 Where `RASPI_ADDR` is set to the IP of the target Raspberry Pi device.
@@ -31,11 +30,11 @@ it must be specified via commandline parameters.
 
  1. If appropriate, create a new file borrowing the boilerplate from
     an existing simple file, such as
-    [browse_horizontal.py](browse_horizontal.py).
+    [browse_horizontal.py](performance/non_video/browse_horizontal.py).
 
  2. Add the file name to the tests added within
-    [performance_tests_all.py](performance_tests_all.py), causing it run
-    when [performance_tests_all.py](performance_tests_all.py) is run.
+    [performance.py](performance.py), causing it run when
+    [performance](performance.py) is run.
 
  3. If this file contains internal names or details, consider adding it
     to the "EXCLUDE.FILES" list.
@@ -55,7 +54,7 @@ can be provided. This will be the url that the tests will run against.
 It should have the following format:
 
 ```
-python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR --url https://www.youtube.com/tv?loader=nllive
+python performance.py -p raspi-2 -c qa -d $RASPI_ADDR --url https://www.youtube.com/tv?loader=nllive
 ```
 
 ## Benchmark Results
@@ -138,7 +137,7 @@ in a few.  You will have to manually filter only the metrics that you are
 interested in.  You can do so with `grep`, for example:
 
 ```
-python performance_tests_all.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
+python performance.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
 echo "" > filtered_results.txt
 grep -o "wbStartupDurBlankToBrowseUs.*$" results.txt >> filtered_results.txt
 grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt
