@@ -27,6 +27,7 @@ KNOWN_COMPONENTS = frozenset(
         'fetch',
         'h5vcc',
         'media_session',
+        'page_visibility',
         'speech',
         'testing',
         'web_animations',
