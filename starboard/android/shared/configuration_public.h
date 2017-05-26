@@ -178,7 +178,7 @@
 
 // On default Linux desktop, you must be a superuser in order to set real time
 // scheduling on threads.
-#define SB_HAS_THREAD_PRIORITY_SUPPORT 0
+#define SB_HAS_THREAD_PRIORITY_SUPPORT 1
 
 // --- Compiler Configuration ------------------------------------------------
 
