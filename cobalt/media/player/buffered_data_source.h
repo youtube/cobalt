@@ -16,6 +16,7 @@
 #define COBALT_MEDIA_PLAYER_BUFFERED_DATA_SOURCE_H_
 
 #include "base/basictypes.h"
+#include "base/callback.h"
 #include "base/message_loop.h"
 #include "cobalt/media/base/data_source.h"
 #include "googleurl/src/gurl.h"
@@ -33,6 +34,12 @@ enum Preload {
 // TODO: Investigate if we still need BufferedDataSource.
 class BufferedDataSource : public DataSource {
  public:
+  typedef base::Callback<void(bool)> DownloadingStatusCB;
+
+  virtual void SetDownloadingStatusCB(
+      const DownloadingStatusCB& downloading_status_cb) {
+    UNREFERENCED_PARAMETER(downloading_status_cb);
+  }
   virtual void SetPreload(Preload preload) { UNREFERENCED_PARAMETER(preload); }
   virtual bool HasSingleOrigin() { return true; }
   virtual bool DidPassCORSAccessCheck() const { return true; }
