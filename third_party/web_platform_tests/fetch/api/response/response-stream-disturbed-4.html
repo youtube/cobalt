@@ -21,7 +21,9 @@ function createResponseWithCancelledReadableStream(callback) {
 
 promise_test(function(test) {
     return createResponseWithCancelledReadableStream(function(response) {
-        return promise_rejects(test, new TypeError(), response.blob());
+        if ('blob' in response) {
+            return promise_rejects(test, new TypeError(), response.blob());
+        }
     });
 }, "Getting blob after cancelling the Response body");
 
