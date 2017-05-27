@@ -25,7 +25,8 @@
 namespace starboard {
 namespace nplb {
 
-#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#if SB_HAS(SPEECH_RECOGNIZER) && \
+    SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
 
 class EventMock : public RefCounted<EventMock> {
  public:
@@ -93,7 +94,8 @@ class SpeechRecognizerTest : public ::testing::Test {
   const scoped_refptr<EventMock> test_mock_;
 };
 
-#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
+#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >=
+        // SB_SPEECH_RECOGNIZER_API_VERSION
 
 }  // namespace nplb
 }  // namespace starboard

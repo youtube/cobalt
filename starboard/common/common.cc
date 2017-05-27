@@ -14,10 +14,20 @@
 
 #include "starboard/configuration.h"
 
-// This audit is here so it is only displayed once every build.
+// These audits are here so they are only displayed once every build.
+
 #if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
 #pragma message( \
     "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION.")
 #pragma message( \
-    "You are implementing the experimental SB API at your own risk!")
+    "You are implementing the Experimental version of Starboard at your")
+#pragma message( \
+    "own risk!  We don't recommend this for third parties.")
+#endif
+
+#if SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION
+#pragma message( \
+    "Your platform's SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION.")
+#pragma message( \
+    "Note that the RC version of Starboard is still subject to change.")
 #endif
