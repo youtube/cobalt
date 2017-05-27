@@ -58,6 +58,9 @@ class AudioDecoder {
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
   virtual int GetSamplesPerSecond() const = 0;
+
+  // Return whether the decoder can accept more data or not.
+  virtual bool CanAcceptMoreData() const = 0;
 };
 
 }  // namespace filter

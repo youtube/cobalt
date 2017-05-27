@@ -82,7 +82,8 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
       audio_header_(audio_header),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       sample_type_(GetSupportedSampleType()),
-      decoder_thread_(kSbThreadInvalid) {
+      decoder_thread_(kSbThreadInvalid),
+      pending_work_size_(0) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
     TeardownCodec();
@@ -138,10 +139,19 @@ void AudioDecoder::Reset() {
   }
 
   stream_ended_ = false;
+  pending_work_size_ = 0;
 
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
+}
+
+bool AudioDecoder::CanAcceptMoreData() const {
+  ScopedLock lock(decoded_audios_mutex_);
+  return !stream_ended_ &&
+         event_queue_.size() + SbAtomicNoBarrier_Load(&pending_work_size_) +
+                 decoded_audios_.size() <=
+             kMaxPendingWorkSize;
 }
 
 // static
@@ -165,6 +175,7 @@ void AudioDecoder::DecoderThreadFunc() {
         event.type == Event::kWriteEndOfStream ||
         event.type == Event::kWriteCodecConfig) {
       pending_work.push_back(event);
+      SbAtomicNoBarrier_Store(&pending_work_size_, pending_work.size());
     }
 
     if (event.type == Event::kReset) {
@@ -178,6 +189,7 @@ void AudioDecoder::DecoderThreadFunc() {
 
     bool did_work = false;
     did_work |= ProcessOneInputBuffer(&pending_work);
+    SbAtomicNoBarrier_Store(&pending_work_size_, pending_work.size());
     did_work |= ProcessOneOutputBuffer();
 
     if (event.type == Event::kInvalid && !did_work) {

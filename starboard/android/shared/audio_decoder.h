@@ -22,6 +22,7 @@
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
+#include "starboard/atomic.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -58,6 +59,7 @@ class AudioDecoder
   int GetSamplesPerSecond() const SB_OVERRIDE {
     return audio_header_.samples_per_second;
   }
+  bool CanAcceptMoreData() const SB_OVERRIDE;
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
@@ -80,6 +82,10 @@ class AudioDecoder
     Type type;
     InputBuffer input_buffer;
   };
+
+  // The maximum amount of work that can exist in the union of |EventQueue|,
+  // |pending_work| and |decoded_audios_|.
+  static const int kMaxPendingWorkSize = 64;
 
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
@@ -108,6 +114,7 @@ class AudioDecoder
   // |kReset|, which are allowed to cut to the front.
   EventQueue<Event> event_queue_;
   starboard::Mutex decoded_audios_mutex_;
+  volatile SbAtomic32 pending_work_size_;
 };
 
 }  // namespace shared
