@@ -50,6 +50,20 @@
       'dependencies': [
         'gtest_prod',
       ],
+      'cflags_cc': [
+        '-frtti',
+      ],
+      'cflags_cc!': [
+        '-fno-rtti',
+      ],
+      'all_dependent_settings': {
+        'cflags_cc': [
+          '-frtti',
+        ],
+        'cflags_cc!': [
+          '-fno-rtti',
+        ],
+      },
       'conditions': [
         ['OS == "mac" or OS == "ios"', {
           'sources': [
