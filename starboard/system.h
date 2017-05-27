@@ -116,10 +116,10 @@ typedef enum SbSystemPropertyId {
   // Speech APIs and generate a Speech API key.
   kSbSystemPropertySpeechApiKey,
 #endif  // SB_VERSION(2)
-#if SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
-#endif  // SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
 } SbSystemPropertyId;
 
 // Enumeration of device types.
