@@ -41,11 +41,6 @@
     # system fonts when it can't find the font file in the cobalt content.
     'cobalt_font_package': 'android_system',
 
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 0,
-
     'cobalt_media_source_2016': 1,
     'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
 
@@ -145,6 +140,10 @@
           '-Wno-unnamed-type-template-args',
           # Triggered by the COMPILE_ASSERT macro.
           '-Wno-unused-local-typedef',
+          # Do not warn if a function or variable cannot be implicitly
+          # instantiated.
+          '-Wno-undefined-var-template',
+          '-Wno-tautological-constant-out-of-range-compare',
         ],
       }],
       ['cobalt_fastbuild==0', {
