@@ -50,6 +50,7 @@ void SetSignalHandler(int signal_id, SignalHandlerFunction handler) {
 }
 
 void SuspendDone(void* /*context*/) {
+  // Stop all thread execution after fully transitioning into Suspended.
   raise(SIGSTOP);
 }
 
@@ -88,12 +89,17 @@ void InstallSuspendSignalHandlers() {
   // log messages may behave in surprising ways, so it's not desirable.
   SetSignalHandler(SIGPIPE, &Ignore);
 #endif
+  SetSignalHandler(SIGUSR1, &Suspend);
+  UnblockSignal(SIGUSR1);
+  SetSignalHandler(SIGCONT, &Resume);
 }
 
 void UninstallSuspendSignalHandlers() {
 #if !defined(MSG_NOSIGNAL)
   SetSignalHandler(SIGPIPE, SIG_DFL);
 #endif
+  SetSignalHandler(SIGUSR1, SIG_DFL);
+  SetSignalHandler(SIGCONT, SIG_DFL);
 }
 
 }  // namespace signal
