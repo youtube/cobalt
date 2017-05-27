@@ -46,18 +46,24 @@
 // implement the experimental Starboard API version.
 #define SB_EXPERIMENTAL_API_VERSION 6
 
+// The next API version to be frozen, but is still subject to emergency
+// changes. It is reasonable to base a port on the Release Candidate API
+// version, but be aware that small incompatible changes may still be made to
+// it.
+// #define SB_RELEASE_CANDIDATE_API_VERSION "No current RC API version."
+#define SB_RELEASE_CANDIDATE_API_VERSION 5
+
 // --- Experimental Feature Defines ------------------------------------------
 
 // Note that experimental feature comments will be moved into
 // starboard/CHANGELOG.md when released.  Thus, you can find examples of the
-// format your feature comments should take by checking that file.  Please
-// see starboard/doc/versioning.md for more information.
+// format your feature comments should take by checking that file.
 
 // EXAMPLE:
 //   // Introduce new experimental feature.
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
-//   #define SB_MY_EXPERIMENTAL_FEATURE VERSION SB_EXPERIMENTAL_API_VERSION
+//   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // Introduce pointer (mouse) input support. This extends the SbInput interface
 // with some enum values and data members to allow mouse, wheel, and more
@@ -72,6 +78,12 @@
 // Changes SbTimeZoneGetName() is more flexible now in what it is allowed to
 // return.
 #define SB_TIME_ZONE_FLEXIBLE_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// --- Release Candidate Feature Defines -------------------------------------
+
+#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_SPEECH_RECOGNIZER_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -558,11 +570,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= 5
+#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= 5
+#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
 
 // --- Derived Configuration -------------------------------------------------
 
