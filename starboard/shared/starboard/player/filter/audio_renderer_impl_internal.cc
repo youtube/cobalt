@@ -53,8 +53,7 @@ AudioRendererImpl::AudioRendererImpl(JobQueue* job_queue,
       end_of_stream_decoded_(false),
       decoder_(decoder.Pass()),
       audio_sink_(kSbAudioSinkInvalid),
-      decoder_needs_full_reset_(false),
-      buffers_in_decoder_(0) {
+      decoder_needs_full_reset_(false) {
   SB_DCHECK(job_queue != NULL);
   SB_DCHECK(decoder_ != NULL);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -104,7 +103,6 @@ void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
   decoder_->Decode(input_buffer);
 
   ScopedLock lock(mutex_);
-  buffers_in_decoder_++;
   decoder_needs_full_reset_ = true;
   if (!read_from_decoder_closure_.is_valid()) {
     read_from_decoder_closure_ =
@@ -125,7 +123,6 @@ void AudioRendererImpl::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 
   ScopedLock lock(mutex_);
-  buffers_in_decoder_++;
   end_of_stream_written_ = true;
   decoder_needs_full_reset_ = true;
   // If we are seeking, we consider the seek is finished if end of stream is
@@ -179,7 +176,6 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   end_of_stream_written_ = false;
   end_of_stream_decoded_ = false;
   pending_decoded_audio_ = NULL;
-  buffers_in_decoder_ = 0;
 
   if (decoder_needs_full_reset_) {
     decoder_->Reset();
@@ -197,11 +193,13 @@ bool AudioRendererImpl::IsEndOfStreamPlayed() const {
 bool AudioRendererImpl::CanAcceptMoreData() const {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
-  ScopedLock lock(mutex_);
-  if (end_of_stream_written_) {
-    return false;
+  {
+    ScopedLock lock(mutex_);
+    if (end_of_stream_written_) {
+      return false;
+    }
   }
-  return buffers_in_decoder_ < kMaxbuffersInDecoder;
+  return decoder_->CanAcceptMoreData();
 }
 
 bool AudioRendererImpl::IsSeekingInProgress() const {
@@ -307,10 +305,6 @@ void AudioRendererImpl::ReadFromDecoder() {
     decoded_audio = pending_decoded_audio_;
   } else {
     decoded_audio = decoder_->Read();
-    if (decoded_audio) {
-      SB_DCHECK(buffers_in_decoder_ > 0);
-      buffers_in_decoder_--;
-    }
   }
   pending_decoded_audio_ = NULL;
   if (!decoded_audio) {
