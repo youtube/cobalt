@@ -92,7 +92,7 @@ class EventQueue {
     deque_.clear();
   }
 
-  size_t size() {
+  size_t size() const {
     ScopedLock lock(mutex_);
     return deque_.size();
   }

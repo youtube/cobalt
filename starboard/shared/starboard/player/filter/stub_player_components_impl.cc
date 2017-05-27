@@ -41,7 +41,9 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 class StubAudioDecoder : public AudioDecoder {
  public:
   explicit StubAudioDecoder(const SbMediaAudioHeader& audio_header)
-      : sample_type_(GetSupportedSampleType()), audio_header_(audio_header) {}
+      : sample_type_(GetSupportedSampleType()),
+        audio_header_(audio_header),
+        stream_ended_(false) {}
   void Decode(const InputBuffer& input_buffer) SB_OVERRIDE {
     // Values to represent what kind of dummy audio to fill the decoded audio
     // we produce with.
@@ -86,6 +88,7 @@ class StubAudioDecoder : public AudioDecoder {
                                             4 * last_input_buffer_.size()));
     }
     decoded_audios_.push(new DecodedAudio());
+    stream_ended_ = true;
   }
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE {
     scoped_refptr<DecodedAudio> result;
@@ -99,6 +102,7 @@ class StubAudioDecoder : public AudioDecoder {
     while (!decoded_audios_.empty()) {
       decoded_audios_.pop();
     }
+    stream_ended_ = false;
     last_input_buffer_ = InputBuffer();
   }
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
@@ -107,10 +111,16 @@ class StubAudioDecoder : public AudioDecoder {
   int GetSamplesPerSecond() const SB_OVERRIDE {
     return audio_header_.samples_per_second;
   }
+  bool CanAcceptMoreData() const SB_OVERRIDE {
+    return !stream_ended_ && decoded_audios_.size() <= kMaxDecodedAudiosSize;
+  }
 
  private:
+  static const kMaxDecodedAudiosSize = 64;
+
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioHeader audio_header_;
+  bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
   InputBuffer last_input_buffer_;
 };
