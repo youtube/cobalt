@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/file_util.h"
 #include "base/logging.h"
+#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/string_util.h"
 #include "build/build_config.h"
@@ -64,7 +65,7 @@ std::string GetMimeType(const FilePath& path) {
   return "text/plain";
 }
 
-FilePath AppendIndexFile(const FilePath& directory) {
+base::optional<FilePath> AppendIndexFile(const FilePath& directory) {
   DCHECK(file_util::DirectoryExists(directory));
   FilePath result;
   result = directory.AppendASCII("index.html");
@@ -76,7 +77,7 @@ FilePath AppendIndexFile(const FilePath& directory) {
     return result;
   }
   DLOG(ERROR) << "No index file found at: " << directory.value();
-  return directory;
+  return base::nullopt;
 }
 
 std::string GetLocalIpAddress() {
@@ -194,12 +195,20 @@ void DebugWebServer::OnHttpRequest(int connection_id,
 
   // If the disk path is a directory, look for an index file.
   if (file_util::DirectoryExists(file_path)) {
-    file_path = AppendIndexFile(file_path);
+    base::optional<FilePath> index_file_path = AppendIndexFile(file_path);
+    if (index_file_path) {
+      file_path = *index_file_path;
+    } else {
+      DLOG(WARNING) << "No index file in directory: " << file_path.value();
+      server_->Send404(connection_id);
+      return;
+    }
   }
 
   // If we can read the local file, send its contents, otherwise send a 404.
   std::string data;
-  if (file_util::ReadFileToString(file_path, &data)) {
+  if (file_util::PathExists(file_path) &&
+      file_util::ReadFileToString(file_path, &data)) {
     DLOG(INFO) << "Sending data from: " << file_path.value();
     std::string mime_type = GetMimeType(file_path);
     server_->Send200(connection_id, data, mime_type);
