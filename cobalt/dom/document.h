@@ -328,7 +328,7 @@ class Document : public Node, public cssom::MutationObserver {
   initial_computed_style_declaration() const {
     return initial_computed_style_declaration_;
   }
-  const scoped_refptr<cssom::CSSComputedStyleData>&
+  const scoped_refptr<const cssom::CSSComputedStyleData>&
   initial_computed_style_data() const {
     return initial_computed_style_data_;
   }
@@ -422,7 +422,7 @@ class Document : public Node, public cssom::MutationObserver {
   // the viewport size.
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       initial_computed_style_declaration_;
-  scoped_refptr<cssom::CSSComputedStyleData> initial_computed_style_data_;
+  scoped_refptr<const cssom::CSSComputedStyleData> initial_computed_style_data_;
 
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;
