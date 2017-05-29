@@ -575,6 +575,7 @@ void Document::UpdateComputedStyles() {
 
     scoped_refptr<HTMLElement> root = html();
     if (root) {
+      DCHECK_EQ(this, root->parent_node());
       // First update the computed style for root element.
       root->UpdateComputedStyle(initial_computed_style_declaration_,
                                 initial_computed_style_data_,
@@ -628,6 +629,7 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   // Update computed styles on the ancestors and the element.
   HTMLElement* previous_element = NULL;
   bool ancestors_were_valid = true;
+  scoped_refptr<const cssom::CSSComputedStyleData> root_element_computed_style;
   for (std::vector<HTMLElement*>::reverse_iterator it = ancestors.rbegin();
        it != ancestors.rend(); ++it) {
     HTMLElement* current_element = *it;
@@ -640,7 +642,13 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
       current_element->UpdateComputedStyle(
           previous_element ? previous_element->css_computed_style_declaration()
                            : initial_computed_style_declaration_,
-          initial_computed_style_data_, style_change_event_time);
+          root_element_computed_style ? root_element_computed_style
+                                      : initial_computed_style_data_,
+          style_change_event_time);
+    }
+    if (!root_element_computed_style) {
+      DCHECK_EQ(this, current_element->parent_node());
+      root_element_computed_style = current_element->computed_style();
     }
     previous_element = current_element;
     ancestors_were_valid = is_valid;
