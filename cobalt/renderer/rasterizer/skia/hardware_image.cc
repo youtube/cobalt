@@ -14,6 +14,8 @@
 
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 
+#include <vector>
+
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
@@ -347,6 +349,17 @@ HardwareMultiPlaneImage::HardwareMultiPlaneImage(
         const_raw_texture_memory, descriptor.GetPlaneOffset(i),
         descriptor.GetPlaneDescriptor(i), cobalt_context, gr_context,
         rasterizer_message_loop);
+  }
+}
+
+HardwareMultiPlaneImage::HardwareMultiPlaneImage(
+    render_tree::MultiPlaneImageFormat format,
+    const std::vector<scoped_refptr<HardwareFrontendImage> >& planes)
+    : size_(planes[0]->GetSize()), format_(format) {
+  DCHECK(planes.size() <=
+         render_tree::MultiPlaneImageDataDescriptor::kMaxPlanes);
+  for (unsigned int i = 0; i < planes.size(); ++i) {
+    planes_[i] = planes[i];
   }
 }
 
