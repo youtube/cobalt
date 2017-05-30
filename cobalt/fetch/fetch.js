@@ -492,7 +492,6 @@
       })
 
       xhr.onload = function() {
-        extractBody(responseStreamController, xhr.response, 'Unhandled response type')
         responseStreamController.close()
       }
 
@@ -528,11 +527,18 @@
         xhr.setRequestHeader(name, value)
       })
 
+      var fetchUpdate = function(data) {
+        if (!cancelled) {
+          // Data is already an Uint8Array.
+          responseStreamController.enqueue(data)
+        }
+      }
+
       if (request.body === null) {
-        xhr.send(null)
+        xhr.fetch(fetchUpdate, null)
       } else {
         consumeBodyAsUint8Array(request).then(function(data) {
-          xhr.send(data)
+          xhr.fetch(fetchUpdate, data)
         })
       }
     })
