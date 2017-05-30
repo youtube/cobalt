@@ -130,6 +130,72 @@
           }],
         ],
       },
+       'msvs_debug': {
+         'inherit_from': ['debug_base', 'msvs_base'],
+         'msvs_settings': {
+           'VCCLCompilerTool': {
+             'Optimization': '0',
+             'BasicRuntimeChecks': '3', # Check stack frame validity and check for uninitialized variables at run time.
+             'AdditionalOptions': [
+               '/MDd', # Use debug multithreaded library.
+               '/GS',
+             ],
+           },
+           'VCLinkerTool': {
+             'AdditionalDependencies': ['dbghelp.lib'],
+             'LinkIncremental': '2',  # INCREMENTAL:YES
+           },
+         },
+       },
+       'msvs_devel': {
+         'inherit_from': ['devel_base', 'msvs_base'],
+         'msvs_settings': {
+           'VCCLCompilerTool': {
+             'Optimization': '2',
+             'AdditionalOptions': [
+               '/MDd', # Use debug multithreaded library.
+               '/GS',
+             ],
+           },
+           'VCLinkerTool': {
+             'AdditionalDependencies': ['dbghelp.lib'],
+             'LinkIncremental': '2',  # INCREMENTAL:YES
+           },
+         },
+       },
+       'msvs_qa': {
+         'inherit_from': ['qa_base', 'msvs_base'],
+         'msvs_settings': {
+           'VCCLCompilerTool': {
+             'Optimization': '2',
+             'AdditionalOptions': [
+               '/MD', # Use release multithreaded library.
+             ],
+           },
+           'VCLinkerTool': {
+             'AdditionalDependencies': ['dbghelp.lib'],
+             'LinkIncremental': '1',  # INCREMENTAL:NO
+             'OptimizeReferences' : '2',  # OPT:REF
+             'EnableCOMDATFolding' : '2',  # OPT:ICF
+           },
+         },
+       },
+       'msvs_gold': {
+         'inherit_from': ['gold_base', 'msvs_base'],
+          'msvs_settings': {
+           'VCCLCompilerTool': {
+             'Optimization': '2',
+             'AdditionalOptions': [
+               '/MD', # Use release multithreaded library.
+             ],
+           },
+           'VCLinkerTool': {
+             'LinkIncremental': '1',  # INCREMENTAL:NO
+             'OptimizeReferences' : '2',  # OPT:REF
+             'EnableCOMDATFolding' : '2',  # OPT:ICF
+           },
+         },
+       },
     },
     'defines': [
       # Disable suggestions to switch to Microsoft-specific secure CRT.
