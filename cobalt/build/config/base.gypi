@@ -164,8 +164,10 @@
     # if this is enabled, we explicitly create an extra offscreen full-size
     # intermediate surface to render into.  Note that some GLES driver
     # implementations may internally allocate an extra full screen surface to
-    # support this feature.
-    'render_dirty_region_only%': 1,
+    # support this feature, and many have been noticed to not properly support
+    # this functionality (but they report that they do), and for these reasons
+    # this value is defaulted to 0.
+    'render_dirty_region_only%': 0,
 
     # Modify this value to adjust the default rasterizer setting for your
     # platform.
