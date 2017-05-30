@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
 #define COBALT_RENDERER_RASTERIZER_SKIA_HARDWARE_IMAGE_H_
 
+#include <vector>
+
 #include "base/hash_tables.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
@@ -189,6 +191,10 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
       const render_tree::MultiPlaneImageDataDescriptor& descriptor,
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       MessageLoop* rasterizer_message_loop);
+
+  HardwareMultiPlaneImage(
+      render_tree::MultiPlaneImageFormat format,
+      const std::vector<scoped_refptr<HardwareFrontendImage> >& planes);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
   render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
