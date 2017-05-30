@@ -24,70 +24,16 @@
     'default_configuration': 'win-console_debug',
     'configurations': {
       'win-console_debug': {
-        'inherit_from': ['debug_base', 'msvs_base'],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '0',
-            'BasicRuntimeChecks': '3', # Check stack frame validity and check for uninitialized variables at run time.
-            'AdditionalOptions': [
-              '/MDd', # Use debug multithreaded library.
-              '/GS',
-            ],
-          },
-          'VCLinkerTool': {
-            'AdditionalDependencies': ['dbghelp.lib'],
-            'LinkIncremental': '2',  # INCREMENTAL:YES
-          },
-        },
+        'inherit_from': ['msvs_debug'],
       },
       'win-console_devel': {
-        'inherit_from': ['devel_base', 'msvs_base'],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '2',
-            'AdditionalOptions': [
-              '/MDd', # Use debug multithreaded library.
-              '/GS',
-            ],
-          },
-          'VCLinkerTool': {
-            'AdditionalDependencies': ['dbghelp.lib'],
-            'LinkIncremental': '2',  # INCREMENTAL:YES
-          },
-        },
+       'inherit_from': ['msvs_devel'],
       },
       'win-console_qa': {
-        'inherit_from': ['qa_base', 'msvs_base'],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '2',
-            'AdditionalOptions': [
-              '/MD', # Use release multithreaded library.
-            ],
-          },
-          'VCLinkerTool': {
-            'AdditionalDependencies': ['dbghelp.lib'],
-            'LinkIncremental': '1',  # INCREMENTAL:NO
-            'OptimizeReferences' : '2',  # OPT:REF
-            'EnableCOMDATFolding' : '2',  # OPT:ICF
-          },
-        },
+        'inherit_from': ['msvs_qa'],
       },
       'win-console_gold': {
-        'inherit_from': ['gold_base', 'msvs_base'],
-         'msvs_settings': {
-          'VCCLCompilerTool': {
-            'Optimization': '2',
-            'AdditionalOptions': [
-              '/MD', # Use release multithreaded library.
-            ],
-          },
-          'VCLinkerTool': {
-            'LinkIncremental': '1',  # INCREMENTAL:NO
-            'OptimizeReferences' : '2',  # OPT:REF
-            'EnableCOMDATFolding' : '2',  # OPT:ICF
-          },
-        },
+        'inherit_from': ['msvs_gold'],
       },
     },  # end of configurations
   },
