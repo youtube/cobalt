@@ -160,6 +160,13 @@ void DrmSystem::OnSessionUpdateRequestGenerated(
   } else {
     // Called back spontaneously by the underlying DRM system.
 
+    // Spontaneous calls must refer to a valid session.
+    if (!session_id) {
+      DLOG(FATAL) << "SbDrmSessionUpdateRequestFunc() should not be called "
+                     "with both invalid ticket and null session id.";
+      return;
+    }
+
     // Find the session by ID.
     IdToSessionMap::iterator session_iterator =
         id_to_session_map_.find(*session_id);
