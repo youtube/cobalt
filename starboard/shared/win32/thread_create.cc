@@ -113,9 +113,12 @@ int SbThreadPriorityToWin32Priority(SbThreadPriority priority) {
 }
 }  // namespace
 
+// Note that SetThreadAffinityMask() is not available on some
+// platforms (eg UWP). If it's necessary for a non-UWP platform,
+// please fork this implementation for UWP.
 SbThread SbThreadCreate(int64_t stack_size,
                         SbThreadPriority priority,
-                        SbThreadAffinity affinity,
+                        SbThreadAffinity /*affinity*/,
                         bool joinable,
                         const char* name,
                         SbThreadEntryPoint entry_point,
@@ -140,15 +143,6 @@ SbThread SbThreadCreate(int64_t stack_size,
                      ThreadTrampoline, info, CREATE_SUSPENDED, NULL);
   SB_DCHECK(handle);
   info->thread_private_.handle_ = reinterpret_cast<HANDLE>(handle);
-  ResetWinError();
-  if (affinity != kSbThreadNoAffinity &&
-      !SetThreadAffinityMask(info->thread_private_.handle_,
-                             static_cast<DWORD_PTR>(affinity)) &&
-      !GetLastError()) {
-    SB_LOG(ERROR) << "Failed to set affinity for thread " << (name ? name : "")
-                  << ". Attempted to set affinity to: " << affinity;
-    DebugLogWinError();
-  }
   ResetWinError();
   if (priority != kSbThreadNoPriority &&
       !SetThreadPriority(info->thread_private_.handle_,

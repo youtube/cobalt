@@ -23,7 +23,7 @@ uint64_t SbSystemGetRandomUInt64() {
   // TODO: This is DEFINITELY not cryptographically secure.
   static bool initialized = false;
   if (!initialized) {
-    srand(GetTickCount());
+    srand(static_cast<DWORD>(GetTickCount64()));
     initialized = true;
   }
   return (static_cast<uint64_t>(std::rand()) << 32) | rand();
