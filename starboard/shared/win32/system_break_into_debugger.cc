@@ -14,10 +14,11 @@
 
 #include "starboard/system.h"
 
-#include <windows.h>
+#include <intrin.h>
 
 void SbSystemBreakIntoDebugger() {
-  // TODO: neither of these may be valid on some platforms.
-  DebugBreak();
-  ExitProcess(1);
+  // Note: neither DebugBreak() nor ExitProcess() are valid
+  // on some Windows platforms (eg UWP) so we use __debugbreak()
+  // instead.
+  __debugbreak();
 }
