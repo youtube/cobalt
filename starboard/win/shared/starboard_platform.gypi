@@ -19,13 +19,12 @@
       'msvs_settings': {
         'VCCLCompilerTool': {
           'AdditionalOptions': [
-            '/ZW',  # Windows Runtime (Needed for UWP)
-            '/EHsx', # C++ exceptions (required with /ZW)
-            # For 'platform.winmd'. Note that replacing x86 with
-            # x64 here does not work.
-            '/AI"<(visual_studio_install_path)/lib/x86/store/references"',
-            # For 'Windows.winmd'
-            '/AI"<(windows_sdk_path)/UnionMetadata/<(windows_sdk_version)"',
+            '/ZW',           # Windows Runtime
+            '/ZW:nostdlib',  # Windows Runtime, no default #using
+            '/EHsx',         # C++ exceptions (required with /ZW)
+            '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
+            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
+            '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.UniversalApiContract/4.0.0.0/Windows.Foundation.UniversalApiContract.winmd"',
           ]
         }
       },
@@ -290,6 +289,10 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
+        # VS2017 always defines this for UWP apps
+        'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+        # VS2017 always defines this for UWP apps
+        '__WRL_NO_DEFAULT_LIB__',
       ],
     },
   ],
