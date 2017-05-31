@@ -93,6 +93,23 @@ SbSocketWaiterInterest DiscoverNetworkEventInterests(SOCKET socket_handle) {
   return interests;
 }
 
+// The function erases the |index|th element from the collection by swapping
+// it with the last element.  This operation leaves all the other elements in
+// place, which is useful for some operations.
+template <typename T>
+void EraseIndexFromVector(T* collection_pointer, std::size_t index) {
+  SB_DCHECK(collection_pointer);
+  T& collection = *collection_pointer;
+  const std::size_t current_size = collection.size();
+  if (current_size <= 1) {
+    collection.clear();
+    return;
+  }
+  const std::size_t new_size = collection.size() - 1;
+  std::swap(collection[index], collection[new_size]);
+  collection.resize(new_size);
+}
+
 }  // namespace
 
 SbSocketWaiterPrivate::SbSocketWaiterPrivate()
@@ -413,9 +430,16 @@ bool SbSocketWaiterPrivate::WaiteeRegistry::RemoveSocket(SbSocket socket) {
   SB_DCHECK(current_size == waitees_.size());
 
   const std::size_t socket_index = iterator->second;
-  SB_DCHECK(socket_index < socket_events_.size());
-  socket_events_.erase(socket_events_.begin() + socket_index);
-  waitees_.erase(waitees_.begin() + socket_index);
+  SbSocket socket_to_swap = waitees_[current_size - 1]->socket;
+
+  // Since |EraseIndexFromVector| will swap the last socket and the socket
+  // at current index, |socket_to_index_| will need to be updated.
+  socket_to_index_map_[socket_to_swap] = socket_index;
+  // Note that |EraseIndexFromVector| only touches the last element and the
+  // element to remove.
+  EraseIndexFromVector(&socket_events_, socket_index);
+  EraseIndexFromVector(&waitees_, socket_index);
+
   socket_to_index_map_.erase(socket);
 
   SB_DCHECK(socket_events_.size() == waitees_.size());
