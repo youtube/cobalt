@@ -87,7 +87,8 @@ At any given time, zero or one versions of Starboard will be denoted as the
 and tested together. It is reasonable to port against this version, it has gone
 through some stabilization and may become frozen as it currently is. But, be
 aware that it is possible that minor incompatible changes may be made to this
-version if an unexpected situation arises.
+version if an unexpected situation arises. `SB_RELEASE_CANDIDATE_API_VERSION` is
+not defined if there is no "release candidate" version.
 
 ### "Frozen" Starboard versions
 
@@ -124,7 +125,7 @@ For example,
 
 #define SB_EXPERIMENTAL_API_VERSION 7
 
-#define SB_RELEASE_CANDIDATE_API_VERSION "invalid"
+#undef SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -167,11 +168,12 @@ void DoSomethingCool() {
 #endif
 ```
 
-When a release candidate branch is taken, the `SB_RELEASE_CANDIDATE_API_VERSION`
-is set from an invalid value to the current `SB_EXPERIMENTAL_API_VERSION`, and
+When promoting the experimental API version to be the release candidate API
+version, the previously undefined `SB_RELEASE_CANDIDATE_API_VERSION` is set to
+the current value of `SB_EXPERIMENTAL_API_VERSION`, and
 `SB_EXPERIMENTAL_API_VERSION` is then incremented by one. As a result,
-`SB_RELEASE_CANDIDATE_API_VERSION` should always either be invalid, or
-`SB_EXPERIMENTAL_API_VERSION - 1`.
+`SB_RELEASE_CANDIDATE_API_VERSION` on the master branch should always either be
+undefined, or `SB_EXPERIMENTAL_API_VERSION - 1`.
 
 One or more features are then moved from `SB_EXPERIMENTAL_API_VERSION` to
 `SB_RELEASE_CANDIDATE_API_VERSION`, and into the "Release Candidate Feature
@@ -202,8 +204,7 @@ corresponding version in [starboard/CHANGELOG.md](../CHANGELOG.md).
 When a release candidate branch is promoted to a full release, these new
 Starboard APIs will be irrevocably frozen to the value of
 `SB_RELEASE_CANDIDATE_API_VERSION`, and the release candidate version will be
-set back to an invalid value. Additionally, the feature defines should be
-removed.
+undefined. Additionally, the feature defines should be removed.
 
 ```
 // starboard/new_functionality.h
@@ -218,7 +219,7 @@ void SbStillInDevelopment();
 
 // starboard/configuration.h
 #define SB_EXPERIMENTAL_API_VERSION 8
-#define SB_RELEASE_CANDIDATE_API_VERSION "invalid"
+#undef SB_RELEASE_CANDIDATE_API_VERSION
 
 // cobalt/new_feature.cc
 #if SB_API_VERSION >= 7
