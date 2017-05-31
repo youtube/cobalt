@@ -79,6 +79,10 @@
 // return.
 #define SB_TIME_ZONE_FLEXIBLE_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Adds the convenience inline function, SbDecodeTargetNumberOfPlanesForFormat()
+// to starboard/decode_target.h.
+#define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 #define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION \
