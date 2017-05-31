@@ -151,6 +151,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
 #if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 namespace {
 
+#if SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
 int PlanesPerFormat(SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
@@ -166,6 +167,7 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
       return 0;
   }
 }
+#endif  // SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
 
 uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
   switch (format) {
@@ -247,7 +249,13 @@ scoped_refptr<render_tree::Image>
       new DecodeTargetReferenceCounted(decode_target));
 
   // There is limited format support at this time.
-  for (int i = 0; i < PlanesPerFormat(info.format); ++i) {
+#if SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+  int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
+#else
+  int planes_per_format = PlanesPerFormat(info.format);
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+
+  for (int i = 0; i < planes_per_format; ++i) {
     const SbDecodeTargetInfoPlane& plane = info.planes[i];
 
     int gl_handle = plane.texture;
