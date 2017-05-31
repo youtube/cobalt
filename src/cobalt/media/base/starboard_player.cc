@@ -493,9 +493,11 @@ SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
 void StarboardPlayer::ClearDecoderBufferCache() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  base::TimeDelta media_time;
-  GetInfo(NULL, NULL, &media_time);
-  decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
+  if (state_ != kResuming) {
+    base::TimeDelta media_time;
+    GetInfo(NULL, NULL, &media_time);
+    decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
+  }
 
   message_loop_->PostDelayedTask(
       FROM_HERE,
