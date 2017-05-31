@@ -598,9 +598,11 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
     return false;
   }
 
-  if (!is_computed_style_dirty_) {
-    return true;
-  }
+  // We explicitly don't short-circuit if the document's
+  // is_computed_style_dirty_ is not set because the specific element we are
+  // updating may have or be under an ancestor element with 'display: none' on
+  // it, in which case the element's computed style will be un-updated despite
+  // the document's is_computed_style_dirty_ being false.
 
   UpdateSelectorTree();
   UpdateKeyframes();
