@@ -18,16 +18,13 @@
 
 #if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
 #pragma message( \
-    "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION.")
-#pragma message( \
-    "You are implementing the Experimental version of Starboard at your")
-#pragma message( \
+    "Your platform's SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION. " \
+    "You are implementing the Experimental version of Starboard at your " \
     "own risk!  We don't recommend this for third parties.")
 #endif
 
 #if SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION
 #pragma message( \
-    "Your platform's SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION.")
-#pragma message( \
+    "Your platform's SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION. " \
     "Note that the RC version of Starboard is still subject to change.")
 #endif
