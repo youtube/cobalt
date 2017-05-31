@@ -238,6 +238,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       int expected_written_size = expected_written_frames * channels_;
+      // TODO: Look into reusing an object for the buffer that we pass in, to
+      // avoid excessive allocations.
       ScopedLocalJavaRef<jfloatArray> j_buf(FloatArrayFromRaw(
           IncrementPointerByBytes(
               frame_buffer_,
@@ -252,6 +254,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeInt16);
       int expected_written_size =
           expected_written_frames * channels_ * GetSampleSize(sample_type_);
+      // TODO: Look into reusing an object for the buffer that we pass in, to
+      // avoid excessive allocations.
       ScopedLocalJavaRef<jbyteArray> j_buf(ByteArrayFromRaw(
           IncrementPointerByBytes(
               frame_buffer_,
