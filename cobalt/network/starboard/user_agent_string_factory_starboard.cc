@@ -25,6 +25,14 @@ namespace network {
 
 namespace {
 
+#if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
+const char kStarboardStabilitySuffix[] = "-Experimental";
+#elif SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION
+const char kStarboardStabilitySuffix[] = "-ReleaseCandidate";
+#else
+const char kStarboardStabilitySuffix[] = "";
+#endif
+
 bool SystemDeviceTypeIsTv(SbSystemDeviceType device_type) {
   switch (device_type) {
     case kSbSystemDeviceTypeBlueRayDiskPlayer:
@@ -49,7 +57,8 @@ class UserAgentStringFactoryStarboard : public UserAgentStringFactory {
 };
 
 UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
-  starboard_version_ = base::StringPrintf("Starboard/%d", SB_API_VERSION);
+  starboard_version_ = base::StringPrintf("Starboard/%d%s", SB_API_VERSION,
+                                          kStarboardStabilitySuffix);
 
   const size_t kSystemPropertyMaxLength = 1024;
   char value[kSystemPropertyMaxLength];
