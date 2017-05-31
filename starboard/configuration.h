@@ -50,7 +50,7 @@
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-// #define SB_RELEASE_CANDIDATE_API_VERSION "No current RC API version."
+// #undef SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_RELEASE_CANDIDATE_API_VERSION 5
 
 // --- Experimental Feature Defines ------------------------------------------
