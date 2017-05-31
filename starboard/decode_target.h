@@ -93,6 +93,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/export.h"
+#include "starboard/log.h"
 #include "starboard/types.h"
 
 #if SB_API_VERSION >= 3
@@ -337,6 +338,25 @@ static SB_C_INLINE bool SbDecodeTargetIsFormatValid(
     SbDecodeTargetFormat format) {
   return format != kSbDecodeTargetFormatInvalid;
 }
+
+#if SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
+    SbDecodeTargetFormat format) {
+  switch (format) {
+    case kSbDecodeTargetFormat1PlaneRGBA:
+      return 1;
+    case kSbDecodeTargetFormat1PlaneBGRA:
+      return 1;
+    case kSbDecodeTargetFormat2PlaneYUVNV12:
+      return 2;
+    case kSbDecodeTargetFormat3PlaneYUVI420:
+      return 3;
+    default:
+      SB_NOTREACHED();
+      return 0;
+  }
+}
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
 
 #if SB_API_VERSION < 4
 
