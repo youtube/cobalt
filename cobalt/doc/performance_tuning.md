@@ -180,13 +180,14 @@ is set to `0`.
            framerate.*
 
 
-### Ensure that Cobalt is rendering only regions that change
+### Try enabling rendering only to regions that change
 
-Cobalt has logic to detect which part of the frame has been affected by
-animations and can be configured to only render to that region.  However,
-this feature requires support from the driver for GLES platforms.  In
-particular, `eglChooseConfig()` will first be called with
-`EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set in its attribute list.  If this
+If you set the [`base.gypi`](../build/config/base.gypi) variable,
+`render_dirty_region_only` to `1`, then Cobalt will invoke logic to detect which
+part of the frame has been affected by animations and can be configured to only
+render to that region.  However, this feature requires support from the driver
+for GLES platforms.  In particular, `eglChooseConfig()` will first be called
+with `EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set in its attribute list.  If this
 fails, Cobalt will call eglChooseConfig() again without
 `EGL_SWAP_BEHAVIOR_PRESERVED_BIT` set and dirty region rendering will
 be disabled.  By having Cobalt render only small parts of the screen,
@@ -196,7 +197,9 @@ screen is updating (e.g. displaying an animated spinner).  Thus, if
 possible, ensure that your EGL/GLES driver supports
 `EGL_SWAP_BEHAVIOR_PRESERVED_BIT`.  Note that it is possible (but not
 necessary) that GLES drivers will implement this feature by allocating a new
-offscreen buffer, which can significantly affect GPU memory usage.
+offscreen buffer, which can significantly affect GPU memory usage.  If you are
+on a Blitter API platform, enabling this functionality will result in the
+allocation and blit of a fullscreen "intermediate" back buffer target.
 
 **Tags:** *startup, framerate, gpu memory.*
 
