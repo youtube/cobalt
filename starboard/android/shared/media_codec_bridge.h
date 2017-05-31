@@ -110,6 +110,15 @@ class MediaCodecBridge {
 
   jobject j_media_codec_bridge_;
 
+  // Profiling and allocation tracking has identified this area to be hot,
+  // and, capable of enough to cause GC times to raise high enough to impact
+  // playback.  We mitigate this by reusing these output objects between calls
+  // to |DequeueInputBuffer|, |DequeueOutputBuffer|, and
+  // |GetOutputDimensions|.
+  jobject j_reused_dequeue_input_result_;
+  jobject j_reused_dequeue_output_result_;
+  jobject j_reused_get_output_format_result_;
+
   SB_DISALLOW_COPY_AND_ASSIGN(MediaCodecBridge);
 };
 

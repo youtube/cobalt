@@ -76,22 +76,35 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
 
 MediaCodecBridge::~MediaCodecBridge() {
   JniEnvExt* env = JniEnvExt::Get();
+
   SB_DCHECK(j_media_codec_bridge_);
   env->CallVoidMethodOrAbort(j_media_codec_bridge_, "release", "()V");
   env->DeleteGlobalRef(j_media_codec_bridge_);
   j_media_codec_bridge_ = NULL;
+
+  SB_DCHECK(j_reused_dequeue_input_result_);
+  env->DeleteGlobalRef(j_reused_dequeue_input_result_);
+  j_reused_dequeue_input_result_ = NULL;
+
+  SB_DCHECK(j_reused_dequeue_output_result_);
+  env->DeleteGlobalRef(j_reused_dequeue_output_result_);
+  j_reused_dequeue_output_result_ = NULL;
+
+  SB_DCHECK(j_reused_get_output_format_result_);
+  env->DeleteGlobalRef(j_reused_get_output_format_result_);
+  j_reused_get_output_format_result_ = NULL;
 }
 
 DequeueInputResult MediaCodecBridge::DequeueInputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_dequeue_input_result(
-      env->CallObjectMethodOrAbort(
-          j_media_codec_bridge_, "dequeueInputBuffer",
-          "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueInputResult;",
-          timeout_us));
-  return {
-      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "status", "()I"),
-      env->CallIntMethodOrAbort(j_dequeue_input_result.Get(), "index", "()I")};
+  env->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "dequeueInputBuffer",
+      "(JLfoo/cobalt/media/MediaCodecBridge$DequeueInputResult;)V", timeout_us,
+      j_reused_dequeue_input_result_);
+  return {env->CallIntMethodOrAbort(j_reused_dequeue_input_result_, "status",
+                                    "()I"),
+          env->CallIntMethodOrAbort(j_reused_dequeue_input_result_, "index",
+                                    "()I")};
 }
 
 jobject MediaCodecBridge::GetInputBuffer(jint index) {
@@ -148,19 +161,22 @@ jint MediaCodecBridge::QueueSecureInputBuffer(
 
 DequeueOutputResult MediaCodecBridge::DequeueOutputBuffer(jlong timeout_us) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_dequeue_output_result(
-      env->CallObjectMethodOrAbort(
-          j_media_codec_bridge_, "dequeueOutputBuffer",
-          "(J)Lfoo/cobalt/media/MediaCodecBridge$DequeueOutputResult;",
-          timeout_us));
-  jobject obj = j_dequeue_output_result.Get();
-  return {
-      env->CallIntMethodOrAbort(obj, "status", "()I"),
-      env->CallIntMethodOrAbort(obj, "index", "()I"),
-      env->CallIntMethodOrAbort(obj, "flags", "()I"),
-      env->CallIntMethodOrAbort(obj, "offset", "()I"),
-      env->CallLongMethodOrAbort(obj, "presentationTimeMicroseconds", "()J"),
-      env->CallIntMethodOrAbort(obj, "numBytes", "()I")};
+  env->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "dequeueOutputBuffer",
+      "(JLfoo/cobalt/media/MediaCodecBridge$DequeueOutputResult;)V", timeout_us,
+      j_reused_dequeue_output_result_);
+  return {env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "status",
+                                    "()I"),
+          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "index",
+                                    "()I"),
+          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "flags",
+                                    "()I"),
+          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "offset",
+                                    "()I"),
+          env->CallLongMethodOrAbort(j_reused_dequeue_output_result_,
+                                     "presentationTimeMicroseconds", "()J"),
+          env->CallIntMethodOrAbort(j_reused_dequeue_output_result_, "numBytes",
+                                    "()I")};
 }
 
 jobject MediaCodecBridge::GetOutputBuffer(jint index) {
@@ -182,21 +198,42 @@ jint MediaCodecBridge::Flush() {
 
 SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jobject> j_get_output_format_result(
-      env->CallObjectMethodOrAbort(
-          j_media_codec_bridge_, "getOutputFormat",
-          "()Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;"));
-  return {env->CallIntMethodOrAbort(j_get_output_format_result.Get(), "width",
+  env->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "getOutputFormat",
+      "(Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;)V",
+      j_reused_get_output_format_result_);
+  return {env->CallIntMethodOrAbort(j_reused_get_output_format_result_, "width",
                                     "()I"),
-          env->CallIntMethodOrAbort(j_get_output_format_result.Get(), "height",
-                                    "()I")};
+          env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
+                                    "height", "()I")};
 }
 
 MediaCodecBridge::MediaCodecBridge(jobject j_media_codec_bridge)
-    : j_media_codec_bridge_(j_media_codec_bridge) {
+    : j_media_codec_bridge_(j_media_codec_bridge),
+      j_reused_dequeue_input_result_(NULL),
+      j_reused_dequeue_output_result_(NULL),
+      j_reused_get_output_format_result_(NULL) {
   SB_DCHECK(j_media_codec_bridge_);
-  SB_DCHECK(JniEnvExt::Get()->GetObjectRefType(j_media_codec_bridge_) ==
-            JNIGlobalRefType);
+  JniEnvExt* env = JniEnvExt::Get();
+  SB_DCHECK(env->GetObjectRefType(j_media_codec_bridge_) == JNIGlobalRefType);
+
+  j_reused_dequeue_input_result_ = env->NewObjectOrAbort(
+      "foo/cobalt/media/MediaCodecBridge$DequeueInputResult", "()V");
+  SB_DCHECK(j_reused_dequeue_input_result_);
+  j_reused_dequeue_input_result_ =
+      env->ConvertLocalRefToGlobalRef(j_reused_dequeue_input_result_);
+
+  j_reused_dequeue_output_result_ = env->NewObjectOrAbort(
+      "foo/cobalt/media/MediaCodecBridge$DequeueOutputResult", "()V");
+  SB_DCHECK(j_reused_dequeue_output_result_);
+  j_reused_dequeue_output_result_ =
+      env->ConvertLocalRefToGlobalRef(j_reused_dequeue_output_result_);
+
+  j_reused_get_output_format_result_ = env->NewObjectOrAbort(
+      "foo/cobalt/media/MediaCodecBridge$GetOutputFormatResult", "()V");
+  SB_DCHECK(j_reused_get_output_format_result_);
+  j_reused_get_output_format_result_ =
+      env->ConvertLocalRefToGlobalRef(j_reused_get_output_format_result_);
 }
 
 }  // namespace shared
