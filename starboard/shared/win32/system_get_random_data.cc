@@ -35,8 +35,8 @@ void SbSystemGetRandomData(void* out_buffer, int buffer_size) {
   // code should use BCRYPT_RNG_ALGORITHM, and it is recommended that existing
   // code be changed to use BCRYPT_RNG_ALGORITHM."
   NTSTATUS status =
-      BCryptGenRandom(NULL, reinterpret_cast<PUCHAR>(out_buffer), buffer_size,
-                      BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+      BCryptGenRandom(nullptr, reinterpret_cast<PUCHAR>(out_buffer),
+                      buffer_size, BCRYPT_USE_SYSTEM_PREFERRED_RNG);
   SB_DCHECK(status == 0) << "Error while calling CryptGenRandom: "
                          << sbwin32::Win32ErrorCode(GetLastError());
 }
