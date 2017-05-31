@@ -16,9 +16,8 @@
     'target_arch': 'x64',
     'target_os': 'win',
 
-    # TODO: change to hardware and fix revealed build errors.
-    # Use a stub rasterizer and graphical setup.
-    'rasterizer_type': 'stub',
+    # Use a hardware rasterizer and graphical setup.
+    'rasterizer_type': 'hardware',
 
     # Link with angle
     'gl_type': 'angle',
