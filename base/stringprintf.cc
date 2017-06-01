@@ -72,10 +72,7 @@ static void StringAppendVT(StringType* dst,
   int mem_length = arraysize(stack_buf);
   while (true) {
     if (result < 0) {
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
-      // On XB1, we get a -1 with ERANGE when the buffer is not big enough.
-      if (result != -1 || (errno != 0 && errno != ERANGE))
-#elif !defined(OS_WIN)
+#if !defined(OS_WIN)
       // On Windows, vsnprintfT always returns the number of characters in a
       // fully-formatted string, so if we reach this point, something else is
       // wrong and no amount of buffer-doubling is going to fix it.

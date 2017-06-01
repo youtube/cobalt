@@ -113,15 +113,6 @@
 #include "base/string_piece.h"  // For implicit conversions.
 #include "build/build_config.h"
 
-// Windows-style drive letter support and pathname separator characters can be
-// enabled and disabled independently, to aid testing.  These #defines are
-// here so that the same setting can be used in both the implementation and
-// in the unit test.
-#if defined(OS_WIN) || defined(__LB_XB1__) || defined(__LB_XB360__)
-#define FILE_PATH_USES_DRIVE_LETTERS
-#define FILE_PATH_USES_WIN_SEPARATORS
-#endif  // OS_WIN || __LB_XB1__ || __LB_XB360__
-
 class Pickle;
 class PickleIterator;
 
