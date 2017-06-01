@@ -15,6 +15,8 @@
 #ifndef COBALT_MEDIA_BASE_PIPELINE_H_
 #define COBALT_MEDIA_BASE_PIPELINE_H_
 
+#include <vector>
+
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
@@ -38,6 +40,8 @@ typedef SbWindow PipelineWindow;
 typedef void* PipelineWindow;
 #endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
+// #define COBALT_MEDIA_ENABLE_VIDEO_DUMPER 1
+
 namespace cobalt {
 namespace media {
 
@@ -46,8 +50,16 @@ class MediaLog;
 // Callback to notify that a DRM system is ready.
 typedef base::Callback<void(SbDrmSystem)> DrmSystemReadyCB;
 
-// Callback to set a DrmSystemReadyCB.
+// Callback to set an DrmSystemReadyCB.
 typedef base::Callback<void(const DrmSystemReadyCB&)> SetDrmSystemReadyCB;
+
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+// Callback to notify that EME init data is ready.
+typedef base::Callback<void(const std::vector<uint8_t>&)> EMEInitDataReadyCB;
+
+// Callback to set an EMEInitDataReadyCB.
+typedef base::Callback<void(const EMEInitDataReadyCB&)> SetEMEInitDataReadyCB;
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
 // Pipeline contains the common interface for media pipelines.  It provides
 // functions to perform asynchronous initialization, pausing, seeking and
@@ -104,6 +116,9 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   // It is an error to call this method after the pipeline has already started.
   virtual void Start(Demuxer* demuxer,
                      const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+                     const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
                      const PipelineStatusCB& ended_cb,
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
