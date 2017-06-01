@@ -28,6 +28,12 @@ namespace android {
 namespace shared {
 namespace {
 
+// The maximum number of frames that can be written to android audio track per
+// write request. If we don't set this cap for writing frames to audio track,
+// we will repeatedly allocate a large byte array which cannot be consumed by
+// audio track completely.
+const int kMaxFramesPerRequest = 2048;
+
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
 size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
@@ -238,6 +244,8 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       expected_written_frames = frames_in_buffer - written_frames_;
     }
 
+    expected_written_frames =
+        std::min(expected_written_frames, kMaxFramesPerRequest);
     if (expected_written_frames == 0) {
       // It is possible that all the frames in buffer are written to the
       // soundcard, but those are not being consumed.
