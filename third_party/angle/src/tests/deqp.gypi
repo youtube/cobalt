@@ -1196,18 +1196,18 @@
         ],
         'conditions':
         [
-            ['(OS=="win" or OS=="linux" or OS=="mac")',
+            ['(target_os=="win" or OS=="linux" or OS=="mac")',
             {
                 # Build the dEQP libraries for all Windows/Linux builds
                 'angle_build_deqp_libraries%': 1,
             }],
-            ['((OS=="win" or OS=="linux" or OS=="mac") and angle_build_winrt==0)',
+            ['((target_os=="win" or OS=="linux" or OS=="mac") and angle_build_winrt==0)',
             {
                 # Build the dEQP GoogleTest support helpers for all Windows/Linux builds except WinRT
                 # GoogleTest doesn't support WinRT
                 'angle_build_deqp_gtest_support%': 1,
             }],
-            ['((OS=="win" or OS=="linux" or OS=="mac") and angle_build_winrt==0)',
+            ['((target_os=="win" or OS=="linux" or OS=="mac") and angle_build_winrt==0)',
             {
                 # Build the dEQP executables for all standalone Windows/Linux builds except WinRT
                 # GYP doesn't support generating standalone WinRT executables
@@ -1482,7 +1482,7 @@
                                     '-Wno-delete-non-virtual-dtor',
                                 ],
                             }],
-                            ['OS=="win"',
+                            ['target_os=="win"',
                             {
                                 'cflags': ['<@(deqp_win_cflags)'],
                                 'cflags_cc': ['<@(deqp_win_cflags)'],
@@ -1586,7 +1586,7 @@
                                 },
                             },
                         }],
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources': [ '<@(deqp_libtester_sources_win)', ],
                         }],
