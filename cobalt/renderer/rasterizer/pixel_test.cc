@@ -3303,36 +3303,53 @@ namespace {
 scoped_refptr<Mesh> CreateCubeMesh(ResourceProvider* resource_provider) {
   // Defines a cube mesh where each face faces inward.  Each face has the entire
   // texture mapped over it.
-  Mesh::Vertex vertices[] = {
-      {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f}, {-1.0f, 1.0f, -1.0f, 1.0f, 0.0f},
-      {-1.0f, 1.0f, 1.0f, 1.0f, 1.0f},   {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f},
-      {-1.0f, 1.0f, 1.0f, 1.0f, 1.0f},   {-1.0f, -1.0f, 1.0f, 0.0f, 1.0f},
+  scoped_ptr<std::vector<Mesh::Vertex> > vertices(
+      new std::vector<Mesh::Vertex>);
 
-      {1.0f, -1.0f, -1.0f, 0.0f, 0.0f},  {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
-      {1.0f, 1.0f, -1.0f, 1.0f, 0.0f},   {1.0f, -1.0f, -1.0f, 0.0f, 0.0f},
-      {1.0f, -1.0f, 1.0f, 0.0f, 1.0f},   {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
 
-      {-1.0f, 1.0f, -1.0f, 0.0f, 0.0f},  {1.0f, 1.0f, -1.0f, 1.0f, 0.0f},
-      {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},    {-1.0f, 1.0f, -1.0f, 0.0f, 0.0f},
-      {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},    {-1.0f, 1.0f, 1.0f, 0.0f, 1.0f},
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
 
-      {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f}, {1.0f, -1.0f, 1.0f, 1.0f, 1.0f},
-      {1.0f, -1.0f, -1.0f, 1.0f, 0.0f},  {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f},
-      {-1.0f, -1.0f, 1.0f, 0.0f, 1.0f},  {1.0f, -1.0f, 1.0f, 1.0f, 1.0f},
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 0.0f, 1.0f));
 
-      {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f}, {1.0f, -1.0f, -1.0f, 1.0f, 0.0f},
-      {1.0f, 1.0f, -1.0f, 1.0f, 1.0f},   {-1.0f, -1.0f, -1.0f, 0.0f, 0.0f},
-      {1.0f, 1.0f, -1.0f, 1.0f, 1.0f},   {-1.0f, 1.0f, -1.0f, 0.0f, 1.0f},
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 1.0f));
 
-      {-1.0f, -1.0f, 1.0f, 0.0f, 0.0f},  {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
-      {1.0f, -1.0f, 1.0f, 1.0f, 0.0f},   {-1.0f, -1.0f, 1.0f, 0.0f, 0.0f},
-      {-1.0f, 1.0f, 1.0f, 0.0f, 1.0f},   {1.0f, 1.0f, 1.0f, 1.0f, 1.0f},
-  };
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, -1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, -1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, -1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, -1.0f, 0.0f, 1.0f));
 
-  scoped_ptr<std::vector<Mesh::Vertex> > vertex_vector(
-      new std::vector<Mesh::Vertex>(vertices, vertices + arraysize(vertices)));
-  return resource_provider->CreateMesh(vertex_vector.Pass(),
-                                       Mesh::kDrawModeTriangles);
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, -1.0f, 1.0f, 1.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, -1.0f, 1.0f, 0.0f, 0.0f));
+  vertices->push_back(Mesh::Vertex(-1.0f, 1.0f, 1.0f, 0.0f, 1.0f));
+  vertices->push_back(Mesh::Vertex(1.0f, 1.0f, 1.0f, 1.0f, 1.0f));
+
+  return resource_provider->CreateMesh(
+      vertices.Pass(), Mesh::kDrawModeTriangles);
 }
 
 // Creates a cube mesh with a perspective transform applied to it such that the
