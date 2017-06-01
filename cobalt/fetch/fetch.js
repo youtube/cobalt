@@ -35,28 +35,28 @@
     return
   }
 
-  var Array = self.Array
-  var ArrayBuffer = self.ArrayBuffer
-  var Error = self.Error
-  var Symbol_iterator = self.Symbol.iterator
-  var Map = self.Map
-  var RangeError = self.RangeError
-  var TypeError = self.TypeError
-  var Uint8Array = self.Uint8Array
+  const Array = self.Array
+  const ArrayBuffer = self.ArrayBuffer
+  const Error = self.Error
+  const Symbol_iterator = self.Symbol.iterator
+  const Map = self.Map
+  const RangeError = self.RangeError
+  const TypeError = self.TypeError
+  const Uint8Array = self.Uint8Array
 
-  var Promise = self.Promise
-  var Promise_reject = Promise.reject
-  var Promise_resolve = Promise.resolve
+  const Promise = self.Promise
+  const Promise_reject = Promise.reject
+  const Promise_resolve = Promise.resolve
 
-  var ReadableStream = self.ReadableStream
-  var ReadableStreamTee = self.ReadableStreamTee
-  var IsReadableStreamDisturbed = self.IsReadableStreamDisturbed
-  var IsReadableStreamLocked = self.IsReadableStreamLocked
+  const ReadableStream = self.ReadableStream
+  const ReadableStreamTee = self.ReadableStreamTee
+  const IsReadableStreamDisturbed = self.IsReadableStreamDisturbed
+  const IsReadableStreamLocked = self.IsReadableStreamLocked
 
-  var err_InvalidHeadersInit = 'Constructing Headers with invalid parameters'
-  var err_NetworkRequestFailed = 'Network request failed'
+  const err_InvalidHeadersInit = 'Constructing Headers with invalid parameters'
+  const err_NetworkRequestFailed = 'Network request failed'
 
-  var viewClasses = [
+  const viewClasses = [
     '[object Int8Array]',
     '[object Uint8Array]',
     '[object Uint8ClampedArray]',
@@ -348,7 +348,7 @@
   }
 
   // HTTP methods whose capitalization should be normalized
-  var methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
+  const methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
 
   function normalizeMethod(method) {
     var upcased = method.toUpperCase()
@@ -422,6 +422,21 @@
 
   Body.call(Request.prototype)
 
+  // Status text must be a reason-phrase token.
+  // https://tools.ietf.org/html/rfc7230#section-3.1.2
+  function parseStatusText(text) {
+    for (var i = 0, len = text.length, c; i < len; i++) {
+      c = text.charCodeAt(i)
+      if (c !== 9 && (c < 32 || c > 255 || c === 127)) {
+        throw TypeError('Invalid status text')
+      }
+    }
+    return text
+  }
+
+  // Body is not allowed in responses with a null body status.
+  const nullBodyStatuses = [ 101, 204, 205, 304 ]
+
   // https://fetch.spec.whatwg.org/#response-class
   function Response(body, init) {
     if (!init) {
@@ -430,10 +445,16 @@
 
     this.type = 'default'
     this.status = 'status' in init ? init.status : 200
+    if (this.status < 200 || this.status > 599) {
+      throw new RangeError('Invalid response status')
+    }
     this.ok = this.status >= 200 && this.status < 300
-    this.statusText = 'statusText' in init ? init.statusText : 'OK'
+    this.statusText = 'statusText' in init ? parseStatusText(init.statusText) : 'OK'
     this.headers = new Headers(init.headers)
     this.url = init.url || ''
+    if (body && nullBodyStatuses.indexOf(this.status) > -1) {
+      throw new TypeError('Body not allowed with a null body status')
+    }
     this._initBody(body)
   }
 
@@ -455,14 +476,22 @@
   }
 
   Response.error = function() {
-    var response = new Response(null, {status: 0, statusText: ''})
+    var response = new Response(null)
     response.type = 'error'
+    response.status = 0
+    response.statusText = ''
     return response
   }
 
   var redirectStatuses = [301, 302, 303, 307, 308]
 
   Response.redirect = function(url, status) {
+    if (!FetchInternal.IsUrlValid(url)) {
+      throw new TypeError('Invalid URL')
+    }
+    if (status === undefined) {
+      status = 302
+    }
     if (redirectStatuses.indexOf(status) === -1) {
       throw new RangeError('Invalid status code')
     }
