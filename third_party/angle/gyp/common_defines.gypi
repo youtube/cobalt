@@ -54,7 +54,10 @@
         }],
         ['target_os=="win"',
         {
-            'defines': [ 'ANGLE_ENABLE_WINDOWS_STORE' ],
+            'defines': [
+                'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+                ' __WRL_NO_DEFAULT_LIB__',
+             ],
         }],
     ],
     'msvs_settings':
