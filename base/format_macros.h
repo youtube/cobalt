@@ -50,7 +50,8 @@
 #define PRIuS "zu"
 #endif
 
-#else  // OS_WIN || __LB_XB1__ || __LB_XB360__
+#else  // (defined(OS_POSIX) || defined(OS_STARBOARD)) &&
+       // !defined(COMPILER_MSVC)
 
 #if !defined(PRId64)
 #define PRId64 "I64d"

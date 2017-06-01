@@ -77,12 +77,6 @@ typedef pthread_mutex_t* MutexHandle;
 #include <android/log.h>
 #endif
 
-#if defined(__LB_XB1__) || defined(__LB_XB360__)
-#undef MAX_PATH
-#include <Windows.h>
-#undef MAX_PATH
-#endif
-
 namespace logging {
 
 DcheckState g_dcheck_state = DISABLE_DCHECK_FOR_NON_OFFICIAL_RELEASE_BUILDS;

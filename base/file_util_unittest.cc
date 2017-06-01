@@ -1957,7 +1957,7 @@ TEST_F(FileUtilTest, FileEnumeratorTest) {
   EXPECT_TRUE(c2_non_recursive.HasFile(dir2));
   EXPECT_EQ(c2_non_recursive.size(), 2);
 
-#if !defined(__LB_XB1__) && !defined(OS_STARBOARD)
+#if !defined(OS_STARBOARD)
 // As all file access is absolute, this is not an issue
   // Only enumerate directories, non-recursively, including "..".
   file_util::FileEnumerator f2_dotdot(temp_dir_.path(), false,
