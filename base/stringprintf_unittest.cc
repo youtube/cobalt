@@ -162,21 +162,6 @@ TEST(StringPrintfTest, GrowBoundary) {
   EXPECT_STREQ(src, out.c_str());
 }
 
-// TODO(evanm): what's the proper cross-platform test here?
-#if defined(OS_WIN) || defined(__LB_XB1__) || defined(__LB_XB360__)
-// sprintf in Visual Studio fails when given U+FFFF. This tests that the
-// failure case is gracefuly handled.
-TEST(StringPrintfTest, Invalid) {
-  wchar_t invalid[2];
-  invalid[0] = 0xffff;
-  invalid[1] = 0;
-
-  std::wstring out;
-  SStringPrintf(&out, L"%ls", invalid);
-  EXPECT_STREQ(L"", out.c_str());
-}
-#endif
-
 // lbshell platforms do not support positional parameters,
 // and lbshell does not use the few parts of chromium that
 // leverage positional parameter support in the OS.
