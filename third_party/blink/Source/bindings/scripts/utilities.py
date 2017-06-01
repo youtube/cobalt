@@ -24,6 +24,7 @@ KNOWN_COMPONENTS = frozenset(
         'cssom',
         'debug',
         'dom',
+        'fetch',
         'h5vcc',
         'media_session',
         'speech',
