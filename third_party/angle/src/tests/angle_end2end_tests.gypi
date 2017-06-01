@@ -144,7 +144,7 @@
     ],
     'conditions':
     [
-        ['OS=="win"',
+        ['target_os=="win"',
         {
             'sources':
             [
