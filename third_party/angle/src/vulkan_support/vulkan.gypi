@@ -373,7 +373,7 @@
                     },
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -540,7 +540,7 @@
                     },
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'defines':
                             [
@@ -594,7 +594,7 @@
                         },
                         'conditions':
                         [
-                            ['OS=="win"',
+                            ['target_os=="win"',
                             {
                                 'defines':
                                 [
@@ -863,7 +863,7 @@
                             ],
                             'conditions':
                             [
-                                ['OS=="win"',
+                                ['target_os=="win"',
                                 {
                                     'inputs':
                                     [
@@ -946,7 +946,7 @@
                         },
                         'conditions':
                         [
-                            ['OS=="win"',
+                            ['target_os=="win"',
                             {
                                 'defines':
                                 [
@@ -966,7 +966,7 @@
                     },
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1059,7 +1059,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1097,7 +1097,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1135,7 +1135,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1158,7 +1158,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1218,7 +1218,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1278,7 +1278,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [

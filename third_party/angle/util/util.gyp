@@ -97,8 +97,8 @@
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/util',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/util',
                 ],
                 'sources':
                 [
@@ -112,14 +112,14 @@
                 ],
                 'conditions':
                 [
-                    ['OS=="win" and angle_build_winrt==0',
+                    ['target_os=="win" and angle_build_winrt==0',
                     {
                         'sources':
                         [
                             '<@(util_win32_sources)',
                         ],
                     }],
-                    ['OS=="win" and angle_build_winrt==1',
+                    ['target_os=="win" and angle_build_winrt==1',
                     {
                         'sources':
                         [
@@ -195,20 +195,20 @@
             'dependencies':
             [
                 'angle_util_config',
-                '<(angle_path)/src/angle.gyp:angle_common',
-                '<(angle_path)/src/angle.gyp:libEGL',
-                '<(angle_path)/src/angle.gyp:libGLESv2',
+                '<(DEPTH)/src/angle.gyp:angle_common',
+                '<(DEPTH)/src/angle.gyp:libEGL',
+                '<(DEPTH)/src/angle.gyp:libGLESv2',
             ],
             'export_dependent_settings':
             [
-                '<(angle_path)/src/angle.gyp:angle_common',
+                '<(DEPTH)/src/angle.gyp:angle_common',
             ],
             'direct_dependent_settings':
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/util',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/util',
                 ],
                 'defines':
                 [
@@ -225,20 +225,20 @@
             'dependencies':
             [
                 'angle_util_config',
-                '<(angle_path)/src/angle.gyp:angle_common',
-                '<(angle_path)/src/angle.gyp:libEGL_static',
-                '<(angle_path)/src/angle.gyp:libGLESv2_static',
+                '<(DEPTH)/src/angle.gyp:angle_common',
+                '<(DEPTH)/src/angle.gyp:libEGL_static',
+                '<(DEPTH)/src/angle.gyp:libGLESv2_static',
             ],
             'export_dependent_settings':
             [
-                '<(angle_path)/src/angle.gyp:angle_common',
+                '<(DEPTH)/src/angle.gyp:angle_common',
             ],
             'direct_dependent_settings':
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/util',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/util',
                 ],
                 'defines':
                 [

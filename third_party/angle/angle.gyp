@@ -5,29 +5,22 @@
 {
     'variables':
     {
+        'angle_build_winrt': 1,
         'angle_code': 1,
         'angle_gen_path': '<(SHARED_INTERMEDIATE_DIR)/angle',
         'angle_use_commit_id%': 0,
         'angle_enable_d3d9%': 0,
-        'angle_enable_d3d11%': 0,
+        'angle_enable_d3d11%': 1,
         'angle_enable_gl%': 0,
         'angle_enable_vulkan%': 0,
         'angle_enable_essl%': 1, # Enable this for all configs by default
         'angle_enable_glsl%': 1, # Enable this for all configs by default
-        'angle_enable_hlsl%': 0,
+        'angle_enable_hlsl%': 1,
         'angle_link_glx%': 0,
         'angle_gl_library_type%': 'static_library',
         'dcheck_always_on%': 0,
         'conditions':
         [
-            ['OS=="win"',
-            {
-                'angle_enable_gl%': 1,
-                'angle_enable_d3d9%': 1,
-                'angle_enable_d3d11%': 1,
-                'angle_enable_hlsl%': 1,
-                'angle_enable_vulkan%': 1,
-            }],
             ['OS=="linux" and use_x11==1 and chromeos==0',
             {
                 'angle_enable_gl%': 1,
@@ -87,7 +80,7 @@
                             },
                         },
                     }],
-                    ['OS=="win"',
+                    ['target_os=="win"',
                     {
                         'configurations':
                         {
@@ -117,7 +110,7 @@
                         },
                     },
                 }],
-                ['OS=="win"',
+                ['target_os=="win"',
                 {
                     'configurations':
                     {
@@ -213,14 +206,14 @@
             },
             'conditions':
             [
-                ['OS=="win"',
+                ['target_os=="win"',
                 {
                     'sources':
                     [
                         '<@(libangle_gpu_info_util_win_sources)',
                     ],
                 }],
-                ['OS=="win" and angle_build_winrt==0',
+                ['target_os=="win" and angle_build_winrt==0',
                 {
                     'link_settings':
                     {
@@ -333,7 +326,7 @@
             [
                 {
                     'destination': '<(angle_gen_path)',
-                    'files': [ 'copy_compiler_dll.bat' ],
+                    'files': [ './src/copy_compiler_dll.bat' ],
                 },
             ],
             'conditions':
@@ -347,7 +340,7 @@
     ],
     'conditions':
     [
-        ['OS=="win"',
+        ['target_os=="win"',
         {
             'targets':
             [
@@ -366,12 +359,12 @@
                                     'action_name': 'copy_dll',
                                     'message': 'Copying D3D Compiler DLL...',
                                     'msvs_cygwin_shell': 0,
-                                    'inputs': [ 'copy_compiler_dll.bat' ],
+                                    'inputs': [ './src/copy_compiler_dll.bat' ],
                                     'outputs': [ '<(PRODUCT_DIR)/d3dcompiler_47.dll' ],
                                     'action':
                                     [
-                                        "<(angle_gen_path)/copy_compiler_dll.bat",
-                                        "$(PlatformName)",
+                                        "<(DEPTH)/third_party/angle/src/copy_compiler_dll.bat",
+                                        "x64",
                                         "<(windows_sdk_path)",
                                         "<(PRODUCT_DIR)"
                                     ],
