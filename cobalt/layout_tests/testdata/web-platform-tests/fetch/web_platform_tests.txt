@@ -1,7 +1,13 @@
 # Fetch API tests
+#
+# Cobalt doesn't support Workers, so disable related tests.
+# Cobalt fetch implementation only supports the Body mixin types text(),
+#   json(), and arrayBuffer(). Blob, URLSearchParams, and FormData are not
+#   well-supported by the javascript engine. Certain tests may be substitued
+#   with *.cobalt.html versions to accommodate this limitation.
 api/basic/block-mime-as-script.html,DISABLE
 api/basic/conditional-get.html,DISABLE
-api/basic/error-after-response.html,DISABLE
+api/basic/error-after-response.html,PASS
 api/basic/integrity.html,DISABLE
 api/basic/integrity-sharedworker.html,DISABLE
 api/basic/integrity-worker.html,DISABLE
@@ -89,7 +95,7 @@ api/request/request-init-003.sub.html,DISABLE
 api/request/request-keepalive-quota.html,DISABLE
 api/request/request-structure.html,DISABLE
 api/response/multi-globals/url-parsing.html,DISABLE
-# "*.cobalt.html" tests only check Body text(), arraybuffer(), json()
+# Fails because Blob is not fully supported.
 api/response/response-cancel-stream.html,DISABLE
 api/response/response-clone.html,PASS
 api/response/response-consume.cobalt.html,PASS
@@ -98,15 +104,17 @@ api/response/response-consume-empty.cobalt.html,PASS
 api/response/response-consume-empty.html,DISABLE
 api/response/response-consume-stream.cobalt.html,PASS
 api/response/response-consume-stream.html,DISABLE
-api/response/response-error.html,DISABLE
+api/response/response-error.html,PASS
+# Fails because implementation is a polyfill.
 api/response/response-idl.html,DISABLE
 api/response/response-init-001.html,PASS
 api/response/response-init-002.html,PASS
 api/response/response-static-error.html,PASS
-api/response/response-static-redirect.html,DISABLE
+api/response/response-static-redirect.html,PASS
 api/response/response-stream-disturbed-1.html,PASS
 api/response/response-stream-disturbed-2.html,PASS
 api/response/response-stream-disturbed-3.html,PASS
 api/response/response-stream-disturbed-4.html,PASS
 api/response/response-stream-disturbed-5.html,PASS
+# Not implemented.
 api/response/response-trailer.html,DISABLE

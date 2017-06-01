@@ -148,6 +148,8 @@
         '../dom/xml_document.idl',
         '../dom/xml_serializer.idl',
 
+        '../fetch/fetch_internal.idl',
+
         '../h5vcc/dial/dial_http_request.idl',
         '../h5vcc/dial/dial_http_response.idl',
         '../h5vcc/dial/dial_server.idl',
