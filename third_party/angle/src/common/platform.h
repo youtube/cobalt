@@ -9,7 +9,9 @@
 #ifndef COMMON_PLATFORM_H_
 #define COMMON_PLATFORM_H_
 
-#if defined(_WIN32) || defined(_WIN64)
+#if defined(STARBOARD)
+#   define ANGLE_PLATFORM_WINDOWS 1
+#elif defined(_WIN32) || defined(_WIN64)
 #   define ANGLE_PLATFORM_WINDOWS 1
 #elif defined(__APPLE__)
 #   define ANGLE_PLATFORM_APPLE 1
