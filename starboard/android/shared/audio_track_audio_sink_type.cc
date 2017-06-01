@@ -150,8 +150,11 @@ AudioTrackAudioSink::AudioTrackAudioSink(
   SB_DCHECK(SbAudioSinkIsAudioSampleTypeSupported(sample_type));
 
   JniEnvExt* env = JniEnvExt::Get();
-  jobject j_audio_track_bridge = env->CallStaticObjectMethodOrAbort(
-      "foo/cobalt/media/AudioTrackBridge", "create",
+  ScopedLocalJavaRef<jobject> j_audio_output_manager(
+      env->CallActivityObjectMethodOrAbort(
+          "getAudioOutputManager", "()Lfoo/cobalt/media/AudioOutputManager;"));
+  jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
+      j_audio_output_manager.Get(), "createAudioTrackBridge",
       "(III)Lfoo/cobalt/media/AudioTrackBridge;",
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_,
       channels_);
@@ -172,7 +175,13 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
 
   JniEnvExt* env = JniEnvExt::Get();
   if (j_audio_track_bridge_) {
-    env->CallVoidMethodOrAbort(j_audio_track_bridge_, "release", "()V");
+    ScopedLocalJavaRef<jobject> j_audio_output_manager(
+        env->CallActivityObjectMethodOrAbort(
+            "getAudioOutputManager",
+            "()Lfoo/cobalt/media/AudioOutputManager;"));
+    env->CallVoidMethodOrAbort(
+        j_audio_output_manager.Get(), "destroyAudioTrackBridge",
+        "(Lfoo/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge_);
     env->DeleteGlobalRef(j_audio_track_bridge_);
     j_audio_track_bridge_ = NULL;
   }
