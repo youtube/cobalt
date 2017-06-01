@@ -206,7 +206,7 @@
                 },
             ],
         }],
-        ['OS=="win"',
+        ['target_os=="win"',
         {
             'conditions':
             [

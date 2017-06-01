@@ -10,6 +10,7 @@
 
 #include "common/bitset_utils.h"
 #include "common/utilities.h"
+#include "compiler/translator/blocklayoutHLSL.h"
 #include "libANGLE/Framebuffer.h"
 #include "libANGLE/FramebufferAttachment.h"
 #include "libANGLE/Program.h"

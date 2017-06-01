@@ -46,9 +46,13 @@ class CoreWindowNativeWindow : public InspectableNativeWindow, public std::enabl
     ComPtr<IMap<HSTRING, IInspectable*>> mPropertyMap;
 };
 
+#if !defined(STARBOARD)
 [uuid(7F924F66-EBAE-40E5-A10B-B8F35E245190)]
-class CoreWindowSizeChangedHandler :
-    public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, IWindowSizeChangedEventHandler>
+#endif
+class CoreWindowSizeChangedHandler
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          IWindowSizeChangedEventHandler>
 {
   public:
     CoreWindowSizeChangedHandler() { }

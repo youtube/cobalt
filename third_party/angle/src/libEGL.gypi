@@ -33,7 +33,7 @@
                 {
                     'msvs_requires_importlibrary' : 'true',
                 }],
-                ['OS=="win"', {
+                ['target_os=="win"', {
                     'defines':
                     [
                         'EGLAPI=',
