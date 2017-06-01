@@ -20,8 +20,17 @@ namespace open_max = starboard::raspi::shared::open_max;
 
 bool SbImageIsDecodeSupported(const char* mime_type,
                               SbDecodeTargetFormat format) {
+  // Unfortunately, while openmax image decoding is implemented and supported,
+  // there is a very sporadic (i.e. around every 1 in 200 image decodes) crash
+  // bug that will go off.  This may be due to a threading issue somewhere,
+  // but it is not clear right now.  Temporarily, we report that we do not
+  // support Starboard image decoding.
+#if 1
+  return false;
+#else
   bool type_supported =
       OMX_IMAGE_CodingMax !=
       open_max::OpenMaxImageDecodeComponent::GetCompressionFormat(mime_type);
   return type_supported && format == kSbDecodeTargetFormat1PlaneRGBA;
+#endif
 }
