@@ -155,7 +155,7 @@
                 },
             },
         }],
-        ['OS=="win"',
+        ['target_os=="win"',
         {
             # TODO(cwallez): make this angle_enable_hlsl instead (requires gyp file refactoring)
             'defines':
