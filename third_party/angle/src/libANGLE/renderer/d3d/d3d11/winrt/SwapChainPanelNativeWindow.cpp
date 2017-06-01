@@ -92,7 +92,7 @@ HRESULT RunOnUIThread(CODE &&code, const ComPtr<ICoreDispatcher> &dispatcher)
 bool SwapChainPanelNativeWindow::initialize(EGLNativeWindowType window, IPropertySet *propertySet)
 {
     ComPtr<IPropertySet> props = propertySet;
-    ComPtr<IInspectable> win = window;
+    ComPtr<IInspectable> win   = static_cast<IInspectable *>(window);
     SIZE swapChainSize = {};
     HRESULT result = S_OK;
 

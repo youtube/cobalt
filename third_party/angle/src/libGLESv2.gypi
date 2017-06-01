@@ -916,7 +916,7 @@
                 ],
                 'conditions':
                 [
-                    ['OS=="win"', {
+                    ['target_os=="win"', {
                         'defines':
                         [
                             'GL_APICALL=',
@@ -1009,7 +1009,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1107,7 +1107,7 @@
                     ],
                     'conditions':
                     [
-                        ['OS=="win"',
+                        ['target_os=="win"',
                         {
                             'sources':
                             [
@@ -1138,7 +1138,7 @@
                         '<@(libangle_null_sources)',
                     ],
                 }],
-                ['angle_build_winrt==0 and OS=="win"',
+                ['angle_build_winrt==0 and target_os=="win"',
                 {
                     'dependencies':
                     [

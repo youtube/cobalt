@@ -42,9 +42,13 @@ class SwapChainPanelNativeWindow : public InspectableNativeWindow, public std::e
     ComPtr<IDXGISwapChain1> mSwapChain;
 };
 
+#if !defined(STARBOARD)
 [uuid(8ACBD974-8187-4508-AD80-AEC77F93CF36)]
-class SwapChainPanelSizeChangedHandler :
-    public Microsoft::WRL::RuntimeClass<Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>, ABI::Windows::UI::Xaml::ISizeChangedEventHandler>
+#endif
+class SwapChainPanelSizeChangedHandler
+    : public Microsoft::WRL::RuntimeClass<
+          Microsoft::WRL::RuntimeClassFlags<Microsoft::WRL::ClassicCom>,
+          ABI::Windows::UI::Xaml::ISizeChangedEventHandler>
 {
   public:
     SwapChainPanelSizeChangedHandler() { }
