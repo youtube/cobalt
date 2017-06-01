@@ -141,7 +141,7 @@ class CreateImageThread : public base::SimpleThread {
 // in this case, but it really should be working, as the media engine
 // relies on this mechanism to deliver responsive video with minimal frame
 // drops.
-TEST(AnimationsTest, DISABLED_FreshlyCreatedImagesCanBeUsedInAnimations) {
+TEST(AnimationsTest, FreshlyCreatedImagesCanBeUsedInAnimations) {
   scoped_ptr<backend::GraphicsSystem> graphics_system =
       backend::CreateDefaultGraphicsSystem();
   scoped_ptr<backend::GraphicsContext> graphics_context =
@@ -157,7 +157,8 @@ TEST(AnimationsTest, DISABLED_FreshlyCreatedImagesCanBeUsedInAnimations) {
   // a frame with the graphics context.
   const math::Size kDummySurfaceDimensions(1, 1);
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
-      graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
+      graphics_context->CreateDownloadableOffscreenRenderTarget(
+          kDummySurfaceDimensions);
 
   const int kNumTestTrials = 5;
   for (int i = 0; i < kNumTestTrials; ++i) {
