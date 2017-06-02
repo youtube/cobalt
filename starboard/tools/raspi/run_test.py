@@ -34,6 +34,10 @@ _COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 4 * [os.pardir])))
 _RASPI_USERNAME = 'pi'
 _RASPI_PASSWORD = 'raspberry'
 
+# Timeouts are in seconds
+_PEXPECT_DEFAULT_TIMEOUT = 300
+_PEXPECT_EXPECT_TIMEOUT = 60
+
 
 # pylint: disable=unused-argument
 def _SigIntOrSigTermHandler(process, signum, frame):
@@ -87,14 +91,14 @@ def RunTest(test_path, raspi_ip, flags):
   source = test_dir_path
   destination = raspi_user_hostname + ':~/'
   rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
-  rsync_process = pexpect.spawn(rsync_command, timeout=120)
+  rsync_process = pexpect.spawn(rsync_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
 
   signal.signal(signal.SIGINT,
                 functools.partial(_SigIntOrSigTermHandler, rsync_process))
   signal.signal(signal.SIGTERM,
                 functools.partial(_SigIntOrSigTermHandler, rsync_process))
 
-  rsync_process.expect(r'\S+ password:')
+  rsync_process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
   rsync_process.sendline(_RASPI_PASSWORD)
 
   while True:
@@ -107,14 +111,14 @@ def RunTest(test_path, raspi_ip, flags):
 
   # ssh into the raspi and run the test
   ssh_command = 'ssh ' + raspi_user_hostname
-  ssh_process = pexpect.spawn(ssh_command, timeout=120)
+  ssh_process = pexpect.spawn(ssh_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
 
   signal.signal(signal.SIGINT,
                 functools.partial(_SigIntOrSigTermHandler, ssh_process))
   signal.signal(signal.SIGTERM,
                 functools.partial(_SigIntOrSigTermHandler, ssh_process))
 
-  ssh_process.expect(r'\S+ password:')
+  ssh_process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
   ssh_process.sendline(_RASPI_PASSWORD)
 
   test_command = raspi_test_path + ' ' + flags
