@@ -27,7 +27,7 @@ arg_parser.add_argument(
 arg_parser.add_argument(
     "-e",
     "--executable",
-    help="Path to cobalt executable. "
+    help="Path to Cobalt executable. "
     "Auto-derived if absent.")
 arg_parser.add_argument(
     "-c",
@@ -41,6 +41,12 @@ arg_parser.add_argument(
     "--devkit_name",
     help="Devkit or IP address for app_launcher."
     "Current hostname used if absent.")
+arg_parser.add_argument(
+    "--command_line",
+    nargs="*",
+    help="Command line arguments to pass to the Cobalt executable.")
+arg_parser.add_argument(
+    "--url", help="Specifies the URL to run the tests against.")
 arg_parser.add_argument(
     "-o", "--log_file", help="Logfile pathname. stdout if absent.")
 
@@ -67,6 +73,7 @@ COBALT_WEBDRIVER_CAPABILITIES = {
 _webdriver = None
 _windowdriver_created = threading.Event()
 _webmodule_loaded = threading.Event()
+_default_url = "https://www.youtube.com/tv"
 
 
 def GetWebDriver():
@@ -84,6 +91,11 @@ def GetWebModuleLoaded():
   return _webmodule_loaded
 
 
+def GetDefaultUrl():
+  """Returns the default url to use with tests."""
+  return _default_url
+
+
 class TimeoutException(Exception):
   pass
 
@@ -99,7 +111,9 @@ class CobaltRunner(object):
   failed = False
   should_exit = threading.Event()
 
-  def __init__(self, platform, executable, devkit_name, log_file_path):
+  def __init__(self, platform, executable, devkit_name, command_line_args,
+               default_url, log_file_path):
+    global _default_url
     self.selenium_webdriver_module = tv_testcase_util.import_selenium_module(
         "webdriver")
 
@@ -113,10 +127,16 @@ class CobaltRunner(object):
         platform, executable, devkit_name=devkit_name, close_output_file=False)
 
     args = []
+    if command_line_args is not None:
+      for command_line_arg in command_line_args:
+        args.append("--" + command_line_arg)
     args.append("--enable_webdriver")
     args.append("--null_savegame")
     args.append("--debug_console=off")
     args.append("--url=about:blank")
+
+    if default_url is not None:
+      _default_url = default_url
 
     self.launcher.SetArgs(args)
     self.launcher.SetOutputCallback(self._HandleLine)
@@ -138,8 +158,8 @@ class CobaltRunner(object):
   def __exit__(self, exc_type, exc_value, traceback):
     # The unittest module terminates with a SystemExit
     # If this is a successful exit, then this is a successful run
-    success = exc_type is None or (exc_type is SystemExit and not exc_value.code
-                                  )
+    success = exc_type is None or (exc_type is SystemExit and
+                                   not exc_value.code)
     self.SetShouldExit(failed=not success)
     self.thread.join(COBALT_EXIT_TIMEOUT_SECONDS)
 
@@ -263,8 +283,8 @@ def main():
     executable = GetCobaltExecutablePath(platform, args.config)
 
   try:
-    with CobaltRunner(platform, executable, args.devkit_name,
-                      args.log_file) as runner:
+    with CobaltRunner(platform, executable, args.devkit_name, args.command_line,
+                      args.url, args.log_file) as runner:
       unittest.main(testRunner=unittest.TextTestRunner(
           verbosity=0, stream=runner.log_file))
   except TimeoutException:

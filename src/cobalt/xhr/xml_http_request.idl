@@ -45,6 +45,11 @@
         optional (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
     void abort();
 
+    // FetchAPI: replacement for "send" when fetch functionality is needed.
+    [RaisesException] void fetch(
+        FetchUpdateCallback fetch_callback,
+        (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
+
     // response
     readonly attribute unsigned short status;
     readonly attribute DOMString statusText;
@@ -65,3 +70,6 @@
 // as a nullable EventListener for now until we can do some refactoring to
 // accept both in the EventTarget implementation.
 typedef EventListener? EventHandler;
+
+// FetchAPI: custom callback to allow progressive updates.
+callback FetchUpdateCallback = void(Uint8Array data);

@@ -96,6 +96,7 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
     SbDecodeTargetDestroy(decode_target);
     return make_scoped_refptr(
         new SinglePlaneImage(surface, is_opaque, base::Closure()));
+  }
 #else   // SB_API_VERSION < 4
   SbDecodeTargetInfo info;
   SbMemorySet(&info, 0, sizeof(info));
@@ -115,8 +116,8 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
     return make_scoped_refptr(new SinglePlaneImage(
         plane.surface, info.is_opaque,
         base::Bind(&SbDecodeTargetRelease, decode_target)));
-#endif  // SB_API_VERSION < 4
   }
+#endif  // SB_API_VERSION < 4
 
   NOTREACHED()
       << "Only format kSbDecodeTargetFormat1PlaneRGBA is currently supported.";

@@ -27,6 +27,7 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
+#include "cobalt/dom/uint8_array.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xhr_response_data.h"
@@ -126,6 +127,14 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   void Send(script::ExceptionState* exception_state);
   void Send(const base::optional<RequestBodyType>& request_body,
             script::ExceptionState* exception_state);
+
+  // FetchAPI: replacement for Send() when fetch functionality is required.
+  typedef script::CallbackFunction<
+      void(const scoped_refptr<dom::Uint8Array>& data)> FetchUpdateCallback;
+  typedef script::ScriptValue<FetchUpdateCallback> FetchUpdateCallbackArg;
+  void Fetch(const FetchUpdateCallbackArg& fetch_callback,
+             const base::optional<RequestBodyType>& request_body,
+             script::ExceptionState* exception_state);
 
   base::optional<std::string> GetResponseHeader(const std::string& header);
   std::string GetAllResponseHeaders();
@@ -246,6 +255,9 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // Time to throttle progress notifications.
   base::TimeTicks last_progress_time_;
   base::TimeTicks upload_last_progress_time_;
+
+  // FetchAPI: transfer progress callback.
+  scoped_ptr<FetchUpdateCallbackArg::Reference> fetch_callback_;
 
   // All members requiring initialization are grouped below.
   dom::DOMSettings* settings_;

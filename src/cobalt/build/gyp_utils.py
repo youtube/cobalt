@@ -143,7 +143,7 @@ def _EnsureGomaRunning():
 
   cmd_line = ['goma_ctl.py', 'ensure_start']
   try:
-    subprocess.check_output(cmd_line, shell=True, stderr=subprocess.STDOUT)
+    subprocess.check_output(cmd_line, stderr=subprocess.STDOUT)
     return True
   except subprocess.CalledProcessError as e:
     logging.error('goma failed to start.\nCommand: %s\n%s', ' '.join(e.cmd),

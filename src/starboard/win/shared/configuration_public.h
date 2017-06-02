@@ -223,7 +223,10 @@
 
 // The current platform's maximum number of files that can be opened at the
 // same time by one process.
-#define SB_FILE_MAX_OPEN 64
+// This is set to MAXIMUM_WAIT_OBJECTS - 1, since we use WaitForMultipleEvents
+// and that only supports MAXIMUM_WAIT_OBJECTS events.  The -1 is since we
+// use a dummy event to wake up the socket.
+#define SB_FILE_MAX_OPEN 63
 
 // The current platform's file path component separator character. This is the
 // character that appears after a directory in a file path. For example, the

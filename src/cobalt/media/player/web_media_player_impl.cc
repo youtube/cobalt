@@ -249,6 +249,8 @@ void WebMediaPlayerImpl::LoadProgressive(
   SetReadyState(WebMediaPlayer::kReadyStateHaveNothing);
   media_log_->AddEvent(media_log_->CreateLoadEvent(url.spec()));
 
+  data_source->SetDownloadingStatusCB(
+      base::Bind(&WebMediaPlayerImpl::OnDownloadingStatusChanged, AsWeakPtr()));
   proxy_->set_data_source(data_source.Pass());
 
   is_local_source_ = !url.SchemeIs("http") && !url.SchemeIs("https");
@@ -670,7 +672,7 @@ void WebMediaPlayerImpl::SetOpaque(bool opaque) {
   GetClient()->SetOpaque(opaque);
 }
 
-void WebMediaPlayerImpl::NotifyDownloading(bool is_downloading) {
+void WebMediaPlayerImpl::OnDownloadingStatusChanged(bool is_downloading) {
   if (!is_downloading && network_state_ == WebMediaPlayer::kNetworkStateLoading)
     SetNetworkState(WebMediaPlayer::kNetworkStateIdle);
   else if (is_downloading &&

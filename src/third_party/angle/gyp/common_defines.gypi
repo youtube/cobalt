@@ -52,6 +52,13 @@
         {
             'defines': [ 'COMPONENT_BUILD' ],
         }],
+        ['target_os=="win"',
+        {
+            'defines': [
+                'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+                ' __WRL_NO_DEFAULT_LIB__',
+             ],
+        }],
     ],
     'msvs_settings':
     {

@@ -14,17 +14,8 @@
 
 #include "starboard/system.h"
 
-#include <windows.h>
-
-#include "starboard/log.h"
-#include "starboard/time.h"
-
 uint64_t SbSystemGetRandomUInt64() {
-  // TODO: This is DEFINITELY not cryptographically secure.
-  static bool initialized = false;
-  if (!initialized) {
-    srand(GetTickCount());
-    initialized = true;
-  }
-  return (static_cast<uint64_t>(std::rand()) << 32) | rand();
+  uint64_t return_value = 0;
+  SbSystemGetRandomData(&return_value, sizeof(return_value));
+  return return_value;
 }

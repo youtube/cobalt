@@ -22,11 +22,6 @@ TEST_COMPLETE = "webdriver_benchmark TEST COMPLETE"
 EVENT_TYPE_KEY_DOWN = "KeyDown"
 EVENT_TYPE_KEY_UP = "KeyUp"
 
-# URL-related constants
-BASE_URL = "https://www.youtube.com/"
-TV_APP_PATH = "/tv"
-BASE_PARAMS = {}
-
 
 def import_selenium_module(submodule=None):
   """Dynamically imports a selenium.webdriver submodule.
@@ -61,21 +56,14 @@ def import_selenium_module(submodule=None):
   return module
 
 
-def get_url(path, query_params=None):
+def generate_url(default_url, query_params):
   """Returns the URL indicated by the path and query parameters."""
-  parsed_url = list(urlparse.urlparse(BASE_URL))
-  parsed_url[2] = path
-  query_dict = BASE_PARAMS.copy()
-  if query_params:
-    query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-    container_util.merge_dict(query_dict, query_params)
-  parsed_url[4] = urlencode(query_dict, doseq=True)
+  if not query_params:
+    return default_url
+
+  parsed_url = list(urlparse.urlparse(default_url))
+  parsed_url[4] = urlencode(query_params, doseq=True)
   return urlparse.urlunparse(parsed_url)
-
-
-def get_tv_url(query_params=None):
-  """Returns the tv URL indicated by the query parameters."""
-  return get_url(TV_APP_PATH, query_params)
 
 
 def record_test_result(name, result):

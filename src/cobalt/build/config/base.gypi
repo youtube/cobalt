@@ -164,8 +164,10 @@
     # if this is enabled, we explicitly create an extra offscreen full-size
     # intermediate surface to render into.  Note that some GLES driver
     # implementations may internally allocate an extra full screen surface to
-    # support this feature.
-    'render_dirty_region_only%': 1,
+    # support this feature, and many have been noticed to not properly support
+    # this functionality (but they report that they do), and for these reasons
+    # this value is defaulted to 0.
+    'render_dirty_region_only%': 0,
 
     # Modify this value to adjust the default rasterizer setting for your
     # platform.
@@ -353,6 +355,20 @@
     # value to be assumed from the starboard API function:
     # SbSystemGetTotalGPUMemory().
     'max_cobalt_gpu_usage%': -1,
+
+    # When specified this value will reduce the cpu memory consumption by
+    # the specified amount. -1 disables the value.
+    # When this value is specified then max_cobalt_cpu_usage will not be
+    # used in memory_constrainer, but will still be used for triggering
+    # a warning if the engine consumes more memory than this value specifies.
+    'reduce_cpu_memory_by%': -1,
+
+    # When specified this value will reduce the gpu memory consumption by
+    # the specified amount. -1 disables the value.
+    # When this value is specified then max_cobalt_gpu_usage will not be
+    # used in memory_constrainer, but will still be used for triggering
+    # a warning if the engine consumes more memory than this value specifies.
+    'reduce_gpu_memory_by%': -1,
 
     # Compiler configuration.
 

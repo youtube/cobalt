@@ -38,6 +38,8 @@ struct BuildSettings {
 
   base::optional<int64_t> max_cpu_in_bytes;
   base::optional<int64_t> max_gpu_in_bytes;
+  base::optional<int64_t> reduce_cpu_memory_by;
+  base::optional<int64_t> reduce_gpu_memory_by;
 };
 
 BuildSettings GetDefaultBuildSettings();

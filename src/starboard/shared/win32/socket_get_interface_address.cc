@@ -333,10 +333,8 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const destination,
                             out_netmask));
   } else if (IsAnyAddress(*destination)) {
     return FindInterfaceIP(destination->type, out_source_address, out_netmask);
-  } else {
-    return (FindSourceAddressForDestination(*destination, out_source_address) &&
-            GetNetmaskForInterfaceAddress(*out_source_address, out_netmask));
   }
 
-  return false;
+  return (FindSourceAddressForDestination(*destination, out_source_address) &&
+          GetNetmaskForInterfaceAddress(*out_source_address, out_netmask));
 }

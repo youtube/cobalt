@@ -380,6 +380,15 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   last_progress_time_ = base::TimeTicks();
 }
 
+void XMLHttpRequest::Fetch(
+    const FetchUpdateCallbackArg& fetch_callback,
+    const base::optional<RequestBodyType>& request_body,
+    script::ExceptionState* exception_state) {
+  fetch_callback_.reset(
+      new FetchUpdateCallbackArg::Reference(this, fetch_callback));
+  Send(request_body, exception_state);
+}
+
 base::optional<std::string> XMLHttpRequest::GetResponseHeader(
     const std::string& header) {
   // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#the-getresponseheader()-method
@@ -599,15 +608,18 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
                                       mime_type_override_);
   }
 
+  // Reserve space for the content in the case of a regular XHR request.
   DCHECK_EQ(response_body_.size(), 0);
-  const int64 content_length = http_response_headers_->GetContentLength();
+  if (!fetch_callback_) {
+    const int64 content_length = http_response_headers_->GetContentLength();
 
-  // If we know the eventual content length, allocate the total response body.
-  // Otherwise just reserve a reasonably large initial chunk.
-  size_t bytes_to_reserve = content_length > 0
-                                ? static_cast<size_t>(content_length)
-                                : kInitialReceivingBufferSize;
-  response_body_.Reserve(bytes_to_reserve);
+    // If we know the eventual content length, allocate the total response body.
+    // Otherwise just reserve a reasonably large initial chunk.
+    size_t bytes_to_reserve = content_length > 0
+                                  ? static_cast<size_t>(content_length)
+                                  : kInitialReceivingBufferSize;
+    response_body_.Reserve(bytes_to_reserve);
+  }
 
   ChangeState(kHeadersReceived);
 
@@ -620,9 +632,24 @@ void XMLHttpRequest::OnURLFetchDownloadData(
   UNREFERENCED_PARAMETER(source);
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_NE(state_, kDone);
-  response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
-                        download_data->size());
+
+  // Preserve the response body only for regular XHR requests. Fetch requests
+  // process the response in pieces, so do not need to keep the whole response.
+  if (!fetch_callback_) {
+    response_body_.Append(reinterpret_cast<const uint8*>(download_data->data()),
+                          download_data->size());
+  }
+
   ChangeState(kLoading);
+
+  if (fetch_callback_) {
+    scoped_refptr<dom::Uint8Array> data = new dom::Uint8Array(
+          settings_,
+          reinterpret_cast<const uint8*>(download_data->data()),
+          static_cast<uint32>(download_data->size()),
+          NULL);
+    fetch_callback_->value().Run(data);
+  }
 
   // Send a progress notification if at least 50ms have elapsed.
   const base::TimeTicks now = base::TimeTicks::Now();
@@ -635,6 +662,7 @@ void XMLHttpRequest::OnURLFetchDownloadData(
 
 void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  fetch_callback_.reset();
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     stop_timeout_ = true;
@@ -741,6 +769,8 @@ void XMLHttpRequest::HandleRequestError(
   FireProgressEvent(this, base::Tokens::progress());
   FireProgressEvent(this, error_name);
   FireProgressEvent(this, base::Tokens::loadend());
+
+  fetch_callback_.reset();
   AllowGarbageCollection();
 }
 

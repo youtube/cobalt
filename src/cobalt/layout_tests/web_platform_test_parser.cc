@@ -23,6 +23,9 @@
 #include "base/string_util.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/layout_tests/test_utils.h"
+#include "cobalt/script/global_environment.h"
+#include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/source_code.h"
 
 namespace cobalt {
 namespace layout_tests {
@@ -93,7 +96,34 @@ std::ostream& operator<<(std::ostream& out,
 }
 
 std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
-    const std::string& top_level) {
+    const std::string& top_level, const char* precondition) {
+  if (precondition) {
+    // Evaluate the javascript precondition. Enumerate the web platform tests
+    // only if the precondition is true.
+    scoped_ptr<script::JavaScriptEngine> engine =
+        script::JavaScriptEngine::CreateEngine(
+            script::JavaScriptEngine::Options());
+    scoped_refptr<script::GlobalEnvironment> global_environment =
+        engine->CreateGlobalEnvironment();
+    global_environment->CreateGlobalObject();
+
+    std::string result;
+    bool success = global_environment->EvaluateScript(
+        script::SourceCode::CreateSourceCode(precondition,
+            base::SourceLocation(__FILE__, __LINE__, 1)),
+        &result);
+
+    if (!success) {
+      DLOG(ERROR) << "Failed to evaluate precondition: "
+                  << "\"" << precondition << "\"";
+      // Continue to enumerate tests like normal.
+    } else if (result != "true") {
+      DLOG(WARNING) << "Skipping Web Platform Tests for "
+                    << "\"" << top_level << "\"";
+      return std::vector<WebPlatformTestInfo>();
+    }
+  }
+
   FilePath test_dir(GetTestInputRootDirectory()
                         .Append("web-platform-tests")
                         .Append(top_level));

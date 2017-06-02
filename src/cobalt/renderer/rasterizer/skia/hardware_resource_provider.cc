@@ -149,39 +149,148 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
 }
 
 #if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+namespace {
+
+#if SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
+int PlanesPerFormat(SbDecodeTargetFormat format) {
+  switch (format) {
+    case kSbDecodeTargetFormat1PlaneRGBA:
+      return 1;
+    case kSbDecodeTargetFormat1PlaneBGRA:
+      return 1;
+    case kSbDecodeTargetFormat2PlaneYUVNV12:
+      return 2;
+    case kSbDecodeTargetFormat3PlaneYUVI420:
+      return 3;
+    default:
+      NOTREACHED();
+      return 0;
+  }
+}
+#endif  // SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
+
+uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
+  switch (format) {
+    case kSbDecodeTargetFormat1PlaneRGBA: {
+      DCHECK_EQ(0, plane);
+      return GL_RGBA;
+    } break;
+    case kSbDecodeTargetFormat2PlaneYUVNV12: {
+      DCHECK_LT(plane, 2);
+      switch (plane) {
+        case 0:
+          return GL_ALPHA;
+        case 1:
+          return GL_LUMINANCE_ALPHA;
+        default:
+          NOTREACHED();
+          return GL_RGBA;
+      }
+    } break;
+    case kSbDecodeTargetFormat3PlaneYUVI420: {
+      DCHECK_LT(plane, 3);
+      return GL_ALPHA;
+    } break;
+    default: {
+      NOTREACHED();
+      return GL_RGBA;
+    }
+  }
+}
+
+render_tree::MultiPlaneImageFormat
+DecodeTargetFormatToRenderTreeMultiPlaneFormat(SbDecodeTargetFormat format) {
+  switch (format) {
+    case kSbDecodeTargetFormat2PlaneYUVNV12: {
+      return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
+    } break;
+    case kSbDecodeTargetFormat3PlaneYUVI420: {
+      return render_tree::kMultiPlaneImageFormatYUV3PlaneBT709;
+    } break;
+    default: { NOTREACHED(); }
+  }
+  return render_tree::kMultiPlaneImageFormatYUV2PlaneBT709;
+}
+
+// Helper class that effectively "ref-count-izes" a SbDecodeTarget so that it
+// can be shared by multiple consumers and only released when we are done with
+// it.
+class DecodeTargetReferenceCounted
+    : public base::RefCountedThreadSafe<DecodeTargetReferenceCounted> {
+ public:
+  explicit DecodeTargetReferenceCounted(SbDecodeTarget decode_target)
+      : decode_target_(decode_target) {}
+
+ private:
+  ~DecodeTargetReferenceCounted() { SbDecodeTargetRelease(decode_target_); }
+
+  SbDecodeTarget decode_target_;
+
+  friend class base::RefCountedThreadSafe<DecodeTargetReferenceCounted>;
+};
+
+void DoNothing(scoped_refptr<DecodeTargetReferenceCounted> decode_target_ref) {
+  // Dummy function that lets us retain a reference to decode_target_ref within
+  // a closure.
+}
+
+}  // namespace
+
 scoped_refptr<render_tree::Image>
     HardwareResourceProvider::CreateImageFromSbDecodeTarget(
         SbDecodeTarget decode_target) {
   SbDecodeTargetInfo info;
   SbMemorySet(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
+  DCHECK_NE(kSbDecodeTargetFormat1PlaneBGRA, info.format);
+
+  std::vector<scoped_refptr<HardwareFrontendImage> > planes;
+  scoped_refptr<DecodeTargetReferenceCounted> decode_target_ref(
+      new DecodeTargetReferenceCounted(decode_target));
 
   // There is limited format support at this time.
-  DCHECK_EQ(info.format, kSbDecodeTargetFormat1PlaneRGBA);
-  const SbDecodeTargetInfoPlane& plane = info.planes[kSbDecodeTargetPlaneRGBA];
+#if SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+  int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
+#else
+  int planes_per_format = PlanesPerFormat(info.format);
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
 
-  int gl_handle = plane.texture;
-  render_tree::AlphaFormat alpha_format =
-      info.is_opaque ? render_tree::kAlphaFormatOpaque
-                     : render_tree::kAlphaFormatUnpremultiplied;
+  for (int i = 0; i < planes_per_format; ++i) {
+    const SbDecodeTargetInfoPlane& plane = info.planes[i];
 
-  scoped_ptr<math::Rect> content_region;
-  if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
-      plane.content_region.right != plane.width ||
-      plane.content_region.bottom != plane.height) {
-    content_region.reset(
-        new math::Rect(plane.content_region.left, plane.content_region.top,
-                       plane.content_region.right - plane.content_region.left,
-                       plane.content_region.bottom - plane.content_region.top));
+    int gl_handle = plane.texture;
+    render_tree::AlphaFormat alpha_format =
+        info.is_opaque ? render_tree::kAlphaFormatOpaque
+                       : render_tree::kAlphaFormatUnpremultiplied;
+
+    scoped_ptr<math::Rect> content_region;
+    if (plane.content_region.left != 0 || plane.content_region.top != 0 ||
+        plane.content_region.right != plane.width ||
+        plane.content_region.bottom != plane.height) {
+      content_region.reset(new math::Rect(
+          plane.content_region.left, plane.content_region.top,
+          plane.content_region.right - plane.content_region.left,
+          plane.content_region.bottom - plane.content_region.top));
+    }
+
+    uint32_t gl_format = DecodeTargetFormatToGLFormat(info.format, i);
+
+    scoped_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
+        cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
+        gl_format, plane.gl_texture_target,
+        base::Bind(&DoNothing, decode_target_ref)));
+
+    planes.push_back(make_scoped_refptr(new HardwareFrontendImage(
+        texture.Pass(), alpha_format, cobalt_context_, gr_context_,
+        content_region.Pass(), self_message_loop_)));
   }
 
-  scoped_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
-      cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
-      GL_RGBA, plane.gl_texture_target,
-      base::Bind(&SbDecodeTargetRelease, decode_target)));
-  return make_scoped_refptr(new HardwareFrontendImage(
-      texture.Pass(), alpha_format, cobalt_context_, gr_context_,
-      content_region.Pass(), self_message_loop_));
+  if (info.format == kSbDecodeTargetFormat1PlaneRGBA) {
+    return planes[0];
+  } else {
+    return new HardwareMultiPlaneImage(
+        DecodeTargetFormatToRenderTreeMultiPlaneFormat(info.format), planes);
+  }
 }
 
 namespace {

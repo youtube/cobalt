@@ -77,6 +77,12 @@ BuildSettings GetDefaultBuildSettings() {
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);
   settings.max_gpu_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_GPU_USAGE_IN_BYTES);
+
+  settings.reduce_cpu_memory_by =
+      MakeValidIfGreaterThanOrEqualToZero(COBALT_REDUCE_CPU_MEMORY_BY);
+  settings.reduce_gpu_memory_by =
+      MakeValidIfGreaterThanOrEqualToZero(COBALT_REDUCE_GPU_MEMORY_BY);
+
   return settings;
 }
 

@@ -117,6 +117,7 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       volume_(1.0f),
       last_seek_time_(0),
       previous_progress_time_(std::numeric_limits<double>::max()),
+      duration_(std::numeric_limits<double>::quiet_NaN()),
       playing_(false),
       have_fired_loaded_data_(false),
       autoplaying_(true),
@@ -206,12 +207,24 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  DLOG_IF(ERROR, !key_system.empty())
+      << "CanPlayType() only accepts one parameter but (" << key_system
+      << ") is passed as a second parameter.";
+  std::string result =
+      html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
+                                                                   "");
+  MLOG() << "(" << mime_type << ") => " << result;
+  DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ") -> "
+             << result;
+#else   // defined(COBALT_MEDIA_SOURCE_2016)
   std::string result =
       html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
                                                                    key_system);
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
   DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
              << key_system << ") -> " << result;
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   return result;
 }
 
@@ -458,14 +471,9 @@ void HTMLMediaElement::set_current_time(
 }
 
 float HTMLMediaElement::duration() const {
-  if (player_ && ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata) {
-    float duration = player_->GetDuration();
-    MLOG() << "player duration: " << duration;
-    return duration;
-  }
-
-  MLOG() << "NaN";
-  return std::numeric_limits<float>::quiet_NaN();
+  MLOG() << duration_;
+  // TODO: Turn duration into double.
+  return static_cast<float>(duration_);
 }
 
 bool HTMLMediaElement::paused() const {
@@ -676,12 +684,12 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
   MLOG() << "DurationChanged(" << duration << ", " << request_seek << ")";
 
-  // TODO: Add cached duration support.
-  /*if (duration_ == duration) {
+  // Abort if duration unchanged.
+  if (duration_ == duration) {
     return;
   }
+  duration_ = duration;
 
-  duration_ = duration;*/
   ScheduleOwnEvent(base::Tokens::durationchange());
 
   if (request_seek) {
@@ -806,6 +814,8 @@ void HTMLMediaElement::PrepareForLoad() {
   // The resource selection algorithm
   // 1 - Set the networkState to kNetworkNoSource.
   network_state_ = kNetworkNoSource;
+  // When network_state_ is |kNetworkNoSource|, set duration to NaN.
+  duration_ = std::numeric_limits<double>::quiet_NaN();
 
   // 2 - Asynchronously await a stable state.
   played_time_ranges_ = new TimeRanges;
@@ -1159,6 +1169,7 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
     PlayerOutputModeUpdated();
+    duration_ = player_->GetDuration();
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }

@@ -14,6 +14,8 @@
 
 #include "starboard/time_zone.h"
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 const char* SbTimeZoneGetDstName() {
   return "GMT";
 }
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION

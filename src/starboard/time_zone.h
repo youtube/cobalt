@@ -35,13 +35,24 @@ typedef int SbTimeZone;
 // Gets the system's current SbTimeZone in minutes.
 SB_EXPORT SbTimeZone SbTimeZoneGetCurrent();
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 // Gets the three-letter code of the current timezone in standard time,
 // regardless of current Daylight Savings Time status. (e.g. "PST")
+#else
+// Gets a string representation of the current timezone. Note that the string
+// representation can either be standard or daylight saving time. The output
+// can be of the form:
+//   1) A three-letter abbreviation such as "PST" or "PDT" (preferred).
+//   2) A time zone identifier such as "America/Los_Angeles"
+//   3) An un-abbreviated name such as "Pacific Standard Time".
+#endif
 SB_EXPORT const char* SbTimeZoneGetName();
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 // Gets the three-letter code of the current timezone in Daylight Savings Time,
 // regardless of current DST status. (e.g. "PDT")
 SB_EXPORT const char* SbTimeZoneGetDstName();
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"

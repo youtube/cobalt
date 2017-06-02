@@ -253,6 +253,11 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |audio_header|: Note that the caller must provide a populated |audio_header|
 //   if the audio codec is |kSbMediaAudioCodecAac|. Otherwise, |audio_header|
 //   can be NULL. See media.h for the format of the |SbMediaAudioHeader| struct.
+#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+//   Note that |audio_specific_config| is a pointer and the content it points to
+//   is no longer valid after this function returns.  The implementation has to
+//   make a copy of the content if it is needed after the function returns.
+#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into

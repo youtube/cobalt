@@ -197,6 +197,28 @@ bool GrGLCaps::init(const GrGLContextInfo& ctxInfo, const GrGLInterface* gli) {
         }
     }
 
+    if (fTextureRedSupport) {
+        // Some devices claim to support GL_RED, but actually do not, so we
+        // verify support by actually attempting to create a GL_RED texture.
+        // As an example, one device was found to claim GLES 3.0 support, but
+        // could not create GL_RED textures.
+        GrGLenum error;
+        GrGLuint texture_id;
+        GR_GL_CALL(gli, GenTextures(1, &texture_id));
+        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, texture_id));
+        GR_GL_CALL_NOERRCHECK(gli, TexImage2D(GR_GL_TEXTURE_2D, 0, GR_GL_RED,
+                                              64, 64, 0, GR_GL_RED,
+                                              GR_GL_UNSIGNED_BYTE, 0));
+        GR_GL_CALL_RET(gli, error, GetError());
+        if (error != GR_GL_NO_ERROR) {
+            // There was an error creating the texture, do not advertise GL_RED
+            // support.
+            fTextureRedSupport = false;
+        }
+        GR_GL_CALL(gli, BindTexture(GR_GL_TEXTURE_2D, 0));
+        GR_GL_CALL(gli, DeleteTextures(1, &texture_id));
+    }
+
     fImagingSupport = kGL_GrGLStandard == standard &&
                       ctxInfo.hasExtension("GL_ARB_imaging");
 

@@ -18,15 +18,28 @@
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
-#include "starboard/shared/starboard/queue_application.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/types.h"
+#include "starboard/window.h"
+
+namespace __winRT {
+// TODO: without this, we get the following error at CoreApplication::Run:
+// 'long __winRT::__getActivationFactoryByPCWSTR(i
+//  void *,Platform::Guid &,void **)':
+//  cannot convert argument 1 from 'const wchar_t [46]' to 'void *'
+inline long __getActivationFactoryByPCWSTR(const wchar_t* a,
+                                           Platform::Guid& b,
+                                           void** c) {
+  return __getActivationFactoryByPCWSTR(
+      static_cast<void*>(const_cast<wchar_t*>(a)), b, c);
+}
+}  // namespace __winRT
 
 namespace starboard {
 namespace shared {
 namespace uwp {
 
-// Stub application engine using the generic queue and a stub implementation.
-class ApplicationUwp : public shared::starboard::QueueApplication {
+class ApplicationUwp : public shared::starboard::Application {
  public:
   ApplicationUwp();
   ~ApplicationUwp() SB_OVERRIDE;
@@ -35,16 +48,32 @@ class ApplicationUwp : public shared::starboard::QueueApplication {
     return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
   }
 
- protected:
+// Do not use the macro from windows.h.
+#undef CreateWindow
+#undef CreateWindowW
+  SbWindow CreateWindow(const SbWindowOptions* options);
+
+  bool DestroyWindow(SbWindow window);
+
+  void DispatchStart() {
+    shared::starboard::Application::DispatchStart();
+  }
+
+ private:
   // --- Application overrides ---
+  bool IsStartImmediate() SB_OVERRIDE { return false; }
   void Initialize() SB_OVERRIDE;
   void Teardown() SB_OVERRIDE;
+  Event* GetNextEvent() SB_OVERRIDE;
+  bool DispatchNextEvent() SB_OVERRIDE;
+  void Inject(Event* event) SB_OVERRIDE;
+  void InjectTimedEvent(TimedEvent* timed_event) SB_OVERRIDE;
+  void CancelTimedEvent(SbEventId event_id) SB_OVERRIDE;
+  TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
+  SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
 
-  // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() SB_OVERRIDE;
-  Event* PollNextSystemEvent() SB_OVERRIDE;
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
-  void WakeSystemEventWait() SB_OVERRIDE;
+  // The single open window, if any.
+  SbWindow window_;
 };
 
 }  // namespace uwp

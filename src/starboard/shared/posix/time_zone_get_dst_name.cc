@@ -16,9 +16,11 @@
 
 #include <time.h>
 
+#if SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
 const char* SbTimeZoneGetDstName() {
   // TODO: Using tzname assumes that tzset() has been called at some
   // point. That should happen as part of Starboard's main loop initialization,
   // but that doesn't exist yet.
   return tzname[1];
 }
+#endif  // SB_API_VERSION < SB_TIME_ZONE_FLEXIBLE_API_VERSION
