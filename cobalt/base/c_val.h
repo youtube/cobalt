@@ -21,6 +21,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "base/compiler_specific.h"
@@ -31,6 +32,7 @@
 #include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "cobalt/base/ref_counted_lock.h"
+#include "cobalt/base/type_id.h"
 
 // The CVal system allows you to mark certain variables to be part of the
 // CVal system and therefore analyzable and trackable by other systems.  All
@@ -92,21 +94,6 @@ class CValImpl;
 
 }  // namespace CValDetail
 
-// An enumeration to allow CVals to track the type that they hold in a run-time
-// variable.
-enum CValType {
-  kSize,
-  kBool,
-  kU32,
-  kU64,
-  kS32,
-  kS64,
-  kFloat,
-  kDouble,
-  kString,
-  kTimeDelta,
-};
-
 // CVals are commonly used for values that are in units of bytes.  By making
 // a CVal of type SizeInBytes, this can be made explicit, and allows the CVal
 // system to use KB/MB suffixes instead of K/M.
@@ -140,64 +127,6 @@ inline std::ostream& operator<<(std::ostream& out, const SizeInBytes& size) {
 }  // namespace cval
 
 namespace CValDetail {
-// Introduce a Traits class so that we can convert from C++ type to
-// CValType.
-template <typename T>
-struct Traits {
-  // If you get a compiler error here, you must add a Traits class specific to
-  // the variable type you would like to support.
-  int UnsupportedCValType[0];
-};
-template <>
-struct Traits<cval::SizeInBytes> {
-  static const CValType kTypeVal = kSize;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<bool> {
-  static const CValType kTypeVal = kBool;
-  static const bool kIsNumerical = false;
-};
-template <>
-struct Traits<uint32_t> {
-  static const CValType kTypeVal = kU32;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<uint64_t> {
-  static const CValType kTypeVal = kU64;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<int32_t> {
-  static const CValType kTypeVal = kS32;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<int64_t> {
-  static const CValType kTypeVal = kS64;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<float> {
-  static const CValType kTypeVal = kFloat;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<double> {
-  static const CValType kTypeVal = kDouble;
-  static const bool kIsNumerical = true;
-};
-template <>
-struct Traits<std::string> {
-  static const CValType kTypeVal = kString;
-  static const bool kIsNumerical = false;
-};
-template <>
-struct Traits<base::TimeDelta> {
-  static const CValType kTypeVal = kTimeDelta;
-  static const bool kIsNumerical = true;
-};
 
 // Provide methods to convert from an arbitrary type to a string, useful for
 // systems that want to read the value of a CVal without caring about its type.
@@ -340,13 +269,21 @@ class ValToPrettyStringHelper<T, false> {
   static std::string Call(const T& value) { return ValToString(value); }
 };
 
+template <typename T>
+struct IsNumerical {
+  static const bool value =
+      (std::is_arithmetic<T>::value && !std::is_same<T, bool>::value) ||
+      std::is_same<T, base::TimeDelta>::value ||
+      std::is_same<T, cval::SizeInBytes>::value;
+};
+
 // As opposed to ValToString, here we take the opportunity to clean up the
 // number a bit to make it easier for humans to digest.  For example, if a
 // number is much larger than one million, we can divide it by one million
 // and postfix it with an 'M'.
 template <typename T>
 std::string ValToPrettyString(const T& value) {
-  return ValToPrettyStringHelper<T, Traits<T>::kIsNumerical>::Call(value);
+  return ValToPrettyStringHelper<T, IsNumerical<T>::value>::Call(value);
 }
 
 // Provides methods for converting the type to and from a double.
@@ -398,7 +335,7 @@ inline base::TimeDelta Min<base::TimeDelta>() {
 // retrieve the string version of the value.
 class CValGenericValue {
  public:
-  CValType GetType() const { return type_; }
+  TypeId GetTypeId() const { return type_id_; }
 
   // Return the value casted to the specified type.  The requested type must
   // match the contained value's actual native type.
@@ -411,19 +348,19 @@ class CValGenericValue {
   // Returns true if the type of this value is exactly T.
   template <typename T>
   bool IsNativeType() const {
-    return type_ == CValDetail::Traits<T>::kTypeVal;
+    return type_id_ == base::GetTypeId<T>();
   }
 
   virtual std::string AsString() const = 0;
   virtual std::string AsPrettyString() const = 0;
 
  protected:
-  CValGenericValue(CValType type, void* value_mem)
-      : type_(type), generic_value_(value_mem) {}
+  CValGenericValue(TypeId type_id, void* value_mem)
+      : type_id_(type_id), generic_value_(value_mem) {}
   virtual ~CValGenericValue() {}
 
  private:
-  CValType type_;
+  TypeId type_id_;
   void* generic_value_;
 };
 
@@ -439,9 +376,9 @@ template <typename T>
 class CValSpecificValue : public CValGenericValue {
  public:
   explicit CValSpecificValue(const T& value)
-      : CValGenericValue(Traits<T>::kTypeVal, &value_), value_(value) {}
+      : CValGenericValue(base::GetTypeId<T>(), &value_), value_(value) {}
   CValSpecificValue(const CValSpecificValue<T>& other)
-      : CValGenericValue(Traits<T>::kTypeVal, &value_), value_(other.value_) {}
+      : CValGenericValue(base::GetTypeId<T>(), &value_), value_(other.value_) {}
   virtual ~CValSpecificValue() {}
 
   std::string AsString() const { return ValToString(value_); }
@@ -549,13 +486,13 @@ namespace CValDetail {
 
 class CValBase {
  public:
-  CValBase(const std::string& name, CValType type,
+  CValBase(const std::string& name, TypeId type_id,
            const std::string& description)
-      : name_(name), description_(description), type_(type) {}
+      : name_(name), description_(description), type_id_(type_id) {}
 
   const std::string& GetName() const { return name_; }
   const std::string& GetDescription() const { return description_; }
-  CValType GetType() const { return type_; }
+  TypeId GetTypeId() const { return type_id_; }
 
   virtual std::string GetValueAsString() const = 0;
   virtual std::string GetValueAsPrettyString() const = 0;
@@ -565,7 +502,7 @@ class CValBase {
 
   std::string name_;
   std::string description_;
-  CValType type_;
+  TypeId type_id_;
 
   friend CValManager;
 };
@@ -577,12 +514,12 @@ class CValImpl : public CValBase {
  public:
   CValImpl(const std::string& name, const T& initial_value,
            const std::string& description)
-      : CValBase(name, Traits<T>::kTypeVal, description),
+      : CValBase(name, base::GetTypeId<T>(), description),
         value_(initial_value) {
     CommonConstructor();
   }
   CValImpl(const std::string& name, const std::string& description)
-      : CValBase(name, Traits<T>::kTypeVal, description) {
+      : CValBase(name, base::GetTypeId<T>(), description) {
     CommonConstructor();
   }
   virtual ~CValImpl() {

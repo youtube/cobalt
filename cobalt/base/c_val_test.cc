@@ -458,7 +458,7 @@ TEST(CValTest, ValueChangedCallback) {
     void OnValueChanged(const std::string& name,
                         const base::CValGenericValue& value) OVERRIDE {
       EXPECT_EQ(name, "S32");
-      EXPECT_EQ(value.GetType(), base::kS32);
+      EXPECT_EQ(value.GetTypeId(), GetTypeId<int32_t>());
       EXPECT_EQ(value.IsNativeType<int32_t>(), true);
       EXPECT_EQ(value.AsNativeType<int32_t>(), 1);
       EXPECT_EQ(value.AsString(), "1");
