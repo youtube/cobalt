@@ -42,10 +42,7 @@ std::ostream& operator<<(std::ostream& os, const Win32ErrorCode& error_code) {
 }
 
 void DebugLogWinError() {
-// TODO: re-enable if defined(_DEBUG) after we can compile debug/devel
-// builds with _DEBUG
-#if 1
-//#if defined(_DEBUG)
+#if defined(_DEBUG)
   DWORD error_code = GetLastError();
   if (!error_code)
     return;
