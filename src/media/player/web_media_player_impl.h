@@ -241,7 +241,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
  private:
   // Called when the data source is downloading or paused.
-  void NotifyDownloading(bool is_downloading);
+  void OnDownloadingStatusChanged(bool is_downloading);
 
   // Finishes starting the pipeline due to a call to load().
   void StartPipeline();

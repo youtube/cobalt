@@ -86,7 +86,8 @@ public:
         fsBuilder->codeAppend("\tfloat afwidth;\n");
         if (dfTexEffect.getFlags() & kSimilarity_DistanceFieldEffectFlag) {
             // this gives us a smooth step across approximately one fragment
-            fsBuilder->codeAppend("\tafwidth = " SK_DistanceFieldAAFactor "*dFdx(st.x);\n");
+            // we use y to work around a Mali400 bug in the x direction
+            fsBuilder->codeAppend("\tafwidth = abs(" SK_DistanceFieldAAFactor "*dFdy(st.y));\n");
         } else {
             fsBuilder->codeAppend("\tvec2 Jdx = dFdx(st);\n");
             fsBuilder->codeAppend("\tvec2 Jdy = dFdy(st);\n");
@@ -305,8 +306,8 @@ public:
         fsBuilder->codeAppendf("\tvec2 st = uv*%s.xy;\n", textureSizeUniName);
         bool isUniformScale = !!(dfTexEffect.getFlags() & kUniformScale_DistanceFieldEffectMask);
         if (isUniformScale) {
-            fsBuilder->codeAppend("\tfloat dx = dFdx(st.x);\n");
-            fsBuilder->codeAppendf("\tvec2 offset = vec2(dx*%s.z, 0.0);\n", textureSizeUniName);
+            fsBuilder->codeAppend("\tfloat dy = abs(dFdy(st.y));\n");
+            fsBuilder->codeAppendf("\tvec2 offset = vec2(dy*%s.z, 0.0);\n", textureSizeUniName);
         } else {
             fsBuilder->codeAppend("\tvec2 Jdx = dFdx(st);\n");
             fsBuilder->codeAppend("\tvec2 Jdy = dFdy(st);\n");
@@ -347,7 +348,7 @@ public:
         fsBuilder->codeAppend("\tfloat afwidth;\n");
         if (isUniformScale) {
             // this gives us a smooth step across approximately one fragment
-            fsBuilder->codeAppend("\tafwidth = " SK_DistanceFieldAAFactor "*dx;\n");
+            fsBuilder->codeAppend("\tafwidth = " SK_DistanceFieldAAFactor "*dy;\n");
         } else {
             fsBuilder->codeAppend("\tvec2 uv_grad;\n");
             if (builder->ctxInfo().caps()->dropsTileOnZeroDivide()) {
