@@ -119,6 +119,8 @@ void MessagePumpUIStarboard::ScheduleDelayedWork(
     base::AutoLock auto_lock(outstanding_events_lock_);
     // Make sure any outstanding delayed event is canceled.
     CancelDelayedLocked();
+
+    TRACK_MEMORY_SCOPE("MessageLoop");
     outstanding_delayed_events_.insert(
         SbEventSchedule(&CallMessagePumpDelayed, this, delay.ToSbTime()));
   }
@@ -151,6 +153,7 @@ void MessagePumpUIStarboard::CancelImmediateLocked() {
 }
 
 void MessagePumpUIStarboard::CancelDelayedLocked() {
+  TRACK_MEMORY_SCOPE("MessageLoop");
   outstanding_events_lock_.AssertAcquired();
   for (SbEventIdSet::iterator it = outstanding_delayed_events_.begin();
        it != outstanding_delayed_events_.end(); ++it) {
