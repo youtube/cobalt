@@ -225,12 +225,14 @@ void Timer::RunScheduledTask() {
   base::Closure task = user_task_;
 
   if (!is_repeating_) {
+    TRACK_MEMORY_SCOPE("MessageLoop");
     Stop();
     task.Run();
     return;
   }
 
   if (is_task_run_before_scheduling_next_) {
+    TRACK_MEMORY_SCOPE("MessageLoop");
     // Setup member variables and the next tasks before the current one runs as
     // we cannot access any member variables after calling task.Run().
     NewScheduledTaskInfo task_info = SetupNewScheduledTask(delay_);
@@ -243,6 +245,7 @@ void Timer::RunScheduledTask() {
       PostNewScheduledTask(task_info, delay_ - task_duration);
     }
   } else {
+    TRACK_MEMORY_SCOPE("MessageLoop");
     PostNewScheduledTask(delay_);
     task.Run();
   }
