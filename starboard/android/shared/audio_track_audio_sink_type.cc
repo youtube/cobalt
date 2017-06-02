@@ -230,7 +230,16 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     }
 
     if (!is_playing || frames_in_buffer == 0 || is_playback_rate_zero) {
+      // Wait for 5ms if we are idle.
+      SbThreadSleep(5 * kSbTimeMillisecond);
       continue;
+    } else {
+      // Wait for 1 ms before checking if more frames have been consumed.
+      // MediaTrack's getPlaybackHeadPosition() updates very coarsely, it is
+      // witnessed to update at ~1024 frame chunks, which would take roughly
+      // ~21.3ms to consume, so 1ms should be negligible on that scale (e.g.
+      // at worse, we may take ~22.3ms to update the number of frames consumed).
+      SbThreadSleep(kSbTimeMillisecond);
     }
 
     int start_position =
