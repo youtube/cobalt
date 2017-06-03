@@ -83,7 +83,9 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       sample_type_(GetSupportedSampleType()),
       decoder_thread_(kSbThreadInvalid),
-      pending_work_size_(0) {
+      pending_work_size_(0),
+      output_sample_rate_(audio_header.samples_per_second),
+      output_channel_count_(audio_header.number_of_channels) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize audio decoder.";
     TeardownCodec();
@@ -340,6 +342,18 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   }
 
   if (dequeue_output_result.index < 0) {
+    if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
+      AudioOutputFormatResult output_format =
+          media_codec_bridge_->GetAudioOutputFormat();
+      if (output_format.status == MEDIA_CODEC_ERROR) {
+        SB_LOG(ERROR) << "|getOutputFormat| failed";
+        return false;
+      }
+      output_sample_rate_ = output_format.sample_rate;
+      output_channel_count_ = output_format.channel_count;
+      return true;
+    }
+
     if (dequeue_output_result.status !=
         MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
       SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
@@ -353,14 +367,34 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   SB_DCHECK(!byte_buffer.IsNull());
 
   if (dequeue_output_result.num_bytes > 0) {
+    uint8_t* data = static_cast<uint8_t*>(IncrementPointerByBytes(
+        byte_buffer.address(), dequeue_output_result.offset));
+    int size = dequeue_output_result.num_bytes;
+    if (2 * audio_header_.samples_per_second == output_sample_rate_) {
+      // The audio is encoded using implicit HE-AAC.  As the audio sink has
+      // been created already we try to down-mix the decoded data to half of
+      // its channels so the audio sink can play it with the correct pitch.
+      for (int i = 0; i < size; i += output_channel_count_ * sizeof(int16_t)) {
+        // |lower_sample| is the left sample on stereo, and sample (t+0) on
+        // mono. |upper_sample| is the right sample on stereo, and sample
+        // (t+1) on mono.
+        int16_t lower_sample = *reinterpret_cast<int16_t*>(&data[i]);
+        int16_t upper_sample = *reinterpret_cast<int16_t*>(&data[i + 2]);
+        int16_t averaged_sample =
+            static_cast<int16_t>((static_cast<int32_t>(lower_sample) +
+                                  static_cast<int32_t>(upper_sample)) /
+                                 2);
+        *reinterpret_cast<int16_t*>(&data[i / 2]) = averaged_sample;
+      }
+      size /= 2;
+    }
+
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         ConvertMicrosecondsToSbMediaTime(
             dequeue_output_result.presentation_time_microseconds),
-        dequeue_output_result.num_bytes);
-    SbMemoryCopy(decoded_audio->buffer(),
-                 IncrementPointerByBytes(byte_buffer.address(),
-                                         dequeue_output_result.offset),
-                 dequeue_output_result.num_bytes);
+        size);
+
+    SbMemoryCopy(decoded_audio->buffer(), data, size);
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(decoded_audio);

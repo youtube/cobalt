@@ -115,6 +115,9 @@ class AudioDecoder
   EventQueue<Event> event_queue_;
   starboard::Mutex decoded_audios_mutex_;
   volatile SbAtomic32 pending_work_size_;
+
+  jint output_sample_rate_;
+  jint output_channel_count_;
 };
 
 }  // namespace shared

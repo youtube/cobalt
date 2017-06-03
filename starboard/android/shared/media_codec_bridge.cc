@@ -208,6 +208,25 @@ SurfaceDimensions MediaCodecBridge::GetOutputDimensions() {
                                     "height", "()I")};
 }
 
+AudioOutputFormatResult MediaCodecBridge::GetAudioOutputFormat() {
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethodOrAbort(
+      j_media_codec_bridge_, "getOutputFormat",
+      "(Lfoo/cobalt/media/MediaCodecBridge$GetOutputFormatResult;)V",
+      j_reused_get_output_format_result_);
+
+  jint status = env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
+                                          "status", "()I");
+  if (status == MEDIA_CODEC_ERROR) {
+    return {status, 0, 0};
+  }
+
+  return {status, env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
+                                            "sampleRate", "()I"),
+          env->CallIntMethodOrAbort(j_reused_get_output_format_result_,
+                                    "channelCount", "()I")};
+}
+
 MediaCodecBridge::MediaCodecBridge(jobject j_media_codec_bridge)
     : j_media_codec_bridge_(j_media_codec_bridge),
       j_reused_dequeue_input_result_(NULL),
