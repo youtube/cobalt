@@ -367,24 +367,16 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   SB_DCHECK(!byte_buffer.IsNull());
 
   if (dequeue_output_result.num_bytes > 0) {
-    uint8_t* data = static_cast<uint8_t*>(IncrementPointerByBytes(
+    int16_t* data = static_cast<int16_t*>(IncrementPointerByBytes(
         byte_buffer.address(), dequeue_output_result.offset));
     int size = dequeue_output_result.num_bytes;
     if (2 * audio_header_.samples_per_second == output_sample_rate_) {
       // The audio is encoded using implicit HE-AAC.  As the audio sink has
       // been created already we try to down-mix the decoded data to half of
       // its channels so the audio sink can play it with the correct pitch.
-      for (int i = 0; i < size; i += output_channel_count_ * sizeof(int16_t)) {
-        // |lower_sample| is the left sample on stereo, and sample (t+0) on
-        // mono. |upper_sample| is the right sample on stereo, and sample
-        // (t+1) on mono.
-        int16_t lower_sample = *reinterpret_cast<int16_t*>(&data[i]);
-        int16_t upper_sample = *reinterpret_cast<int16_t*>(&data[i + 2]);
-        int16_t averaged_sample =
-            static_cast<int16_t>((static_cast<int32_t>(lower_sample) +
-                                  static_cast<int32_t>(upper_sample)) /
-                                 2);
-        *reinterpret_cast<int16_t*>(&data[i / 2]) = averaged_sample;
+      for (int i = 0; i < size / sizeof(int16_t); i++) {
+        data[i / 2] = (static_cast<int32_t>(data[i]) +
+                       static_cast<int32_t>(data[i + 1]) / 2);
       }
       size /= 2;
     }
