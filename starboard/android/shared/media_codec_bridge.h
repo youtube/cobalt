@@ -65,6 +65,12 @@ struct SurfaceDimensions {
   jint height;
 };
 
+struct AudioOutputFormatResult {
+  jint status;
+  jint sample_rate;
+  jint channel_count;
+};
+
 class MediaCodecBridge {
  public:
   static scoped_ptr<MediaCodecBridge> CreateAudioMediaCodecBridge(
@@ -103,6 +109,7 @@ class MediaCodecBridge {
 
   jint Flush();
   SurfaceDimensions GetOutputDimensions();
+  AudioOutputFormatResult GetAudioOutputFormat();
 
  private:
   // |MediaCodecBridge|s must only be created through its factory methods.
