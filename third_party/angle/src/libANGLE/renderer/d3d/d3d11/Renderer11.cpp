@@ -446,6 +446,10 @@ Renderer11::Renderer11(egl::Display *display)
         EGLint requestedMinorVersion = static_cast<EGLint>(
             attributes.get(EGL_PLATFORM_ANGLE_MAX_VERSION_MINOR_ANGLE, EGL_DONT_CARE));
 
+// Only allow feature level 10 on starboard.
+#if defined(STARBOARD)
+        mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_10_0);
+#else
         if (requestedMajorVersion == EGL_DONT_CARE || requestedMajorVersion >= 11)
         {
             if (requestedMinorVersion == EGL_DONT_CARE || requestedMinorVersion >= 0)
@@ -470,6 +474,7 @@ Renderer11::Renderer11(egl::Display *display)
         {
             mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_9_3);
         }
+#endif  // STARBOARD
 
         EGLint requestedDeviceType = static_cast<EGLint>(attributes.get(
             EGL_PLATFORM_ANGLE_DEVICE_TYPE_ANGLE, EGL_PLATFORM_ANGLE_DEVICE_TYPE_HARDWARE_ANGLE));
