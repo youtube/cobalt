@@ -157,9 +157,11 @@ class _GypRunner(object):
     # Make a copy of the common arguments.
     args = self.common_args[:]
 
-    # Add config specific variables.
     variables = {
+        # Add config specific variables.
         'cobalt_config': config_name,
+        # Default deploy script. Certain platforms may choose to change this.
+        'include_path_deploy_gypi': 'starboard/build/deploy.gypi'
     }
     variables.update(self.platform_config.GetVariables(config_name))
     _AppendVariables(variables, args)
