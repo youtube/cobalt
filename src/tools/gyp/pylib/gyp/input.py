@@ -256,6 +256,8 @@ def LoadBuildFileIncludesIntoDict(subdict, subdict_path, data, aux_data,
     includes_list.extend(includes)
   if 'includes' in subdict:
     for include in subdict['includes']:
+      # expand environment & command line variables in include path.
+      include = ExpandVariables(include, False, variables, subdict_path)
       # "include" is specified relative to subdict_path, so compute the real
       # path to include by appending the provided "include" to the directory
       # in which subdict_path resides.

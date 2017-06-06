@@ -24,7 +24,7 @@
         'dcheck_always_on%': 0,
         'conditions':
         [
-            ['OS=="win"',
+            ['target_os=="win"',
             {
                 'angle_enable_gl%': 1,
                 'angle_enable_d3d9%': 1,
@@ -80,9 +80,9 @@
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/src',
-                    '<(angle_path)/src/common/third_party/numerics',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/src',
+                    '<(DEPTH)/src/common/third_party/numerics',
                 ],
                 'conditions':
                 [
@@ -99,7 +99,7 @@
                             },
                         },
                     }],
-                    ['OS=="win"',
+                    ['target_os=="win"',
                     {
                         'configurations':
                         {
@@ -129,7 +129,7 @@
                         },
                     },
                 }],
-                ['OS=="win"',
+                ['target_os=="win"',
                 {
                     'configurations':
                     {
@@ -192,8 +192,8 @@
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/src',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/src',
                 ],
             },
         },
@@ -219,20 +219,20 @@
             {
                 'include_dirs':
                 [
-                    '<(angle_path)/include',
-                    '<(angle_path)/src',
+                    '<(DEPTH)/include',
+                    '<(DEPTH)/src',
                 ],
             },
             'conditions':
             [
-                ['OS=="win"',
+                ['target_os=="win"',
                 {
                     'sources':
                     [
                         '<@(libangle_gpu_info_util_win_sources)',
                     ],
                 }],
-                ['OS=="win" and angle_build_winrt==0',
+                ['target_os=="win" and angle_build_winrt==0',
                 {
                     'link_settings':
                     {
@@ -290,7 +290,7 @@
                     ],
                     'dependencies':
                     [
-                        '<(angle_path)/src/third_party/libXNVCtrl/libXNVCtrl.gyp:libXNVCtrl',
+                        '<(DEPTH)/src/third_party/libXNVCtrl/libXNVCtrl.gyp:libXNVCtrl',
                     ],
                     'link_settings':
                     {
@@ -375,12 +375,12 @@
                             'action_name': 'Generate ANGLE Commit ID Header',
                             'message': 'Generating ANGLE Commit ID',
                             # reference the git index as an input, so we rebuild on changes to the index
-                            'inputs': [ '<(angle_id_script)', '<(angle_path)/.git/index' ],
+                            'inputs': [ '<(angle_id_script)', '<(DEPTH)/.git/index' ],
                             'outputs': [ '<(angle_id_header)' ],
                             'msvs_cygwin_shell': 0,
                             'action':
                             [
-                                'python', '<(angle_id_script)', 'gen', '<(angle_path)', '<(angle_id_header)'
+                                'python', '<(angle_id_script)', 'gen', '<(DEPTH)', '<(angle_id_header)'
                             ],
                         },
                     ],
@@ -433,7 +433,7 @@
                 }
             ]
         }],
-        ['OS=="win"',
+        ['target_os=="win"',
         {
             'targets':
             [
