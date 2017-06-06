@@ -5,12 +5,17 @@
 #   json(), and arrayBuffer(). Blob, URLSearchParams, and FormData are not
 #   well-supported by the javascript engine. Certain tests may be substitued
 #   with *.cobalt.html versions to accommodate this limitation.
+
+# Failure is not specific to fetch.
 api/basic/block-mime-as-script.html,DISABLE
+# Caching responses is not supported.
 api/basic/conditional-get.html,DISABLE
 api/basic/error-after-response.html,PASS
+# Integrity validation is not supported.
 api/basic/integrity.html,DISABLE
 api/basic/integrity-sharedworker.html,DISABLE
 api/basic/integrity-worker.html,DISABLE
+# Mode is not supported.
 api/basic/mode-no-cors.html,DISABLE
 api/basic/mode-no-cors-worker.html,DISABLE
 api/basic/request-referrer-redirected-worker.html,DISABLE
@@ -22,7 +27,9 @@ api/basic/scheme-blob.html,DISABLE
 api/basic/scheme-blob-worker.html,DISABLE
 api/basic/scheme-others.html,PASS
 api/basic/scheme-others-worker.html,DISABLE
+# Only UTF-8 is supported. UTF-16 is not supported.
 api/basic/text-utf8.html,DISABLE
+# CORS is not supported.
 api/cors/cors-expose-star.html,DISABLE
 api/cors/cors-expose-star-worker.html,DISABLE
 api/cors/cors-filtering.html,DISABLE
@@ -44,8 +51,11 @@ api/headers/headers-structure.html,PASS
 api/headers/header-values.html,DISABLE
 # Invalid: this tests XHR
 api/headers/header-values-normalize.html,DISABLE
+# Throws a SecurityError instead of the expected TypeError. The fetch spec does
+# not explicitly say a TypeError should be thrown, so the test may be wrong.
 api/policies/csp-blocked.html,DISABLE
 api/policies/csp-blocked-worker.html,DISABLE
+# Referrer is not supported.
 api/policies/referrer-no-referrer.html,DISABLE
 api/policies/referrer-no-referrer-service-worker.https.html,DISABLE
 api/policies/referrer-no-referrer-worker.html,DISABLE
@@ -75,6 +85,7 @@ api/redirect/redirect-to-dataurl.html,DISABLE
 api/redirect/redirect-to-dataurl-worker.html,DISABLE
 api/request/multi-globals/url-parsing.html,DISABLE
 api/request/request-bad-port.html,PASS
+# Cobalt does not support caching responses.
 api/request/request-cache-default.html,DISABLE
 api/request/request-cache-default-conditional.html,DISABLE
 api/request/request-cache-force-cache.html,DISABLE
@@ -82,10 +93,13 @@ api/request/request-cache-no-cache.html,PASS
 api/request/request-cache-no-store.html,PASS
 api/request/request-cache-only-if-cached.html,DISABLE
 api/request/request-cache-reload.html,DISABLE
+# Only Request url, method, headers, and credentials are supported.
 api/request/request-clone.sub.html,DISABLE
+# Only Body text, json, and arrayBuffer are supported. The corresponding
+# Response tests are customized to test only those types.
 api/request/request-consume.html,DISABLE
 api/request/request-consume-empty.html,DISABLE
-api/request/request-disturbed.html,DISABLE
+api/request/request-disturbed.html,PASS
 api/request/request-error.html,DISABLE
 api/request/request-headers.html,DISABLE
 api/request/request-idl.html,DISABLE
