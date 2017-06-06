@@ -69,6 +69,11 @@ class ApplicationUwp : public shared::starboard::Application {
     shared::starboard::Application::SetCommandLine(argc, argv);
   }
 
+  // public for IFrameworkView subclass
+  bool DispatchAndDelete(Application::Event* event) {
+    return shared::starboard::Application::DispatchAndDelete(event);
+  }
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() SB_OVERRIDE { return false; }

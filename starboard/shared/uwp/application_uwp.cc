@@ -37,10 +37,14 @@ using Windows::ApplicationModel::Core::CoreApplication;
 using Windows::ApplicationModel::Core::CoreApplicationView;
 using Windows::ApplicationModel::Core::IFrameworkView;
 using Windows::ApplicationModel::Core::IFrameworkViewSource;
+using Windows::ApplicationModel::SuspendingEventArgs;
+using Windows::Foundation::EventHandler;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
-using Windows::UI::Core::CoreWindow;
+using Windows::UI::Core::CoreDispatcherPriority;
 using Windows::UI::Core::CoreProcessEventsOption;
+using Windows::UI::Core::CoreWindow;
+using Windows::UI::Core::DispatchedHandler;
 
 namespace {
 
@@ -79,7 +83,11 @@ ref class App sealed : public IFrameworkView {
 
   // IFrameworkView methods.
   virtual void Initialize(
-      Windows::ApplicationModel::Core::CoreApplicationView^ applicationView) {
+      CoreApplicationView^ applicationView) {
+    CoreApplication::Suspending +=
+        ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
+    CoreApplication::Resuming +=
+        ref new EventHandler<Object^>(this, &App::OnResuming);
     applicationView->Activated +=
         ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
             this, &App::OnActivated);
@@ -92,7 +100,18 @@ ref class App sealed : public IFrameworkView {
     window->Dispatcher->ProcessEvents(
         CoreProcessEventsOption::ProcessUntilQuit);
   }
-  virtual void Uninitialize() {
+  virtual void Uninitialize() {}
+
+  void OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args) {
+     SB_DLOG(INFO) << "Suspending";
+     ApplicationUwp::Get()->DispatchAndDelete(
+         new ApplicationUwp::Event(kSbEventTypeSuspend, NULL, NULL));
+  }
+
+  void OnResuming(Platform::Object^ sender, Platform::Object^ args) {
+     SB_DLOG(INFO) << "Resuming";
+     ApplicationUwp::Get()->DispatchAndDelete(
+         new ApplicationUwp::Event(kSbEventTypeResume, NULL, NULL));
   }
 
   void OnActivated(
@@ -129,7 +148,16 @@ ref class App sealed : public IFrameworkView {
     previously_activated_ = true;
     previous_activation_kind_ = args->Kind;
     CoreWindow::GetForCurrentThread()->Activate();
-    ApplicationUwp::Get()->DispatchStart();
+    // Call DispatchStart async so the UWP system thinks we're activated.
+    // Some tools seem to want the application to be activated before
+    // interacting with them, some things are disallowed during activation
+    // (such as exiting), and DispatchStart (for example) runs
+    // automated tests synchronously.
+    CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+      CoreDispatcherPriority::Normal,
+      ref new DispatchedHandler([this]() {
+        ApplicationUwp::Get()->DispatchStart();
+      }));
   }
  private:
   bool previously_activated_;
@@ -217,8 +245,8 @@ bool ApplicationUwp::DispatchNextEvent() {
 
 void ApplicationUwp::Inject(Application::Event* event) {
   CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
-    Windows::UI::Core::CoreDispatcherPriority::Normal,
-    ref new Windows::UI::Core::DispatchedHandler([this, event]() {
+    CoreDispatcherPriority::Normal,
+    ref new DispatchedHandler([this, event]() {
       bool result = DispatchAndDelete(event);
       if (!result) {
         CoreApplication::Exit();
