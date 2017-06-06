@@ -212,8 +212,6 @@
     # Used by cobalt/media/media.gyp to pick a proper media platform.
     'sb_media_platform%': 'starboard',
 
-    'sb_has_deploy_step%': 0,
-
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
 
