@@ -305,7 +305,31 @@ AtomicOperations::isLockfree(int32_t size)
     || defined(__ppc__) || defined(__PPC__)
 # include "jit/none/AtomicOperations-ppc.h"
 #elif defined(JS_CODEGEN_NONE)
-# include "jit/none/AtomicOperations-none.h"
+  // From firefox-52.1.2esr:
+  //   You can disable the JIT with --disable-ion but you must still provide
+  //   the atomic operations that will be used by the JS engine. When the JIT
+  //   is disabled the operations are simply safe-for-races C++ realizations
+  //   of atomics.  These operations cannot be written in portable C++, hence
+  //   the default here is to crash.  See the top of the file for more
+  //   guidance.
+  // Since Cobalt is interested in running on x86, x64, arm32, arm64, mips32,
+  // and mips64 with jit disabled (see "cobalt_enable_jit" in
+  // "cobalt/build/config/base.gypi"), we extend the workaround found in
+  // firefox-52.1.2esr that was specific to PowerPC and arm64 to work for all
+  // of the architectures listed above.
+# if defined(__ppc64__) || defined(__PPC64__) || defined(__ppc64le__) || defined(__PPC64LE__)
+#  include "jit/none/AtomicOperations-ppc.h"
+# elif defined(JS_CPU_X86) || defined(JS_CPU_X64)
+#  include "jit/x86-shared/AtomicOperations-x86-shared.h"
+# elif defined(JS_CPU_ARM)
+#  include "jit/arm/AtomicOperations-arm.h"
+# elif defined(JS_CPU_ARM64)
+#  include "jit/arm64/AtomicOperations-arm64.h"
+# elif defined(JS_CPU_MIPS)
+#  include "jit/mips-shared/AtomicOperations-mips-shared.h"
+# else
+#  include "jit/none/AtomicOperations-none.h" // These MOZ_CRASH() always
+# endif
 #elif defined(JS_CODEGEN_X86) || defined(JS_CODEGEN_X64)
 # include "jit/x86-shared/AtomicOperations-x86-shared.h"
 #else
