@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2016 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,8 +12,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# This file is meant to be included into a target to provide a rule
+# to deploy a target on a target platform.
+#
+# The platform_deploy target should be defined in
+# starboard/<port_path>/platform_deploy.gyp. This target should perform
+# any per-executable logic that is specific to the platform. For example,
+# copying per-executable metadata files to the output directory.
+
 {
-  'dependencies': [
-    '<(DEPTH)/starboard/android/shared/platform_deploy.gyp:platform_deploy',
-  ],
+  # This space intentionally left blank.
 }
