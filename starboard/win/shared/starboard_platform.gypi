@@ -72,7 +72,6 @@
         '<(DEPTH)/starboard/shared/starboard/string_copy.cc',
         '<(DEPTH)/starboard/shared/starboard/string_copy_wide.cc',
         '<(DEPTH)/starboard/shared/starboard/string_duplicate.cc',
-        '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_display_settings.cc',
         '<(DEPTH)/starboard/shared/stub/accessibility_get_text_to_speech_settings.cc',
         '<(DEPTH)/starboard/shared/stub/audio_sink_create.cc',
@@ -283,7 +282,7 @@
         'configuration_public.h',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
-        '<@(starboard_platform_dependent_sources)',
+        '<@(starboard_platform_dependent_files)',
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when

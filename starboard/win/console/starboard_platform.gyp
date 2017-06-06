@@ -14,12 +14,14 @@
 {
   'includes': [ '../shared/starboard_platform.gypi' ],
   'variables': {
-    'starboard_platform_dependent_sources': [
+    'starboard_platform_dependent_files': [
       'atomic_public.h',
       'configuration_public.h',
       'main.cc',
       'thread_types_public.h',
       '../shared/system_get_path.cc',
+      '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+      '<(DEPTH)/starboard/shared/starboard/queue_application.h',
       '<(DEPTH)/starboard/shared/stub/window_create.cc',
       '<(DEPTH)/starboard/shared/stub/window_destroy.cc',
       '<(DEPTH)/starboard/shared/stub/window_get_platform_handle.cc',
