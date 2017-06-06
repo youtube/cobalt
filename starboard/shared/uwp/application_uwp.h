@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
+#include <string>
+
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
@@ -39,6 +41,9 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
+// Returns win32's GetModuleFileName(). For cases where we'd like an argv[0].
+std::string GetArgvZero();
+
 class ApplicationUwp : public shared::starboard::Application {
  public:
   ApplicationUwp();
@@ -57,6 +62,11 @@ class ApplicationUwp : public shared::starboard::Application {
 
   void DispatchStart() {
     shared::starboard::Application::DispatchStart();
+  }
+
+  // public for IFrameworkView subclass
+  void SetCommandLine(int argc, const char** argv) {
+    shared::starboard::Application::SetCommandLine(argc, argv);
   }
 
  private:
