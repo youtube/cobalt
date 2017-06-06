@@ -62,9 +62,7 @@ ref class App sealed : public IFrameworkView {
 
 ref class Direct3DApplicationSource sealed : IFrameworkViewSource {
  public:
-  Direct3DApplicationSource() {
-    SB_LOG(INFO) << "Direct3DApplicationSource";
-  }
+  Direct3DApplicationSource() {}
   virtual IFrameworkView^ CreateView() {
     return ref new App();
   }
@@ -122,8 +120,14 @@ bool ApplicationUwp::DispatchNextEvent() {
 }
 
 void ApplicationUwp::Inject(Application::Event* event) {
-  // TODO: Implement with CoreWindow->GetForCurrentThread->Dispatcher->RunAsync
-  SB_NOTIMPLEMENTED();
+  CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+    Windows::UI::Core::CoreDispatcherPriority::Normal,
+    ref new Windows::UI::Core::DispatchedHandler([this, event]() {
+      bool result = DispatchAndDelete(event);
+      if (!result) {
+        CoreApplication::Exit();
+      }
+    }));
 }
 
 void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {

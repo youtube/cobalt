@@ -24,6 +24,10 @@
       'window_set_default_options.cc',
       'window_internal.cc',
       'window_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
     ]
   }
 }
