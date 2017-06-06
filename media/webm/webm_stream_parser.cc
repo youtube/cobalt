@@ -140,6 +140,7 @@ int WebMStreamParser::ParseInfoAndTracks(const uint8* data, int size) {
     case kWebMIdVoid:
     case kWebMIdCRC32:
     case kWebMIdCues:
+    case kWebMIdTags:
       if (cur_size < (result + element_size)) {
         // We don't have the whole element yet. Signal we need more data.
         return 0;
