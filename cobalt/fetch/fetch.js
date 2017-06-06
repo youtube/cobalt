@@ -257,26 +257,11 @@
     })
   }
 
-  function encodeStringToUint8Array(str) {
-    // Encode string to UTF-8 then store it in an Uint8Array.
-    var utf8 = unescape(encodeURIComponent(str))
-    var uint8 = new Uint8Array(utf8.length)
-    for (var i = 0, len = utf8.length; i < len; i++) {
-      uint8[i] = utf8.charCodeAt(i)
-    }
-    return uint8
-  }
-
-  function decodeStringFromUint8Array(uint8) {
-    // Decode string from UTF-8 that is stored in the Uint8Array.
-    return decodeURIComponent(escape(String.fromCharCode.apply(null, uint8)))
-  }
-
   // https://fetch.spec.whatwg.org/#concept-bodyinit-extract
   function extractBody(controller, data, errorString) {
     if (!data) {
     } else if (typeof data === 'string') {
-      controller.enqueue(encodeStringToUint8Array(data))
+      controller.enqueue(FetchInternal.encodeToUTF8(data))
     } else if (ArrayBuffer.prototype.isPrototypeOf(data)) {
       controller.enqueue(new Uint8Array(data))
     } else if (isArrayBufferView(data)) {
@@ -332,11 +317,7 @@
 
     this.text = function() {
       return consumeBodyAsUint8Array(this).then(function(data) {
-        if (data.length === 0) {
-          return ''
-        } else {
-          return decodeStringFromUint8Array(data)
-        }
+        return FetchInternal.decodeFromUTF8(data)
       })
     }
 
@@ -486,7 +467,7 @@
   var redirectStatuses = [301, 302, 303, 307, 308]
 
   Response.redirect = function(url, status) {
-    if (!FetchInternal.IsUrlValid(url)) {
+    if (!FetchInternal.isUrlValid(url)) {
       throw new TypeError('Invalid URL')
     }
     if (status === undefined) {
@@ -532,7 +513,11 @@
             headers: parseHeaders(xhr.getAllResponseHeaders() || '')
           }
           init.url = 'responseURL' in xhr ? xhr.responseURL : init.headers.get('X-Request-URL')
-          resolve(new Response(responseStream, init))
+          try {
+            resolve(new Response(responseStream, init))
+          } catch (err) {
+            reject(err)
+          }
         }
       }
 

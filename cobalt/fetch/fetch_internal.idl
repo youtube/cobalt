@@ -17,5 +17,8 @@
 // This is not meant to be public and should not be used outside of the fetch
 // implementation.
 interface FetchInternal {
-  static boolean IsUrlValid(DOMString url);
+  static boolean isUrlValid(DOMString url);
+  [CallWith=EnvironmentSettings,RaisesException]
+      static Uint8Array encodeToUTF8(DOMString text);
+  [RaisesException] static DOMString decodeFromUTF8(Uint8Array data);
 };
