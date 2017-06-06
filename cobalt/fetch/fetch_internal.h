@@ -17,6 +17,10 @@
 
 #include <string>
 
+#include "base/memory/ref_counted.h"
+#include "cobalt/dom/uint8_array.h"
+#include "cobalt/script/environment_settings.h"
+#include "cobalt/script/exception_state.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -30,6 +34,16 @@ class FetchInternal : public script::Wrappable {
  public:
   // Return whether the given URL is valid.
   static bool IsUrlValid(const std::string& url);
+
+  // Return a Uint8Array representing the given text as UTF-8 encoded data.
+  static scoped_refptr<dom::Uint8Array> EncodeToUTF8(
+      script::EnvironmentSettings* settings, const std::string& text,
+      script::ExceptionState* exception_state);
+
+  // Return a UTF-8 encoded string representing the given data.
+  static std::string DecodeFromUTF8(
+      const scoped_refptr<dom::Uint8Array>& data,
+      script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(FetchInternal);
 };
