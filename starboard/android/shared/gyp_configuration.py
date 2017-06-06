@@ -56,6 +56,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
+        'include_path_platform_deploy_gypi': 'starboard/android/shared/platform_deploy.gypi',
     })
     return variables
 

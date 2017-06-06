@@ -20,7 +20,6 @@
     'target_os': 'android',
     'final_executable_type': 'shared_library',
     'gtest_target_type': 'shared_library',
-    'sb_has_deploy_step': 1,
 
     'in_app_dial': 0,
 
