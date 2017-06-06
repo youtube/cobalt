@@ -22,33 +22,48 @@
 #
 # To use this, create a gyp target with the following form:
 # 'targets': [
-#   {
-#     'target_name': 'target_deploy',
-#     'type': 'none',
-#     'dependencies': [
-#       'target',
-#     ],
-#     'variables': {
-#       'executable_name': 'target',
-#     },
-#     'includes': [
-#       '../build/deploy.gypi',
-#     ],
-#   },
+#    {
+#      'target_name': 'target_deploy',
+#      'type': 'none',
+#      'dependencies': [
+#        'target',
+#      ],
+#      'variables': {
+#        'executable_name': 'target',
+#      },
+#      'includes': [ '../build/deploy.gypi' ],
+#    },
+#    ...
 #
+# For example:
+#  'targets': [
+#    {
+#      'target_name': 'nplb',
+#      'type': '<(gtest_target_type)',
+#      'sources': [...]
+#    }
+#    {
+#      'target_name': 'nplb_deploy',
+#      'type': 'none',
+#      'dependencies': [
+#        'nplb',
+#      ],
+#      'variables': {
+#        'executable_name': 'nplb',
+#      },
+#      'includes': [ '../build/deploy.gypi' ],
+#    },
 
 {
+
   # Flag that will instruct gyp to create a special target in IDEs such as
   # Visual Studio that can be used for launching a target.
   'variables' : {
     'ide_deploy_target': 1,
   },
 
-  'conditions': [
-    ['OS=="starboard" and sb_has_deploy_step==1', {
-      'dependencies': [
-        '<(DEPTH)/<(starboard_path)/platform_deploy.gyp:platform_deploy',
-      ],
-    }],
-  ],
+  # Include the platform specific gypi file include. Note that the
+  # expanded value will default to
+  # "starboard/build/default_no_deploy.gypi"
+  'includes': [ '<(DEPTH)/<(include_path_platform_deploy_gypi)' ],
 }
