@@ -16,6 +16,7 @@
     'starboard_platform_dependent_files': [
       'application_uwp.cc',
       'application_uwp.h',
+      'application_uwp_key_event.cc',
       'main.cc',
       'window_create.cc',
       'window_destroy.cc',

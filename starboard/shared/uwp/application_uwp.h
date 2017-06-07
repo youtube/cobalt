@@ -76,6 +76,9 @@ class ApplicationUwp : public shared::starboard::Application {
     return shared::starboard::Application::DispatchAndDelete(event);
   }
 
+  void OnKeyEvent(Windows::UI::Core::CoreWindow^ sender,
+      Windows::UI::Core::KeyEventArgs^ args, bool up);
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() SB_OVERRIDE { return false; }

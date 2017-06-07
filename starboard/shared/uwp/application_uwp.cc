@@ -47,8 +47,8 @@ using Windows::System::Threading::ThreadPoolTimer;
 using Windows::UI::Core::CoreDispatcherPriority;
 using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::CoreWindow;
-using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::DispatchedHandler;
+using Windows::UI::Core::KeyEventArgs;
 
 namespace {
 
@@ -96,7 +96,12 @@ ref class App sealed : public IFrameworkView {
         ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
             this, &App::OnActivated);
   }
-  virtual void SetWindow(CoreWindow^ window) {}
+  virtual void SetWindow(CoreWindow^ window) {
+    window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(
+      this, &App::OnKeyUp);
+    window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(
+      this, &App::OnKeyDown);
+  }
   virtual void Load(Platform::String^ entryPoint) {}
   virtual void Run() {
     CoreWindow ^window = CoreWindow::GetForCurrentThread();
@@ -116,6 +121,14 @@ ref class App sealed : public IFrameworkView {
      SB_DLOG(INFO) << "Resuming";
      ApplicationUwp::Get()->DispatchAndDelete(
          new ApplicationUwp::Event(kSbEventTypeResume, NULL, NULL));
+  }
+
+  void OnKeyUp(CoreWindow^ sender, KeyEventArgs^ args) {
+    ApplicationUwp::Get()->OnKeyEvent(sender, args, true);
+  }
+
+  void OnKeyDown(CoreWindow^ sender, KeyEventArgs^ args) {
+    ApplicationUwp::Get()->OnKeyEvent(sender, args, false);
   }
 
   void OnActivated(
