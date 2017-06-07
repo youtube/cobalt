@@ -39,11 +39,15 @@ using Windows::ApplicationModel::Core::IFrameworkView;
 using Windows::ApplicationModel::Core::IFrameworkViewSource;
 using Windows::ApplicationModel::SuspendingEventArgs;
 using Windows::Foundation::EventHandler;
+using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
+using Windows::System::Threading::TimerElapsedHandler;
+using Windows::System::Threading::ThreadPoolTimer;
 using Windows::UI::Core::CoreDispatcherPriority;
 using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::CoreWindow;
+using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::DispatchedHandler;
 
 namespace {
@@ -255,11 +259,43 @@ void ApplicationUwp::Inject(Application::Event* event) {
 }
 
 void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
-  SB_NOTIMPLEMENTED();
+  SbTimeMonotonic delay_usec =
+      timed_event->target_time - SbTimeGetMonotonicNow();
+  if (delay_usec < 0) {
+    delay_usec = 0;
+  }
+
+  // TimeSpan ticks are, like FILETIME, 100ns
+  const SbTimeMonotonic kTicksPerUsec = 10;
+
+  TimeSpan timespan;
+  timespan.Duration = delay_usec * kTicksPerUsec;
+
+  ScopedLock lock(mutex_);
+  ThreadPoolTimer^ timer = ThreadPoolTimer::CreateTimer(
+    ref new TimerElapsedHandler([this, timed_event](ThreadPoolTimer^ timer) {
+      CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+        CoreDispatcherPriority::Normal,
+        ref new DispatchedHandler([this, timed_event]() {
+          timed_event->callback(timed_event->context);
+          ScopedLock lock(mutex_);
+          auto it = timer_event_map_.find(timed_event->id);
+          if (it != timer_event_map_.end()) {
+            timer_event_map_.erase(it);
+          }
+        }));
+    }), timespan);
+  timer_event_map_.emplace(timed_event->id, timer);
 }
 
 void ApplicationUwp::CancelTimedEvent(SbEventId event_id) {
-  SB_NOTIMPLEMENTED();
+  ScopedLock lock(mutex_);
+  auto it = timer_event_map_.find(event_id);
+  if (it == timer_event_map_.end()) {
+    return;
+  }
+  it->second->Cancel();
+  timer_event_map_.erase(it);
 }
 
 Application::TimedEvent* ApplicationUwp::GetNextDueTimedEvent() {

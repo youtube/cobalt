@@ -16,8 +16,10 @@
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
 #include <string>
+#include <unordered_map>
 
 #include "starboard/configuration.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
@@ -89,6 +91,11 @@ class ApplicationUwp : public shared::starboard::Application {
 
   // The single open window, if any.
   SbWindow window_;
+
+  Mutex mutex_;
+  // Locked by mutex_
+  std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
+    timer_event_map_;
 };
 
 }  // namespace uwp
