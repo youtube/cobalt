@@ -15,15 +15,21 @@
 #include "cobalt/fetch/fetch_internal.h"
 
 #include "base/string_util.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/dom/dom_settings.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
 namespace fetch {
 
 // static
-bool FetchInternal::IsUrlValid(const std::string& url) {
-  GURL gurl(url);
-  return gurl.is_valid() || gurl.is_empty();
+bool FetchInternal::IsUrlValid(script::EnvironmentSettings* settings,
+                               const std::string& url, bool allow_credentials) {
+  dom::DOMSettings* dom_settings =
+      base::polymorphic_downcast<dom::DOMSettings*>(settings);
+  GURL gurl = dom_settings->base_url().Resolve(url);
+  return gurl.is_valid() && (allow_credentials ||
+                            (!gurl.has_username() && !gurl.has_password()));
 }
 
 // static

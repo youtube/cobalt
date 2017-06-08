@@ -37,8 +37,10 @@
 
   const Array = self.Array
   const ArrayBuffer = self.ArrayBuffer
+  const defineProperties = self.Object.defineProperties
   const Error = self.Error
-  const Symbol_iterator = self.Symbol.iterator
+  const Symbol = self.Symbol
+  const Symbol_iterator = Symbol.iterator
   const Map = self.Map
   const RangeError = self.RangeError
   const TypeError = self.TypeError
@@ -53,10 +55,60 @@
   const IsReadableStreamDisturbed = self.IsReadableStreamDisturbed
   const IsReadableStreamLocked = self.IsReadableStreamLocked
 
-  const err_InvalidHeadersInit = 'Constructing Headers with invalid parameters'
-  const err_NetworkRequestFailed = 'Network request failed'
+  const ERROR_INVALID_HEADERS_INIT =
+      'Constructing Headers with invalid parameters'
+  const ERROR_NETWORK_REQUEST_FAILED = 'Network request failed'
 
-  const viewClasses = [
+  // Internal slots for objects.
+  const BODY_SLOT = Symbol('body')
+  const BODY_USED_SLOT = Symbol('bodyUsed')
+  const CACHE_SLOT = Symbol('cache')
+  const CREDENTIALS_SLOT = Symbol('credentials')
+  const HEADERS_SLOT = Symbol('headers')
+  const INTEGRITY_SLOT = Symbol('integrity')
+  const MAP_SLOT = Symbol('map')
+  const METHOD_SLOT = Symbol('method')
+  const MODE_SLOT = Symbol('mode')
+  const OK_SLOT = Symbol('ok')
+  const REDIRECT_SLOT = Symbol('redirect')
+  const STATUS_SLOT = Symbol('status')
+  const STATUS_TEXT_SLOT = Symbol('statusText')
+  const TYPE_SLOT = Symbol('type')
+  const URL_SLOT = Symbol('url')
+
+  // Values that are allowed for Request cache mode.
+  const VALID_CACHE_MODES = [
+    'default',
+    'no-store',
+    'reload',
+    'no-cache',
+    'force-cache',
+    'only-if-cached'
+  ]
+
+  // Values that are allowed for Request credentials.
+  const VALID_CREDENTIALS = ['omit', 'same-origin', 'include']
+
+  // HTTP methods whose capitalization should be normalized.
+  const VALID_METHODS = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
+
+  // Methods that are allowed for Request mode: no-cors.
+  const VALID_METHODS_NOCORS = ['GET', 'HEAD', 'POST']
+
+  // Modes that are allowed for RequestInit. Although 'navigate' is a valid
+  // request mode, it is not allowed in the RequestInit parameter.
+  const VALID_MODES = ['same-origin', 'no-cors', 'cors']
+
+  // Values that are allowed for Request redirect mode.
+  const VALID_REDIRECT_MODES = ['follow', 'error', 'manual']
+
+  // Body is not allowed in responses with a null body status.
+  const NULL_BODY_STATUSES = [101, 204, 205, 304 ]
+
+  // Statuses that are allowed for Response.redirect.
+  const REDIRECT_STATUSES = [301, 302, 303, 307, 308]
+
+  const ARRAY_BUFFER_VIEW_CLASSES = [
     '[object Int8Array]',
     '[object Uint8Array]',
     '[object Uint8ClampedArray]',
@@ -69,7 +121,8 @@
   ]
 
   var isArrayBufferView = ArrayBuffer.isView || function(obj) {
-    return obj && viewClasses.indexOf(Object.prototype.toString.call(obj)) > -1
+    return obj && ARRAY_BUFFER_VIEW_CLASSES.indexOf(
+        Object.prototype.toString.call(obj)) > -1
   }
 
   function normalizeName(name) {
@@ -122,12 +175,12 @@
 
   // https://fetch.spec.whatwg.org/#headers-class
   function Headers(headers) {
-    this.map = new Map();
+    this[MAP_SLOT] = new Map();
 
     if (headers === undefined) {
       return
     } else if (headers === null || typeof headers !== 'object') {
-      throw new TypeError(err_InvalidHeadersInit)
+      throw new TypeError(ERROR_INVALID_HEADERS_INIT)
     } else if (headers instanceof Headers) {
       // Should use for..of in case |headers| has a custom Symbol.iterator.
       // However, this results in the ClosureCompiler polyfilling Symbol.
@@ -137,7 +190,7 @@
     } else if (Array.isArray(headers)) {
       headers.forEach(function(header) {
         if (header.length !== 2) {
-          throw new TypeError(err_InvalidHeadersInit)
+          throw new TypeError(ERROR_INVALID_HEADERS_INIT)
         }
         this.append(header[0], header[1])
       }, this)
@@ -154,10 +207,10 @@
     }
     name = normalizeName(name)
     value = normalizeValue(value)
-    if (this.map.has(name)) {
-      this.map.set(name, this.map.get(name) + ', ' + value)
+    if (this[MAP_SLOT].has(name)) {
+      this[MAP_SLOT].set(name, this[MAP_SLOT].get(name) + ', ' + value)
     } else {
-      this.map.set(name, value)
+      this[MAP_SLOT].set(name, value)
     }
   }
 
@@ -165,7 +218,7 @@
     if (arguments.length !== 1) {
       throw TypeError('Invalid parameters to delete')
     }
-    this.map.delete(normalizeName(name))
+    this[MAP_SLOT].delete(normalizeName(name))
   }
 
   Headers.prototype.get = function(name) {
@@ -173,7 +226,7 @@
       throw TypeError('Invalid parameters to get')
     }
     name = normalizeName(name)
-    var value = this.map.get(name)
+    var value = this[MAP_SLOT].get(name)
     return value !== undefined ? value : null
   }
 
@@ -181,18 +234,18 @@
     if (arguments.length !== 1) {
       throw TypeError('Invalid parameters to has')
     }
-    return this.map.has(normalizeName(name))
+    return this[MAP_SLOT].has(normalizeName(name))
   }
 
   Headers.prototype.set = function(name, value) {
     if (arguments.length !== 2) {
       throw TypeError('Invalid parameters to set')
     }
-    this.map.set(normalizeName(name), normalizeValue(value))
+    this[MAP_SLOT].set(normalizeName(name), normalizeValue(value))
   }
 
   Headers.prototype.forEach = function(callback, thisArg) {
-    var sorted_array = Array.from(this.map.entries()).sort()
+    var sorted_array = Array.from(this[MAP_SLOT].entries()).sort()
     var that = this
     sorted_array.forEach(function(value) {
       callback.call(thisArg, value[1], value[0], that)
@@ -200,17 +253,17 @@
   }
 
   Headers.prototype.keys = function() {
-    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    var sorted_map = new Map(Array.from(this[MAP_SLOT].entries()).sort())
     return sorted_map.keys()
   }
 
   Headers.prototype.values = function() {
-    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    var sorted_map = new Map(Array.from(this[MAP_SLOT].entries()).sort())
     return sorted_map.values()
   }
 
   Headers.prototype.entries = function() {
-    var sorted_map = new Map(Array.from(this.map.entries()).sort())
+    var sorted_map = new Map(Array.from(this[MAP_SLOT].entries()).sort())
     return sorted_map.entries()
   }
 
@@ -218,7 +271,7 @@
 
   function consumeBodyAsUint8Array(body) {
     if (body.bodyUsed) {
-      return Promise_reject(new TypeError('Body already read'))
+      return Promise_reject(new TypeError('Body was already read'))
     }
 
     if (body.body === null) {
@@ -226,7 +279,7 @@
     }
 
     if (IsReadableStreamLocked(body.body)) {
-      return Promise_reject(new TypeError('ReadableStream already locked'))
+      return Promise_reject(new TypeError('ReadableStream was already locked'))
     }
 
     var reader = body.body.getReader()
@@ -252,7 +305,7 @@
         results.push(result.value)
         return reader.read().then(addResult)
       } else {
-        return Promise_reject(new TypeError('Invalid stream read value type'))
+        return Promise_reject(new TypeError('Invalid stream data type'))
       }
     })
   }
@@ -276,13 +329,13 @@
   //   Blob types. So only support text(), arrayBuffer(), and json().
   function Body() {
     this._initBody = function(body) {
-      this._bodyUsed = false
+      this[BODY_USED_SLOT] = false
       if (body === null || body === undefined) {
-        this.body = null
+        this[BODY_SLOT] = null
       } else if (body instanceof ReadableStream) {
-        this.body = body
+        this[BODY_SLOT] = body
       } else {
-        this.body = new ReadableStream({
+        this[BODY_SLOT] = new ReadableStream({
           start(controller) {
             extractBody(controller, body, 'Unsupported BodyInit type')
             controller.close()
@@ -290,21 +343,24 @@
         })
       }
 
-      if (!this.headers.get('content-type')) {
+      if (!this[HEADERS_SLOT].get('content-type')) {
         if (typeof body === 'string') {
-          this.headers.set('content-type', 'text/plain;charset=UTF-8')
+          this[HEADERS_SLOT].set('content-type', 'text/plain;charset=UTF-8')
         }
       }
     }
 
-    Object.defineProperty(this, 'bodyUsed', {
-      get: function() {
-        if (this._bodyUsed) {
-          return true
-        } else if (this.body) {
-          return !!IsReadableStreamDisturbed(this.body)
-        } else {
-          return false
+    defineProperties(this, {
+      'body': { get: function() { return this[BODY_SLOT] } },
+      'bodyUsed': {
+        get: function() {
+          if (this[BODY_USED_SLOT]) {
+            return true
+          } else if (this[BODY_SLOT]) {
+            return !!IsReadableStreamDisturbed(this[BODY_SLOT])
+          } else {
+            return false
+          }
         }
       }
     })
@@ -328,66 +384,137 @@
     return this
   }
 
-  // HTTP methods whose capitalization should be normalized
-  const methods = ['DELETE', 'GET', 'HEAD', 'OPTIONS', 'POST', 'PUT']
-
   function normalizeMethod(method) {
     var upcased = method.toUpperCase()
-    return (methods.indexOf(upcased) > -1) ? upcased : method
+    if (VALID_METHODS.indexOf(upcased) === -1) {
+      throw new TypeError('Invalid request method')
+    }
+    return upcased
   }
 
   // https://fetch.spec.whatwg.org/#request-class
   function Request(input, init) {
+    // When cloning a request, |init| will have the non-standard member
+    // |cloneBody|. This signals that the "!hasInit" path should be used.
+    var hasInit = init !== undefined && init !== null &&
+                  init.cloneBody === undefined
     init = init || {}
-    var body = init.body
+    var body = init.body || init.cloneBody
 
     if (input instanceof Request) {
       if (input.bodyUsed) {
-        throw new TypeError('Request body already read')
+        throw new TypeError('Request body was already read')
       }
-      this.url = input.url
-      this.credentials = input.credentials
+      this[URL_SLOT] = input.url
+      this[CACHE_SLOT] = input.cache
+      this[CREDENTIALS_SLOT] = input.credentials
       if (!init.headers) {
-        this.headers = new Headers(input.headers)
+        this[HEADERS_SLOT] = new Headers(input.headers)
       }
-      this.method = input.method
-      this.mode = input.mode
+      this[INTEGRITY_SLOT] = input.integrity
+      this[METHOD_SLOT] = input.method
+      this[MODE_SLOT] = input.mode
+      if (hasInit && this[MODE_SLOT] === 'navigate') {
+        this[MODE_SLOT] = 'same-origin'
+      }
+      this[REDIRECT_SLOT] = input.redirect
       if (!body && input.body !== null) {
         // Take ownership of the stream and mark |input| as disturbed.
         body = input.body
-        input._bodyUsed = true
+        input[BODY_USED_SLOT] = true
       }
     } else {
-      this.url = String(input)
+      this[URL_SLOT] = String(input)
+      if (!FetchInternal.isUrlValid(this[URL_SLOT],
+                                    false /* allowCredentials */)) {
+        throw new TypeError('Invalid request URL')
+      }
+      this[MODE_SLOT] = 'cors'
+      this[CREDENTIALS_SLOT] = 'omit'
     }
 
-    this.credentials = init.credentials || this.credentials || 'omit'
-    if (init.headers || !this.headers) {
-      this.headers = new Headers(init.headers)
+    if (init.window !== undefined && init.window !== null) {
+      throw new TypeError('Invalid request window')
     }
-    this.method = normalizeMethod(init.method || this.method || 'GET')
-    this.mode = init.mode || this.mode || null
-    this.referrer = null
 
-    if ((this.method === 'GET' || this.method === 'HEAD') && body) {
-      throw new TypeError('Body not allowed for GET or HEAD requests')
+    this[CACHE_SLOT] = init.cache || this[CACHE_SLOT] || 'default'
+    if (VALID_CACHE_MODES.indexOf(this[CACHE_SLOT]) === -1) {
+      throw new TypeError('Invalid request cache mode')
+    }
+
+    this[CREDENTIALS_SLOT] = init.credentials || this[CREDENTIALS_SLOT] ||
+                             'omit'
+    if (VALID_CREDENTIALS.indexOf(this[CREDENTIALS_SLOT]) === -1) {
+      throw new TypeError('Invalid request credentials')
+    }
+
+    if (init.headers || !this[HEADERS_SLOT]) {
+      this[HEADERS_SLOT] = new Headers(init.headers)
+    }
+    if (init.integrity !== undefined) {
+      this[INTEGRITY_SLOT] = init.integrity
+    } else if (this[INTEGRITY_SLOT] === undefined) {
+      this[INTEGRITY_SLOT] = ''
+    }
+    this[METHOD_SLOT] = normalizeMethod(init.method || this[METHOD_SLOT] ||
+                                        'GET')
+
+    if (init.mode && VALID_MODES.indexOf(init.mode) === -1) {
+      throw new TypeError('Invalid request mode')
+    }
+    this[MODE_SLOT] = init.mode || this[MODE_SLOT] || 'no-cors'
+    if (this[MODE_SLOT] === 'no-cors') {
+      if (VALID_METHODS_NOCORS.indexOf(this[METHOD_SLOT]) === -1) {
+        throw new TypeError('Invalid request method for no-cors')
+      }
+      if (this[INTEGRITY_SLOT] !== '') {
+        throw new TypeError(
+            'Request integrity data is not allowed with no-cors')
+      }
+    }
+    if (this[MODE_SLOT] !== 'same-origin' &&
+        this[CACHE_SLOT] === 'only-if-cached') {
+      throw new TypeError(
+          'Request mode must be same-origin for only-if-cached')
+    }
+
+    this[REDIRECT_SLOT] = init.redirect || this[REDIRECT_SLOT] || 'follow'
+    if (VALID_REDIRECT_MODES.indexOf(this[REDIRECT_SLOT]) === -1) {
+      throw new TypeError('Invalid request redirect mode')
+    }
+
+    if ((this[METHOD_SLOT] === 'GET' || this[METHOD_SLOT] === 'HEAD') && body) {
+      throw new TypeError('Request body is not allowed for GET or HEAD')
     }
     this._initBody(body)
   }
 
   Request.prototype.clone = function() {
     var cloneBody = null
-    if (this.body !== null) {
-      var streams = ReadableStreamTee(this.body, true /* cloneForBranch2 */)
-      this.body = streams[0]
+    if (this[BODY_SLOT] !== null) {
+      var streams = ReadableStreamTee(this[BODY_SLOT],
+                                      true /* cloneForBranch2 */)
+      this[BODY_SLOT] = streams[0]
       cloneBody = streams[1]
     }
-    return new Request(this, { body: cloneBody })
+    return new Request(this, { cloneBody: cloneBody })
   }
+
+  defineProperties(Request.prototype, {
+    'cache': { get: function() { return this[CACHE_SLOT] } },
+    'credentials': { get: function() { return this[CREDENTIALS_SLOT] } },
+    'headers': { get: function() { return this[HEADERS_SLOT] } },
+    'integrity': { get: function() { return this[INTEGRITY_SLOT] } },
+    'method': { get: function() { return this[METHOD_SLOT] } },
+    'mode': { get: function() { return this[MODE_SLOT] } },
+    'redirect': { get: function() { return this[REDIRECT_SLOT] } },
+    'url': { get: function() { return this[URL_SLOT] } }
+  })
 
   function parseHeaders(rawHeaders) {
     var headers = new Headers()
-    // Replace instances of \r\n and \n followed by at least one space or horizontal tab with a space
+    // Replace instances of \r\n and \n followed by at least one space or
+    // horizontal tab with a space.
     // https://tools.ietf.org/html/rfc7230#section-3.2
     var preProcessedHeaders = rawHeaders.replace(/\r?\n[\t ]+/g, ' ')
     preProcessedHeaders.split(/\r?\n/).forEach(function(line) {
@@ -409,14 +536,11 @@
     for (var i = 0, len = text.length, c; i < len; i++) {
       c = text.charCodeAt(i)
       if (c !== 9 && (c < 32 || c > 255 || c === 127)) {
-        throw TypeError('Invalid status text')
+        throw TypeError('Invalid response status text')
       }
     }
     return text
   }
-
-  // Body is not allowed in responses with a null body status.
-  const nullBodyStatuses = [ 101, 204, 205, 304 ]
 
   // https://fetch.spec.whatwg.org/#response-class
   function Response(body, init) {
@@ -424,17 +548,19 @@
       init = {}
     }
 
-    this.type = 'default'
-    this.status = 'status' in init ? init.status : 200
-    if (this.status < 200 || this.status > 599) {
+    this[TYPE_SLOT] = 'default'
+    this[STATUS_SLOT] = 'status' in init ? init.status : 200
+    if (this[STATUS_SLOT] < 200 || this[STATUS_SLOT] > 599) {
       throw new RangeError('Invalid response status')
     }
-    this.ok = this.status >= 200 && this.status < 300
-    this.statusText = 'statusText' in init ? parseStatusText(init.statusText) : 'OK'
-    this.headers = new Headers(init.headers)
-    this.url = init.url || ''
-    if (body && nullBodyStatuses.indexOf(this.status) > -1) {
-      throw new TypeError('Body not allowed with a null body status')
+    this[OK_SLOT] = this[STATUS_SLOT] >= 200 && this[STATUS_SLOT] < 300
+    this[STATUS_TEXT_SLOT] = 'statusText' in init ?
+                             parseStatusText(init.statusText) : 'OK'
+    this[HEADERS_SLOT] = new Headers(init.headers)
+    this[URL_SLOT] = init.url || ''
+    if (body && NULL_BODY_STATUSES.indexOf(this[STATUS_SLOT]) > -1) {
+      throw new TypeError(
+          'Response body is not allowed with a null body status')
     }
     this._initBody(body)
   }
@@ -443,38 +569,46 @@
 
   Response.prototype.clone = function() {
     var cloneBody = null
-    if (this.body !== null) {
-      var streams = ReadableStreamTee(this.body, true /* cloneForBranch2 */)
-      this.body = streams[0]
+    if (this[BODY_SLOT] !== null) {
+      var streams = ReadableStreamTee(this[BODY_SLOT],
+                                      true /* cloneForBranch2 */)
+      this[BODY_SLOT] = streams[0]
       cloneBody = streams[1]
     }
     return new Response(cloneBody, {
-      status: this.status,
-      statusText: this.statusText,
-      headers: new Headers(this.headers),
-      url: this.url
+      status: this[STATUS_SLOT],
+      statusText: this[STATUS_TEXT_SLOT],
+      headers: new Headers(this[HEADERS_SLOT]),
+      url: this[URL_SLOT]
     })
   }
 
+  defineProperties(Response.prototype, {
+    'headers': { get: function() { return this[HEADERS_SLOT] } },
+    'ok': { get: function() { return this[OK_SLOT] } },
+    'status': { get: function() { return this[STATUS_SLOT] } },
+    'statusText': { get: function() { return this[STATUS_TEXT_SLOT] } },
+    'type': { get: function() { return this[TYPE_SLOT] } },
+    'url': { get: function() { return this[URL_SLOT] } }
+  })
+
   Response.error = function() {
     var response = new Response(null)
-    response.type = 'error'
-    response.status = 0
-    response.statusText = ''
+    response[TYPE_SLOT] = 'error'
+    response[STATUS_SLOT] = 0
+    response[STATUS_TEXT_SLOT] = ''
     return response
   }
 
-  var redirectStatuses = [301, 302, 303, 307, 308]
-
   Response.redirect = function(url, status) {
-    if (!FetchInternal.isUrlValid(url)) {
-      throw new TypeError('Invalid URL')
+    if (!FetchInternal.isUrlValid(url, true /* allowCredentials */)) {
+      throw new TypeError('Invalid URL for response redirect')
     }
     if (status === undefined) {
       status = 302
     }
-    if (redirectStatuses.indexOf(status) === -1) {
-      throw new RangeError('Invalid status code')
+    if (REDIRECT_STATUSES.indexOf(status) === -1) {
+      throw new RangeError('Invalid status code for response redirect')
     }
 
     return new Response(null, {status: status, headers: {location: url}})
@@ -512,9 +646,12 @@
             statusText: xhr.statusText,
             headers: parseHeaders(xhr.getAllResponseHeaders() || '')
           }
-          init.url = 'responseURL' in xhr ? xhr.responseURL : init.headers.get('X-Request-URL')
+          init.url = 'responseURL' in xhr ?
+                     xhr.responseURL : init.headers.get('X-Request-URL')
           try {
-            resolve(new Response(responseStream, init))
+            var response = new Response(responseStream, init)
+            response[TYPE_SLOT] = 'basic'
+            resolve(response)
           } catch (err) {
             reject(err)
           }
@@ -522,13 +659,15 @@
       }
 
       xhr.onerror = function() {
-        responseStreamController.error(new TypeError(err_NetworkRequestFailed))
-        reject(new TypeError(err_NetworkRequestFailed))
+        responseStreamController.error(
+            new TypeError(ERROR_NETWORK_REQUEST_FAILED))
+        reject(new TypeError(ERROR_NETWORK_REQUEST_FAILED))
       }
 
       xhr.ontimeout = function() {
-        responseStreamController.error(new TypeError(err_NetworkRequestFailed))
-        reject(new TypeError(err_NetworkRequestFailed))
+        responseStreamController.error(
+            new TypeError(ERROR_NETWORK_REQUEST_FAILED))
+        reject(new TypeError(ERROR_NETWORK_REQUEST_FAILED))
       }
 
       xhr.open(request.method, request.url, true)
