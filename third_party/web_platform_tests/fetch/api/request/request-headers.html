@@ -163,9 +163,11 @@
 
       promise_test(function(test) {
         var request = new Request("", {"headers" : [["Content-Type", ""]], "body" : "this is my plate", "method" : "POST"});
-        return request.blob().then(function(blob) {
-          assert_equals(blob.type, "", "Blob type should be the empty string");
-        });
+        if ('blob' in request) {
+          return request.blob().then(function(blob) {
+            assert_equals(blob.type, "", "Blob type should be the empty string");
+          });
+        }
       }, "Testing empty Request Content-Type header");
 
     </script>
