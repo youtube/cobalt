@@ -51,11 +51,12 @@ api/headers/headers-structure.html,PASS
 api/headers/header-values.html,DISABLE
 # Invalid: this tests XHR
 api/headers/header-values-normalize.html,DISABLE
-# Throws a SecurityError instead of the expected TypeError. The fetch spec does
-# not explicitly say a TypeError should be thrown, so the test may be wrong.
+# Fails because a SecurityError is thrown instead of the expected TypeError.
+# The fetch spec does not explicitly say a TypeError should be thrown, so the
+# test may be wrong.
 api/policies/csp-blocked.html,DISABLE
 api/policies/csp-blocked-worker.html,DISABLE
-# Referrer is not supported.
+# Referrer is intentionally not supported due to privacy concerns.
 api/policies/referrer-no-referrer.html,DISABLE
 api/policies/referrer-no-referrer-service-worker.https.html,DISABLE
 api/policies/referrer-no-referrer-worker.html,DISABLE
@@ -68,6 +69,7 @@ api/policies/referrer-origin-worker.html,DISABLE
 api/policies/referrer-unsafe-url.html,DISABLE
 api/policies/referrer-unsafe-url-service-worker.https.html,DISABLE
 api/policies/referrer-unsafe-url-worker.html,DISABLE
+# Redirect is not fully supported.
 api/redirect/redirect-count.html,DISABLE
 api/redirect/redirect-count-worker.html,DISABLE
 api/redirect/redirect-location.html,DISABLE
@@ -83,9 +85,10 @@ api/redirect/redirect-referrer-worker.html,DISABLE
 api/redirect/redirect-schemes.html,DISABLE
 api/redirect/redirect-to-dataurl.html,DISABLE
 api/redirect/redirect-to-dataurl-worker.html,DISABLE
+# Test fails to run because 'iframe' is not supported.
 api/request/multi-globals/url-parsing.html,DISABLE
 api/request/request-bad-port.html,PASS
-# Cobalt does not support caching responses.
+# Fails because Cobalt does not support caching responses.
 api/request/request-cache-default.html,DISABLE
 api/request/request-cache-default-conditional.html,DISABLE
 api/request/request-cache-force-cache.html,DISABLE
@@ -93,20 +96,25 @@ api/request/request-cache-no-cache.html,PASS
 api/request/request-cache-no-store.html,PASS
 api/request/request-cache-only-if-cached.html,DISABLE
 api/request/request-cache-reload.html,DISABLE
-# Only Request url, method, headers, and credentials are supported.
-api/request/request-clone.sub.html,DISABLE
-# Only Body text, json, and arrayBuffer are supported. The corresponding
-# Response tests are customized to test only those types.
+api/request/request-clone.sub.html,PASS
+# Fails because Body only supports text, json, and arrayBuffer. See the
+# corresponding tests for Response which have been customized to test only
+# those types.
 api/request/request-consume.html,DISABLE
+# Fails because blob and formData are not supported.
 api/request/request-consume-empty.html,DISABLE
 api/request/request-disturbed.html,PASS
-api/request/request-error.html,DISABLE
+api/request/request-error.html,PASS
 api/request/request-headers.html,DISABLE
+# Fails because implementation is a polyfill.
 api/request/request-idl.html,DISABLE
-api/request/request-init-001.sub.html,DISABLE
+api/request/request-init-001.sub.html,PASS
+# Fails because Blob, FormData, and URLSearchParams are not supported.
 api/request/request-init-002.html,DISABLE
-api/request/request-init-003.sub.html,DISABLE
+api/request/request-init-003.sub.html,PASS
 api/request/request-keepalive-quota.html,DISABLE
+# Fails because: 1) Body does not support blob nor formData, and 2) Request
+# does not support destination nor type.
 api/request/request-structure.html,DISABLE
 api/response/multi-globals/url-parsing.html,DISABLE
 # Fails because Blob is not fully supported.
@@ -130,5 +138,5 @@ api/response/response-stream-disturbed-2.html,PASS
 api/response/response-stream-disturbed-3.html,PASS
 api/response/response-stream-disturbed-4.html,PASS
 api/response/response-stream-disturbed-5.html,PASS
-# Not implemented.
+# Fails because trailer is not implemented.
 api/response/response-trailer.html,DISABLE
