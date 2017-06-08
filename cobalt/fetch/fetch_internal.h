@@ -33,7 +33,8 @@ namespace fetch {
 class FetchInternal : public script::Wrappable {
  public:
   // Return whether the given URL is valid.
-  static bool IsUrlValid(const std::string& url);
+  static bool IsUrlValid(script::EnvironmentSettings* settings,
+      const std::string& url, bool allow_credentials);
 
   // Return a Uint8Array representing the given text as UTF-8 encoded data.
   static scoped_refptr<dom::Uint8Array> EncodeToUTF8(
