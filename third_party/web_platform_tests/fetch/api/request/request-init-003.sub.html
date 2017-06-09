@@ -16,8 +16,9 @@
       var emptyHeaders = new Headers();
 
       var initValuesDict = {"method" : "POST",
-                            "referrer" : "http://{{host}}:{{ports[http][0]}}/",
-                            "referrerPolicy" : "origin",
+                            // Referrer is not supported due to privacy concerns.
+                            //"referrer" : "http://{{host}}:{{ports[http][0]}}/",
+                            //"referrerPolicy" : "origin",
                             "mode" : "same-origin",
                             "credentials" : "include",
                             "cache" : "no-cache",
@@ -28,8 +29,9 @@
       };
 
       var expectedInitialized = {"method" : "POST",
-                                 "referrer" : "http://{{host}}:{{ports[http][0]}}/",
-                                 "referrerPolicy" : "origin",
+                                 // Referrer is not supported due to privacy concerns.
+                                 //"referrer" : "http://{{host}}:{{ports[http][0]}}/",
+                                 //"referrerPolicy" : "origin",
                                  "mode" : "same-origin",
                                  "credentials" : "include",
                                  "cache" : "no-cache",
@@ -41,8 +43,9 @@
 
       var expectedDefault = {"method" : "GET",
                              "url" : location.href,
-                             "referrer" : "about:client",
-                             "referrerPolicy" : "",
+                             // Referrer is not supported due to privacy concerns.
+                             //"referrer" : "about:client",
+                             //"referrerPolicy" : "",
                              "mode" : "cors",
                              "credentials" : "omit",
                              "cache" : "default",
