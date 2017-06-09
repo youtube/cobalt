@@ -105,7 +105,7 @@ api/request/request-consume.html,DISABLE
 api/request/request-consume-empty.html,DISABLE
 api/request/request-disturbed.html,PASS
 api/request/request-error.html,PASS
-api/request/request-headers.html,DISABLE
+api/request/request-headers.html,PASS
 # Fails because implementation is a polyfill.
 api/request/request-idl.html,DISABLE
 api/request/request-init-001.sub.html,PASS
