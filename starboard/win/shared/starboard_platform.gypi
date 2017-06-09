@@ -154,6 +154,8 @@
         '<(DEPTH)/starboard/shared/stub/user_get_current.cc',
         '<(DEPTH)/starboard/shared/stub/user_get_property.cc',
         '<(DEPTH)/starboard/shared/stub/user_get_signed_in.cc',
+        '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
+        '<(DEPTH)/starboard/shared/win32/adapter_utils.h',
         '<(DEPTH)/starboard/shared/win32/atomic_public.h',
         '<(DEPTH)/starboard/shared/win32/auto_event_handle.h',
         '<(DEPTH)/starboard/shared/win32/byte_swap.cc',
