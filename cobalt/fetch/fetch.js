@@ -37,6 +37,7 @@
 
   const Array = self.Array
   const ArrayBuffer = self.ArrayBuffer
+  const create = self.Object.create
   const defineProperties = self.Object.defineProperties
   const Error = self.Error
   const Symbol = self.Symbol
@@ -64,6 +65,7 @@
   const BODY_USED_SLOT = Symbol('bodyUsed')
   const CACHE_SLOT = Symbol('cache')
   const CREDENTIALS_SLOT = Symbol('credentials')
+  const GUARD_CALLBACK_SLOT = Symbol('guardCallback')
   const HEADERS_SLOT = Symbol('headers')
   const INTEGRITY_SLOT = Symbol('integrity')
   const MAP_SLOT = Symbol('map')
@@ -75,6 +77,50 @@
   const STATUS_TEXT_SLOT = Symbol('statusText')
   const TYPE_SLOT = Symbol('type')
   const URL_SLOT = Symbol('url')
+
+  // Forbidden headers corresponding to various header guard types.
+  const INVALID_HEADERS_REQUEST = [
+    'accept-charset',
+    'accept-encoding',
+    'access-control-request-headers',
+    'access-control-request-method',
+    'connection',
+    'content-length',
+    'cookie',
+    'cookie2',
+    'date',
+    'dnt',
+    'expect',
+    'host',
+    'keep-alive',
+    'origin',
+    'referer',    // [sic]
+    'te',
+    'trailer',
+    'transfer-encoding',
+    'upgrade',
+    'via'
+  ]
+
+  const INVALID_HEADERS_RESPONSE = [
+    'set-cookie',
+    'set-cookie2'
+  ]
+
+  // The header guard for no-cors requests is special. Only these headers are
+  // allowed. And only certain values for content-type are allowed.
+  const VALID_HEADERS_NOCORS = [
+    'accept',
+    'accept-language',
+    'content-language'
+    // 'content-type' is treated specially.
+  ]
+
+  const VALID_HEADERS_NOCORS_CONTENT_TYPE = [
+    'application/x-www-form-urlencoded',
+    'multipart/form-data',
+    'text/plain'
+  ]
 
   // Values that are allowed for Request cache mode.
   const VALID_CACHE_MODES = [
@@ -173,32 +219,83 @@
     return value
   }
 
-  // https://fetch.spec.whatwg.org/#headers-class
-  function Headers(headers) {
-    this[MAP_SLOT] = new Map();
+  // Callbacks to determine whether a given header name & value are forbidden
+  // for various header guard types.
+  function guardImmutableCallback(name, value) {
+    throw new TypeError('Immutable header cannot be modified')
+  }
 
-    if (headers === undefined) {
+  function guardNoneCallback(name, value) {
+    return false
+  }
+
+  function guardRequestCallback(name, value) {
+    var nameLower = name.toLowerCase()
+    if (INVALID_HEADERS_REQUEST.indexOf(nameLower) > -1 ||
+        nameLower.startsWith('proxy-') || nameLower.startsWith('sec-')) {
+      return true
+    }
+    return false
+  }
+
+  function guardRequestNoCorsCallback(name, value) {
+    var nameLower = name.toLowerCase()
+    if (VALID_HEADERS_NOCORS.indexOf(nameLower) > -1) {
+      return false
+    }
+    if (nameLower === 'content-type') {
+      var mimeType = value.split(';')[0].toLowerCase()
+      if (VALID_HEADERS_NOCORS_CONTENT_TYPE.indexOf(mimeType) > -1) {
+        return false
+      }
+    }
+    return true
+  }
+
+  function guardResponseCallback(name, value) {
+    if (INVALID_HEADERS_RESPONSE.indexOf(name.toLowerCase()) > -1) {
+      return true
+    }
+    return false
+  }
+
+  // https://fetch.spec.whatwg.org/#headers-class
+  function Headers(init) {
+    this[MAP_SLOT] = new Map();
+    if (this[GUARD_CALLBACK_SLOT] === undefined) {
+      this[GUARD_CALLBACK_SLOT] = guardNoneCallback
+    }
+
+    if (init === undefined) {
       return
-    } else if (headers === null || typeof headers !== 'object') {
+    } else if (init === null || typeof init !== 'object') {
       throw new TypeError(ERROR_INVALID_HEADERS_INIT)
-    } else if (headers instanceof Headers) {
-      // Should use for..of in case |headers| has a custom Symbol.iterator.
-      // However, this results in the ClosureCompiler polyfilling Symbol.
-      headers.forEach(function(value, name) {
+    } else if (init instanceof Headers) {
+      // TODO: Use for..of in case |init| has a custom Symbol.iterator.
+      // However, this results in the ClosureCompiler polyfilling Symbol, so
+      // use forEach until ClosureCompiler supports ES6 output.
+      init.forEach(function(value, name) {
         this.append(name, value)
       }, this)
-    } else if (Array.isArray(headers)) {
-      headers.forEach(function(header) {
+    } else if (Array.isArray(init)) {
+      init.forEach(function(header) {
         if (header.length !== 2) {
           throw new TypeError(ERROR_INVALID_HEADERS_INIT)
         }
         this.append(header[0], header[1])
       }, this)
     } else {
-      Object.getOwnPropertyNames(headers).forEach(function(name) {
-        this.append(name, headers[name])
+      Object.getOwnPropertyNames(init).forEach(function(name) {
+        this.append(name, init[name])
       }, this)
     }
+  }
+
+  function CreateHeadersWithGuard(headersInit, guardCallback) {
+    var headers = create(Headers.prototype)
+    headers[GUARD_CALLBACK_SLOT] = guardCallback
+    Headers.call(headers, headersInit)
+    return headers
   }
 
   Headers.prototype.append = function(name, value) {
@@ -207,6 +304,9 @@
     }
     name = normalizeName(name)
     value = normalizeValue(value)
+    if (this[GUARD_CALLBACK_SLOT](name, value)) {
+      return
+    }
     if (this[MAP_SLOT].has(name)) {
       this[MAP_SLOT].set(name, this[MAP_SLOT].get(name) + ', ' + value)
     } else {
@@ -217,6 +317,9 @@
   Headers.prototype['delete'] = function(name) {
     if (arguments.length !== 1) {
       throw TypeError('Invalid parameters to delete')
+    }
+    if (this[GUARD_CALLBACK_SLOT](name, 'invalid')) {
+      return
     }
     this[MAP_SLOT].delete(normalizeName(name))
   }
@@ -241,7 +344,12 @@
     if (arguments.length !== 2) {
       throw TypeError('Invalid parameters to set')
     }
-    this[MAP_SLOT].set(normalizeName(name), normalizeValue(value))
+    name = normalizeName(name)
+    value = normalizeValue(value)
+    if (this[GUARD_CALLBACK_SLOT](name, value)) {
+      return
+    }
+    this[MAP_SLOT].set(name, value)
   }
 
   Headers.prototype.forEach = function(callback, thisArg) {
@@ -400,6 +508,7 @@
                   init.cloneBody === undefined
     init = init || {}
     var body = init.body || init.cloneBody
+    var headersInit = init.headers
 
     if (input instanceof Request) {
       if (input.bodyUsed) {
@@ -408,8 +517,8 @@
       this[URL_SLOT] = input.url
       this[CACHE_SLOT] = input.cache
       this[CREDENTIALS_SLOT] = input.credentials
-      if (!init.headers) {
-        this[HEADERS_SLOT] = new Headers(input.headers)
+      if (headersInit === undefined) {
+        headersInit = input.headers
       }
       this[INTEGRITY_SLOT] = input.integrity
       this[METHOD_SLOT] = input.method
@@ -448,9 +557,6 @@
       throw new TypeError('Invalid request credentials')
     }
 
-    if (init.headers || !this[HEADERS_SLOT]) {
-      this[HEADERS_SLOT] = new Headers(init.headers)
-    }
     if (init.integrity !== undefined) {
       this[INTEGRITY_SLOT] = init.integrity
     } else if (this[INTEGRITY_SLOT] === undefined) {
@@ -483,6 +589,14 @@
       throw new TypeError('Invalid request redirect mode')
     }
 
+    if (this[MODE_SLOT] === 'no-cors') {
+      this[HEADERS_SLOT] =
+          CreateHeadersWithGuard(headersInit, guardRequestNoCorsCallback)
+    } else {
+      this[HEADERS_SLOT] =
+          CreateHeadersWithGuard(headersInit, guardRequestCallback)
+    }
+
     if ((this[METHOD_SLOT] === 'GET' || this[METHOD_SLOT] === 'HEAD') && body) {
       throw new TypeError('Request body is not allowed for GET or HEAD')
     }
@@ -511,8 +625,8 @@
     'url': { get: function() { return this[URL_SLOT] } }
   })
 
-  function parseHeaders(rawHeaders) {
-    var headers = new Headers()
+  function parseHeaders(rawHeaders, guardCallback) {
+    var headers = CreateHeadersWithGuard(undefined, guardCallback)
     // Replace instances of \r\n and \n followed by at least one space or
     // horizontal tab with a space.
     // https://tools.ietf.org/html/rfc7230#section-3.2
@@ -556,7 +670,8 @@
     this[OK_SLOT] = this[STATUS_SLOT] >= 200 && this[STATUS_SLOT] < 300
     this[STATUS_TEXT_SLOT] = 'statusText' in init ?
                              parseStatusText(init.statusText) : 'OK'
-    this[HEADERS_SLOT] = new Headers(init.headers)
+    this[HEADERS_SLOT] =
+        CreateHeadersWithGuard(init.headers, guardResponseCallback)
     this[URL_SLOT] = init.url || ''
     if (body && NULL_BODY_STATUSES.indexOf(this[STATUS_SLOT]) > -1) {
       throw new TypeError(
@@ -578,7 +693,8 @@
     return new Response(cloneBody, {
       status: this[STATUS_SLOT],
       statusText: this[STATUS_TEXT_SLOT],
-      headers: new Headers(this[HEADERS_SLOT]),
+      headers: CreateHeadersWithGuard(this[HEADERS_SLOT],
+                                      guardResponseCallback),
       url: this[URL_SLOT]
     })
   }
@@ -594,6 +710,7 @@
 
   Response.error = function() {
     var response = new Response(null)
+    response[HEADERS_SLOT][GUARD_CALLBACK_SLOT] = guardImmutableCallback
     response[TYPE_SLOT] = 'error'
     response[STATUS_SLOT] = 0
     response[STATUS_TEXT_SLOT] = ''
@@ -644,7 +761,8 @@
           var init = {
             status: xhr.status,
             statusText: xhr.statusText,
-            headers: parseHeaders(xhr.getAllResponseHeaders() || '')
+            headers: parseHeaders(xhr.getAllResponseHeaders() || '',
+                                  guardResponseCallback)
           }
           init.url = 'responseURL' in xhr ?
                      xhr.responseURL : init.headers.get('X-Request-URL')
