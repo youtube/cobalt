@@ -71,8 +71,9 @@
       };
 
       var initValuesDict = { "method" : methods,
-                             "referrer" : referrers,
-                             "referrerPolicy" : referrerPolicies,
+                             // Referrer is not supported due to privacy concerns.
+                             //"referrer" : referrers,
+                             //"referrerPolicy" : referrerPolicies,
                              "mode" : modes,
                              "credentials" : credentials,
                              "cache" : caches,

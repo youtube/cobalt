@@ -31,10 +31,13 @@
           "Expect TypeError exception");
       },"RequestInit's mode is navigate");
 
+      // Referrer is not supported due to privacy concerns.
+      /*
       test(function() {
         assert_throws(new TypeError() , function() { new Request("", {"referrer" : "http://:not a valid URL"}); },
           "Expect TypeError exception");
       },"RequestInit's referrer is invalid");
+      */
 
       test(function() {
         assert_throws(new TypeError() , function() { new Request("", {"method" : "IN VALID"}); },
@@ -92,7 +95,8 @@
         assert_equals(request.headers.get("Content-Type"), "potato");
       }, "Request should get its content-type from init headers if one is provided");
 
-      var parameters = ["referrerPolicy", "mode", "credentials", "cache", "redirect"];
+      // Referrer is not supported due to privacy concerns.
+      var parameters = [/*"referrerPolicy",*/ "mode", "credentials", "cache", "redirect"];
       parameters.forEach(function(parameter) {
         test(function() {
           var options = { };
