@@ -497,7 +497,7 @@ static_assert(sizeof(BaselineScript) % sizeof(uintptr_t) == 0,
 inline bool
 IsBaselineEnabled(JSContext* cx)
 {
-#ifdef JS_CODEGEN_NONE
+#if defined(JS_CODEGEN_NONE) || defined(COBALT_DISABLE_JIT)
     return false;
 #else
     return cx->runtime()->options().baseline();
