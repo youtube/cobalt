@@ -269,6 +269,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   HTMLElement(Document* document, base::Token local_name);
   ~HTMLElement() OVERRIDE;
 
+  void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
+
   void CopyDirectionality(const HTMLElement& other);
 
   // HTMLElement keeps a pointer to the dom stat tracker to ensure that it can
@@ -279,7 +282,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  private:
   // From Node.
   void OnMutation() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
 
   // From Element.
   void OnSetAttribute(const std::string& name,

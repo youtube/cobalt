@@ -15,6 +15,7 @@
 #include "cobalt/dom/animation_frame_request_callback_list.h"
 
 #include "base/debug/trace_event.h"
+#include "cobalt/dom/global_stats.h"
 
 namespace cobalt {
 namespace dom {
@@ -44,12 +45,18 @@ void AnimationFrameRequestCallbackList::RunCallbacks(double animation_time) {
   TRACE_EVENT1("cobalt::dom", "Window::RunAnimationFrameCallbacks()",
                "number_of_callbacks", frame_request_callbacks_.size());
 
+  // The callbacks are now being run. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
   for (InternalList::const_iterator iter = frame_request_callbacks_.begin();
        iter != frame_request_callbacks_.end(); ++iter) {
     if (!(*iter)->cancelled) {
       (*iter)->callback.value().Run(animation_time);
     }
   }
+
+  // The callbacks are done running. Stop tracking it in the global stats.
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
 }
 
 bool AnimationFrameRequestCallbackList::HasPendingCallbacks() const {

@@ -20,17 +20,25 @@ namespace cobalt {
 namespace dom {
 
 DomStatTracker::DomStatTracker(const std::string& name)
-    : total_html_elements_(
-          StringPrintf("Count.%s.DOM.HtmlElement", name.c_str()), 0,
+    : html_elements_count_(
+          StringPrintf("Count.%s.DOM.HtmlElement.Total", name.c_str()), 0,
           "Total number of HTML elements."),
+      document_html_elements_count_(
+          StringPrintf("Count.%s.DOM.HtmlElement.Document", name.c_str()), 0,
+          "Number of HTML elements in the document."),
       is_event_active_(false),
       event_video_start_delay_stop_watch_(kStopWatchTypeEventVideoStartDelay,
                                           base::StopWatch::kAutoStartOff, this),
       event_video_start_delay_(
           StringPrintf("Event.Duration.%s.DOM.VideoStartDelay", name.c_str()),
           base::TimeDelta(), "Total delay between event and video starting."),
+      script_element_execute_time_(
+          StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Time of the last HTML script element execute."),
       html_elements_created_count_(0),
       html_elements_destroyed_count_(0),
+      html_elements_inserted_into_document_count_(0),
+      html_elements_removed_from_document_count_(0),
       update_matching_rules_count_(0),
       update_computed_style_count_(0),
       generate_html_element_computed_style_count_(0),
@@ -41,8 +49,10 @@ DomStatTracker::DomStatTracker(const std::string& name)
 DomStatTracker::~DomStatTracker() {
   FlushPeriodicTracking();
 
-  // Verify that all of the elements were destroyed.
-  DCHECK_EQ(total_html_elements_, 0);
+  // Verify that all of the elements were removed from the document and
+  // destroyed.
+  DCHECK_EQ(html_elements_count_, 0);
+  DCHECK_EQ(document_html_elements_count_, 0);
 
   event_video_start_delay_stop_watch_.Stop();
 }
@@ -84,10 +94,22 @@ void DomStatTracker::OnHtmlVideoElementPlaying() {
   }
 }
 
+void DomStatTracker::OnHtmlScriptElementExecuted() {
+  script_element_execute_time_ = base::TimeTicks::Now().ToInternalValue();
+}
+
 void DomStatTracker::OnHtmlElementCreated() { ++html_elements_created_count_; }
 
 void DomStatTracker::OnHtmlElementDestroyed() {
   ++html_elements_destroyed_count_;
+}
+
+void DomStatTracker::OnHtmlElementInsertedIntoDocument() {
+  ++html_elements_inserted_into_document_count_;
+}
+
+void DomStatTracker::OnHtmlElementRemovedFromDocument() {
+  ++html_elements_removed_from_document_count_;
 }
 
 void DomStatTracker::OnUpdateMatchingRules() { ++update_matching_rules_count_; }
@@ -117,12 +139,16 @@ void DomStatTracker::OnStopWatchStopped(int id, base::TimeDelta time_elapsed) {
 
 void DomStatTracker::FlushPeriodicTracking() {
   // Update the CVals before clearing the periodic values.
-  total_html_elements_ +=
+  html_elements_count_ +=
       html_elements_created_count_ - html_elements_destroyed_count_;
+  document_html_elements_count_ += html_elements_inserted_into_document_count_ -
+                                   html_elements_removed_from_document_count_;
 
   // Now clear the values.
   html_elements_created_count_ = 0;
   html_elements_destroyed_count_ = 0;
+  html_elements_inserted_into_document_count_ = 0;
+  html_elements_removed_from_document_count_ = 0;
   update_matching_rules_count_ = 0;
   update_computed_style_count_ = 0;
   generate_html_element_computed_style_count_ = 0;
