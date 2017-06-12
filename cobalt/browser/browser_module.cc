@@ -245,6 +245,10 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options.web_module_recreated_callback),
+      navigate_time_("Time.Browser.Navigate", 0,
+                     "The last time a navigation occurred."),
+      on_load_event_time_("Time.Browser.OnLoadEvent", 0,
+                          "The last time the window.OnLoad event fired."),
 #if defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(fuzzer_toggle_command_handler_(
           kFuzzerToggleCommand,
@@ -407,6 +411,10 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   // run.
   web_module_.reset(NULL);
 
+  // Wait until after the old WebModule is destroyed before setting the navigate
+  // time so that it won't be included in the time taken to load the URL.
+  navigate_time_ = base::TimeTicks::Now().ToInternalValue();
+
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = renderer_module_.render_target()->GetSize();
   DestroySplashScreen();
@@ -473,6 +481,7 @@ void BrowserModule::OnLoad() {
   // changed unless the corresponding benchmark logic is changed as well.
   LOG(INFO) << "Loaded WebModule";
 
+  on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
   web_module_loaded_.Signal();
 }
 

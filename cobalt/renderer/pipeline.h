@@ -199,8 +199,17 @@ class Pipeline {
   // tracking is flushed when the animations expire.
   base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
 
-  // Tracks whether or not animations are currently playing.
+  // The total number of new render trees that have been rasterized.
+  base::CVal<int> new_render_tree_rasterize_count_;
+  // The last time that a newly encountered render tree was first rasterized.
+  base::CVal<int64> new_render_tree_rasterize_time_;
+
+  // Whether or not animations are currently playing.
   base::CVal<bool> has_active_animations_c_val_;
+  // The most recent time animations started playing.
+  base::CVal<int64> animations_start_time_;
+  // The most recent time animations ended playing.
+  base::CVal<int64> animations_end_time_;
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Dumps the current render tree to the console.

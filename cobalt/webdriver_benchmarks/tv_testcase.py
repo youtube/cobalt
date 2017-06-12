@@ -235,6 +235,18 @@ class TvTestCase(unittest.TestCase):
       required time.
     """
     start_time = time.time()
+
+    # First simply check for whether or not the event is still processing.
+    # There's no need to check anything else while the event is still going on.
+    # Once it is done processing, it won't get re-set, so there's no need to
+    # re-check it.
+    while self.get_cval(c_val_names.event_is_processing()):
+      if time.time() - start_time > PROCESSING_TIMEOUT_SECONDS:
+        raise TvTestCase.ProcessingTimeoutException()
+
+      time.sleep(0.1)
+
+    # Now wait for all processing to complete in Cobalt.
     count = 0
     while count < 2:
       if self.is_processing(check_animations):
@@ -249,7 +261,7 @@ class TvTestCase(unittest.TestCase):
 
   def is_processing(self, check_animations):
     """Checks to see if Cobalt is currently processing."""
-    return (self.get_cval(c_val_names.count_dom_active_dispatch_events()) or
+    return (self.get_cval(c_val_names.count_dom_active_java_script_events()) or
             self.get_cval(c_val_names.layout_is_dirty()) or
             (check_animations and
              self.get_cval(c_val_names.renderer_has_active_animations())) or

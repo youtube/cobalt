@@ -23,6 +23,7 @@
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/sync_loader.h"
@@ -506,6 +507,9 @@ void HTMLScriptElement::Execute(const std::string& content,
     return;
   }
 
+  // The script is now being run. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
   TRACE_EVENT2("cobalt::dom", "HTMLScriptElement::Execute()", "file_path",
                script_location.file_path, "line_number",
                script_location.line_number);
@@ -537,6 +541,12 @@ void HTMLScriptElement::Execute(const std::string& content,
     PreventGarbageCollectionAndPostToDispatchEvent(
         FROM_HERE, base::Tokens::readystatechange());
   }
+
+  // The script is done running. Stop tracking it in the global stats.
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
+
+  // Notify the DomStatTracker of the execution.
+  dom_stat_tracker_->OnHtmlScriptElementExecuted();
 }
 
 void HTMLScriptElement::PreventGarbageCollectionAndPostToDispatchEvent(
