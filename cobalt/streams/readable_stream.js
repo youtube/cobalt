@@ -1,7 +1,7 @@
 // ==ClosureCompiler==
 // @output_file_name readable_stream.js
-// @compilation_level WHITESPACE_ONLY
-// @language_out ES6_STRICT
+// @compilation_level SIMPLE_OPTIMIZATIONS
+// @language_out ES5_STRICT
 // ==/ClosureCompiler==
 
 // Copyright 2015 The Chromium Authors. All rights reserved.
@@ -11,12 +11,12 @@
 (function(global) {
   'use strict';
 
+  const defineProperty = global.Object.defineProperty;
+
   // Mimic functionality provided to v8 extras.
   const v8_InternalPackedArray = global.Array;
 
-  function v8_createPrivateSymbol(x) {
-    return Symbol(x);
-  }
+  const v8_createPrivateSymbol = global.Symbol;
 
   function v8_simpleBind(fn, obj) {
     return fn.bind(obj);
@@ -71,80 +71,78 @@
   // InternalPackedArray directly by using multiple arrays in a linked list and
   // keeping the array size bounded.
   const QUEUE_MAX_ARRAY_SIZE = 16384;
-  class SimpleQueue {
-    constructor() {
-      this.front = {
+  function SimpleQueue() {
+    this.front = {
+      elements: new v8_InternalPackedArray(),
+      next: undefined,
+    };
+    this.back = this.front;
+    // The cursor is used to avoid calling InternalPackedArray.shift().
+    this.cursor = 0;
+    this.size = 0;
+  }
+
+  defineProperty(SimpleQueue.prototype, 'length', {
+    get: function() { return this.size; }
+  });
+
+  SimpleQueue.prototype.push = function(element) {
+    ++this.size;
+    if (this.back.elements.length === QUEUE_MAX_ARRAY_SIZE) {
+      const oldBack = this.back;
+      this.back = {
         elements: new v8_InternalPackedArray(),
         next: undefined,
       };
-      this.back = this.front;
-      // The cursor is used to avoid calling InternalPackedArray.shift().
+      oldBack.next = this.back;
+    }
+    this.back.elements.push(element);
+  }
+
+  SimpleQueue.prototype.shift = function() {
+    // assert(this.size > 0);
+    --this.size;
+    if (this.front.elements.length === this.cursor) {
+      // assert(this.cursor === QUEUE_MAX_ARRAY_SIZE);
+      // assert(this.front.next !== undefined);
+      this.front = this.front.next;
       this.cursor = 0;
-      this.size = 0;
     }
+    const element = this.front.elements[this.cursor];
+    // Permit shifted element to be garbage collected.
+    this.front.elements[this.cursor] = undefined;
+    ++this.cursor;
 
-    get length() {
-      return this.size;
-    }
+    return element;
+  }
 
-    push(element) {
-      ++this.size;
-      if (this.back.elements.length === QUEUE_MAX_ARRAY_SIZE) {
-        const oldBack = this.back;
-        this.back = {
-          elements: new v8_InternalPackedArray(),
-          next: undefined,
-        };
-        oldBack.next = this.back;
+  SimpleQueue.prototype.forEach = function(callback) {
+    let i = this.cursor;
+    let node = this.front;
+    let elements = node.elements;
+    while (i !== elements.length || node.next !== undefined) {
+      if (i === elements.length) {
+        // assert(node.next !== undefined);
+        // assert(i === QUEUE_MAX_ARRAY_SIZE);
+        node = node.next;
+        elements = node.elements;
+        i = 0;
       }
-      this.back.elements.push(element);
+      callback(elements[i]);
+      ++i;
     }
+  }
 
-    shift() {
-      // assert(this.size > 0);
-      --this.size;
-      if (this.front.elements.length === this.cursor) {
-        // assert(this.cursor === QUEUE_MAX_ARRAY_SIZE);
-        // assert(this.front.next !== undefined);
-        this.front = this.front.next;
-        this.cursor = 0;
-      }
-      const element = this.front.elements[this.cursor];
-      // Permit shifted element to be garbage collected.
-      this.front.elements[this.cursor] = undefined;
-      ++this.cursor;
-
-      return element;
+  // Return the element that would be returned if shift() was called now,
+  // without modifying the queue.
+  SimpleQueue.prototype.peek = function() {
+    // assert(this.size > 0);
+    if (this.front.elements.length === this.cursor) {
+      // assert(this.cursor === QUEUE_MAX_ARRAY_SIZE)
+      // assert(this.front.next !== undefined);
+      return this.front.next.elements[0];
     }
-
-    forEach(callback) {
-      let i = this.cursor;
-      let node = this.front;
-      let elements = node.elements;
-      while (i !== elements.length || node.next !== undefined) {
-        if (i === elements.length) {
-          // assert(node.next !== undefined);
-          // assert(i === QUEUE_MAX_ARRAY_SIZE);
-          node = node.next;
-          elements = node.elements;
-          i = 0;
-        }
-        callback(elements[i]);
-        ++i;
-      }
-    }
-
-    // Return the element that would be returned if shift() was called now,
-    // without modifying the queue.
-    peek() {
-      // assert(this.size > 0);
-      if (this.front.elements.length === this.cursor) {
-        // assert(this.cursor === QUEUE_MAX_ARRAY_SIZE)
-        // assert(this.front.next !== undefined);
-        return this.front.next.elements[0];
-      }
-      return this.front.elements[this.cursor];
-    }
+    return this.front.elements[this.cursor];
   }
   /* SimpleQueue.js: end */
 
@@ -166,9 +164,6 @@
       v8_createPrivateSymbol('[[ownerReadableStream]]');
 
   const _readRequests = v8_createPrivateSymbol('[[readRequests]]');
-
-  const createWithExternalControllerSentinel =
-      v8_createPrivateSymbol('flag for UA-created ReadableStream to pass');
 
   const _readableStreamBits = v8_createPrivateSymbol('bit field for [[state]] and [[disturbed]]');
   const DISTURBED = 0b1;
@@ -193,12 +188,10 @@
   const CLOSE_REQUESTED = 0b10;
   const PULLING = 0b100;
   const PULL_AGAIN = 0b1000;
-  const EXTERNALLY_CONTROLLED = 0b10000;
 
   const undefined = global.undefined;
   const Infinity = global.Infinity;
 
-  const defineProperty = global.Object.defineProperty;
   const hasOwnProperty = v8_uncurryThis(global.Object.hasOwnProperty);
   const callFunction = v8_uncurryThis(global.Function.prototype.call);
   const applyFunction = v8_uncurryThis(global.Function.prototype.apply);
@@ -246,51 +239,58 @@
   const errTmplMustBeFunctionOrUndefined = name =>
       `${name} must be a function or undefined`;
 
-  class ReadableStream {
-    constructor() {
-      // TODO(domenic): when V8 gets default parameters and destructuring, all
-      // this can be cleaned up.
-      const underlyingSource = arguments[0] === undefined ? {} : arguments[0];
-      const strategy = arguments[1] === undefined ? {} : arguments[1];
-      const size = strategy.size;
-      let highWaterMark = strategy.highWaterMark;
-      if (highWaterMark === undefined) {
-        highWaterMark = 1;
-      }
-
-      this[_readableStreamBits] = 0b0;
-      ReadableStreamSetState(this, STATE_READABLE);
-      this[_reader] = undefined;
-      this[_storedError] = undefined;
-
-      // Avoid allocating the controller if the stream is going to be controlled
-      // externally (i.e. from C++) anyway. All calls to underlyingSource
-      // methods will disregard their controller argument in such situations
-      // (but see below).
-
-      this[_controller] = undefined;
-
-      const type = underlyingSource.type;
-      const typeString = String(type);
-      if (typeString === 'bytes') {
-        throw new RangeError('bytes type is not yet implemented');
-      } else if (type !== undefined) {
-        throw new RangeError(streamErrors_invalidType);
-      }
-
-      this[_controller] =
-          new ReadableStreamDefaultController(this, underlyingSource, size, highWaterMark, arguments[2]);
+  function ReadableStream() {
+    // TODO(domenic): when V8 gets default parameters and destructuring, all
+    // this can be cleaned up.
+    const underlyingSource = arguments[0] === undefined ? {} : arguments[0];
+    const strategy = arguments[1] === undefined ? {} : arguments[1];
+    const size = strategy.size;
+    let highWaterMark = strategy.highWaterMark;
+    if (highWaterMark === undefined) {
+      highWaterMark = 1;
     }
 
-    get locked() {
+    this[_readableStreamBits] = 0b0;
+    ReadableStreamSetState(this, STATE_READABLE);
+    this[_reader] = undefined;
+    this[_storedError] = undefined;
+
+    // Avoid allocating the controller if the stream is going to be controlled
+    // externally (i.e. from C++) anyway. All calls to underlyingSource
+    // methods will disregard their controller argument in such situations
+    // (but see below).
+
+    this[_controller] = undefined;
+
+    const type = underlyingSource.type;
+    const typeString = String(type);
+    if (typeString === 'bytes') {
+      throw new RangeError('bytes type is not yet implemented');
+    } else if (type !== undefined) {
+      throw new RangeError(streamErrors_invalidType);
+    }
+
+    this[_controller] =
+        new ReadableStreamDefaultController(this, underlyingSource, size, highWaterMark, arguments[2]);
+  }
+
+  defineProperty(ReadableStream.prototype, 'locked', {
+    enumerable: false,
+    configurable: true,
+    get: function() {
       if (IsReadableStream(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
 
       return IsReadableStreamLocked(this);
     }
+  });
 
-    cancel(reason) {
+  defineProperty(ReadableStream.prototype, 'cancel', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(reason) {
       if (IsReadableStream(this) === false) {
         return Promise_reject(new TypeError(streamErrors_illegalInvocation));
       }
@@ -301,8 +301,13 @@
 
       return ReadableStreamCancel(this, reason);
     }
+  });
 
-    getReader({ mode } = {}) {
+  defineProperty(ReadableStream.prototype, 'getReader', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function({ mode } = {}) {
       if (IsReadableStream(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
@@ -323,82 +328,95 @@
 
       throw new RangeError(errGetReaderBadMode);
     }
+  });
 
-    pipeThrough({writable, readable}, options) {
+  defineProperty(ReadableStream.prototype, 'pipeThrough', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function({writable, readable}, options) {
       throw new TypeError('pipeThrough not implemented');
     }
+  });
 
-    pipeTo(dest, {preventClose, preventAbort, preventCancel} = {}) {
+  defineProperty(ReadableStream.prototype, 'pipeTo', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(dest) {
       throw new TypeError('pipeTo not implemented');
     }
+  });
 
-    tee() {
+  defineProperty(ReadableStream.prototype, 'tee', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function() {
       if (IsReadableStream(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
 
       return ReadableStreamTee(this);
     }
-  }
+  });
 
-  class ReadableStreamDefaultController {
-    // Cobalt: Constructor has a hidden argument at the end to designate
-    // whether it is externally controlled. Exposing this would fail the
-    // web platform test checking the number of parameters the constructor
-    // accepts.
-    constructor(stream, underlyingSource, size, highWaterMark) {
-      if (IsReadableStream(stream) === false) {
-        throw new TypeError(streamErrors_illegalConstructor);
-      }
-
-      if (stream[_controller] !== undefined) {
-        throw new TypeError(streamErrors_illegalConstructor);
-      }
-
-      this[_controlledReadableStream] = stream;
-
-      this[_underlyingSource] = underlyingSource;
-
-      this[_queue] = new SimpleQueue();
-      this[_totalQueuedSize] = 0;
-
-      this[_readableStreamDefaultControllerBits] = 0b0;
-      // Cobalt: Hidden constructor parameter to designate whether the
-      // is externally controlled.
-      if (arguments[4] === createWithExternalControllerSentinel) {
-        this[_readableStreamDefaultControllerBits] |= EXTERNALLY_CONTROLLED;
-      }
-
-      const normalizedStrategy =
-          ValidateAndNormalizeQueuingStrategy(size, highWaterMark);
-      this[_strategySize] = normalizedStrategy.size;
-      this[_strategyHWM] = normalizedStrategy.highWaterMark;
-
-      const controller = this;
-
-      const startResult = CallOrNoop(
-          underlyingSource, 'start', this, 'underlyingSource.start');
-      thenPromise(Promise_resolve(startResult),
-          () => {
-            controller[_readableStreamDefaultControllerBits] |= STARTED;
-            ReadableStreamDefaultControllerCallPullIfNeeded(controller);
-          },
-          r => {
-            if (ReadableStreamGetState(stream) === STATE_READABLE) {
-              ReadableStreamDefaultControllerError(controller, r);
-            }
-          });
+  function ReadableStreamDefaultController(stream, underlyingSource, size, highWaterMark) {
+    if (IsReadableStream(stream) === false) {
+      throw new TypeError(streamErrors_illegalConstructor);
     }
 
-    get desiredSize() {
+    if (stream[_controller] !== undefined) {
+      throw new TypeError(streamErrors_illegalConstructor);
+    }
+
+    this[_controlledReadableStream] = stream;
+
+    this[_underlyingSource] = underlyingSource;
+
+    this[_queue] = new SimpleQueue();
+    this[_totalQueuedSize] = 0;
+
+    this[_readableStreamDefaultControllerBits] = 0b0;
+
+    const normalizedStrategy =
+        ValidateAndNormalizeQueuingStrategy(size, highWaterMark);
+    this[_strategySize] = normalizedStrategy.size;
+    this[_strategyHWM] = normalizedStrategy.highWaterMark;
+
+    const controller = this;
+
+    const startResult = CallOrNoop(
+        underlyingSource, 'start', this, 'underlyingSource.start');
+    thenPromise(Promise_resolve(startResult),
+        () => {
+          controller[_readableStreamDefaultControllerBits] |= STARTED;
+          ReadableStreamDefaultControllerCallPullIfNeeded(controller);
+        },
+        r => {
+          if (ReadableStreamGetState(stream) === STATE_READABLE) {
+            ReadableStreamDefaultControllerError(controller, r);
+          }
+        });
+  }
+
+  defineProperty(ReadableStreamDefaultController.prototype, 'desiredSize', {
+    enumerable: false,
+    configurable: true,
+    get: function() {
       if (IsReadableStreamDefaultController(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
 
       return ReadableStreamDefaultControllerGetDesiredSize(this);
     }
+  });
 
-    close() {
+  defineProperty(ReadableStreamDefaultController.prototype, 'close', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function() {
       if (IsReadableStreamDefaultController(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
@@ -419,8 +437,13 @@
 
       return ReadableStreamDefaultControllerClose(this);
     }
+  });
 
-    enqueue(chunk) {
+  defineProperty(ReadableStreamDefaultController.prototype, 'enqueue', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(chunk) {
       if (IsReadableStreamDefaultController(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
@@ -441,8 +464,13 @@
 
       return ReadableStreamDefaultControllerEnqueue(this, chunk);
     }
+  });
 
-    error(e) {
+  defineProperty(ReadableStreamDefaultController.prototype, 'error', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(e) {
       if (IsReadableStreamDefaultController(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
@@ -459,7 +487,7 @@
 
       return ReadableStreamDefaultControllerError(this, e);
     }
-  }
+  });
 
   function ReadableStreamDefaultControllerCancel(controller, reason) {
     controller[_queue] = new SimpleQueue();
@@ -495,29 +523,36 @@
     return promise;
   }
 
-  class ReadableStreamDefaultReader {
-    constructor(stream) {
-      if (IsReadableStream(stream) === false) {
-        throw new TypeError(errReaderConstructorBadArgument);
-      }
-      if (IsReadableStreamLocked(stream) === true) {
-        throw new TypeError(errReaderConstructorStreamAlreadyLocked);
-      }
-
-      ReadableStreamReaderGenericInitialize(this, stream);
-
-      this[_readRequests] = new SimpleQueue();
+  function ReadableStreamDefaultReader(stream) {
+    if (IsReadableStream(stream) === false) {
+      throw new TypeError(errReaderConstructorBadArgument);
+    }
+    if (IsReadableStreamLocked(stream) === true) {
+      throw new TypeError(errReaderConstructorStreamAlreadyLocked);
     }
 
-    get closed() {
+    ReadableStreamReaderGenericInitialize(this, stream);
+
+    this[_readRequests] = new SimpleQueue();
+  }
+
+  defineProperty(ReadableStreamDefaultReader.prototype, 'closed', {
+    enumerable: false,
+    configurable: true,
+    get: function() {
       if (IsReadableStreamDefaultReader(this) === false) {
         return Promise_reject(new TypeError(streamErrors_illegalInvocation));
       }
 
       return this[_closedPromise];
     }
+  });
 
-    cancel(reason) {
+  defineProperty(ReadableStreamDefaultReader.prototype, 'cancel', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function(reason) {
       if (IsReadableStreamDefaultReader(this) === false) {
         return Promise_reject(new TypeError(streamErrors_illegalInvocation));
       }
@@ -529,8 +564,13 @@
 
       return ReadableStreamReaderGenericCancel(this, reason);
     }
+  });
 
-    read() {
+  defineProperty(ReadableStreamDefaultReader.prototype, 'read', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function() {
       if (IsReadableStreamDefaultReader(this) === false) {
         return Promise_reject(new TypeError(streamErrors_illegalInvocation));
       }
@@ -541,8 +581,13 @@
 
       return ReadableStreamDefaultReaderRead(this);
     }
+  });
 
-    releaseLock() {
+  defineProperty(ReadableStreamDefaultReader.prototype, 'releaseLock', {
+    enumerable: false,
+    configurable: true,
+    writable: true,
+    value: function() {
       if (IsReadableStreamDefaultReader(this) === false) {
         throw new TypeError(streamErrors_illegalInvocation);
       }
@@ -558,7 +603,7 @@
 
       ReadableStreamReaderGenericRelease(this);
     }
-  }
+  });
 
   function ReadableStreamReaderGenericCancel(reader, reason) {
     return ReadableStreamCancel(reader[_ownerReadableStream], reason);
@@ -739,12 +784,6 @@
     // TODO(yhirano): Remove this when we don't need hasPendingActivity in
     // blink::UnderlyingSourceBase.
     const controller = stream[_controller];
-    if (controller[_readableStreamDefaultControllerBits] & EXTERNALLY_CONTROLLED) {
-      // The stream is created with an external controller (i.e. made in
-      // Blink).
-      const underlyingSource = controller[_underlyingSource];
-      callFunction(underlyingSource.notifyLockAcquired, underlyingSource);
-    }
 
     reader[_ownerReadableStream] = stream;
     stream[_reader] = reader;
@@ -767,12 +806,6 @@
     // TODO(yhirano): Remove this when we don't need hasPendingActivity in
     // blink::UnderlyingSourceBase.
     const controller = reader[_ownerReadableStream][_controller];
-    if (controller[_readableStreamDefaultControllerBits] & EXTERNALLY_CONTROLLED) {
-      // The stream is created with an external controller (i.e. made in
-      // Blink).
-      const underlyingSource = controller[_underlyingSource];
-      callFunction(underlyingSource.notifyLockReleased, underlyingSource);
-    }
 
     if (ReadableStreamGetState(reader[_ownerReadableStream]) === STATE_READABLE) {
       v8_rejectPromise(reader[_closedPromise], new TypeError(errReleasedReaderClosedPromise));
@@ -1072,12 +1105,4 @@
   global.ReadableStreamDefaultControllerGetDesiredSize = ReadableStreamDefaultControllerGetDesiredSize;
   global.ReadableStreamDefaultControllerEnqueue = ReadableStreamDefaultControllerEnqueue;
   global.ReadableStreamDefaultControllerError = ReadableStreamDefaultControllerError;
-
-/*
-  binding.createReadableStreamWithExternalController =
-      (underlyingSource, strategy) => {
-        return new ReadableStream(
-            underlyingSource, strategy, createWithExternalControllerSentinel);
-      };
-*/
 })(this);
