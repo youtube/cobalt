@@ -155,7 +155,7 @@ static inline bool
 IsIonEnabled(JSContext* cx)
 {
     // The ARM64 Ion engine is not yet implemented.
-#if defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_ARM64)
+#if defined(JS_CODEGEN_NONE) || defined(JS_CODEGEN_ARM64) || defined(COBALT_DISABLE_JIT)
     return false;
 #else
     return cx->runtime()->options().ion() &&
