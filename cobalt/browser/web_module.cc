@@ -34,6 +34,7 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/global_stats.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/storage.h"
@@ -629,8 +630,16 @@ void WebModule::Impl::ExecuteJavascript(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(script_runner_);
+
+  // JavaScript is being run. Track it in the global stats.
+  dom::GlobalStats::GetInstance()->StartJavaScriptEvent();
+
   *result = script_runner_->Execute(script_utf8, script_location,
       out_succeeded);
+
+  // JavaScript is done running. Stop tracking it in the global stats.
+  dom::GlobalStats::GetInstance()->StopJavaScriptEvent();
+
   got_result->Signal();
 }
 

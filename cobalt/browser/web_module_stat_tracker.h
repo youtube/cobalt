@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "base/memory/scoped_vector.h"
+#include "base/time.h"
 #include "cobalt/base/c_val.h"
 #include "cobalt/base/stop_watch.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -83,6 +84,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     // Count-related
     base::CVal<int, base::CValPublic> count_dom_html_elements_created;
     base::CVal<int, base::CValPublic> count_dom_html_elements_destroyed;
+    base::CVal<int, base::CValPublic> count_dom_html_elements_added;
+    base::CVal<int, base::CValPublic> count_dom_html_elements_removed;
     base::CVal<int, base::CValPublic> count_dom_update_matching_rules;
     base::CVal<int, base::CValPublic> count_dom_update_computed_style;
     base::CVal<int, base::CValPublic>
@@ -144,7 +147,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
 
   std::string name_;
 
-  base::CVal<bool, base::CValPublic> event_is_processing_;
+  base::CVal<bool> event_is_processing_;
+  base::TimeTicks event_start_time_;
 };
 
 }  // namespace browser

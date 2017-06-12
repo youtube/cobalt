@@ -750,7 +750,11 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
 
 HTMLElement::~HTMLElement() {
   --(non_trivial_static_fields.Get().html_element_count_log.count);
+  if (IsInDocument()) {
+    dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
+  }
   dom_stat_tracker_->OnHtmlElementDestroyed();
+
   style_->set_mutation_observer(NULL);
 }
 
@@ -758,10 +762,14 @@ void HTMLElement::CopyDirectionality(const HTMLElement& other) {
   directionality_ = other.directionality_;
 }
 
-void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
+void HTMLElement::OnInsertedIntoDocument() {
+  Node::OnInsertedIntoDocument();
+  dom_stat_tracker_->OnHtmlElementInsertedIntoDocument();
+}
 
 void HTMLElement::OnRemovedFromDocument() {
   Node::OnRemovedFromDocument();
+  dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
 
   // When an element that is focused stops being a focusable element, or stops
   // being focused without another element being explicitly focused in its
@@ -778,6 +786,8 @@ void HTMLElement::OnRemovedFromDocument() {
     document->OnFocusChange();
   }
 }
+
+void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {

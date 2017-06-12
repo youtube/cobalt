@@ -128,7 +128,7 @@ class Application {
   // Stats related
 
   struct CValStats {
-    CValStats();
+    explicit CValStats(base::TimeTicks start_time);
 
     base::CVal<base::cval::SizeInBytes, base::CValPublic> free_cpu_memory;
     base::CVal<base::cval::SizeInBytes, base::CValPublic> used_cpu_memory;
@@ -145,6 +145,7 @@ class Application {
     base::CVal<base::cval::SizeInBytes, base::CValPublic> exe_memory;
 #endif
 
+    base::CVal<int64> app_start_time;
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 
@@ -152,7 +153,6 @@ class Application {
   void UpdateAndMaybeRegisterUserAgent();
 
   void UpdatePeriodicStats();
-  void UpdatePeriodicLiteStats();
 
   math::Size InitSystemWindow(CommandLine* command_line);
 
@@ -172,7 +172,6 @@ class Application {
   CValStats c_val_stats_;
 
   base::Timer stats_update_timer_;
-  base::Timer lite_stats_update_timer_;
 
   scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
 

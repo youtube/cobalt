@@ -512,6 +512,7 @@ class ResourceCache {
 
   base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
   base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
+  base::CVal<int> count_requested_resources_;
   base::CVal<int> count_loading_resources_;
   base::CVal<int> count_pending_callbacks_;
 
@@ -539,6 +540,9 @@ ResourceCache<CacheType>::ResourceCache(
           "The capacity, in bytes, of the resource cache.  "
           "Exceeding this results in *unused* resources being "
           "purged."),
+      count_requested_resources_(
+          base::StringPrintf("Count.%s.RequestedResources", name_.c_str()), 0,
+          "The total number of resources that have been requested."),
       count_loading_resources_(
           base::StringPrintf("Count.%s.LoadingResources", name_.c_str()), 0,
           "The number of loading resources that are still outstanding."),
@@ -576,6 +580,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
   }
 
   // If we reach this point, then the resource doesn't exist yet.
+  ++count_requested_resources_;
 
   // Add the resource to a loading set. If no current resources have pending
   // callbacks, then this resource will block callbacks until it is decoded.

@@ -18,6 +18,8 @@
 
 #include "base/bind.h"
 #include "base/bind_helpers.h"
+#include "base/debug/trace_event.h"
+#include "cobalt/dom/global_stats.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -85,8 +87,13 @@ int WindowTimers::GetFreeTimerHandle() {
 }
 
 void WindowTimers::RunTimerCallback(int handle) {
+  TRACE_EVENT0("cobalt::dom", "WindowTimers::RunTimerCallback");
   Timers::iterator timer = timers_.find(handle);
   DCHECK(timer != timers_.end());
+
+  // The callback is now being run. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
   // Keep a |TimerInfo| reference, so it won't be released when running the
   // callback.
   scoped_refptr<TimerInfo> timer_info = timer->second;
@@ -99,6 +106,9 @@ void WindowTimers::RunTimerCallback(int handle) {
   if (timer != timers_.end() && !timer->second->timer()->IsRunning()) {
     timers_.erase(timer);
   }
+
+  // The callback has finished running. Stop tracking it in the global stats.
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
 }
 
 }  // namespace dom

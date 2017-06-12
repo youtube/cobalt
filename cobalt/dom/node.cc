@@ -100,7 +100,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   }
 
   // The event is now being dispatched. Track it in the global stats.
-  GlobalStats::GetInstance()->StartDispatchEvent();
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
 
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
@@ -139,7 +139,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
   // The event has completed being dispatched. Stop tracking it in the global
   // stats.
-  GlobalStats::GetInstance()->StopDispatchEvent();
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
 
   return !event->default_prevented();
 }
