@@ -1643,7 +1643,7 @@ SampleChars(FrequencyCollator* collator, const CharT* chars, size_t length)
 static bool
 IsNativeRegExpEnabled(JSContext* cx)
 {
-#ifdef JS_CODEGEN_NONE
+#if defined(JS_CODEGEN_NONE) || defined(COBALT_DISABLE_JIT)
     return false;
 #else
     return cx->runtime()->options().nativeRegExp();
