@@ -80,6 +80,7 @@ void WebModuleStatTracker::OnStartInjectEvent(
   // If this is a valid event type, then start tracking it.
   if (current_event_type_ != kEventTypeInvalid) {
     event_is_processing_ = true;
+    event_start_time_ = base::TimeTicks::Now();
 
     dom_stat_tracker_->OnStartEvent();
     layout_stat_tracker_->OnStartEvent();
@@ -128,6 +129,12 @@ WebModuleStatTracker::EventStats::EventStats(const std::string& name)
           StringPrintf("Event.Count.%s.DOM.HtmlElement.Destroyed",
                        name.c_str()),
           0, "Number of HTML elements destroyed."),
+      count_dom_html_elements_added(
+          StringPrintf("Event.Count.%s.DOM.HtmlElement.Added", name.c_str()), 0,
+          "Number of HTML elements added to document."),
+      count_dom_html_elements_removed(
+          StringPrintf("Event.Count.%s.DOM.HtmlElement.Removed", name.c_str()),
+          0, "Number of HTML elements removed from document."),
       count_dom_update_matching_rules(
           StringPrintf("Event.Count.%s.DOM.HtmlElement.UpdateMatchingRules",
                        name.c_str()),
@@ -225,6 +232,8 @@ void WebModuleStatTracker::OnStopWatchStopped(int id,
 
 void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
   if (current_event_type_ == kEventTypeInvalid) {
+    dom_stat_tracker_->OnEndEvent();
+    layout_stat_tracker_->OnEndEvent();
     return;
   }
 
@@ -240,6 +249,10 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       dom_stat_tracker_->html_elements_created_count();
   event_stats->count_dom_html_elements_destroyed =
       dom_stat_tracker_->html_elements_destroyed_count();
+  event_stats->count_dom_html_elements_added =
+      dom_stat_tracker_->html_elements_added_to_document_count();
+  event_stats->count_dom_html_elements_removed =
+      dom_stat_tracker_->html_elements_removed_from_document_count();
   event_stats->count_dom_update_matching_rules =
       dom_stat_tracker_->update_matching_rules_count();
   event_stats->count_dom_update_computed_style =
@@ -283,17 +296,31 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
           layout::LayoutStatTracker::kStopWatchTypeRenderAndAnimate);
 
 #if defined(ENABLE_WEBDRIVER)
+  // Include the event's numbers in the total counts.
+  int html_elements_count = dom_stat_tracker_->html_elements_count() +
+                            dom_stat_tracker_->html_elements_created_count() -
+                            dom_stat_tracker_->html_elements_destroyed_count();
+  int document_html_elements_count =
+      dom_stat_tracker_->document_html_elements_count() +
+      dom_stat_tracker_->html_elements_added_to_document_count() -
+      dom_stat_tracker_->html_elements_removed_from_document_count();
+  int layout_boxes_count = layout_stat_tracker_->total_boxes() +
+                           layout_stat_tracker_->boxes_created_count() -
+                           layout_stat_tracker_->boxes_destroyed_count();
+
   // When the Webdriver is enabled, all of the event's values are stored within
   // a single string representing a dictionary of key-value pairs. This allows
   // the Webdriver to query a single CVal to retrieve all of the event's values.
   std::ostringstream oss;
   oss << "{"
+      << "\"StartTime\":" << event_start_time_.ToInternalValue() << ", "
       << "\"ProducedRenderTree\":" << was_render_tree_produced << ", "
       << "\"CntDomEventListeners\":"
       << dom::GlobalStats::GetInstance()->GetNumEventListeners() << ", "
       << "\"CntDomNodes\":" << dom::GlobalStats::GetInstance()->GetNumNodes()
       << ", "
-      << "\"CntDomHtmlElements\":" << dom_stat_tracker_->total_html_elements()
+      << "\"CntDomHtmlElements\":" << html_elements_count << ", "
+      << "\"CntDomDocumentHtmlElements\":" << document_html_elements_count
       << ", "
       << "\"CntDomHtmlElementsCreated\":"
       << dom_stat_tracker_->html_elements_created_count() << ", "
@@ -306,7 +333,7 @@ void WebModuleStatTracker::EndCurrentEvent(bool was_render_tree_produced) {
       << "\"CntDomGeneratePseudoComputedStyle\":"
       << dom_stat_tracker_->generate_pseudo_element_computed_style_count()
       << ", "
-      << "\"CntLayoutBoxes\":" << layout_stat_tracker_->total_boxes() << ", "
+      << "\"CntLayoutBoxes\":" << layout_boxes_count << ", "
       << "\"CntLayoutBoxesCreated\":"
       << layout_stat_tracker_->boxes_created_count() << ", "
       << "\"CntLayoutUpdateSize\":" << layout_stat_tracker_->update_size_count()

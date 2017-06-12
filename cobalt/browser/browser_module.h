@@ -310,6 +310,13 @@ class BrowserModule {
   // which could occur on navigation.
   base::Closure web_module_recreated_callback_;
 
+  // The time when a URL navigation starts. This is recorded after the previous
+  // WebModule is destroyed.
+  base::CVal<int64> navigate_time_;
+
+  // The time when the WebModule's Window.onload event is fired.
+  base::CVal<int64> on_load_event_time_;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
