@@ -42,22 +42,34 @@ class DomStatTracker : public base::StopWatchOwner {
   void OnEndEvent();
 
   void OnHtmlVideoElementPlaying();
+  void OnHtmlScriptElementExecuted();
 
   // Periodic count-related
   void OnHtmlElementCreated();
   void OnHtmlElementDestroyed();
+  void OnHtmlElementInsertedIntoDocument();
+  void OnHtmlElementRemovedFromDocument();
   void OnUpdateMatchingRules();
   void OnUpdateComputedStyle();
   void OnGenerateHtmlElementComputedStyle();
   void OnGeneratePseudoElementComputedStyle();
 
-  int total_html_elements() const { return total_html_elements_; }
+  int html_elements_count() const { return html_elements_count_; }
+  int document_html_elements_count() const {
+    return document_html_elements_count_;
+  }
 
   int html_elements_created_count() const {
     return html_elements_created_count_;
   }
   int html_elements_destroyed_count() const {
     return html_elements_destroyed_count_;
+  }
+  int html_elements_added_to_document_count() const {
+    return html_elements_inserted_into_document_count_;
+  }
+  int html_elements_removed_from_document_count() const {
+    return html_elements_removed_from_document_count_;
   }
   int update_matching_rules_count() const {
     return update_matching_rules_count_;
@@ -84,7 +96,8 @@ class DomStatTracker : public base::StopWatchOwner {
   void FlushPeriodicTracking();
 
   // Count cvals that are updated when the periodic tracking is flushed.
-  base::CVal<int, base::CValPublic> total_html_elements_;
+  base::CVal<int, base::CValPublic> html_elements_count_;
+  base::CVal<int, base::CValPublic> document_html_elements_count_;
 
   // Event-related
   bool is_event_active_;
@@ -93,10 +106,15 @@ class DomStatTracker : public base::StopWatchOwner {
   base::StopWatch event_video_start_delay_stop_watch_;
   base::CVal<base::TimeDelta> event_video_start_delay_;
 
+  // Time when last HtmlScriptElement ran Execute().
+  base::CVal<int64> script_element_execute_time_;
+
   // Periodic counts. The counts are cleared after the CVals are updated in
   // |FlushPeriodicTracking|.
   int html_elements_created_count_;
   int html_elements_destroyed_count_;
+  int html_elements_inserted_into_document_count_;
+  int html_elements_removed_from_document_count_;
   int update_matching_rules_count_;
   int update_computed_style_count_;
   int generate_html_element_computed_style_count_;

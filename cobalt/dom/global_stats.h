@@ -62,8 +62,8 @@ class GlobalStats {
   int GetNumEventListeners() const { return num_event_listeners_; }
   int GetNumNodes() const { return num_nodes_; }
 
-  void StartDispatchEvent();
-  void StopDispatchEvent();
+  void StartJavaScriptEvent();
+  void StopJavaScriptEvent();
 
   void Add(xhr::XMLHttpRequest* object);
   void Remove(xhr::XMLHttpRequest* object);
@@ -84,7 +84,7 @@ class GlobalStats {
   base::CVal<int, base::CValPublic> num_nodes_;
   base::CVal<int> num_node_lists_;
 
-  base::CVal<int> num_active_dispatch_events_;
+  base::CVal<int> num_active_java_script_events_;
 
   // XHR-related tracking
   base::CVal<int> num_xhrs_;
