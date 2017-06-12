@@ -1085,11 +1085,22 @@ namespace JS {
 class JS_PUBLIC_API(RuntimeOptions) {
   public:
     RuntimeOptions()
-      : baseline_(true),
+      :
+#if defined(COBALT_DISABLE_JIT)
+        baseline_(false),
+        ion_(false),
+        asmJS_(false),
+#else
+        baseline_(true),
         ion_(true),
         asmJS_(true),
+#endif
         throwOnAsmJSValidationFailure_(false),
+#if defined(COBALT_DISABLE_JIT)
+        nativeRegExp_(false),
+#else
         nativeRegExp_(true),
+#endif
         unboxedArrays_(false),
         asyncStack_(true),
         werror_(false),
