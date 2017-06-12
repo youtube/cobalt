@@ -42,9 +42,9 @@ GlobalStats::GlobalStats()
                  "Total number of currently active nodes."),
       num_node_lists_("Count.DOM.NodeLists", 0,
                       "Total number of currently active node lists."),
-      num_active_dispatch_events_(
-          "Count.DOM.ActiveDispatchEvents", 0,
-          "Total number of currently active dispatch events."),
+      num_active_java_script_events_(
+          "Count.DOM.ActiveJavaScriptEvents", 0,
+          "Total number of currently active JavaScript events."),
       num_xhrs_("Count.XHR", 0, "Total number of currently active XHRs."),
       xhr_memory_("Memory.XHR", 0, "Memory allocated by XHRs in bytes.") {}
 
@@ -55,7 +55,8 @@ bool GlobalStats::CheckNoLeaks() {
          num_dom_token_lists_ == 0 && num_event_listeners_ == 0 &&
          num_html_collections_ == 0 && num_named_node_maps_ == 0 &&
          num_nodes_ == 0 && num_node_lists_ == 0 &&
-         num_active_dispatch_events_ == 0 && num_xhrs_ == 0 && xhr_memory_ == 0;
+         num_active_java_script_events_ == 0 && num_xhrs_ == 0 &&
+         xhr_memory_ == 0;
 }
 
 void GlobalStats::Add(Attr* /*object*/) { ++num_attrs_; }
@@ -92,9 +93,9 @@ void GlobalStats::Remove(NodeList* /*object*/) { --num_node_lists_; }
 
 void GlobalStats::RemoveEventListener() { --num_event_listeners_; }
 
-void GlobalStats::StartDispatchEvent() { ++num_active_dispatch_events_; }
+void GlobalStats::StartJavaScriptEvent() { ++num_active_java_script_events_; }
 
-void GlobalStats::StopDispatchEvent() { --num_active_dispatch_events_; }
+void GlobalStats::StopJavaScriptEvent() { --num_active_java_script_events_; }
 
 void GlobalStats::Add(xhr::XMLHttpRequest* /* object */) { ++num_xhrs_; }
 

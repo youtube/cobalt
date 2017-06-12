@@ -248,6 +248,8 @@ class Node : public EventTarget {
   // removed from to its owner document.
   virtual void OnRemovedFromDocument();
 
+  virtual bool IsInDocument() const { return inserted_into_document_; }
+
   virtual void PurgeCachedBackgroundImagesOfNodeAndDescendants();
   virtual void InvalidateComputedStylesOfNodeAndDescendants();
   virtual void InvalidateLayoutBoxesOfNodeAndAncestors();
