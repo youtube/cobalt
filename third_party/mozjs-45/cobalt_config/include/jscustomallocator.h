@@ -17,6 +17,7 @@
 
 #include <algorithm>
 
+#include "memory_allocator_reporter.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -136,7 +137,11 @@ struct MOZ_RAII AutoEnterOOMUnsafeRegion
 
 static inline void* js_malloc(size_t bytes)
 {
-    return SbMemoryAllocate(bytes);
+    size_t reservation_bytes = AllocationMetadata::GetReservationBytes(bytes);
+    MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(reservation_bytes);
+    void* metadata = SbMemoryAllocate(reservation_bytes);
+    AllocationMetadata::SetSizeToBaseAddress(metadata, reservation_bytes);
+    return AllocationMetadata::GetUserAddressFromBaseAddress(metadata);
 }
 
 static inline void* js_calloc(size_t nmemb, size_t size)
@@ -156,7 +161,17 @@ static inline void* js_calloc(size_t bytes)
 
 static inline void* js_realloc(void* p, size_t bytes)
 {
-    return SbMemoryReallocate(p, bytes);
+  AllocationMetadata* metadata =
+      AllocationMetadata::GetMetadataFromUserAddress(p);
+  size_t current_size =
+      AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata);
+  size_t adjusted_size = AllocationMetadata::GetReservationBytes(bytes);
+
+  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(
+      static_cast<ssize_t>(adjusted_size - current_size));
+  void* new_ptr = SbMemoryReallocate(metadata, adjusted_size);
+  AllocationMetadata::SetSizeToBaseAddress(new_ptr, adjusted_size);
+  return AllocationMetadata::GetUserAddressFromBaseAddress(new_ptr);
 }
 
 static inline void js_free(void* p)
@@ -164,7 +179,11 @@ static inline void js_free(void* p)
   if (p == NULL) {
     return;
   }
-  SbMemoryDeallocate(p);
+  AllocationMetadata* metadata =
+      AllocationMetadata::GetMetadataFromUserAddress(p);
+  MemoryAllocatorReporter::Get()->UpdateAllocatedBytes(-static_cast<ssize_t>(
+      AllocationMetadata::GetSizeOfAllocationFromMetadata(metadata)));
+  SbMemoryDeallocate(metadata);
 }
 
 static inline char* js_strdup(const char* s)
