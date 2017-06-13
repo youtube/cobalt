@@ -18,6 +18,12 @@
       'type': 'static_library',
       'msvs_settings': {
         'VCCLCompilerTool': {
+          'AdditionalIncludeDirectories': [
+            '<(DEPTH)/third_party/angle/include',
+            '<(DEPTH)/third_party/angle/include/EGL',
+            '<(DEPTH)/third_party/angle/include/GLES2',
+            '<(DEPTH)/third_party/angle/include/KHR',
+          ],
           'AdditionalOptions': [
             '/ZW',           # Windows Runtime
             '/ZW:nostdlib',  # Windows Runtime, no default #using
