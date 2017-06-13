@@ -400,6 +400,11 @@ bool ParserImpl::Parse() {
         LogError("unrecoverable syntax error");
       }
       return false;
+    case 2:
+      LogError(
+          "the html put too many queries on bison stack without "
+          "closing/reducing");
+      return false;
     default:
       NOTREACHED();
       return false;
