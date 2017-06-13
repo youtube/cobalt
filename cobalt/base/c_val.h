@@ -567,7 +567,7 @@ class CValBase {
   std::string description_;
   CValType type_;
 
-  friend CValManager;
+  friend class base::CValManager;
 };
 
 // This is a wrapper class that marks that we wish to track a value through
