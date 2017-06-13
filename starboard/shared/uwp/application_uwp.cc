@@ -22,6 +22,7 @@
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/shared/starboard/application.h"
+#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
@@ -90,6 +91,7 @@ ref class App sealed : public IFrameworkView {
   // IFrameworkView methods.
   virtual void Initialize(
       CoreApplicationView^ applicationView) {
+    SbAudioSinkPrivate::Initialize();
     CoreApplication::Suspending +=
         ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
     CoreApplication::Resuming +=
@@ -112,7 +114,7 @@ ref class App sealed : public IFrameworkView {
     window->Dispatcher->ProcessEvents(
         CoreProcessEventsOption::ProcessUntilQuit);
   }
-  virtual void Uninitialize() {}
+  virtual void Uninitialize() { SbAudioSinkPrivate::TearDown(); }
 
   void OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args) {
      SB_DLOG(INFO) << "Suspending";
