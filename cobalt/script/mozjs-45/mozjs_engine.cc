@@ -94,8 +94,10 @@ class EngineStats {
     if (engine_count_.value() == 0) {
       return 0u;
     }
-
-    return 0u;
+    allocated_memory_ =
+        MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
+    mapped_memory_ = MemoryAllocatorReporter::Get()->GetCurrentBytesMapped();
+    return allocated_memory_ + mapped_memory_;
   }
 
  private:
