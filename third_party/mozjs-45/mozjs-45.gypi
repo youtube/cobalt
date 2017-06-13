@@ -158,6 +158,7 @@
       'js/src/jsutil.cpp',
       'js/src/jswatchpoint.cpp',
       'js/src/jsweakmap.cpp',
+      'js/src/memory_allocator_reporter.cpp',
       'js/src/perf/jsperf.cpp',
       'js/src/perf/pm_stub.cpp',
       'js/src/proxy/BaseProxyHandler.cpp',
