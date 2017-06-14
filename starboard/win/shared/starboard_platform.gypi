@@ -141,7 +141,6 @@
         '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_device_type.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_number_of_processors.cc',
-        '<(DEPTH)/starboard/shared/stub/system_get_property.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_stack.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_cpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
