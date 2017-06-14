@@ -28,8 +28,8 @@ SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /*options*/)
       height(1080),
       output_width(1920),
       output_height(1080) {
-  egl_native_window_ =
-      reinterpret_cast<EGLNativeWindowType>(CoreWindow::GetForCurrentThread());
+  egl_native_window_ = reinterpret_cast<EGLNativeWindowType>(
+      starboard::shared::uwp::ApplicationUwp::Get()->CoreWindow().Get());
 }
 
 SbWindowPrivate::~SbWindowPrivate() {}
