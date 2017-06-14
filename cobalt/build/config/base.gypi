@@ -206,6 +206,9 @@
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
+    # Set to 1 to enable filtering of HTTP headers before sending.
+    'enable_xhr_header_filtering%': 0,
+
     # Halt execution on failure to allocate memory.
     'abort_on_allocation_failure%': 1,
 
