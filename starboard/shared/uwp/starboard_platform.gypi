@@ -19,6 +19,7 @@
       'application_uwp_key_event.cc',
       'async_utils.h',
       'main.cc',
+      'system_get_property.cc',
       'window_create.cc',
       'window_destroy.cc',
       'window_get_platform_handle.cc',
