@@ -22,14 +22,14 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
-#include "starboard/thread.h"
 #include "starboard/tizen/shared/ffmpeg/ffmpeg_common.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class VideoDecoder : public starboard::player::filter::VideoDecoder {
+class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
  public:
   typedef starboard::player::InputBuffer InputBuffer;
   typedef starboard::player::VideoFrame VideoFrame;
