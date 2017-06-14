@@ -78,6 +78,10 @@ class ApplicationUwp : public shared::starboard::Application {
     return shared::starboard::Application::DispatchAndDelete(event);
   }
 
+  Platform::Agile<Windows::UI::Core::CoreWindow> GetCoreWindow() const {
+    return core_window_;
+  }
+
   // public for IFrameworkView subclass
   void SetCoreWindow(Windows::UI::Core::CoreWindow^ window) {
     core_window_ = window;
