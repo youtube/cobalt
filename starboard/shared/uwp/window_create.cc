@@ -17,5 +17,6 @@
 #include "starboard/shared/uwp/application_uwp.h"
 
 SbWindow SbWindowCreate(const SbWindowOptions* options) {
-  return starboard::shared::uwp::ApplicationUwp::Get()->CreateWindow(options);
+  return starboard::shared::uwp::ApplicationUwp::Get()->CreateWindowForUWP(
+      options);
 }

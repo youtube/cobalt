@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_WIN32_WCHAR_UTILS_H_
-#define STARBOARD_WIN32_WCHAR_UTILS_H_
+#ifndef STARBOARD_SHARED_WIN32_WCHAR_UTILS_H_
+#define STARBOARD_SHARED_WIN32_WCHAR_UTILS_H_
 
 #include <codecvt>
 #include <cwchar>
@@ -40,8 +40,20 @@ inline std::wstring CStringToWString(const char* str) {
   return converter.from_bytes(str);
 }
 
+#if defined(__cplusplus_winrt)
+inline std::string platformStringToString(Platform::String^ to_convert) {
+  std::wstring ws(to_convert->Begin(), to_convert->End());
+  return wchar_tToUTF8(ws.data(), ws.size());
+}
+
+inline Platform::String^ stringToPlatformString(const std::string& to_convert) {
+  std::wstring ws(to_convert.begin(), to_convert.end());
+  return ref new Platform::String(ws.c_str());
+}
+#endif
+
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_WIN32_WCHAR_UTILS_H_
+#endif  // STARBOARD_SHARED_WIN32_WCHAR_UTILS_H_

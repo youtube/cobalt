@@ -15,31 +15,19 @@
 #ifndef STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
+#include <agile.h>
+
 #include <string>
 #include <unordered_map>
-
-#include <agile.h>
 
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
-
-namespace __winRT {
-// TODO: without this, we get the following error at CoreApplication::Run:
-// 'long __winRT::__getActivationFactoryByPCWSTR(i
-//  void *,Platform::Guid &,void **)':
-//  cannot convert argument 1 from 'const wchar_t [46]' to 'void *'
-inline long __getActivationFactoryByPCWSTR(const wchar_t* a,
-                                           Platform::Guid& b,
-                                           void** c) {
-  return __getActivationFactoryByPCWSTR(
-      static_cast<void*>(const_cast<wchar_t*>(a)), b, c);
-}
-}  // namespace __winRT
 
 namespace starboard {
 namespace shared {
@@ -57,10 +45,7 @@ class ApplicationUwp : public shared::starboard::Application {
     return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
   }
 
-// Do not use the macro from windows.h.
-#undef CreateWindow
-#undef CreateWindowW
-  SbWindow CreateWindow(const SbWindowOptions* options);
+  SbWindow CreateWindowForUWP(const SbWindowOptions* options);
 
   bool DestroyWindow(SbWindow window);
 
