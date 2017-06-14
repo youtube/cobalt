@@ -22,6 +22,21 @@
 #ifndef STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_
 
+// The API version implemented by this platform.
+#define SB_API_VERSION 4
+
+// --- System Header Configuration -------------------------------------------
+
+// Whether the current platform has microphone supported.
+#define SB_HAS_MICROPHONE 0
+
+// Whether the current platform has speech recognizer.
+#define SB_HAS_SPEECH_RECOGNIZER 0
+
+// Whether the current platform has speech synthesis.
+#define SB_HAS_SPEECH_SYNTHESIS 0
+
+
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
@@ -100,64 +115,15 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
-// Specifies whether this platform's player will produce an OpenGL texture that
-// the client must draw every frame with its graphics rendering. It may be that
-// we get a texture handle, but cannot perform operations like GlReadPixels on
-// it if it is DRM-protected.
-#define SB_IS_PLAYER_PRODUCING_TEXTURE 0
+// The maximum audio bitrate the platform can decode.  The following value
+// equals to 2M bytes per seconds which is more than enough for compressed
+// audio.
+#define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND (16 * 1024 * 1024)
 
-// Specifies whether this platform's player is composited with a formal
-// compositor, where the client must specify how video is to be composited into
-// the graphicals scene.
-#define SB_IS_PLAYER_COMPOSITED 0
-
-// Specifies whether this platform's player uses a "punch-out" model, where
-// video is rendered to the far background, and the graphics plane is
-// automatically composited on top of the video by the platform. The client must
-// punch an alpha hole out of the graphics plane for video to show through.  In
-// this case, changing the video bounds must be tightly synchronized between the
-// player and the graphics plane.
-#define SB_IS_PLAYER_PUNCHED_OUT 1
-
-#if SB_API_VERSION < 4
-
-// Specifies the maximum amount of memory used by audio buffers of media source
-// before triggering a garbage collection.  A large value will cause more memory
-// being used by audio buffers but will also make JavaScript app less likely to
-// re-download audio data.  Note that the JavaScript app may experience
-// significant difficulty if this value is too low.
-#define SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT (3U * 1024U * 1024U)
-
-// Specifies the maximum amount of memory used by video buffers of media source
-// before triggering a garbage collection.  A large value will cause more memory
-// being used by video buffers but will also make JavaScript app less likely to
-// re-download video data.  Note that the JavaScript app may experience
-// significant difficulty if this value is too low.
-#define SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT (16U * 1024U * 1024U)
-
-// Specifies how much memory to reserve up-front for the main media buffer
-// (usually resides inside the CPU memory) used by media source and demuxers.
-// The main media buffer can work in one of the following two ways:
-// 1. If GPU buffer is used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is non-zero), the
-//    main buffer will be used as a cache so a media buffer will be copied from
-//    GPU memory to main memory before sending to the decoder for further
-//    processing.  In this case this macro should be set to a value that is
-//    large enough to hold all media buffers being decoded.
-// 2. If GPU buffer is not used (i.e. SB_MEDIA_GPU_BUFFER_BUDGET is zero) all
-//    media buffers will reside in the main memory buffer.  In this case the
-//    macro should be set to a value that is greater than the sum of the above
-//    source buffer stream memory limits with extra room to take account of
-//    fragmentations and memory used by demuxers.
-#define SB_MEDIA_MAIN_BUFFER_BUDGET (80U * 1024U * 1024U)
-
-// Specifies how much GPU memory to reserve up-front for media source buffers.
-// This should only be set to non-zero on system with limited CPU memory and
-// excess GPU memory so the app can store media buffer in GPU memory.
-// SB_MEDIA_MAIN_BUFFER_BUDGET has to be set to a non-zero value to avoid
-// media buffers being decoded when being stored in GPU.
-#define SB_MEDIA_GPU_BUFFER_BUDGET 0U
-
-#endif  // SB_API_VERSION < 4
+// The maximum video bitrate the platform can decode.  The following value
+// equals to 25M bytes per seconds which is more than enough for compressed
+// video.
+#define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
@@ -196,5 +162,16 @@
 
 // Include the Tizen configuration that's common between all Tizen.
 #include "starboard/tizen/shared/configuration_public.h"
+
+// --- User Configuration ----------------------------------------------------
+
+// The maximum number of users that can be signed in at the same time.
+#define SB_USER_MAX_SIGNED_IN 1
+
+// --- Timing API ------------------------------------------------------------
+
+// Whether this platform has an API to retrieve how long the current thread
+// has spent in the executing state.
+#define SB_HAS_TIME_THREAD_NOW 1
 
 #endif  // STARBOARD_TIZEN_ARMV7L_CONFIGURATION_PUBLIC_H_

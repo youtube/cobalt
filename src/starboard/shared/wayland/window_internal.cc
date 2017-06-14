@@ -19,9 +19,11 @@ const int kWindowWidth = 1920;
 const int kWindowHeight = 1080;
 }
 
-SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options) {
+SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options,
+                                 float pixel_ratio) {
   width = kWindowWidth;
   height = kWindowHeight;
+  video_pixel_ratio = pixel_ratio;
   if (options && options->size.width > 0 && options->size.height > 0) {
     width = options->size.width;
     height = options->size.height;

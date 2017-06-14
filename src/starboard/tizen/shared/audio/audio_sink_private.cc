@@ -52,7 +52,7 @@ SbAudioSinkPrivate::SbAudioSinkPrivate(
                 << sampling_frequency_hz << ", sample_type "
                 << audio_sample_type << ", storage_type "
                 << audio_frame_storage_type << ", frame_buffers "
-                << static_cast<int>(frame_buffers) << ", frame_buff_sz "
+                << std::hex << frame_buffers << ", frame_buff_sz "
                 << frames_per_channel;
 
   int capi_ret;
@@ -191,11 +191,14 @@ void* SbAudioSinkPrivate::AudioSinkThreadProc() {
       }
       consumed_frames = bytes_written / bytes_per_frame;
 
+      // This is commented : Sleep can cause 'underrun'
+      // update_source_status_func controls data's timing.
       // SbThreadSleep(consumed_frames * kSbTimeSecond /
       // sampling_frequency_hz_);
       consume_frames_func_(consumed_frames, context_);
     } else {
       if (!is_paused_) {
+        audio_out_drain(capi_audio_out_);
         audio_out_unprepare(capi_audio_out_);
         is_paused_ = true;
         SB_DLOG(INFO) << "[MEDIA] audio_out_pause";
