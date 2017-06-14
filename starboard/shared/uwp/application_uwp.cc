@@ -97,6 +97,7 @@ ref class App sealed : public IFrameworkView {
             this, &App::OnActivated);
   }
   virtual void SetWindow(CoreWindow^ window) {
+    ApplicationUwp::Get()->SetCoreWindow(window);
     window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(
       this, &App::OnKeyUp);
     window->KeyDown += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(
@@ -104,7 +105,7 @@ ref class App sealed : public IFrameworkView {
   }
   virtual void Load(Platform::String^ entryPoint) {}
   virtual void Run() {
-    CoreWindow ^window = CoreWindow::GetForCurrentThread();
+    CoreWindow^ window = CoreWindow::GetForCurrentThread();
     window->Activate();
     window->Dispatcher->ProcessEvents(
         CoreProcessEventsOption::ProcessUntilQuit);
@@ -287,7 +288,7 @@ void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
   ScopedLock lock(mutex_);
   ThreadPoolTimer^ timer = ThreadPoolTimer::CreateTimer(
     ref new TimerElapsedHandler([this, timed_event](ThreadPoolTimer^ timer) {
-      CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+      core_window_->Dispatcher->RunAsync(
         CoreDispatcherPriority::Normal,
         ref new DispatchedHandler([this, timed_event]() {
           timed_event->callback(timed_event->context);

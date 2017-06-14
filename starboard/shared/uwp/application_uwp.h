@@ -18,6 +18,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <agile.h>
+
 #include "starboard/configuration.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
@@ -76,6 +78,11 @@ class ApplicationUwp : public shared::starboard::Application {
     return shared::starboard::Application::DispatchAndDelete(event);
   }
 
+  // public for IFrameworkView subclass
+  void SetCoreWindow(Windows::UI::Core::CoreWindow^ window) {
+    core_window_ = window;
+  }
+
   void OnKeyEvent(Windows::UI::Core::CoreWindow^ sender,
       Windows::UI::Core::KeyEventArgs^ args, bool up);
 
@@ -94,6 +101,7 @@ class ApplicationUwp : public shared::starboard::Application {
 
   // The single open window, if any.
   SbWindow window_;
+  Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
 
   Mutex mutex_;
   // Locked by mutex_
