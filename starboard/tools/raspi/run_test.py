@@ -35,8 +35,18 @@ _RASPI_USERNAME = 'pi'
 _RASPI_PASSWORD = 'raspberry'
 
 # Timeouts are in seconds
-_PEXPECT_DEFAULT_TIMEOUT = 300
+_PEXPECT_DEFAULT_TIMEOUT = 600
 _PEXPECT_EXPECT_TIMEOUT = 60
+
+
+def _CleanupProcess(process):
+  """Closes current pexpect process.
+
+  Args:
+    process: Current pexpect process.
+  """
+  if process is not None and process.isalive():
+    process.close()
 
 
 # pylint: disable=unused-argument
@@ -50,14 +60,11 @@ def _SigIntOrSigTermHandler(process, signum, frame):
     frame: Current stack frame.  Passed in when the signal handler is called by
       python runtime.
   """
-  if process.isalive():
-    # Send ctrl-c to the raspi.
-    process.sendline(chr(3))
-    process.close()
+  _CleanupProcess(process)
   sys.exit(signum)
 
 
-def RunTest(test_path, raspi_ip, flags):
+def _RunTest(test_path, raspi_ip, flags):
   """Run a test on a Raspi machine and print relevant stdout.
 
   Args:
@@ -67,76 +74,97 @@ def RunTest(test_path, raspi_ip, flags):
 
   Returns:
     Exit status of running the test.
-
-  Raises:
-    ValueError: Raised if test_path is invalid.
   """
-  if not os.path.isfile(test_path):
-    raise ValueError('test_path ({}) must be a file.'.format(test_path))
+  return_value = 1
 
-  # This is used to strip ansi color codes from output.
-  sanitize_line_re = re.compile(r'\x1b[^m]*m')
+  try:
+    process = None
 
-  sys.stdout.write('Process launched, ID={}\n'.format(os.getpid()))
-  sys.stdout.flush()
+    if not os.path.isfile(test_path):
+      raise ValueError('test_path ({}) must be a file.'.format(test_path))
 
-  test_dir_path, test_file = os.path.split(test_path)
-  test_base_dir = os.path.basename(os.path.normpath(test_dir_path))
+    # This is used to strip ansi color codes from output.
+    sanitize_line_re = re.compile(r'\x1b[^m]*m')
 
-  raspi_user_hostname = _RASPI_USERNAME + '@' + raspi_ip
-  raspi_test_path = os.path.join(test_base_dir, test_file)
+    sys.stdout.write('Process launched, ID={}\n'.format(os.getpid()))
+    sys.stdout.flush()
 
-  # rsync the test files to the raspi
-  options = '-avzh --exclude obj*'
-  source = test_dir_path
-  destination = raspi_user_hostname + ':~/'
-  rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
-  rsync_process = pexpect.spawn(rsync_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
+    test_dir_path, test_file = os.path.split(test_path)
+    test_base_dir = os.path.basename(os.path.normpath(test_dir_path))
 
-  signal.signal(signal.SIGINT,
-                functools.partial(_SigIntOrSigTermHandler, rsync_process))
-  signal.signal(signal.SIGTERM,
-                functools.partial(_SigIntOrSigTermHandler, rsync_process))
+    raspi_user_hostname = _RASPI_USERNAME + '@' + raspi_ip
+    raspi_test_path = os.path.join(test_base_dir, test_file)
 
-  rsync_process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
-  rsync_process.sendline(_RASPI_PASSWORD)
+    # rsync the test files to the raspi
+    options = '-avzh --exclude obj*'
+    source = test_dir_path
+    destination = raspi_user_hostname + ':~/'
+    rsync_command = 'rsync ' + options + ' ' + source + ' ' + destination
+    process = pexpect.spawn(rsync_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
 
-  while True:
-    line = sanitize_line_re.sub('', rsync_process.readline())
-    if line:
+    signal.signal(signal.SIGINT,
+                  functools.partial(_SigIntOrSigTermHandler, process))
+    signal.signal(signal.SIGTERM,
+                  functools.partial(_SigIntOrSigTermHandler, process))
+
+    process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
+    process.sendline(_RASPI_PASSWORD)
+
+    while True:
+      line = sanitize_line_re.sub('', process.readline())
+      if line:
+        sys.stdout.write(line)
+        sys.stdout.flush()
+      else:
+        break
+
+    # ssh into the raspi and run the test
+    ssh_command = 'ssh ' + raspi_user_hostname
+    process = pexpect.spawn(ssh_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
+
+    signal.signal(signal.SIGINT,
+                  functools.partial(_SigIntOrSigTermHandler, process))
+    signal.signal(signal.SIGTERM,
+                  functools.partial(_SigIntOrSigTermHandler, process))
+
+    process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
+    process.sendline(_RASPI_PASSWORD)
+
+    test_command = raspi_test_path + ' ' + flags
+    test_time_tag = 'TEST-{time}'.format(time=time.time())
+    test_success_tag = 'succeeded'
+    test_failure_tag = 'failed'
+    test_success_output = ' && echo ' + test_time_tag + ' ' + test_success_tag
+    test_failure_output = ' || echo ' + test_time_tag + ' ' + test_failure_tag
+    process.sendline(test_command + test_success_output + test_failure_output)
+
+    while True:
+      line = sanitize_line_re.sub('', process.readline())
+      if not line:
+        break
       sys.stdout.write(line)
       sys.stdout.flush()
-    else:
-      break
+      if line.startswith(test_time_tag):
+        if line.find(test_success_tag) != -1:
+          return_value = 0
+        break
 
-  # ssh into the raspi and run the test
-  ssh_command = 'ssh ' + raspi_user_hostname
-  ssh_process = pexpect.spawn(ssh_command, timeout=_PEXPECT_DEFAULT_TIMEOUT)
+  except ValueError:
+    logging.exception('Test path invalid.')
+  except pexpect.EOF:
+    logging.exception('pexpect encountered EOF while reading line.')
+  except pexpect.TIMEOUT:
+    logging.exception('pexpect timed out while reading line.')
+  # pylint: disable=W0703
+  except Exception:
+    logging.exception('Error occured while running test.')
+  finally:
+    _CleanupProcess(process)
 
-  signal.signal(signal.SIGINT,
-                functools.partial(_SigIntOrSigTermHandler, ssh_process))
-  signal.signal(signal.SIGTERM,
-                functools.partial(_SigIntOrSigTermHandler, ssh_process))
-
-  ssh_process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
-  ssh_process.sendline(_RASPI_PASSWORD)
-
-  test_command = raspi_test_path + ' ' + flags
-  test_end_tag = 'END_TEST-{time}'.format(time=time.time())
-  ssh_process.sendline(test_command + '; echo ' + test_end_tag)
-
-  while True:
-    line = sanitize_line_re.sub('', ssh_process.readline())
-    if line and not line.startswith(test_end_tag):
-      sys.stdout.write(line)
-      sys.stdout.flush()
-    else:
-      break
-
-  return 0
+  return return_value
 
 
-def AddTargetFlag(parser):
+def _AddTargetFlag(parser):
   """Add target to argument parser."""
   parser.add_argument(
       '-t',
@@ -150,7 +178,7 @@ def AddTargetFlag(parser):
       nargs='?')
 
 
-def AddFlagsFlag(parser, default=None):
+def _AddFlagsFlag(parser, default=None):
   """Add flags to argument parser.
 
   Args:
@@ -185,21 +213,13 @@ def main():
       formatter_class=argparse.ArgumentDefaultsHelpFormatter,
       description=textwrap.dedent(__doc__))
 
-  AddFlagsFlag(parser)
-  AddTargetFlag(parser)
+  _AddFlagsFlag(parser)
+  _AddTargetFlag(parser)
   parser.add_argument('test_path', help='Path of test to be run.', type=str)
 
   args = parser.parse_args()
 
-  try:
-    return_value = RunTest(
-        args.test_path, raspi_ip=args.target, flags=args.flags)
-  # pylint: disable=W0703
-  except Exception:
-    logging.exception('Error occured while running binary.')
-    return_value = 1
-
-  return return_value
+  return _RunTest(args.test_path, raspi_ip=args.target, flags=args.flags)
 
 
 if __name__ == '__main__':
