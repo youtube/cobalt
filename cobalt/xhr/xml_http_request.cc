@@ -33,6 +33,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/xhr/xhr_modify_headers.h"
 #include "nb/memory_scope.h"
 #include "net/http/http_util.h"
 
@@ -323,6 +324,10 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   // Step 3 - 7
   error_ = false;
   upload_complete_ = false;
+
+#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+  CobaltXhrModifyHeader(&request_headers_);
+#endif
 
   std::string request_body_text;
   // Add request body, if appropriate.
