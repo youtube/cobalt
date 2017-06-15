@@ -137,13 +137,12 @@ class EventTarget : public script::Wrappable,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  DEFINE_WRAPPABLE_TYPE(EventTarget);
-
- protected:
   // This function sends the event to the event listeners attached to the
   // current event target. It takes stop immediate propagation flag into
   // account. The caller should set the phase and target.
   void FireEventOnListeners(const scoped_refptr<Event>& event);
+
+  DEFINE_WRAPPABLE_TYPE(EventTarget);
 
  private:
   struct EventListenerInfo {
