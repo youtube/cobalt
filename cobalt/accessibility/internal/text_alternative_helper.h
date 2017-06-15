@@ -31,15 +31,16 @@ namespace internal {
 // algorithm, made public for testing. This class should not be used directly.
 class TextAlternativeHelper {
  public:
-  TextAlternativeHelper() : in_labelled_by_(false) {}
+  TextAlternativeHelper() : in_labelled_by_or_described_by_(false) {}
   void AppendTextAlternative(const scoped_refptr<dom::Node>& node);
 
   // Return the accumulated alternatives joined by a single space character.
   std::string GetTextAlternative();
 
-  // Append the text alternative from a aria-labelledby property. Returns true
-  // if text alternative(s) were successfully appended.
-  bool TryAppendFromLabelledBy(const scoped_refptr<dom::Element>& element);
+  // Append the text alternative from a aria-labelledby or aria-describedby
+  // property. Returns true if text alternative(s) were successfully appended.
+  bool TryAppendFromLabelledByOrDescribedBy(
+      const scoped_refptr<dom::Element>& element, const base::Token& token);
 
   // Append the text alternative from a aria-label property. Returns true
   // if the aria-label property exists and has a non-empty value.
@@ -63,7 +64,7 @@ class TextAlternativeHelper {
  private:
   typedef base::hash_set<base::Token> TokenSet;
 
-  bool in_labelled_by_;
+  bool in_labelled_by_or_described_by_;
   std::vector<std::string> alternatives_;
   TokenSet visited_element_ids_;
 };
