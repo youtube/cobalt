@@ -20,7 +20,11 @@ namespace speech {
 SpeechSynthesisUtterance::SpeechSynthesisUtterance()
     : volume_(1.0f), rate_(1.0f), pitch_(1.0f), pending_speak_(false) {}
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(const std::string& text)
-    : text_(text), pending_speak_(false) {}
+    : text_(text),
+      volume_(1.0f),
+      rate_(1.0f),
+      pitch_(1.0f),
+      pending_speak_(false) {}
 
 SpeechSynthesisUtterance::SpeechSynthesisUtterance(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance)
