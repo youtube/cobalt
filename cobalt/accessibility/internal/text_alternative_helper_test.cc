@@ -139,8 +139,8 @@ TEST_F(TextAlternativeHelperTest, GetTextFromAriaLabelledBy) {
                                    "target_element");
   document()->AppendChild(labelledby_element);
 
-  EXPECT_TRUE(
-      text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
+  EXPECT_TRUE(text_alternative_helper_.TryAppendFromLabelledByOrDescribedBy(
+      labelledby_element, base::Tokens::aria_labelledby()));
   EXPECT_STREQ("labelledby target",
                text_alternative_helper_.GetTextAlternative().c_str());
 }
@@ -157,8 +157,8 @@ TEST_F(TextAlternativeHelperTest, InvalidLabelledByReference) {
                                    "bad_reference");
   document()->AppendChild(labelledby_element);
 
-  EXPECT_FALSE(
-      text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
+  EXPECT_FALSE(text_alternative_helper_.TryAppendFromLabelledByOrDescribedBy(
+      labelledby_element, base::Tokens::aria_labelledby()));
   EXPECT_TRUE(text_alternative_helper_.GetTextAlternative().empty());
 }
 
@@ -183,8 +183,8 @@ TEST_F(TextAlternativeHelperTest, MultipleLabelledByReferences) {
       "target_element1 target_element2 bad_reference target_element3");
   document()->AppendChild(labelledby_element);
 
-  EXPECT_TRUE(
-      text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
+  EXPECT_TRUE(text_alternative_helper_.TryAppendFromLabelledByOrDescribedBy(
+      labelledby_element, base::Tokens::aria_labelledby()));
   EXPECT_STREQ("target1 target2 target3",
                text_alternative_helper_.GetTextAlternative().c_str());
 }
@@ -204,8 +204,8 @@ TEST_F(TextAlternativeHelperTest, LabelledByReferencesSelf) {
                                    "other_id self_id");
   document()->AppendChild(labelledby_element);
 
-  EXPECT_TRUE(
-      text_alternative_helper_.TryAppendFromLabelledBy(labelledby_element));
+  EXPECT_TRUE(text_alternative_helper_.TryAppendFromLabelledByOrDescribedBy(
+      labelledby_element, base::Tokens::aria_labelledby()));
   EXPECT_STREQ("other-text self-label",
                text_alternative_helper_.GetTextAlternative().c_str());
 }
@@ -286,6 +286,50 @@ TEST_F(TextAlternativeHelperTest, DontFollowReferenceLoops) {
 
   text_alternative_helper_.AppendTextAlternative(element);
   EXPECT_STREQ("child2-text",
+               text_alternative_helper_.GetTextAlternative().c_str());
+}
+
+TEST_F(TextAlternativeHelperTest, GetTextFromAriaDescribedBy) {
+  scoped_refptr<dom::Element> target_element = document()->CreateElement("div");
+  target_element->AppendChild(document()->CreateTextNode("describedby target"));
+  target_element->set_id("target_element");
+  document()->AppendChild(target_element);
+
+  scoped_refptr<dom::Element> describedby_element =
+      document()->CreateElement("div");
+  describedby_element->SetAttribute(base::Tokens::aria_describedby().c_str(),
+                                    "target_element");
+  document()->AppendChild(describedby_element);
+
+  EXPECT_TRUE(text_alternative_helper_.TryAppendFromLabelledByOrDescribedBy(
+      describedby_element, base::Tokens::aria_describedby()));
+  EXPECT_STREQ("describedby target",
+               text_alternative_helper_.GetTextAlternative().c_str());
+}
+
+TEST_F(TextAlternativeHelperTest, HasBothLabelledByAndDescribedBy) {
+  // aria-describedby is ignored in this case.
+  scoped_refptr<dom::Element> element = document()->CreateElement("div");
+  document()->AppendChild(element);
+
+  element->SetAttribute(base::Tokens::aria_labelledby().c_str(), "calendar");
+  element->SetAttribute(base::Tokens::aria_describedby().c_str(), "info");
+
+  scoped_refptr<dom::Element> labelledby_element =
+      document()->CreateElement("div");
+  labelledby_element->set_id("calendar");
+  labelledby_element->AppendChild(document()->CreateTextNode("Calendar"));
+  element->AppendChild(labelledby_element);
+
+  scoped_refptr<dom::Element> describedby_element =
+      document()->CreateElement("div");
+  describedby_element->set_id("info");
+  describedby_element->AppendChild(
+      document()->CreateTextNode("Calendar content description."));
+  element->AppendChild(describedby_element);
+
+  text_alternative_helper_.AppendTextAlternative(element);
+  EXPECT_STREQ("Calendar",
                text_alternative_helper_.GetTextAlternative().c_str());
 }
 
