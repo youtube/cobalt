@@ -26,6 +26,7 @@
 #include "starboard/once.h"
 #include "third_party/mozjs-45/js/public/Initialization.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/vm/Runtime.h"
 
 namespace cobalt {
 namespace script {
@@ -128,6 +129,7 @@ SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
 void CallShutDown(void*) { JS_ShutDown(); }
 
 void CallInitAndRegisterShutDownOnce() {
+  js::DisableExtraThreads();
   const bool js_init_result = JS_Init();
   CHECK(js_init_result);
   base::AtExitManager::RegisterCallback(CallShutDown, NULL);
