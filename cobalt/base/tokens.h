@@ -114,6 +114,7 @@ namespace base {
     MacroOpWithNameAndValue(after_pseudo_element_selector, "after")     \
     MacroOpWithNameAndValue(aria_atomic, "aria-atomic")                 \
     MacroOpWithNameAndValue(aria_busy, "aria-busy")                     \
+    MacroOpWithNameAndValue(aria_describedby, "aria-describedby")       \
     MacroOpWithNameAndValue(aria_hidden, "aria-hidden")                 \
     MacroOpWithNameAndValue(aria_label, "aria-label")                   \
     MacroOpWithNameAndValue(aria_labelledby, "aria-labelledby")         \
