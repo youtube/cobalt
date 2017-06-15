@@ -36,6 +36,7 @@
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/window.h"
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -85,8 +86,8 @@ base::LazyInstance<NodeCountLog> node_count_log = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
-// Algorithm for DispatchEvent:
-//   https://www.w3.org/TR/dom/#dispatching-events
+// Diagram for DispatchEvent:
+//  https://www.w3.org/TR/DOM-Level-3-Events/#event-flow
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
@@ -102,6 +103,12 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   // The event is now being dispatched. Track it in the global stats.
   GlobalStats::GetInstance()->StartJavaScriptEvent();
 
+  scoped_refptr<Window> window;
+  if (IsInDocument()) {
+    DCHECK(node_document());
+    window = node_document()->default_view();
+  }
+
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
   for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
@@ -111,27 +118,42 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
   event->set_target(this);
 
-  // The capture phase
-  if (!ancestors.empty()) {
-    event->set_event_phase(Event::kCapturingPhase);
+  // The capture phase: The event object propagates through the target's
+  // ancestors from the Window to the target's parent. This phase is also known
+  // as the capturing phase.
+  event->set_event_phase(Event::kCapturingPhase);
+  if (window) {
+    window->FireEventOnListeners(event);
+  }
+  if (!event->propagation_stopped() && !ancestors.empty()) {
     for (Ancestors::reverse_iterator iter = ancestors.rbegin();
          iter != ancestors.rend() && !event->propagation_stopped(); ++iter) {
       (*iter)->FireEventOnListeners(event);
     }
   }
 
-  // The at target phase
   if (!event->propagation_stopped()) {
+    // The target phase: The event object arrives at the event object's event
+    // target. This phase is also known as the at-target phase.
     event->set_event_phase(Event::kAtTarget);
     FireEventOnListeners(event);
   }
 
-  // The bubbling phase
-  if (!event->propagation_stopped() && event->bubbles() && !ancestors.empty()) {
-    event->set_event_phase(Event::kBubblingPhase);
-    for (Ancestors::iterator iter = ancestors.begin();
-         iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
-      (*iter)->FireEventOnListeners(event);
+  // If the event type indicates that the event doesn't bubble, then the event
+  // object will halt after completion of this phase.
+  if (!event->propagation_stopped() && event->bubbles()) {
+    if (!ancestors.empty()) {
+      // The bubble phase: The event object propagates through the target's
+      // ancestors in reverse order, starting with the target's parent and
+      // ending with the Window. This phase is also known as the bubbling phase.
+      event->set_event_phase(Event::kBubblingPhase);
+      for (Ancestors::iterator iter = ancestors.begin();
+           iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
+        (*iter)->FireEventOnListeners(event);
+      }
+      if (window) {
+        window->FireEventOnListeners(event);
+      }
     }
   }
 
