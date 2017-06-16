@@ -17,9 +17,15 @@
 
 #include <windows.h>
 
+#include <ppltasks.h>
+
 #include "starboard/log.h"
 
 using Windows::Foundation::IAsyncOperation;
+
+namespace starboard {
+namespace shared {
+namespace uwp {
 
 template <typename TResult>
 TResult WaitForResult(IAsyncOperation<TResult>^ operation) {
@@ -36,5 +42,9 @@ TResult WaitForResult(IAsyncOperation<TResult>^ operation) {
   CloseHandle(event);
   return operation->GetResults();
 }
+
+}  // namespace uwp
+}  // namespace shared
+}  // namespace starboard
 
 #endif  // STARBOARD_SHARED_UWP_ASYNC_UTILS_H_

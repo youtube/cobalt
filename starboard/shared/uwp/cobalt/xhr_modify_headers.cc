@@ -14,8 +14,6 @@
 
 #include "cobalt/xhr/xhr_modify_headers.h"
 
-#include <ppltasks.h>
-
 #include <base/logging.h>
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/winrt_workaround.h"
@@ -94,6 +92,7 @@ inline std::ostream& operator<<(std::ostream& os,
 }
 
 bool PopulateToken(const std::string& relying_party, std::string* out) {
+  using starboard::shared::uwp::WaitForResult;
   DCHECK(out);
   WebAccountProvider^ xbox_provider =
       WaitForResult(WebAuthenticationCoreManager::FindAccountProviderAsync(
