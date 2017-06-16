@@ -27,7 +27,8 @@ ActionChains = tv_testcase_util.import_selenium_module(
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
-PROCESSING_TIMEOUT_SECONDS = 15
+PROCESSING_TIMEOUT_SECONDS = 30
+HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
 
@@ -48,6 +49,9 @@ class TvTestCase(unittest.TestCase):
     """Exception thrown when WebModule was not loaded in time."""
 
   class ProcessingTimeoutException(BaseException):
+    """Exception thrown when processing did not complete in time."""
+
+  class HtmlScriptElementExecuteTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
 
   class MediaTimeoutException(BaseException):
@@ -266,6 +270,23 @@ class TvTestCase(unittest.TestCase):
             (check_animations and
              self.get_cval(c_val_names.renderer_has_active_animations())) or
             self.get_cval(c_val_names.count_image_cache_loading_resources()))
+
+  def wait_for_html_script_element_execute_count(self, required_count):
+    """Waits for specified number of html script element Execute() calls.
+
+    Args:
+      required_count: the number of executions that must occur
+
+    Raises:
+      HtmlScriptElementExecuteTimeoutException: The required html script element
+      executions did not occur within the required time.
+    """
+    start_time = time.time()
+    while self.get_cval(
+        c_val_names.count_dom_html_script_element_execute()) < required_count:
+      if time.time() - start_time > HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS:
+        raise TvTestCase.HtmlScriptElementExecuteTimeoutException()
+      time.sleep(0.1)
 
   def wait_for_media_element_playing(self):
     """Waits for a video to begin playing.
