@@ -35,8 +35,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_HAS(SPEECH_RECOGNIZER) && \
-    SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 #ifdef __cplusplus
 extern "C" {
@@ -195,7 +194,6 @@ SB_EXPORT void SbSpeechRecognizerDestroy(SbSpeechRecognizer recognizer);
 }  // extern "C"
 #endif
 
-#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >=
-        // SB_SPEECH_RECOGNIZER_API_VERSION
+#endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 
 #endif  // STARBOARD_SPEECH_RECOGNIZER_H_
