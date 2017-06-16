@@ -17,7 +17,10 @@
 #include <windows.h>
 
 #include "starboard/log.h"
+#include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
+
+namespace sbwin32 = starboard::shared::win32;
 
 namespace starboard {
 namespace shared {
@@ -113,11 +116,16 @@ HANDLE OpenFileOrDirectory(const char* path,
     }
   }
 
+  const DWORD last_error = GetLastError();
+  if (!starboard::shared::win32::IsValidHandle(file_handle)) {
+    SB_DLOG(INFO) << "CreateFile2 failed: "
+                  << sbwin32::Win32ErrorCode(last_error);
+  }
+
   if (out_error) {
     if (starboard::shared::win32::IsValidHandle(file_handle)) {
       *out_error = kSbFileOk;
     } else {
-      const DWORD last_error = GetLastError();
       switch (last_error) {
         case ERROR_ACCESS_DENIED:
           *out_error = kSbFileErrorAccessDenied;
