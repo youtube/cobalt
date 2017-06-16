@@ -50,8 +50,7 @@
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-// #undef SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_RELEASE_CANDIDATE_API_VERSION 5
+#undef SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -85,9 +84,6 @@
 
 // --- Release Candidate Feature Defines -------------------------------------
 
-#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION \
-  SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_SPEECH_RECOGNIZER_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -574,11 +570,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#endif  // SB_API_VERSION >= 5
 
 // --- Derived Configuration -------------------------------------------------
 
