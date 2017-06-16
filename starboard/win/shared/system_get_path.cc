@@ -35,7 +35,7 @@ namespace {
 // status. The result being greater than |path_size| - 1 characters is a
 // failure. |out_path| may be written to in unsuccessful cases.
 bool GetExecutablePath(char* out_path, int path_size) {
-  if (!out_path || !path_size) {
+  if (!out_path || (path_size <= 0)) {
     return false;
   }
 
@@ -59,7 +59,7 @@ bool GetExecutablePath(char* out_path, int path_size) {
 // |path_size| - 1 characters is a failure. |out_path| may be written to in
 // unsuccessful cases.
 bool GetExecutableDirectory(char* out_path, int path_size) {
-  if (!out_path || !path_size) {
+  if (!out_path || (path_size <= 0)) {
     return false;
   }
 
@@ -83,7 +83,7 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
 // status. The result being greater than |path_size| - 1 characters is a
 // failure. |out_path| may be written to in unsuccessful cases.
 bool GetContentPath(char* out_path, int path_size) {
-  if (!out_path || !path_size) {
+  if (!out_path || (path_size <= 0)) {
     return false;
   }
   char file_path[SB_FILE_MAX_PATH];
@@ -99,13 +99,14 @@ bool GetContentPath(char* out_path, int path_size) {
 }
 
 bool CreateAndGetTempPath(char* out_path, int path_size) {
-  if (!out_path || !path_size) {
+  if (!out_path || (path_size <= 0)) {
     return false;
   }
   wchar_t w_file_path[SB_FILE_MAX_PATH];
   w_file_path[0] = L'\0';
 
-  DWORD characters_written = GetTempPathW(SB_FILE_MAX_PATH, w_file_path);
+  int64_t characters_written =
+      static_cast<int>(GetTempPathW(SB_FILE_MAX_PATH, w_file_path));
   if (characters_written >= (path_size + 1) || characters_written < 1) {
     return false;
   }
@@ -130,7 +131,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
 
 // Note: This function is only minimally implemented to allow tests to run.
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
-  if (!out_path || !path_size) {
+  if (!out_path || (path_size <= 0)) {
     return false;
   }
 
