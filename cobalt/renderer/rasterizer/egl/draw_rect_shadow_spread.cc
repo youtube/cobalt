@@ -17,48 +17,99 @@
 #include <GLES2/gl2.h>
 
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "starboard/log.h"
+#include "egl/generated_shader_impl.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace egl {
 
+namespace {
+const int kVertexCount = 10;
+}
+
 DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& inner_rect,
     const math::RectF& outer_rect, const render_tree::ColorRGBA& color,
-    const math::RectF& include_scissor, const math::RectF& exclude_scissor)
-    : DrawDepthStencil(base_state) {
-  // Reserve space for the box shadow's spread and possible scissor rects.
-  attributes_.reserve(10 + MaxVertsNeededForStencil());
+    const math::RectF& include_scissor)
+    : DrawObject(base_state),
+      inner_rect_(inner_rect),
+      outer_rect_(outer_rect),
+      include_scissor_(include_scissor),
+      vertex_buffer_(nullptr) {
+  color_ = GetGLRGBA(color * base_state_.opacity);
+  graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+}
 
+void DrawRectShadowSpread::ExecuteOnscreenUpdateVertexBuffer(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
   // Draw the box shadow's spread. This is a triangle strip covering the area
   // between outer rect and inner rect.
-  uint32_t color32 = GetGLRGBA(color * base_state_.opacity);
-  AddVertex(outer_rect.x(), outer_rect.y(), color32);
-  AddVertex(inner_rect.x(), inner_rect.y(), color32);
-  AddVertex(outer_rect.right(), outer_rect.y(), color32);
-  AddVertex(inner_rect.right(), inner_rect.y(), color32);
-  AddVertex(outer_rect.right(), outer_rect.bottom(), color32);
-  AddVertex(inner_rect.right(), inner_rect.bottom(), color32);
-  AddVertex(outer_rect.x(), outer_rect.bottom(), color32);
-  AddVertex(inner_rect.x(), inner_rect.bottom(), color32);
-  AddVertex(outer_rect.x(), outer_rect.y(), color32);
-  AddVertex(inner_rect.x(), inner_rect.y(), color32);
+  VertexAttributes attributes[kVertexCount];
+  SetVertex(&attributes[0], outer_rect_.x(), outer_rect_.y());
+  SetVertex(&attributes[1], inner_rect_.x(), inner_rect_.y());
+  SetVertex(&attributes[2], outer_rect_.right(), outer_rect_.y());
+  SetVertex(&attributes[3], inner_rect_.right(), inner_rect_.y());
+  SetVertex(&attributes[4], outer_rect_.right(), outer_rect_.bottom());
+  SetVertex(&attributes[5], inner_rect_.right(), inner_rect_.bottom());
+  SetVertex(&attributes[6], outer_rect_.x(), outer_rect_.bottom());
+  SetVertex(&attributes[7], inner_rect_.x(), inner_rect_.bottom());
+  SetVertex(&attributes[8], outer_rect_.x(), outer_rect_.y());
+  SetVertex(&attributes[9], inner_rect_.x(), inner_rect_.y());
 
-  AddStencil(include_scissor, exclude_scissor);
-
-  graphics_state->ReserveVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
+  vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
+  SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
 void DrawRectShadowSpread::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  SetupShader(graphics_state, program_manager);
-  DrawStencil(graphics_state);
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, 10));
-  UndoStencilState(graphics_state);
+  ShaderProgram<ShaderVertexColorOffset,
+                ShaderFragmentColorInclude>* program;
+  program_manager->GetProgram(&program);
+  graphics_state->UseProgram(program->GetHandle());
+  graphics_state->UpdateClipAdjustment(
+      program->GetVertexShader().u_clip_adjustment());
+  graphics_state->UpdateTransformMatrix(
+      program->GetVertexShader().u_view_matrix(),
+      base_state_.transform);
+  graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
+      base_state_.scissor.width(), base_state_.scissor.height());
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, position));
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, color));
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, offset));
+  graphics_state->VertexAttribFinish();
+
+  float include[4] = {
+    include_scissor_.x(),
+    include_scissor_.y(),
+    include_scissor_.right(),
+    include_scissor_.bottom()
+  };
+  GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
+
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount));
+}
+
+void DrawRectShadowSpread::SetVertex(VertexAttributes* vertex,
+                                     float x, float y) {
+  vertex->position[0] = x;
+  vertex->position[1] = y;
+  vertex->position[2] = base_state_.depth;
+  vertex->offset[0] = x;
+  vertex->offset[1] = y;
+  vertex->color = color_;
 }
 
 }  // namespace egl

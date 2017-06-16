@@ -418,12 +418,12 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
         blur_rect.set_size(math::SizeF());
       }
       draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
-          blur_rect, data.rect, spread_rect, shadow_color, math::RectF(),
+          blur_rect, data.rect, spread_rect, shadow_color,
           data.shadow.blur_sigma, data.inset));
       onscreen_type = DrawObjectManager::kOnscreenRectShadowBlur;
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          spread_rect, data.rect, shadow_color, data.rect, math::RectF()));
+          spread_rect, data.rect, shadow_color, data.rect));
     }
   } else {
     // blur_rect is outermost.
@@ -439,30 +439,19 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
       math::Vector2dF blur_extent(data.shadow.BlurExtent());
       blur_rect.Outset(blur_extent.x(), blur_extent.y());
       draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
-          data.rect, blur_rect, spread_rect, shadow_color, data.rect,
+          data.rect, blur_rect, spread_rect, shadow_color,
           data.shadow.blur_sigma, data.inset));
       onscreen_type = DrawObjectManager::kOnscreenRectShadowBlur;
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          data.rect, spread_rect, shadow_color, spread_rect, data.rect));
+          data.rect, spread_rect, shadow_color, spread_rect));
     }
     node_bounds.Union(blur_rect);
   }
 
-  // Include or exclude scissor will touch these pixels.
-  node_bounds.Union(data.rect);
-
-  // Since the depth buffer is polluted to create a stencil for pixels to be
-  // modified by the shadow, this draw must occur during the transparency
-  // pass. During this pass, all subsequent draws are guaranteed to be closer
-  // (i.e. pass the depth test) than pixels modified by previous transparency
-  // draws.
+  // Transparency is used to skip pixels that are not shadowed.
   AddTransparentDraw(draw.Pass(), onscreen_type,
       DrawObjectManager::kOffscreenNone, node_bounds);
-
-  // Since the box shadow draw objects use the depth stencil object, two depth
-  // values were used. So skip an additional depth value.
-  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
