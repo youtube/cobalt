@@ -32,6 +32,9 @@ DomStatTracker::DomStatTracker(const std::string& name)
       event_video_start_delay_(
           StringPrintf("Event.Duration.%s.DOM.VideoStartDelay", name.c_str()),
           base::TimeDelta(), "Total delay between event and video starting."),
+      script_element_execute_count_(
+          StringPrintf("Count.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
+          0, "Count of HTML script element execute calls."),
       script_element_execute_time_(
           StringPrintf("Time.%s.DOM.HtmlScriptElement.Execute", name.c_str()),
           0, "Time of the last HTML script element execute."),
@@ -95,6 +98,7 @@ void DomStatTracker::OnHtmlVideoElementPlaying() {
 }
 
 void DomStatTracker::OnHtmlScriptElementExecuted() {
+  ++script_element_execute_count_;
   script_element_execute_time_ = base::TimeTicks::Now().ToInternalValue();
 }
 
