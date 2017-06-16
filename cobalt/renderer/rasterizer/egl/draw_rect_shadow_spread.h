@@ -19,7 +19,7 @@
 
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/renderer/rasterizer/egl/draw_depth_stencil.h"
+#include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 namespace cobalt {
 namespace renderer {
@@ -33,19 +33,16 @@ namespace egl {
 //   |   | Box shadow "spread" region  |   |
 //   |   |   +---------------------+   |   |
 //   |   |   | Box shadow rect     |   |   |
-//   |   |   | (exclude scissor)   |   |   |
+//   |   |   | (exclude geometry)  |   |   |
 //   |   |   +---------------------+   |   |
 //   |   |                             |   |
 //   |   +-----------------------------+   |
 //   | (include scissor)                   |
 //   +-------------------------------------+
-// When an offset is used for the shadow, the include and exclude scissors
-// play a critical role.
 
-// Handles drawing the solid "spread" portion of a box shadow. This also
-// creates a stencil, using the depth buffer, for the pixels inside
-// |include_scissor| excluding those in |exclude_scissor|.
-class DrawRectShadowSpread : public DrawDepthStencil {
+// Handles drawing the solid "spread" portion of a box shadow. The
+// |include_scissor| specifies which pixels can be touched.
+class DrawRectShadowSpread : public DrawObject {
  public:
   // Fill the area between |inner_rect| and |outer_rect| with the specified
   // color.
@@ -54,11 +51,28 @@ class DrawRectShadowSpread : public DrawDepthStencil {
                        const math::RectF& inner_rect,
                        const math::RectF& outer_rect,
                        const render_tree::ColorRGBA& color,
-                       const math::RectF& include_scissor,
-                       const math::RectF& exclude_scissor);
+                       const math::RectF& include_scissor);
 
+  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
   void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+
+ private:
+  struct VertexAttributes {
+    float position[3];
+    float offset[2];
+    uint32_t color;
+  };
+
+  void SetVertex(VertexAttributes* vertex, float x, float y);
+
+  math::RectF inner_rect_;
+  math::RectF outer_rect_;
+  math::RectF include_scissor_;
+  uint32_t color_;
+
+  uint8_t* vertex_buffer_;
 };
 
 }  // namespace egl

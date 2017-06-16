@@ -1,13 +1,13 @@
 precision mediump float;
 uniform vec2 u_blur_radius;
 uniform vec2 u_scale_add;
-varying vec2 v_blur_position;   // Relative to the blur center.
+varying vec2 v_offset;   // Relative to the blur center.
 varying vec4 v_color;
 void main() {
   // Distance from the blur radius.
-  // Both v_blur_position and u_blur_radius are expressed in terms of the
+  // Both v_offset and u_blur_radius are expressed in terms of the
   //   blur sigma.
-  vec2 pos = abs(v_blur_position) - u_blur_radius;
+  vec2 pos = abs(v_offset) - u_blur_radius;
   vec2 pos2 = pos * pos;
   vec2 pos3 = pos2 * pos;
   vec4 posx = vec4(1.0, pos.x, pos2.x, pos3.x);
