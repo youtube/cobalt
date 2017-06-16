@@ -80,25 +80,54 @@ used sizes, on a horizontal scroll event, in microseconds.
 
 Note that most time-based measurements are in microseconds.
 
-### Interesting benchmarks
-
-#### Timing-related
+### Interesting Timing-Related Benchmarks
 Some particularly interesting timing-related benchmark results are:
 
- - `wbStartupDurLaunchToBlankUs*`: Measures the time it takes to load
-   'about:blank', which provides Cobalt's basic initialization time.
- - `wbStartupDurBlankToBrowseUs*`: Measures the time it takes Cobalt to navigate
-   from 'about:blank' to the desired URL. The measurement ends when all images
-   finish loading and the final startup render tree is produced. Adding
-   `wbStartupDurLaunchToBlankUs*` to this time provides the full launch to
-   browse startup time.
- - `wbStartupDurBlankToUsableUs*`: Measures the time it takes Cobalt to become
-   fully usable when navigating from 'about:blank' to the desired URL. This
-   measurement ends when all scripts finish being run, meaning that this
-   includes loading the Player code JS on the main page. Adding
-   `wbStartupDurLaunchToBlankUs*` to this time provides the full launch to
-   usable browse startup time.
- - `wbBrowseToWatchDurVideoStartDelay*`: Measures the browse-to-watch time.
+#### Startup
+ - `wbStartupDurLaunchToBrowseUs`: Measures the time it takes to launch Cobalt
+   and load the desired URL. The measurement ends when all images finish loading
+   and the final render tree is produced. This is only run once so it will be
+   noiser than other values but provides the most accurate measurement of the
+   requirement startup time.
+ - `wbStartupDurLaunchToUsableUs`: Measures the time it takes to launch Cobalt,
+   and fully load the desired URL, including loading all scripts. The
+   measurement ends when the Player JavaScript code finishes loading on the
+   Browse page, which is the point when Cobalt is fully usable. This is only run
+   once so it will be noiser than other values but provides the most accurate
+   measurement of the time when Cobalt is usable.
+ - `wbStartupDurNavigateToBrowseUs*`: Measures the time it takes to navigate to
+   the desired URL when Cobalt is already loaded. The measurement ends when all
+   images finish loading and the final render tree is produced. This is run
+   multiple times, so it will be less noisy than `wbStartupDurLaunchToBrowseUs`,
+   but it does not include Cobalt initialization so it is not as accurate of a
+   measurement.
+ - `wbStartupDurNavigateToUsableUs`: Measures the time it takes to navigate to
+   the desired URL when Cobalt is already loaded, including loading all scripts.
+   The measurement ends when the Player JavaScript code finishes loading on the
+   Browse page, which is the point when Cobalt is fully usable. This is run
+   multiple times, so it will be less noisy than `wbStartupDurLaunchToUsableUs`,
+   but it does not include Cobalt initialization so it is not as accurate of a
+   measurement.
+
+#### Browse Horizontal Scroll Events
+ - `wbBrowseHorizontalDurTotalUs*`: Measures the latency (i.e. JavaScript
+   execution time + layout time) during horizontal scroll events from keypress
+   until the render tree is submitted to the rasterize thread. It does not
+   include the time taken to rasterize the render tree so it will be smaller
+   than the observed latency.
+ - `wbBrowseHorizontalDurAnimationsStartDelayUs*`: Measures the input latency
+   during horizontal scroll events from the keypress until the animation starts.
+   This is the most accurate measure of input latency.
+ - `wbBrowseHorizontalDurAnimationsEndDelayUs*`: Measures the latency during
+   horizontal scroll events from the keypress until the animation ends.
+ - `wbBrowseHorizontalDurFinalRenderTreeDelayUs*`: Measures the latency during
+   horizontal scroll events from the keypress until the final render tree is
+   rendered and processing stops.
+ - `wbBrowseHorizontalDurRasterizeAnimationsUs*`: Measures the time it takes to
+   render each frame of the animation triggered by a horizontal scroll event.
+   The inverse of this number is the framerate.
+
+#### Browse Vertical Scroll Events
  - `wbBrowseVerticalDurTotalUs*`: Measures the latency (i.e. JavaScript
    execution time + layout time) during vertical scroll events from keypress
    until the render tree is submitted to the rasterize thread. It does not
@@ -115,20 +144,9 @@ Some particularly interesting timing-related benchmark results are:
  - `wbBrowseVerticalDurRasterizeAnimationsUs*`: Measures the time it takes to
    render each frame of the animation triggered by a vertical scroll event.
    The inverse of this number is the framerate.
- - `wbBrowseHorizontalDurTotalUs*`: Same as `wbBrowseVerticalDurTotalUs*` except
-   for horizontal scroll events.
- - `wbBrowseHorizontalDurAnimationsStartDelayUs*`: Same as
-   `wbBrowseVerticalDurAnimationsStartDelayUs*` except for horizontal scroll
-   events.
- - `wbBrowseHorizontalDurAnimationsEndDelayUs*`: Same as
-   `wbBrowseVerticalDurAnimationsEndDelayUs*` except for horizontal scroll
-   events.
- - `wbBrowseHorizontalDurFinalRenderTreeDelayUs*`: Same as
-   `wbBrowseVerticalDurFinalRenderTreeDelayUs*` except for horizontal scroll
-   events.
- - `wbBrowseHorizontalDurRasterizeAnimationsUs*`: Same as
-   `wbBrowseVerticalDurRasterizeAnimationsUs*` except for horizontal scroll
-   events.
+
+#### Browse-to-Watch
+ - `wbBrowseToWatchDurVideoStartDelay*`: Measures the browse-to-watch time.
 
 In each case above, the `*` symbol can be one of either `Mean`, `Pct25`,
 `Pct50`, `Pct75` or `Pct95`.  For example, `wbStartupDurBlankToBrowseUsMean` or
@@ -137,9 +155,10 @@ benchmarks runs its tests many times in order to obtain multiple samples, so you
 can drill into the data by exploring either the mean, or the various
 percentiles.
 
-#### Object count-related
+### Interesting Count-Related Benchmarks
 Some particularly interesting count-related benchmark results are:
 
+#### Startup
  - `wbStartupCntDomHtmlElements*`: Lists the number of HTML elements in
    existence after startup completes. This includes HTML elements that are no
    longer in the DOM but have not been garbage collected yet.
@@ -147,10 +166,27 @@ Some particularly interesting count-related benchmark results are:
    elements within the DOM tree after startup completes.
  - `wbStartupCntLayoutBoxes*`: Lists the number of layout boxes within
    the layout tree after startup completes.
- - `wbStartupCntRenderTrees*`: Lists the number of render trees that
-   were generated during startup.
+ - `wbStartupCntRenderTrees*`: Lists the number of render trees that were
+   generated during startup.
  - `wbStartupCntRequestedImages*`: Lists the number of images that were
    requested during startup.
+
+#### Browse Horizontal Scroll Events
+ - `wbBrowseHorizontalCntDomHtmlElements*`: Lists the number of HTML elements in
+   existence after the event. This includes HTML elements that are no longer in
+   the DOM but have not been garbage collected yet.
+ - `wbBrowseHorizontalCntDocumentDomHtmlElements*`: Lists the number of HTML
+   elements within the DOM tree after the event.
+ - `wbBrowseHorizontalCntLayoutBoxes*`: Lists the number of layout boxes within
+   the layout tree after the event.
+ - `wbBrowseHorizontalCntLayoutBoxesCreated*`: Lists the number of new layout
+   boxes that were created during the event.
+ - `wbBrowseHorizontalCntRenderTrees*`: Lists the number of render trees that
+   were generated by the event.
+ - `wbBrowseHorizontalCntRequestedImages*`: Lists the number of images that were
+   requested as a result of the event.
+
+#### Browse Vertical Scroll Events
  - `wbBrowseVerticalCntDomHtmlElements*`: Lists the number of HTML elements in
    existence after the event. This includes HTML elements that are no longer in
    the DOM but have not been garbage collected yet.
@@ -164,19 +200,6 @@ Some particularly interesting count-related benchmark results are:
    were generated by the event.
  - `wbBrowseVerticalCntRequestedImages*`: Lists the number of images that were
    requested as a result of the event.
- - `wbBrowseHorizontalCntDomHtmlElements*`: Same as
-   `wbBrowseVerticalCntDomHtmlElements*` except for horizontal scroll events.
- - `wbBrowseHorizontalCntDocumentDomHtmlElements*`: Same as
-   `wbBrowseVerticalCntDocumentDomHtmlElements*` except for horizontal scroll
-   events.
- - `wbBrowseHorizontalCntLayoutBoxes*`: Same as
-   `wbBrowseVerticalCntLayoutBoxes*` except for horizontal scroll events.
- - `wbBrowseHorizontalCntLayoutBoxesCreated*`: Same as
-   `wbBrowseVerticalCntLayoutBoxesCreated*` except for horizontal scroll events.
- - `wbBrowseHorizontalCntRenderTrees*`: Same as
-   `wbBrowseVerticalCntRenderTrees*` except for horizontal scroll events.
- - `wbBrowseHorizontalCntRequestedImages*`: Same as
-   `wbBrowseVerticalCntRequestedImages*` except for horizontal scroll events.
 
 In each case above,  the `*` symbol can be one of either `Max`, `Median`, or
 `Mean`. For example, `wbBrowseVerticalCntDomHtmlElementsMax` or
@@ -194,33 +217,76 @@ interested in.  You can do so with `grep`, for example:
 ```
 python performance.py -p raspi-2 -c qa -d $RASPI_ADDR > results.txt
 echo "" > filtered_results.txt
-grep -o "wbStartupDurLaunchToBlankUs.*$" results.txt >> filtered_results.txt
-grep -o "wbStartupDurBlankToBrowseUs.*$" results.txt >> filtered_results.txt
-grep -o "wbStartupDurBlankToUsableUs.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalDurAnimationsStartDelayUs.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalDurAnimationsEndDelayUs.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalDurFinalRenderTreeDelayUs.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+printf "=================================TIMING-RELATED=================================\n" >> filtered_results.txt
+printf "\nSTARTUP\n" >> filtered_results.txt
+grep -o "wbStartupDurLaunchToBrowseUs.*$" results.txt >> filtered_results.txt
+grep -o "wbStartupDurLaunchToUsableUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbStartupDurNavigateToBrowseUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbStartupDurNavigateToUsableUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+printf "\nBROWSE HORIZONTAL SCROLL EVENTS\n" >> filtered_results.txt
+grep -o "wbBrowseHorizontalDurTotalUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurAnimationsStartDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurAnimationsEndDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurFinalRenderTreeDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+printf "\nBROWSE VERTICAL SCROLL EVENTS\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalDurTotalUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalDurAnimationsStartDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalDurAnimationsEndDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalDurFinalRenderTreeDelayUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalDurRasterizeAnimationsUs.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+printf "\nBROWSE TO WATCH\n" >> filtered_results.txt
+grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt
+printf "\n\n=================================COUNT-RELATED==================================\n" >> filtered_results.txt
+printf "\nSTARTUP\n" >> filtered_results.txt
 grep -o "wbStartupCntDomHtmlElements.*$" results.txt >> filtered_results.txt
-grep -o "wbStartupCntDocumentDomHtmlElements.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbStartupCntDomDocumentHtmlElements.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbStartupCntLayoutBoxes.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbStartupCntRenderTrees.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbStartupCntRequestedImages.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalCntDomHtmlElements.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalCntDocumentDomHtmlElements.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalCntLayoutBoxes.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalCntRenderTrees.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseVerticalCntRequestedImages.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseHorizontalCntDomHtmlElements.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseHorizontalCntDocumentDomHtmlElements.*$" results.txt >> filtered_results.txt
-grep -o "wbBrowseHorizontalCntLayoutBoxes.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+printf "\nBROWSE HORIZONTAL SCROLL EVENTS\n" >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntDomHtmlElementsM.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntDomDocumentHtmlElements.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntLayoutBoxesM.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseHorizontalCntLayoutBoxesCreated.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalCntRenderTrees.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 grep -o "wbBrowseHorizontalCntRequestedImages.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+printf "\nBROWSE VERTICAL SCROLL EVENTS\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntDomHtmlElementsM.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntDomDocumentHtmlElements.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntLayoutBoxesM.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntLayoutBoxesCreated.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntRenderTrees.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
+grep -o "wbBrowseVerticalCntRequestedImages.*$" results.txt >> filtered_results.txt
+printf "\n" >> filtered_results.txt
 cat filtered_results.txt
 ```
-
