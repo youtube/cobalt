@@ -27,20 +27,23 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
+namespace {
+const int kVertexCount = 10;
+}
+
 DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& inner_rect,
     const math::RectF& outer_rect, const math::RectF& blur_edge,
-    const render_tree::ColorRGBA& color, const math::RectF& exclude_scissor,
-    float blur_sigma, bool inset)
+    const render_tree::ColorRGBA& color, float blur_sigma, bool inset)
     : DrawObject(base_state),
-      draw_stencil_(graphics_state, base_state, outer_rect, exclude_scissor),
+      inner_rect_(inner_rect),
+      outer_rect_(outer_rect),
       blur_center_(blur_edge.CenterPoint()),
       // The sigma scale is used to transform pixel distances to sigma-relative
       // distances. The 0.5 multiplier is used to match skia's implementation.
       blur_sigma_scale_(0.5f / blur_sigma),
       vertex_buffer_(NULL) {
   float color_scale = 1.0f;
-  attributes_.reserve(10);
 
   // The blur radius dictates the distance from blur center at which the
   // shadow should be about 50% opacity of the shadow color. This is expressed
@@ -63,46 +66,43 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
     const float size_scale = 1.0f / (1.5f * blur_sigma);
     color_scale = std::min(blur_edge.width() * size_scale, 1.0f) *
                   std::min(blur_edge.height() * size_scale, 1.0f);
+
+    // Ensure the outer_rect contains the inner_rect to avoid overlapping
+    // triangles in the draw call. The fragment shader will properly fade out
+    // the extra pixels.
+    outer_rect_.Union(inner_rect_);
   }
 
-  // Add a triangle-strip to draw the area between outer_rect and inner_rect.
-  // This is the area which the shadow covers.
-  uint32_t color32 = GetGLRGBA(color * color_scale * base_state_.opacity);
-  AddVertex(outer_rect.x(), outer_rect.y(), color32);
-  AddVertex(inner_rect.x(), inner_rect.y(), color32);
-  AddVertex(outer_rect.right(), outer_rect.y(), color32);
-  AddVertex(inner_rect.right(), inner_rect.y(), color32);
-  AddVertex(outer_rect.right(), outer_rect.bottom(), color32);
-  AddVertex(inner_rect.right(), inner_rect.bottom(), color32);
-  AddVertex(outer_rect.x(), outer_rect.bottom(), color32);
-  AddVertex(inner_rect.x(), inner_rect.bottom(), color32);
-  AddVertex(outer_rect.x(), outer_rect.y(), color32);
-  AddVertex(inner_rect.x(), inner_rect.y(), color32);
-
-  graphics_state->ReserveVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
+  color_ = GetGLRGBA(color * color_scale * base_state_.opacity);
+  graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 
 void DrawRectShadowBlur::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  draw_stencil_.ExecuteOnscreenUpdateVertexBuffer(
-      graphics_state, program_manager);
-  vertex_buffer_ = graphics_state->AllocateVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
-  SbMemoryCopy(vertex_buffer_, &attributes_[0],
-               attributes_.size() * sizeof(VertexAttributes));
+  // Add a triangle-strip to draw the area between outer_rect and inner_rect.
+  // This is the area which the shadow covers.
+  VertexAttributes attributes[kVertexCount];
+  SetVertex(&attributes[0], outer_rect_.x(), outer_rect_.y());
+  SetVertex(&attributes[1], inner_rect_.x(), inner_rect_.y());
+  SetVertex(&attributes[2], outer_rect_.right(), outer_rect_.y());
+  SetVertex(&attributes[3], inner_rect_.right(), inner_rect_.y());
+  SetVertex(&attributes[4], outer_rect_.right(), outer_rect_.bottom());
+  SetVertex(&attributes[5], inner_rect_.right(), inner_rect_.bottom());
+  SetVertex(&attributes[6], outer_rect_.x(), outer_rect_.bottom());
+  SetVertex(&attributes[7], inner_rect_.x(), inner_rect_.bottom());
+  SetVertex(&attributes[8], outer_rect_.x(), outer_rect_.y());
+  SetVertex(&attributes[9], inner_rect_.x(), inner_rect_.y());
+
+  vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
+  SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
 void DrawRectShadowBlur::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  // Create a stencil for the pixels to be modified.
-  draw_stencil_.ExecuteOnscreenRasterize(
-      graphics_state, program_manager);
-
-  // Draw the blurred shadow in the stencilled area.
-  ShaderProgram<ShaderVertexColorBlur,
+  // Draw the blurred shadow.
+  ShaderProgram<ShaderVertexColorOffset,
                 ShaderFragmentColorBlur>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());
@@ -122,25 +122,28 @@ void DrawRectShadowBlur::ExecuteOnscreenRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, color));
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_blur_position(), 2, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, blur_position));
+      offsetof(VertexAttributes, offset));
   graphics_state->VertexAttribFinish();
   GL_CALL(glUniform2fv(program->GetFragmentShader().u_blur_radius(), 1,
       blur_radius_));
   GL_CALL(glUniform2fv(program->GetFragmentShader().u_scale_add(), 1,
       blur_scale_add_));
 
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
-  draw_stencil_.UndoStencilState(graphics_state);
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount));
 }
 
-void DrawRectShadowBlur::AddVertex(float x, float y, uint32_t color) {
-  float blur_x = (x - blur_center_.x()) * blur_sigma_scale_;
-  float blur_y = (y - blur_center_.y()) * blur_sigma_scale_;
-  VertexAttributes attribute = { { x, y, base_state_.depth }, color,
-                                 { blur_x, blur_y } };
-  attributes_.push_back(attribute);
+void DrawRectShadowBlur::SetVertex(VertexAttributes* vertex,
+                                   float x, float y) {
+  vertex->position[0] = x;
+  vertex->position[1] = y;
+  vertex->position[2] = base_state_.depth;
+
+  vertex->offset[0] = (x - blur_center_.x()) * blur_sigma_scale_;
+  vertex->offset[1] = (y - blur_center_.y()) * blur_sigma_scale_;
+
+  vertex->color = color_;
 }
 
 }  // namespace egl
