@@ -91,32 +91,8 @@ TEST(MimeTypeTest, ValidContentTypeWithTypeAndSubtypeOnly) {
 }
 
 TEST(MimeTypeTest, TypeNotAtBeginning) {
-  {
-    MimeType mime_type(";video/mp4");
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-
-  {
-    MimeType mime_type("codecs=\"abc\"; audio/mp4");
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-}
-
-TEST(MimeTypeTest, EmptyComponent) {
-  {
-    MimeType mime_type("video/mp4;");
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-
-  {
-    MimeType mime_type("video/mp4;;");
-    EXPECT_FALSE(mime_type.is_valid());
-  }
-
-  {
-    MimeType mime_type("audio/mp4; codecs=\"abc\";");
-    EXPECT_FALSE(mime_type.is_valid());
-  }
+  MimeType mime_type("codecs=\"abc\"; audio/mp4");
+  EXPECT_FALSE(mime_type.is_valid());
 }
 
 TEST(MimeTypeTest, ValidContentTypeWithParams) {
@@ -221,11 +197,9 @@ TEST(MimeTypeTest, GetParamIntValueWithIndex) {
 }
 
 TEST(MimeTypeTest, GetParamFloatValueWithIndex) {
-  {
-    MimeType mime_type("video/mp4; name0=123; name1=123.4");
-    EXPECT_FLOAT_EQ(123., mime_type.GetParamFloatValue(0));
-    EXPECT_FLOAT_EQ(123.4, mime_type.GetParamFloatValue(1));
-  }
+  MimeType mime_type("video/mp4; name0=123; name1=123.4");
+  EXPECT_FLOAT_EQ(123., mime_type.GetParamFloatValue(0));
+  EXPECT_FLOAT_EQ(123.4, mime_type.GetParamFloatValue(1));
 }
 
 TEST(MimeTypeTest, GetParamStringValueWithIndex) {
@@ -240,6 +214,13 @@ TEST(MimeTypeTest, GetParamStringValueWithIndex) {
     MimeType mime_type("video/mp4; name=\" xyz  \"");
     EXPECT_EQ(" xyz  ", mime_type.GetParamStringValue(0));
   }
+}
+
+TEST(MimeTypeTest, GetParamValueInInvalidType) {
+  MimeType mime_type("video/mp4; name0=abc; name1=123.4");
+  EXPECT_FLOAT_EQ(0, mime_type.GetParamIntValue(0));
+  EXPECT_FLOAT_EQ(0.f, mime_type.GetParamFloatValue(0));
+  EXPECT_FLOAT_EQ(0, mime_type.GetParamIntValue(1));
 }
 
 TEST(MimeTypeTest, GetParamIntValueWithName) {
