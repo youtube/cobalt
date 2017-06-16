@@ -19,7 +19,6 @@
 
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/renderer/rasterizer/egl/draw_depth_stencil.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 namespace cobalt {
@@ -34,7 +33,7 @@ namespace egl {
 //   |   | Box shadow "spread" region  |   |
 //   |   |   +---------------------+   |   |
 //   |   |   | Box shadow rect     |   |   |
-//   |   |   | (exclude scissor)   |   |   |
+//   |   |   | (exclude geometry)  |   |   |
 //   |   |   +---------------------+   |   |
 //   |   |                             |   |
 //   |   +-----------------------------+   |
@@ -44,8 +43,7 @@ namespace egl {
 // "spread" region.
 
 // Handles drawing a box shadow with blur. This uses a gaussian kernel to fade
-// the "blur" region. A stencil is used to ensure only the desired pixels are
-// touched.
+// the "blur" region.
 //
 // This uses a shader to mimic skia's SkBlurMask.cpp.
 // See also http://stereopsis.com/shadowrect/ as reference for the formula
@@ -63,7 +61,6 @@ class DrawRectShadowBlur : public DrawObject {
                      const math::RectF& outer_rect,
                      const math::RectF& blur_edge,
                      const render_tree::ColorRGBA& color,
-                     const math::RectF& exclude_scissor,
                      float blur_sigma, bool inset);
 
   void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
@@ -72,23 +69,21 @@ class DrawRectShadowBlur : public DrawObject {
       ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
-  void AddVertex(float x, float y, uint32_t color);
-
   struct VertexAttributes {
     float position[3];
+    float offset[2];          // Expressed in terms of blur_sigma from center.
     uint32_t color;
-    float blur_position[2];   // Expressed in terms of blur_sigma from center.
   };
 
-  DrawDepthStencil draw_stencil_;
-  std::vector<VertexAttributes> attributes_;
+  void SetVertex(VertexAttributes* vertex, float x, float y);
+
+  math::RectF inner_rect_;
+  math::RectF outer_rect_;
   math::PointF blur_center_;
   float blur_radius_[2];      // Expressed in terms of blur_sigma.
   float blur_scale_add_[2];
-
-  // The sigma scale is used to transform pixel distances to sigma-relative
-  // distances.
-  float blur_sigma_scale_;
+  float blur_sigma_scale_;    // Used to express distances as sigma-relative.
+  uint32_t color_;
 
   uint8_t* vertex_buffer_;
 };
