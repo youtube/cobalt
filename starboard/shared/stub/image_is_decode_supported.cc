@@ -15,8 +15,8 @@
 #include "starboard/configuration.h"
 #include "starboard/image.h"
 
-#if !(SB_VERSION(3) && SB_HAS(GRAPHICS))
-#error "SbImageIsDecodeSupported requires SB_VERSION(3) and SB_HAS(GRAPHICS)."
+#if !(SB_API_VERSION >= 3 && SB_HAS(GRAPHICS))
+#error "Requires SB_API_VERSION >= 3 and SB_HAS(GRAPHICS)."
 #endif
 
 bool SbImageIsDecodeSupported(const char* mime_type,

@@ -52,7 +52,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_VERSION(3)
+#if SB_API_VERSION >= 3
 
 #ifdef __cplusplus
 extern "C" {
@@ -102,6 +102,6 @@ SB_EXPORT SbDecodeTarget SbImageDecode(
 }  // extern "C"
 #endif
 
-#endif  // SB_VERSION(3)
+#endif  // SB_API_VERSION >= 3
 
 #endif  // STARBOARD_IMAGE_H_

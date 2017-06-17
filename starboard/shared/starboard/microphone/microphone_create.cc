@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
@@ -25,4 +25,4 @@ SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
                                                buffer_size);
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

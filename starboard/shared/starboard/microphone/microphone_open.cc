@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
@@ -22,4 +22,4 @@ bool SbMicrophoneOpen(SbMicrophone microphone) {
   return SbMicrophoneIsValid(microphone) ? microphone->Open() : false;
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

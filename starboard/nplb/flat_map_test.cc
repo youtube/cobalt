@@ -89,7 +89,7 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
 }
 
 SbTimeMonotonic GetThreadTimeMonotonicNow() {
-#if SB_VERSION(3) && SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 3 && SB_HAS(TIME_THREAD_NOW)
   return SbTimeGetMonotonicThreadNow();
 #else
   return SbTimeGetMonotonicNow();

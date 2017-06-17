@@ -113,6 +113,7 @@
 
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
+// This macro is deprecated, please instead use the expanded form directly.
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
 
 // A constant expression that evaluates to the size_t size of a statically-sized
@@ -446,11 +447,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
-#if SB_VERSION(2) && !defined(SB_HAS_MICROPHONE)
+#if SB_API_VERSION >= 2 && !defined(SB_HAS_MICROPHONE)
 #error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
-#if SB_VERSION(3) && !defined(SB_HAS_TIME_THREAD_NOW)
+#if SB_API_VERSION >= 3 && !defined(SB_HAS_TIME_THREAD_NOW)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
