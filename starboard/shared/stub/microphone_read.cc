@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 int SbMicrophoneRead(SbMicrophone microphone,
                      void* out_audio_data,
@@ -22,4 +22,4 @@ int SbMicrophoneRead(SbMicrophone microphone,
   return -1;
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
