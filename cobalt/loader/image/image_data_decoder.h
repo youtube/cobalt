@@ -46,7 +46,7 @@ class ImageDataDecoder {
   }
 
 #if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
   // Starboard version 3 adds support for hardware accelerated image decoding.
   // In order to make use of this feature, subclasses of ImageDataDecoder may
   // override this method in order to return an SbDecodeTarget, rather than a
@@ -59,7 +59,7 @@ class ImageDataDecoder {
   virtual SbDecodeTarget RetrieveSbDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 #endif  // defined(STARBOARD)
 
   void DecodeChunk(const uint8* data, size_t size);
