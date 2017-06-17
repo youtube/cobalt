@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
                                 int sample_rate_in_hz,
@@ -22,4 +22,4 @@ SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
   return kSbMicrophoneInvalid;
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

@@ -17,8 +17,8 @@
 
 #if SB_API_VERSION < 4
 
-#if !(SB_VERSION(3) && SB_HAS(GRAPHICS))
-#error "SbDecodeTargetIsOpaque requires SB_VERSION(3) and SB_HAS(GRAPHICS)."
+#if !(SB_API_VERSION >= 3 && SB_HAS(GRAPHICS))
+#error "Requires SB_API_VERSION >= 3 and SB_HAS(GRAPHICS)."
 #endif
 
 bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target) {
