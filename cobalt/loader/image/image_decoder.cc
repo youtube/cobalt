@@ -162,7 +162,7 @@ void ImageDecoder::Finish() {
       if (decoder_->FinishWithSuccess()) {
         if (!decoder_->has_animation()) {
 #if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
           SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
           if (SbDecodeTargetIsValid(target)) {
             success_callback_.Run(new StaticImage(
@@ -272,7 +272,7 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 
 namespace {
 #if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
   switch (image_type) {
     case ImageDecoder::kImageTypeJPEG:
@@ -331,7 +331,7 @@ scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
   }
   return scoped_ptr<ImageDataDecoder>();
 }
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 #endif  // defined(STARBOARD)
 
 scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
@@ -384,10 +384,10 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
   }
 
 #if defined(STARBOARD)
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
   decoder_ =
       MaybeCreateStarboardDecoder(mime_type_, image_type_, resource_provider_);
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 #endif  // defined(STARBOARD)
 
   if (!decoder_) {
