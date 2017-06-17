@@ -15,8 +15,8 @@
 #include "starboard/configuration.h"
 #include "starboard/image.h"
 
-#if !(SB_VERSION(3) && SB_HAS(GRAPHICS))
-#error "SbImageDecode requires SB_VERSION(3) and SB_HAS(GRAPHICS)."
+#if !(SB_API_VERSION >= 3 && SB_HAS(GRAPHICS))
+#error "SbImageDecode requires SB_API_VERSION >= 3 and SB_HAS(GRAPHICS)."
 #endif
 
 #if SB_API_VERSION >= 4

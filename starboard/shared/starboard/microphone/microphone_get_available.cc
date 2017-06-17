@@ -14,7 +14,7 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
@@ -24,4 +24,4 @@ int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                                                       info_array_size);
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
