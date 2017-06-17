@@ -25,7 +25,7 @@
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "starboard/decode_target.h"
 
-#if SB_VERSION(3) && SB_HAS(GRAPHICS)
+#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
 namespace cobalt {
 namespace loader {
@@ -63,7 +63,7 @@ class ImageDecoderStarboard : public ImageDataDecoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // SB_VERSION(3) && SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
 
 #endif  // defined(STARBOARD)
 
