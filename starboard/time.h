@@ -91,7 +91,7 @@ SB_EXPORT SbTime SbTimeGetNow();
 // Gets a monotonically increasing time representing right now.
 SB_EXPORT SbTimeMonotonic SbTimeGetMonotonicNow();
 
-#if SB_VERSION(3) && SB_HAS(TIME_THREAD_NOW)
+#if SB_API_VERSION >= 3 && SB_HAS(TIME_THREAD_NOW)
 // Gets a monotonically increasing time representing how long the current
 // thread has been in the executing state (i.e. not pre-empted nor waiting
 // on an event). This is not necessarily total time and is intended to allow

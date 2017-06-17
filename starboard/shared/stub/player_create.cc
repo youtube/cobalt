@@ -32,7 +32,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         ,
                         SbPlayerOutputMode output_mode,
                         SbDecodeTargetGraphicsContextProvider* /*provider*/
-#elif SB_VERSION(3)
+#elif SB_API_VERSION >= 3
                         ,
                         SbDecodeTargetProvider* /*provider*/
 #endif
