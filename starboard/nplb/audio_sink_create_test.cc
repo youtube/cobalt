@@ -28,7 +28,13 @@ void UpdateSourceStatusFuncStub(int* frames_in_buffer,
                                 int* offset_in_frames,
                                 bool* is_playing,
                                 bool* is_eos_reached,
-                                void* context) {}
+                                void* context) {
+  *frames_in_buffer = 0;
+  *offset_in_frames = 0;
+  *is_playing = false;
+  *is_eos_reached = false;
+}
+
 void ConsumeFramesFuncStub(int frames_consumed, void* context) {}
 
 }  // namespace
