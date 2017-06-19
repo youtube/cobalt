@@ -24,35 +24,6 @@
 
     'cobalt_media_source_2016': 1,
 
-    # Define platform specific compiler and linker flags.
-    # Refer to base.gypi for a list of all available variables.
-    'compiler_flags_host': [
-      '-O2',
-    ],
-    'compiler_flags': [
-      # We'll pretend not to be Linux, but Starboard instead.
-      '-U__linux__',
-    ],
-    'linker_flags': [
-    ],
-    'compiler_flags_debug': [
-      '-frtti',
-      '-O0',
-    ],
-    'compiler_flags_devel': [
-      '-frtti',
-      '-O2',
-    ],
-    'compiler_flags_qa': [
-      '-fno-rtti',
-      '-O2',
-      '-gline-tables-only',
-    ],
-    'compiler_flags_gold': [
-      '-fno-rtti',
-      '-O2',
-      '-gline-tables-only',
-    ],
     'conditions': [
       ['cobalt_fastbuild==0', {
         'msvs_settings': {
@@ -115,6 +86,15 @@
         'msvs_target_platform': 'x64',
         # Add the default import libs.
         'conditions': [
+          ['cobalt_code==1', {
+            'msvs_settings': {
+              'VCCLCompilerTool': {
+                # Enable some warnings, even those that are disabled by default.
+                # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
+                'WarningLevel': '4',
+              },
+            },
+          }],
           ['cobalt_fastbuild==0', {
             'msvs_settings': {
               'VCCLCompilerTool': {
@@ -235,7 +215,7 @@
         'WarnAsError': 'false',
         # Enable some warnings, even those that are disabled by default.
         # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
-        'WarningLevel': '3',
+        'WarningLevel': '2',
 
         'AdditionalOptions': [
           '/errorReport:none', # don't send error reports to MS.
@@ -337,16 +317,6 @@
       # objects.
       # https://connect.microsoft.com/VisualStudio/feedback/details/783808/static-analyzer-warning-c28285-for-std-min-and-std-max
       28285,
-    ],
-    'target_conditions': [
-      ['cobalt_code==1', {
-        'cflags': [
-          '-Wall',
-          '-Wextra',
-          '-Wunreachable-code',
-        ],
-      },
-      ],
     ],
   }, # end of target_defaults
 }
