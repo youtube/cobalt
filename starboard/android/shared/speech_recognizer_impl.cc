@@ -102,7 +102,7 @@ bool SbSpeechRecognizerImpl::Start(const SbSpeechConfiguration* configuration) {
   env->CallVoidMethodOrAbort(
       j_voice_recognizer_, "startRecognition", "(ZZIJ)V",
       configuration->continuous, configuration->interim_results,
-      configuration->max_alternatives, reinterpret_cast<intptr_t>(this));
+      configuration->max_alternatives, reinterpret_cast<jlong>(this));
 
   is_started_ = true;
   return true;
