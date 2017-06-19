@@ -21,6 +21,7 @@
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 
 namespace cobalt {
 namespace renderer {
@@ -42,15 +43,16 @@ DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
     const BaseState& base_state,
     const math::RectF& rect,
     const render_tree::LinearGradientBrush& brush)
-    : DrawDepthStencil(base_state),
-      first_rect_vert_(0),
-      gradient_angle_(0.0f) {
+    : DrawObject(base_state),
+      transform_(math::Matrix3F::Identity()),
+      include_scissor_(rect),
+      vertex_buffer_(nullptr) {
+  attributes_.reserve(MaxVertsNeededForAlignedGradient(brush));
+
   if (std::abs(brush.dest().y() - brush.source().y()) < kEpsilon) {
-    attributes_.reserve(MaxVertsNeededForAlignedGradient(brush));
     AddRectWithHorizontalGradient(
         rect, brush.source(), brush.dest(), brush.color_stops());
   } else if (std::abs(brush.dest().x() - brush.source().x()) < kEpsilon) {
-    attributes_.reserve(MaxVertsNeededForAlignedGradient(brush));
     AddRectWithVerticalGradient(
         rect, brush.source(), brush.dest(), brush.color_stops());
   } else {
@@ -60,44 +62,60 @@ DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
       attributes_.size() * sizeof(VertexAttributes));
 }
 
+void DrawRectLinearGradient::ExecuteOnscreenUpdateVertexBuffer(
+    GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  vertex_buffer_ = graphics_state->AllocateVertexData(
+      attributes_.size() * sizeof(VertexAttributes));
+  SbMemoryCopy(vertex_buffer_, &attributes_[0],
+               attributes_.size() * sizeof(VertexAttributes));
+}
+
 void DrawRectLinearGradient::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  SetupShader(graphics_state, program_manager);
+  ShaderProgram<ShaderVertexColorOffset,
+                ShaderFragmentColorInclude>* program;
+  program_manager->GetProgram(&program);
+  graphics_state->UseProgram(program->GetHandle());
+  graphics_state->UpdateClipAdjustment(
+      program->GetVertexShader().u_clip_adjustment());
+  graphics_state->UpdateTransformMatrix(
+      program->GetVertexShader().u_view_matrix(),
+      base_state_.transform);
+  graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
+      base_state_.scissor.width(), base_state_.scissor.height());
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, position));
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, color));
+  graphics_state->VertexAttribPointer(
+      program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
+      sizeof(VertexAttributes), vertex_buffer_ +
+      offsetof(VertexAttributes, offset));
+  graphics_state->VertexAttribFinish();
 
-  if (first_rect_vert_ > 0) {
-    // Draw using stencil.
-    DrawStencil(graphics_state);
+  float include[4] = {
+    include_scissor_.x(),
+    include_scissor_.y(),
+    include_scissor_.right(),
+    include_scissor_.bottom()
+  };
+  GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
 
-    // Update the transform for the shader to rotate the horizontal gradient
-    // into the desired angled gradient.
-    ShaderProgram<ShaderVertexColor,
-                  ShaderFragmentColor>* program;
-    program_manager->GetProgram(&program);
-    SB_DCHECK(graphics_state->GetProgram() == program->GetHandle());
-    graphics_state->UpdateTransformMatrix(
-        program->GetVertexShader().u_view_matrix(),
-        base_state_.transform * math::RotateMatrix(gradient_angle_));
-
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, first_rect_vert_,
-        attributes_.size() - first_rect_vert_));
-    UndoStencilState(graphics_state);
-  } else {
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
-  }
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
 }
 
 void DrawRectLinearGradient::AddRectWithHorizontalGradient(
     const math::RectF& rect, const math::PointF& source,
     const math::PointF& dest, const render_tree::ColorStopList& color_stops) {
-  SB_DCHECK(source.x() >= rect.x() - kEpsilon &&
-            source.x() <= rect.right() + kEpsilon &&
-            dest.x() >= rect.x() - kEpsilon &&
-            dest.x() <= rect.right() + kEpsilon);
-
   size_t num_colors = color_stops.size();
-  float start = std::max(rect.x(), std::min(source.x(), rect.right()));
-  float length = std::max(rect.x(), std::min(dest.x(), rect.right())) - start;
+  float start = source.x();
+  float length = dest.x() - source.x();
   float position = color_stops[0].position * length + start;
   uint32_t color32 = GetGLColor(color_stops[0]);
 
@@ -133,14 +151,9 @@ void DrawRectLinearGradient::AddRectWithHorizontalGradient(
 void DrawRectLinearGradient::AddRectWithVerticalGradient(
     const math::RectF& rect, const math::PointF& source,
     const math::PointF& dest, const render_tree::ColorStopList& color_stops) {
-  SB_DCHECK(source.y() >= rect.y() - kEpsilon &&
-            source.y() <= rect.bottom() + kEpsilon &&
-            dest.y() >= rect.y() - kEpsilon &&
-            dest.y() <= rect.bottom() + kEpsilon);
-
   size_t num_colors = color_stops.size();
-  float start = std::max(rect.y(), std::min(source.y(), rect.bottom()));
-  float length = std::max(rect.y(), std::min(dest.y(), rect.bottom())) - start;
+  float start = source.y();
+  float length = dest.y() - source.y();
   float position = color_stops[0].position * length + start;
   uint32_t color32 = GetGLColor(color_stops[0]);
 
@@ -179,34 +192,25 @@ void DrawRectLinearGradient::AddRectWithAngledGradient(
   // draw a rect with horizontal gradient that will be rotated to cover the
   // desired rect with angled gradient. This is not as efficient as calculating
   // a triangle strip to describe the rect with angled gradient, but is simpler.
-  attributes_.reserve(MaxVertsNeededForStencil() +
-                      MaxVertsNeededForAlignedGradient(brush));
-  AddStencil(rect, math::RectF());
 
   // Calculate the angle needed to rotate a horizontal gradient into the
   // angled gradient. (Flip vertical distance because the input coordinate
   // system's origin is at the top-left.)
-  gradient_angle_ = atan2(brush.source().y() - brush.dest().y(),
-                          brush.dest().x() - brush.source().x());
+  float gradient_angle = atan2(brush.source().y() - brush.dest().y(),
+                               brush.dest().x() - brush.source().x());
+  transform_ = math::RotateMatrix(gradient_angle);
 
   // Calculate the endpoints for the horizontal gradient that, when rotated
-  // by gradient_angle_, will turn into the original angled gradient.
-  math::Matrix3F inverse_transform = math::RotateMatrix(-gradient_angle_);
+  // by gradient_angle, will turn into the original angled gradient.
+  math::Matrix3F inverse_transform = math::RotateMatrix(-gradient_angle);
   math::PointF mapped_source(inverse_transform * brush.source());
   math::PointF mapped_dest(inverse_transform * brush.dest());
   SB_DCHECK(mapped_source.x() <= mapped_dest.x());
 
-  // Calculate a rect large enough that, when rotated by gradient_angle_, it
+  // Calculate a rect large enough that, when rotated by gradient_angle, it
   // will contain the original rect.
   math::RectF mapped_rect = inverse_transform.MapRect(rect);
 
-  // Adjust the mapped_rect to include the gradient endpoints if needed.
-  float left = std::min(mapped_rect.x(), mapped_source.x());
-  float right = std::max(mapped_rect.right(), mapped_dest.x());
-  mapped_rect.SetRect(left, mapped_rect.y(),
-                      right - left, mapped_rect.height());
-
-  first_rect_vert_ = attributes_.size();
   AddRectWithHorizontalGradient(mapped_rect, mapped_source, mapped_dest,
                                 brush.color_stops());
 }
@@ -217,6 +221,16 @@ uint32_t DrawRectLinearGradient::GetGLColor(
   float alpha = base_state_.opacity * color.a();
   return GetGLRGBA(color.r() * alpha, color.g() * alpha, color.b() * alpha,
                    alpha);
+}
+
+void DrawRectLinearGradient::AddVertex(float x, float y, uint32_t color) {
+  math::PointF position = transform_ * math::PointF(x, y);
+  VertexAttributes attributes = {
+    { position.x(), position.y(), base_state_.depth },
+    { position.x(), position.y() },
+    color
+  };
+  attributes_.push_back(attributes);
 }
 
 }  // namespace egl
