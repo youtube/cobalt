@@ -59,6 +59,8 @@
         'msvs_settings': {
           'VCLinkerTool': {
             'AdditionalDependencies': [
+              'mfplat.lib',
+              'mfuuid.lib',
               'windowsapp.lib',
             ],
             'AdditionalLibraryDirectories!': [

@@ -19,6 +19,7 @@
       'configuration_public.h',
       'main.cc',
       'thread_types_public.h',
+      '<@(stub_media_player)',
       '../shared/system_get_path.cc',
       '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
       '<(DEPTH)/starboard/shared/starboard/queue_application.h',
