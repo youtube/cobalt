@@ -363,9 +363,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
                 (brush.get());
         scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
             draw_state_, content_rect, *linear_brush));
-        // The draw may use transparent colors or a depth stencil (but only
-        // the inclusive one, so only one depth value is needed), so make it
-        // a transparent draw.
+        // The draw may use transparent pixels to ensure only pixels in the
+        // content_rect are modified.
         AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
             DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
       }
