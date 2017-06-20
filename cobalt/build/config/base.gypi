@@ -21,9 +21,9 @@
     # Whether Cobalt is being built.
     'cobalt': 1,
 
-    # Similarly to chromium_code, marks the projects that are created by the
-    # Cobalt team and thus are held to the highest standards of code health.
-    'cobalt_code%': 0,
+    # Enabling this variable enables pedantic levels of warnings for the current
+    # toolchain.
+    'sb_pedantic_warnings%': 0,
 
     # Contains the current build configuration.
     'cobalt_config%': 'gold',
@@ -490,16 +490,16 @@
 
   'target_defaults': {
     'variables': {
-      # The condition that operates on cobalt_code is in a target_conditions
-      # section, and will not have access to the default fallback value of
-      # cobalt_code at the top of this file, or to the cobalt_code
-      # variable placed at the root variables scope of .gyp files, because
-      # those variables are not set at target scope.  As a workaround,
-      # if cobalt_code is not set at target scope, define it in target scope
-      # to contain whatever value it has during early variable expansion.
-      # That's enough to make it available during target conditional
-      # processing.
-      'cobalt_code%': '<(cobalt_code)',
+      # The condition that operates on sb_pedantic_warnings is in a
+      # target_conditions section, and will not have access to the default
+      # fallback value of sb_pedantic_warnings at the top of this file,
+      # or to the sb_pedantic_warnings variable placed at the root
+      # variables scope of .gyp files, because those variables are not set at
+      # target scope.  As a workaround, if sb_pedantic_warnings is not
+      # set at target scope, define it in target scope to contain whatever
+      # value it has during early variable expansion. That's enough to make
+      # it available during target conditional processing.
+      'sb_pedantic_warnings%': '<(sb_pedantic_warnings)',
     },
     'defines': [
       'COBALT',

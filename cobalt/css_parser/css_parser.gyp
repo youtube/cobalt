@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
 
     # Define the platform specific Bison binary.
     'conditions': [
