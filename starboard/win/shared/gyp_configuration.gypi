@@ -86,7 +86,7 @@
         'msvs_target_platform': 'x64',
         # Add the default import libs.
         'conditions': [
-          ['cobalt_code==1', {
+          ['sb_pedantic_warnings==1', {
             'msvs_settings': {
               'VCCLCompilerTool': {
                 # Enable some warnings, even those that are disabled by default.
@@ -202,22 +202,28 @@
     'msvs_settings': {
       'VCCLCompilerTool': {
         'ForcedIncludeFiles': [],
+
         # Check for buffer overruns.
         'BufferSecurityCheck': 'true',
+
         'Conformance': [
           # "for" loop's initializer go out of scope after the for loop.
           'forScope',
           # wchar_t is treated as a built-in type.
           'wchar_t',
         ],
+
         # Check for 64-bit portability issues.
         'Detect64BitPortabilityProblems': 'true',
+
         # Disable Microsoft-specific header dependency tracking.
         # Incremental linker does not support the Windows metadata included
         # in .obj files compiled with C++/CX support (/ZW).
         'MinimalRebuild': 'false',
+
         # Treat warnings as errors.
         'WarnAsError': 'false',
+
         # Enable some warnings, even those that are disabled by default.
         # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
         'WarningLevel': '2',

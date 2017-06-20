@@ -126,7 +126,7 @@
       '-std=gnu++11',
     ],
     'target_conditions': [
-      ['cobalt_code==1', {
+      ['sb_pedantic_warnings==1', {
         'cflags': [
           '-Wall',
           '-Wextra',
