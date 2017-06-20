@@ -87,14 +87,14 @@ std::string PrintCSVTool::ToCsvString(const MapAllocationSamples& samples_in) {
       continue;
     }
 
-    const AllocationSamples& samples = it->second;
-    if (samples.allocated_bytes_.empty() ||
-        samples.number_allocations_.empty()) {
+    const AllocationSamples& samples_ref = it->second;
+    if (samples_ref.allocated_bytes_.empty() ||
+      samples_ref.number_allocations_.empty()) {
       SB_NOTREACHED() << "Should not be here";
       return "ERROR";
     }
-    const int64 n_allocs = samples.number_allocations_.back();
-    const int64 n_bytes = samples.allocated_bytes_.back();
+    const int64 n_allocs = samples_ref.number_allocations_.back();
+    const int64 n_bytes = samples_ref.allocated_bytes_.back();
     int64 bytes_per_alloc = 0;
     if (n_allocs > 0) {
       bytes_per_alloc = n_bytes / n_allocs;
@@ -135,14 +135,14 @@ std::string PrintCSVTool::ToCsvString(const MapAllocationSamples& samples_in) {
       }
       const int64 alloc_bytes = it->second.allocated_bytes_[i];
       // Convert to float megabytes with decimals of precision.
-      double n = alloc_bytes / (1000 * 10);
+      double n = static_cast<double>(alloc_bytes / (1000 * 10));
       n = n / (100.);
       ss << n << kDelimiter;
     }
     if (total_cpu_memory_it != samples.end()) {
       const int64 alloc_bytes = total_cpu_memory_it->second.allocated_bytes_[i];
       // Convert to float megabytes with decimals of precision.
-      double n = alloc_bytes / (1000 * 10);
+      double n = static_cast<double>(alloc_bytes / (1000 * 10));
       n = n / (100.);
       ss << n << kDelimiter;
     }
