@@ -40,6 +40,12 @@
       'cobalt_config/include',
       '<(DEPTH)/third_party/icu/source/common',
     ],
+    'common_msvs_disabled_warnings': [
+      # Level 2, Possible loss of data due to type conversion.
+      4244,
+      # Level 3, Possible loss of data due to type conversion from size_t.
+      4267,
+    ],
 
     'conditions': [
       ['target_arch == "x86"', {
@@ -116,6 +122,12 @@
 
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
+    'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+
+    # Unfortunately, there is code that generate warnings in the headers.
+    'direct_dependent_settings': {
+      'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+    },
   },
 
   'targets': [
