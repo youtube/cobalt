@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
 
   # A library to support code that wishes to load a URL and take a snapshot
