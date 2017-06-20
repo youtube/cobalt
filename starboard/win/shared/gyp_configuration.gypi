@@ -178,6 +178,11 @@
        },
     },
     'defines': [
+      # Disable warnings.  These options were inherited from Chromium.
+      '_CRT_SECURE_NO_DEPRECATE',
+      '_CRT_NONSTDC_NO_WARNINGS',
+      '_CRT_NONSTDC_NO_DEPRECATE',
+      '_SCL_SECURE_NO_DEPRECATE',
       # Disable suggestions to switch to Microsoft-specific secure CRT.
       '_CRT_SECURE_NO_WARNINGS',
       # Disable support for exceptions in STL in order to detect their use
@@ -218,9 +223,10 @@
         'WarningLevel': '2',
 
         'AdditionalOptions': [
-          '/errorReport:none', # don't send error reports to MS.
+          '/errorReport:none', # Don't send error reports to MS.
           '/permissive-', # Visual C++ conformance mode.
           '/FS', # Force sync PDB updates for parallel compile.
+          '/we4389', # Turn on warnings for signed/unsigned mismatch.
         ],
       },
       'VCLinkerTool': {
@@ -237,7 +243,7 @@
         'TargetMachine': '17', # x86 - 64
         'AdditionalOptions': [
           '/WINMD:NO', # Do not generate a WinMD file.
-          '/errorReport:none', # don't send error reports to MS.
+          '/errorReport:none', # Don't send error reports to MS.
         ],
       },
       'VCLibrarianTool': {
