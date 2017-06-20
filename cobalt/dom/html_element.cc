@@ -600,7 +600,7 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   // are updated.
   old_matching_rules_.swap(matching_rules_);
 
-  matching_rules_->clear();
+  matching_rules_.clear();
   rule_matching_state_.matching_nodes.clear();
   rule_matching_state_.descendant_potential_nodes.clear();
   rule_matching_state_.following_sibling_potential_nodes.clear();
@@ -739,8 +739,6 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           animations_adapter_(new DOMAnimatable(this))),
       css_animations_(&animations_adapter_),
-      old_matching_rules_(new cssom::RulesWithCascadePrecedence()),
-      matching_rules_(new cssom::RulesWithCascadePrecedence()),
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
@@ -1127,7 +1125,7 @@ void HTMLElement::UpdateComputedStyle(
 
     // Check for whether the matching rules have changed. If they have, then a
     // new computed style must be generated from them.
-    if (!generate_computed_style && *old_matching_rules_ != *matching_rules_) {
+    if (!generate_computed_style && old_matching_rules_ != matching_rules_) {
       generate_computed_style = true;
     }
   }
