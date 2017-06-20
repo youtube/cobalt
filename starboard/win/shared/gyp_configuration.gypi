@@ -226,7 +226,7 @@
           '/errorReport:none', # Don't send error reports to MS.
           '/permissive-', # Visual C++ conformance mode.
           '/FS', # Force sync PDB updates for parallel compile.
-          '/we4389', # Turn on warnings for signed/unsigned mismatch.
+          '/w14389', # Turn on warnings for signed/unsigned mismatch.
         ],
       },
       'VCLinkerTool': {
