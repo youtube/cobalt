@@ -248,12 +248,12 @@ class Application {
 #if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
-  virtual void AcceptFrame(SbPlayer player,
-                           const scoped_refptr<VideoFrame>& frame,
-                           int x,
-                           int y,
-                           int width,
-                           int height) {}
+  virtual void AcceptFrame(SbPlayer /* player */,
+                           const scoped_refptr<VideoFrame>& /* frame */,
+                           int /* x */,
+                           int /* y */,
+                           int /* width */,
+                           int /* height */) {}
 #endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
 
   // Blocks until the next event is available. Subclasses must implement this
