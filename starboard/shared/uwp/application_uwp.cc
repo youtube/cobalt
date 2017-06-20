@@ -154,10 +154,10 @@ ref class App sealed : public IFrameworkView {
       // The starboard: scheme provides commandline arguments, but that's
       // only allowed during a process's first activation.
       if (!previously_activated_ && uri->SchemeName->Equals("starboard")) {
-        std::string uri(wchar_tToUTF8(uri->RawUri->Data()));
+        std::string uri_string = wchar_tToUTF8(uri->RawUri->Data());
         // args_ is a vector of std::string, but argv_ is a vector of
         // char* into args_ so as to compose a char**.
-        args_ = ParseStarboardUri(uri);
+        args_ = ParseStarboardUri(uri_string);
         for (const std::string& arg : args_) {
           argv_.push_back(arg.c_str());
         }
