@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
   'targets': [
     {
@@ -197,7 +197,7 @@
       'variables': {
         # This target includes non-Cobalt code that produces pendantic
         # warnings as errors.
-        'cobalt_code': 0,
+        'sb_pedantic_warnings': 0,
       },
       'conditions': [
         ['enable_screenshot==1', {
