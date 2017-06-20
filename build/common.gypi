@@ -1978,29 +1978,6 @@
               '-Wno-unused-result',
             ],
           }],
-          [ 'OS=="win"', {
-            'defines': [
-              '_CRT_SECURE_NO_DEPRECATE',
-              '_CRT_NONSTDC_NO_WARNINGS',
-              '_CRT_NONSTDC_NO_DEPRECATE',
-              '_SCL_SECURE_NO_DEPRECATE',
-            ],
-            'msvs_disabled_warnings': [4800],
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'WarningLevel': '3',
-                'WarnAsError': '<(win_third_party_warn_as_error)',
-                'Detect64BitPortabilityProblems': 'false',
-              },
-            },
-            'conditions': [
-              ['buildtype=="Official"', {
-                'msvs_settings': {
-                  'VCCLCompilerTool': { 'WarnAsError': 'false' },
-                }
-              }],
-            ],
-          }],
           # TODO(darin): Unfortunately, some third_party code depends on base.
           [ 'target_os=="win" and component=="shared_library"', {
             'msvs_disabled_warnings': [
@@ -2041,14 +2018,6 @@
           '__STDC_FORMAT_MACROS',
         ],
         'conditions': [
-          ['OS=="win"', {
-            # turn on warnings for signed/unsigned mismatch on chromium code.
-            'msvs_settings': {
-              'VCCLCompilerTool': {
-                'AdditionalOptions': ['/we4389'],
-              },
-            },
-          }],
           ['(OS == "win" or target_arch=="xb1") and component=="shared_library"', {
             'msvs_disabled_warnings': [
               4251,  # class 'std::xx' needs to have dll-interface.
