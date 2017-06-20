@@ -136,7 +136,7 @@ std::string CompressedTimeSeriesTool::ToCsvString(
     for (MapIt it = samples.begin(); it != samples.end(); ++it) {
       const int64 alloc_bytes = it->second.allocated_bytes_[i];
       // Convert to float megabytes with decimals of precision.
-      double n = alloc_bytes / (1000 * 10);
+      double n = static_cast<double>(alloc_bytes / (1000 * 10));
       n = n / (100.);
       ss << n << kDelimiter;
     }
