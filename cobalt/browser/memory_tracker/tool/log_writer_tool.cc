@@ -75,7 +75,7 @@ void LogWriterTool::OnMemoryAllocation(const void* memory_block, size_t size) {
   // this loop only iterates once.
   for (size_t i = kStartIndex; i < end_index; ++i) {
     void* p = addresses[i];
-    int bytes_written =
+    bytes_written =
         SbStringFormatF(buff + buff_pos, sizeof(buff) - buff_pos,
                         " %" PRIXPTR "", reinterpret_cast<uintptr_t>(p));
     DCHECK_GE(bytes_written, 0);
