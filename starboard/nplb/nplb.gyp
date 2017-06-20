@@ -16,8 +16,12 @@
 # implementations.
 
 {
+  'variables': {
+    'sb_pedantic_warnings': 1,
+  },
   'targets': [
     {
+      'msvs_disabled_warnings': [4100, 4189, 4456],
       'target_name': 'nplb',
       'type': '<(gtest_target_type)',
       'sources': [
