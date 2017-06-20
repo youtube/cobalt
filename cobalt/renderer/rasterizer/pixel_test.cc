@@ -2138,27 +2138,63 @@ TEST_F(PixelTest, EllipticalSubPixelBorder) {
                        20));
 }
 
+namespace {
+std::pair<PointF, PointF> LinearGradientPointsFromDegrees(
+    float ccw_degrees_from_right, const SizeF& frame_size, float frame_scale) {
+  float ccw_radians_from_right = static_cast<float>(
+      ccw_degrees_from_right * M_PI / 180.0f);
+
+  // Scale |frame_size| by |frame_scale|, and offset the source and destination
+  // points for the gradient so their midpoint coincides with the center of
+  // the original frame.
+  float offset_x = frame_size.width() * (1.0f - frame_scale) * 0.5f;
+  float offset_y = frame_size.height() * (1.0f - frame_scale) * 0.5f;
+  std::pair<PointF, PointF> source_and_dest =
+      render_tree::LinearGradientPointsFromAngle(ccw_radians_from_right,
+          ScaleSize(frame_size, frame_scale));
+  source_and_dest.first.Offset(offset_x, offset_y);
+  source_and_dest.second.Offset(offset_x, offset_y);
+  return source_and_dest;
+}
+
+RectF ScaledCenteredSurface(const SizeF& frame_size, float scale) {
+  math::PointF origin(frame_size.width() * (1.0f - scale) * 0.5f,
+                      frame_size.height() * (1.0f - scale) * 0.5f);
+  return math::RectF(origin, ScaleSize(frame_size, scale));
+}
+}  // namespace
+
 TEST_F(PixelTest, LinearGradient2StopsLeftRight) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new LinearGradientBrush(
-          PointF(0, 0), PointF(output_surface_size().width(), 0),
+          LinearGradientPointsFromDegrees(0, output_surface_size(), 0.9f),
           ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, LinearGradient2StopsTopBottom) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new LinearGradientBrush(
-          PointF(0, 0), PointF(0, output_surface_size().height()),
+          LinearGradientPointsFromDegrees(-90, output_surface_size(), 0.9f),
           ColorRGBA(1.0, 0.0, 0.0, 1), ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
-TEST_F(PixelTest, LinearGradient2StopsArbitraryAngle) {
+TEST_F(PixelTest, LinearGradient2Stops45Degrees) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new LinearGradientBrush(
-          PointF(30, 30), PointF(130, 180), ColorRGBA(1.0, 0.0, 0.0, 1),
+          LinearGradientPointsFromDegrees(45, output_surface_size(), 0.9f),
+          ColorRGBA(1.0, 0.0, 0.0, 1),
+          ColorRGBA(0.0, 1.0, 0.0, 1)))));
+}
+
+TEST_F(PixelTest, LinearGradient2Stops315Degrees) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(315, output_surface_size(), 0.9f),
+          ColorRGBA(1.0, 0.0, 0.0, 1),
           ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
@@ -2172,27 +2208,36 @@ ColorStopList Make3ColorEvenlySpacedStopList() {
 }
 }  // namespace
 
-TEST_F(PixelTest, LinearGradient3StopsLeftRight) {
-  TestTree(
-      new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(new LinearGradientBrush(
-                       PointF(0, 0), PointF(output_surface_size().width(), 0),
-                       Make3ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient3StopsLeftRightInset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(0, output_surface_size(), 0.8f),
+          Make3ColorEvenlySpacedStopList()))));
 }
 
-TEST_F(PixelTest, LinearGradient3StopsTopBottom) {
-  TestTree(
-      new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(new LinearGradientBrush(
-                       PointF(0, 0), PointF(0, output_surface_size().height()),
-                       Make3ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient3StopsTopBottomInset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(-90, output_surface_size(), 0.8f),
+          Make3ColorEvenlySpacedStopList()))));
 }
 
-TEST_F(PixelTest, LinearGradient3StopsArbitraryAngle) {
-  TestTree(new RectNode(RectF(output_surface_size()),
-                        scoped_ptr<Brush>(new LinearGradientBrush(
-                            PointF(30, 30), PointF(130, 180),
-                            Make3ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient3Stops30DegreesInset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(30, output_surface_size(), 0.8f),
+          Make3ColorEvenlySpacedStopList()))));
+}
+
+TEST_F(PixelTest, LinearGradient3Stops210DegreesInset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(210, output_surface_size(), 0.8f),
+          Make3ColorEvenlySpacedStopList()))));
 }
 
 namespace {
@@ -2207,27 +2252,36 @@ ColorStopList Make5ColorEvenlySpacedStopList() {
 }
 }  // namespace
 
-TEST_F(PixelTest, LinearGradient5StopsLeftRight) {
-  TestTree(
-      new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(new LinearGradientBrush(
-                       PointF(0, 0), PointF(output_surface_size().width(), 0),
-                       Make5ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient5StopsLeftRightOutset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(0, output_surface_size(), 1.0f),
+          Make5ColorEvenlySpacedStopList()))));
 }
 
-TEST_F(PixelTest, LinearGradient5StopsTopBottom) {
-  TestTree(
-      new RectNode(RectF(output_surface_size()),
-                   scoped_ptr<Brush>(new LinearGradientBrush(
-                       PointF(0, 0), PointF(0, output_surface_size().height()),
-                       Make5ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient5StopsTopBottomOutset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(-90, output_surface_size(), 1.0f),
+          Make5ColorEvenlySpacedStopList()))));
 }
 
-TEST_F(PixelTest, LinearGradient5StopsArbitraryAngle) {
-  TestTree(new RectNode(RectF(output_surface_size()),
-                        scoped_ptr<Brush>(new LinearGradientBrush(
-                            PointF(30, 30), PointF(130, 180),
-                            Make5ColorEvenlySpacedStopList()))));
+TEST_F(PixelTest, LinearGradient5Stops150DegreesOutset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(150, output_surface_size(), 1.0f),
+          Make5ColorEvenlySpacedStopList()))));
+}
+
+TEST_F(PixelTest, LinearGradient5Stops330DegreesOutset) {
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new LinearGradientBrush(
+          LinearGradientPointsFromDegrees(330, output_surface_size(), 1.0f),
+          Make5ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, LinearGradientWithTransparencyOnWhiteBackground) {
@@ -2253,29 +2307,30 @@ TEST_F(PixelTest, LinearGradientWithTransparencyOnWhiteBackground) {
 }
 
 TEST_F(PixelTest, RadialGradient2Stops) {
-  TestTree(new RectNode(RectF(output_surface_size()),
-                        scoped_ptr<Brush>(new RadialGradientBrush(
-                            PointF(75, 100), 75, ColorRGBA(1.0, 0.0, 0.0, 1),
-                            ColorRGBA(0.0, 1.0, 0.0, 1)))));
+  TestTree(new RectNode(
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
+      scoped_ptr<Brush>(new RadialGradientBrush(
+          PointF(75, 100), 75, ColorRGBA(1.0, 0.0, 0.0, 1),
+          ColorRGBA(0.0, 1.0, 0.0, 1)))));
 }
 
 TEST_F(PixelTest, RadialGradient3Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, Make3ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, RadialGradient5Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, Make5ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, VerticalEllipseGradient2Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(PointF(75, 100), 75, 100,
                                                 ColorRGBA(1.0, 0.0, 0.0, 1),
                                                 ColorRGBA(0.0, 1.0, 0.0, 1)))));
@@ -2283,21 +2338,21 @@ TEST_F(PixelTest, VerticalEllipseGradient2Stops) {
 
 TEST_F(PixelTest, VerticalEllipseGradient3Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, 100, Make3ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, VerticalEllipseGradient5Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 75, 100, Make5ColorEvenlySpacedStopList()))));
 }
 
 TEST_F(PixelTest, HorizontalEllipseGradient2Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(PointF(75, 100), 100, 75,
                                                 ColorRGBA(1.0, 0.0, 0.0, 1),
                                                 ColorRGBA(0.0, 1.0, 0.0, 1)))));
@@ -2305,7 +2360,7 @@ TEST_F(PixelTest, HorizontalEllipseGradient2Stops) {
 
 TEST_F(PixelTest, HorizontalEllipseGradient3Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 100, 75, Make3ColorEvenlySpacedStopList()))));
 }
@@ -2332,7 +2387,7 @@ TEST_F(PixelTest, RadialGradientWithTransparencyOnWhiteBackground) {
 
 TEST_F(PixelTest, HorizontalEllipseGradient5Stops) {
   TestTree(new RectNode(
-      RectF(output_surface_size()),
+      ScaledCenteredSurface(output_surface_size(), 0.9f),
       scoped_ptr<Brush>(new RadialGradientBrush(
           PointF(75, 100), 100, 75, Make5ColorEvenlySpacedStopList()))));
 }
