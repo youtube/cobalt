@@ -181,7 +181,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   //
   // Returns the cached matching rules of this element.
   cssom::RulesWithCascadePrecedence* matching_rules() {
-    return matching_rules_.get();
+    return &matching_rules_;
   }
   // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
@@ -355,8 +355,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::AnimationSet css_animations_;
 
   // The following fields are used in rule matching.
-  scoped_ptr<cssom::RulesWithCascadePrecedence> old_matching_rules_;
-  scoped_ptr<cssom::RulesWithCascadePrecedence> matching_rules_;
+  cssom::RulesWithCascadePrecedence old_matching_rules_;
+  cssom::RulesWithCascadePrecedence matching_rules_;
   RuleMatchingState rule_matching_state_;
 
   // This contains information about the boxes generated from the element.
