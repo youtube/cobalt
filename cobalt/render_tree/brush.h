@@ -162,10 +162,14 @@ class LinearGradientBrush : public Brush {
   const ColorStopList& color_stops() const { return data_.color_stops_; }
 
   // Returns true if, and only if the brush is horizontal.
-  bool IsHorizontal() const { return (data_.source_.y() == data_.dest_.y()); }
+  bool IsHorizontal(float epsilon = 0.001f) const {
+    return std::abs(data_.source_.y() - data_.dest_.y()) < epsilon;
+  }
 
   // Returns true if, and only if the brush is vertical.
-  bool IsVertical() const { return (data_.source_.x() == data_.dest_.x()); }
+  bool IsVertical(float epsilon = 0.001f) const {
+    return std::abs(data_.source_.x() - data_.dest_.x()) < epsilon;
+  }
 
   const Data& data() const { return data_; }
 
