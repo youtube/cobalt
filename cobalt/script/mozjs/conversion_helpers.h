@@ -471,6 +471,14 @@ inline void ToJSValue(JSContext* context, const scoped_refptr<T>& in_object,
   out_value.set(OBJECT_TO_JSVAL(object));
 }
 
+// raw object pointer -> JSValue
+template <typename T>
+inline void ToJSValue(JSContext* context, T* in_object,
+                      JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  ToJSValue(context, scoped_refptr<T>(in_object), out_value);
+}
+
 // JSValue -> object
 template <typename T>
 inline void FromJSValue(JSContext* context, JS::HandleValue value,

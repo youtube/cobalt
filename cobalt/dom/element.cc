@@ -512,6 +512,7 @@ std::string Element::outer_html(
 void Element::set_outer_html(const std::string& outer_html,
                              script::ExceptionState* exception_state) {
   TRACK_MEMORY_SCOPE("DOM");
+
   // 1. Let parent be the context object's parent.
   scoped_refptr<Node> parent = parent_node();
 
@@ -537,6 +538,9 @@ void Element::set_outer_html(const std::string& outer_html,
   // parent.
   // Remove this node from its parent.
   scoped_refptr<Node> reference = next_sibling();
+
+  // Make sure that this does not get cleaned up while it is being removed.
+  scoped_refptr<Node> keep_this_alive = this;
   parent->RemoveChild(this);
 
   // Use the DOM parser to parse the HTML input and generate children nodes.

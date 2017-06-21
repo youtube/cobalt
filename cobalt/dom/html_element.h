@@ -131,7 +131,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
-  scoped_refptr<Element> offset_parent();
+  Element* offset_parent();
   float offset_top();
   float offset_left();
   float offset_width();
