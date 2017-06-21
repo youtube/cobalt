@@ -33,6 +33,21 @@ AudioContext::AudioContext()
   DCHECK(main_message_loop_);
 }
 
+AudioContext::~AudioContext() {
+  DCHECK(main_message_loop_->BelongsToCurrentThread());
+
+  // Before releasing any |pending_decode_callbacks_|, stop audio decoder
+  // explicitly to ensure that all the decoding works are done.
+  audio_decoder_.Stop();
+
+  // It is possible that the callbacks in |pending_decode_callbacks_| have not
+  // been called when destroying AudioContext.
+  for (DecodeCallbacks::iterator it = pending_decode_callbacks_.begin();
+       it != pending_decode_callbacks_.end(); ++it) {
+    delete it->second;
+  }
+}
+
 scoped_refptr<AudioBufferSourceNode> AudioContext::CreateBufferSource() {
   DCHECK(main_message_loop_->BelongsToCurrentThread());
 
