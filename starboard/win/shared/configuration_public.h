@@ -245,7 +245,7 @@
 // given reason, this is the character that appears between entries. For
 // example, the search path of "/etc/search/first:/etc/search/second" uses ':'
 // as a search path component separator character.
-#define SB_PATH_SEP_CHAR ':'
+#define SB_PATH_SEP_CHAR ';'
 
 // The string form of SB_FILE_SEP_CHAR.
 #define SB_FILE_SEP_STRING "\\"
@@ -254,7 +254,7 @@
 #define SB_FILE_ALT_SEP_STRING "/"
 
 // The string form of SB_PATH_SEP_CHAR.
-#define SB_PATH_SEP_STRING ":"
+#define SB_PATH_SEP_STRING ";"
 
 // On some platforms the file system stores access times at a coarser
 // granularity than other times. When this quirk is defined, we assume the
