@@ -118,7 +118,7 @@ HANDLE OpenFileOrDirectory(const char* path,
 
   const DWORD last_error = GetLastError();
   if (!starboard::shared::win32::IsValidHandle(file_handle)) {
-    SB_DLOG(INFO) << "CreateFile2 failed: "
+    SB_DLOG(INFO) << "CreateFile2 failed for " << path << ":"
                   << sbwin32::Win32ErrorCode(last_error);
   }
 
