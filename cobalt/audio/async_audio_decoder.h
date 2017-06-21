@@ -35,6 +35,7 @@ class AsyncAudioDecoder {
 
   void AsyncDecode(const uint8* audio_data, size_t size,
                    const DecodeFinishCallback& decode_finish_callback);
+  void Stop();
 
  private:
   // The decoder thread.

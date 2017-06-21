@@ -49,6 +49,8 @@ AsyncAudioDecoder::AsyncAudioDecoder() : thread_("AsyncAudioDecoder") {
   thread_.Start();
 }
 
+void AsyncAudioDecoder::Stop() { thread_.Stop(); }
+
 void AsyncAudioDecoder::AsyncDecode(
     const uint8* audio_data, size_t size,
     const DecodeFinishCallback& decode_finish_callback) {
