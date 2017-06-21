@@ -169,6 +169,19 @@ inline void ToJSValue(JSContext* context,
   out_value.setObjectOrNull(native_promise->promise());
 }
 
+// Explicitly defer to the const version here so that a more generic non-const
+// version of this function does not get called instead, in the case that
+// |promise_holder| is not const.
+template <typename T>
+inline void ToJSValue(JSContext* context,
+                      ScriptValue<Promise<T> >* promise_holder,
+                      JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  ToJSValue(context,
+            const_cast<const ScriptValue<Promise<T> >*>(promise_holder),
+            out_value);
+}
+
 // Destroys |promise_holder| as soon as the conversion is done.
 // This is useful when a wrappable is not interested in retaining a reference
 // to a promise, typically when a promise is resolved or rejected synchronously.

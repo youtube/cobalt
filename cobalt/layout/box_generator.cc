@@ -918,8 +918,8 @@ void BoxGenerator::VisitNonReplacedElement(dom::HTMLElement* html_element) {
   AppendPseudoElementToLine(html_element, dom::kBeforePseudoElementType);
 
   // Generate child boxes.
-  for (scoped_refptr<dom::Node> child_node = html_element->first_child();
-       child_node; child_node = child_node->next_sibling()) {
+  for (dom::Node* child_node = html_element->first_child(); child_node;
+       child_node = child_node->next_sibling()) {
     BoxGenerator child_box_generator(
         html_element->css_computed_style_declaration(),
         html_element->css_computed_style_declaration()->animations(),

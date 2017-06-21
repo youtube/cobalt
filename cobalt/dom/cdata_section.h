@@ -42,7 +42,7 @@ class CDATASection : public Text {
 
   // Custom, not in any spec: Node.
   //
-  scoped_refptr<CDATASection> AsCDATASection() OVERRIDE { return this; }
+  CDATASection* AsCDATASection() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
