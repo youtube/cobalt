@@ -41,6 +41,25 @@ class HardwareMesh : public render_tree::Mesh {
 
   uint32 GetEstimatedSizeInBytes() const OVERRIDE;
 
+  // Float array of vertices, contiguously interleaved X, Y, Z, U, V coords.
+  const float* GetVertices() const {
+    DCHECK(vertices_ && vertices_->size());
+    return reinterpret_cast<const float*>(vertices_->data());
+  }
+
+  const size_t GetVertexCount() const {
+    DCHECK(vertices_);
+    return vertices_->size();
+  }
+
+  const render_tree::Mesh::DrawMode GetDrawMode() const {
+    return draw_mode_ == GL_TRIANGLE_FAN
+               ? render_tree::Mesh::DrawMode::kDrawModeTriangleFan
+               : draw_mode_ == GL_TRIANGLE_STRIP
+                     ? render_tree::Mesh::DrawMode::kDrawModeTriangleStrip
+                     : render_tree::Mesh::DrawMode::kDrawModeTriangles;
+  }
+
   // Obtains a vertex buffer object from this mesh. Called right before first
   // rendering it so that the graphics context has already been made current.
   const VertexBufferObject* GetVBO() const;
