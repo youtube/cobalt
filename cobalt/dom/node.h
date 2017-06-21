@@ -119,15 +119,15 @@ class Node : public EventTarget {
   virtual NodeType node_type() const = 0;
   virtual base::Token node_name() const = 0;
 
-  scoped_refptr<Document> owner_document() const;
-  scoped_refptr<Node> parent_node() const { return parent_; }
-  scoped_refptr<Element> parent_element() const;
+  Document* owner_document() const;
+  Node* parent_node() const { return parent_; }
+  Element* parent_element() const;
   bool HasChildNodes() const;
   scoped_refptr<NodeList> child_nodes() const;
-  scoped_refptr<Node> first_child() const { return first_child_; }
-  scoped_refptr<Node> last_child() const { return last_child_; }
-  scoped_refptr<Node> next_sibling() const { return next_sibling_; }
-  scoped_refptr<Node> previous_sibling() const { return previous_sibling_; }
+  Node* first_child() const { return first_child_; }
+  Node* last_child() const { return last_child_; }
+  Node* next_sibling() const { return next_sibling_; }
+  Node* previous_sibling() const { return previous_sibling_; }
 
   virtual base::optional<std::string> node_value() const {
     return base::nullopt;
@@ -158,8 +158,8 @@ class Node : public EventTarget {
   //   https://www.w3.org/TR/dom/#parentnode
   //
   scoped_refptr<HTMLCollection> children() const;
-  scoped_refptr<Element> first_element_child() const;
-  scoped_refptr<Element> last_element_child() const;
+  Element* first_element_child() const;
+  Element* last_element_child() const;
   unsigned int child_element_count() const;
 
   scoped_refptr<Element> QuerySelector(const std::string& selectors);
@@ -169,8 +169,8 @@ class Node : public EventTarget {
   // The NonDocumentTypeChildNode interface contains methods that are particular
   // to Node objects that can have a parent.
   //   https://www.w3.org/TR/2014/WD-dom-20140710/#interface-nondocumenttypechildnode
-  scoped_refptr<Element> previous_element_sibling() const;
-  scoped_refptr<Element> next_element_sibling() const;
+  Element* previous_element_sibling() const;
+  Element* next_element_sibling() const;
 
   // From the spec: Node.
   //
@@ -190,7 +190,7 @@ class Node : public EventTarget {
 
   // Returns the root Node of the tree this node belongs to. If this node is the
   // root, it will return this Node.
-  scoped_refptr<Node> GetRootNode();
+  Node* GetRootNode();
 
   bool IsCDATASection() const { return node_type() == kCdataSectionNode; }
   bool IsComment() const { return node_type() == kCommentNode; }
@@ -201,12 +201,12 @@ class Node : public EventTarget {
 
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
-  virtual scoped_refptr<CDATASection> AsCDATASection();
-  virtual scoped_refptr<Comment> AsComment();
-  virtual scoped_refptr<Document> AsDocument();
-  virtual scoped_refptr<DocumentType> AsDocumentType();
-  virtual scoped_refptr<Element> AsElement();
-  virtual scoped_refptr<Text> AsText();
+  virtual CDATASection* AsCDATASection();
+  virtual Comment* AsComment();
+  virtual Document* AsDocument();
+  virtual DocumentType* AsDocumentType();
+  virtual Element* AsElement();
+  virtual Text* AsText();
 
   // Node generation counter that will be modified for every content change
   // that affects the topology of the subtree defined by this node.

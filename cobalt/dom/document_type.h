@@ -47,7 +47,7 @@ class DocumentType : public Node {
 
   // Custom, not in any spec: Node.
   //
-  scoped_refptr<DocumentType> AsDocumentType() OVERRIDE { return this; }
+  DocumentType* AsDocumentType() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;

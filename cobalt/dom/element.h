@@ -117,7 +117,7 @@ class Element : public Node {
 
   // Custom, not in any spec: Node.
   //
-  scoped_refptr<Element> AsElement() OVERRIDE { return this; }
+  Element* AsElement() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;

@@ -318,8 +318,7 @@ bool HasPositiveSizeDimensions(dom::Element* element) {
   for (uint32 i = 0; i < child_nodes->length(); ++i) {
     scoped_refptr<dom::Node> child = child_nodes->Item(i);
     if (child->IsText() ||
-        (child->IsElement() &&
-         HasPositiveSizeDimensions(child->AsElement().get()))) {
+        (child->IsElement() && HasPositiveSizeDimensions(child->AsElement()))) {
       return true;
     }
   }
@@ -339,7 +338,7 @@ bool IsHiddenByOverflow(dom::Element* element) {
   // Check each ancestor of this element and if the ancestor's overflow style
   // is set to hidden, check if this element completely overflows or underflows
   // the element and is thus not visible.
-  dom::Element* parent = element->parent_element().get();
+  dom::Element* parent = element->parent_element();
   while (parent) {
     // Only block level elements will hide children due to overflow.
     if (IsBlockLevelElement(parent)) {
@@ -356,7 +355,7 @@ bool IsHiddenByOverflow(dom::Element* element) {
         }
       }
     }
-    parent = parent->parent_element().get();
+    parent = parent->parent_element();
   }
   return false;
 }
