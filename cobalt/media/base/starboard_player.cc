@@ -647,6 +647,14 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
   }
   CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
 
+#if defined(COBALT_ENABLE_LIB)
+  // When Cobalt is used as a library, it doesn't control the
+  // screen and so punch-out cannot be assumed.  You will need
+  // to implement decode-to-texture support if you wish to use
+  // Cobalt as a library and play videos with it.
+  CHECK_EQ(kSbPlayerOutputModeDecodeToTexture, output_mode)
+#endif  // defined(COBALT_ENABLE_LIB)
+
   return output_mode;
 }
 #endif  // SB_API_VERSION >= 4
