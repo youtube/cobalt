@@ -18,20 +18,33 @@
 #define NB_MEMORY_POOL_H_
 
 #include "nb/allocator.h"
+#include "nb/bidirectional_fit_reuse_allocator.h"
+#include "nb/first_fit_reuse_allocator.h"
 #include "nb/fixed_no_free_allocator.h"
-#include "nb/reuse_allocator.h"
+#include "starboard/log.h"
 
 namespace nb {
 
 // The MemoryPool class can be used to wrap a range of memory with allocators
-// such that the memory can be allocated out of and free'd memory re-used
-// as necessary.
+// such that the memory can be allocated out of and free'd memory re-used as
+// necessary.
+template <typename ReuseAllocator>
 class MemoryPool : public Allocator {
  public:
-  MemoryPool(void* buffer,
-             std::size_t size,
-             bool verify_full_capacity = false,
-             std::size_t small_allocation_threshold = 0);
+  MemoryPool(void* buffer, std::size_t size)
+      : no_free_allocator_(buffer, size),
+        reuse_allocator_(&no_free_allocator_, size) {
+    SB_DCHECK(buffer);
+    SB_DCHECK(size > 0U);
+  }
+
+  template <typename ParameterType>
+  MemoryPool(void* buffer, std::size_t size, ParameterType parameter1)
+      : no_free_allocator_(buffer, size),
+        reuse_allocator_(&no_free_allocator_, size, parameter1) {
+    SB_DCHECK(buffer);
+    SB_DCHECK(size > 0U);
+  }
 
   void* Allocate(std::size_t size) { return reuse_allocator_.Allocate(size); }
   void* Allocate(std::size_t size, std::size_t alignment) {
@@ -45,7 +58,7 @@ class MemoryPool : public Allocator {
     return no_free_allocator_.GetAllocated();
   }
 
-  void PrintAllocations() const;
+  void PrintAllocations() const { reuse_allocator_.PrintAllocations(); }
 
  private:
   // A budget of memory to be used by the memory pool.
@@ -56,6 +69,9 @@ class MemoryPool : public Allocator {
   // space already.
   ReuseAllocator reuse_allocator_;
 };
+
+typedef MemoryPool<BidirectionalFitReuseAllocator> BidirectionalFitMemoryPool;
+typedef MemoryPool<FirstFitReuseAllocator> FirstFitMemoryPool;
 
 }  // namespace nb
 
