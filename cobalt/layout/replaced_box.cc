@@ -308,13 +308,24 @@ void ReplacedBox::RenderAndAnimateContent(
     PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
                                            set_bounds_cb_);
     border_node_builder->AddChild(new PunchThroughVideoNode(builder));
+  } else if (mtm_filter_function) {
+    RenderAndAnimateContentWithMapToMesh(border_node_builder,
+                                         mtm_filter_function);
   } else {
-    if (mtm_filter_function) {
-      RenderAndAnimateContentWithMapToMesh(border_node_builder,
-                                           mtm_filter_function);
-    } else {
-      RenderAndAnimateContentWithLetterboxing(border_node_builder);
-    }
+#if defined(FORCE_VIDEO_EXTERNAL_MESH)
+    AnimateNode::Builder animate_node_builder;
+    scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+    animate_node_builder.Add(image_node,
+                             base::Bind(&AnimateVideoImage, replace_image_cb_));
+
+    // Attach an empty map to mesh filter node to signal the need for an
+    // external mesh.
+    border_node_builder->AddChild(
+        new FilterNode(MapToMeshFilter(render_tree::kMono),
+                       new AnimateNode(animate_node_builder, image_node)));
+#else
+    RenderAndAnimateContentWithLetterboxing(border_node_builder);
+#endif
   }
 }
 
@@ -585,9 +596,9 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
     // Custom mesh URLs.
     // Set a default mesh (in case no resolution-specific mesh matches).
-    cssom::URLValue* spec_url_value =
+    cssom::URLValue* default_url_value =
         base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
-    GURL default_url(spec_url_value->value());
+    GURL default_url(default_url_value->value());
 
     if (!default_url.is_valid()) {
       DLOG(WARNING) << kWarningInvalidMeshUrl;
@@ -629,8 +640,8 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
 
       TRACE_EVENT2("cobalt::layout",
                    "ReplacedBox::RenderAndAnimateContentWithMapToMesh()",
-                   "height", meshes[i]->height_match(),
-                   "crc", mesh_projection->crc().value_or(-1));
+                   "height", meshes[i]->height_match(), "crc",
+                   mesh_projection->crc().value_or(-1));
 
       builder.AddResolutionMatchedMeshes(
           math::Size(meshes[i]->width_match(), meshes[i]->height_match()),
@@ -666,9 +677,9 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
           filter_node, mtm_function->horizontal_fov_in_radians(),
           mtm_function->vertical_fov_in_radians()));
 #else
-  // Camera node unnecessary in VR, since the 3D scene is completely immersive,
-  // and the whole render tree is placed within it and subject to camera
-  // transforms, not just the map-to-mesh node.
+  // Camera node unnecessary in VR, since the 3D scene is completely
+  // immersive, and the whole render tree is placed within it and subject to
+  // camera transforms, not just the map-to-mesh node.
   // TODO: Reconcile both paths with respect to this if Cobalt adopts a global
   // camera or a document-wide notion of 3D space layout.
   border_node_builder->AddChild(filter_node);

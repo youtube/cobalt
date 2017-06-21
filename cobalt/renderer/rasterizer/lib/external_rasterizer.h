@@ -51,8 +51,9 @@ class ExternalRasterizer : public Rasterizer {
 
   void MakeCurrent() OVERRIDE;
 
- private:
   class Impl;
+
+ private:
   scoped_ptr<Impl> impl_;
 };
 
