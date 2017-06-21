@@ -14,60 +14,39 @@
  * limitations under the License.
  */
 
-#ifndef NB_REUSE_ALLOCATOR_H_
-#define NB_REUSE_ALLOCATOR_H_
+#ifndef NB_REUSE_ALLOCATOR_BASE_H_
+#define NB_REUSE_ALLOCATOR_BASE_H_
 
 #include <map>
 #include <set>
 #include <vector>
 
 #include "nb/allocator.h"
+#include "starboard/configuration.h"
 
 namespace nb {
 
-// An allocator designed to accomodate cases where the memory allocated may not
-// be efficient or safe to access via the CPU.  It solves this problem by
-// maintaining all allocation meta data is outside of the allocated memory.
-// It is passed a fallback allocator that it can request additional memory
-// from as needed.
-// The default allocation strategy for the allocator is first-fit, i.e. it will
-// scan for free blocks sorted by addresses and allocate from the first free
-// block that can fulfill the allocation.  However, in some situations the
-// majority of the allocations can be small ones with some large allocations.
-// This may cause serious fragmentations and the failure of large allocations.
-// If |small_allocation_threshold| in the ctor is set to a non-zero value, the
-// class will allocate small allocations whose sizes are less than or equal to
-// the threshold using last-fit, i.e. it will scan from the back to the front
-// for free blocks.  This way the allocation for large blocks and small blocks
-// are separated thus cause much less fragmentations.
-class ReuseAllocator : public Allocator {
+// The base class of allocators designed to accommodate cases where the memory
+// allocated may not be efficient or safe to access via the CPU.  It solves
+// this problem by maintaining all allocation meta data is outside of the
+// allocated memory.  It is passed a fallback allocator that it can request
+// additional memory from as needed.
+class ReuseAllocatorBase : public Allocator {
  public:
-  explicit ReuseAllocator(Allocator* fallback_allocator);
-  // When |small_allocation_threshold| is non-zero, this class will allocate
-  // its full capacity from the |fallback_allocator| in the ctor so it is
-  // possible for the class to use the last-fit allocation strategy.  See the
-  // class comment above for more details.
-  ReuseAllocator(Allocator* fallback_allocator,
-                 std::size_t capacity,
-                 std::size_t small_allocation_threshold);
-  virtual ~ReuseAllocator();
-
-  // Search free memory blocks for an existing one, and if none are large
-  // enough, allocate a new one from no-free memory and return that.
-  void* Allocate(std::size_t size);
-  void* Allocate(std::size_t size, std::size_t alignment);
+  void* Allocate(std::size_t size) SB_OVERRIDE;
+  void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE;
 
   // Marks the memory block as being free and it will then become recyclable
-  void Free(void* memory);
+  void Free(void* memory) SB_OVERRIDE;
 
-  std::size_t GetCapacity() const { return capacity_; }
-  std::size_t GetAllocated() const { return total_allocated_; }
+  std::size_t GetCapacity() const SB_OVERRIDE { return capacity_; }
+  std::size_t GetAllocated() const SB_OVERRIDE { return total_allocated_; }
 
-  void PrintAllocations() const;
+  void PrintAllocations() const SB_OVERRIDE;
 
   bool TryFree(void* memory);
 
- private:
+ protected:
   class MemoryBlock {
    public:
     MemoryBlock() : address_(0), size_(0) {}
@@ -109,23 +88,41 @@ class ReuseAllocator : public Allocator {
 
   // Freelist sorted by address.
   typedef std::set<MemoryBlock> FreeBlockSet;
+
+  ReuseAllocatorBase(Allocator* fallback_allocator,
+                     std::size_t initial_capacity,
+                     std::size_t allocation_increment);
+  ~ReuseAllocatorBase() SB_OVERRIDE;
+
+  // The inherited class should implement this function to inform the base
+  // class which free block to take.  It returns |end| if no suitable free
+  // block is found.  When |allocate_from_front| is set to true, the allocation
+  // will take place in the front of a free block if the free block is big
+  // enough to fulfill this allocation and produce another free block.
+  // Otherwise the allocation will take place from the back.
+  virtual FreeBlockSet::iterator FindFreeBlock(std::size_t size,
+                                               std::size_t alignment,
+                                               FreeBlockSet::iterator begin,
+                                               FreeBlockSet::iterator end,
+                                               bool* allocate_from_front) = 0;
+
+ private:
   // Map from pointers we returned to the user, back to memory blocks.
   typedef std::map<void*, MemoryBlock> AllocatedBlockMap;
 
+  FreeBlockSet::iterator ExpandToFit(std::size_t size, std::size_t alignment);
+
+  void AddAllocatedBlock(void* address, const MemoryBlock& block);
   FreeBlockSet::iterator AddFreeBlock(MemoryBlock block_to_add);
   void RemoveFreeBlock(FreeBlockSet::iterator it);
 
-  FreeBlockSet free_blocks_;
   AllocatedBlockMap allocated_blocks_;
+  FreeBlockSet free_blocks_;
 
   // We will allocate from the given allocator whenever we can't find pre-used
   // memory to allocate.
   Allocator* fallback_allocator_;
-
-  // Any allocations with size less than or equal to the following threshold
-  // will be allocated from the back of the pool.  See the comment of the class
-  // for more details.
-  std::size_t small_allocation_threshold_;
+  std::size_t allocation_increment_;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
@@ -140,4 +137,4 @@ class ReuseAllocator : public Allocator {
 
 }  // namespace nb
 
-#endif  // NB_REUSE_ALLOCATOR_H_
+#endif  // NB_REUSE_ALLOCATOR_BASE_H_
