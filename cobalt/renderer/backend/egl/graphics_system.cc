@@ -89,10 +89,6 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 #endif
                              EGL_RENDERABLE_TYPE,
                              EGL_OPENGL_ES2_BIT,
-#if defined(COBALT_RASTERIZER_USES_DEPTH_BUFFER)
-                             EGL_DEPTH_SIZE,
-                             16,
-#endif
                              EGL_NONE};
 
   EGLint num_configs;

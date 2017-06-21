@@ -73,9 +73,6 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
       draw_object_manager_(draw_object_manager),
       offscreen_target_manager_(offscreen_target_manager),
       fallback_rasterize_(fallback_rasterize) {
-  // Let the first draw object render in front of the clear depth.
-  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
-
   draw_state_.scissor.Intersect(graphics_state->GetViewport());
   draw_state_.scissor.Intersect(graphics_state->GetScissor());
 }
@@ -277,7 +274,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   if (is_opaque) {
     AddOpaqueDraw(draw.Pass(), onscreen_type,
-        DrawObjectManager::kOffscreenNone);
+        DrawObjectManager::kOffscreenNone, image_node->GetBounds());
   } else {
     AddTransparentDraw(draw.Pass(), onscreen_type,
         DrawObjectManager::kOffscreenNone, image_node->GetBounds());
@@ -301,7 +298,7 @@ void RenderTreeNodeVisitor::Visit(
   scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
       draw_state_, data.rect, render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)));
   AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-      DrawObjectManager::kOffscreenNone);
+      DrawObjectManager::kOffscreenNone, video_node->GetBounds());
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -352,7 +349,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             draw_state_, content_rect, content_color));
         if (draw_state_.opacity * content_color.a() == 1.0f) {
           AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-              DrawObjectManager::kOffscreenNone);
+              DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
         } else {
           AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
               DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
@@ -578,19 +575,20 @@ bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
 
 void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
     DrawObjectManager::OnscreenType onscreen_type,
-    DrawObjectManager::OffscreenType offscreen_type) {
-  draw_object_manager_->AddOpaqueDraw(object.Pass(), onscreen_type,
-      offscreen_type);
-  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
+    DrawObjectManager::OffscreenType offscreen_type,
+    const math::RectF& local_bounds) {
+  draw_object_manager_->AddDraw(object.Pass(),
+      DrawObjectManager::kBlendNone, onscreen_type, offscreen_type,
+      draw_state_.transform.MapRect(local_bounds));
 }
 
 void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
     DrawObjectManager::OnscreenType onscreen_type,
     DrawObjectManager::OffscreenType offscreen_type,
     const math::RectF& local_bounds) {
-  draw_object_manager_->AddTransparentDraw(object.Pass(), onscreen_type,
-      offscreen_type, draw_state_.transform.MapRect(local_bounds));
-  draw_state_.depth = GraphicsState::NextClosestDepth(draw_state_.depth);
+  draw_object_manager_->AddDraw(object.Pass(),
+      DrawObjectManager::kBlendSrcAlpha, onscreen_type, offscreen_type,
+      draw_state_.transform.MapRect(local_bounds));
 }
 
 }  // namespace egl

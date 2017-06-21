@@ -47,7 +47,7 @@ class DrawPolyColor : public DrawObject {
   void AddVertex(float x, float y, uint32_t color);
 
   struct VertexAttributes {
-    float position[3];
+    float position[2];
     uint32_t color;
   };
   std::vector<VertexAttributes> attributes_;

@@ -32,12 +32,9 @@ GraphicsState::GraphicsState()
   memset(clip_adjustment_, 0, sizeof(clip_adjustment_));
   SetDirty();
   blend_enabled_ = false;
-  depth_test_enabled_ = false;
-  depth_write_enabled_ = true;
   Reset();
 
   // These settings should only need to be set once. Nothing should touch them.
-  GL_CALL(glDepthRangef(0.0f, 1.0f));
   GL_CALL(glDisable(GL_DITHER));
   GL_CALL(glDisable(GL_CULL_FACE));
   GL_CALL(glDisable(GL_STENCIL_TEST));
@@ -63,8 +60,6 @@ void GraphicsState::BeginFrame() {
   // cached state when needed.
   SetDirty();
   blend_enabled_ = false;
-  depth_test_enabled_ = false;
-  depth_write_enabled_ = true;
 }
 
 void GraphicsState::EndFrame() {
@@ -92,8 +87,7 @@ void GraphicsState::Clear() {
   }
 
   GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
-  GL_CALL(glClearDepthf(FarthestDepth()));
-  GL_CALL(glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT));
+  GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }
 
 void GraphicsState::UseProgram(GLuint program) {
@@ -150,38 +144,6 @@ void GraphicsState::DisableBlend() {
     blend_enabled_ = false;
     GL_CALL(glDisable(GL_BLEND));
   }
-}
-
-void GraphicsState::EnableDepthTest() {
-  if (!depth_test_enabled_) {
-    depth_test_enabled_ = true;
-    GL_CALL(glEnable(GL_DEPTH_TEST));
-  }
-}
-
-void GraphicsState::DisableDepthTest() {
-  if (depth_test_enabled_) {
-    depth_test_enabled_ = false;
-    GL_CALL(glDisable(GL_DEPTH_TEST));
-  }
-}
-
-void GraphicsState::EnableDepthWrite() {
-  if (!depth_write_enabled_) {
-    depth_write_enabled_ = true;
-    GL_CALL(glDepthMask(GL_TRUE));
-  }
-}
-
-void GraphicsState::DisableDepthWrite() {
-  if (depth_write_enabled_) {
-    depth_write_enabled_ = false;
-    GL_CALL(glDepthMask(GL_FALSE));
-  }
-}
-
-void GraphicsState::ResetDepthFunc() {
-  GL_CALL(glDepthFunc(GL_LESS));
 }
 
 void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
@@ -337,26 +299,6 @@ void GraphicsState::VertexAttribFinish() {
   }
 }
 
-// static
-float GraphicsState::FarthestDepth() {
-  return 1.0f;
-}
-
-// static
-float GraphicsState::NextClosestDepth(float depth) {
-  // Our vertex shaders pass depth straight to gl_Position without any
-  // transformation, and gl_Position.w is always 1. To avoid clipping,
-  // |depth| should be [-1,1]. However, this range is then converted to [0,1],
-  // then scaled by (2^N - 1) to be the final value in the depth buffer, where
-  // N = number of bits in the depth buffer.
-
-  // In the worst case, we're using a 16-bit depth buffer. So each step in
-  // depth is 2 / (2^N - 1) (since depth is converted from [-1,1] to [0,1]).
-  // Also, because the default depth compare function is GL_LESS, vertices with
-  // smaller depth values appear on top of others.
-  return depth - 2.0f / 65535.0f;
-}
-
 void GraphicsState::Reset() {
   program_ = 0;
 
@@ -384,13 +326,8 @@ void GraphicsState::Reset() {
   }
   GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
 
-  if (depth_test_enabled_) {
-    GL_CALL(glEnable(GL_DEPTH_TEST));
-  } else {
-    GL_CALL(glDisable(GL_DEPTH_TEST));
-  }
-  GL_CALL(glDepthMask(depth_write_enabled_ ? GL_TRUE : GL_FALSE));
-  ResetDepthFunc();
+  GL_CALL(glDisable(GL_DEPTH_TEST));
+  GL_CALL(glDepthMask(GL_FALSE));
 
   state_dirty_ = false;
 }

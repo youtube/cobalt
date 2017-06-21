@@ -32,13 +32,11 @@ DrawObject::BaseState::BaseState()
       scissor(0, 0,
               std::numeric_limits<int>::max(),
               std::numeric_limits<int>::max()),
-      depth(GraphicsState::FarthestDepth()),
       opacity(1.0f) {}
 
 DrawObject::BaseState::BaseState(const BaseState& other)
     : transform(other.transform),
       scissor(other.scissor),
-      depth(other.depth),
       opacity(other.opacity) {}
 
 DrawObject::DrawObject(const BaseState& base_state)
