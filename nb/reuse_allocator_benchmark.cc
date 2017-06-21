@@ -21,8 +21,8 @@
 #include <vector>
 
 #include "nb/allocator.h"
+#include "nb/first_fit_reuse_allocator.h"
 #include "nb/fixed_no_free_allocator.h"
-#include "nb/reuse_allocator.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
@@ -187,12 +187,13 @@ class DefaultAllocator : public nb::Allocator {
   void PrintAllocations() const SB_OVERRIDE {}
 };
 
+// TODO: Make this work with other ReuseAllocator types.
 void MemoryPlaybackTest(const std::string& filename) {
   const std::size_t kFixedNoFreeMemorySize = 512 * 1024 * 1024;
   void* fixed_no_free_memory = SbMemoryAllocate(kFixedNoFreeMemorySize);
   nb::FixedNoFreeAllocator fallback_allocator(fixed_no_free_memory,
                                               kFixedNoFreeMemorySize);
-  nb::ReuseAllocator reuse_allocator(&fallback_allocator);
+  nb::FirstFitReuseAllocator reuse_allocator(&fallback_allocator, 0);
 
   std::vector<AllocationCommand> commands;
   LoadAllocationPlayback(&commands, filename);
