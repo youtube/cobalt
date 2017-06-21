@@ -70,7 +70,7 @@ class DrawRectShadowBlur : public DrawObject {
 
  private:
   struct VertexAttributes {
-    float position[3];
+    float position[2];
     float offset[2];          // Expressed in terms of blur_sigma from center.
     uint32_t color;
   };

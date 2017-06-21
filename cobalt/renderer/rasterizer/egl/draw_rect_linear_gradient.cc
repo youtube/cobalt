@@ -84,7 +84,7 @@ void DrawRectLinearGradient::ExecuteOnscreenRasterize(
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
@@ -224,7 +224,7 @@ uint32_t DrawRectLinearGradient::GetGLColor(
 void DrawRectLinearGradient::AddVertex(float x, float y, uint32_t color) {
   math::PointF position = transform_ * math::PointF(x, y);
   VertexAttributes attributes = {
-    { position.x(), position.y(), base_state_.depth },
+    { position.x(), position.y() },
     { position.x(), position.y() },
     color
   };

@@ -58,13 +58,16 @@ class DrawObjectManager {
     kOffscreenNone,     // ExecuteOffscreenRasterize will not be run for these.
   };
 
-  void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     OnscreenType onscreen_type,
-                     OffscreenType offscreen_type);
-  void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          OnscreenType onscreen_type,
-                          OffscreenType offscreen_type,
-                          const math::RectF& bounds);
+  enum BlendType {
+    kBlendNone = 0,
+    kBlendSrcAlpha,
+  };
+
+  void AddDraw(scoped_ptr<DrawObject> object,
+               BlendType onscreen_blend,
+               OnscreenType onscreen_type,
+               OffscreenType offscreen_type,
+               const math::RectF& bounds);
 
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
@@ -74,17 +77,20 @@ class DrawObjectManager {
       ShaderProgramManager* program_manager);
 
  private:
-  struct TransparentObjectInfo {
-    TransparentObjectInfo(OnscreenType onscreen_type,
-                          const math::RectF& object_bounds)
+  struct ObjectInfo {
+    ObjectInfo(OnscreenType onscreen_type,
+               BlendType blend_type,
+               const math::RectF& object_bounds)
         : bounds(object_bounds),
-          type(onscreen_type) {}
+          type(onscreen_type),
+          blend(blend_type) {}
     math::RectF bounds;
     OnscreenType type;
+    BlendType blend;
   };
 
-  ScopedVector<DrawObject> draw_objects_[kOnscreenCount];
-  std::vector<TransparentObjectInfo> transparent_object_info_;
+  ScopedVector<DrawObject> draw_objects_;
+  std::vector<ObjectInfo> object_info_;
 
   // Manage execution order of objects in the draw_objects_ vectors. This does
   // not manage destruction of objects.

@@ -62,7 +62,7 @@ class DrawRectLinearGradient : public DrawObject {
   math::RectF include_scissor_;
 
   struct VertexAttributes {
-    float position[3];
+    float position[2];
     float offset[2];
     uint32_t color;
   };
