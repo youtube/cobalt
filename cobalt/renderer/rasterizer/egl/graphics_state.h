@@ -66,21 +66,6 @@ class GraphicsState {
   void DisableBlend();
   bool IsBlendEnabled() const { return blend_enabled_; }
 
-  // Control depth testing.
-  // Default = enabled.
-  void EnableDepthTest();
-  void DisableDepthTest();
-  bool IsDepthTestEnabled() const { return depth_test_enabled_; }
-
-  // Control writing to the depth buffer.
-  // Default = enabled.
-  void EnableDepthWrite();
-  void DisableDepthWrite();
-  bool IsDepthWriteEnabled() const { return depth_write_enabled_; }
-
-  // Reset to the default depth function.
-  void ResetDepthFunc();
-
   // Bind a texture to a given texture unit. Combines glActiveTexture and
   // glBindTexture.
   void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture);
@@ -125,13 +110,6 @@ class GraphicsState {
   // VertexAttribPointer), but the current program does not.
   void VertexAttribFinish();
 
-  // Return the farthest depth value.
-  static float FarthestDepth();
-
-  // Return the next closest depth value. Vertices using the output depth are
-  // guaranteed to render on top of vertices using the incoming depth.
-  static float NextClosestDepth(float depth);
-
  private:
   void Reset();
 
@@ -148,8 +126,6 @@ class GraphicsState {
   bool clip_adjustment_dirty_;
   bool state_dirty_;
   bool blend_enabled_;
-  bool depth_test_enabled_;
-  bool depth_write_enabled_;
 
   static const int kNumTextureUnitsCached = 8;
   GLenum texunit_target_[kNumTextureUnitsCached];

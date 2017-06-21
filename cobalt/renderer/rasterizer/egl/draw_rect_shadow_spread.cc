@@ -78,7 +78,7 @@ void DrawRectShadowSpread::ExecuteOnscreenRasterize(
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
@@ -106,7 +106,6 @@ void DrawRectShadowSpread::SetVertex(VertexAttributes* vertex,
                                      float x, float y) {
   vertex->position[0] = x;
   vertex->position[1] = y;
-  vertex->position[2] = base_state_.depth;
   vertex->offset[0] = x;
   vertex->offset[1] = y;
   vertex->color = color_;

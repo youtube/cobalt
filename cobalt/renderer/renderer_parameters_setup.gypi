@@ -31,7 +31,6 @@
     ['rasterizer_type == "direct-gles"', {
       'defines': [
         'COBALT_FORCE_DIRECT_GLES_RASTERIZER',
-        'COBALT_RASTERIZER_USES_DEPTH_BUFFER',
       ],
     }],
   ],

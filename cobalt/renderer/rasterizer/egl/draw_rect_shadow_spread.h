@@ -60,7 +60,7 @@ class DrawRectShadowSpread : public DrawObject {
 
  private:
   struct VertexAttributes {
-    float position[3];
+    float position[2];
     float offset[2];
     uint32_t color;
   };
