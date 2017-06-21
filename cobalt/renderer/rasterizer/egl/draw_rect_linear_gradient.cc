@@ -29,8 +29,6 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
-const float kEpsilon = 0.001f;
-
 size_t MaxVertsNeededForAlignedGradient(
     const render_tree::LinearGradientBrush& brush) {
   // Triangle strip for an axis-aligned rectangle. Two vertices are required
@@ -49,10 +47,10 @@ DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
       vertex_buffer_(nullptr) {
   attributes_.reserve(MaxVertsNeededForAlignedGradient(brush));
 
-  if (std::abs(brush.dest().y() - brush.source().y()) < kEpsilon) {
+  if (brush.IsHorizontal()) {
     AddRectWithHorizontalGradient(
         rect, brush.source(), brush.dest(), brush.color_stops());
-  } else if (std::abs(brush.dest().x() - brush.source().x()) < kEpsilon) {
+  } else if (brush.IsVertical()) {
     AddRectWithVerticalGradient(
         rect, brush.source(), brush.dest(), brush.color_stops());
   } else {
