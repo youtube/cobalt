@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "nb/reuse_allocator.h"
+#include "nb/first_fit_reuse_allocator.h"
 
 #include "nb/fixed_no_free_allocator.h"
 #include "nb/scoped_ptr.h"
@@ -29,39 +29,38 @@ inline bool IsAligned(void* ptr, std::size_t boundary) {
   return ptr_as_int % boundary == 0;
 }
 
-class ReuseAllocatorTest : public ::testing::Test {
+class FirstFitReuseAllocatorTest : public ::testing::Test {
  public:
   static const int kBufferSize = 1 * 1024 * 1024;
 
-  ReuseAllocatorTest() { ResetAllocator(0); }
+  FirstFitReuseAllocatorTest() { ResetAllocator(); }
 
  protected:
-  void ResetAllocator(size_t small_allocation_threshold) {
-    buffer_.reset(new uint8_t[kBufferSize]);
-    fallback_allocator_.reset(
-        new nb::FixedNoFreeAllocator(buffer_.get(), kBufferSize));
-    if (small_allocation_threshold == 0) {
-      allocator_.reset(new nb::ReuseAllocator(fallback_allocator_.get()));
-    } else {
-      allocator_.reset(new nb::ReuseAllocator(
-          fallback_allocator_.get(), kBufferSize, small_allocation_threshold));
-    }
+  void ResetAllocator(std::size_t initial_capacity = 0,
+                      std::size_t allocation_increment = 0) {
+    nb::scoped_array<uint8_t> buffer(new uint8_t[kBufferSize]);
+    nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator(
+        new nb::FixedNoFreeAllocator(buffer.get(), kBufferSize));
+    allocator_.reset(new nb::FirstFitReuseAllocator(
+        fallback_allocator.get(), initial_capacity, allocation_increment));
+
+    fallback_allocator_.swap(fallback_allocator);
+    buffer_.swap(buffer);
   }
 
   nb::scoped_array<uint8_t> buffer_;
   nb::scoped_ptr<nb::FixedNoFreeAllocator> fallback_allocator_;
-  nb::scoped_ptr<nb::ReuseAllocator> allocator_;
+  nb::scoped_ptr<nb::FirstFitReuseAllocator> allocator_;
 };
 
 }  // namespace
 
-TEST_F(ReuseAllocatorTest, AlignmentCheck) {
+TEST_F(FirstFitReuseAllocatorTest, AlignmentCheck) {
   const std::size_t kAlignments[] = {4, 16, 256, 32768};
   const std::size_t kBlockSizes[] = {4, 97, 256, 65201};
   for (int i = 0; i < SB_ARRAY_SIZE(kAlignments); ++i) {
     for (int j = 0; j < SB_ARRAY_SIZE(kBlockSizes); ++j) {
       void* p = allocator_->Allocate(kBlockSizes[j], kAlignments[i]);
-      // NOTE: Don't dereference p- this doesn't point anywhere valid.
       EXPECT_TRUE(p != NULL);
       EXPECT_EQ(IsAligned(p, kAlignments[i]), true);
       allocator_->Free(p);
@@ -70,7 +69,7 @@ TEST_F(ReuseAllocatorTest, AlignmentCheck) {
 }
 
 // Check that the reuse allocator actually merges adjacent free blocks.
-TEST_F(ReuseAllocatorTest, FreeBlockMergingLeft) {
+TEST_F(FirstFitReuseAllocatorTest, FreeBlockMergingLeft) {
   const std::size_t kBlockSizes[] = {156, 202};
   const std::size_t kAlignment = 4;
   void* blocks[] = {NULL, NULL};
@@ -88,7 +87,7 @@ TEST_F(ReuseAllocatorTest, FreeBlockMergingLeft) {
   allocator_->Free(test_p);
 }
 
-TEST_F(ReuseAllocatorTest, FreeBlockMergingRight) {
+TEST_F(FirstFitReuseAllocatorTest, FreeBlockMergingRight) {
   const std::size_t kBlockSizes[] = {156, 202, 354};
   const std::size_t kAlignment = 4;
   void* blocks[] = {NULL, NULL, NULL};
@@ -108,31 +107,33 @@ TEST_F(ReuseAllocatorTest, FreeBlockMergingRight) {
   allocator_->Free(blocks[0]);
 }
 
-TEST_F(ReuseAllocatorTest, SmallAlloc) {
-  // Recreate allocator with small allocation threshold to 256.
-  ResetAllocator(256);
+TEST_F(FirstFitReuseAllocatorTest, InitialCapacity) {
+  const std::size_t kInitialCapacity = kBufferSize / 2;
+  ResetAllocator(kInitialCapacity);
+  EXPECT_GE(fallback_allocator_->GetAllocated(), kInitialCapacity);
+}
 
-  const std::size_t kBlockSizes[] = {117, 193, 509, 1111};
-  const std::size_t kAlignment = 16;
-  void* blocks[] = {NULL, NULL, NULL, NULL};
-  for (int i = 0; i < SB_ARRAY_SIZE(kBlockSizes); ++i) {
-    blocks[i] = allocator_->Allocate(kBlockSizes[i], kAlignment);
-  }
-  // The two small allocs should be in the back in reverse order.
-  EXPECT_GT(reinterpret_cast<uintptr_t>(blocks[0]),
-            reinterpret_cast<uintptr_t>(blocks[1]));
-  // Small allocs should has higher address than other allocs.
-  EXPECT_GT(reinterpret_cast<uintptr_t>(blocks[1]),
-            reinterpret_cast<uintptr_t>(blocks[3]));
-  // Non-small allocs are allocated from the front and the first one has the
-  // lowest address.
-  EXPECT_LT(reinterpret_cast<uintptr_t>(blocks[2]),
-            reinterpret_cast<uintptr_t>(blocks[3]));
-  for (int i = 0; i < SB_ARRAY_SIZE(kBlockSizes); ++i) {
-    allocator_->Free(blocks[i]);
-  }
-  // Should have one single free block equals to the capacity.
-  void* test_p = allocator_->Allocate(allocator_->GetCapacity());
-  EXPECT_TRUE(test_p != NULL);
-  allocator_->Free(test_p);
+TEST_F(FirstFitReuseAllocatorTest, AllocationIncrement) {
+  const std::size_t kAllocationIncrement = kBufferSize / 2;
+  ResetAllocator(0, kAllocationIncrement);
+  void* p = allocator_->Allocate(1, 1);
+  EXPECT_TRUE(p != NULL);
+  allocator_->Free(p);
+  EXPECT_GE(fallback_allocator_->GetAllocated(), kAllocationIncrement);
+}
+
+TEST_F(FirstFitReuseAllocatorTest, FallbackBlockMerge) {
+  void* p = allocator_->Allocate(kBufferSize, 1);
+  EXPECT_TRUE(p != NULL);
+  allocator_->Free(p);
+
+  ResetAllocator();
+
+  p = allocator_->Allocate(kBufferSize / 2, 1);
+  EXPECT_TRUE(p != NULL);
+  allocator_->Free(p);
+
+  p = allocator_->Allocate(kBufferSize, 1);
+  EXPECT_TRUE(p != NULL);
+  allocator_->Free(p);
 }
