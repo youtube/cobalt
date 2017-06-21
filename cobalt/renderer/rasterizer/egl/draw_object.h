@@ -37,7 +37,6 @@ class DrawObject {
 
     math::Matrix3F transform;
     math::Rect scissor;
-    float depth;
     float opacity;
   };
 

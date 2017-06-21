@@ -128,16 +128,6 @@ void HardwareRasterizer::Impl::Submit(
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
 
-  // Make sure this render target has a depth buffer. This is only relevant
-  // for framebuffer render targets. Other render target types should already
-  // have a depth buffer set up by the graphics system's config.
-  if (render_target_egl->GetSurface() == EGL_NO_SURFACE) {
-    backend::FramebufferRenderTargetEGL* framebuffer_render_target =
-        base::polymorphic_downcast<backend::FramebufferRenderTargetEGL*>(
-            render_target_egl);
-    framebuffer_render_target->EnsureDepthBufferAttached(GL_DEPTH_COMPONENT16);
-  }
-
   fallback_rasterizer_->AdvanceFrame();
 
   const math::Size& target_size = render_target->GetSize();
