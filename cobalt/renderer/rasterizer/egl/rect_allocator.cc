@@ -26,11 +26,10 @@ namespace {
 // blocks at the end of the free list. Allocations will use the block with
 // the smallest area of sufficient dimensions in order to minimize waste.
   bool FirstRectIsBigger(const math::Rect& a, const math::Rect& b) {
-  const float area_a = a.width() * a.height();
-  const float area_b = b.width() * b.height();
-  return (area_a > area_b) ||
-         (area_a == area_b && (a.width() > b.width() ||
-                               a.height() > b.height()));
+    const int area_a = a.width() * a.height();
+    const int area_b = b.width() * b.height();
+    return (area_a > area_b) || (area_a == area_b && (a.width() > b.width() ||
+                                                      a.height() > b.height()));
 }
 }  // namespace
 
@@ -82,8 +81,8 @@ math::Rect RectAllocator::Allocate(const math::Size& alloc_size) {
         if (memory.height() != allocation.height()) {
           // Return bottom and right of memory block as unused.
           // Preserve the largest block.
-          const float remaining_width = memory.width() - allocation.width();
-          const float remaining_height = memory.height() - allocation.height();
+          const int remaining_width = memory.width() - allocation.width();
+          const int remaining_height = memory.height() - allocation.height();
           if (memory.width() * remaining_height >=
               remaining_width * memory.height()) {
             // Bottom portion is bigger.
