@@ -283,7 +283,6 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
 
   const SbTimeMonotonic start_time = SbTimeGetMonotonicNow();
   int64_t duration_left = duration;
-  SbSocketWaiterResult result = kSbSocketWaiterResultInvalid;
 
   while (true) {
     // |waitees_| could have been modified in the last loop iteration, so
@@ -293,19 +292,14 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
 
     const DWORD millis = sbwin32::ConvertSbTimeToMillisRoundUp(duration_left);
 
-    bool woke_up = false;
     {
       starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
       if (unhandled_wakeup_count_ > 0) {
         --unhandled_wakeup_count_;
-        woke_up = true;
+        // The signaling thread also set the event, so reset it.
+        ResetWakeupEvent();
+        return kSbSocketWaiterResultWokenUp;
       }
-    }
-
-    if (woke_up) {
-      // The signaling thread also set the event, so reset it.
-      ResetWakeupEvent();
-      return kSbSocketWaiterResultWokenUp;
     }
 
     // There should always be a wakeup event.
@@ -328,20 +322,14 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
       SB_DCHECK(wakeup_event_token_ >= 0);
 
       if (socket_index == wakeup_event_token_) {
-        {
-          starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
-          SB_DCHECK(unhandled_wakeup_count_ > 0);
+        starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
+        SB_DCHECK(unhandled_wakeup_count_ > 0);
 
-          if (unhandled_wakeup_count_ > 0) {
-            --unhandled_wakeup_count_;
-            // This was a dummy event.  We were woken up.
-            // Note that we do not need to reset the event here,
-            // since it was created using an auto-reset flag.
-            return kSbSocketWaiterResultWokenUp;
-          }
-        }
-
-        ResetWakeupEvent();
+        --unhandled_wakeup_count_;
+        // This was a dummy event.  We were woken up.
+        // Note that we do not need to reset the event here,
+        // since it was created using an auto-reset flag.
+        return kSbSocketWaiterResultWokenUp;
       } else {
         Waitee* waitee = waitees_.GetWaiteeByIndex(socket_index);
 
@@ -387,10 +375,13 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
 }
 
 void SbSocketWaiterPrivate::WakeUp() {
-  {
-    starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
-    ++unhandled_wakeup_count_;
-  }
+  // Increasing unhandled_wakeup_count_mutex_ and calling SignalWakeupEvent
+  // atomically helps add additional guarantees of when the waiter can be
+  // woken up.  While we can code around this easily, having a stronger
+  // coupling enables us to add DCHECKs for |unhandled_wakeup_count_| in other
+  // parts of the code.
+  starboard::ScopedLock lock(unhandled_wakeup_count_mutex_);
+  ++unhandled_wakeup_count_;
   SignalWakeupEvent();
 }
 
