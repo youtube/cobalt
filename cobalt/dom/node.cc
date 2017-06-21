@@ -111,7 +111,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
-  for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
+  for (Node* current = this->parent_node(); current != NULL;
        current = current->parent_node()) {
     ancestors.push_back(current);
   }
@@ -168,7 +168,7 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
 // Algorithm for owner_document:
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
-scoped_refptr<Document> Node::owner_document() const {
+Document* Node::owner_document() const {
   // 1. If the context object is a document, return null.
   if (IsDocument()) {
     return NULL;
@@ -177,7 +177,7 @@ scoped_refptr<Document> Node::owner_document() const {
   return node_document();
 }
 
-scoped_refptr<Element> Node::parent_element() const {
+Element* Node::parent_element() const {
   return parent_ ? parent_->AsElement() : NULL;
 }
 
@@ -344,7 +344,7 @@ scoped_refptr<HTMLCollection> Node::children() const {
   return HTMLCollection::CreateWithChildElements(this);
 }
 
-scoped_refptr<Element> Node::first_element_child() const {
+Element* Node::first_element_child() const {
   Node* child = first_child();
   while (child) {
     if (child->IsElement()) {
@@ -355,7 +355,7 @@ scoped_refptr<Element> Node::first_element_child() const {
   return NULL;
 }
 
-scoped_refptr<Element> Node::last_element_child() const {
+Element* Node::last_element_child() const {
   Node* child = last_child();
   while (child) {
     if (child->IsElement()) {
@@ -388,7 +388,7 @@ scoped_refptr<NodeList> Node::QuerySelectorAll(const std::string& selectors) {
       this, selectors, node_document_->html_element_context()->css_parser());
 }
 
-scoped_refptr<Element> Node::previous_element_sibling() const {
+Element* Node::previous_element_sibling() const {
   Node* sibling = previous_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -399,7 +399,7 @@ scoped_refptr<Element> Node::previous_element_sibling() const {
   return NULL;
 }
 
-scoped_refptr<Element> Node::next_element_sibling() const {
+Element* Node::next_element_sibling() const {
   Node* sibling = next_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -437,25 +437,25 @@ void Node::AdoptIntoDocument(Document* document) {
   // 4. Not needed by Cobalt.
 }
 
-scoped_refptr<Node> Node::GetRootNode() {
+Node* Node::GetRootNode() {
   Node* root = this;
   while (root->parent_node()) {
     root = root->parent_node();
   }
-  return make_scoped_refptr(root);
+  return root;
 }
 
-scoped_refptr<CDATASection> Node::AsCDATASection() { return NULL; }
+CDATASection* Node::AsCDATASection() { return NULL; }
 
-scoped_refptr<Comment> Node::AsComment() { return NULL; }
+Comment* Node::AsComment() { return NULL; }
 
-scoped_refptr<Document> Node::AsDocument() { return NULL; }
+Document* Node::AsDocument() { return NULL; }
 
-scoped_refptr<DocumentType> Node::AsDocumentType() { return NULL; }
+DocumentType* Node::AsDocumentType() { return NULL; }
 
-scoped_refptr<Element> Node::AsElement() { return NULL; }
+Element* Node::AsElement() { return NULL; }
 
-scoped_refptr<Text> Node::AsText() { return NULL; }
+Text* Node::AsText() { return NULL; }
 
 void Node::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);

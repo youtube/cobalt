@@ -328,7 +328,7 @@ float HTMLElement::client_height() {
 
 // Algorithm for offsetParent:
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
-scoped_refptr<Element> HTMLElement::offset_parent() {
+Element* HTMLElement::offset_parent() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
 
@@ -341,7 +341,7 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   if (!layout_boxes_ || IsRootElement() || AsHTMLBodyElement() ||
       !computed_style() ||
       computed_style()->position() == cssom::KeywordValue::GetFixed()) {
-    return scoped_refptr<Element>();
+    return NULL;
   }
 
   // 2. Return the nearest ancestor element of the element for which at least
@@ -349,14 +349,13 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   //    ancestor is found:
   //    . The computed value of the 'position' property is not 'static'.
   //    . It is the HTML body element.
-  for (scoped_refptr<Node> ancestor_node = parent_node(); ancestor_node;
+  for (Node* ancestor_node = parent_node(); ancestor_node;
        ancestor_node = ancestor_node->parent_node()) {
-    scoped_refptr<Element> ancestor_element = ancestor_node->AsElement();
+    Element* ancestor_element = ancestor_node->AsElement();
     if (!ancestor_element) {
       continue;
     }
-    scoped_refptr<HTMLElement> ancestor_html_element =
-        ancestor_element->AsHTMLElement();
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
     if (!ancestor_html_element) {
       continue;
     }
@@ -369,7 +368,7 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   }
 
   // 3. Return null.
-  return scoped_refptr<Element>();
+  return NULL;
 }
 
 // Algorithm for offset_top:
