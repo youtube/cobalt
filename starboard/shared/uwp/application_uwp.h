@@ -75,6 +75,12 @@ class ApplicationUwp : public shared::starboard::Application {
   void OnKeyEvent(Windows::UI::Core::CoreWindow^ sender,
       Windows::UI::Core::KeyEventArgs^ args, bool up);
 
+  void Inject(Event* event) SB_OVERRIDE;
+
+  void SetStartLink(const char* link) SB_OVERRIDE {
+    shared::starboard::Application::SetStartLink(link);
+  }
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() SB_OVERRIDE { return false; }
@@ -82,7 +88,6 @@ class ApplicationUwp : public shared::starboard::Application {
   void Teardown() SB_OVERRIDE;
   Event* GetNextEvent() SB_OVERRIDE;
   bool DispatchNextEvent() SB_OVERRIDE;
-  void Inject(Event* event) SB_OVERRIDE;
   void InjectTimedEvent(TimedEvent* timed_event) SB_OVERRIDE;
   void CancelTimedEvent(SbEventId event_id) SB_OVERRIDE;
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;

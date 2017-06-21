@@ -16,6 +16,7 @@
 
 #include <windows.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -25,6 +26,7 @@
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/string.h"
 
 using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
@@ -51,6 +53,8 @@ using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::CoreWindow;
 using Windows::UI::Core::DispatchedHandler;
 using Windows::UI::Core::KeyEventArgs;
+
+namespace sbwin32 = starboard::shared::win32;
 
 namespace {
 
@@ -80,6 +84,30 @@ std::vector<std::string> ParseStarboardUri(const std::string& uri) {
 }
 
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+
+std::unique_ptr<Application::Event> MakeDeepLinkEvent(
+    const std::string& uri_string) {
+  size_t index = uri_string.find(':');
+  SB_DCHECK(index != std::string::npos);
+
+  std::string uri_protocol_stripped = uri_string.substr(index + 1);
+  SB_LOG(INFO) << "Navigate to: [" << uri_protocol_stripped << "]";
+  const size_t kMaxDeepLinkSize = 128 * 1024;
+  const std::size_t uri_size = uri_protocol_stripped.size();
+  if (uri_size > kMaxDeepLinkSize) {
+    SB_NOTREACHED() << "App launch data too big: " << uri_size;
+    return nullptr;
+  }
+
+  const int kBufferSize = static_cast<int>(uri_protocol_stripped.size()) + 1;
+  char* deep_link = new char[kBufferSize];
+  SB_DCHECK(deep_link);
+  SbStringCopy(deep_link, uri_protocol_stripped.c_str(), kBufferSize);
+
+  return std::unique_ptr<Application::Event>(
+      new Application::Event(kSbEventTypeLink, deep_link,
+                             Application::DeleteArrayDestructor<const char*>));
+}
 
 }  // namespace
 
@@ -173,21 +201,35 @@ ref class App sealed : public IFrameworkView {
           static_cast<int>(argv_.size()), argv_.data());
       }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+      if (uri->SchemeName->Equals("youtube") ||
+          uri->SchemeName->Equals("ms-xbl-07459769")) {
+        std::string uri_string = sbwin32::platformStringToString(uri->RawUri);
+        if (previously_activated_) {
+          std::unique_ptr<Application::Event> event =
+            MakeDeepLinkEvent(uri_string);
+          SB_DCHECK(event);
+          ApplicationUwp::Get()->Inject(event.release());
+        } else {
+          SB_DCHECK(!uri_string.empty());
+          ApplicationUwp::Get()->SetStartLink(uri_string.c_str());
+        }
+      }
     }
-    previously_activated_ = true;
     previous_activation_kind_ = args->Kind;
 
-    CoreWindow::GetForCurrentThread()->Activate();
-    // Call DispatchStart async so the UWP system thinks we're activated.
-    // Some tools seem to want the application to be activated before
-    // interacting with them, some things are disallowed during activation
-    // (such as exiting), and DispatchStart (for example) runs
-    // automated tests synchronously.
-    CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
-      CoreDispatcherPriority::Normal,
-      ref new DispatchedHandler([this]() {
-        ApplicationUwp::Get()->DispatchStart();
-      }));
+    if (!previously_activated_) {
+      CoreWindow::GetForCurrentThread()->Activate();
+      // Call DispatchStart async so the UWP system thinks we're activated.
+      // Some tools seem to want the application to be activated before
+      // interacting with them, some things are disallowed during activation
+      // (such as exiting), and DispatchStart (for example) runs
+      // automated tests synchronously.
+      CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
+          CoreDispatcherPriority::Normal, ref new DispatchedHandler([this]() {
+            ApplicationUwp::Get()->DispatchStart();
+          }));
+    }
+    previously_activated_ = true;
   }
  private:
   bool previously_activated_;
