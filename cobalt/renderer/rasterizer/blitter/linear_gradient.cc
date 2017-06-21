@@ -223,14 +223,16 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
 
   // The main strategy here is to create a 1D image, and then calculate
   // the gradient values in software.  If the gradient is simple, this can be
-  // one with optimized function (RenderSimpleGradient), which avoids calling
+  // done with optimized function (RenderSimpleGradient), which avoids calling
   // Skia (and thus is faster).  Otherwise, we call RenderComplexLinearGradient,
   // which uses Skia.
 
-  // One a gradient is created, a SbBlitterSurface is created and a rectangle
+  // Once a gradient is created, a SbBlitterSurface is created and a rectangle
   // is blitted using the blitter API.
-  int width = brush.IsHorizontal() ? rect.width() : 1;
-  int height = brush.IsVertical() ? rect.height() : 1;
+  int width = brush.IsHorizontal() ?
+              std::abs(brush.dest().x() - brush.source().x()) : 1;
+  int height = brush.IsVertical() ?
+              std::abs(brush.dest().y() - brush.source().y()) : 1;
 
   if (SbBlitterIsSurfaceValid(surface) == false) {
     SkImageInfo image_info = SkImageInfo::MakeN32Premul(width, height);
@@ -288,7 +290,17 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
     SbBlitterSetModulateBlitsWithColor(context, false);
     cobalt::math::Rect transformed_rect =
         RectFToRect(render_state.transform.TransformRect(rect));
-    SbBlitterRect source_rect = SbBlitterMakeRect(0, 0, width, height);
+
+    // It may be the case that the linear gradient is larger than the rect.
+    SbBlitterRect source_rect;
+    if (height == 1) {
+      int left = rect.x() - std::min(brush.source().x(), brush.dest().x());
+      source_rect = SbBlitterMakeRect(left, 0, rect.width(), 1);
+    } else {
+      int top = rect.y() - std::min(brush.source().y(), brush.dest().y());
+      source_rect = SbBlitterMakeRect(0, top, 1, rect.height());
+    }
+
     SbBlitterRect dest_rect =
         SbBlitterMakeRect(transformed_rect.x(), transformed_rect.y(),
                           transformed_rect.width(), transformed_rect.height());
@@ -315,12 +327,31 @@ bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
   if (!linear_gradient_brush) return false;
 
   // Currently, only vertical and horizontal gradients are accelerated.
-  if ((linear_gradient_brush->IsVertical() ||
-       linear_gradient_brush->IsHorizontal()) == false)
+  //
+  // Additionally, if the gradient's source or destination are inside the rect,
+  // then the optimized path cannot handle it. This is because clamp-to-edge is
+  // not supported by SbBlitterBlitRectToRect.
+  const math::RectF& content_rect = rect_node.data().rect;
+  if (linear_gradient_brush->IsVertical()) {
+    if ((linear_gradient_brush->source().y() > content_rect.y() &&
+        linear_gradient_brush->source().y() < content_rect.bottom()) ||
+        (linear_gradient_brush->dest().y() > content_rect.y() &&
+        linear_gradient_brush->dest().y() < content_rect.bottom())) {
+      return false;
+    }
+  } else if (linear_gradient_brush->IsHorizontal()) {
+    if ((linear_gradient_brush->source().x() > content_rect.x() &&
+        linear_gradient_brush->source().x() < content_rect.right()) ||
+        (linear_gradient_brush->dest().x() > content_rect.x() &&
+        linear_gradient_brush->dest().x() < content_rect.right())) {
+      return false;
+    }
+  } else {
     return false;
+  }
 
   RenderOptimizedLinearGradient(device, context, render_state,
-                                rect_node.data().rect, *linear_gradient_brush,
+                                content_rect, *linear_gradient_brush,
                                 linear_gradient_cache);
   return true;
 }
