@@ -33,7 +33,6 @@ using starboard::shared::uwp::GetArgvZero;
 using starboard::shared::win32::wchar_tToUTF8;
 using Windows::ApplicationModel::Activation::ActivationKind;
 using Windows::ApplicationModel::Activation::IActivatedEventArgs;
-using Windows::ApplicationModel::Activation::IActivatedEventArgsWithUser;
 using Windows::ApplicationModel::Activation::IProtocolActivatedEventArgs;
 using Windows::ApplicationModel::Core::CoreApplication;
 using Windows::ApplicationModel::Core::CoreApplicationView;
@@ -169,13 +168,6 @@ ref class App sealed : public IFrameworkView {
     }
     previously_activated_ = true;
     previous_activation_kind_ = args->Kind;
-    // TODO: Fix args_with_user code for Windows desktop.
-    IActivatedEventArgsWithUser^ args_with_user =
-      dynamic_cast<IActivatedEventArgsWithUser^>(args);
-    SB_CHECK(args_with_user);
-    SB_CHECK(args_with_user->User);
-    SB_DCHECK(args_with_user->User->AuthenticationStatus !=
-              UserAuthenticationStatus::Unauthenticated);
 
     CoreWindow::GetForCurrentThread()->Activate();
     // Call DispatchStart async so the UWP system thinks we're activated.
