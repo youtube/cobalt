@@ -17,8 +17,8 @@
     # Use the direct-to-GLES rasterizer.
     # This rasterizer falls back to the hardware skia rasterizer in certain
     # situations.
-    # NOTE: This rasterizer requires a 16-bit depth buffer and a full frame
-    # scratch surface (without depth buffer).
+    # NOTE: This rasterizer allocates offscreen render targets upfront,
+    # including a full screen scratch surface.
     'rasterizer_type': 'direct-gles',
 
     # Accommodate the direct-to-GLES rasterizer's additional memory overhead
@@ -31,7 +31,9 @@
     # target atlases. One will be used as a cache and the other used as a
     # working scratch. It is recommended to allot enough memory for two
     # atlases that are roughly a quarter of the framebuffer. (The render
-    # target atlases use power-of-2 dimenions.)
+    # target atlases use power-of-2 dimenions.) If the target web app frequently
+    # uses effects which require offscreen targets, then more memory should be
+    # reserved for optimal performance.
     'surface_cache_size_in_bytes': 2 * (1024 * 512 * 4),
 
     # The rasterizer does not benefit much from rendering only the dirty
