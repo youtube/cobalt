@@ -42,6 +42,11 @@
          '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
          '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
        ],
+      'conditions': [
+        ['enable_map_to_mesh == 1', {
+          'defines' : ['ENABLE_MAP_TO_MESH'],
+        }],
+      ],
     }
   ],
 }

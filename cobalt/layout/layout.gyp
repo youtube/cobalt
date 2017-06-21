@@ -102,6 +102,11 @@
       'export_dependent_settings': [
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
+      'conditions': [
+        ['cobalt_enable_lib == 1', {
+          'defines' : ['FORCE_VIDEO_EXTERNAL_MESH'],
+        }],
+      ],
     },
 
     {
