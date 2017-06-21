@@ -28,7 +28,7 @@ namespace egl {
 
 namespace {
 struct VertexAttributes {
-  float position[3];
+  float position[2];
   float texcoord[2];
   uint32_t color;
 };
@@ -83,18 +83,18 @@ void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
-    { { rect_.x(), rect_.bottom(), base_state_.depth },      // uv = (0,1)
+    { { rect_.x(), rect_.bottom() },      // uv = (0,1)
       { texcoord_transform_(0, 1) + texcoord_transform_(0, 2),
         texcoord_transform_(1, 1) + texcoord_transform_(1, 2) }, color_ },
-    { { rect_.right(), rect_.bottom(), base_state_.depth },  // uv = (1,1)
+    { { rect_.right(), rect_.bottom() },  // uv = (1,1)
       { texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +
           texcoord_transform_(0, 2),
         texcoord_transform_(1, 0) + texcoord_transform_(1, 1) +
           texcoord_transform_(1, 2) }, color_ },
-    { { rect_.right(), rect_.y(), base_state_.depth },       // uv = (1,0)
+    { { rect_.right(), rect_.y() },       // uv = (1,0)
       { texcoord_transform_(0, 0) + texcoord_transform_(0, 2),
         texcoord_transform_(1, 0) + texcoord_transform_(1, 2) }, color_ },
-    { { rect_.x(), rect_.y(), base_state_.depth },           // uv = (0,0)
+    { { rect_.x(), rect_.y() },           // uv = (0,0)
       { texcoord_transform_(0, 2), texcoord_transform_(1, 2) }, color_ },
   };
   COMPILE_ASSERT(sizeof(attributes) == 4 * sizeof(VertexAttributes),
@@ -156,7 +156,7 @@ void DrawRectColorTexture::ExecuteOnscreenRasterize(
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
