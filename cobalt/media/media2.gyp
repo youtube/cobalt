@@ -318,6 +318,9 @@
             'filters/shell_rbsp_stream_unittest.cc',
           ],
         }],
+        ['cobalt_enable_lib == 1', {
+          'defines' : ['COBALT_ENABLE_LIB'],
+        }],
       ],
     },
     {
