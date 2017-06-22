@@ -70,7 +70,6 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer) {
 
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        codec_context_->channels, sample_type_, GetStorageType(),
         input_buffer.pts(),
         codec_context_->channels * av_frame_->nb_samples *
             (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
