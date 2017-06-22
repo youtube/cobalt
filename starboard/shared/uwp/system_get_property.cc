@@ -26,6 +26,8 @@ using Windows::Security::ExchangeActiveSyncProvisioning::
 using Windows::System::Profile::AnalyticsInfo;
 using Windows::System::Profile::AnalyticsVersionInfo;
 
+namespace sbwin32 = starboard::shared::win32;
+
 namespace {
 bool CopyStringAndTestIfSuccess(char* out_value,
                                 int value_length,
@@ -44,22 +46,59 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     return false;
   }
 
+  using sbwin32::platformStringToString;
+
   switch (property_id) {
-    case kSbSystemPropertyBrandName:
     case kSbSystemPropertyChipsetModelNumber:
-    case kSbSystemPropertyFirmwareVersion:
-    case kSbSystemPropertyModelName:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
     case kSbSystemPropertySpeechApiKey:
       return false;
-
+    case kSbSystemPropertyBrandName: {
+      EasClientDeviceInformation^ current_device_info =
+          ref new EasClientDeviceInformation();
+      std::string brand_name =
+          platformStringToString(current_device_info->SystemManufacturer);
+      if (brand_name.empty()) {
+        return false;
+      }
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        brand_name.c_str());
+    }
+    case kSbSystemPropertyFirmwareVersion: {
+      EasClientDeviceInformation ^ current_device_info =
+          ref new EasClientDeviceInformation();
+      std::string firmware_version =
+          platformStringToString(current_device_info->SystemFirmwareVersion);
+      if (firmware_version.empty()) {
+        return false;
+      }
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        firmware_version.c_str());
+    }
+    case kSbSystemPropertyModelName: {
+      EasClientDeviceInformation ^ current_device_info =
+          ref new EasClientDeviceInformation();
+      std::string system_sku =
+          platformStringToString(current_device_info->SystemSku);
+      // Note: if this DCHECK fires, Microsoft recommends that
+      // SystemManufacturer and SystemProductName properties
+      // should be used to get the system_sku.
+      SB_DCHECK(!system_sku.empty());
+      if (system_sku.empty()) {
+        return false;
+      }
+      return CopyStringAndTestIfSuccess(out_value, value_length,
+                                        system_sku.c_str());
+    }
     case kSbSystemPropertyFriendlyName: {
       EasClientDeviceInformation^ current_device_info =
           ref new EasClientDeviceInformation();
       std::string friendly_name =
-          starboard::shared::win32::platformStringToString(
-            current_device_info->FriendlyName);
+          platformStringToString(current_device_info->FriendlyName);
+      if (friendly_name.empty()) {
+        return false;
+      }
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         friendly_name.c_str());
     }
@@ -69,6 +108,9 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       std::string platform_str =
           starboard::shared::win32::platformStringToString(
             version_info->DeviceFamily);
+      if (platform_str.empty()) {
+        return false;
+      }
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         platform_str.c_str());
     }
