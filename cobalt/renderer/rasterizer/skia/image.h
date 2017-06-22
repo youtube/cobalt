@@ -60,12 +60,6 @@ class Image : public render_tree::Image {
                                           int source_pitch_in_bytes,
                                           render_tree::PixelFormat pixel_format,
                                           const uint8_t* source_pixels);
-
-  // While of course most skia::Image objects can be rendered in Skia, sometimes
-  // this is not true, such as when they are backed by SbDecodeTarget objects
-  // that assume a specific rasterizer such as GLES2.  In this case, we can
-  // fallback to a rasterizer-provided renderer function.
-  virtual bool CanRenderInSkia() const { return true; }
 };
 
 // A single-plane image is an image where all data to describe a single pixel
@@ -85,6 +79,12 @@ class SinglePlaneImage : public Image {
   // If not-null, indicates a rectangle within the image in which the valid
   // pixel data is to be found.
   virtual const math::Rect* GetContentRegion() const { return NULL; }
+
+  // While of course most skia::Image objects can be rendered in Skia, sometimes
+  // this is not true, such as when they are backed by SbDecodeTarget objects
+  // that assume a specific rasterizer such as GLES2.  In this case, we can
+  // fallback to a rasterizer-provided renderer function.
+  virtual bool CanRenderInSkia() const { return true; }
 };
 
 // A multi-plane image is one where different channels may have different planes
