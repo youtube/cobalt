@@ -98,19 +98,7 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
-
-  output_cb_ = output_cb;
-}
-
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
-                          const Closure& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-
+void AudioDecoder::Decode(const InputBuffer& input_buffer) {
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
     return;
@@ -125,50 +113,26 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
 
   VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer.pts();
   event_queue_.PushBack(Event(input_buffer));
-
-  ScopedLock lock(decoded_audios_mutex_);
-  if (event_queue_.size() + SbAtomicNoBarrier_Load(&pending_work_size_) +
-          decoded_audios_.size() <=
-      kMaxPendingWorkSize) {
-    Schedule(consumed_cb);
-  } else {
-    consumed_cb_ = consumed_cb;
-  }
 }
 
 void AudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-
   event_queue_.PushBack(Event(Event::kWriteEndOfStream));
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-
   scoped_refptr<DecodedAudio> result;
   {
     starboard::ScopedLock lock(decoded_audios_mutex_);
-    SB_DCHECK(!decoded_audios_.empty());
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
       VERBOSE_MEDIA_LOG() << "T4: pts " << result->pts();
       decoded_audios_.pop();
     }
   }
-
-  if (consumed_cb_.is_valid()) {
-    Schedule(consumed_cb_);
-    consumed_cb_.reset();
-  }
   return result;
 }
 
 void AudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-
   JoinOnDecoderThread();
   TeardownCodec();
   if (!InitializeCodec()) {
@@ -176,15 +140,20 @@ void AudioDecoder::Reset() {
     SB_LOG(ERROR) << "Failed to initialize codec after reset.";
   }
 
-  consumed_cb_.reset();
   stream_ended_ = false;
   pending_work_size_ = 0;
 
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
+}
 
-  CancelPendingJobs();
+bool AudioDecoder::CanAcceptMoreData() const {
+  ScopedLock lock(decoded_audios_mutex_);
+  return !stream_ended_ &&
+         event_queue_.size() + SbAtomicNoBarrier_Load(&pending_work_size_) +
+                 decoded_audios_.size() <=
+             kMaxPendingWorkSize;
 }
 
 // static
@@ -355,9 +324,7 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
 }
 
 bool AudioDecoder::ProcessOneOutputBuffer() {
-  SB_DCHECK(output_cb_.is_valid());
   SB_CHECK(media_codec_bridge_);
-
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
@@ -371,7 +338,6 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
     }
-    Schedule(output_cb_);
     return false;
   }
 
@@ -416,7 +382,6 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
     }
 
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
         ConvertMicrosecondsToSbMediaTime(
             dequeue_output_result.presentation_time_microseconds),
         size);
@@ -427,7 +392,6 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
       decoded_audios_.push(decoded_audio);
       VERBOSE_MEDIA_LOG() << "T3: pts " << decoded_audios_.front()->pts();
     }
-    Schedule(output_cb_);
   }
 
   media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, false);

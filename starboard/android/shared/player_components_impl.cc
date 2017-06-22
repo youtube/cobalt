@@ -52,7 +52,8 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
   }
 
   AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
+      new AudioRendererImpl(audio_parameters.job_queue,
+                            scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
                             audio_parameters.audio_header);
 
   VideoRendererImpl* video_renderer =

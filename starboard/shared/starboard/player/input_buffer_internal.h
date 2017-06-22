@@ -64,8 +64,6 @@ class InputBuffer {
   ReferenceCountedBuffer* buffer_;
 };
 
-bool operator==(const InputBuffer& lhs, const InputBuffer& rhs);
-
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
