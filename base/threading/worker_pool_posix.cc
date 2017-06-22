@@ -11,6 +11,7 @@
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
 #include "base/stringprintf.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/thread_local.h"
 #include "base/threading/worker_pool.h"
@@ -42,6 +43,10 @@ class WorkerPoolImpl {
 
   void PostTask(const tracked_objects::Location& from_here,
                 const base::Closure& task, bool task_is_slow);
+#if defined(COBALT)
+  void PostBlockingTask(const tracked_objects::Location& from_here,
+                        const base::Closure& task, bool task_is_slow);
+#endif
 
  private:
   scoped_refptr<base::PosixDynamicThreadPool> pool_;
@@ -60,6 +65,14 @@ void WorkerPoolImpl::PostTask(const tracked_objects::Location& from_here,
                               const base::Closure& task, bool task_is_slow) {
   pool_->PostTask(from_here, task);
 }
+
+#if defined(COBALT)
+void WorkerPoolImpl::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task, bool task_is_slow) {
+  pool_->PostBlockingTask(from_here, task);
+}
+#endif
 
 base::LazyInstance<WorkerPoolImpl> g_lazy_worker_pool =
     LAZY_INSTANCE_INITIALIZER;
@@ -118,6 +131,16 @@ bool WorkerPool::PostTask(const tracked_objects::Location& from_here,
   return true;
 }
 
+#if defined(COBALT)
+// static
+bool WorkerPool::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task, bool task_is_slow) {
+  g_lazy_worker_pool.Pointer()->PostBlockingTask(from_here, task, task_is_slow);
+  return true;
+}
+#endif
+
 // static
 bool WorkerPool::RunsTasksOnCurrentThread() {
   return g_worker_pool_running_on_this_thread.Get().Get();
@@ -153,6 +176,29 @@ void PosixDynamicThreadPool::PostTask(
   PendingTask pending_task(from_here, task);
   AddTask(&pending_task);
 }
+
+#if defined(COBALT)
+namespace {
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const Closure& task, WaitableEvent* event) {
+  task.Run();
+  event->Signal();
+}
+}  // namespace
+
+void PosixDynamicThreadPool::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const base::Closure& task) {
+  base::WaitableEvent task_finished(false /* automatic reset */,
+                                    false /* initially unsignaled */);
+  PostTask(
+      from_here,
+      base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
+
+  // Wait for the task to complete before proceeding.
+  task_finished.Wait();
+}
+#endif
 
 void PosixDynamicThreadPool::AddTask(PendingTask* pending_task) {
   AutoLock locked(lock_);

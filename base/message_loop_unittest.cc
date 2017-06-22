@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits.h>
+
 #include <vector>
 
 #include "base/bind.h"
@@ -331,6 +333,55 @@ void RunTest_PostDelayedTask_SharedTimer(
   EXPECT_TRUE(run_time1.is_null());
   EXPECT_FALSE(run_time2.is_null());
 }
+
+#if defined(COBALT)
+void RunTest_PostBlockingTask(MessageLoop::Type message_loop_type) {
+  base::Thread thread("PostBlockingTsk");
+  thread.StartWithOptions(base::Thread::Options(message_loop_type, 0));
+
+  const TimeDelta kPause = TimeDelta::FromMilliseconds(50);
+
+  int num_tasks = INT_MAX;
+
+  TimeTicks time_before_post_1 = TimeTicks::Now();
+  thread.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&SlowFunc, kPause, &num_tasks));
+  TimeTicks time_before_post_2 = TimeTicks::Now();
+  thread.message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&SlowFunc, kPause, &num_tasks));
+  TimeTicks time_after_post_2 = TimeTicks::Now();
+
+  // Not much time should have passed during the regular PostTask.
+  EXPECT_GT(kPause, time_before_post_2 - time_before_post_1);
+
+  // The PostBlockingTask should wait for both.
+  EXPECT_LE(kPause * 2, time_after_post_2 - time_before_post_1);
+}
+
+void RunTest_WaitForFence(MessageLoop::Type message_loop_type) {
+  base::Thread thread("WaitForFence");
+  thread.StartWithOptions(base::Thread::Options(message_loop_type, 0));
+
+  const TimeDelta kPause = TimeDelta::FromMilliseconds(50);
+
+  int num_tasks = INT_MAX;
+
+  TimeTicks time_before_post = TimeTicks::Now();
+  thread.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&SlowFunc, kPause, &num_tasks));
+  thread.message_loop()->PostTask(
+      FROM_HERE, base::Bind(&SlowFunc, kPause, &num_tasks));
+  TimeTicks time_before_wait = TimeTicks::Now();
+  thread.message_loop()->WaitForFence();
+  TimeTicks time_after_wait = TimeTicks::Now();
+
+  // Not much time should have passed during the regular PostTask.
+  EXPECT_GT(kPause, time_before_wait - time_before_post);
+
+  // The WaitForFence should wait for the tasks to finish.
+  EXPECT_LE(kPause * 2, time_after_wait - time_before_post);
+}
+#endif
 
 #if defined(OS_WIN)
 
@@ -1681,6 +1732,24 @@ TEST(MessageLoopTest, PostDelayedTask_SharedTimer) {
 #endif
   RunTest_PostDelayedTask_SharedTimer(MessageLoop::TYPE_IO);
 }
+
+#if defined(COBALT)
+TEST(MessageLoopTest, PostBlockingTask) {
+  RunTest_PostBlockingTask(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
+  RunTest_PostBlockingTask(MessageLoop::TYPE_UI);
+#endif
+  RunTest_PostBlockingTask(MessageLoop::TYPE_IO);
+}
+
+TEST(MessageLoopTest, WaitForFence) {
+  RunTest_WaitForFence(MessageLoop::TYPE_DEFAULT);
+#if !defined(OS_STARBOARD)
+  RunTest_WaitForFence(MessageLoop::TYPE_UI);
+#endif
+  RunTest_WaitForFence(MessageLoop::TYPE_IO);
+}
+#endif
 
 #if defined(OS_WIN)
 TEST(MessageLoopTest, PostDelayedTask_SharedTimer_SubPump) {

@@ -36,6 +36,13 @@ class BASE_EXPORT WorkerPool {
   static bool PostTask(const tracked_objects::Location& from_here,
                        const base::Closure& task, bool task_is_slow);
 
+#if defined(COBALT)
+  // Like PostTask, but blocks until the posted task completes. Returns false
+  // and does not block if task was not posted.
+  static bool PostBlockingTask(const tracked_objects::Location& from_here,
+                               const base::Closure& task, bool task_is_slow);
+#endif
+
   // Just like MessageLoopProxy::PostTaskAndReply, except the destination
   // for |task| is a worker thread and you can specify |task_is_slow| just
   // like you can for PostTask above.
