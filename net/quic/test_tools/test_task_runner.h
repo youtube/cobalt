@@ -11,9 +11,9 @@
 
 #include <vector>
 
-#include "base/time.h"
-
+#include "base/logging.h"
 #include "base/stl_util.h"
+#include "base/time.h"
 #include "net/base/net_errors.h"
 #include "net/quic/test_tools/mock_clock.h"
 #include "net/quic/test_tools/quic_test_utils.h"
@@ -46,6 +46,11 @@ class TestTaskRunner : public base::TaskRunner {
   virtual bool PostDelayedTask(const tracked_objects::Location& location,
                                const base::Closure& closure,
                                base::TimeDelta delta) OVERRIDE;
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const base::Closure& task) OVERRIDE {
+    NOTREACHED() << "Unsupported.";
+    return false;
+  }
 
   std::vector<PostedTask>::iterator FindNextTask();
 

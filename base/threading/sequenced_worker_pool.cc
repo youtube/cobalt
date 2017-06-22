@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "base/atomicops.h"
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/compiler_specific.h"
 #include "base/critical_closure.h"
@@ -23,6 +24,7 @@
 #include "base/stringprintf.h"
 #include "base/synchronization/condition_variable.h"
 #include "base/synchronization/lock.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "base/threading/simple_thread.h"
 #include "base/threading/thread_restrictions.h"
@@ -94,6 +96,10 @@ class SequencedWorkerPoolTaskRunner : public TaskRunner {
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                TimeDelta delay) OVERRIDE;
+#if defined(COBALT)
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) OVERRIDE;
+#endif
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
  private:
@@ -127,6 +133,14 @@ bool SequencedWorkerPoolTaskRunner::PostDelayedTask(
   return pool_->PostDelayedWorkerTask(from_here, task, delay);
 }
 
+#if defined(COBALT)
+bool SequencedWorkerPoolTaskRunner::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  return pool_->PostBlockingTask(from_here, task);
+}
+#endif
+
 bool SequencedWorkerPoolTaskRunner::RunsTasksOnCurrentThread() const {
   return pool_->RunsTasksOnCurrentThread();
 }
@@ -147,6 +161,10 @@ class SequencedWorkerPoolSequencedTaskRunner : public SequencedTaskRunner {
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                TimeDelta delay) OVERRIDE;
+#if defined(COBALT)
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) OVERRIDE;
+#endif
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
   // SequencedTaskRunner implementation
@@ -190,6 +208,14 @@ bool SequencedWorkerPoolSequencedTaskRunner::PostDelayedTask(
   }
   return pool_->PostDelayedSequencedWorkerTask(token_, from_here, task, delay);
 }
+
+#if defined(COBALT)
+bool SequencedWorkerPoolSequencedTaskRunner::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  return pool_->PostBlockingTask(from_here, task);
+}
+#endif
 
 bool SequencedWorkerPoolSequencedTaskRunner::RunsTasksOnCurrentThread() const {
   return pool_->IsRunningSequenceOnCurrentThread(token_);
@@ -269,6 +295,14 @@ class SequencedWorkerPool::Inner {
                 const tracked_objects::Location& from_here,
                 const Closure& task,
                 TimeDelta delay);
+
+#if defined(COBALT)
+  bool PostBlockingTask(const std::string* optional_token_name,
+                        SequenceToken sequence_token,
+                        WorkerShutdown shutdown_behavior,
+                        const tracked_objects::Location& from_here,
+                        const Closure& task);
+#endif
 
   bool RunsTasksOnCurrentThread() const;
 
@@ -567,6 +601,43 @@ bool SequencedWorkerPool::Inner::PostTask(
 
   return true;
 }
+
+#if defined(COBALT)
+namespace {
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
+  task.Run();
+  event->Signal();
+}
+}  // namespace
+
+bool SequencedWorkerPool::Inner::PostBlockingTask(
+    const std::string* optional_token_name,
+    SequenceToken sequence_token,
+    WorkerShutdown shutdown_behavior,
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  DCHECK(!IsRunningSequenceOnCurrentThread(sequence_token))
+      << "PostBlockingTask cannot be called from a SequenceWorkerPool's own "
+      << "thread." << from_here.ToString();
+  WaitableEvent task_finished(false /* automatic reset */,
+                              false /* initially unsignaled */);
+  bool posted = PostTask(
+      optional_token_name,
+      sequence_token,
+      shutdown_behavior,
+      from_here,
+      Bind(&RunAndSignal, task, Unretained(&task_finished)),
+      TimeDelta());
+  if (!posted) {
+    return false;
+  }
+
+  // Wait for the task to complete before proceeding.
+  task_finished.Wait();
+  return true;
+}
+#endif
 
 bool SequencedWorkerPool::Inner::RunsTasksOnCurrentThread() const {
   AutoLock lock(lock_);
@@ -1045,6 +1116,15 @@ bool SequencedWorkerPool::PostDelayedWorkerTask(
                           from_here, task, delay);
 }
 
+#if defined(COBALT)
+bool SequencedWorkerPool::PostBlockingWorkerTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  return inner_->PostBlockingTask(NULL, SequenceToken(), BLOCK_SHUTDOWN,
+                                  from_here, task);
+}
+#endif
+
 bool SequencedWorkerPool::PostWorkerTaskWithShutdownBehavior(
     const tracked_objects::Location& from_here,
     const Closure& task,
@@ -1096,6 +1176,14 @@ bool SequencedWorkerPool::PostDelayedTask(
     TimeDelta delay) {
   return PostDelayedWorkerTask(from_here, task, delay);
 }
+
+#if defined(COBALT)
+bool SequencedWorkerPool::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  return PostBlockingWorkerTask(from_here, task);
+}
+#endif
 
 bool SequencedWorkerPool::RunsTasksOnCurrentThread() const {
   return inner_->RunsTasksOnCurrentThread();

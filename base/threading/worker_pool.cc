@@ -42,6 +42,10 @@ class WorkerPoolTaskRunner : public TaskRunner {
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                TimeDelta delay) OVERRIDE;
+#if defined(COBALT)
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) OVERRIDE;
+#endif
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
  private:
@@ -72,6 +76,14 @@ bool WorkerPoolTaskRunner::PostDelayedTask(
     TimeDelta delay) {
   return PostDelayedTaskAssertZeroDelay(from_here, task, delay);
 }
+
+#if defined(COBALT)
+bool WorkerPoolTaskRunner::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  return WorkerPool::PostBlockingTask(from_here, task, tasks_are_slow_);
+}
+#endif
 
 bool WorkerPoolTaskRunner::RunsTasksOnCurrentThread() const {
   return WorkerPool::RunsTasksOnCurrentThread();
