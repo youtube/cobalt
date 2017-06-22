@@ -695,7 +695,7 @@ UnboxedPlainObject::createWithProperties(ExclusiveContext* cx, HandleObjectGroup
             return NewPlainObjectWithProperties(cx, properties, layout.properties().length(), newKind);
     }
 
-#ifndef JS_CODEGEN_NONE
+#if !defined(JS_CODEGEN_NONE) && !defined(COBALT_DISABLE_JIT)
     if (cx->isJSContext() &&
         !layout.constructorCode() &&
         cx->asJSContext()->runtime()->jitSupportsFloatingPoint)
