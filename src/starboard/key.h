@@ -207,6 +207,10 @@ typedef enum SbKey {
   // Some media keys that are used around the industry.
   kSbKeyMediaRewind = 0xE3,
   kSbKeyMediaFastForward = 0xE4,
+  kSbKeyRed = 0x193,
+  kSbKeyGreen = 0x194,
+  kSbKeyYellow = 0x195,
+  kSbKeyBlue = 0x196,
 
   // Mouse buttons, starting with the left mouse button.
   kSbKeyMouse1 = 0x7000,
