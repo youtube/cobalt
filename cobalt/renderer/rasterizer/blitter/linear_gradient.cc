@@ -39,6 +39,7 @@ using cobalt::render_tree::LinearGradientBrush;
 using cobalt::renderer::rasterizer::blitter::RenderState;
 using cobalt::renderer::rasterizer::blitter::SkiaToBlitterPixelFormat;
 using cobalt::renderer::rasterizer::blitter::RectFToRect;
+using cobalt::renderer::rasterizer::blitter::RectFToBlitterRect;
 using cobalt::renderer::rasterizer::blitter::LinearGradientCache;
 using cobalt::renderer::rasterizer::skia::SkiaColorStops;
 
@@ -307,6 +308,17 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
     SbBlitterBlitRectToRect(context, surface, source_rect, dest_rect);
   }
 }
+
+void RenderColoredRect(SbBlitterDevice device, SbBlitterContext context,
+                       const RenderState& render_state, const ColorRGBA& color,
+                       const cobalt::math::RectF& rect) {
+  SbBlitterSetBlending(context, color.a() < 1.0f);
+  SbBlitterSetColor(context, SbBlitterColorFromRGBA(
+      color.rgb8_r(), color.rgb8_g(), color.rgb8_b(), color.rgb8_a()));
+  SbBlitterFillRect(context, RectFToBlitterRect(
+      render_state.transform.TransformRect(rect)));
+}
+
 }  // namespace
 
 namespace cobalt {
@@ -327,26 +339,61 @@ bool RenderLinearGradient(SbBlitterDevice device, SbBlitterContext context,
   if (!linear_gradient_brush) return false;
 
   // Currently, only vertical and horizontal gradients are accelerated.
-  //
-  // Additionally, if the gradient's source or destination are inside the rect,
-  // then the optimized path cannot handle it. This is because clamp-to-edge is
-  // not supported by SbBlitterBlitRectToRect.
-  const math::RectF& content_rect = rect_node.data().rect;
+  math::RectF content_rect = rect_node.data().rect;
   if (linear_gradient_brush->IsVertical()) {
-    if ((linear_gradient_brush->source().y() > content_rect.y() &&
-        linear_gradient_brush->source().y() < content_rect.bottom()) ||
-        (linear_gradient_brush->dest().y() > content_rect.y() &&
-        linear_gradient_brush->dest().y() < content_rect.bottom())) {
-      return false;
+    // Render solid-colored rect(s) to fill any gaps between the content_rect
+    // and the gradient.
+    float top = linear_gradient_brush->source().y();
+    float bottom = linear_gradient_brush->dest().y();
+    ColorRGBA top_color = linear_gradient_brush->color_stops().front().color;
+    ColorRGBA bottom_color = linear_gradient_brush->color_stops().back().color;
+    if (top > bottom) {
+      std::swap(top, bottom);
+      std::swap(top_color, bottom_color);
+    }
+
+    if (top > content_rect.y()) {
+      float gap = top - content_rect.y();
+      RenderColoredRect(device, context, render_state, top_color,
+          math::RectF(content_rect.x(), content_rect.y(), content_rect.width(),
+                      gap));
+      content_rect.set_y(top);
+      content_rect.set_height(content_rect.height() - gap);
+    }
+    if (bottom < content_rect.bottom()) {
+      float gap = content_rect.bottom() - bottom;
+      RenderColoredRect(device, context, render_state, bottom_color,
+          math::RectF(content_rect.x(), bottom, content_rect.width(), gap));
+      content_rect.set_height(content_rect.height() - gap);
     }
   } else if (linear_gradient_brush->IsHorizontal()) {
-    if ((linear_gradient_brush->source().x() > content_rect.x() &&
-        linear_gradient_brush->source().x() < content_rect.right()) ||
-        (linear_gradient_brush->dest().x() > content_rect.x() &&
-        linear_gradient_brush->dest().x() < content_rect.right())) {
-      return false;
+    // Render solid-colored rect(s) to fill any gaps between the content_rect
+    // and the gradient.
+    float left = linear_gradient_brush->source().x();
+    float right = linear_gradient_brush->dest().x();
+    ColorRGBA left_color = linear_gradient_brush->color_stops().front().color;
+    ColorRGBA right_color = linear_gradient_brush->color_stops().back().color;
+    if (left > right) {
+      std::swap(left, right);
+      std::swap(left_color, right_color);
+    }
+
+    if (left > content_rect.x()) {
+      float gap = left - content_rect.x();
+      RenderColoredRect(device, context, render_state, left_color,
+          math::RectF(content_rect.x(), content_rect.y(), gap,
+                      content_rect.height()));
+      content_rect.set_x(left);
+      content_rect.set_width(content_rect.width() - gap);
+    }
+    if (right < content_rect.right()) {
+      float gap = content_rect.right() - right;
+      RenderColoredRect(device, context, render_state, right_color,
+          math::RectF(right, content_rect.y(), gap, content_rect.height()));
+      content_rect.set_width(content_rect.width() - gap);
     }
   } else {
+    // Angled gradients are not supported by the optimized path.
     return false;
   }
 
