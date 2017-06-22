@@ -17,6 +17,7 @@
 
 #include <queue>
 #include "base/callback.h"
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/synchronization/lock.h"
 
@@ -35,6 +36,7 @@ class MessageQueue {
 
   // Add a message to the end of the queue.
   void AddMessage(const base::Closure& message) {
+    TRACE_EVENT0("cobalt::base", "MessageQueue::AddMessage()");
     base::AutoLock lock(mutex_);
     DCHECK(!message.is_null());
     queue_.push(message);
@@ -43,11 +45,16 @@ class MessageQueue {
   // Execute all messages in the MessageQueue until the queue is empty and then
   // return.
   void ProcessAll() {
-    base::AutoLock lock(mutex_);
+    TRACE_EVENT0("cobalt::base", "MessageQueue::ProcessAll()");
+    std::queue<base::Closure> work_queue;
+    {
+      base::AutoLock lock(mutex_);
+      work_queue.swap(queue_);
+    }
 
-    while (!queue_.empty()) {
-      queue_.front().Run();
-      queue_.pop();
+    while (!work_queue.empty()) {
+      work_queue.front().Run();
+      work_queue.pop();
     }
   }
 
