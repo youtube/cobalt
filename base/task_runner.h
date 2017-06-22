@@ -7,7 +7,9 @@
 
 #include "base/base_export.h"
 #include "base/basictypes.h"
+#include "base/bind.h"
 #include "base/callback_forward.h"
+#include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
 
@@ -74,6 +76,20 @@ class BASE_EXPORT TaskRunner
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                base::TimeDelta delay) = 0;
+
+#if defined(COBALT)
+  // Like PostTask, but blocks until the posted task completes. Returns false
+  // and does not block if task was not posted.
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) = 0;
+
+  // Places a fence in the SequencedTaskRunner's queue and blocks until it is
+  // hit. Returns false if the fence was not set and no blocking was done.
+  bool WaitForFence() {
+    struct Fence { static void Task() {} };
+    return PostBlockingTask(FROM_HERE, base::Bind(&Fence::Task));
+  }
+#endif
 
   // Returns true if the current thread is a thread on which a task
   // may be run, and false if no task will be run on the current

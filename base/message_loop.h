@@ -19,8 +19,8 @@
 #include "base/pending_task.h"
 #include "base/sequenced_task_runner_helpers.h"
 #include "base/synchronization/lock.h"
-#include "base/tracking_info.h"
 #include "base/time.h"
+#include "base/tracking_info.h"
 
 #if defined(OS_WIN)
 // We need this to declare base::MessagePumpWin::Dispatcher, which we should
@@ -201,6 +201,27 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
       const tracked_objects::Location& from_here,
       const base::Closure& task,
       base::TimeDelta delay);
+
+#if defined(COBALT)
+  // Posts an immediate task to this MessageLoop, and blocks until it has
+  // run. It is forbidden to call this method from the thread of the MessageLoop
+  // being posted to. One should exercise extreme caution when using this, as
+  // blocking between MessageLoops can cause deadlocks and is contraindicated in
+  // the Actor model of multiprogramming.
+  void PostBlockingTask(
+      const tracked_objects::Location& from_here,
+      const base::Closure& task);
+
+  // Adds a fence at the end of this MessageLoop's task queue, and then blocks
+  // until it has been reached. It is forbidden to call this method from the
+  // thread of the MessageLoop being posted to. One should exercise extreme
+  // caution when using this, as blocking between MessageLoops can cause
+  // deadlocks and is contraindicated in the Actor model of multiprogramming.
+  void WaitForFence() {
+    struct Fence { static void Task() {} };
+    PostBlockingTask(FROM_HERE, base::Bind(&Fence::Task));
+  }
+#endif
 
   // A variant on PostTask that deletes the given object.  This is useful
   // if the object needs to live until the next run of the MessageLoop (for

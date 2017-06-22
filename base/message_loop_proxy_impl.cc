@@ -5,6 +5,7 @@
 #include "base/message_loop_proxy_impl.h"
 
 #include "base/location.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread_restrictions.h"
 
 namespace base {
@@ -25,6 +26,37 @@ bool MessageLoopProxyImpl::PostNonNestableDelayedTask(
     base::TimeDelta delay) {
   return PostTaskHelper(from_here, task, delay, false);
 }
+
+#if defined(COBALT)
+namespace {
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const Closure& task, WaitableEvent* event) {
+  task.Run();
+  event->Signal();
+}
+}  // namespace
+
+bool MessageLoopProxyImpl::PostBlockingTask(
+    const tracked_objects::Location& from_here,
+    const Closure& task) {
+  WaitableEvent task_finished(true /* manual reset */,
+                              false /* initially unsignaled */);
+  {
+    AutoLock lock(message_loop_lock_);
+    if (!target_message_loop_) {
+      return false;
+    }
+
+    target_message_loop_->PostTask(
+        from_here,
+        Bind(&RunAndSignal, task, Unretained(&task_finished)));
+  }
+
+  // Outside of the lock, wait for the task to complete before proceeding.
+  task_finished.Wait();
+  return true;
+}
+#endif
 
 bool MessageLoopProxyImpl::RunsTasksOnCurrentThread() const {
   return thread_id_ == PlatformThread::CurrentId();
