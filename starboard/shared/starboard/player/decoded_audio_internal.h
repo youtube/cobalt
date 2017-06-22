@@ -33,15 +33,7 @@ namespace player {
 class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
  public:
   DecodedAudio();  // Signal an EOS.
-  DecodedAudio(int channels,
-               SbMediaAudioSampleType sample_type,
-               SbMediaAudioFrameStorageType storage_type,
-               SbMediaTime pts,
-               size_t size);
-
-  int channels() const { return channels_; }
-  SbMediaAudioSampleType sample_type() const { return sample_type_; }
-  SbMediaAudioFrameStorageType storage_type() const { return storage_type_; }
+  DecodedAudio(SbMediaTime pts, size_t size);
 
   bool is_end_of_stream() const { return buffer_ == NULL; }
   SbMediaTime pts() const { return pts_; }
@@ -49,16 +41,8 @@ class DecodedAudio : public RefCountedThreadSafe<DecodedAudio> {
   size_t size() const { return size_; }
 
   uint8_t* buffer() { return buffer_.get(); }
-  int frames() const;
-
-  void SwitchFormatTo(SbMediaAudioSampleType new_sample_type,
-                      SbMediaAudioFrameStorageType new_storage_type);
-  void ShrinkTo(size_t new_size);
 
  private:
-  int channels_;
-  SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType storage_type_;
   // The timestamp of the first audio frame.
   SbMediaTime pts_;
   // Use scoped_array<uint8_t> instead of std::vector<uint8_t> to avoid wasting

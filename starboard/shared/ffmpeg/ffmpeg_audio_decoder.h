@@ -20,31 +20,31 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class AudioDecoder : public starboard::player::filter::AudioDecoder,
-                     private starboard::player::JobQueue::JobOwner {
+class AudioDecoder : public starboard::player::filter::AudioDecoder {
  public:
+  typedef starboard::player::DecodedAudio DecodedAudio;
+  typedef starboard::player::InputBuffer InputBuffer;
+
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Initialize(const Closure& output_cb) SB_OVERRIDE;
-  void Decode(const InputBuffer& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE;
+  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE;
   int GetSamplesPerSecond() const SB_OVERRIDE;
+  bool CanAcceptMoreData() const SB_OVERRIDE {
+    return !stream_ended_ && decoded_audios_.size() <= kMaxDecodedAudiosSize;
+  }
 
   bool is_valid() const { return codec_context_ != NULL; }
 
@@ -54,7 +54,6 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
 
   static const int kMaxDecodedAudiosSize = 64;
 
-  Closure output_cb_;
   SbMediaAudioCodec audio_codec_;
   SbMediaAudioSampleType sample_type_;
   AVCodecContext* codec_context_;

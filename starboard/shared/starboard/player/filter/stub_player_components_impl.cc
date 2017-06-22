@@ -16,10 +16,8 @@
 
 #include <queue>
 
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace shared {
@@ -40,17 +38,13 @@ SbMediaAudioSampleType GetSupportedSampleType() {
 
 }  // namespace
 
-class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
+class StubAudioDecoder : public AudioDecoder {
  public:
   explicit StubAudioDecoder(const SbMediaAudioHeader& audio_header)
       : sample_type_(GetSupportedSampleType()),
         audio_header_(audio_header),
         stream_ended_(false) {}
-  void Initialize(const Closure& output_cb) SB_OVERRIDE {
-    output_cb_ = output_cb;
-  }
-  void Decode(const InputBuffer& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE {
+  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE {
     // Values to represent what kind of dummy audio to fill the decoded audio
     // we produce with.
     enum FillType {
@@ -85,8 +79,6 @@ class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
       }
     }
     last_input_buffer_ = input_buffer;
-    Schedule(consumed_cb);
-    Schedule(output_cb_);
   }
   void WriteEndOfStream() SB_OVERRIDE {
     if (last_input_buffer_.is_valid()) {
@@ -97,7 +89,6 @@ class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
     }
     decoded_audios_.push(new DecodedAudio());
     stream_ended_ = true;
-    Schedule(output_cb_);
   }
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE {
     scoped_refptr<DecodedAudio> result;
@@ -113,8 +104,6 @@ class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
     }
     stream_ended_ = false;
     last_input_buffer_ = InputBuffer();
-
-    CancelPendingJobs();
   }
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
     return sample_type_;
@@ -129,7 +118,6 @@ class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
  private:
   static const kMaxDecodedAudiosSize = 64;
 
-  Closure output_cb_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioHeader audio_header_;
   bool stream_ended_;
