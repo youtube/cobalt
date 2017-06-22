@@ -131,7 +131,16 @@ SbDecodeTarget DecodeTargetCreate(
   params.frame = frame;
 
 #if SB_HAS(GLES2)
-  SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner, &params);
+  if (!provider) {
+    if (SbDecodeTargetIsValid(params.decode_target_out)) {
+      // Should the decode target have been created and the GLES context been
+      // somehow lost, it is released without the context
+      SbDecodeTargetRelease(params.decode_target_out);
+    }
+    params.decode_target_out = kSbDecodeTargetInvalid;
+  } else {
+    SbDecodeTargetRunInGlesContext(provider, &CreateWithContextRunner, &params);
+  }
 #endif
 
   return params.decode_target_out;
