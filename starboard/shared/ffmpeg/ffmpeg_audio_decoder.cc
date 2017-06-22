@@ -31,6 +31,39 @@ SbMediaAudioSampleType GetSupportedSampleType() {
   return kSbMediaAudioSampleTypeInt16;
 }
 
+// The required output format and the output of the ffmpeg decoder can be
+// different.  In this case libavresample is used to convert the ffmpeg output
+// into the required format.
+void ConvertSamples(int source_sample_format,
+                    int target_sample_format,
+                    int channel_layout,
+                    int sample_rate,
+                    int samples_per_channel,
+                    uint8_t** input_buffer,
+                    uint8_t* output_buffer) {
+  AVAudioResampleContext* context = avresample_alloc_context();
+  SB_DCHECK(context != NULL);
+
+  av_opt_set_int(context, "in_channel_layout", channel_layout, 0);
+  av_opt_set_int(context, "out_channel_layout", channel_layout, 0);
+  av_opt_set_int(context, "in_sample_rate", sample_rate, 0);
+  av_opt_set_int(context, "out_sample_rate", sample_rate, 0);
+  av_opt_set_int(context, "in_sample_fmt", source_sample_format, 0);
+  av_opt_set_int(context, "out_sample_fmt", target_sample_format, 0);
+  av_opt_set_int(context, "internal_sample_fmt", source_sample_format, 0);
+
+  int result = avresample_open(context);
+  SB_DCHECK(!result);
+
+  int samples_resampled =
+      avresample_convert(context, &output_buffer, 1024, samples_per_channel,
+                         input_buffer, 0, samples_per_channel);
+  SB_DCHECK(samples_resampled == samples_per_channel);
+
+  avresample_close(context);
+  av_free(context);
+}
+
 AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
   switch (audio_codec) {
     case kSbMediaAudioCodecAac:
@@ -62,21 +95,8 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
-
-  output_cb_ = output_cb;
-}
-
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
-                          const Closure& consumed_cb) {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+void AudioDecoder::Decode(const InputBuffer& input_buffer) {
   SB_CHECK(codec_context_ != NULL);
-
-  Schedule(consumed_cb);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "Decode() is called after WriteEndOfStream() is called.";
@@ -107,14 +127,20 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
 
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
-        codec_context_->channels, sample_type_, GetStorageType(),
         input_buffer.pts(),
         codec_context_->channels * av_frame_->nb_samples *
             (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
-    SbMemoryCopy(decoded_audio->buffer(), *av_frame_->extended_data,
-                 decoded_audio->size());
+    if (codec_context_->sample_fmt == codec_context_->request_sample_fmt) {
+      SbMemoryCopy(decoded_audio->buffer(), *av_frame_->extended_data,
+                   decoded_audio->size());
+    } else {
+      ConvertSamples(codec_context_->sample_fmt,
+                     codec_context_->request_sample_fmt,
+                     codec_context_->channel_layout,
+                     audio_header_.samples_per_second, av_frame_->nb_samples,
+                     av_frame_->extended_data, decoded_audio->buffer());
+    }
     decoded_audios_.push(decoded_audio);
-    Schedule(output_cb_);
   } else {
     // TODO: Consider fill it with silence.
     SB_LOG(ERROR) << "Decoded audio frame is empty.";
@@ -122,23 +148,14 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
 }
 
 void AudioDecoder::WriteEndOfStream() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
   stream_ended_ = true;
   // Put EOS into the queue.
   decoded_audios_.push(new DecodedAudio);
-
-  Schedule(output_cb_);
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
-  SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
-  SB_DCHECK(!decoded_audios_.empty());
-
   scoped_refptr<DecodedAudio> result;
   if (!decoded_audios_.empty()) {
     result = decoded_audios_.front();
@@ -148,41 +165,17 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
 }
 
 void AudioDecoder::Reset() {
-  SB_DCHECK(BelongsToCurrentThread());
-
   stream_ended_ = false;
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
   }
-
-  CancelPendingJobs();
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
-  SB_DCHECK(BelongsToCurrentThread());
-
   return sample_type_;
 }
 
-SbMediaAudioFrameStorageType AudioDecoder::GetStorageType() const {
-  SB_DCHECK(BelongsToCurrentThread());
-
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16 ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLT) {
-    return kSbMediaAudioFrameStorageTypeInterleaved;
-  }
-  if (codec_context_->sample_fmt == AV_SAMPLE_FMT_S16P ||
-      codec_context_->sample_fmt == AV_SAMPLE_FMT_FLTP) {
-    return kSbMediaAudioFrameStorageTypePlanar;
-  }
-
-  SB_NOTREACHED();
-  return kSbMediaAudioFrameStorageTypeInterleaved;
-}
-
 int AudioDecoder::GetSamplesPerSecond() const {
-  SB_DCHECK(BelongsToCurrentThread());
-
   return audio_header_.samples_per_second;
 }
 
