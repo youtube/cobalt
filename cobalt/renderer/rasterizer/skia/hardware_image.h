@@ -215,17 +215,6 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
     return planes_[plane_index];
   }
 
-  // Always fallback to custom non-skia code for rendering multi-plane images.
-  // The main reason to unconditionally fallback here is because Skia does a
-  // check internally to see if GL_RED is supported, and if so it will use
-  // GL_RED for 1-channel textures, and if not it will use GL_ALPHA for
-  // 1-channel textures.  If we want to create textures like this manually (and
-  // later wrap it into a Skia texture), we must know in advance which GL format
-  // to set it up as, but Skia's GL_RED support decision is private information
-  // that we can't access.  So, we choose instead to just not rely on Skia
-  // for this so that we don't have to worry about format mismatches.
-  bool CanRenderInSkia() const OVERRIDE { return false; }
-
   bool EnsureInitialized() OVERRIDE;
 
  private:
