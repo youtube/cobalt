@@ -111,7 +111,7 @@ struct OffscreenTargetManager::OffscreenAtlas {
   RectAllocator allocator;
   AllocationMap allocation_map;
   size_t allocations_used;
-  scoped_ptr<backend::FramebufferEGL> framebuffer;
+  scoped_refptr<backend::FramebufferRenderTargetEGL> framebuffer;
   SkAutoTUnref<SkSurface> skia_surface;
   bool needs_flush;
 };
@@ -335,8 +335,8 @@ OffscreenTargetManager::OffscreenAtlas*
   OffscreenAtlas* atlas = new OffscreenAtlas(size);
 
   // Create a new framebuffer.
-  atlas->framebuffer.reset(new backend::FramebufferEGL(
-      graphics_context_, size, GL_RGBA, GL_NONE));
+  atlas->framebuffer = new backend::FramebufferRenderTargetEGL(
+      graphics_context_, size);
 
   // Wrap the framebuffer as a skia surface.
   GrBackendRenderTargetDesc skia_desc;
@@ -346,7 +346,7 @@ OffscreenTargetManager::OffscreenAtlas*
   skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
   skia_desc.fSampleCnt = 0;
   skia_desc.fStencilBits = 0;
-  skia_desc.fRenderTargetHandle = atlas->framebuffer->gl_handle();
+  skia_desc.fRenderTargetHandle = atlas->framebuffer->GetPlatformHandle();
 
   SkAutoTUnref<GrRenderTarget> skia_render_target(
       skia_context_->wrapBackendRenderTarget(skia_desc));

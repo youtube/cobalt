@@ -20,7 +20,7 @@
 #include "cobalt/math/rect_f.h"
 #include "cobalt/math/size.h"
 #include "cobalt/render_tree/node.h"
-#include "cobalt/renderer/backend/egl/framebuffer.h"
+#include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/gpu/GrContext.h"
@@ -40,7 +40,7 @@ class OffscreenTargetManager {
         : framebuffer(NULL),
           skia_canvas(NULL),
           is_scratch_surface(false) {}
-    backend::FramebufferEGL* framebuffer;
+    backend::FramebufferRenderTargetEGL* framebuffer;
     SkCanvas* skia_canvas;
     math::RectF region;
     bool is_scratch_surface;
