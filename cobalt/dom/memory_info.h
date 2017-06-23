@@ -28,9 +28,9 @@ class MemoryInfo : public script::Wrappable {
  public:
   MemoryInfo() {}
 
-  uint32 total_js_heap_size(script::EnvironmentSettings* settings) const;
+  uint32 total_js_heap_size() const;
 
-  uint32 used_js_heap_size(script::EnvironmentSettings* settings) const;
+  uint32 used_js_heap_size() const;
 
   DEFINE_WRAPPABLE_TYPE(MemoryInfo);
 
