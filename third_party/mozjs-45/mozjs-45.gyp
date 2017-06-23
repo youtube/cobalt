@@ -74,6 +74,12 @@
           'JS_CPU_ARM64=1',
           'JS_CODEGEN_ARM64=1',
           'JS_PUNBOX64=1',
+          # arm64 jit appears to not be ready, won't even compile without
+          # compiling in the simulator.  It is highly recommended that
+          # |cobalt_enable_jit| be set to |0| when building for architecture
+          # |arm64|.
+          'JS_SIMULATOR=1',
+          'JS_SIMULATOR_ARM64=1',
         ],
       }],
       ['target_arch == "mips"', {
@@ -260,6 +266,20 @@
             'js/src/jit/arm64/SharedICHelpers-arm64.h',
             'js/src/jit/arm64/SharedICRegisters-arm64.h',
             'js/src/jit/arm64/Trampoline-arm64.cpp',
+            'js/src/jit/arm64/vixl/Assembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/Cpu-vixl.cpp',
+            'js/src/jit/arm64/vixl/Debugger-vixl.cpp',
+            'js/src/jit/arm64/vixl/Decoder-vixl.cpp',
+            'js/src/jit/arm64/vixl/Disasm-vixl.cpp',
+            'js/src/jit/arm64/vixl/Instructions-vixl.cpp',
+            'js/src/jit/arm64/vixl/Instrument-vixl.cpp',
+            'js/src/jit/arm64/vixl/Logic-vixl.cpp',
+            'js/src/jit/arm64/vixl/MacroAssembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozAssembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozInstructions-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozSimulator-vixl.cpp',
+            'js/src/jit/arm64/vixl/Simulator-vixl.cpp',
+            'js/src/jit/arm64/vixl/Utils-vixl.cpp',
           ],
         }],
         ['target_arch == "mips"', {

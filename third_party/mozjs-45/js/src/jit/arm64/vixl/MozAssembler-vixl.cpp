@@ -425,6 +425,8 @@ BufferOffset Assembler::Logical(const Register& rd, const Register& rn,
     Instr dp_op = static_cast<Instr>(op | LogicalShiftedFixed);
     return DataProcShiftedRegister(rd, rn, operand, LeaveFlags, dp_op);
   }
+
+  return BufferOffset();
 }
 
 
