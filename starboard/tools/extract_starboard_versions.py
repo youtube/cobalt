@@ -25,8 +25,11 @@ import fnmatch
 import os
 import re
 import sys
+import platform
+import paths
 
-
+# Sometimes files have weird encodings. This function will use a variety of
+# hand selected encoders that work on the starboard codebase.
 def AutoDecodeString(file_data):
   for encoding in {'UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek'}:
     try:
@@ -35,134 +38,137 @@ def AutoDecodeString(file_data):
       continue
   raise IOError('Could not read file')
 
-def AnyExistsLowerCase(list_a, list_b):
-  list_aa = [a.lower() for a in list_a]
-  list_bb = [b.lower() for b in list_b]
-  return not set(list_aa).isdisjoint(list_bb)
-
-def SearchInFileReturnMatchingLine(file_path, search_term):
+# Given a search_term, this will open the file_path and return the first
+# line that contains the search term. This will ignore C-style comments.
+def SearchInFileReturnFirstMatchingLine(file_path, search_term):
   try:
-    with open(file_path, 'rb+') as fd:
-      file_text_lines = AutoDecodeString(fd.read()).splitlines()
-      for file_line in file_text_lines:
-        if search_term in file_line:
-          return file_line
-  except IOError:
-    print('  error while reading file ', file_path)
-
-# "C:\dir1\dir2" -> ['C:', 'dir1', 'dir2']
-def PathAsList(path, debug=False):
-  parts = []
-  while True:
-    newpath, tail = os.path.split(path)
-    if debug:
-      print (repr(path), (newpath, tail))
-    if newpath == path:
-      assert not tail
-      if path:
-        parts.append(path)
-      break
-    parts.append(tail)
-    path = newpath
-  parts.reverse()
-  parts = [p.replace('\\', '') for p in parts]
-  return parts
-
-# Reverse of PathAsList()
-def ListAsPath(path_list):
-  return os.path.sep.join(path_list)
-
-# From the current working directory find the root directory where
-# tail_path is resolvable to a directory path.
-# Example:
-#  FindPathByTraversingUp(os.getcwd(), 'src/cobalt/build')
-def FindPathByTraversingUp(current_path, tail_path):
-  relative_path_list = PathAsList(tail_path)
-  original_path = os.path.abspath(current_path)
-  original_path_list = PathAsList(original_path)
-
-  current_path_list = original_path_list
-
-  while (len(current_path_list) > 0):
-    path_now = ListAsPath(current_path_list + relative_path_list)
-    if os.path.isdir(path_now):
-      return os.path.abspath(path_now)
-    else:
-      current_path_list.pop()
-  return None
-
-# Also returns file path with matches
-def SearchInFileReturnMatchingLine2(file_path, search_term):
-  try:
-    with open(file_path, 'rb+') as fd:
-      file_text_lines = AutoDecodeString(fd.read()).splitlines()
-      for file_line in file_text_lines:
-        if search_term in file_line:
-          return [file_path, file_line]
+    lines = OpenFileAndDecodeLinesAndRemoveComments(file_path)
+    for line in lines:
+      if search_term in line:
+        return line
+    return None
   except IOError:
     print ('  error while reading file ', file_path)
 
+# Opens a header or cc file and decodes it to utf8 using a variety
+# of decoders. All lines will have their comments stripped out.
+# This will return the lines of the given file.
+def OpenFileAndDecodeLinesAndRemoveComments(file_path):
+  with open(file_path, 'rb+') as fd:
+    lines = AutoDecodeString(fd.read()).splitlines()
+    # remove c-style comments.
+    lines = [ re.sub('//.*', '', line) for line in lines]
+    return lines
 
-def MatchFilesRecursive(start_point, filename_wildcard):
-  filename_wildcard_list = [x.strip() for x in filename_wildcard.split(',')]
-  output_list = []
-  for root, dirs, files in os.walk(start_point):
-    for f in files:
-      full_path = os.path.join(root, f)
-      if '.git' in full_path and 'objects' in full_path:
-        continue
-      for wildcard in filename_wildcard_list:
-        if fnmatch.fnmatch(full_path, wildcard):
-          output_list.append(os.path.abspath(full_path))
-          break
-  return output_list
 
-def FindExperimentalApiVersion():
-  files = MatchFilesRecursive('.', '*.h')
-  matching_lines = \
-      [SearchInFileReturnMatchingLine(f, "#define SB_EXPERIMENTAL_API_VERSION")
-      for f in files]
-  matching_lines = filter(lambda line: line != None, matching_lines)
-  if len(matching_lines) == 0:
-    print ('Error - could not determine starboard experimental version.')
-    sys.exit(1)
-  if len(matching_lines) > 1:
-    print ('There were more than one experimental api versions?!')
+# Given a file_path, return all include files that it contains.
+def FindIncludeFiles(file_path):
+  try:
+    output_list = []
+    lines = OpenFileAndDecodeLinesAndRemoveComments(file_path)
+    for line in lines:
+      # Remove c-style comments.
+      if '#include' in line:
+        line = re.sub('#include ', '', line).replace('"', '')
+        output_list.append(line)
+    return output_list
+  except IOError:
+    print ('  error while reading file ', file_path)
 
-  elements = matching_lines[0].split(' ')
+# Searches from the search_location for a configuration.h file that
+# contains the definition of the SB_EXPERIMENTAL_API_VERSION and then
+# returns that as type int.
+def ExtractExperimentalApiVersion(config_file_path):
+  needle = '#define SB_EXPERIMENTAL_API_VERSION'
+  line = SearchInFileReturnFirstMatchingLine(
+      config_file_path,
+      '#define SB_EXPERIMENTAL_API_VERSION')
+  if not line:
+    raise ValueError('Could not find ' + needle + ' in ' + config_file_path)
+
+  elements = line.split(' ')
   exp_api_version = int(elements[2])
   return exp_api_version
 
-# exp_api_version is type int
-def PrintApiVersions(exp_api_version):
-  files = MatchFilesRecursive('.', '*configuration_public.h*')
+# Given platform path, this function will try and find the version. Returns
+# either the version if found, or None.
+# If the version string is returned, note that it could be
+# 'SB_EXPERIMENTAL_VERSION' or a number string.
+def FindVersion(platform_path):
+  api_version_str = '#define SB_API_VERSION'
+  result = SearchInFileReturnFirstMatchingLine(platform_path, api_version_str)
+  if not result:
+    return None
+  version_str = result.replace(api_version_str, '')
+  return version_str.strip()
 
-  matching_lines = [SearchInFileReturnMatchingLine2(f, '#define SB_API_VERSION')
-                    for f in files]
-  matching_lines = filter(lambda line: line != None, matching_lines)
-  for line in matching_lines:
-    version = line[1].split(" ")[2]
-    if 'SB_EXPERIMENTAL_API_VERSION' in version:
-      version = exp_api_version
-    build_id = str(line[0])
-    build_id = re.sub("^.*starboard", '', build_id)
-    build_id = re.sub('configuration_public\.h', '', build_id)
-    build_id = build_id[1:-1]
-    build_id = build_id.replace(os.path.sep, '-')
-    print (build_id + ': ' + str(version))
+# Given the path to the platform_include_file, this will find the include
+# files with "configuration_public.h" in the name and return those.
+def FindConfigIncludefile(platform_path_config_file):
+  include_files = FindIncludeFiles(platform_path_config_file)
+  include_files = filter(lambda x: 'configuration_public.h' in x, include_files)
+  return include_files
 
-def ChangeDirectoryToStarboardRootOrDie():
-  start_path = os.path.abspath(__file__)
-  starboard_path = FindPathByTraversingUp(start_path, 'src/starboard')
+# Given the input starboard directory, this will return a map of
+# 'platform_name' -> 'full_path_to_platform'
+def GeneratePlatformPathMap(starboard_dir):
+  ports = [p for p in platform.PlatformInfo.EnumeratePorts(starboard_dir)]
+  def GenPath(p):
+    full_path = os.path.abspath(os.path.join(p.path, 'configuration_public.h'))
+    if not os.path.exists(full_path):
+      raise IOError("Could not find path " + full_path)
+    return full_path
 
-  if not starboard_path:
-    print('Could not find starboard path from location' + start_path)
-    sys.exit(1)
-  os.chdir(starboard_path)
+  port_dict = {}
+  for p in ports:
+    port_dict[p.port_name] = GenPath(p)
+  return port_dict
+
+# Given the root starboard directory, and the full path to the platform,
+# this function will search for the API_VERSION of the platform. It will
+# first see if the version is defined within the include file, if it is
+# not then the include paths for shared platform configurations are
+# searched in the recursive step.
+def FindVersionRecursive(starboard_dir, platform_path):
+  version_str = FindVersion(platform_path)
+  if version_str:
+    return version_str
+  else:
+    config_include_paths = FindConfigIncludefile(platform_path)
+    if len(config_include_paths) == 0:
+      return "<UNKNOWN>"
+    elif len(config_include_paths) > 1:
+      return "<AMBIGUIOUS>"
+    else:
+      include_path = config_include_paths[0]
+      include_path = re.sub(r'^starboard/', '', include_path)
+      full_include_path = os.path.join(starboard_dir, include_path)
+      return FindVersionRecursive(starboard_dir, full_include_path)
+
+def Main():
+  print('\n***** Listing the api versions of all first party ports. *****\n')
+
+  port_dict = GeneratePlatformPathMap(paths.STARBOARD_ROOT)
+
+  experimental_api_version = ExtractExperimentalApiVersion(
+      os.path.join(paths.STARBOARD_ROOT, 'configuration.h'))
+
+  path_map = {}
+
+  print('Experimental API Version: ' + str(experimental_api_version) + '\n')
+
+  for platform_name, platform_path in port_dict.iteritems():
+    version_str = FindVersionRecursive(paths.STARBOARD_ROOT, platform_path)
+    if 'SB_EXPERIMENTAL_API_VERSION' in version_str:
+      version_str = str(experimental_api_version)
+    path_map[platform_name] = version_str
+
+  for platform_name, api_version in sorted(path_map.iteritems()):
+    print(platform_name + ': ' + api_version)
+
+  sys.exit(0)
 
 if __name__ == '__main__':
-  ChangeDirectoryToStarboardRootOrDie()
-  experimental_api_version = FindExperimentalApiVersion()
-  print('\nExperimental API Version: ' + str(experimental_api_version) + '\n')
-  PrintApiVersions(experimental_api_version)
-  sys.exit(0)
+  # All functionality stored in Main() to avoid py-lint from warning about
+  # about shadowing global variables in local functions.
+  Main()
