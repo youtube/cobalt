@@ -41,7 +41,6 @@ class MozjsEngine : public JavaScriptEngine {
 
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
-  size_t UpdateMemoryStatsAndReturnReserved() OVERRIDE;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) OVERRIDE;
 
  private:
