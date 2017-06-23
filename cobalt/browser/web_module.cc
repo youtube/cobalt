@@ -23,8 +23,6 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
-#include "cobalt/base/c_val.h"
-#include "cobalt/base/poller.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
@@ -62,12 +60,6 @@ namespace browser {
 
 namespace {
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
-const int kPollerPeriodMs = 2000;
-#else   // #if defined(COBALT_BUILD_TYPE_GOLD)
-const int kPollerPeriodMs = 20;
-#endif  // #if defined(COBALT_BUILD_TYPE_GOLD)
-
 // The maximum number of element depth in the DOM tree. Elements at a level
 // deeper than this could be discarded, and will not be rendered.
 const int kDOMMaxElementDepth = 32;
@@ -92,29 +84,6 @@ const char kPartialLayoutCommandLongHelp[] =
     "\n"
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
-class JSEngineStats {
- public:
-  JSEngineStats()
-      : js_reserved_memory_("Memory.JS", 0,
-                            "The total memory that is reserved by the engine, "
-                            "including the part that is actually occupied by "
-                            "JS objects, and the part that is not yet.") {}
-
-  static JSEngineStats* GetInstance() {
-    return Singleton<JSEngineStats,
-                     StaticMemorySingletonTraits<JSEngineStats> >::get();
-  }
-
-  void SetReservedMemory(size_t js_reserved_memory) {
-    js_reserved_memory_ = static_cast<uint64>(js_reserved_memory);
-  }
-
- private:
-  // The total memory that is reserved by the engine, including the part that is
-  // actually occupied by JS objects, and the part that is not yet.
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory_;
-};
 
 // StartupTimer is designed to measure time since the startup of the app.
 // It is loader initialized to have the most accurate start time as possible.
@@ -272,13 +241,6 @@ class WebModule::Impl {
     error_callback_.Run(window_->location()->url(), error);
   }
 
-  void UpdateJavaScriptEngineStats() {
-    if (javascript_engine_) {
-      JSEngineStats::GetInstance()->SetReservedMemory(
-          javascript_engine_->UpdateMemoryStatsAndReturnReserved());
-    }
-  }
-
   // Inject the DOM event object into the window or the element.
   void InjectInputEvent(scoped_refptr<dom::Element> element,
                         const scoped_refptr<dom::Event>& event);
@@ -341,9 +303,6 @@ class WebModule::Impl {
 
   // JavaScript engine for the browser.
   scoped_ptr<script::JavaScriptEngine> javascript_engine_;
-
-  // Poller that updates javascript engine stats.
-  scoped_ptr<base::PollerWithThread> javascript_engine_poller_;
 
   // JavaScript Global Object for the browser. There should be one per window,
   // but since there is only one window, we can have one per browser.
@@ -517,11 +476,6 @@ WebModule::Impl::Impl(const ConstructionData& data)
   javascript_engine_->RegisterErrorHandler(error_handler);
 #endif
 
-  javascript_engine_poller_.reset(new base::PollerWithThread(
-      base::Bind(&WebModule::Impl::UpdateJavaScriptEngineStats,
-                 base::Unretained(this)),
-      base::TimeDelta::FromMilliseconds(kPollerPeriodMs)));
-
   global_environment_ = javascript_engine_->CreateGlobalEnvironment();
   DCHECK(global_environment_);
 
@@ -649,7 +603,6 @@ WebModule::Impl::~Impl() {
   script_runner_.reset();
   execution_state_.reset();
   global_environment_ = NULL;
-  javascript_engine_poller_.reset();
   javascript_engine_.reset();
   web_module_stat_tracker_.reset();
   local_storage_database_.reset();
