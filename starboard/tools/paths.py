@@ -15,8 +15,18 @@
 #
 """Constants for commonly referenced paths."""
 
+from __future__ import print_function
+
 import os
 
-import starboard
+STARBOARD_ROOT = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), os.path.pardir))
 
-STARBOARD_ROOT = os.path.abspath(os.path.dirname(starboard.__file__))
+if __name__ == '__main__':
+  # All functionality stored in TestRunPaths() to avoid py-lint from warning'
+  # about shadowing global variables in local functions.
+  def TestRunPaths():
+    print('STARBOARD_ROOT: ' + STARBOARD_ROOT)
+    assert(os.path.isdir(STARBOARD_ROOT))
+
+  TestRunPaths()
