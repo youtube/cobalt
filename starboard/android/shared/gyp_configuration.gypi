@@ -142,7 +142,9 @@
           # Do not warn if a function or variable cannot be implicitly
           # instantiated.
           '-Wno-undefined-var-template',
+          '-Wno-tautological-compare',
           '-Wno-tautological-constant-out-of-range-compare',
+          '-Wno-undefined-inline',
         ],
       }],
       ['cobalt_fastbuild==0', {
