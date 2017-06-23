@@ -696,23 +696,23 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
 
   // We issue different skia rasterization commands to render the image
   // depending on whether it's single or multi planed.
-  if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
-    SinglePlaneImage* single_plane_image =
-        base::polymorphic_downcast<SinglePlaneImage*>(image);
+  if (!image->CanRenderInSkia()) {
+    render_image_fallback_function_.Run(image_node, &draw_state_);
+  } else {
+    if (image->GetTypeId() == base::GetTypeId<SinglePlaneImage>()) {
+      SinglePlaneImage* single_plane_image =
+          base::polymorphic_downcast<SinglePlaneImage*>(image);
 
-    if (!single_plane_image->CanRenderInSkia()) {
-      render_image_fallback_function_.Run(image_node, &draw_state_);
-    } else {
       RenderSinglePlaneImage(single_plane_image, &draw_state_,
                              image_node->data().destination_rect,
                              &(image_node->data().local_transform));
+    } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
+      RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
+                            &draw_state_, image_node->data().destination_rect,
+                            &(image_node->data().local_transform));
+    } else {
+      NOTREACHED();
     }
-  } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
-    RenderMultiPlaneImage(base::polymorphic_downcast<MultiPlaneImage*>(image),
-                          &draw_state_, image_node->data().destination_rect,
-                          &(image_node->data().local_transform));
-  } else {
-    NOTREACHED();
   }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
