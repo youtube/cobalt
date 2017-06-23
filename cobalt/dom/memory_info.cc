@@ -21,22 +21,14 @@
 namespace cobalt {
 namespace dom {
 
-uint32 MemoryInfo::total_js_heap_size(
-    script::EnvironmentSettings* settings) const {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  size_t total_memory =
-      dom_settings->javascript_engine()->UpdateMemoryStatsAndReturnReserved();
-  return static_cast<uint32>(total_memory);
+uint32 MemoryInfo::total_js_heap_size() const {
+  return static_cast<uint32>(
+      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved());
 }
 
-uint32 MemoryInfo::used_js_heap_size(
-    script::EnvironmentSettings* settings) const {
-  DOMSettings* dom_settings =
-      base::polymorphic_downcast<dom::DOMSettings*>(settings);
-  size_t total_memory =
-      dom_settings->javascript_engine()->UpdateMemoryStatsAndReturnReserved();
-  return static_cast<uint32>(total_memory);
+uint32 MemoryInfo::used_js_heap_size() const {
+  return static_cast<uint32>(
+      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved());
 }
 
 }  // namespace dom

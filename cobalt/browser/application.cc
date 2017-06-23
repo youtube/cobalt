@@ -41,6 +41,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
+#include "cobalt/script/javascript_engine.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif
@@ -687,10 +688,10 @@ Application::CValStats::CValStats(base::TimeTicks start_time)
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
                       "Total CPU memory allocated via the app's allocators."),
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-      exe_memory("Memory.CPU.Exe", 0,
-                 "Total memory occupied by the size of the executable."),
-#endif
+      js_reserved_memory("Memory.JS", 0,
+                         "The total memory that is reserved by the engine, "
+                         "including the part that is actually occupied by "
+                         "JS objects, and the part that is not yet."),
       app_start_time("Time.Cobalt.Start", start_time.ToInternalValue(),
                      "Start time of the application in microseconds."),
       app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
@@ -822,6 +823,9 @@ void Application::UpdatePeriodicStats() {
         SbSystemGetTotalGPUMemory() - *used_gpu_memory;
     *c_val_stats_.used_gpu_memory = *used_gpu_memory;
   }
+
+  c_val_stats_.js_reserved_memory =
+      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
 
   memory_settings_checker_.RunChecks(
       *auto_mem_, used_cpu_memory, used_gpu_memory);
