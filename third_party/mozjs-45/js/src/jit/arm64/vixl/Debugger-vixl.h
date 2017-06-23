@@ -32,7 +32,10 @@
 #include <limits.h>
 
 #include "jit/arm64/vixl/Constants-vixl.h"
+#include "jit/arm64/vixl/Decoder-vixl.h"
+#include "jit/arm64/vixl/Disasm-vixl.h"
 #include "jit/arm64/vixl/Globals-vixl.h"
+#include "jit/arm64/vixl/Simulator-vixl.h"
 #include "jit/arm64/vixl/Simulator-vixl.h"
 #include "jit/arm64/vixl/Utils-vixl.h"
 
