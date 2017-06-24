@@ -23,6 +23,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
@@ -53,7 +54,6 @@
 #include "cobalt/system_window/system_window.h"
 #include "starboard/accessibility.h"
 #include "starboard/log.h"
-#include "starboard/once.h"
 
 namespace cobalt {
 namespace browser {
@@ -84,23 +84,6 @@ const char kPartialLayoutCommandLongHelp[] =
     "\n"
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
-
-// StartupTimer is designed to measure time since the startup of the app.
-// It is loader initialized to have the most accurate start time as possible.
-class StartupTimer {
- public:
-  static StartupTimer* Instance();
-  base::TimeDelta TimeSinceStartup() const {
-    return base::TimeTicks::Now() - start_time_;
-  }
-
- private:
-  StartupTimer() : start_time_(base::TimeTicks::Now()) {}
-  base::TimeTicks start_time_;
-};
-
-SB_ONCE_INITIALIZE_FUNCTION(StartupTimer, StartupTimer::Instance);
-StartupTimer* s_on_startup_init_dont_use = StartupTimer::Instance();
 
 // Runs the given task, and then signals the given WaitableEvent.
 void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
@@ -880,7 +863,7 @@ void WebModule::Impl::ReportScriptError(
       FilePath(source_location.file_path).BaseName().value();
 
   std::stringstream ss;
-  base::TimeDelta dt = StartupTimer::Instance()->TimeSinceStartup();
+  base::TimeDelta dt = base::StartupTimer::TimeElapsed();
 
   // Create the error output.
   // Example:

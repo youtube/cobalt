@@ -32,6 +32,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -361,8 +362,6 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
 Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
-      start_time_(base::TimeTicks::Now()),
-      c_val_stats_(start_time_),
       stats_update_timer_(true, true) {
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
@@ -683,7 +682,7 @@ void Application::WebModuleRecreated() {
 #endif
 }
 
-Application::CValStats::CValStats(base::TimeTicks start_time)
+Application::CValStats::CValStats()
     : free_cpu_memory("Memory.CPU.Free", 0,
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
@@ -692,7 +691,8 @@ Application::CValStats::CValStats(base::TimeTicks start_time)
                          "The total memory that is reserved by the engine, "
                          "including the part that is actually occupied by "
                          "JS objects, and the part that is not yet."),
-      app_start_time("Time.Cobalt.Start", start_time.ToInternalValue(),
+      app_start_time("Time.Cobalt.Start",
+                     base::StartupTimer::StartTime().ToInternalValue(),
                      "Start time of the application in microseconds."),
       app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
                    "Application lifetime in microseconds.") {
@@ -805,7 +805,7 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
 
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
+  c_val_stats_.app_lifetime = base::StartupTimer::TimeElapsed();
 
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
   base::optional<int64_t> used_gpu_memory;
