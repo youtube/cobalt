@@ -416,12 +416,7 @@ void StorageManager::FinishIO() {
   // it is possible that there are no flushes pending at this instant, but there
   // are tasks queued on |sql_message_loop_| that will begin a flush, and so
   // we make sure that these are executed first.
-  base::WaitableEvent current_queue_finished_event_(true, false);
-  sql_message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&base::WaitableEvent::Signal,
-                 base::Unretained(&current_queue_finished_event_)));
-  current_queue_finished_event_.Wait();
+  sql_message_loop_->WaitForFence();
 
   // Now wait for all pending flushes to wrap themselves up.  This may involve
   // the savegame I/O thread and the SQL thread posting tasks to each other.
