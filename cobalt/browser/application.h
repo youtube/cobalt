@@ -96,9 +96,6 @@ class Application {
   base::ThreadChecker network_event_thread_checker_;
   base::ThreadChecker application_event_thread_checker_;
 
-  // Time the application started
-  base::TimeTicks start_time_;
-
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
   scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
@@ -128,7 +125,7 @@ class Application {
   // Stats related
 
   struct CValStats {
-    explicit CValStats(base::TimeTicks start_time);
+    CValStats();
 
     base::CVal<base::cval::SizeInBytes, base::CValPublic> free_cpu_memory;
     base::CVal<base::cval::SizeInBytes, base::CValPublic> used_cpu_memory;
