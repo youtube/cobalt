@@ -17,7 +17,6 @@
 
 #include "base/callback.h"
 #include "base/message_loop.h"
-#include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "base/timer.h"
 
@@ -46,15 +45,9 @@ class Poller {
     if (!message_loop_) {
       StopTimer();
     } else {
-      message_loop_->PostTask(
-          FROM_HERE, base::Bind(&Poller::StopTimer, base::Unretained(this)));
-
       // Wait for the timer to actually be stopped.
-      base::WaitableEvent timer_stopped(true, false);
-      message_loop_->PostTask(FROM_HERE,
-                              base::Bind(&base::WaitableEvent::Signal,
-                                         base::Unretained(&timer_stopped)));
-      timer_stopped.Wait();
+      message_loop_->PostBlockingTask(
+          FROM_HERE, base::Bind(&Poller::StopTimer, base::Unretained(this)));
     }
   }
 
