@@ -139,14 +139,9 @@ Pipeline::~Pipeline() {
   // thread as it clears itself out (e.g. it may ask the rasterizer thread to
   // delete textures).  We wait for this shutdown to complete before proceeding
   // to shutdown the rasterizer thread.
-  base::WaitableEvent submission_queue_shutdown(true, false);
-  rasterizer_thread_.message_loop()->PostTask(
+  rasterizer_thread_.message_loop()->PostBlockingTask(
       FROM_HERE,
       base::Bind(&Pipeline::ShutdownSubmissionQueue, base::Unretained(this)));
-  rasterizer_thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&submission_queue_shutdown)));
-  submission_queue_shutdown.Wait();
 
   // This potential reference to a render tree whose animations may have ended
   // must be destroyed before we shutdown the rasterizer thread since it may
