@@ -42,6 +42,7 @@ class AudioRenderer {
   virtual void Seek(SbMediaTime seek_to_pts) = 0;
   virtual bool IsEndOfStreamWritten() const = 0;
   virtual bool IsEndOfStreamPlayed() const = 0;
+  // TODO: Replace polling with callbacks.
   virtual bool CanAcceptMoreData() const = 0;
   virtual bool IsSeekingInProgress() const = 0;
   virtual SbMediaTime GetCurrentTime() = 0;
