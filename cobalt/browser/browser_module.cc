@@ -833,17 +833,11 @@ scoped_ptr<webdriver::WindowDriver> BrowserModule::CreateWindowDriver(
     const webdriver::protocol::WindowId& window_id) {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
   scoped_ptr<webdriver::WindowDriver> window_driver;
-  self_message_loop_->PostTask(
+  self_message_loop_->PostBlockingTask(
       FROM_HERE, base::Bind(&BrowserModule::CreateWindowDriverInternal,
                             base::Unretained(this), window_id,
                             base::Unretained(&window_driver)));
 
-  // Wait for the result and return it.
-  base::WaitableEvent got_window_driver(true, false);
-  self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&got_window_driver)));
-  got_window_driver.Wait();
   // This log is relied on by the webdriver benchmark tests, so it shouldn't be
   // changed unless the corresponding benchmark logic is changed as well.
   LOG(INFO) << "Created WindowDriver: ID=" << window_id.id();
@@ -864,17 +858,10 @@ void BrowserModule::CreateWindowDriverInternal(
 debug::DebugServer* BrowserModule::GetDebugServer() {
   // Repost to our message loop to ensure synchronous access to |web_module_|.
   debug::DebugServer* debug_server = NULL;
-  self_message_loop_->PostTask(
+  self_message_loop_->PostBlockingTask(
       FROM_HERE,
       base::Bind(&BrowserModule::GetDebugServerInternal, base::Unretained(this),
                  base::Unretained(&debug_server)));
-
-  // Wait for the result and return it.
-  base::WaitableEvent got_debug_server(true, false);
-  self_message_loop_->PostTask(FROM_HERE,
-                               base::Bind(&base::WaitableEvent::Signal,
-                                          base::Unretained(&got_debug_server)));
-  got_debug_server.Wait();
   DCHECK(debug_server);
   return debug_server;
 }

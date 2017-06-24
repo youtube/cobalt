@@ -14,7 +14,6 @@
 
 #include "cobalt/loader/loader_factory.h"
 
-#include "base/synchronization/waitable_event.h"
 #include "base/threading/platform_thread.h"
 #include "cobalt/loader/image/threaded_image_decoder_proxy.h"
 
@@ -117,11 +116,7 @@ void LoaderFactory::Suspend() {
   }
 
   // Wait for all loader thread messages to be flushed before returning.
-  base::WaitableEvent messages_flushed(true, false);
-  load_thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&messages_flushed)));
-  messages_flushed.Wait();
+  load_thread_.message_loop()->WaitForFence();
 }
 
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
