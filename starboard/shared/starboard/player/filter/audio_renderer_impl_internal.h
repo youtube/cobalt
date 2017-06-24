@@ -17,16 +17,19 @@
 
 #include <vector>
 
+#include "starboard/atomic.h"
 #include "starboard/audio_sink.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
-#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_resampler.h"
+#include "starboard/shared/starboard/player/filter/audio_time_stretcher.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/types.h"
@@ -39,10 +42,13 @@ namespace filter {
 
 // A default implementation of |AudioRenderer| that only depends on the
 // |AudioDecoder| interface, rather than a platform specific implementation.
-class AudioRendererImpl : public AudioRenderer {
+class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  AudioRendererImpl(JobQueue* job_queue,
-                    scoped_ptr<AudioDecoder> decoder,
+  // Preroll is considered as finished after either the amount of audio caches
+  // exceeds kPrerollTime or if EOS is reached.
+  static const size_t kPrerollTime = kSbTimeSecond / 4;
+
+  AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
                     const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
@@ -57,7 +63,7 @@ class AudioRendererImpl : public AudioRenderer {
   void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
   bool IsEndOfStreamWritten() const SB_OVERRIDE {
-    return end_of_stream_written_;
+    return eos_state_.load() >= kEOSWrittenToDecoder;
   };
   bool IsEndOfStreamPlayed() const SB_OVERRIDE;
   bool CanAcceptMoreData() const SB_OVERRIDE;
@@ -65,15 +71,23 @@ class AudioRendererImpl : public AudioRenderer {
   SbMediaTime GetCurrentTime() SB_OVERRIDE;
 
  private:
-  // Preroll considered finished after either kPrerollFrames is cached or EOS
-  // is reached.
-  static const size_t kPrerollFrames = 64 * 1024;
+  enum EOSState {
+    kEOSNotReceived,
+    kEOSWrittenToDecoder,
+    kEOSDecoded,
+    kEOSSentToSink
+  };
+
   // Set a soft limit for the max audio frames we can cache so we can:
   // 1. Avoid using too much memory.
-  // 2. Have the audio cache full to simulate the state that the renderer can
-  //    no longer accept more data.
+  // 2. Have the audio cache full to simulate the state that the renderer can no
+  //    longer accept more data.
   static const size_t kMaxCachedFrames = 256 * 1024;
+  // The audio renderer tries to append |kAppendFrameUnit| frames every time to
+  // the sink buffer.
+  static const size_t kFrameAppendUnit = 16384;
 
+  void CreateAudioSinkAndResampler();
   void UpdateSourceStatus(int* frames_in_buffer,
                           int* offset_in_frames,
                           bool* is_playing,
@@ -81,9 +95,11 @@ class AudioRendererImpl : public AudioRenderer {
   void ConsumeFrames(int frames_consumed);
   void LogFramesConsumed();
 
-  void ReadFromDecoder();
-  bool AppendDecodedAudio_Locked(
-      const scoped_refptr<DecodedAudio>& decoded_audio);
+  void OnDecoderConsumed();
+  void OnDecoderOutput();
+  void ProcessAudioData();
+  void FillResamplerAndTimeStretcher();
+  bool AppendAudioToFrameBuffer();
 
   // SbAudioSink callbacks
   static void UpdateSourceStatusFunc(int* frames_in_buffer,
@@ -93,32 +109,35 @@ class AudioRendererImpl : public AudioRenderer {
                                      void* context);
   static void ConsumeFramesFunc(int frames_consumed, void* context);
 
-  JobQueue* job_queue_;
+  atomic_int32_t eos_state_;
   const int channels_;
+  const SbMediaAudioSampleType sink_sample_type_;
   const int bytes_per_frame_;
 
+  scoped_ptr<AudioResampler> resampler_;
+  AudioTimeStretcher time_stretcher_;
   double playback_rate_;
 
-  Mutex mutex_;
-  bool paused_;
-  bool seeking_;
+  atomic_bool paused_;
+  atomic_bool seeking_;
   SbMediaTime seeking_to_pts_;
 
   std::vector<uint8_t> frame_buffer_;
   uint8_t* frame_buffers_[1];
-  int frames_in_buffer_;
-  int offset_in_frames_;
+  atomic_int64_t frames_sent_to_sink_;
+  atomic_int64_t frames_consumed_by_sink_;
+  atomic_int32_t frames_consumed_by_sink_since_last_get_current_time_;
 
-  int frames_consumed_;
-  SbTimeMonotonic frames_consumed_set_at_;
-  bool end_of_stream_written_;
-  bool end_of_stream_decoded_;
+  int32_t pending_decoder_outputs_;
+  AudioFrameTracker audio_frame_tracker_;
+  atomic_int64_t frames_consumed_set_at_;
   Closure log_frames_consumed_closure_;
 
   scoped_ptr<AudioDecoder> decoder_;
   SbAudioSink audio_sink_;
-  scoped_refptr<DecodedAudio> pending_decoded_audio_;
-  Closure read_from_decoder_closure_;
+
+  bool can_accept_more_data_;
+  bool process_audio_data_scheduled_;
 
   // Our owner will attempt to seek to pts 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
