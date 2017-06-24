@@ -205,6 +205,20 @@ void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
   buffer_->SetDecryptedContent(buffer, size);
 }
 
+bool operator==(const InputBuffer& lhs, const InputBuffer& rhs) {
+  if (!lhs.is_valid() && !rhs.is_valid()) {
+    return true;
+  }
+  if (lhs.is_valid() && rhs.is_valid()) {
+    return lhs.sample_type() == rhs.sample_type() && lhs.data() == rhs.data() &&
+           lhs.size() == rhs.size() && lhs.pts() == rhs.pts() &&
+           lhs.video_sample_info() == rhs.video_sample_info() &&
+           lhs.drm_info() == rhs.drm_info();
+  }
+
+  return false;
+}
+
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared

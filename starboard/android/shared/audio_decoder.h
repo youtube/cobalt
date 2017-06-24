@@ -36,19 +36,17 @@ namespace android {
 namespace shared {
 
 class AudioDecoder
-    : public ::starboard::shared::starboard::player::filter::AudioDecoder {
+    : public ::starboard::shared::starboard::player::filter::AudioDecoder,
+      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
  public:
-  typedef ::starboard::shared::starboard::player::Closure Closure;
-  typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
-
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
                SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void Initialize(const Closure& output_cb) SB_OVERRIDE;
+  void Decode(const InputBuffer& input_buffer,
+              const Closure& consumed_cb) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
@@ -56,10 +54,12 @@ class AudioDecoder
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
     return sample_type_;
   }
+  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+    return kSbMediaAudioFrameStorageTypeInterleaved;
+  }
   int GetSamplesPerSecond() const SB_OVERRIDE {
     return audio_header_.samples_per_second;
   }
-  bool CanAcceptMoreData() const SB_OVERRIDE;
 
   bool is_valid() const { return media_codec_bridge_ != NULL; }
 
@@ -97,6 +97,8 @@ class AudioDecoder
   bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
   bool ProcessOneOutputBuffer();
 
+  Closure output_cb_;
+  Closure consumed_cb_;
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbMediaAudioSampleType sample_type_;
