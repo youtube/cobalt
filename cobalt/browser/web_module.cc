@@ -85,26 +85,6 @@ const char kPartialLayoutCommandLongHelp[] =
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-// Runs the given task, and then signals the given WaitableEvent.
-void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
-  task.Run();
-  event->Signal();
-}
-
-// Posts a task to a message loop, and then waits for it to complete.
-// TODO: Move into base::MessageLoop.
-void PostBlockingTask(MessageLoop* message_loop,
-                      const tracked_objects::Location& from_here,
-                      const base::Closure& task) {
-  base::WaitableEvent task_finished(false /* automatic reset */,
-                                    false /* initially unsignaled */);
-  message_loop->PostTask(
-      from_here,
-      base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
-
-  // Wait for the task to complete before proceeding.
-  task_finished.Wait();
-}
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -934,21 +914,15 @@ WebModule::WebModule(
       options.thread_priority));
   DCHECK(message_loop());
 
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Initialize, base::Unretained(this),
-                            construction_data));
-
   // Block this thread until the initialization is complete.
   // TODO: Figure out why this is necessary.
   // It would be preferable to return immediately and let the WebModule
   // continue in its own time, but without this wait there is a race condition
   // such that inline scripts may be executed before the document elements they
   // operate on are present.
-  base::WaitableEvent is_initialized(true, false);
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&base::WaitableEvent::Signal,
-                                      base::Unretained(&is_initialized)));
-  is_initialized.Wait();
+  message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Initialize, base::Unretained(this),
+                            construction_data));
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -979,16 +953,11 @@ WebModule::~WebModule() {
   // destroy the internal components before the message loop is set to NULL.
   // No posted tasks will be executed once the thread is stopped.
   DestructionObserver destruction_observer(this);
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&MessageLoop::AddDestructionObserver,
-                                      base::Unretained(message_loop()),
-                                      base::Unretained(&destruction_observer)));
-
-  base::WaitableEvent did_register_shutdown_observer(true, false);
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&did_register_shutdown_observer)));
-  did_register_shutdown_observer.Wait();
+  message_loop()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&MessageLoop::AddDestructionObserver,
+                 base::Unretained(message_loop()),
+                 base::Unretained(&destruction_observer)));
 
   // This will cancel the timers for tasks, which help the thread exit
   ClearAllIntervalsAndTimeouts();
@@ -1089,16 +1058,11 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
   DCHECK(impl_);
 
   scoped_ptr<webdriver::WindowDriver> window_driver;
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::CreateWindowDriver,
-                                      base::Unretained(impl_.get()), window_id,
-                                      base::Unretained(&window_driver)));
-
-  base::WaitableEvent window_driver_created(true, false);
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&window_driver_created)));
-  window_driver_created.Wait();
+  message_loop()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::CreateWindowDriver,
+                 base::Unretained(impl_.get()), window_id,
+                 base::Unretained(&window_driver)));
 
   return window_driver.Pass();
 }
@@ -1110,16 +1074,11 @@ debug::DebugServer* WebModule::GetDebugServer() {
   DCHECK(message_loop());
   DCHECK(impl_);
 
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::CreateDebugServerIfNull,
-                                      base::Unretained(impl_.get())));
+  message_loop()->PostBlockingTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::CreateDebugServerIfNull,
+                 base::Unretained(impl_.get())));
 
-  base::WaitableEvent debug_server_created(true, false);
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&base::WaitableEvent::Signal,
-                                      base::Unretained(&debug_server_created)));
-
-  debug_server_created.Wait();
   return impl_->debug_server();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -1142,8 +1101,8 @@ void WebModule::Pause() {
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  PostBlockingTask(
-      message_loop(), FROM_HERE,
+  message_loop()->PostBlockingTask(
+      FROM_HERE,
       base::Bind(&WebModule::Impl::Pause, base::Unretained(impl_.get())));
 }
 
@@ -1165,13 +1124,13 @@ void WebModule::Suspend() {
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
   // precipitate tasks.
-  PostBlockingTask(message_loop(), FROM_HERE,
-                   base::Bind(&WebModule::Impl::SuspendLoaders,
-                              base::Unretained(impl_.get())));
+  message_loop()->PostBlockingTask(FROM_HERE,
+                                   base::Bind(&WebModule::Impl::SuspendLoaders,
+                                              base::Unretained(impl_.get())));
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
-  PostBlockingTask(message_loop(), FROM_HERE,
+  message_loop()->PostBlockingTask(FROM_HERE,
                    base::Bind(&WebModule::Impl::FinishSuspend,
                               base::Unretained(impl_.get())));
 }

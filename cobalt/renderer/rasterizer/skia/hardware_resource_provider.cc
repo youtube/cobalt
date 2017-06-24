@@ -86,11 +86,7 @@ void HardwareResourceProvider::Finish() {
   // Wait for any resource-related to complete (by waiting for all tasks to
   // complete).
   if (MessageLoop::current() != self_message_loop_) {
-    base::WaitableEvent completion(true, false);
-    self_message_loop_->PostTask(FROM_HERE,
-                                 base::Bind(&base::WaitableEvent::Signal,
-                                            base::Unretained(&completion)));
-    completion.Wait();
+    self_message_loop_->WaitForFence();
   }
 }
 
