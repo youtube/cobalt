@@ -79,17 +79,14 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName: {
       EasClientDeviceInformation ^ current_device_info =
           ref new EasClientDeviceInformation();
-      std::string system_sku =
-          platformStringToString(current_device_info->SystemSku);
-      // Note: if this DCHECK fires, Microsoft recommends that
-      // SystemManufacturer and SystemProductName properties
-      // should be used to get the system_sku.
-      SB_DCHECK(!system_sku.empty());
-      if (system_sku.empty()) {
-        return false;
-      }
+      std::string product_name =
+          platformStringToString(current_device_info->SystemProductName);
+      product_name.erase(
+          std::remove(product_name.begin(), product_name.end(), ' '),
+          product_name.end());
+
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        system_sku.c_str());
+                                        product_name.c_str());
     }
     case kSbSystemPropertyFriendlyName: {
       EasClientDeviceInformation^ current_device_info =
