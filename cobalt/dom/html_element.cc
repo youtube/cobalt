@@ -611,31 +611,23 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
     }
   }
 
-  // Invalidate matching rules on all following siblings if sibling combinators
-  // are used.
-  bool has_sibling_combinators =
-      node_document()->selector_tree()->has_sibling_combinators();
-  if (has_sibling_combinators) {
-    for (Element* element = next_element_sibling(); element;
-         element = element->next_element_sibling()) {
-      HTMLElement* html_element = element->AsHTMLElement();
-      if (html_element) {
-        html_element->InvalidateMatchingRulesRecursively();
-      }
-    }
-  }
-
   // Invalidate matching rules on all children.
   for (Element* element = first_element_child(); element;
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     if (html_element) {
       html_element->InvalidateMatchingRulesRecursively();
-      if (has_sibling_combinators) {
-        // If our current selector tree has sibling combinators enabled, then
-        // we can stop here since the loop above will take care of visiting the
-        // subsequent children.
-        break;
+    }
+  }
+
+  // Invalidate matching rules on all following siblings if sibling combinators
+  // are used.
+  if (node_document()->selector_tree()->has_sibling_combinators()) {
+    for (Element* element = next_element_sibling(); element;
+         element = element->next_element_sibling()) {
+      HTMLElement* html_element = element->AsHTMLElement();
+      if (html_element) {
+        html_element->InvalidateMatchingRulesRecursively();
       }
     }
   }
