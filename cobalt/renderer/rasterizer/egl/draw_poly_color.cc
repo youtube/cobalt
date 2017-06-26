@@ -41,7 +41,7 @@ DrawPolyColor::DrawPolyColor(const BaseState& base_state)
       vertex_buffer_(NULL) {
 }
 
-void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
+void DrawPolyColor::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(
@@ -50,11 +50,16 @@ void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
                attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteOnscreenRasterize(
+void DrawPolyColor::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   SetupShader(graphics_state, program_manager);
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+}
+
+base::TypeId DrawPolyColor::GetTypeId() const {
+  return ShaderProgram<ShaderVertexColor,
+                       ShaderFragmentColor>::GetTypeId();
 }
 
 void DrawPolyColor::SetupShader(GraphicsState* graphics_state,

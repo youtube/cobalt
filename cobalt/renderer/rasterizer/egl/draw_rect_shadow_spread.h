@@ -53,10 +53,11 @@ class DrawRectShadowSpread : public DrawObject {
                        const render_tree::ColorRGBA& color,
                        const math::RectF& include_scissor);
 
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   struct VertexAttributes {

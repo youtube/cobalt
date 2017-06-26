@@ -63,10 +63,11 @@ class DrawRectShadowBlur : public DrawObject {
                      const render_tree::ColorRGBA& color,
                      float blur_sigma, bool inset);
 
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   struct VertexAttributes {
