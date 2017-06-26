@@ -12,13 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
-#define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
+#ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_CALLBACK_H_
+#define COBALT_RENDERER_RASTERIZER_EGL_DRAW_CALLBACK_H_
 
 #include "base/callback.h"
-#include "cobalt/math/matrix3_f.h"
-#include "cobalt/math/rect_f.h"
-#include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 namespace cobalt {
@@ -26,14 +23,10 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-// Handles drawing a textured rectangle.
-class DrawRectTexture : public DrawObject {
+// This is a proxy draw object that allows calling arbitrary functions.
+class DrawCallback : public DrawObject {
  public:
-  DrawRectTexture(GraphicsState* graphics_state,
-                  const BaseState& base_state,
-                  const math::RectF& rect,
-                  const backend::TextureEGL* texture,
-                  const math::Matrix3F& texcoord_transform);
+  explicit DrawCallback(const base::Closure& rasterize_callback);
 
   void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
@@ -41,12 +34,7 @@ class DrawRectTexture : public DrawObject {
       ShaderProgramManager* program_manager) OVERRIDE;
 
  private:
-  math::Matrix3F texcoord_transform_;
-  math::RectF rect_;
-  const backend::TextureEGL* texture_;
-
-  uint8_t* vertex_buffer_;
-  bool tile_texture_;
+  base::Closure rasterize_callback_;
 };
 
 }  // namespace egl
@@ -54,4 +42,4 @@ class DrawRectTexture : public DrawObject {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
+#endif  // COBALT_RENDERER_RASTERIZER_EGL_DRAW_CALLBACK_H_
