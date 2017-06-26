@@ -19,7 +19,9 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
@@ -33,6 +35,7 @@ namespace egl {
 // objects to minimize GPU state changes.
 class DrawObjectManager {
  public:
+  // TODO: Replace OnscreenType with base::TypeId
   enum OnscreenType {
     kOnscreenRectTexture = 0,
     kOnscreenRectColorTexture,
@@ -43,31 +46,36 @@ class DrawObjectManager {
     kOnscreenCount,
   };
 
-  // Order offscreen rendering by descending expected pixel area. This helps
-  // make better use of the offscreen texture atlas as smaller requests can
-  // fill in gaps created by the larger requests.
-  enum OffscreenType {
-    kOffscreenSkiaFilter = 0,
-    kOffscreenSkiaShadow,
-    kOffscreenSkiaMultiPlaneImage,
-    kOffscreenSkiaRectRounded,
-    kOffscreenSkiaRectBrush,
-    kOffscreenSkiaRectBorder,
-    kOffscreenSkiaText,
-    kOffscreenCount,
-    kOffscreenNone,     // ExecuteOffscreenRasterize will not be run for these.
-  };
-
   enum BlendType {
-    kBlendNone = 0,
+    // These draws use an external rasterizer which sets the GPU state.
+    kBlendExternal = 0,
+
+    // These draws use the native rasterizer, and the appropriate state must
+    // be set during execution.
+    kBlendNone,
     kBlendSrcAlpha,
   };
 
-  void AddDraw(scoped_ptr<DrawObject> object,
-               BlendType onscreen_blend,
-               OnscreenType onscreen_type,
-               OffscreenType offscreen_type,
-               const math::RectF& bounds);
+  // Add a draw object to be processed when rendering to the main render
+  // target. Although most draws are expected to go to the main render target,
+  // some draws may touch offscreen targets (e.g. when those offscreen targets
+  // are reused during the frame, so their contents must be rasterized just
+  // before being used for the main render target). Switching render targets
+  // has a major negative impact to performance, so it is preferable to avoid
+  // reusing offscreen targets during the frame.
+  void AddOnscreenDraw(scoped_ptr<DrawObject> object,
+      BlendType onscreen_blend, OnscreenType onscreen_type,
+      const math::RectF& bounds);
+
+  // Add a draw object that will render to an offscreen render target. There
+  // must be a corresponding draw object added via AddOnscreenDraw() to
+  // render the contents onto the main render target. All offscreen draws are
+  // batched together and executed before any onscreen objects are processed
+  // in order to minimize the cost of switching render targets.
+  void AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
+      BlendType blend_type, base::TypeId draw_type,
+      const backend::RenderTarget* render_target,
+      const math::RectF& draw_bounds);
 
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
@@ -89,12 +97,28 @@ class DrawObjectManager {
     BlendType blend;
   };
 
+  struct OffscreenDrawInfo {
+    OffscreenDrawInfo(scoped_ptr<DrawObject> in_draw_object,
+                      base::TypeId in_draw_type, BlendType in_blend_type,
+                      const backend::RenderTarget* in_render_target,
+                      const math::RectF& in_draw_bounds)
+        : draw_object(in_draw_object.release()),
+          render_target(in_render_target),
+          draw_bounds(in_draw_bounds),
+          draw_type(in_draw_type),
+          blend_type(in_blend_type) {}
+    std::unique_ptr<DrawObject> draw_object;
+    const backend::RenderTarget* render_target;
+    math::RectF draw_bounds;
+    base::TypeId draw_type;
+    BlendType blend_type;
+  };
+
   ScopedVector<DrawObject> draw_objects_;
   std::vector<ObjectInfo> object_info_;
 
-  // Manage execution order of objects in the draw_objects_ vectors. This does
-  // not manage destruction of objects.
-  std::vector<DrawObject*> offscreen_order_[kOffscreenCount];
+  std::vector<OffscreenDrawInfo> offscreen_draws_;
+  std::vector<OffscreenDrawInfo> external_offscreen_draws_;
 };
 
 }  // namespace egl

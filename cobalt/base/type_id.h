@@ -52,6 +52,9 @@ class TypeId {
   bool operator==(const TypeId& other) const { return value_ == other.value_; }
   bool operator!=(const TypeId& other) const { return !(*this == other); }
   bool operator<(const TypeId& other) const { return value_ < other.value_; }
+  bool operator<=(const TypeId& other) const { return value_ <= other.value_; }
+  bool operator>(const TypeId& other) const { return value_ > other.value_; }
+  bool operator>=(const TypeId& other) const { return value_ >= other.value_; }
 
  private:
   explicit TypeId(intptr_t value) : value_(value) {}
