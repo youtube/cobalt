@@ -29,14 +29,14 @@ namespace egl {
 DrawCallback::DrawCallback(const base::Closure& rasterize_callback)
     : rasterize_callback_(rasterize_callback) {}
 
-void DrawCallback::ExecuteOnscreenUpdateVertexBuffer(
+void DrawCallback::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   SB_UNREFERENCED_PARAMETER(graphics_state);
   SB_UNREFERENCED_PARAMETER(program_manager);
 }
 
-void DrawCallback::ExecuteOnscreenRasterize(
+void DrawCallback::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   SB_UNREFERENCED_PARAMETER(graphics_state);
@@ -44,6 +44,10 @@ void DrawCallback::ExecuteOnscreenRasterize(
   if (!rasterize_callback_.is_null()) {
     rasterize_callback_.Run();
   }
+}
+
+base::TypeId DrawCallback::GetTypeId() const {
+  return base::GetTypeId<DrawCallback>();
 }
 
 }  // namespace egl
