@@ -51,34 +51,6 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
-    const BaseState& base_state,
-    const math::RectF& rect, const render_tree::ColorRGBA& color,
-    const backend::TextureEGL* texture,
-    const math::Matrix3F& texcoord_transform,
-    const base::Closure& draw_offscreen,
-    const base::Closure& draw_onscreen)
-    : DrawObject(base_state),
-      texcoord_transform_(texcoord_transform),
-      rect_(rect),
-      texture_(texture),
-      draw_offscreen_(draw_offscreen),
-      draw_onscreen_(draw_onscreen),
-      vertex_buffer_(NULL),
-      clamp_texcoords_(false),
-      tile_texture_(false) {
-  color_ = GetGLRGBA(color * base_state_.opacity);
-  graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
-}
-
-void DrawRectColorTexture::ExecuteOffscreenRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  if (!draw_offscreen_.is_null()) {
-    draw_offscreen_.Run();
-  }
-}
-
 void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
@@ -140,10 +112,6 @@ void DrawRectColorTexture::ExecuteOnscreenUpdateVertexBuffer(
 void DrawRectColorTexture::ExecuteOnscreenRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  if (!draw_onscreen_.is_null()) {
-    draw_onscreen_.Run();
-  }
-
   ShaderProgram<ShaderVertexColorTexcoord,
                 ShaderFragmentColorTexcoord>* program;
   program_manager->GetProgram(&program);

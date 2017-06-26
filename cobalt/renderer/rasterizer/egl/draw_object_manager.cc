@@ -14,16 +14,18 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 
+#include "base/logging.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/renderer/rasterizer/egl/draw_callback.h"
+
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-void DrawObjectManager::AddDraw(scoped_ptr<DrawObject> object,
-                                BlendType onscreen_blend,
-                                OnscreenType onscreen_type,
-                                OffscreenType offscreen_type,
-                                const math::RectF& bounds) {
+void DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> object,
+    BlendType onscreen_blend, OnscreenType onscreen_type,
+    const math::RectF& bounds) {
   // Try to sort the object next to another object of its type. However, this
   // can only be done as long as its bounds do not overlap with the other
   // object while swapping draw order.
@@ -38,28 +40,76 @@ void DrawObjectManager::AddDraw(scoped_ptr<DrawObject> object,
     --position;
   }
 
-  if (offscreen_type != kOffscreenNone) {
-    offscreen_order_[offscreen_type].push_back(object.get());
-  }
-
   object_info_.insert(object_info_.begin() + position,
                       ObjectInfo(onscreen_type, onscreen_blend, bounds));
   draw_objects_.insert(draw_objects_.begin() + position, object.release());
 }
 
-void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  for (int type = 0; type < kOffscreenCount; ++type) {
-    for (size_t index = 0; index < offscreen_order_[type].size(); ++index) {
-      offscreen_order_[type][index]->ExecuteOffscreenRasterize(graphics_state,
-          program_manager);
+void DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
+    BlendType blend_type, base::TypeId draw_type,
+    const backend::RenderTarget* render_target,
+    const math::RectF& draw_bounds) {
+  // Put all draws using kBlendExternal into their own draw list since they
+  // use an external rasterizer which tracks its own state.
+  auto* draw_list = &offscreen_draws_;
+  if (blend_type == kBlendExternal) {
+    draw_list = &external_offscreen_draws_;
+
+    // Only the DrawCallback type should use kBlendExternal. All other draw
+    // object types use the native rasterizer.
+    DCHECK(base::polymorphic_downcast<DrawCallback*>(draw_object.get()));
+  }
+
+  // Sort draws to minimize GPU state changes.
+  size_t position = draw_list->size();
+  for (; position > 0; --position) {
+    const OffscreenDrawInfo& prev_draw = (*draw_list)[position - 1];
+
+    if (prev_draw.render_target > render_target) {
+      continue;
+    } else if (prev_draw.render_target < render_target) {
+      break;
+    }
+
+    if (prev_draw.draw_bounds.Intersects(draw_bounds)) {
+      break;
+    }
+
+    if (prev_draw.draw_type > draw_type) {
+      continue;
+    } else if (prev_draw.draw_type < draw_type) {
+      break;
+    }
+
+    if (prev_draw.blend_type <= blend_type) {
+      break;
     }
   }
+
+  draw_list->insert(draw_list->begin() + position,
+      OffscreenDrawInfo(draw_object.Pass(), draw_type, blend_type,
+                        render_target, draw_bounds));
+}
+
+void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
+    ShaderProgramManager* program_manager) {
+  // Process draws handled by an external rasterizer.
+  for (size_t index = 0; index < external_offscreen_draws_.size(); ++index) {
+    external_offscreen_draws_[index].draw_object->ExecuteOnscreenRasterize(
+        graphics_state, program_manager);
+  }
+
+  // TODO: Process native rasterizer's draws.
+  DCHECK_EQ(0, offscreen_draws_.size());
 }
 
 void DrawObjectManager::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  for (size_t index = 0; index < offscreen_draws_.size(); ++index) {
+    offscreen_draws_[index].draw_object->ExecuteOnscreenUpdateVertexBuffer(
+        graphics_state, program_manager);
+  }
   for (size_t index = 0; index < draw_objects_.size(); ++index) {
     draw_objects_[index]->ExecuteOnscreenUpdateVertexBuffer(
         graphics_state, program_manager);
@@ -71,7 +121,7 @@ void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
   for (size_t index = 0; index < draw_objects_.size(); ++index) {
     if (object_info_[index].blend == kBlendNone) {
       graphics_state->DisableBlend();
-    } else {
+    } else if (object_info_[index].blend == kBlendSrcAlpha) {
       graphics_state->EnableBlend();
     }
 

@@ -16,14 +16,17 @@
 
 #include <algorithm>
 #include <cmath>
+#include <limits>
 
 #include "base/debug/trace_event.h"
+#include "base/logging.h"
 #include "base/optional.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/rasterizer/common/utils.h"
+#include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
@@ -39,6 +42,12 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
+
+const render_tree::ColorRGBA kOpaqueWhite(1.0f, 1.0f, 1.0f, 1.0f);
+const render_tree::ColorRGBA kTransparentBlack(0.0f, 0.0f, 0.0f, 0.0f);
+const math::RectF kMaxBounds(0, 0,
+                             std::numeric_limits<int>::max(),
+                             std::numeric_limits<int>::max());
 
 math::Rect RoundRectFToInt(const math::RectF& input) {
   int left = static_cast<int>(input.x() + 0.5f);
@@ -155,17 +164,18 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       !data.viewport_filter &&
       !data.blur_filter &&
       !data.map_to_mesh_filter) {
-    int opacity = static_cast<int>(data.opacity_filter->opacity() * 255.0f);
-    if (opacity <= 0) {
+    const float filter_opacity = data.opacity_filter->opacity();
+    if (filter_opacity <= 0.0f) {
       // Totally transparent. Ignore the source.
       return;
-    } else if (opacity >= 255) {
+    } else if (filter_opacity >= 1.0f) {
       // Totally opaque. Render like normal.
       data.source->Accept(this);
       return;
     } else if (common::utils::NodeCanRenderWithOpacity(data.source)) {
+      // Simple opacity that does not require an offscreen target.
       float old_opacity = draw_state_.opacity;
-      draw_state_.opacity *= data.opacity_filter->opacity();
+      draw_state_.opacity *= filter_opacity;
       data.source->Accept(this);
       draw_state_.opacity = old_opacity;
       return;
@@ -194,7 +204,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   }
 
   // Use the fallback rasterizer to handle everything else.
-  FallbackRasterize(filter_node, DrawObjectManager::kOffscreenSkiaFilter);
+  FallbackRasterize(filter_node);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
@@ -252,8 +262,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     if (clamp_texcoords || !is_opaque) {
       onscreen_type = DrawObjectManager::kOnscreenRectColorTexture;
       draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
-          data.destination_rect,
-          render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+          data.destination_rect, kOpaqueWhite,
           hardware_image->GetTextureEGL(), texcoord_transform,
           clamp_texcoords));
     } else {
@@ -264,8 +273,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     }
   } else if (skia_image->GetTypeId() ==
              base::GetTypeId<skia::MultiPlaneImage>()) {
-    FallbackRasterize(image_node,
-                      DrawObjectManager::kOffscreenSkiaMultiPlaneImage);
+    FallbackRasterize(image_node);
     return;
   } else {
     NOTREACHED();
@@ -273,11 +281,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   }
 
   if (is_opaque) {
-    AddOpaqueDraw(draw.Pass(), onscreen_type,
-        DrawObjectManager::kOffscreenNone, image_node->GetBounds());
+    AddOpaqueDraw(draw.Pass(), onscreen_type, image_node->GetBounds());
   } else {
-    AddTransparentDraw(draw.Pass(), onscreen_type,
-        DrawObjectManager::kOffscreenNone, image_node->GetBounds());
+    AddTransparentDraw(draw.Pass(), onscreen_type, image_node->GetBounds());
   }
 }
 
@@ -296,9 +302,9 @@ void RenderTreeNodeVisitor::Visit(
                  static_cast<int>(mapped_rect.height())));
 
   scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-      draw_state_, data.rect, render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 0.0f)));
+      draw_state_, data.rect, kTransparentBlack));
   AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-      DrawObjectManager::kOffscreenNone, video_node->GetBounds());
+      video_node->GetBounds());
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -323,11 +329,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   const bool border_supported = !data.border;
 
   if (data.rounded_corners) {
-    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectRounded);
+    FallbackRasterize(rect_node);
   } else if (!brush_supported) {
-    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBrush);
+    FallbackRasterize(rect_node);
   } else if (!border_supported) {
-    FallbackRasterize(rect_node, DrawObjectManager::kOffscreenSkiaRectBorder);
+    FallbackRasterize(rect_node);
   } else {
     DCHECK(!data.border);
     const math::RectF& content_rect(data.rect);
@@ -349,10 +355,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             draw_state_, content_rect, content_color));
         if (draw_state_.opacity * content_color.a() == 1.0f) {
           AddOpaqueDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-              DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
+              rect_node->GetBounds());
         } else {
           AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-              DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
+              rect_node->GetBounds());
         }
       } else {
         const render_tree::LinearGradientBrush* linear_brush =
@@ -363,7 +369,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
         // The draw may use transparent pixels to ensure only pixels in the
         // content_rect are modified.
         AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenPolyColor,
-            DrawObjectManager::kOffscreenNone, rect_node->GetBounds());
+            rect_node->GetBounds());
       }
     }
   }
@@ -377,7 +383,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
 
   const render_tree::RectShadowNode::Builder& data = shadow_node->data();
   if (data.rounded_corners) {
-    FallbackRasterize(shadow_node, DrawObjectManager::kOffscreenSkiaShadow);
+    FallbackRasterize(shadow_node);
     return;
   }
 
@@ -446,8 +452,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   // Transparency is used to skip pixels that are not shadowed.
-  AddTransparentDraw(draw.Pass(), onscreen_type,
-      DrawObjectManager::kOffscreenNone, node_bounds);
+  AddTransparentDraw(draw.Pass(), onscreen_type, node_bounds);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
@@ -455,13 +460,24 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
     return;
   }
 
-  FallbackRasterize(text_node, DrawObjectManager::kOffscreenSkiaText);
+  FallbackRasterize(text_node);
 }
 
-void RenderTreeNodeVisitor::FallbackRasterize(
+// Get an offscreen target to render |node|.
+// |out_content_cached| is true if the node's contents are already cached in
+//   the returned offscreen target.
+// |out_target_info| describes the offscreen surface into which |node| should
+//   be rendered.
+// |out_content_rect| is the onscreen rect (already in screen space) where the
+//   offscreen contents should be rendered.
+void RenderTreeNodeVisitor::GetOffscreenTarget(
     scoped_refptr<render_tree::Node> node,
-    DrawObjectManager::OffscreenType offscreen_type) {
-  DCHECK_NE(offscreen_type, DrawObjectManager::kOffscreenNone);
+    bool* out_content_cached,
+    OffscreenTargetManager::TargetInfo* out_target_info,
+    math::RectF* out_content_rect) {
+  // Default to telling the caller that nothing should be rendered.
+  *out_content_cached = true;
+  out_content_rect->SetRect(0, 0, 0, 0);
 
   math::RectF node_bounds(node->GetBounds());
   math::RectF mapped_bounds(draw_state_.transform.MapRect(node_bounds));
@@ -469,14 +485,8 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     return;
   }
 
-  // Use the fallback rasterizer to render the tree. In order to preserve
-  // sharpness, let the fallback rasterizer handle the current transform.
-  math::Matrix3F old_transform = draw_state_.transform;
-  draw_state_.transform = math::Matrix3F::Identity();
-
   // Request a slightly larger render target than the calculated bounds. The
-  // fallback rasterizer may use an extra pixel along the edge of anti-aliased
-  // objects.
+  // rasterizer may use an extra pixel along the edge of anti-aliased objects.
   const float kBorderWidth = 1.0f;
 
   // The render target cache keys off the render_tree Node and target size.
@@ -487,23 +497,21 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   float offset_x = std::floor(mapped_bounds.x() + 0.5f);
   float offset_y = std::floor(mapped_bounds.y() + 0.5f);
   math::PointF content_offset(
-      // Shift contents towards the origin of the render target.
-      kBorderWidth + kFractionPad - offset_x,
-      kBorderWidth + kFractionPad - offset_y);
+      offset_x - kBorderWidth - kFractionPad,
+      offset_y - kBorderWidth - kFractionPad);
   math::SizeF content_size(
       std::ceil(mapped_bounds.width() + 2.0f * kBorderWidth + kFractionPad),
       std::ceil(mapped_bounds.height() + 2.0f * kBorderWidth + kFractionPad));
-  OffscreenTargetManager::TargetInfo target_info;
-  bool is_cached = offscreen_target_manager_->GetCachedOffscreenTarget(node,
-      content_size, &target_info);
-  if (!is_cached) {
+  *out_content_cached = offscreen_target_manager_->GetCachedOffscreenTarget(
+      node, content_size, out_target_info);
+  if (!(*out_content_cached)) {
     offscreen_target_manager_->AllocateOffscreenTarget(node,
-        content_size, &target_info);
+        content_size, out_target_info);
   }
 
   // If the render target is the scratch surface, then just render what fits
   // onscreen for better performance.
-  if (target_info.is_scratch_surface) {
+  if (out_target_info->is_scratch_surface) {
     mapped_bounds.Outset(kBorderWidth, kBorderWidth);
     mapped_bounds.Intersect(draw_state_.scissor);
     if (mapped_bounds.IsEmpty()) {
@@ -513,55 +521,79 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     float right = std::ceil(mapped_bounds.right());
     float top = std::floor(mapped_bounds.y());
     float bottom = std::ceil(mapped_bounds.bottom());
-    content_offset.SetPoint(-left, -top);
+    content_offset.SetPoint(left, top);
     content_size.SetSize(right - left, bottom - top);
   }
 
   // The returned target may be larger than actually needed. Clamp to just the
   // needed size.
-  DCHECK_LE(content_size.width(), target_info.region.width());
-  DCHECK_LE(content_size.height(), target_info.region.height());
-  target_info.region.set_size(content_size);
-  math::RectF draw_rect(-content_offset.x(), -content_offset.y(),
-      content_size.width(), content_size.height());
+  DCHECK_LE(content_size.width(), out_target_info->region.width());
+  DCHECK_LE(content_size.height(), out_target_info->region.height());
+  out_target_info->region.set_size(content_size);
 
-  // Setup draw callbacks as needed.
-  base::Closure draw_offscreen;
-  base::Closure draw_onscreen;
-  if (!is_cached) {
-    // Pre-translate the contents so it starts near the origin.
-    math::Matrix3F content_transform(old_transform);
-    content_transform(0, 2) += content_offset.x();
-    content_transform(1, 2) += content_offset.y();
+  out_content_rect->set_origin(content_offset);
+  out_content_rect->set_size(content_size);
+}
+
+void RenderTreeNodeVisitor::FallbackRasterize(
+    scoped_refptr<render_tree::Node> node) {
+  OffscreenTargetManager::TargetInfo target_info;
+  math::RectF content_rect;
+  bool content_is_cached = false;
+  GetOffscreenTarget(node, &content_is_cached, &target_info, &content_rect);
+
+  if (content_rect.IsEmpty()) {
+    return;
+  }
+
+  // Use the fallback rasterizer to render the tree. In order to preserve
+  // sharpness, let the fallback rasterizer handle the current transform.
+  math::Matrix3F old_transform = draw_state_.transform;
+  draw_state_.transform = math::Matrix3F::Identity();
+
+  // Setup draw for the contents as needed.
+  if (!content_is_cached) {
+    // Pre-translate the contents so it starts near the origin. The fallback
+    // rasterizer will then translate this to start drawing in target_info's
+    // region.
+    math::Matrix3F content_transform =
+        math::TranslateMatrix(-content_rect.x(), -content_rect.y()) *
+        old_transform;
+    base::Closure rasterize_callback = base::Bind(*fallback_rasterize_,
+        scoped_refptr<render_tree::Node>(node), content_transform,
+        target_info);
+    scoped_ptr<DrawObject> draw(new DrawCallback(rasterize_callback));
 
     if (target_info.is_scratch_surface) {
-      draw_onscreen = base::Bind(*fallback_rasterize_,
-          scoped_refptr<render_tree::Node>(node), content_transform,
-          target_info);
+      // The scratch surface may be overwritten by other draws, so it must
+      // be used right before it is needed. Specify the max bounds so that
+      // the draw object manager won't reorder this draw.
+      draw_object_manager_->AddOnscreenDraw(draw.Pass(),
+          DrawObjectManager::kBlendExternal, DrawObjectManager::kOnscreenCount,
+          kMaxBounds);
     } else {
-      draw_offscreen = base::Bind(*fallback_rasterize_,
-          scoped_refptr<render_tree::Node>(node), content_transform,
-          target_info);
+      draw_object_manager_->AddOffscreenDraw(draw.Pass(),
+          DrawObjectManager::kBlendExternal, node->GetTypeId(),
+          target_info.framebuffer, target_info.region);
     }
   }
 
   // Create the appropriate draw object to call the draw callback, then render
-  // its results onscreen.
+  // its results onscreen. A transparent draw must be used even if the current
+  // opacity is 100% because the contents may have transparency.
   backend::TextureEGL* texture = target_info.framebuffer->GetColorTexture();
   math::Matrix3F texcoord_transform = GetTexcoordTransform(target_info);
   if (draw_state_.opacity == 1.0f) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
-        draw_state_, draw_rect, texture, texcoord_transform,
-        draw_offscreen, draw_onscreen));
+        draw_state_, content_rect, texture, texcoord_transform));
     AddTransparentDraw(draw.Pass(), DrawObjectManager::kOnscreenRectTexture,
-        offscreen_type, draw_rect);
+        content_rect);
   } else {
     scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-        draw_state_, draw_rect, render_tree::ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
-        texture, texcoord_transform, draw_offscreen, draw_onscreen));
+        draw_state_, content_rect, kOpaqueWhite, texture, texcoord_transform,
+        false /* clamp_texcoords */));
     AddTransparentDraw(draw.Pass(),
-        DrawObjectManager::kOnscreenRectColorTexture, offscreen_type,
-        draw_rect);
+        DrawObjectManager::kOnscreenRectColorTexture, content_rect);
   }
 
   draw_state_.transform = old_transform;
@@ -575,19 +607,17 @@ bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
 
 void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
     DrawObjectManager::OnscreenType onscreen_type,
-    DrawObjectManager::OffscreenType offscreen_type,
     const math::RectF& local_bounds) {
-  draw_object_manager_->AddDraw(object.Pass(),
-      DrawObjectManager::kBlendNone, onscreen_type, offscreen_type,
+  draw_object_manager_->AddOnscreenDraw(object.Pass(),
+      DrawObjectManager::kBlendNone, onscreen_type,
       draw_state_.transform.MapRect(local_bounds));
 }
 
 void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
     DrawObjectManager::OnscreenType onscreen_type,
-    DrawObjectManager::OffscreenType offscreen_type,
     const math::RectF& local_bounds) {
-  draw_object_manager_->AddDraw(object.Pass(),
-      DrawObjectManager::kBlendSrcAlpha, onscreen_type, offscreen_type,
+  draw_object_manager_->AddOnscreenDraw(object.Pass(),
+      DrawObjectManager::kBlendSrcAlpha, onscreen_type,
       draw_state_.transform.MapRect(local_bounds));
 }
 
