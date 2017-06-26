@@ -70,6 +70,7 @@ class DrawObject {
       ShaderProgramManager* program_manager) = 0;
 
  protected:
+  DrawObject() {}
   explicit DrawObject(const BaseState& base_state);
 
   // Return a uint32_t suitable to be transferred as 4 unsigned bytes
