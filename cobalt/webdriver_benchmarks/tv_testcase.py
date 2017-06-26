@@ -27,7 +27,7 @@ ActionChains = tv_testcase_util.import_selenium_module(
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
-PROCESSING_TIMEOUT_SECONDS = 30
+PROCESSING_TIMEOUT_SECONDS = 60
 HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
@@ -53,9 +53,6 @@ class TvTestCase(unittest.TestCase):
 
   class HtmlScriptElementExecuteTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
-
-  class MediaTimeoutException(BaseException):
-    """Exception thrown when media did not complete in time."""
 
   class TitleCardHiddenTimeoutException(BaseException):
     """Exception thrown when title card did not disappear in time."""
@@ -291,16 +288,16 @@ class TvTestCase(unittest.TestCase):
   def wait_for_media_element_playing(self):
     """Waits for a video to begin playing.
 
-    Raises:
-      MediaTimeoutException: The video does not start playing within the
-      required time.
+    Returns:
+      Whether or not the video started.
     """
     start_time = time.time()
     while self.get_cval(
         c_val_names.event_duration_dom_video_start_delay()) == 0:
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
-        raise TvTestCase.MediaTimeoutException()
+        return False
       time.sleep(0.1)
+    return True
 
   def wait_for_title_card_hidden(self):
     """Waits for the title to disappear while a video is playing.
