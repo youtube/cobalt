@@ -16,6 +16,7 @@
 #define COBALT_RENDERER_RASTERIZER_EGL_SHADER_PROGRAM_H_
 
 #include "base/compiler_specific.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/renderer/rasterizer/egl/shader_base.h"
 
 namespace cobalt {
@@ -56,6 +57,9 @@ class ShaderProgram : public ShaderProgramBase {
   }
   const FragmentShader& GetFragmentShader() const {
     return fragment_shader_;
+  }
+  static base::TypeId GetTypeId() {
+    return base::GetTypeId<ShaderProgram<VertexShader, FragmentShader> >();
   }
 
  private:

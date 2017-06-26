@@ -60,7 +60,7 @@ DrawRectLinearGradient::DrawRectLinearGradient(GraphicsState* graphics_state,
       attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawRectLinearGradient::ExecuteOnscreenUpdateVertexBuffer(
+void DrawRectLinearGradient::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(
@@ -69,7 +69,7 @@ void DrawRectLinearGradient::ExecuteOnscreenUpdateVertexBuffer(
                attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawRectLinearGradient::ExecuteOnscreenRasterize(
+void DrawRectLinearGradient::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColorOffset,
@@ -106,6 +106,11 @@ void DrawRectLinearGradient::ExecuteOnscreenRasterize(
   GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+}
+
+base::TypeId DrawRectLinearGradient::GetTypeId() const {
+  return ShaderProgram<ShaderVertexColorOffset,
+                       ShaderFragmentColorInclude>::GetTypeId();
 }
 
 void DrawRectLinearGradient::AddRectWithHorizontalGradient(

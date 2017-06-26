@@ -47,7 +47,7 @@ DrawRectTexture::DrawRectTexture(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 
-void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
+void DrawRectTexture::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   VertexAttributes attributes[4] = {
@@ -78,7 +78,7 @@ void DrawRectTexture::ExecuteOnscreenUpdateVertexBuffer(
   }
 }
 
-void DrawRectTexture::ExecuteOnscreenRasterize(
+void DrawRectTexture::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexTexcoord,
@@ -116,6 +116,11 @@ void DrawRectTexture::ExecuteOnscreenRasterize(
         texture_->GetTarget(), texture_->gl_handle());
     GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, 4));
   }
+}
+
+base::TypeId DrawRectTexture::GetTypeId() const {
+  return ShaderProgram<ShaderVertexTexcoord,
+                       ShaderFragmentTexcoord>::GetTypeId();
 }
 
 }  // namespace egl
