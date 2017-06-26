@@ -42,32 +42,23 @@ class DrawObject {
 
   virtual ~DrawObject() {}
 
-  // This stage is used to render to offscreen targets. It specifically runs
-  // before vertex data is updated for onscreen rendering in order to allow
-  // this stage to modify that data. For example, this stage may rasterize to
-  // an offscreen atlas, so the location within the atlas might impact the
-  // texture coordinates used for the onscreen rasterize stage.
-  //
-  // If this stage needs to use vertex data of its own, then a new stage,
-  // ExecuteOffscreenUpdateVertexBuffer, should be created. This stage should
-  // be handled similarly to the current ExecuteOnscreenUpdateVertexBuffer.
-  virtual void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) {}
-
-  // This stage is used to update the vertex buffer for the onscreen rasterize
+  // This stage is used to update the vertex buffer for the rasterize
   // stage. Vertex data is handled by the GraphicsState to minimize the number
   // of vertex buffers needed. Once this stage is executed, the rasterizer will
   // then notify the GraphicsState to send all vertex data from all draw
   // objects to the GPU.
-  virtual void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  virtual void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) = 0;
 
-  // This stage is used to render to the main render target. Although it can be
-  // used to rasterize to any number of render targets, it is best to use a
-  // different stage for offscreen rendering in order to minimize the cost of
-  // switching render targets.
-  virtual void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  // This stage is responsible for issuing the GPU commands to do the actual
+  // rendering.
+  virtual void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) = 0;
+
+  // Return a TypeId that can be used to sort draw objects in order to minimize
+  // state changes. This may be the class' TypeId, or the TypeId of the shader
+  // program which the class uses.
+  virtual base::TypeId GetTypeId() const = 0;
 
  protected:
   DrawObject() {}

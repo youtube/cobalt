@@ -77,7 +77,7 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 
-void DrawRectShadowBlur::ExecuteOnscreenUpdateVertexBuffer(
+void DrawRectShadowBlur::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   // Add a triangle-strip to draw the area between outer_rect and inner_rect.
@@ -98,7 +98,7 @@ void DrawRectShadowBlur::ExecuteOnscreenUpdateVertexBuffer(
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
-void DrawRectShadowBlur::ExecuteOnscreenRasterize(
+void DrawRectShadowBlur::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   // Draw the blurred shadow.
@@ -132,6 +132,11 @@ void DrawRectShadowBlur::ExecuteOnscreenRasterize(
       blur_scale_add_));
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount));
+}
+
+base::TypeId DrawRectShadowBlur::GetTypeId() const {
+  return ShaderProgram<ShaderVertexColorOffset,
+                       ShaderFragmentColorBlur>::GetTypeId();
 }
 
 void DrawRectShadowBlur::SetVertex(VertexAttributes* vertex,
