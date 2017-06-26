@@ -24,7 +24,7 @@ namespace rasterizer {
 namespace egl {
 
 void DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> object,
-    BlendType onscreen_blend, OnscreenType onscreen_type,
+    BlendType onscreen_blend, base::TypeId onscreen_type,
     const math::RectF& bounds) {
   // Try to sort the object next to another object of its type. However, this
   // can only be done as long as its bounds do not overlap with the other
@@ -95,7 +95,7 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   // Process draws handled by an external rasterizer.
   for (size_t index = 0; index < external_offscreen_draws_.size(); ++index) {
-    external_offscreen_draws_[index].draw_object->ExecuteOnscreenRasterize(
+    external_offscreen_draws_[index].draw_object->ExecuteRasterize(
         graphics_state, program_manager);
   }
 
@@ -107,11 +107,11 @@ void DrawObjectManager::ExecuteOnscreenUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   for (size_t index = 0; index < offscreen_draws_.size(); ++index) {
-    offscreen_draws_[index].draw_object->ExecuteOnscreenUpdateVertexBuffer(
+    offscreen_draws_[index].draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
   for (size_t index = 0; index < draw_objects_.size(); ++index) {
-    draw_objects_[index]->ExecuteOnscreenUpdateVertexBuffer(
+    draw_objects_[index]->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
 }
@@ -125,7 +125,7 @@ void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
       graphics_state->EnableBlend();
     }
 
-    draw_objects_[index]->ExecuteOnscreenRasterize(
+    draw_objects_[index]->ExecuteRasterize(
         graphics_state, program_manager);
   }
 }

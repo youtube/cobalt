@@ -80,10 +80,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
 
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     DrawObjectManager::OnscreenType onscreen_type,
                      const math::RectF& local_bounds);
   void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          DrawObjectManager::OnscreenType onscreen_type,
                           const math::RectF& local_bounds);
 
   GraphicsState* graphics_state_;

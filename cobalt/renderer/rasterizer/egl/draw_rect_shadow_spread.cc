@@ -42,7 +42,7 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 
-void DrawRectShadowSpread::ExecuteOnscreenUpdateVertexBuffer(
+void DrawRectShadowSpread::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   // Draw the box shadow's spread. This is a triangle strip covering the area
@@ -63,7 +63,7 @@ void DrawRectShadowSpread::ExecuteOnscreenUpdateVertexBuffer(
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
 
-void DrawRectShadowSpread::ExecuteOnscreenRasterize(
+void DrawRectShadowSpread::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   ShaderProgram<ShaderVertexColorOffset,
@@ -100,6 +100,11 @@ void DrawRectShadowSpread::ExecuteOnscreenRasterize(
   GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount));
+}
+
+base::TypeId DrawRectShadowSpread::GetTypeId() const {
+  return ShaderProgram<ShaderVertexColorOffset,
+                       ShaderFragmentColorInclude>::GetTypeId();
 }
 
 void DrawRectShadowSpread::SetVertex(VertexAttributes* vertex,
