@@ -37,16 +37,16 @@ class LockedPtr {
       }
     }
 
-    ImplType* operator->() { return ptr_; }
+    ImplType* operator->() {
+      SB_DCHECK(ptr_);
+      return ptr_;
+    }
 
    private:
     friend class LockedPtr<Type>;
 
     Impl(Mutex* mutex, ImplType* ptr) : mutex_(mutex), ptr_(ptr) {
       SB_DCHECK(mutex);
-      SB_DCHECK(ptr);
-
-      mutex_->Acquire();
     }
 
     // The copy ctor transfers the ownership.  So only the last one holds the
@@ -78,17 +78,24 @@ class LockedPtr {
     ptr_ = ptr.Pass();
   }
 
+  void reset() {
+    starboard::ScopedLock scoped_lock(mutex_);
+    ptr_ = NULL;
+  }
+
   bool is_valid() const {
     starboard::ScopedLock scoped_lock(mutex_);
     return ptr_ != NULL;
   }
 
   Impl<Type> operator->() {
+    mutex_.Acquire();
     Impl<Type> impl(&mutex_, ptr_.get());
     return impl;
   }
 
   Impl<const Type> operator->() const {
+    mutex_.Acquire();
     Impl<const Type> impl(&mutex_, ptr_.get());
     return impl;
   }
