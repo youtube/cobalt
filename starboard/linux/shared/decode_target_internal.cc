@@ -90,6 +90,14 @@ void CreateWithContextRunner(void* context) {
                               GL_UNSIGNED_BYTE, video_frame_plane.data));
 
     } else {
+      // As part of texture initialization, explicitly specify all parameters.
+      GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
+      GL_CALL(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
+      GL_CALL(
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
+      GL_CALL(
+          glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE));
+
       GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, GL_ALPHA, video_frame_plane.width,
                            video_frame_plane.height, 0, GL_ALPHA,
                            GL_UNSIGNED_BYTE, video_frame_plane.data));
