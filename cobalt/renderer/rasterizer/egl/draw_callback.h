@@ -28,10 +28,11 @@ class DrawCallback : public DrawObject {
  public:
   explicit DrawCallback(const base::Closure& rasterize_callback);
 
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   base::Closure rasterize_callback_;

@@ -35,17 +35,6 @@ namespace egl {
 // objects to minimize GPU state changes.
 class DrawObjectManager {
  public:
-  // TODO: Replace OnscreenType with base::TypeId
-  enum OnscreenType {
-    kOnscreenRectTexture = 0,
-    kOnscreenRectColorTexture,
-    kOnscreenPolyColor,
-    kOnscreenRectShadow,
-    kOnscreenRectShadowBlur,
-    kOnscreenTransparent,
-    kOnscreenCount,
-  };
-
   enum BlendType {
     // These draws use an external rasterizer which sets the GPU state.
     kBlendExternal = 0,
@@ -64,7 +53,7 @@ class DrawObjectManager {
   // has a major negative impact to performance, so it is preferable to avoid
   // reusing offscreen targets during the frame.
   void AddOnscreenDraw(scoped_ptr<DrawObject> object,
-      BlendType onscreen_blend, OnscreenType onscreen_type,
+      BlendType onscreen_blend, base::TypeId draw_type,
       const math::RectF& bounds);
 
   // Add a draw object that will render to an offscreen render target. There
@@ -86,14 +75,14 @@ class DrawObjectManager {
 
  private:
   struct ObjectInfo {
-    ObjectInfo(OnscreenType onscreen_type,
+    ObjectInfo(base::TypeId onscreen_type,
                BlendType blend_type,
                const math::RectF& object_bounds)
         : bounds(object_bounds),
           type(onscreen_type),
           blend(blend_type) {}
     math::RectF bounds;
-    OnscreenType type;
+    base::TypeId type;
     BlendType blend;
   };
 
