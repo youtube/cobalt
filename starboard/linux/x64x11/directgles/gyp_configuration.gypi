@@ -39,6 +39,9 @@
     # The rasterizer does not benefit much from rendering only the dirty
     # region. Disable this option since it costs GPU time.
     'render_dirty_region_only': 0,
+
+    # Map to mesh is not yet supported with the DirectGLES renderer.
+    'enable_map_to_mesh': 0,
   },
   'target_defaults': {
     'default_configuration': 'linux-x64x11-directgles_debug',
