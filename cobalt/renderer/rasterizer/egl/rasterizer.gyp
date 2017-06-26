@@ -37,6 +37,8 @@
       'type': 'static_library',
 
       'sources': [
+        'draw_callback.h',
+        'draw_callback.cc',
         'draw_object.h',
         'draw_object.cc',
         'draw_object_manager.h',
