@@ -116,15 +116,23 @@ ref class App sealed : public IFrameworkView {
   virtual void Uninitialize() { SbAudioSinkPrivate::TearDown(); }
 
   void OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args) {
-     SB_DLOG(INFO) << "Suspending";
-     ApplicationUwp::Get()->DispatchAndDelete(
-         new ApplicationUwp::Event(kSbEventTypeSuspend, NULL, NULL));
+    SB_DLOG(INFO) << "Suspending";
+    // Note if we dispatch "suspend" here before pause, application.cc
+    // will inject the "pause" which will cause us to go async which
+    // will cause us to not have completed the suspend operation before
+    // returning, which UWP requires.
+    ApplicationUwp::Get()->DispatchAndDelete(
+        new ApplicationUwp::Event(kSbEventTypePause, NULL, NULL));
+    ApplicationUwp::Get()->DispatchAndDelete(
+        new ApplicationUwp::Event(kSbEventTypeSuspend, NULL, NULL));
   }
 
   void OnResuming(Platform::Object^ sender, Platform::Object^ args) {
-     SB_DLOG(INFO) << "Resuming";
-     ApplicationUwp::Get()->DispatchAndDelete(
-         new ApplicationUwp::Event(kSbEventTypeResume, NULL, NULL));
+    SB_DLOG(INFO) << "Resuming";
+    ApplicationUwp::Get()->DispatchAndDelete(
+        new ApplicationUwp::Event(kSbEventTypeResume, NULL, NULL));
+    ApplicationUwp::Get()->DispatchAndDelete(
+        new ApplicationUwp::Event(kSbEventTypeUnpause, NULL, NULL));
   }
 
   void OnKeyUp(CoreWindow^ sender, KeyEventArgs^ args) {
