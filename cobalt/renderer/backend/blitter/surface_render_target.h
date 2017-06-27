@@ -30,7 +30,7 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
   SurfaceRenderTargetBlitter(SbBlitterDevice device,
                              const math::Size& dimensions);
 
-  const math::Size& GetSize() OVERRIDE;
+  const math::Size& GetSize() const OVERRIDE;
 
   SbBlitterRenderTarget GetSbRenderTarget() const OVERRIDE;
 
