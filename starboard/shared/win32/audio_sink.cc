@@ -52,9 +52,14 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
-    // TODO make sure to set appropriate MaxFrequencyRatio
-    // and use that mechanism here
-    SB_NOTIMPLEMENTED();
+    SB_DCHECK(playback_rate >= 0.0);
+    if (playback_rate != 0.0 && playback_rate != 1.0) {
+      SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
+                             "currently supported.";
+      playback_rate = (playback_rate > 0.0) ? 1.0 : 0.0;
+    }
+    ScopedLock lock(mutex_);
+    playback_rate_ = playback_rate;
   }
 
  private:
@@ -77,10 +82,12 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   // that IXAudio2SourceVoice cannot be a ComPtr.
   IXAudio2SourceVoice* source_voice_;
 
-  // mutex_ protects only destroying_. Everything else is immutable
+  // mutex_ protects only destroying_ and playback_rate_.
+  // Everything else is immutable
   // after the constructor.
   ::starboard::Mutex mutex_;
   bool destroying_;
+  double playback_rate_;
 };
 
 XAudioAudioSink::XAudioAudioSink(
@@ -99,7 +106,8 @@ XAudioAudioSink::XAudioAudioSink(
       frame_buffers_(frame_buffers),
       frame_buffers_size_in_frames_(frame_buffers_size_in_frames),
       wfx_(wfx),
-      destroying_(false) {
+      destroying_(false),
+      playback_rate_(1.0) {
   // TODO: Check MaxFrequencyRadio
   CHECK_HRESULT_OK(
       type_->x_audio2_->CreateSourceVoice(&source_voice_, &wfx, 0,
@@ -163,11 +171,17 @@ void XAudioAudioSink::AudioThreadFunc() {
     }
     int frames_in_buffer, offset_in_frames;
     bool is_playing, is_eos_reached;
+    bool is_playback_rate_zero;
+    {
+      ScopedLock lock(mutex_);
+      is_playback_rate_zero = playback_rate_ == 0.0;
+    }
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
+
     // TODO: make sure that frames_in_buffer is large enough
     // that it exceeds the voice state pool interval
-    if (!is_playing || frames_in_buffer == 0) {
+    if (!is_playing || frames_in_buffer == 0 || is_playback_rate_zero) {
       SbThreadSleep(kSbTimeMillisecond * 5);
       continue;
     }
