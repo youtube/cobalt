@@ -34,7 +34,7 @@ class DisplayRenderTargetBlitter : public RenderTargetBlitter {
   DisplayRenderTargetBlitter(SbBlitterDevice device,
                              system_window::SystemWindow* system_window);
 
-  const math::Size& GetSize() OVERRIDE;
+  const math::Size& GetSize() const OVERRIDE;
 
   SbBlitterRenderTarget GetSbRenderTarget() const OVERRIDE;
 
@@ -64,7 +64,7 @@ DisplayRenderTargetBlitter::DisplayRenderTargetBlitter(
   size_.SetSize(window_size.width, window_size.height);
 }
 
-const math::Size& DisplayRenderTargetBlitter::GetSize() { return size_; }
+const math::Size& DisplayRenderTargetBlitter::GetSize() const { return size_; }
 
 DisplayRenderTargetBlitter::~DisplayRenderTargetBlitter() {
   SbBlitterDestroySwapChain(swap_chain_);

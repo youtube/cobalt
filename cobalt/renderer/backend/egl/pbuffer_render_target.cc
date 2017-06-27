@@ -47,7 +47,7 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
   CHECK_EQ(EGL_SUCCESS, eglGetError());
 }
 
-const math::Size& PBufferRenderTargetEGL::GetSize() { return size_; }
+const math::Size& PBufferRenderTargetEGL::GetSize() const { return size_; }
 
 EGLSurface PBufferRenderTargetEGL::GetSurface() const {
   return surface_;
