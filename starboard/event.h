@@ -18,23 +18,48 @@
 //
 // ## The Starboard Application life cycle
 //
-// |          *
-// |          |                      _________________________
-// |        Start                   |                         |
-// |          |                     |                       Resume
-// |          V                     V                         |
-// |     [ STARTED ] --Pause--> [ PAUSED ] --Suspend--> [ SUSPENDED ]
-// |          ^                     |                         |
-// |          |                  Unpause                     Stop
-// |          |_____________________|                         |
-// |                                                          V
-// |                                                     [ STOPPED ]
+// |     ---------- *
+// |    |           |
+// |    |        Preload
+// |    |           |
+// |    |           V
+// |  Start   [ PRELOADING ] ------------
+// |    |           |                    |
+// |    |         Start                  |
+// |    |           |                    |
+// |    |           V                    |
+// |     ----> [ STARTED ] <----         |
+// |                |           |        |
+// |              Pause       Unpause    |
+// |                |           |     Suspend
+// |                V           |        |
+// |     -----> [ PAUSED ] -----         |
+// |    |           |                    |
+// | Resume      Suspend                 |
+// |    |           |                    |
+// |    |           V                    |
+// |     ---- [ SUSPENDED ] <------------
+// |                |
+// |               Stop
+// |                |
+// |                V
+// |           [ STOPPED ]
 //
-// The first event that a Starboard application receives is Start
-// (kSbEventTypeStart). This puts the application in the |STARTED| state.
-// The application is in the foreground and can expect to do all of the normal
-// things it might want to do. Once in the |STARTED| state, it may receive a
-// |Pause| event, putting the application into the |PAUSED| state.
+// The first event that a Starboard application receives is either |Start|
+// (kSbEventTypeStart) or |Preload| (kSbEventTypePreload). |Start| puts the
+// application application in the |STARTED| state, whereas |Preload| puts the
+// application in the |PRELOADING| state.
+//
+// |PRELOADING| can only happen as the first application state. In this state,
+// the application should start and run as normal, but will not receive any
+// input, and should not try to initialize graphics resources (via GL or
+// SbBlitter). In |PRELOADING|, the application can receive |Start| or |Suspend|
+// events. |Start| will receive the same data that was passed into |Preload|.
+//
+// In the |STARTED| state, the application is in the foreground and can expect
+// to do all of the normal things it might want to do. Once in the |STARTED|
+// state, it may receive a |Pause| event, putting the application into the
+// |PAUSED| state.
 //
 // In the |PAUSED| state, the application is still visible, but has lost
 // focus, or it is partially obscured by a modal dialog, or it is on its way
@@ -70,11 +95,33 @@ extern "C" {
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
 typedef enum SbEventType {
-  // The first event that an application receives on startup. Applications
-  // should perform initialization and prepare to react to subsequent events.
-  // Applications that wish to run and then exit must call SbSystemRequestStop()
-  // to terminate. This event will only be sent once for a given process launch.
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  // Applications should perform initialization and prepare to react to
+  // subsequent events, but must not initialize any graphics resources (through
+  // GL or SbBlitter). The intent of this event is to allow the application to
+  // do as much work as possible ahead of time, so that when the application is
+  // first brought to the foreground, it's as fast as a resume.
+  //
+  // The |kSbEventTypeStart| event may be sent at any time, regardless of
+  // initialization state. Input events will not be sent in the |PRELOADING|
+  // state. This event will only be sent once for a given process launch.
   // SbEventStartData is passed as the data argument.
+  //
+  // The system may send |kSbEventTypeSuspend| in |PRELOADING| if it wants to
+  // push the app into a lower resource consumption state. Applications can alo
+  // call SbSystemRequestSuspend() when they are done preloading to request
+  // this.
+  kSbEventTypePreload,
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+
+  // The first event that an application receives on startup when starting
+  // normally (i.e. not being preloaded). Applications should perform
+  // initialization, start running, and prepare to react to subsequent
+  // events. Applications that wish to run and then exit must call
+  // |SbSystemRequestStop()| to terminate. This event will only be sent once for
+  // a given process launch. |SbEventStartData| is passed as the data
+  // argument. In case of preload, the |SbEventStartData| will be the same as
+  // what was passed to |kSbEventTypePreload|.
   kSbEventTypeStart,
 
   // A dialog will be raised or the application will otherwise be put into a
