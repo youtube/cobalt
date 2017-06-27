@@ -121,6 +121,8 @@ class BrowserModule {
 
   // Undoes the call to Suspend(), returning to normal functionality.
   void Resume();
+  // When system was lacking memory, this function call.
+  void LowMemory();
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)

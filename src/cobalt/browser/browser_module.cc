@@ -915,7 +915,7 @@ void BrowserModule::Resume() {
 
   suspended_ = false;
 }
-
+void BrowserModule::LowMemory() { web_module_->PurgeResource(); }
 #if defined(OS_STARBOARD)
 void BrowserModule::OnRendererSubmissionRasterized() {
   TRACE_EVENT0("cobalt::browser",

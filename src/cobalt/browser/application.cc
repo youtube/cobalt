@@ -666,6 +666,10 @@ void Application::OnApplicationEvent(const base::Event* event) {
     ++app_resume_count_;
     browser_module_->Resume();
     DLOG(INFO) << "Finished resuming.";
+  } else if (app_event->type() == system_window::ApplicationEvent::kLowMemory) {
+    DLOG(INFO) << "Got LowMemory event.";
+    browser_module_->LowMemory();
+    DLOG(INFO) << "Finished LowMemory.";
   }
 }
 

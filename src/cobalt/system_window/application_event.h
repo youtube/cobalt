@@ -28,6 +28,7 @@ class ApplicationEvent : public base::Event {
     kUnpause,
     kSuspend,
     kResume,
+    kLowMemory,
   };
 
   explicit ApplicationEvent(Type type) : type_(type) {}

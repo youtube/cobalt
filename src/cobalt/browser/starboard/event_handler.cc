@@ -90,6 +90,10 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
+    case kSbEventTypeLowMemory:
+      DispatchEventInternal(new system_window::ApplicationEvent(
+          system_window::ApplicationEvent::kLowMemory));
+      break;
 #endif  // SB_API_VERSION >= 4
     default:
       DLOG(WARNING) << "Unhandled Starboard event of type: "

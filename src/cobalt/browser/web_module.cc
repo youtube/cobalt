@@ -154,6 +154,7 @@ class WebModule::Impl {
                          const base::SourceLocation& script_location,
                          base::WaitableEvent* got_result, std::string* result,
                          bool *out_succeeded);
+  void PurgeResource();
 
   // Clears disables timer related objects
   // so that the message loop can easily exit
@@ -633,7 +634,16 @@ void WebModule::Impl::ExecuteJavascript(
       out_succeeded);
   got_result->Signal();
 }
-
+void WebModule::Impl::PurgeResource() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  PurgeResourceCaches();
+  window_->document()->PurgeCachedResources();
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
+}
 void WebModule::Impl::ClearAllIntervalsAndTimeouts() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(window_);
@@ -978,7 +988,11 @@ std::string WebModule::ExecuteJavascript(
   got_result.Wait();
   return result;
 }
-
+void WebModule::PurgeResource() {
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::PurgeResource,
+                                      base::Unretained(impl_.get())));
+}
 void WebModule::ClearAllIntervalsAndTimeouts() {
   TRACE_EVENT0("cobalt::browser", "WebModule::ClearAllIntervalsAndTimeouts()");
   DCHECK(message_loop());

@@ -202,6 +202,7 @@ class WebModule {
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location,
                                 bool* out_succeeded);
+  void PurgeResource();
 
 #if defined(ENABLE_WEBDRIVER)
   // Creates a new webdriver::WindowDriver that interacts with the Window that

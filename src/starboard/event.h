@@ -157,6 +157,8 @@ typedef enum SbEventType {
   // query the accessibility settings using the appropriate APIs to get the
   // new settings.
   kSbEventTypeAccessiblitySettingsChanged,
+  // The platform's not enought memory, This Event will call
+  kSbEventTypeLowMemory,
 #endif
 } SbEventType;
 
