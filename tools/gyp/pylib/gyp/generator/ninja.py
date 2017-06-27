@@ -12,9 +12,19 @@ import re
 import signal
 import subprocess
 import sys
+
+_COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 6 * [os.pardir])))
+sys.path.append(os.path.join(_COBALT_SRC, 'cobalt', 'build', 'config'))
+from base import LoadPlatformConfig
+
 import gyp
 import gyp.common
-import gyp.msvs_emulation
+
+# TODO: These should be replaced with calls to the abstract tool chain, when it
+# is implemented on all supported platforms.
+from gyp.msvs_emulation import EncodeRspFileList
+from gyp.msvs_emulation import GenerateEnvironmentFiles
+from gyp.msvs_emulation import MsvsSettings
 import gyp.MSVSUtil as MSVSUtil
 import gyp.xcode_emulation
 
@@ -80,6 +90,14 @@ microsoft_flavors = ['win', 'win-console', 'win-lib', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
+def ToolchainImpl(flavor):
+  platform_config = LoadPlatformConfig(flavor)
+  toolchain = platform_config.GetToolchain()
+  if toolchain:
+    return toolchain
+  return None
+
+
 def StripPrefix(arg, prefix):
   if arg.startswith(prefix):
     return arg[len(prefix):]
@@ -93,8 +111,8 @@ def QuoteShellArgument(arg, flavor):
   # whitelist common OK ones and quote anything else.
   if re.match(r'^[a-zA-Z0-9_=.\\/-]+$', arg):
     return arg  # No quoting necessary.
-  if flavor in microsoft_flavors:
-    return gyp.msvs_emulation.QuoteForRspFile(arg)
+  if ToolchainImpl(flavor):
+    return ToolchainImpl(flavor).QuoteForRspFile(arg)
   elif flavor in sony_flavors :
     # Escape double quotes.
     return '"' + arg.replace('\"', '\\\"') + '"'
@@ -104,11 +122,6 @@ def QuoteShellArgument(arg, flavor):
 def Define(d, flavor):
   """Takes a preprocessor define and returns a -D parameter that's ninja- and
   shell-escaped."""
-  if flavor in microsoft_flavors:
-    # cl.exe replaces literal # characters with = in preprocesor definitions for
-    # some reason. Octal-encode to work around that.
-    d = d.replace('#', '\\%03o' % ord('#'))
-    return '/D' + gyp.msvs_emulation.QuoteForRspFile(ninja_syntax.escape(d))
 
   return QuoteShellArgument(ninja_syntax.escape('-D' + d), flavor)
 
@@ -298,7 +311,7 @@ class NinjaWriter:
 
   def ExpandRuleVariables(self, path, root, dirname, source, ext, name):
     if self.flavor == 'win':
-      path = self.msvs_settings.ConvertVSMacros(
+      path = ToolchainImpl(self.flavor).GetCompilerSettings().ConvertVSMacros(
           path, config=self.config_name)
     path = path.replace(generator_default_variables['RULE_INPUT_ROOT'], root)
     path = path.replace(generator_default_variables['RULE_INPUT_DIRNAME'],
@@ -326,8 +339,8 @@ class NinjaWriter:
     if env:
       if self.flavor == 'mac':
         path = gyp.xcode_emulation.ExpandEnvVars(path, env)
-      elif self.flavor in microsoft_flavors:
-        path = gyp.msvs_emulation.ExpandMacros(path, env)
+      elif ToolchainImpl(self.flavor):
+        path = ToolchainImpl(self.flavor).ExpandEnvVars(path, env)
     if path.startswith('$!'):
       expanded = self.ExpandSpecial(path)
       if self.flavor == 'win':
@@ -412,15 +425,21 @@ class NinjaWriter:
         spec.get('standalone_static_library', 0))
 
     self.is_mac_bundle = gyp.xcode_emulation.IsMacBundle(self.flavor, spec)
-    self.xcode_settings = self.msvs_settings = None
+    self.xcode_settings = None
     if self.flavor == 'mac':
       self.xcode_settings = gyp.xcode_emulation.XcodeSettings(spec)
     if (self.flavor in windows_host_flavors
         and is_windows):
-      self.msvs_settings = gyp.msvs_emulation.MsvsSettings(spec,
+      if self.flavor in sony_flavors:
+        self.msvs_settings = gyp.msvs_emulation.MsvsSettings(spec,
                                                            generator_flags)
-      arch = self.msvs_settings.GetArch(config_name)
+        arch = self.msvs_settings.GetArch(config_name)
+      else:
+        ToolchainImpl(self.flavor).InitCompilerSettings(spec,
+          **{'generator_flags': generator_flags})
+        arch = ToolchainImpl(self.flavor).GetCompilerSettings().GetArch(config_name)
       self.ninja.variable('arch', self.win_env[arch])
+      None
 
     # Compute predepends for all rules.
     # actions_depends is the dependencies this target depends on before running
@@ -465,12 +484,17 @@ class NinjaWriter:
     sources = spec.get('sources', []) + extra_sources
     if sources:
       pch = None
-      if self.flavor in microsoft_flavors:
-        gyp.msvs_emulation.VerifyMissingSources(
-            sources, self.abs_build_dir, generator_flags, self.GypPathToNinja)
-        pch = gyp.msvs_emulation.PrecompiledHeader(
-            self.msvs_settings, config_name, self.GypPathToNinja,
-            self.GypPathToUniqueOutput, self.obj_ext)
+      if ToolchainImpl(self.flavor):
+        ToolchainImpl(self.flavor).VerifyMissingSources(
+            sources, **{'build_dir': self.abs_build_dir,
+            'generator_flags': generator_flags,
+            'gyp_path_to_ninja': self.GypPathToNinja})
+        pch = ToolchainImpl(self.flavor).GetPrecompiledHeader(
+            **{'settings': ToolchainImpl(self.flavor).GetCompilerSettings(),
+            'config': config_name,
+            'gyp_path_to_ninja': self.GypPathToNinja,
+            'gyp_path_to_unique_output': self.GypPathToUniqueOutput,
+            'obj_ext': self.obj_ext})
       else:
         pch = gyp.xcode_emulation.MacPrefixHeader(
             self.xcode_settings, self.GypPathToNinja,
@@ -505,7 +529,7 @@ class NinjaWriter:
   def _WinIdlRule(self, source, prebuild, outputs):
     """Handle the implicit VS .idl rule for one source file. Fills |outputs|
     with files that are generated."""
-    outdir, output, vars, flags = self.msvs_settings.GetIdlBuildData(
+    outdir, output, vars, flags = ToolchainImpl(self.flavor).GetCompilerSettings().GetIdlBuildData(
         source, self.config_name)
     outdir = self.GypPathToNinja(outdir)
     def fix_path(path, rel=None):
@@ -528,8 +552,8 @@ class NinjaWriter:
 
   def WriteWinIdlFiles(self, spec, prebuild):
     """Writes rules to match MSVS's implicit idl handling."""
-    assert self.flavor in microsoft_flavors
-    if self.msvs_settings.HasExplicitIdlRules(spec):
+    assert ToolchainImpl(self.flavor)
+    if ToolchainImpl(self.flavor).GetCompilerSettings().HasExplicitIdlRules(spec):
       return []
     outputs = []
     for source in filter(lambda x: x.endswith('.idl'), spec['sources']):
@@ -586,7 +610,7 @@ class NinjaWriter:
     # Actions cd into the base directory.
     env = self.GetSortedXcodeEnv()
     if self.flavor == 'win':
-      env = self.msvs_settings.GetVSMacroEnv(
+      env = ToolchainImpl(self.flavor).GetCompilerSettings().GetVSMacroEnv(
           '$!PRODUCT_DIR', config=self.config_name)
     all_outputs = []
     for action in actions:
@@ -810,11 +834,11 @@ class NinjaWriter:
                     self.xcode_settings.GetCflagsObjC(config_name)
       cflags_objcc = ['$cflags_cc'] + \
                      self.xcode_settings.GetCflagsObjCC(config_name)
-    elif self.flavor in microsoft_flavors:
-      cflags = self.msvs_settings.GetCflags(config_name)
-      cflags_c = self.msvs_settings.GetCflagsC(config_name)
-      cflags_cc = self.msvs_settings.GetCflagsCC(config_name)
-      extra_defines = self.msvs_settings.GetComputedDefines(config_name)
+    elif ToolchainImpl(self.flavor):
+      cflags = ToolchainImpl(self.flavor).GetCompilerSettings().GetCflags(config_name)
+      cflags_c = ToolchainImpl(self.flavor).GetCompilerSettings().GetCflagsC(config_name)
+      cflags_cc = ToolchainImpl(self.flavor).GetCompilerSettings().GetCflagsCC(config_name)
+      extra_defines = ToolchainImpl(self.flavor).GetCompilerSettings().GetDefines(config_name)
       obj = 'obj'
       if self.toolset != 'target':
         obj += '.' + self.toolset
@@ -832,21 +856,24 @@ class NinjaWriter:
     cflags_cc_host = config.get('cflags_cc_host', cflags_cc)
 
     defines = config.get('defines', []) + extra_defines
-    self.WriteVariableList('defines', [Define(d, self.flavor) for d in defines])
-    if self.flavor in microsoft_flavors:
+    if ToolchainImpl(self.flavor):
+        self.WriteVariableList('defines', [ToolchainImpl(self.flavor).Define(d) for d in defines])
+    else:
+        self.WriteVariableList('defines', [Define(d, self.flavor) for d in defines])
+    if ToolchainImpl(self.flavor):
       self.WriteVariableList('rcflags',
           [QuoteShellArgument(self.ExpandSpecial(f), self.flavor)
-           for f in self.msvs_settings.GetRcflags(config_name,
+           for f in ToolchainImpl(self.flavor).GetCompilerSettings().GetRcFlags(config_name,
                                                   self.GypPathToNinja)])
 
     include_dirs = config.get('include_dirs', [])
     include_dirs += config.get('include_dirs_' + self.toolset, [])
 
-    if self.flavor in microsoft_flavors:
-      include_dirs = self.msvs_settings.AdjustIncludeDirs(include_dirs,
+    if ToolchainImpl(self.flavor):
+      include_dirs = ToolchainImpl(self.flavor).GetCompilerSettings().ProcessIncludeDirs(include_dirs,
                                                           config_name)
       self.WriteVariableList('includes',
-        ['/I' + gyp.msvs_emulation.QuoteForRspFile(self.GypPathToNinja(i))
+        ['/I' + ToolchainImpl(self.flavor).QuoteForRspFile(self.GypPathToNinja(i))
          for i in include_dirs])
     else:
       self.WriteVariableList('includes',
@@ -890,8 +917,8 @@ class NinjaWriter:
       elif ext == 's' and self.flavor != 'win':  # Doesn't generate .o.d files.
         command = 'cc_s'
       elif (self.flavor == 'win' and ext == 'asm' and
-            self.msvs_settings.GetArch(config_name) == 'x86' and
-            not self.msvs_settings.HasExplicitAsmRules(spec)):
+            ToolchainImpl(self.flavor).GetCompilerSettings().GetArch(config_name) == 'x86' and
+            not ToolchainImpl(self.flavor).GetCompilerSettings().HasExplicitAsmRules(spec)):
         # Asm files only get auto assembled for x86 (not x64).
         command = 'asm'
         # Add the _asm suffix as msvs is capable of handling .cc and
@@ -902,6 +929,7 @@ class NinjaWriter:
       elif self.flavor == 'mac' and ext == 'mm':
         command = 'objcxx'
       elif self.flavor in microsoft_flavors and ext == 'rc':
+        # TODO: Starboardize this.
         command = 'rc'
         obj_ext = '.res'
       else:
@@ -914,7 +942,7 @@ class NinjaWriter:
       output = self.GypPathToUniqueOutput(filename + obj_ext)
       implicit = precompiled_header.GetObjDependencies([input], [output])
       variables = []
-      if self.flavor in microsoft_flavors:
+      if ToolchainImpl(self.flavor):
         variables, output, implicit = precompiled_header.GetFlagsModifications(
             input, output, implicit, command, cflags_c, cflags_cc,
             self.ExpandSpecial)
@@ -969,9 +997,10 @@ class NinjaWriter:
         if not target:
           continue
         linkable = target.Linkable()
+        # TODO: Starboardize.
         if linkable:
           if (self.flavor in microsoft_flavors and target.component_objs and
-              self.msvs_settings.IsUseLibraryDependencyInputs(config_name)):
+              ToolchainImpl(self.flavor).GetCompilerSettings().IsUseLibraryDependencyInputs(config_name)):
             extra_link_deps.extend(target.component_objs)
           elif (self.flavor in (microsoft_flavors + ['ps3']) and
                 target.import_lib):
@@ -1004,16 +1033,19 @@ class NinjaWriter:
       ldflags = self.xcode_settings.GetLdflags(config_name,
           self.ExpandSpecial(generator_default_variables['PRODUCT_DIR']),
           self.GypPathToNinja)
-    elif self.flavor in microsoft_flavors:
-      libflags = self.msvs_settings.GetLibFlags(config_name,
+    elif ToolchainImpl(self.flavor):
+      libflags = ToolchainImpl(self.flavor).GetCompilerSettings().GetLibFlags(config_name,
                                                 self.GypPathToNinja)
       self.WriteVariableList(
           'libflags', gyp.common.uniquer(map(self.ExpandSpecial, libflags)))
       is_executable = spec['type'] == 'executable'
       manifest_name = self.GypPathToUniqueOutput(
           self.ComputeOutputFileName(spec))
-      ldflags, manifest_files = self.msvs_settings.GetLdflags(config_name,
-          self.GypPathToNinja, self.ExpandSpecial, manifest_name, is_executable)
+      ldflags, manifest_files = ToolchainImpl(self.flavor).GetCompilerSettings().GetLdFlags(config_name,
+          **{'gyp_path_to_ninja': self.GypPathToNinja,
+          'expand_special': self.ExpandSpecial,
+          'manifest_name': manifest_name,
+          'is_executable': is_executable})
       self.WriteVariableList('manifests', manifest_files)
     else:
       ldflags = config.get('ldflags', [])
@@ -1038,8 +1070,8 @@ class NinjaWriter:
 
     if self.flavor == 'mac':
       libraries = self.xcode_settings.AdjustLibraries(libraries)
-    elif self.flavor in microsoft_flavors:
-      libraries = self.msvs_settings.AdjustLibraries(libraries)
+    elif ToolchainImpl(self.flavor):
+      libraries = ToolchainImpl(self.flavor).GetCompilerSettings().ProcessLibraries(libraries)
     self.WriteVariableList('libs', libraries)
 
     self.target.binary = output
@@ -1048,6 +1080,7 @@ class NinjaWriter:
       extra_bindings.append(('soname', os.path.split(output)[1]))
       extra_bindings.append(('lib',
                             gyp.common.EncodePOSIXShellArgument(output)))
+      # TODO: Starboardize.
       if self.flavor in microsoft_flavors:
         extra_bindings.append(('dll', output))
         if '/NOENTRY' not in ldflags:
@@ -1114,9 +1147,10 @@ class NinjaWriter:
     elif spec['type'] == 'static_library':
       self.target.binary = self.ComputeOutput(spec)
       variables = []
-      if self.flavor in microsoft_flavors:
-        libflags = self.msvs_settings.GetLibFlags(config_name,
+      if ToolchainImpl(self.flavor):
+        libflags = ToolchainImpl(self.flavor).GetCompilerSettings().GetLibFlags(config_name,
                                                   self.GypPathToNinja)
+        # TODO: Starboardize libflags vs libtool_flags.
         variables.append(('libflags', ' '.join(libflags)))
       postbuild = self.GetPostbuildCommand(
           spec, self.target.binary, self.target.binary)
@@ -1125,6 +1159,7 @@ class NinjaWriter:
       if self.xcode_settings:
         variables.append(('libtool_flags',
                           self.xcode_settings.GetLibtoolflags(config_name)))
+      # TODO: Starboardize.
       if (self.flavor not in (['mac'] + microsoft_flavors) and not
           self.is_standalone_static_library):
         command = 'alink_thin'
@@ -1242,7 +1277,10 @@ class NinjaWriter:
       type = spec['type']
 
     default_variables = copy.copy(generator_default_variables)
-    CalculateVariables(default_variables, {'flavor': self.flavor})
+    if ToolchainImpl(self.flavor):
+      ToolchainImpl(self.flavor).SetAdditionalGypVariables(default_variables)
+    else:
+      CalculateVariables(default_variables, {'flavor': self.flavor})
 
     # Compute filename prefix: the product prefix, or a default for
     # the product type.
@@ -1299,7 +1337,7 @@ class NinjaWriter:
       type = spec['type']
 
     if self.flavor == 'win':
-      override = self.msvs_settings.GetOutputName(self.config_name,
+      override = ToolchainImpl(self.flavor).GetCompilerSettings().GetOutputName(self.config_name,
                                                   self.ExpandSpecial)
       if override:
         return override
@@ -1345,10 +1383,10 @@ class NinjaWriter:
     expanded."""
 
     if self.flavor == 'win':
-      args = [self.msvs_settings.ConvertVSMacros(
+      args = [ToolchainImpl(self.flavor).GetCompilerSettings().ConvertVSMacros(
                   arg, self.base_to_build, config=self.config_name)
               for arg in args]
-      description = self.msvs_settings.ConvertVSMacros(
+      description = ToolchainImpl(self.flavor).GetCompilerSettings().ConvertVSMacros(
           description, config=self.config_name)
     elif self.flavor == 'mac':
       # |env| is an empty list on non-mac.
@@ -1385,8 +1423,10 @@ class NinjaWriter:
       if is_cygwin:
         rspfile_content = self.msvs_settings.BuildCygwinBashCommandLine(
             args, self.build_to_base)
-      else:
+      elif self.flavor in sony_flavors:
         rspfile_content = gyp.msvs_emulation.EncodeRspFileList(args)
+      else:
+        rspfile_content = ToolchainImpl(self.flavor).EncodeRspFileList(args)
 
       command = ('%s gyp-win-tool action-wrapper $arch ' % sys.executable +
                  rspfile + run_in)
@@ -1428,36 +1468,6 @@ def CalculateVariables(default_variables, params):
     global generator_extra_sources_for_rules
     generator_extra_sources_for_rules = getattr(xcode_generator,
         'generator_extra_sources_for_rules', [])
-  elif flavor in microsoft_flavors:
-    default_variables.setdefault('OS', 'win')
-    default_variables['EXECUTABLE_SUFFIX'] = '.exe'
-    default_variables['STATIC_LIB_PREFIX'] = ''
-    default_variables['STATIC_LIB_SUFFIX'] = '.lib'
-    default_variables['SHARED_LIB_PREFIX'] = ''
-    default_variables['SHARED_LIB_SUFFIX'] = '.dll'
-    generator_flags = params.get('generator_flags', {})
-
-    # Copy additional generator configuration data from VS, which is shared
-    # by the Windows Ninja generator.
-    import gyp.generator.msvs as msvs_generator
-    generator_additional_non_configuration_keys = getattr(msvs_generator,
-        'generator_additional_non_configuration_keys', [])
-    generator_additional_path_sections = getattr(msvs_generator,
-        'generator_additional_path_sections', [])
-
-    # Set a variable so conditions can be based on msvs_version.
-    msvs_version = gyp.msvs_emulation.GetVSVersion(generator_flags)
-    default_variables['MSVS_VERSION'] = msvs_version.ShortName()
-
-    # To determine processor word size on Windows, in addition to checking
-    # PROCESSOR_ARCHITECTURE (which reflects the word size of the current
-    # process), it is also necessary to check PROCESSOR_ARCHITEW6432 (which
-    # contains the actual word size of the system when running thru WOW64).
-    if ('64' in os.environ.get('PROCESSOR_ARCHITECTURE', '') or
-        '64' in os.environ.get('PROCESSOR_ARCHITEW6432', '')):
-      default_variables['MSVS_OS_BITS'] = 64
-    else:
-      default_variables['MSVS_OS_BITS'] = 32
   elif flavor in ['ps3']:
     if is_windows:
       # This is required for BuildCygwinBashCommandLine() to work.
@@ -1611,11 +1621,12 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
     gyp.msvs_emulation.GenerateEnvironmentFiles(
         toplevel_build, generator_flags, OpenOutput)
     ld_host = '$ld'
-  elif flavor in microsoft_flavors:
+  elif ToolchainImpl(flavor):
+    # TODO: starboardize.
     cc = 'cl.exe'
     cxx = 'cl.exe'
     ld = 'link.exe'
-    gyp.msvs_emulation.GenerateXB1EnvironmentFiles(
+    ToolchainImpl(flavor).GenerateEnvironmentFiles(
         toplevel_build, generator_flags, OpenOutput)
     ld_host = '$ld'
   else:
@@ -2261,6 +2272,7 @@ def CallGenerateOutputForConfig(arglist):
 
 def GenerateOutput(target_list, target_dicts, data, params):
   user_config = params.get('generator_flags', {}).get('config', None)
+  # TODO: Replace MSVSUtil with calls to abstract toolchain.
   if gyp.common.GetFlavor(params) in microsoft_flavors:
     target_list, target_dicts = MSVSUtil.ShardTargets(target_list, target_dicts)
   if user_config:
