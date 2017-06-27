@@ -23,6 +23,7 @@ import tv_testcase_util
 # pylint: disable=C0103
 ActionChains = tv_testcase_util.import_selenium_module(
     submodule="webdriver.common.action_chains").ActionChains
+keys = tv_testcase_util.import_selenium_module("webdriver.common.keys")
 
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
@@ -30,6 +31,7 @@ PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 60
 HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
+SKIP_AD_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
 
 _is_initialized = False
@@ -116,6 +118,7 @@ class TvTestCase(unittest.TestCase):
     Raises:
       Underlying WebDriver exceptions
     """
+    self.get_webdriver().execute_script("h5vcc.storage.clearCookies()")
     self.clear_url_loaded_events()
     self.get_webdriver().get(
         tv_testcase_util.generate_url(self.get_default_url(), query_params))
@@ -187,16 +190,16 @@ class TvTestCase(unittest.TestCase):
       self.assertEqual(len(elements), expected_num)
     return elements
 
-  def send_keys(self, keys):
+  def send_keys(self, key_events):
     """Sends keys to whichever element currently has focus.
 
     Args:
-      keys: key events
+      key_events: key events
 
     Raises:
       Underlying WebDriver exceptions
     """
-    ActionChains(self.get_webdriver()).send_keys(keys).perform()
+    ActionChains(self.get_webdriver()).send_keys(key_events).perform()
 
   def clear_url_loaded_events(self):
     """Clear the events that indicate that Cobalt finished loading a URL."""
@@ -297,7 +300,26 @@ class TvTestCase(unittest.TestCase):
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
         return False
       time.sleep(0.1)
+
     return True
+
+  def skip_advertisement_if_playing(self):
+    """Waits to skip an ad if it is encountered.
+
+    Returns:
+      True if a skippable advertisement was encountered
+    """
+    start_time = time.time()
+    if not self.find_elements(tv.SKIP_AD_BUTTON_HIDDEN):
+      while not self.find_elements(tv.SKIP_AD_BUTTON_CAN_SKIP):
+        if time.time() - start_time > SKIP_AD_TIMEOUT_SECONDS:
+          return True
+        time.sleep(0.1)
+      self.send_keys(keys.Keys.ENTER)
+      self.wait_for_processing_complete()
+      return True
+
+    return False
 
   def wait_for_title_card_hidden(self):
     """Waits for the title to disappear while a video is playing.
