@@ -41,7 +41,7 @@ SurfaceRenderTargetBlitter::~SurfaceRenderTargetBlitter() {
   }
 }
 
-const math::Size& SurfaceRenderTargetBlitter::GetSize() { return size_; }
+const math::Size& SurfaceRenderTargetBlitter::GetSize() const { return size_; }
 
 SbBlitterRenderTarget SurfaceRenderTargetBlitter::GetSbRenderTarget() const {
   return render_target_;
