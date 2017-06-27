@@ -33,7 +33,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
 
  private:
   void* memory_block_;
-  starboard::LockedPtr<nb::MemoryPool> memory_pool_;
+  starboard::LockedPtr<nb::FirstFitMemoryPool> memory_pool_;
 };
 
 }  // namespace media
