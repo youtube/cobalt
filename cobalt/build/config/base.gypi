@@ -408,10 +408,10 @@
     'platform_libraries%': [],
 
 
-    # The only currently-supported Javascript engine is 'mozjs'.
+    # The only currently-supported Javascript engine is 'mozjs-45'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'mozjs',
+    #'javascript_engine%': 'mozjs-45',
 
     # Disable jit and run in interpreter-only mode by default. It can be set to
     # 1 to run in jit mode.  We have found that disabling jit often results in
