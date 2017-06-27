@@ -82,6 +82,10 @@
 // to starboard/decode_target.h.
 #define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_EXPERIMENTAL_API_VERSION
 
+// Adds the kSbEventTypePreload event, and modifies the application state
+// machine to utilize it.
+#define SB_PRELOAD_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 
