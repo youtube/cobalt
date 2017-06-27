@@ -37,11 +37,11 @@ class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
   RenderTarget();
 
   // Return metadata about the render target such as dimensions and format.
-  virtual const math::Size& GetSize() = 0;
+  virtual const math::Size& GetSize() const = 0;
 
   // Returns a platform-specific handle to the render target that can be
   // passed into platform-specific code.
-  virtual intptr_t GetPlatformHandle() = 0;
+  virtual intptr_t GetPlatformHandle() const = 0;
 
   // Each render is assigned a unique serial number on construction.
   int32_t GetSerialNumber() const { return serial_number_; }

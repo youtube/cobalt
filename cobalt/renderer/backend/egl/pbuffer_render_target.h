@@ -31,7 +31,7 @@ class PBufferRenderTargetEGL : public RenderTargetEGL {
   PBufferRenderTargetEGL(
       EGLDisplay display, EGLConfig config, const math::Size& dimensions);
 
-  const math::Size& GetSize() OVERRIDE;
+  const math::Size& GetSize() const OVERRIDE;
 
   EGLSurface GetSurface() const OVERRIDE;
 
