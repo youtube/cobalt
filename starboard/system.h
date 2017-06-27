@@ -185,14 +185,18 @@ typedef enum SbSystemCapabilityId {
 // |SbSystemRaisePlatformError| function.
 typedef enum SbSystemPlatformErrorType {
   // Cobalt received a network connection error, or a network disconnection
-  // event.
+  // event. If the |response| passed to |SbSystemPlatformErrorCallback| is
+  // |kSbSystemPlatformErrorResponsePositive| then the request should be
+  // retried, otherwise the app should be stopped.
   kSbSystemPlatformErrorTypeConnectionError,
 
-  // The current user is not signed in (e.g. to PSN network).
+#if SB_API_VERSION < SB_PLATFORM_ERROR_CLEANUP_API_VERSION
+  // The current user is not signed in.
   kSbSystemPlatformErrorTypeUserSignedOut,
 
   // The current user does not meet the age requirements to use the app.
   kSbSystemPlatformErrorTypeUserAgeRestricted
+#endif
 } SbSystemPlatformErrorType;
 
 // Possible responses for |SbSystemPlatformErrorCallback|.

@@ -86,6 +86,9 @@
 // machine to utilize it.
 #define SB_PRELOAD_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Removes SbSystemPlatformErrorType values specific to user status.
+#define SB_PLATFORM_ERROR_CLEANUP_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 
