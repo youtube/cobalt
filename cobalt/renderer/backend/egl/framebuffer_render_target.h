@@ -32,13 +32,15 @@ class FramebufferRenderTargetEGL : public RenderTargetEGL {
                              const math::Size& size)
       : framebuffer_(graphics_context, size, GL_RGBA, GL_NONE) {}
 
-  const math::Size& GetSize() OVERRIDE { return framebuffer_.GetSize(); }
+  const math::Size& GetSize() const OVERRIDE { return framebuffer_.GetSize(); }
 
   // This render target does not have an EGLSurface.
   EGLSurface GetSurface() const OVERRIDE { return EGL_NO_SURFACE; }
 
   // This handle is suitable for use with glBindFramebuffer.
-  intptr_t GetPlatformHandle() OVERRIDE { return framebuffer_.gl_handle(); }
+  intptr_t GetPlatformHandle() const OVERRIDE {
+    return framebuffer_.gl_handle();
+  }
 
   // Create a depth buffer for the render target if it doesn't already have one.
   void EnsureDepthBufferAttached(GLenum depth_format) {
