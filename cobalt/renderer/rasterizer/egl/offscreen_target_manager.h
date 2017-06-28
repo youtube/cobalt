@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_OFFSCREEN_TARGET_MANAGER_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_OFFSCREEN_TARGET_MANAGER_H_
 
+#include "base/callback.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/math/rect_f.h"
@@ -23,7 +24,7 @@
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "third_party/skia/include/core/SkCanvas.h"
-#include "third_party/skia/include/gpu/GrContext.h"
+#include "third_party/skia/include/core/SkSurface.h"
 
 namespace cobalt {
 namespace renderer {
@@ -35,6 +36,9 @@ namespace egl {
 // minimize the cost of switching render targets.
 class OffscreenTargetManager {
  public:
+  typedef base::Callback<SkSurface*(const backend::RenderTarget*)>
+      CreateFallbackSurfaceFunction;
+
   struct TargetInfo {
     TargetInfo()
         : framebuffer(NULL),
@@ -47,7 +51,8 @@ class OffscreenTargetManager {
   };
 
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
-                         GrContext* skia_context, size_t memory_limit);
+      const CreateFallbackSurfaceFunction& create_fallback_surface,
+      size_t memory_limit);
   ~OffscreenTargetManager();
 
   // Update must be called once per frame, before any allocation requests are
@@ -79,7 +84,7 @@ class OffscreenTargetManager {
   OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size);
 
   backend::GraphicsContextEGL* graphics_context_;
-  GrContext* skia_context_;
+  CreateFallbackSurfaceFunction create_fallback_surface_;
 
   ScopedVector<OffscreenAtlas> offscreen_atlases_;
   scoped_ptr<OffscreenAtlas> offscreen_cache_;
