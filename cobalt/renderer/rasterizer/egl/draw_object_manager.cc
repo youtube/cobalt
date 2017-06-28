@@ -14,8 +14,10 @@
 
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 
+#include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/renderer/backend/egl/utils.h"
 #include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 
 namespace cobalt {
@@ -23,26 +25,59 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-void DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> object,
-    BlendType onscreen_blend, base::TypeId onscreen_type,
-    const math::RectF& bounds) {
-  // Try to sort the object next to another object of its type. However, this
-  // can only be done as long as its bounds do not overlap with the other
-  // object while swapping draw order.
-  size_t position = draw_objects_.size();
-  while (position > 0) {
-    if (object_info_[position - 1].type <= onscreen_type) {
+DrawObjectManager::DrawObjectManager(
+    const base::Closure& reset_external_rasterizer,
+    const base::Closure& flush_external_offscreen_draws)
+    : reset_external_rasterizer_(reset_external_rasterizer),
+      flush_external_offscreen_draws_(flush_external_offscreen_draws) {}
+
+void DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
+    BlendType blend_type, base::TypeId draw_type,
+    const backend::RenderTarget* render_target,
+    const math::RectF& draw_bounds) {
+  // Sort draws to minimize GPU state changes.
+  auto position = onscreen_draws_.end();
+  for (; position != onscreen_draws_.begin(); --position) {
+    const DrawInfo& prev_draw = *(position - 1);
+
+    // Do not sort across different render targets since their contents may
+    // be generated just before consumed by a subsequent draw.
+    if (prev_draw.render_target != render_target) {
       break;
     }
-    if (object_info_[position - 1].bounds.Intersects(bounds)) {
+
+    if (prev_draw.draw_bounds.Intersects(draw_bounds)) {
       break;
     }
-    --position;
+
+    // Group native vs. non-native draws together.
+    bool current_uses_same_rasterizer = position != onscreen_draws_.end() &&
+        (blend_type == kBlendExternal) ==
+        (position->blend_type == kBlendExternal);
+    bool prev_uses_same_rasterizer =
+        (blend_type == kBlendExternal) ==
+        (prev_draw.blend_type == kBlendExternal);
+    if (!current_uses_same_rasterizer && !prev_uses_same_rasterizer) {
+      continue;
+    }
+    if (current_uses_same_rasterizer && !prev_uses_same_rasterizer) {
+      break;
+    }
+
+    if (prev_draw.draw_type > draw_type) {
+      continue;
+    } else if (prev_draw.draw_type < draw_type) {
+      break;
+    }
+
+    if (prev_draw.blend_type <= blend_type) {
+      break;
+    }
   }
 
-  object_info_.insert(object_info_.begin() + position,
-                      ObjectInfo(onscreen_type, onscreen_blend, bounds));
-  draw_objects_.insert(draw_objects_.begin() + position, object.release());
+  onscreen_draws_.insert(position,
+      DrawInfo(draw_object.Pass(), draw_type, blend_type, render_target,
+               draw_bounds));
 }
 
 void DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
@@ -61,10 +96,12 @@ void DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
   }
 
   // Sort draws to minimize GPU state changes.
-  size_t position = draw_list->size();
-  for (; position > 0; --position) {
-    const OffscreenDrawInfo& prev_draw = (*draw_list)[position - 1];
+  auto position = draw_list->end();
+  for (; position != draw_list->begin(); --position) {
+    const DrawInfo& prev_draw = *(position - 1);
 
+    // Unlike onscreen draws, offscreen draws should be grouped by
+    // render target.
     if (prev_draw.render_target > render_target) {
       continue;
     } else if (prev_draw.render_target < render_target) {
@@ -86,47 +123,104 @@ void DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
     }
   }
 
-  draw_list->insert(draw_list->begin() + position,
-      OffscreenDrawInfo(draw_object.Pass(), draw_type, blend_type,
-                        render_target, draw_bounds));
+  draw_list->insert(position,
+      DrawInfo(draw_object.Pass(), draw_type, blend_type, render_target,
+               draw_bounds));
 }
 
 void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   // Process draws handled by an external rasterizer.
-  for (size_t index = 0; index < external_offscreen_draws_.size(); ++index) {
-    external_offscreen_draws_[index].draw_object->ExecuteRasterize(
-        graphics_state, program_manager);
+  {
+    TRACE_EVENT0("cobalt::renderer", "OffscreenExternalRasterizer");
+    for (auto draw = external_offscreen_draws_.begin();
+         draw != external_offscreen_draws_.end(); ++draw) {
+      draw->draw_object->ExecuteRasterize(graphics_state, program_manager);
+    }
+    if (!flush_external_offscreen_draws_.is_null()) {
+      flush_external_offscreen_draws_.Run();
+    }
   }
 
-  // TODO: Process native rasterizer's draws.
-  DCHECK_EQ(0, offscreen_draws_.size());
+  // Update the vertex buffer for all draws.
+  {
+    TRACE_EVENT0("cobalt::renderer", "UpdateVertexBuffer");
+    ExecuteUpdateVertexBuffer(graphics_state, program_manager);
+  }
+
+  // Process the native offscreen draws.
+  {
+    TRACE_EVENT0("cobalt::renderer", "OffscreenNativeRasterizer");
+    Rasterize(offscreen_draws_, graphics_state, program_manager);
+  }
 }
 
-void DrawObjectManager::ExecuteOnscreenUpdateVertexBuffer(
+void DrawObjectManager::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  for (size_t index = 0; index < offscreen_draws_.size(); ++index) {
-    offscreen_draws_[index].draw_object->ExecuteUpdateVertexBuffer(
+  for (auto draw = offscreen_draws_.begin(); draw != offscreen_draws_.end();
+       ++draw) {
+    draw->draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
-  for (size_t index = 0; index < draw_objects_.size(); ++index) {
-    draw_objects_[index]->ExecuteUpdateVertexBuffer(
+  for (auto draw = onscreen_draws_.begin(); draw != onscreen_draws_.end();
+       ++draw) {
+    draw->draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
+  graphics_state->UpdateVertexData();
 }
 
 void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  for (size_t index = 0; index < draw_objects_.size(); ++index) {
-    if (object_info_[index].blend == kBlendNone) {
-      graphics_state->DisableBlend();
-    } else if (object_info_[index].blend == kBlendSrcAlpha) {
-      graphics_state->EnableBlend();
+  Rasterize(onscreen_draws_, graphics_state, program_manager);
+}
+
+void DrawObjectManager::Rasterize(const std::vector<DrawInfo>& draw_list,
+    GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
+  const backend::RenderTarget* current_target = nullptr;
+  bool using_native_rasterizer = true;
+
+  // Starting from an unknown state.
+  graphics_state->SetDirty();
+
+  for (auto draw = draw_list.begin(); draw != draw_list.end(); ++draw) {
+    bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
+
+    if (draw_uses_native_rasterizer) {
+      if (!using_native_rasterizer) {
+        // Transitioning from external to native rasterizer. Set the native
+        // rasterizer's state as dirty.
+        graphics_state->SetDirty();
+      }
+
+      if (draw->render_target != current_target) {
+        current_target = draw->render_target;
+        graphics_state->BindFramebuffer(current_target);
+        graphics_state->Viewport(0, 0,
+                                 current_target->GetSize().width(),
+                                 current_target->GetSize().height());
+      }
+
+      if (draw->blend_type == kBlendNone) {
+        graphics_state->DisableBlend();
+      } else if (draw->blend_type == kBlendSrcAlpha) {
+        graphics_state->EnableBlend();
+      } else {
+        NOTREACHED() << "Unsupported blend type";
+      }
+    } else {
+      if (using_native_rasterizer) {
+        // Transitioning from native to external rasterizer. Set the external
+        // rasterizer's state as dirty.
+        if (!reset_external_rasterizer_.is_null()) {
+          reset_external_rasterizer_.Run();
+        }
+      }
     }
 
-    draw_objects_[index]->ExecuteRasterize(
-        graphics_state, program_manager);
+    draw->draw_object->ExecuteRasterize(graphics_state, program_manager);
+    using_native_rasterizer = draw_uses_native_rasterizer;
   }
 }
 
