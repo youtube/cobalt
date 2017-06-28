@@ -68,6 +68,12 @@ class HardwareRasterizer : public Rasterizer {
   void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
                        SkCanvas* canvas);
 
+  // Get the cached canvas for a render target that would normally go through
+  // Submit(). The cache size is limited, so this should not be used for
+  // generic offscreen render targets.
+  SkCanvas* GetCachedCanvas(
+      const scoped_refptr<backend::RenderTarget>& render_target);
+
   // If Submit() is not called, then use this function to tell rasterizer that
   // a frame has been submitted.
   void AdvanceFrame();
