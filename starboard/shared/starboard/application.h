@@ -217,9 +217,7 @@ class Application {
                    int y,
                    int width,
                    int height);
-#endif  // SB_HAS(PLAYER) && \
-           (SB_API_VERSION >= 4 || \
-            SB_IS(PLAYER_PUNCHED_OUT))
+#endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
 
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
@@ -256,9 +254,7 @@ class Application {
                            int y,
                            int width,
                            int height) {}
-#endif  // SB_HAS(PLAYER) && \
-           (SB_API_VERSION >= 4 || \
-            SB_IS(PLAYER_PUNCHED_OUT))
+#endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.
