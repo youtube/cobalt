@@ -16,10 +16,14 @@
     {
       'target_name': 'starboard_platform_tests',
       'type': '<(gtest_target_type)',
+      'includes': [
+        '<(DEPTH)/starboard/shared/starboard/media/media_tests.gypi',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/filter_tests.gypi',
+      ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        '<(DEPTH)/starboard/shared/starboard/media/mime_type_test.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal_test.cc',
+        '<@(filter_tests_sources)',
+        '<@(media_tests_sources)',
       ],
       'defines': [
         # This allows the tests to include internal only header files.
