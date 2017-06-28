@@ -74,6 +74,9 @@ class HardwareRasterizer::Impl {
       const scoped_refptr<render_tree::Node>& render_tree,
       const scoped_refptr<backend::RenderTarget>& render_target);
 
+  SkCanvas* GetCanvasFromRenderTarget(
+      const scoped_refptr<backend::RenderTarget>& render_target);
+
   render_tree::ResourceProvider* GetResourceProvider();
   GrContext* GetGrContext();
 
@@ -105,9 +108,6 @@ class HardwareRasterizer::Impl {
   void RasterizeRenderTreeToCanvas(
       const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas,
       GrSurfaceOrigin origin);
-
-  SkCanvas* GetCanvasFromRenderTarget(
-      const scoped_refptr<backend::RenderTarget>& render_target);
 
   void ResetSkiaState();
 
@@ -588,7 +588,7 @@ void HardwareRasterizer::Impl::Submit(
 void HardwareRasterizer::Impl::SubmitOffscreen(
     const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  RasterizeRenderTreeToCanvas(render_tree, canvas, kTopLeft_GrSurfaceOrigin);
+  RasterizeRenderTreeToCanvas(render_tree, canvas, kBottomLeft_GrSurfaceOrigin);
 }
 
 void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
@@ -772,6 +772,11 @@ void HardwareRasterizer::SubmitOffscreen(
     const scoped_refptr<render_tree::Node>& render_tree, SkCanvas* canvas) {
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::SubmitOffscreen()");
   impl_->SubmitOffscreen(render_tree, canvas);
+}
+
+SkCanvas* HardwareRasterizer::GetCachedCanvas(
+    const scoped_refptr<backend::RenderTarget>& render_target) {
+  return impl_->GetCanvasFromRenderTarget(render_target);
 }
 
 void HardwareRasterizer::AdvanceFrame() {

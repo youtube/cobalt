@@ -62,11 +62,12 @@ bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
 
 math::Matrix3F GetTexcoordTransform(
     const OffscreenTargetManager::TargetInfo& target) {
+  // Flip the texture vertically to accommodate OpenGL's bottom-left origin.
   float scale_x = 1.0f / target.framebuffer->GetSize().width();
-  float scale_y = 1.0f / target.framebuffer->GetSize().height();
+  float scale_y = -1.0f / target.framebuffer->GetSize().height();
   return math::Matrix3F::FromValues(
       target.region.width() * scale_x, 0, target.region.x() * scale_x,
-      0, target.region.height() * scale_y, target.region.y() * scale_y,
+      0, target.region.height() * scale_y, 1.0f + target.region.y() * scale_y,
       0, 0, 1);
 }
 
@@ -76,12 +77,14 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
     DrawObjectManager* draw_object_manager,
     OffscreenTargetManager* offscreen_target_manager,
     const FallbackRasterizeFunction& fallback_rasterize,
-    const backend::RenderTarget* render_target,
+    SkCanvas* fallback_render_target,
+    backend::RenderTarget* render_target,
     const math::Rect& content_rect)
     : graphics_state_(graphics_state),
       draw_object_manager_(draw_object_manager),
       offscreen_target_manager_(offscreen_target_manager),
       fallback_rasterize_(fallback_rasterize),
+      fallback_render_target_(fallback_render_target),
       render_target_(render_target),
       render_target_is_offscreen_(false),
       scratch_surface_being_used_(false) {
@@ -568,6 +571,26 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     return;
   }
 
+  // If the target is the scratch surface, then the contents are not and will
+  // not be cached. So just render directly onto the current render target.
+  if (target_info.is_scratch_surface) {
+    base::Closure rasterize_callback = base::Bind(fallback_rasterize_,
+        node, fallback_render_target_, draw_state_.transform, content_rect,
+        draw_state_.opacity, kFallbackShouldFlush);
+    scoped_ptr<DrawObject> draw(new DrawCallback(rasterize_callback));
+
+    if (render_target_is_offscreen_) {
+      // TODO: Resolve native offscreen rendering that requires fallback for
+      // certain nodes.
+      NOTREACHED();
+    } else {
+      draw_object_manager_->AddOnscreenDraw(draw.Pass(),
+          DrawObjectManager::kBlendExternal, node->GetTypeId(),
+          render_target_, content_rect);
+    }
+    return;
+  }
+
   // Setup draw for the contents as needed.
   if (!content_is_cached) {
     FallbackRasterize(node, target_info, content_rect);
@@ -602,15 +625,19 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     scoped_refptr<render_tree::Node> node,
     const OffscreenTargetManager::TargetInfo& target_info,
     const math::RectF& content_rect) {
-  // Pre-translate the contents so it starts near the origin. The fallback
-  // rasterizer will then translate this to start drawing in target_info's
-  // region.
+  uint32_t rasterize_flags = 0;
+  if (target_info.is_scratch_surface) {
+    rasterize_flags = kFallbackShouldClear | kFallbackShouldFlush;
+  }
+
+  // Pre-translate the content so it starts in target_info.region.
   math::Matrix3F content_transform =
-      math::TranslateMatrix(-content_rect.x(), -content_rect.y()) *
+      math::TranslateMatrix(target_info.region.x() - content_rect.x(),
+                            target_info.region.y() - content_rect.y()) *
       draw_state_.transform;
   base::Closure rasterize_callback = base::Bind(fallback_rasterize_,
-      scoped_refptr<render_tree::Node>(node), content_transform,
-      target_info);
+      node, target_info.skia_canvas, content_transform, target_info.region,
+      draw_state_.opacity, rasterize_flags);
   scoped_ptr<DrawObject> draw(new DrawCallback(rasterize_callback));
 
   if (target_info.is_scratch_surface) {
@@ -668,7 +695,8 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
     if (use_native_rasterizer) {
       // Push a new render state to rasterize to the offscreen render target.
       DrawObject::BaseState old_draw_state = draw_state_;
-      const backend::RenderTarget* old_render_target = render_target_;
+      SkCanvas* old_fallback_render_target = fallback_render_target_;
+      backend::RenderTarget* old_render_target = render_target_;
       bool old_render_target_is_offscreen = render_target_is_offscreen_;
       bool old_scratch_surface_being_used = scratch_surface_being_used_;
 
@@ -678,6 +706,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
           * draw_state_.transform;
       draw_state_.scissor = RoundRectFToInt(target_info.region);
       draw_state_.opacity = 1.0f;
+      fallback_render_target_ = target_info.skia_canvas;
       render_target_ = target_info.framebuffer;
       render_target_is_offscreen_ = !target_info.is_scratch_surface;
       scratch_surface_being_used_ = scratch_surface_being_used_ ||
@@ -692,6 +721,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
       node->Accept(this);
 
       draw_state_ = old_draw_state;
+      fallback_render_target_ = old_fallback_render_target;
       render_target_ = old_render_target;
       render_target_is_offscreen_ = old_render_target_is_offscreen;
       scratch_surface_being_used_ = old_scratch_surface_being_used;

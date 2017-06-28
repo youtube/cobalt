@@ -19,10 +19,6 @@
 #include "base/hash_tables.h"
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/core/SkSurfaceProps.h"
-#include "third_party/skia/include/gpu/GrRenderTarget.h"
-#include "third_party/skia/include/gpu/GrTypes.h"
 
 namespace {
 // Structure describing the key for render target allocations in a given
@@ -117,10 +113,11 @@ struct OffscreenTargetManager::OffscreenAtlas {
 };
 
 OffscreenTargetManager::OffscreenTargetManager(
-    backend::GraphicsContextEGL* graphics_context, GrContext* skia_context,
+    backend::GraphicsContextEGL* graphics_context,
+    const CreateFallbackSurfaceFunction& create_fallback_surface,
     size_t memory_limit)
     : graphics_context_(graphics_context),
-      skia_context_(skia_context),
+      create_fallback_surface_(create_fallback_surface),
       offscreen_target_size_mask_(0, 0),
       memory_limit_(memory_limit) {
 }
@@ -339,22 +336,7 @@ OffscreenTargetManager::OffscreenAtlas*
       graphics_context_, size);
 
   // Wrap the framebuffer as a skia surface.
-  GrBackendRenderTargetDesc skia_desc;
-  skia_desc.fWidth = size.width();
-  skia_desc.fHeight = size.height();
-  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
-  skia_desc.fSampleCnt = 0;
-  skia_desc.fStencilBits = 0;
-  skia_desc.fRenderTargetHandle = atlas->framebuffer->GetPlatformHandle();
-
-  SkAutoTUnref<GrRenderTarget> skia_render_target(
-      skia_context_->wrapBackendRenderTarget(skia_desc));
-  SkSurfaceProps skia_surface_props(
-      SkSurfaceProps::kUseDistanceFieldFonts_Flag,
-      SkSurfaceProps::kLegacyFontHost_InitType);
-  atlas->skia_surface.reset(SkSurface::NewRenderTargetDirect(
-      skia_render_target, &skia_surface_props));
+  atlas->skia_surface.reset(create_fallback_surface_.Run(atlas->framebuffer));
 
   return atlas;
 }

@@ -38,6 +38,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
+#include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
 namespace renderer {
@@ -48,17 +49,22 @@ namespace egl {
 // DrawObjects which must then be processed using calls to ExecuteDraw.
 class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
+  enum FallbackRasterizeFlags {
+    kFallbackShouldClear = 1 << 0,
+    kFallbackShouldFlush = 1 << 1,
+  };
   typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Matrix3F& transform,
-      const OffscreenTargetManager::TargetInfo& target)>
+      SkCanvas* fallback_render_target, const math::Matrix3F& transform,
+      const math::RectF& scissor, float opacity, uint32_t rasterize_flags)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
                         DrawObjectManager* draw_object_manager,
                         OffscreenTargetManager* offscreen_target_manager,
                         const FallbackRasterizeFunction& fallback_rasterize,
-                        const backend::RenderTarget* render_target,
+                        SkCanvas* fallback_render_target,
+                        backend::RenderTarget* render_target,
                         const math::Rect& content_rect);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
@@ -100,7 +106,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   FallbackRasterizeFunction fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
-  const backend::RenderTarget* render_target_;
+  SkCanvas* fallback_render_target_;
+  backend::RenderTarget* render_target_;
   bool render_target_is_offscreen_;
 
   // Only one offscreen scratch surface (provided by the offscreen target
