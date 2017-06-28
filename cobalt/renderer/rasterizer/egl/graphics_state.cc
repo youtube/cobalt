@@ -23,8 +23,28 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
+namespace {
+
+void GLViewport(const math::Rect& viewport, const math::Size& target_size) {
+  // Incoming origin is top-left, but GL origin is bottom-left, so flip
+  // vertically.
+  GL_CALL(glViewport(viewport.x(), target_size.height() - viewport.bottom(),
+                     viewport.width(), viewport.height()));
+}
+
+void GLScissor(const math::Rect& scissor, const math::Size& target_size) {
+  // Incoming origin is top-left, but GL origin is bottom-left, so flip
+  // vertically.
+  GL_CALL(glScissor(scissor.x(), target_size.height() - scissor.bottom(),
+                    scissor.width(), scissor.height()));
+}
+
+}  // namespace
+
 GraphicsState::GraphicsState()
-    : frame_index_(0),
+    : render_target_handle_(0),
+      render_target_serial_(0),
+      frame_index_(0),
       vertex_data_reserved_(kVertexDataAlignment - 1),
       vertex_data_allocated_(0),
       vertex_data_buffer_updated_(false) {
@@ -72,8 +92,6 @@ void GraphicsState::EndFrame() {
   // Force default GL state. The current state may be marked dirty, so don't
   // rely on any functions which check the cached state before issuing GL calls.
   GL_CALL(glDisable(GL_BLEND));
-  GL_CALL(glDisable(GL_DEPTH_TEST));
-  GL_CALL(glDepthMask(GL_TRUE));
   GL_CALL(glUseProgram(0));
 
   // Since the GL state was changed without going through the cache, mark it
@@ -82,11 +100,15 @@ void GraphicsState::EndFrame() {
 }
 
 void GraphicsState::Clear() {
+  Clear(0.0f, 0.0f, 0.0f, 0.0f);
+}
+
+void GraphicsState::Clear(float r, float g, float b, float a) {
   if (state_dirty_) {
     Reset();
   }
 
-  GL_CALL(glClearColor(0.0f, 0.0f, 0.0f, 0.0f));
+  GL_CALL(glClearColor(r, g, b, a));
   GL_CALL(glClear(GL_COLOR_BUFFER_BIT));
 }
 
@@ -110,25 +132,48 @@ void GraphicsState::UseProgram(GLuint program) {
   disable_vertex_attrib_array_mask_ = enabled_vertex_attrib_array_mask_;
 }
 
+void GraphicsState::BindFramebuffer(
+    const backend::RenderTarget* render_target) {
+  if (render_target == nullptr) {
+    // Unbind the framebuffer immediately.
+    if (render_target_handle_ != 0) {
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    }
+    render_target_handle_ = 0;
+    render_target_serial_ = 0;
+    render_target_size_.SetSize(0, 0);
+    SetClipAdjustment();
+  } else if (render_target->GetPlatformHandle() != render_target_handle_ ||
+      render_target->GetSerialNumber() != render_target_serial_ ||
+      render_target->GetSize() != render_target_size_) {
+    render_target_handle_ = render_target->GetPlatformHandle();
+    render_target_serial_ = render_target->GetSerialNumber();
+    render_target_size_ = render_target->GetSize();
+    SetClipAdjustment();
+
+    if (!state_dirty_) {
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, render_target_handle_));
+    }
+  }
+}
+
 void GraphicsState::Viewport(int x, int y, int width, int height) {
-  // Incoming origin is top-left, but GL origin is bottom-left, so flip
-  // vertically.
-  if (state_dirty_ || viewport_.x() != x || viewport_.y() != y ||
+  if (viewport_.x() != x || viewport_.y() != y ||
       viewport_.width() != width || viewport_.height() != height) {
     viewport_.SetRect(x, y, width, height);
-    GL_CALL(glViewport(x, render_target_size_.height() - y - height,
-                       width, height));
+    if (!state_dirty_) {
+      GLViewport(viewport_, render_target_size_);
+    }
   }
 }
 
 void GraphicsState::Scissor(int x, int y, int width, int height) {
-  // Incoming origin is top-left, but GL origin is bottom-left, so flip
-  // vertically.
-  if (state_dirty_ || scissor_.x() != x || scissor_.y() != y ||
+  if (scissor_.x() != x || scissor_.y() != y ||
       scissor_.width() != width || scissor_.height() != height) {
     scissor_.SetRect(x, y, width, height);
-    GL_CALL(glScissor(x, render_target_size_.height() - y - height,
-                      width, height));
+    if (!state_dirty_) {
+      GLScissor(scissor_, render_target_size_);
+    }
   }
 }
 
@@ -190,26 +235,25 @@ void GraphicsState::ActiveBindTexture(GLenum texture_unit, GLenum target,
   GL_CALL(glTexParameteri(target, GL_TEXTURE_WRAP_T, texture_wrap_mode));
 }
 
-void GraphicsState::SetClipAdjustment(const math::Size& render_target_size) {
-  render_target_size_ = render_target_size;
+void GraphicsState::SetClipAdjustment() {
   clip_adjustment_dirty_ = true;
 
   // Clip adjustment is a vec4 used to transform a given 2D position from view
   // space to clip space. Given a 2D position, pos, the output is:
   // output = pos * clip_adjustment_.xy + clip_adjustment_.zw
 
-  if (render_target_size.width() > 0) {
-    clip_adjustment_[0] = 2.0f / render_target_size.width();
+  if (render_target_size_.width() > 0) {
+    clip_adjustment_[0] = 2.0f / render_target_size_.width();
     clip_adjustment_[2] = -1.0f;
   } else {
     clip_adjustment_[0] = 0.0f;
     clip_adjustment_[2] = 0.0f;
   }
 
-  if (render_target_size.height() > 0) {
+  if (render_target_size_.height() > 0) {
     // Incoming origin is top-left, but GL origin is bottom-left, so flip the
     // image vertically.
-    clip_adjustment_[1] = -2.0f / render_target_size.height();
+    clip_adjustment_[1] = -2.0f / render_target_size_.height();
     clip_adjustment_[3] = 1.0f;
   } else {
     clip_adjustment_[1] = 0.0f;
@@ -302,8 +346,9 @@ void GraphicsState::VertexAttribFinish() {
 void GraphicsState::Reset() {
   program_ = 0;
 
-  Viewport(viewport_.x(), viewport_.y(), viewport_.width(), viewport_.height());
-  Scissor(scissor_.x(), scissor_.y(), scissor_.width(), scissor_.height());
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, render_target_handle_));
+  GLViewport(viewport_, render_target_size_);
+  GLScissor(scissor_, render_target_size_);
   GL_CALL(glEnable(GL_SCISSOR_TEST));
 
   array_buffer_handle_ = 0;
@@ -327,7 +372,6 @@ void GraphicsState::Reset() {
   GL_CALL(glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA));
 
   GL_CALL(glDisable(GL_DEPTH_TEST));
-  GL_CALL(glDepthMask(GL_FALSE));
 
   state_dirty_ = false;
 }
