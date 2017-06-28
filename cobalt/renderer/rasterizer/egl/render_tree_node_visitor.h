@@ -33,6 +33,7 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
@@ -56,7 +57,9 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
                         DrawObjectManager* draw_object_manager,
                         OffscreenTargetManager* offscreen_target_manager,
-                        const FallbackRasterizeFunction* fallback_rasterize);
+                        const FallbackRasterizeFunction& fallback_rasterize,
+                        const backend::RenderTarget* render_target,
+                        const math::Rect& content_rect);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
     NOTREACHED();
@@ -77,6 +80,13 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                           OffscreenTargetManager::TargetInfo* out_target_info,
                           math::RectF* out_content_rect);
   void FallbackRasterize(scoped_refptr<render_tree::Node> node);
+  void FallbackRasterize(scoped_refptr<render_tree::Node> node,
+                         const OffscreenTargetManager::TargetInfo& target_info,
+                         const math::RectF& content_rect);
+  void OffscreenRasterize(scoped_refptr<render_tree::Node> node,
+                          const backend::TextureEGL** out_texture,
+                          math::Matrix3F* out_texcoord_transform,
+                          math::RectF* out_content_rect);
 
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
@@ -87,9 +97,15 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   GraphicsState* graphics_state_;
   DrawObjectManager* draw_object_manager_;
   OffscreenTargetManager* offscreen_target_manager_;
-  const FallbackRasterizeFunction* fallback_rasterize_;
+  FallbackRasterizeFunction fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
+  const backend::RenderTarget* render_target_;
+  bool render_target_is_offscreen_;
+
+  // Only one offscreen scratch surface (provided by the offscreen target
+  // manager) exists. It cannot be used for multiple scenes simultaneously.
+  bool scratch_surface_being_used_;
 };
 
 }  // namespace egl

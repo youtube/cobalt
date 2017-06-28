@@ -22,6 +22,7 @@
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
+#include "cobalt/renderer/backend/render_target.h"
 
 namespace cobalt {
 namespace renderer {
@@ -47,16 +48,27 @@ class GraphicsState {
 
   // Clear the color and depth buffers.
   void Clear();
+  void Clear(float r, float g, float b, float a);
 
   // Set the current shader program to be used.
   void UseProgram(GLuint program);
   GLuint GetProgram() const { return program_; }
 
-  // Set the viewport.
+  // Bind the specified framebuffer. This only goes through glBindFramebuffer
+  // and does not call eglMakeCurrent. This also SetClipAdjustment() to the
+  // render target's dimensions.
+  // |render_target| may be null to unbind the current framebuffer.
+  // NOTE: Be sure to call Viewport() and Scissor() after binding a new
+  //       framebuffer.
+  void BindFramebuffer(const backend::RenderTarget* render_target);
+
+  // Set the viewport. If changing render targets, then be sure to
+  // BindFramebuffer() before calling this.
   void Viewport(int x, int y, int width, int height);
   const math::Rect& GetViewport() const { return viewport_; }
 
-  // Set the scissor box.
+  // Set the scissor box. If changing render targets, then be sure to
+  // BindFramebuffer() before calling this.
   void Scissor(int x, int y, int width, int height);
   const math::Rect& GetScissor() const { return scissor_; }
 
@@ -74,10 +86,6 @@ class GraphicsState {
   // mode.
   void ActiveBindTexture(GLenum texture_unit, GLenum target, GLuint texture,
                          GLint texture_wrap_mode);
-
-  // Set the clip adjustment to be used with vertex shaders. This transforms
-  // the vertex coordinates from view space to clip space.
-  void SetClipAdjustment(const math::Size& render_target_size);
 
   // Update the GPU with the current clip adjustment settings.
   void UpdateClipAdjustment(GLint handle);
@@ -113,9 +121,16 @@ class GraphicsState {
  private:
   void Reset();
 
+  // Set the clip adjustment to be used with vertex shaders. This transforms
+  // the vertex coordinates from view space to clip space.
+  void SetClipAdjustment();
+
   math::Rect viewport_;
   math::Rect scissor_;
+
   math::Size render_target_size_;
+  GLuint render_target_handle_;
+  int32_t render_target_serial_;
 
   GLuint program_;
   GLuint array_buffer_handle_;
@@ -123,6 +138,7 @@ class GraphicsState {
   uint32_t enabled_vertex_attrib_array_mask_;
   uint32_t disable_vertex_attrib_array_mask_;
   float clip_adjustment_[4];
+
   bool clip_adjustment_dirty_;
   bool state_dirty_;
   bool blend_enabled_;
