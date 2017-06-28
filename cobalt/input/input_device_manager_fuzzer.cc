@@ -116,7 +116,7 @@ void InputDeviceManagerFuzzer::OnNextEvent() {
   int key_code = key_infos_[next_key_index_].GetRandomKeyCode();
 
   dom::KeyboardEventInit event_init;
-  event_init.set_char_code(key_code);
+  event_init.set_key_code(key_code);
 
   keyboard_event_callback_.Run(base::Tokens::keydown(), event_init);
   keyboard_event_callback_.Run(base::Tokens::keyup(), event_init);
