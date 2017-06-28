@@ -3352,6 +3352,17 @@ TEST_F(PixelTest, DrawOffscreenImage) {
   TestTree(new ImageNode(offscreen_image));
 }
 
+// Tests that offscreen rendering works fine with YUV images.
+TEST_F(PixelTest, DrawOffscreenYUVImage) {
+  scoped_refptr<Image> image =
+      MakeI420Image(GetResourceProvider(), output_surface_size());
+
+  scoped_refptr<Image> offscreen_rendered_image =
+      GetResourceProvider()->DrawOffscreenImage(new ImageNode(image));
+
+  TestTree(new ImageNode(offscreen_rendered_image));
+}
+
 #if defined(ENABLE_MAP_TO_MESH)
 
 namespace {
