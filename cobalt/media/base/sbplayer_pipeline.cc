@@ -61,6 +61,7 @@ struct StartTaskParameters {
   PipelineStatusCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
+  base::Closure output_mode_change_cb;
 };
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
@@ -82,7 +83,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
-             const base::Closure& duration_change_cb) OVERRIDE;
+             const base::Closure& duration_change_cb,
+             const base::Closure& output_mode_change_cb) OVERRIDE;
 
   void Stop(const base::Closure& stop_cb) OVERRIDE;
   void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
@@ -187,6 +189,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
+  base::Closure output_mode_change_cb_;
   base::optional<bool> decode_to_texture_output_mode_;
 
   // Demuxer reference used for setting the preload value.
@@ -259,7 +262,8 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
                              const PipelineStatusCB& error_cb,
                              const PipelineStatusCB& seek_cb,
                              const BufferingStateCB& buffering_state_cb,
-                             const base::Closure& duration_change_cb) {
+                             const base::Closure& duration_change_cb,
+                             const base::Closure& output_mode_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(demuxer);
@@ -268,6 +272,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   DCHECK(!seek_cb.is_null());
   DCHECK(!buffering_state_cb.is_null());
   DCHECK(!duration_change_cb.is_null());
+  DCHECK(!output_mode_change_cb.is_null());
 
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
@@ -277,6 +282,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
+  parameters.output_mode_change_cb = output_mode_change_cb;
 
   message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
@@ -485,6 +491,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   }
   buffering_state_cb_ = parameters.buffering_state_cb;
   duration_change_cb_ = parameters.duration_change_cb;
+  output_mode_change_cb_ = parameters.output_mode_change_cb;
 
   const bool kEnableTextTracks = false;
   demuxer_->Initialize(this,
@@ -584,6 +591,14 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   if (player_->IsValid()) {
+    base::Closure output_mode_change_cb;
+    {
+      base::AutoLock auto_lock(lock_);
+      DCHECK(!output_mode_change_cb_.is_null());
+      output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
+    }
+    output_mode_change_cb.Run();
+
     return;
   }
 
