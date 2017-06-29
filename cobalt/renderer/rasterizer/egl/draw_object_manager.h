@@ -49,6 +49,17 @@ class DrawObjectManager {
   DrawObjectManager(const base::Closure& reset_external_rasterizer,
                     const base::Closure& flush_external_offscreen_draws);
 
+  // Add a draw object that will render to an offscreen render target. There
+  // must be a corresponding draw object added via AddOnscreenDraw() to
+  // render the contents onto the main render target. All offscreen draws are
+  // batched together and executed before any onscreen objects are processed
+  // in order to minimize the cost of switching render targets.
+  // Returns an ID which can be used to remove the queued draw.
+  uint32_t AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
+      BlendType blend_type, base::TypeId draw_type,
+      const backend::RenderTarget* render_target,
+      const math::RectF& draw_bounds);
+
   // Add a draw object to be processed when rendering to the main render
   // target. Although most draws are expected to go to the main render target,
   // some draws may touch offscreen targets (e.g. when those offscreen targets
@@ -56,20 +67,15 @@ class DrawObjectManager {
   // before being used for the main render target). Switching render targets
   // has a major negative impact to performance, so it is preferable to avoid
   // reusing offscreen targets during the frame.
-  void AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
+  // Returns an ID which can be used to remove the queued draw.
+  uint32_t AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
       BlendType blend_type, base::TypeId draw_type,
       const backend::RenderTarget* render_target,
       const math::RectF& draw_bounds);
 
-  // Add a draw object that will render to an offscreen render target. There
-  // must be a corresponding draw object added via AddOnscreenDraw() to
-  // render the contents onto the main render target. All offscreen draws are
-  // batched together and executed before any onscreen objects are processed
-  // in order to minimize the cost of switching render targets.
-  void AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
-      BlendType blend_type, base::TypeId draw_type,
-      const backend::RenderTarget* render_target,
-      const math::RectF& draw_bounds);
+  // Remove all queued draws whose ID comes after the given last_valid_draw_id.
+  // Calling RemoveDraws(0) will remove all draws that have been added.
+  void RemoveDraws(uint32_t last_valid_draw_id);
 
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
@@ -81,17 +87,19 @@ class DrawObjectManager {
     DrawInfo(scoped_ptr<DrawObject> in_draw_object,
              base::TypeId in_draw_type, BlendType in_blend_type,
              const backend::RenderTarget* in_render_target,
-             const math::RectF& in_draw_bounds)
+             const math::RectF& in_draw_bounds, uint32_t in_draw_id)
         : draw_object(in_draw_object.release()),
           render_target(in_render_target),
           draw_bounds(in_draw_bounds),
           draw_type(in_draw_type),
-          blend_type(in_blend_type) {}
+          blend_type(in_blend_type),
+          draw_id(in_draw_id) {}
     std::unique_ptr<DrawObject> draw_object;
     const backend::RenderTarget* render_target;
     math::RectF draw_bounds;
     base::TypeId draw_type;
     BlendType blend_type;
+    uint32_t draw_id;
   };
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
@@ -101,12 +109,20 @@ class DrawObjectManager {
                  GraphicsState* graphics_state,
                  ShaderProgramManager* program_manager);
 
+  void RemoveDraws(std::vector<DrawInfo>* draw_list,
+                   uint32_t last_valid_draw_id);
+
+  void SortOffscreenDraws(std::vector<DrawInfo>* draw_list);
+  void SortOnscreenDraws(std::vector<DrawInfo>* draw_list);
+
   base::Closure reset_external_rasterizer_;
   base::Closure flush_external_offscreen_draws_;
 
   std::vector<DrawInfo> onscreen_draws_;
   std::vector<DrawInfo> offscreen_draws_;
   std::vector<DrawInfo> external_offscreen_draws_;
+
+  uint32_t current_draw_id_;
 };
 
 }  // namespace egl
