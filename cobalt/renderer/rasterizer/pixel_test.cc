@@ -475,6 +475,19 @@ TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaque) {
   TestTree(new ImageNode(image));
 }
 
+TEST_F(PixelTest, SingleRGBAImageWithReflection) {
+  SizeF half_output_size = ScaleSize(output_surface_size(), 0.5f, 0.5f);
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
+
+  TestTree(new MatrixTransformNode(
+      new ImageNode(image),
+      TranslateMatrix(half_output_size.width(), half_output_size.height()) *
+          ScaleMatrix(1.0f, -1.0f) *
+          TranslateMatrix(-half_output_size.width(),
+                          -half_output_size.height())));
+}
+
 TEST_F(PixelTest, SingleRGBAImageWithAlphaFormatOpaqueAndRoundedCorners) {
   scoped_refptr<Image> image = CreateColoredCheckersImageForAlphaFormat(
       GetResourceProvider(), output_surface_size(),
@@ -1061,6 +1074,17 @@ TEST_F(PixelTest, ThreePlaneYUVImageWithTransform) {
           MakeI420Image(GetResourceProvider(), output_surface_size())),
       TranslateMatrix(half_output_size.width(), half_output_size.height()) *
           ScaleMatrix(0.5f) * RotateMatrix(static_cast<float>(M_PI) / 4) *
+          TranslateMatrix(-half_output_size.width(),
+                          -half_output_size.height())));
+}
+
+TEST_F(PixelTest, ThreePlaneYUVImageWithReflection) {
+  SizeF half_output_size = ScaleSize(output_surface_size(), 0.5f, 0.5f);
+  TestTree(new MatrixTransformNode(
+      new ImageNode(
+          MakeI420Image(GetResourceProvider(), output_surface_size())),
+      TranslateMatrix(half_output_size.width(), half_output_size.height()) *
+          ScaleMatrix(1.0f, -1.0f) *
           TranslateMatrix(-half_output_size.width(),
                           -half_output_size.height())));
 }
