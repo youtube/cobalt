@@ -323,7 +323,13 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
   return result;
 }
 
-void SetupGLStateForImageRender(Image* image, GrSurfaceOrigin origin) {
+enum FaceOrientation {
+  FaceOrientation_Ccw,
+  FaceOrientation_Cw,
+};
+
+void SetupGLStateForImageRender(Image* image,
+                                FaceOrientation face_orientation) {
   if (image->IsOpaque()) {
     GL_CALL(glDisable(GL_BLEND));
   } else {
@@ -334,15 +340,23 @@ void SetupGLStateForImageRender(Image* image, GrSurfaceOrigin origin) {
   GL_CALL(glEnable(GL_SCISSOR_TEST));
   GL_CALL(glCullFace(GL_BACK));
   GL_CALL(glFrontFace(GL_CCW));
-  if (origin == kBottomLeft_GrSurfaceOrigin) {
+  if (face_orientation == FaceOrientation_Ccw) {
     GL_CALL(glEnable(GL_CULL_FACE));
   } else {
     // Unfortunately, some GLES implementations (like software Mesa) have a
     // problem with flipping glCullFrace() from GL_BACK to GL_FRONT, they seem
-    // to ignore it.  We need to render back faces though if the origin is
-    // flipped, so the only compatible solution is to disable back-face culling.
+    // to ignore it.  We need to render back faces though if the face
+    // orientation is flipped, so the only compatible solution is to disable
+    // back-face culling.
     GL_CALL(glDisable(GL_CULL_FACE));
   }
+}
+
+FaceOrientation GetFaceOrientationFromModelViewProjectionMatrix(
+    const glm::mat4& model_view_projection_matrix) {
+  return glm::determinant(model_view_projection_matrix) >= 0 ?
+             FaceOrientation_Ccw :
+             FaceOrientation_Cw;
 }
 
 }  // namespace
@@ -375,7 +389,17 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
           canvas_size.height() - canvas_boundsi.height() - canvas_boundsi.y() :
           canvas_boundsi.y(),
       canvas_boundsi.width(), canvas_boundsi.height()));
-  SetupGLStateForImageRender(image, *current_surface_origin_);
+
+  glm::mat4 model_view_projection_matrix =
+      GetFallbackTextureModelViewProjectionMatrix(
+          *current_surface_origin_,
+          canvas_size, draw_state->render_target->getTotalMatrix(),
+          image_node->data().destination_rect);
+
+  SetupGLStateForImageRender(
+      image,
+      GetFaceOrientationFromModelViewProjectionMatrix(
+          model_view_projection_matrix));
 
   if (!textured_mesh_renderer_) {
     textured_mesh_renderer_.emplace(graphics_context_);
@@ -384,10 +408,7 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   // Invoke our TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderQuad(
       SkiaImageToTexturedMeshRendererImage(image, render_tree::kMono),
-      GetFallbackTextureModelViewProjectionMatrix(
-          *current_surface_origin_,
-          canvas_size, draw_state->render_target->getTotalMatrix(),
-          image_node->data().destination_rect));
+      model_view_projection_matrix);
 
   // Let Skia know that we've modified GL state.
   uint32_t untouched_states =
@@ -419,7 +440,14 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
   GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
   GL_CALL(glScissor(0, 0, canvas_size.width(), canvas_size.height()));
 
-  SetupGLStateForImageRender(image, *current_surface_origin_);
+  glm::mat4 model_view_projection_matrix =
+      ModelViewMatrixSurfaceOriginAdjustment(*current_surface_origin_) *
+      draw_state->transform_3d;
+
+  SetupGLStateForImageRender(
+      image,
+      GetFaceOrientationFromModelViewProjectionMatrix(
+          model_view_projection_matrix));
 
   if (!textured_mesh_renderer_) {
     textured_mesh_renderer_.emplace(graphics_context_);
@@ -430,16 +458,12 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
           mesh_filter.mono_mesh(image->GetSize()).get())
           ->GetVBO();
 
-  glm::mat4 transform_matrix =
-      ModelViewMatrixSurfaceOriginAdjustment(*current_surface_origin_) *
-      draw_state->transform_3d;
-
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderVBO(
       mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
       mono_vbo->GetDrawMode(),
       SkiaImageToTexturedMeshRendererImage(image, mesh_filter.stereo_mode()),
-      transform_matrix);
+      model_view_projection_matrix);
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
