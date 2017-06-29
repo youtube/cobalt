@@ -13,9 +13,11 @@
 # limitations under the License.
 import logging
 import os
+import sys
 
 import config.starboard
-import gyp_utils
+
+from starboard.tools.paths import STARBOARD_ROOT
 
 import sdk_configuration
 
@@ -46,8 +48,8 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     link = _QuotePath(os.path.join(sdk.vs_host_tools_path, 'link.exe'))
     rc = _QuotePath(os.path.join(sdk.windows_sdk_host_tools, 'rc.exe'))
     env_variables = {
-        'AR' : lib,
-        'AR_HOST' : lib,
+        'AR': lib,
+        'AR_HOST': lib,
         'CC': cl,
         'CXX': cl,
         'LD': link,
@@ -79,3 +81,9 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'qtcreator_session_name_prefix': 'cobalt',
     }
     return generator_variables
+
+  def GetToolchain(self):
+    sys.path.append(
+        os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
+    from toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
+    return MSVCUWPToolchain()
