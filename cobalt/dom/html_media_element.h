@@ -233,6 +233,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void ReadyStateChanged() OVERRIDE;
   void TimeChanged() OVERRIDE;
   void DurationChanged() OVERRIDE;
+  void OutputModeChanged() OVERRIDE;
   void PlaybackStateChanged() OVERRIDE;
   void SawUnsupportedTracks() OVERRIDE;
   float Volume() const OVERRIDE;
@@ -263,10 +264,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 #if !defined(COBALT_MEDIA_SOURCE_2016)
   void SetSourceState(MediaSourceReadyState ready_state);
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
-
-  // Called whenever the player's output mode (e.g. punch-out,
-  // decode-to-texture) is updated.
-  void PlayerOutputModeUpdated();
 
   scoped_ptr<WebMediaPlayer> player_;
 

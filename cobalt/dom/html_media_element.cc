@@ -1168,7 +1168,6 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
 
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
-    PlayerOutputModeUpdated();
     duration_ = player_->GetDuration();
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
@@ -1587,6 +1586,15 @@ void HTMLMediaElement::DurationChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
+void HTMLMediaElement::OutputModeChanged() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OutputModeChanged");
+  // If the player mode is updated, trigger a re-layout so that we can setup
+  // the video render tree differently depending on whether we are in punch-out
+  // or decode-to-texture.
+  node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+}
+
 void HTMLMediaElement::PlaybackStateChanged() {
   if (!player_) {
     return;
@@ -1787,14 +1795,6 @@ void HTMLMediaElement::SetSourceState(MediaSourceReadyState ready_state) {
   }
 }
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
-
-void HTMLMediaElement::PlayerOutputModeUpdated() {
-  // If the player mode is updated, trigger a re-layout so that we can setup
-  // the video render tree differently depending on whether we are in punch-out
-  // or decode-to-texture.
-  node_document()->OnDOMMutation();
-  InvalidateLayoutBoxesOfNodeAndAncestors();
-}
 
 }  // namespace dom
 }  // namespace cobalt

@@ -123,7 +123,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
-                     const base::Closure& duration_change_cb) = 0;
+                     const base::Closure& duration_change_cb,
+                     const base::Closure& output_mode_change_cb) = 0;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.

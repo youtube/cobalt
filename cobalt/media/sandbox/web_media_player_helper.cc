@@ -37,6 +37,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   void ReadyStateChanged() OVERRIDE {}
   void TimeChanged() OVERRIDE {}
   void DurationChanged() OVERRIDE {}
+  void OutputModeChanged() OVERRIDE {}
   void PlaybackStateChanged() OVERRIDE {}
   void SawUnsupportedTracks() OVERRIDE {}
   float Volume() const OVERRIDE { return 1.f; }

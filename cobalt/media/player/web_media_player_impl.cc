@@ -706,7 +706,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged));
 }
 
 void WebMediaPlayerImpl::SetNetworkState(WebMediaPlayer::NetworkState state) {
@@ -805,6 +806,10 @@ void WebMediaPlayerImpl::OnDurationChanged() {
   if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return;
 
   GetClient()->DurationChanged();
+}
+
+void WebMediaPlayerImpl::OnOutputModeChanged() {
+  GetClient()->OutputModeChanged();
 }
 
 }  // namespace media
