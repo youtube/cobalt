@@ -108,14 +108,19 @@ bool H5vccURLHandler::HandleNetworkFailure() {
 
 void H5vccURLHandler::OnNetworkFailureDialogResponse(
     system_window::SystemWindow::DialogResponse response) {
-  UNREFERENCED_PARAMETER(response);
   const std::string retry_url = GetH5vccUrlQueryParam(url_, kRetryParam);
-  if (retry_url.length() > 0) {
+  // A positive response means we should retry.
+  if (response == system_window::SystemWindow::kDialogPositiveResponse &&
+      retry_url.length() > 0) {
     GURL url(retry_url);
     if (url.is_valid()) {
       browser_module()->Navigate(GURL(retry_url));
+      return;
     }
   }
+  // We were told not to retry, or don't have a retry URL, so leave the app.
+  LOG(ERROR) << "Stop after network error";
+  SbSystemRequestStop(0);
 }
 
 }  // namespace browser
