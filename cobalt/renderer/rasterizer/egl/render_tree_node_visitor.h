@@ -99,6 +99,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                      const math::RectF& local_bounds);
   void AddTransparentDraw(scoped_ptr<DrawObject> object,
                           const math::RectF& local_bounds);
+  void AddExternalDraw(scoped_ptr<DrawObject> object,
+                       const math::RectF& world_bounds, base::TypeId draw_type);
 
   GraphicsState* graphics_state_;
   DrawObjectManager* draw_object_manager_;
@@ -110,9 +112,10 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   backend::RenderTarget* render_target_;
   bool render_target_is_offscreen_;
 
-  // Only one offscreen scratch surface (provided by the offscreen target
-  // manager) exists. It cannot be used for multiple scenes simultaneously.
-  bool scratch_surface_being_used_;
+  bool allow_offscreen_targets_;
+  bool failed_offscreen_target_request_;
+
+  uint32_t last_draw_id_;
 };
 
 }  // namespace egl
