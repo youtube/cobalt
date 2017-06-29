@@ -316,7 +316,7 @@ class TvTestCase(unittest.TestCase):
           return True
         time.sleep(0.1)
       self.send_keys(keys.Keys.ENTER)
-      self.wait_for_processing_complete()
+      self.wait_for_processing_complete(False)
       return True
 
     return False
