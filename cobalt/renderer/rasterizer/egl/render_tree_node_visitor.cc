@@ -87,7 +87,9 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
       fallback_render_target_(fallback_render_target),
       render_target_(render_target),
       render_target_is_offscreen_(false),
-      scratch_surface_being_used_(false) {
+      allow_offscreen_targets_(true),
+      failed_offscreen_target_request_(false),
+      last_draw_id_(0) {
   draw_state_.scissor.Intersect(content_rect);
 }
 
@@ -496,6 +498,11 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   *out_content_cached = true;
   out_content_rect->SetRect(0, 0, 0, 0);
 
+  if (!allow_offscreen_targets_) {
+    failed_offscreen_target_request_ = true;
+    return;
+  }
+
   math::RectF node_bounds(node->GetBounds());
   math::RectF mapped_bounds(draw_state_.transform.MapRect(node_bounds));
   if (mapped_bounds.IsEmpty()) {
@@ -529,14 +536,6 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   // If the render target is the scratch surface, then just render what fits
   // onscreen for better performance.
   if (out_target_info->is_scratch_surface) {
-    // The scratch surface can only be used for one scene at a time.
-    if (scratch_surface_being_used_) {
-      DLOG(ERROR) << "Too many offscreen surfaces have been requested. Some"
-                     " elements will not be rendered. Increase the surface"
-                     " cache size to fix any visual artifacts.";
-      return;
-    }
-
     mapped_bounds.Outset(kBorderWidth, kBorderWidth);
     mapped_bounds.Intersect(draw_state_.scissor);
     if (mapped_bounds.IsEmpty()) {
@@ -578,16 +577,7 @@ void RenderTreeNodeVisitor::FallbackRasterize(
         node, fallback_render_target_, draw_state_.transform, content_rect,
         draw_state_.opacity, kFallbackShouldFlush);
     scoped_ptr<DrawObject> draw(new DrawCallback(rasterize_callback));
-
-    if (render_target_is_offscreen_) {
-      // TODO: Resolve native offscreen rendering that requires fallback for
-      // certain nodes.
-      NOTREACHED();
-    } else {
-      draw_object_manager_->AddOnscreenDraw(draw.Pass(),
-          DrawObjectManager::kBlendExternal, node->GetTypeId(),
-          render_target_, content_rect);
-    }
+    AddExternalDraw(draw.Pass(), content_rect, node->GetTypeId());
     return;
   }
 
@@ -625,6 +615,14 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     scoped_refptr<render_tree::Node> node,
     const OffscreenTargetManager::TargetInfo& target_info,
     const math::RectF& content_rect) {
+  // It is not permitted to render to an offscreen target while already
+  // rendering to an offscreen target. To allow this path, ensure that
+  // render targets are not used as both the read and write targets for any
+  // call. (Although these reads and writes should occur in different regions
+  // of the target, not all drivers may handle this properly.) Also ensure the
+  // draw object manager will sort these draws properly.
+  DCHECK(!render_target_is_offscreen_);
+
   uint32_t rasterize_flags = 0;
   if (target_info.is_scratch_surface) {
     rasterize_flags = kFallbackShouldClear | kFallbackShouldFlush;
@@ -640,24 +638,15 @@ void RenderTreeNodeVisitor::FallbackRasterize(
       draw_state_.opacity, rasterize_flags);
   scoped_ptr<DrawObject> draw(new DrawCallback(rasterize_callback));
 
-  if (target_info.is_scratch_surface) {
-    // The scratch surface must be updated just before the subsequent draw
-    // uses it. So make sure it goes into the same draw category as the next
-    // draw.
-    if (render_target_is_offscreen_) {
-      // TODO: Sorting needs to be addressed for native offscren draws that use
-      // the fallback rasterizer with the scratch surface.
-      NOTREACHED();
-    } else {
-      draw_object_manager_->AddOnscreenDraw(draw.Pass(),
-          DrawObjectManager::kBlendExternal, node->GetTypeId(),
-          target_info.framebuffer, target_info.region);
-    }
-  } else {
-    draw_object_manager_->AddOffscreenDraw(draw.Pass(),
-        DrawObjectManager::kBlendExternal, node->GetTypeId(),
-        target_info.framebuffer, target_info.region);
-  }
+  backend::RenderTarget* old_render_target = render_target_;
+  bool old_render_target_is_offscreen = render_target_is_offscreen_;
+
+  render_target_ = target_info.framebuffer;
+  render_target_is_offscreen_ = !target_info.is_scratch_surface;
+  AddExternalDraw(draw.Pass(), target_info.region, node->GetTypeId());
+
+  render_target_ = old_render_target;
+  render_target_is_offscreen_ = old_render_target_is_offscreen;
 }
 
 // Add draw objects to render |node| to an offscreen render target.
@@ -681,51 +670,66 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   *out_texture = target_info.framebuffer->GetColorTexture();
   *out_texcoord_transform = GetTexcoordTransform(target_info);
 
-  // TODO: Resolve the coordinate system mismatch between the fallback
-  // rasterizer and native rasterizer so they both render to the expected
-  // region of the render target.
-  //
-  // Also resolve using an offscreen render for portions of |node| while
-  // rendering to offscreen already. Drivers may think this can result in a
-  // feedback loop if both the sampler and render target point to the same
-  // surface. However, they are guaranteed to be different regions.
-  bool use_native_rasterizer = false;
-
   if (!content_is_cached) {
-    if (use_native_rasterizer) {
-      // Push a new render state to rasterize to the offscreen render target.
-      DrawObject::BaseState old_draw_state = draw_state_;
-      SkCanvas* old_fallback_render_target = fallback_render_target_;
-      backend::RenderTarget* old_render_target = render_target_;
-      bool old_render_target_is_offscreen = render_target_is_offscreen_;
-      bool old_scratch_surface_being_used = scratch_surface_being_used_;
+    // Try to use the native rasterizer to handle the offscreen rendering.
+    // However, because offscreen targets are actually regions of a texture
+    // atlas, some drivers may not properly handle reading and writing to
+    // the same texture -- even if the operations occur in different regions.
+    // So native offscreen handling can only occur if |node| or its children
+    // do not also need offscreen targets (or this particular target). The
+    // alternative is to use the fallback rasterizer since it allocates its
+    // own render targets as needed.
+    //
+    // Ideally, pre-check |node| and its children to see if they will need
+    // an offscreen target. However, this would result in a lot of duplicate
+    // code. So just process the nodes into draws, and if any of them requests
+    // an offscreen target, then remove all the recently added draws, and use
+    // the fallback rasterizer instead of the native rasterizer.
+    uint32_t last_valid_draw_id = last_draw_id_;
+    bool old_allow_offscreen_targets = allow_offscreen_targets_;
+    bool old_failed_offscreen_target_request = failed_offscreen_target_request_;
+    allow_offscreen_targets_ = false;
+    failed_offscreen_target_request_ = false;
 
-      draw_state_.transform =
-          math::TranslateMatrix(target_info.region.x() - out_content_rect->x(),
-                                target_info.region.y() - out_content_rect->y())
-          * draw_state_.transform;
-      draw_state_.scissor = RoundRectFToInt(target_info.region);
-      draw_state_.opacity = 1.0f;
-      fallback_render_target_ = target_info.skia_canvas;
-      render_target_ = target_info.framebuffer;
-      render_target_is_offscreen_ = !target_info.is_scratch_surface;
-      scratch_surface_being_used_ = scratch_surface_being_used_ ||
-                                    target_info.is_scratch_surface;
+    // Push a new render state to rasterize to the offscreen render target.
+    DrawObject::BaseState old_draw_state = draw_state_;
+    SkCanvas* old_fallback_render_target = fallback_render_target_;
+    backend::RenderTarget* old_render_target = render_target_;
+    bool old_render_target_is_offscreen = render_target_is_offscreen_;
 
-      // The scratch surface must be manually cleared before being used.
-      if (target_info.is_scratch_surface) {
-        scoped_ptr<DrawObject> draw(new DrawClear(graphics_state_, draw_state_,
-            kTransparentBlack));
-        AddOpaqueDraw(draw.Pass(), node->GetBounds());
-      }
-      node->Accept(this);
+    // Adjust the transform to render into target_info.region.
+    draw_state_.transform =
+        math::TranslateMatrix(target_info.region.x() - out_content_rect->x(),
+                              target_info.region.y() - out_content_rect->y()) *
+        draw_state_.transform;
+    draw_state_.scissor = RoundRectFToInt(target_info.region);
+    draw_state_.opacity = 1.0f;
+    fallback_render_target_ = target_info.skia_canvas;
+    render_target_ = target_info.framebuffer;
+    render_target_is_offscreen_ = !target_info.is_scratch_surface;
 
-      draw_state_ = old_draw_state;
-      fallback_render_target_ = old_fallback_render_target;
-      render_target_ = old_render_target;
-      render_target_is_offscreen_ = old_render_target_is_offscreen;
-      scratch_surface_being_used_ = old_scratch_surface_being_used;
-    } else {
+    // The scratch surface must be manually cleared before being used.
+    if (target_info.is_scratch_surface) {
+      scoped_ptr<DrawObject> draw(new DrawClear(graphics_state_, draw_state_,
+          kTransparentBlack));
+      AddOpaqueDraw(draw.Pass(), node->GetBounds());
+    }
+    node->Accept(this);
+
+    draw_state_ = old_draw_state;
+    fallback_render_target_ = old_fallback_render_target;
+    render_target_ = old_render_target;
+    render_target_is_offscreen_ = old_render_target_is_offscreen;
+
+    bool use_fallback_rasterizer = failed_offscreen_target_request_;
+    allow_offscreen_targets_ = old_allow_offscreen_targets;
+    failed_offscreen_target_request_ = old_failed_offscreen_target_request;
+
+    if (use_fallback_rasterizer) {
+      // The node or one of its children needed an offscreen target, so this
+      // cannot be rendered natively. Remove all the draws added for |node|,
+      // and just use the fallback rasterizer instead.
+      draw_object_manager_->RemoveDraws(last_valid_draw_id);
       FallbackRasterize(node, target_info, *out_content_rect);
     }
   }
@@ -741,11 +745,11 @@ void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
     const math::RectF& local_bounds) {
   base::TypeId draw_type = object->GetTypeId();
   if (render_target_is_offscreen_) {
-    draw_object_manager_->AddOffscreenDraw(object.Pass(),
+    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
         DrawObjectManager::kBlendNone, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
   } else {
-    draw_object_manager_->AddOnscreenDraw(object.Pass(),
+    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
         DrawObjectManager::kBlendNone, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
   }
@@ -755,13 +759,26 @@ void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
     const math::RectF& local_bounds) {
   base::TypeId draw_type = object->GetTypeId();
   if (render_target_is_offscreen_) {
-    draw_object_manager_->AddOffscreenDraw(object.Pass(),
+    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
         DrawObjectManager::kBlendSrcAlpha, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
   } else {
-    draw_object_manager_->AddOnscreenDraw(object.Pass(),
+    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
         DrawObjectManager::kBlendSrcAlpha, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
+  }
+}
+
+void RenderTreeNodeVisitor::AddExternalDraw(scoped_ptr<DrawObject> object,
+    const math::RectF& world_bounds, base::TypeId draw_type) {
+  if (render_target_is_offscreen_) {
+    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
+        DrawObjectManager::kBlendExternal, draw_type, render_target_,
+        world_bounds);
+  } else {
+    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
+        DrawObjectManager::kBlendExternal, draw_type, render_target_,
+        world_bounds);
   }
 }
 
