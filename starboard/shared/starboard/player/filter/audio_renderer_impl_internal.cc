@@ -304,7 +304,6 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
     *offset_in_frames = frames_consumed_by_sink_.load() % kMaxCachedFrames;
   } else {
     *frames_in_buffer = *offset_in_frames = 0;
-    return;
   }
 }
 
