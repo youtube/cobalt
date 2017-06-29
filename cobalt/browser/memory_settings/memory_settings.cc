@@ -17,6 +17,7 @@
 #include "cobalt/browser/memory_settings/memory_settings.h"
 
 #include <algorithm>
+#include <locale>
 #include <string>
 #include <vector>
 
@@ -46,11 +47,21 @@ struct ParsedIntValue {
   bool error_;  // true if there was a parse error.
 };
 
-// Parses a string like "1234x5678" to vector of parsed int values.
-std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
+char ToLowerCharTypesafe(int c) {
+  return static_cast<char>(::tolower(c));
+}
+
+std::string ToLower(const std::string& input) {
   std::string value_str = input;
   std::transform(value_str.begin(), value_str.end(),
-                 value_str.begin(), ::tolower);
+                 value_str.begin(), ToLowerCharTypesafe);
+
+  return value_str;
+}
+
+// Parses a string like "1234x5678" to vector of parsed int values.
+std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
+  std::string value_str = ToLower(input);
   std::vector<ParsedIntValue> output;
 
   std::vector<std::string> lengths;
@@ -86,10 +97,7 @@ int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
   }
 
   // Lowercasing the string makes the units easier to detect.
-  std::string value_lower_case = value;
-  std::transform(value_lower_case.begin(), value_lower_case.end(),
-                 value_lower_case.begin(),
-                 ::tolower);
+  std::string value_lower_case = ToLower(value);
 
   if (StringEndsWith(value_lower_case, "kb")) {
     numerical_value *= 1024;  // convert kb -> bytes.
