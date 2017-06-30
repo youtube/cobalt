@@ -28,6 +28,7 @@
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/renderer/backend/graphics_context.h"
+#include "cobalt/renderer/fps_overlay.h"
 #include "cobalt/renderer/rasterizer/rasterizer.h"
 #include "cobalt/renderer/submission.h"
 #include "cobalt/renderer/submission_queue.h"
@@ -56,6 +57,13 @@ class Pipeline {
     kNoClear,
   };
 
+  struct Options {
+    Options() : enable_fps_stdout(false), enable_fps_overlay(false) {}
+
+    bool enable_fps_stdout;
+    bool enable_fps_overlay;
+  };
+
   // Using the provided rasterizer creation function, a rasterizer will be
   // created within the Pipeline on a separate rasterizer thread.  Thus,
   // the rasterizer created by the provided function should only reference
@@ -66,7 +74,8 @@ class Pipeline {
            const scoped_refptr<backend::RenderTarget>& render_target,
            backend::GraphicsContext* graphics_context,
            bool submit_even_if_render_tree_is_unchanged,
-           ShutdownClearMode clear_on_shutdown_mode);
+           ShutdownClearMode clear_on_shutdown_mode,
+           const Options& options = Options());
   ~Pipeline();
 
   // Submit a new render tree to the renderer pipeline.  After calling this
@@ -99,7 +108,7 @@ class Pipeline {
   void SetNewRenderTree(const Submission& render_tree_submission);
 
   // Clears the current render tree and calls the callback when this is done.
-  void ClearCurrentRenderTree(const base::Closure& clear_complete_callback);
+  void ClearCurrentRenderTree();
 
   // Called repeatedly (the rate is limited by the rasterizer, so likely it
   // will be called every 1/60th of a second) on the rasterizer thread and
@@ -130,6 +139,8 @@ class Pipeline {
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   void OnDumpCurrentRenderTree(const std::string&);
+  void OnToggleFpsStdout(const std::string&);
+  void OnToggleFpsOverlay(const std::string&);
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Render trees may contain a number of AnimateNodes (or none).  In order
@@ -138,6 +149,10 @@ class Pipeline {
   // information into a single AnimateNode at the root of the returned
   // render tree.
   Submission CollectAnimations(const Submission& render_tree_submission);
+
+  void FrameStatsOnFlushCallback(
+      const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
+          flush_results);
 
   base::WaitableEvent rasterizer_created_event_;
 
@@ -197,7 +212,7 @@ class Pipeline {
   // Timer tracking the amount of time spent in
   // |RasterizeSubmissionToRenderTarget| while animations are active. The
   // tracking is flushed when the animations expire.
-  base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
+  base::CValCollectionTimerStats<base::CValPublic> rasterize_animations_timer_;
 
   // The total number of new render trees that have been rasterized.
   base::CVal<int> new_render_tree_rasterize_count_;
@@ -215,11 +230,27 @@ class Pipeline {
   // Dumps the current render tree to the console.
   base::ConsoleCommandManager::CommandHandler
       dump_current_render_tree_command_handler_;
+
+  base::ConsoleCommandManager::CommandHandler
+      toggle_fps_stdout_command_handler_;
+  base::ConsoleCommandManager::CommandHandler
+      toggle_fps_overlay_command_handler_;
 #endif
 
   // If true, Pipeline's destructor will clear its render target to black on
   // shutdown.
   const ShutdownClearMode clear_on_shutdown_mode_;
+
+  // If true, we will print framerate statistics to stdout upon completion
+  // of each animation (or after a maximum number of frames has been issued).
+  bool enable_fps_stdout_;
+
+  // If true, an overlay will be displayed over the UI output that shows the
+  // FPS statistics from the last animation.
+  bool enable_fps_overlay_;
+
+  base::optional<FpsOverlay> fps_overlay_;
+  bool fps_overlay_updated_;
 };
 
 }  // namespace renderer
