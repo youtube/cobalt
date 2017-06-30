@@ -80,7 +80,7 @@ class LockedPtr {
 
   void reset() {
     starboard::ScopedLock scoped_lock(mutex_);
-    ptr_ = NULL;
+    ptr_.reset();
   }
 
   bool is_valid() const {
