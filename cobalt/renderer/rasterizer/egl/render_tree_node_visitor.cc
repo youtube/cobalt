@@ -196,19 +196,21 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       // that result with the specified filter opacity.
       OffscreenRasterize(data.source, &texture, &texcoord_transform,
                          &content_rect);
-      if (content_rect.IsEmpty()) {
+      if (texture != nullptr) {
+        if (content_rect.IsEmpty()) {
+          return;
+        }
+
+        // The content rect is already in screen space, so reset the transform.
+        math::Matrix3F old_transform = draw_state_.transform;
+        draw_state_.transform = math::Matrix3F::Identity();
+        scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
+            draw_state_, content_rect, kOpaqueWhite * filter_opacity, texture,
+            texcoord_transform, false /* clamp_texcoords */));
+        AddTransparentDraw(draw.Pass(), content_rect);
+        draw_state_.transform = old_transform;
         return;
       }
-
-      // The content rect is already in screen space, so reset the transform.
-      math::Matrix3F old_transform = draw_state_.transform;
-      draw_state_.transform = math::Matrix3F::Identity();
-      scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-          draw_state_, content_rect, kOpaqueWhite * filter_opacity, texture,
-          texcoord_transform, false /* clamp_texcoords */));
-      AddTransparentDraw(draw.Pass(), content_rect);
-      draw_state_.transform = old_transform;
-      return;
     }
   }
 
@@ -533,9 +535,9 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
         content_size, out_target_info);
   }
 
-  // If the render target is the scratch surface, then just render what fits
-  // onscreen for better performance.
-  if (out_target_info->is_scratch_surface) {
+  // If no offscreen target was available, then set the content_rect as if
+  // rendering will occur on the current render target.
+  if (out_target_info->framebuffer == nullptr) {
     mapped_bounds.Outset(kBorderWidth, kBorderWidth);
     mapped_bounds.Intersect(draw_state_.scissor);
     if (mapped_bounds.IsEmpty()) {
@@ -547,12 +549,11 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
     float bottom = std::ceil(mapped_bounds.bottom());
     content_offset.SetPoint(left, top);
     content_size.SetSize(right - left, bottom - top);
+  } else {
+    DCHECK_LE(content_size.width(), out_target_info->region.width());
+    DCHECK_LE(content_size.height(), out_target_info->region.height());
   }
 
-  // The returned target may be larger than actually needed. Clamp to just the
-  // needed size.
-  DCHECK_LE(content_size.width(), out_target_info->region.width());
-  DCHECK_LE(content_size.height(), out_target_info->region.height());
   out_target_info->region.set_size(content_size);
 
   out_content_rect->set_origin(content_offset);
@@ -570,9 +571,9 @@ void RenderTreeNodeVisitor::FallbackRasterize(
     return;
   }
 
-  // If the target is the scratch surface, then the contents are not and will
-  // not be cached. So just render directly onto the current render target.
-  if (target_info.is_scratch_surface) {
+  // If no offscreen target was available, then just render directly onto the
+  // current render target.
+  if (target_info.framebuffer == nullptr) {
     base::Closure rasterize_callback = base::Bind(fallback_rasterize_,
         node, fallback_render_target_, draw_state_.transform, content_rect,
         draw_state_.opacity, kFallbackShouldFlush);
@@ -624,9 +625,6 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   DCHECK(!render_target_is_offscreen_);
 
   uint32_t rasterize_flags = 0;
-  if (target_info.is_scratch_surface) {
-    rasterize_flags = kFallbackShouldClear | kFallbackShouldFlush;
-  }
 
   // Pre-translate the content so it starts in target_info.region.
   math::Matrix3F content_transform =
@@ -642,7 +640,7 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   bool old_render_target_is_offscreen = render_target_is_offscreen_;
 
   render_target_ = target_info.framebuffer;
-  render_target_is_offscreen_ = !target_info.is_scratch_surface;
+  render_target_is_offscreen_ = true;
   AddExternalDraw(draw.Pass(), target_info.region, node->GetTypeId());
 
   render_target_ = old_render_target;
@@ -651,7 +649,8 @@ void RenderTreeNodeVisitor::FallbackRasterize(
 
 // Add draw objects to render |node| to an offscreen render target.
 // |out_texture| and |out_texcoord_transform| describe the texture subregion
-//   that will contain the result of rendering |node|.
+//   that will contain the result of rendering |node|. If not enough memory
+//   is available for the offscreen target, then |out_texture| will be null.
 // |out_content_rect| describes the onscreen rect (in screen space) which
 //   should be used to render node's contents.
 void RenderTreeNodeVisitor::OffscreenRasterize(
@@ -664,6 +663,12 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   GetOffscreenTarget(node, &content_is_cached, &target_info, out_content_rect);
 
   if (out_content_rect->IsEmpty()) {
+    return;
+  }
+
+  if (target_info.framebuffer == nullptr) {
+    // No offscreen target was available.
+    *out_texture = nullptr;
     return;
   }
 
@@ -706,14 +711,8 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
     draw_state_.opacity = 1.0f;
     fallback_render_target_ = target_info.skia_canvas;
     render_target_ = target_info.framebuffer;
-    render_target_is_offscreen_ = !target_info.is_scratch_surface;
+    render_target_is_offscreen_ = true;
 
-    // The scratch surface must be manually cleared before being used.
-    if (target_info.is_scratch_surface) {
-      scoped_ptr<DrawObject> draw(new DrawClear(graphics_state_, draw_state_,
-          kTransparentBlack));
-      AddOpaqueDraw(draw.Pass(), node->GetBounds());
-    }
     node->Accept(this);
 
     draw_state_ = old_draw_state;

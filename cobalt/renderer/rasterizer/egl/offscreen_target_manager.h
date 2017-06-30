@@ -42,12 +42,10 @@ class OffscreenTargetManager {
   struct TargetInfo {
     TargetInfo()
         : framebuffer(NULL),
-          skia_canvas(NULL),
-          is_scratch_surface(false) {}
+          skia_canvas(NULL) {}
     backend::FramebufferRenderTargetEGL* framebuffer;
     SkCanvas* skia_canvas;
     math::RectF region;
-    bool is_scratch_surface;
   };
 
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
@@ -88,7 +86,6 @@ class OffscreenTargetManager {
 
   ScopedVector<OffscreenAtlas> offscreen_atlases_;
   scoped_ptr<OffscreenAtlas> offscreen_cache_;
-  scoped_ptr<OffscreenAtlas> scratch_surface_;
 
   // Align offscreen targets to a particular size to more efficiently use the
   // offscreen target atlas. Use a power of 2 for the alignment so that a bit
