@@ -134,13 +134,13 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       pending_load_(false),
       sent_stalled_event_(false),
       sent_end_event_(false) {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
   html_media_element_count_log.Get().count++;
 }
 
 HTMLMediaElement::~HTMLMediaElement() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::~HTMLMediaElement()");
   MLOG();
   ClearMediaSource();
   html_media_element_count_log.Get().count--;
@@ -157,7 +157,7 @@ std::string HTMLMediaElement::src() const {
 }
 
 void HTMLMediaElement::set_src(const std::string& src) {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::set_src");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::set_src()");
   MLOG() << src;
   SetAttribute("src", src);
   ClearMediaPlayer();
@@ -192,7 +192,7 @@ scoped_refptr<TimeRanges> HTMLMediaElement::buffered() const {
 }
 
 void HTMLMediaElement::Load() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Load");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Load()");
   // LoadInternal may result in a 'beforeload' event, which can make arbitrary
   // DOM mutations.
   scoped_refptr<HTMLMediaElement> protect(this);
@@ -243,6 +243,8 @@ void HTMLMediaElement::set_onencrypted(
 // See https://www.w3.org/TR/encrypted-media/#dom-htmlmediaelement-setmediakeys.
 scoped_ptr<HTMLMediaElement::VoidPromiseValue> HTMLMediaElement::SetMediaKeys(
     const scoped_refptr<eme::MediaKeys>& media_keys) {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SetMediaKeys()");
+
   scoped_ptr<VoidPromiseValue> promise = node_document()
                                              ->html_element_context()
                                              ->script_value_factory()
@@ -575,7 +577,7 @@ void HTMLMediaElement::set_loop(bool loop) {
 }
 
 void HTMLMediaElement::Play() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Play");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Play()");
   MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
@@ -602,7 +604,7 @@ void HTMLMediaElement::Play() {
 }
 
 void HTMLMediaElement::Pause() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Pause");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::Pause()");
   MLOG();
   // 4.8.10.9. Playing the media resource
   if (!player_ || network_state_ == kNetworkEmpty) {
@@ -699,13 +701,13 @@ void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 void HTMLMediaElement::ScheduleEvent(const scoped_refptr<Event>& event) {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleEvent()");
   MLOG() << event->type();
   event_queue_.Enqueue(event);
 }
 
 void HTMLMediaElement::CreateMediaPlayer() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::CreateMediaPlayer");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::CreateMediaPlayer()");
   MLOG();
   if (src().empty()) {
     reduced_image_cache_capacity_request_ = base::nullopt;
@@ -747,7 +749,7 @@ void HTMLMediaElement::CreateMediaPlayer() {
 }
 
 void HTMLMediaElement::ScheduleLoad() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleLoad");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ScheduleLoad()");
   if (!pending_load_) {
     PrepareForLoad();
     pending_load_ = true;
@@ -760,7 +762,7 @@ void HTMLMediaElement::ScheduleLoad() {
 }
 
 void HTMLMediaElement::PrepareForLoad() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PrepareForLoad");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PrepareForLoad()");
   // Perform the cleanup required for the resource load algorithm to run.
   StopPeriodicTimers();
   load_timer_.Stop();
@@ -825,7 +827,7 @@ void HTMLMediaElement::PrepareForLoad() {
 }
 
 void HTMLMediaElement::LoadInternal() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::LoadInternal");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::LoadInternal()");
   DCHECK(node_document());
 
   // Select media resource.
@@ -956,7 +958,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ClearMediaPlayer");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ClearMediaPlayer()");
   MLOG();
 
   ClearMediaSource();
@@ -1023,7 +1025,7 @@ void HTMLMediaElement::MediaLoadingFailed(WebMediaPlayer::NetworkState error) {
 // This is kept as a one shot timer to be in sync with the original code. It
 // should be replaced by PostTask if this is any future rewrite.
 void HTMLMediaElement::OnLoadTimer() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OnLoadTimer");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OnLoadTimer()");
   scoped_refptr<HTMLMediaElement> protect(this);
 
   if (pending_load_) {
@@ -1125,6 +1127,8 @@ void HTMLMediaElement::CancelPendingEventsAndCallbacks() {
 }
 
 void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
+  TRACE_EVENT1("cobalt::dom", "HTMLMediaElement::SetReadyState()", "state",
+               state);
   // Set "was_potentially_playing" BEFORE updating ready_state_,
   // PotentiallyPlaying() uses it
   bool was_potentially_playing = PotentiallyPlaying();
@@ -1587,7 +1591,7 @@ void HTMLMediaElement::DurationChanged() {
 }
 
 void HTMLMediaElement::OutputModeChanged() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OutputModeChanged");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::OutputModeChanged()");
   // If the player mode is updated, trigger a re-layout so that we can setup
   // the video render tree differently depending on whether we are in punch-out
   // or decode-to-texture.
@@ -1615,7 +1619,7 @@ float HTMLMediaElement::Volume() const { return volume(NULL); }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::SourceOpened(media::ChunkDemuxer* chunk_demuxer) {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
   BeginProcessingMediaPlayerCallback();
   DCHECK(media_source_);
   media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
@@ -1634,7 +1638,7 @@ std::string HTMLMediaElement::SourceURL() const {
 }
 
 bool HTMLMediaElement::PreferDecodeToTexture() {
-  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture");
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
 #if defined(ENABLE_MAP_TO_MESH)
   if (!node_document()->UpdateComputedStyleOnElementAndAncestor(this)) {
