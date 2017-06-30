@@ -29,7 +29,10 @@ namespace input {
 
 Camera3DInputPoller::Camera3DInputPoller(
     const scoped_refptr<input::InputPoller>& input_poller)
-    : input_poller_(input_poller),
+    : roll_in_radians_(0.0f),
+      pitch_in_radians_(0.0f),
+      yaw_in_radians_(0.0f),
+      input_poller_(input_poller),
       width_to_height_aspect_ratio_(16.0f / 9.0f),
       vertical_fov_(60.0f) {}
 
@@ -49,9 +52,15 @@ void Camera3DInputPoller::ClearAllKeyMappings() {
   keycode_map_.clear();
 }
 
+glm::quat Camera3DInputPoller::orientation() const {
+  return glm::angleAxis(-roll_in_radians_, glm::vec3(0, 0, 1)) *
+         glm::angleAxis(-pitch_in_radians_, glm::vec3(1, 0, 0)) *
+         glm::angleAxis(-yaw_in_radians_, glm::vec3(0, 1, 0));
+}
+
 glm::quat Camera3DInputPoller::GetOrientation() const {
   base::AutoLock lock(mutex_);
-  return orientation_;
+  return orientation();
 }
 
 base::CameraTransform
@@ -59,7 +68,7 @@ Camera3DInputPoller::GetCameraTransformAndUpdateOrientation() {
   base::AutoLock lock(mutex_);
   AccumulateOrientation();
 
-  glm::mat4 view_matrix = glm::mat4_cast(orientation_);
+  glm::mat4 view_matrix = glm::mat4_cast(orientation());
 
   const float kNearZ = 0.01f;
   const float kFarZ = 1000.0f;
@@ -77,7 +86,9 @@ void Camera3DInputPoller::UpdatePerspective(float width_to_height_aspect_ratio,
 
 void Camera3DInputPoller::Reset() {
   base::AutoLock lock(mutex_);
-  orientation_ = glm::quat();
+  roll_in_radians_ = 0.0f;
+  pitch_in_radians_ = 0.0f;
+  yaw_in_radians_ = 0.0f;
 }
 
 void Camera3DInputPoller::AccumulateOrientation() {
@@ -98,8 +109,6 @@ void Camera3DInputPoller::AccumulateOrientation() {
     }
 
     // Accumulate new rotation from all mapped inputs.
-    float roll = 0.0f, pitch = 0.0f, yaw = 0.0f;
-
     for (KeycodeMap::const_iterator iter = keycode_map_.begin();
          iter != keycode_map_.end(); ++iter) {
       // If the key does not have analog output, the AnalogInput() method will
@@ -116,31 +125,44 @@ void Camera3DInputPoller::AccumulateOrientation() {
       float* target_angle;
       switch (iter->second.axis) {
         case kCameraRoll:
-          target_angle = &roll;
+          target_angle = &roll_in_radians_;
           break;
         case kCameraPitch:
-          target_angle = &pitch;
+          target_angle = &pitch_in_radians_;
           break;
         case kCameraYaw:
-          target_angle = &yaw;
+          target_angle = &yaw_in_radians_;
           break;
       }
 
       // Apply the angle adjustment from the key.
-      *target_angle += value * iter->second.degrees_per_second *
+      *target_angle += value *
+                       DegreesToRadians(iter->second.degrees_per_second) *
                        static_cast<float>(delta.InSecondsF());
     }
 
-    // New rotation applied from the right to keep it in global axes.
-    // Note that we invert the rotation angles since this transform is applied
-    // to the objects in our scene, and if the camera moves right, the objects,
-    // relatively, would move right.
-    orientation_ *=
-        glm::angleAxis(-DegreesToRadians(roll), glm::vec3(0, 0, 1)) *
-        glm::angleAxis(-DegreesToRadians(pitch), glm::vec3(1, 0, 0)) *
-        glm::angleAxis(-DegreesToRadians(yaw), glm::vec3(0, 1, 0));
+    // Clamp the angles to ensure that they remain in the valid range.
+    ClampAngles();
   }
   last_update_ = now;
+}
+
+void Camera3DInputPoller::ClampAngles() {
+  float kTwoPi = static_cast<float>(M_PI * 2);
+  float kPiOverTwo = static_cast<float>(M_PI / 2);
+
+  pitch_in_radians_ =
+      std::max(-kPiOverTwo, std::min(kPiOverTwo, pitch_in_radians_));
+
+  roll_in_radians_ = fmod(roll_in_radians_, kTwoPi);
+  if (roll_in_radians_ < 0) {
+    roll_in_radians_ += kTwoPi;
+  }
+
+  yaw_in_radians_ = fmod(yaw_in_radians_, kTwoPi);
+  if (yaw_in_radians_ < 0) {
+    yaw_in_radians_ += kTwoPi;
+  }
 }
 
 scoped_refptr<Camera3D> CreatedDefaultCamera3D(
