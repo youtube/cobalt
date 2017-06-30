@@ -31,11 +31,17 @@ namespace base {
 template <typename Visibility = CValDebug>
 class CValCollectionTimerStats {
  public:
+  typedef typename base::CValCollectionEntryStats<
+      base::TimeDelta, Visibility>::OnFlushCallback OnFlushCallback;
+  typedef typename base::CValCollectionEntryStats<
+      base::TimeDelta, Visibility>::FlushResults FlushResults;
+
   explicit CValCollectionTimerStats(const std::string& name)
       : entry_stats_(name) {}
   CValCollectionTimerStats(const std::string& name, size_t max_size,
-                           bool enable_entry_list_c_val)
-      : entry_stats_(name, max_size, enable_entry_list_c_val) {}
+                           bool enable_entry_list_c_val,
+                           const OnFlushCallback& on_flush = OnFlushCallback())
+      : entry_stats_(name, max_size, enable_entry_list_c_val, on_flush) {}
 
   // Start the timer. If the timer is currently running, it is stopped and
   // re-started. If no time is provided, then |base::TimeTicks::Now()| is used.
