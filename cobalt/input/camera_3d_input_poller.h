@@ -64,11 +64,16 @@ class Camera3DInputPoller : public Camera3D {
   typedef std::map<int, KeycodeMappingInfo> KeycodeMap;
 
   void AccumulateOrientation();
+  void ClampAngles();
+
+  glm::quat orientation() const;
 
   mutable base::Lock mutex_;
 
   // The current accumulated camera orientation state.
-  glm::quat orientation_;
+  float roll_in_radians_;
+  float pitch_in_radians_;
+  float yaw_in_radians_;
 
   // The time that the last update to the camera's state has occurred.
   base::optional<base::TimeTicks> last_update_;
