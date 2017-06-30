@@ -87,6 +87,9 @@ class RendererModule {
     // transforms needed to render the scene from the camera's view.
     GetCameraTransformCallback get_camera_transform;
 
+    bool enable_fps_stdout;
+    bool enable_fps_overlay;
+
    private:
     // Implemented per-platform, and allows each platform to customize
     // the renderer options.

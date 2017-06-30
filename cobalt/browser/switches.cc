@@ -117,6 +117,15 @@ const char kMemoryTracker[] = "memory_tracker";
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+// If toggled, framerate statistics will be printed to stdout after each
+// animation completes, or after a maximum number of frames has been collected.
+const char kFPSPrint[] = "fps_stdout";
+
+// If toggled, framerate statistics will be displayed in an on-screen overlay
+// and updated after each animation completes, or after a maximum number of
+// frames has been collected.
+const char kFPSOverlay[] = "fps_overlay";
+
 // Disables the hard-coded navigation whitelist without disabling any other
 // security checks. This is enabled in Gold builds.
 const char kDisableNavigationWhitelist[] = "disable_navigation_whitelist";
