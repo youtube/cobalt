@@ -15,8 +15,10 @@
 #include "starboard/shared/starboard/application.h"
 
 #include "starboard/atomic.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/string.h"
 
@@ -27,6 +29,8 @@ namespace shared {
 namespace starboard {
 
 namespace {
+
+const char kPreloadSwitch[] = "preload";
 
 // Dispatches an event of |type| with |data| to the system event handler,
 // calling |destructor| on |data| when finished dispatching. Does all
@@ -75,7 +79,9 @@ Application::~Application() {
 int Application::Run(int argc, char** argv) {
   Initialize();
   command_line_.reset(new CommandLine(argc, argv));
-  if (IsStartImmediate()) {
+  if (IsPreloadImmediate()) {
+    DispatchPreload();
+  } else if (IsStartImmediate()) {
     DispatchStart();
   }
 
@@ -129,7 +135,6 @@ void Application::Cancel(SbEventId id) {
 }
 
 #if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
-
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
                               int x,
@@ -141,6 +146,7 @@ void Application::HandleFrame(SbPlayer player,
 #endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
 
 void Application::SetStartLink(const char* start_link) {
+  SB_DCHECK(IsCurrentThread());
   SbMemoryDeallocate(start_link_);
   if (start_link) {
     start_link_ = SbStringDuplicate(start_link);
@@ -150,60 +156,90 @@ void Application::SetStartLink(const char* start_link) {
 }
 
 void Application::DispatchStart() {
+  SB_DCHECK(IsCurrentThread());
+  SB_DCHECK(state_ == kStateUnstarted || state_ == kStatePreloading);
+  DispatchAndDelete(CreateInitialEvent(kSbEventTypeStart));
+}
+
+void Application::DispatchPreload() {
+  SB_DCHECK(IsCurrentThread());
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
   SB_DCHECK(state_ == kStateUnstarted);
-  SbEventStartData start_data;
-  start_data.argument_values =
-      const_cast<char**>(command_line_->GetOriginalArgv());
-  start_data.argument_count = command_line_->GetOriginalArgc();
-  start_data.link = start_link_;
-  Dispatch(kSbEventTypeStart, &start_data, NULL);
-  state_ = kStateStarted;
+  DispatchAndDelete(CreateInitialEvent(kSbEventTypePreload));
+#else  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  SB_NOTREACHED();
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+}
+
+bool Application::HasPreloadSwitch() {
+  return command_line_->HasSwitch(kPreloadSwitch);
 }
 
 bool Application::DispatchAndDelete(Application::Event* event) {
+  SB_DCHECK(IsCurrentThread());
   if (!event) {
     return true;
   }
 
-  // DispatchStart() must be called first
-  SB_DCHECK(state_ != kStateUnstarted);
+  // Ensure the event is deleted unless it is released.
+  scoped_ptr<Event> scoped_event(event);
 
   // Ensure that we go through the the appropriate lifecycle events based on the
   // current state.
-  switch (event->event->type) {
+  switch (scoped_event->event->type) {
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypePreload:
+      if (state() != kStateUnstarted) {
+        return true;
+      }
+      break;
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypeStart:
+      if (state() != kStatePreloading && state() != kStateUnstarted) {
+        return true;
+      }
+      break;
     case kSbEventTypePause:
       if (state() != kStateStarted) {
-        delete event;
         return true;
       }
       break;
     case kSbEventTypeUnpause:
       if (state() == kStateStarted) {
-        delete event;
+        return true;
+      }
+
+      if (state() == kStatePreloading) {
+        // Convert to Start event and consume.
+        DispatchStart();
         return true;
       }
 
       if (state() == kStateSuspended) {
         Inject(new Event(kSbEventTypeResume, NULL, NULL));
-        Inject(event);
+        Inject(scoped_event.release());
         return true;
       }
       break;
     case kSbEventTypeSuspend:
       if (state() == kStateSuspended) {
-        delete event;
         return true;
+      }
+
+      if (state() == kStatePreloading) {
+        // If Preloading, we can jump straight to Suspended, so we don't try to
+        // do anything fancy here.
+        break;
       }
 
       if (state() == kStateStarted) {
         Inject(new Event(kSbEventTypePause, NULL, NULL));
-        Inject(event);
+        Inject(scoped_event.release());
         return true;
       }
       break;
     case kSbEventTypeResume:
       if (state() == kStateStarted || state() == kStatePaused) {
-        delete event;
         return true;
       }
       if (state() == kStateSuspended) {
@@ -214,32 +250,40 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       if (state() == kStateStarted) {
         Inject(new Event(kSbEventTypePause, NULL, NULL));
         Inject(new Event(kSbEventTypeSuspend, NULL, NULL));
-        Inject(event);
+        Inject(scoped_event.release());
         return true;
       }
 
       if (state() == kStatePaused) {
         Inject(new Event(kSbEventTypeSuspend, NULL, NULL));
-        Inject(event);
+        Inject(scoped_event.release());
         return true;
       }
-      error_level_ = event->error_level;
+      error_level_ = scoped_event->error_level;
       break;
     case kSbEventTypeScheduled: {
       TimedEvent* timed_event =
-          reinterpret_cast<TimedEvent*>(event->event->data);
+          reinterpret_cast<TimedEvent*>(scoped_event->event->data);
       timed_event->callback(timed_event->context);
-      delete event;
       return true;
     }
     default:
       break;
   }
 
-  SbEventHandle(event->event);
+  SbEventHandle(scoped_event->event);
 
-  bool should_continue = true;
-  switch (event->event->type) {
+  switch (scoped_event->event->type) {
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypePreload:
+      SB_DCHECK(state() == kStateUnstarted);
+      state_ = kStatePreloading;
+      break;
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypeStart:
+      SB_DCHECK(state() == kStatePreloading || state() == kStateUnstarted);
+      state_ = kStateStarted;
+      break;
     case kSbEventTypePause:
       SB_DCHECK(state() == kStateStarted);
       state_ = kStatePaused;
@@ -249,7 +293,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
       state_ = kStateStarted;
       break;
     case kSbEventTypeSuspend:
-      SB_DCHECK(state() == kStatePaused);
+      SB_DCHECK(state() == kStatePreloading || state() == kStatePaused);
       state_ = kStateSuspended;
       OnSuspend();
       break;
@@ -260,14 +304,14 @@ bool Application::DispatchAndDelete(Application::Event* event) {
     case kSbEventTypeStop:
       SB_DCHECK(state() == kStateSuspended);
       state_ = kStateStopped;
-      should_continue = false;
-      break;
+      return false;
     default:
       break;
   }
 
-  delete event;
-  return should_continue;
+  // Should not be unstarted after the first event.
+  SB_DCHECK(state() != kStateUnstarted);
+  return true;
 }
 
 void Application::CallTeardownCallbacks() {
@@ -275,6 +319,21 @@ void Application::CallTeardownCallbacks() {
   for (size_t i = 0; i < teardown_callbacks_.size(); ++i) {
     teardown_callbacks_[i]();
   }
+}
+
+Application::Event* Application::CreateInitialEvent(SbEventType type) {
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  SB_DCHECK(type == kSbEventTypePreload || type == kSbEventTypeStart);
+#else  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  SB_DCHECK(type == kSbEventTypeStart);
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  SbEventStartData* start_data = new SbEventStartData();
+  SbMemorySet(start_data, 0, sizeof(SbEventStartData));
+  start_data->argument_values =
+      const_cast<char**>(command_line_->GetOriginalArgv());
+  start_data->argument_count = command_line_->GetOriginalArgc();
+  start_data->link = start_link_;
+  return new Event(type, start_data, &DeleteDestructor<SbEventStartData>);
 }
 
 }  // namespace starboard

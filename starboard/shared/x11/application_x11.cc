@@ -1009,14 +1009,6 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       Pause(NULL, NULL);
       return NULL;
     }
-    case MapNotify: {
-      Resume(NULL, NULL);
-      return NULL;
-    }
-    case UnmapNotify: {
-      Suspend(NULL, NULL);
-      return NULL;
-    }
     case ConfigureNotify: {
       // Ignore window size, position, border, and stacking order events.
       return NULL;
