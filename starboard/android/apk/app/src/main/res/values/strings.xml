@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <!-- Error message when there's a problem connecting to the network. -->
-  <string name="starboard_platform_connection_error">Connection error.</string>
-  <!-- Error message when an action fails because the user is signed out. -->
-  <string name="starboard_platform_signed_out">User is not signed in.</string>
-  <!-- Error message when an action fails because the user is under age. -->
-  <string name="starboard_platform_age_restricted">User is age restricted.</string>
-  <!-- Error message when we don't know about the specific error code. -->
-  <string name="starboard_platform_unknown_error">An unknown error occurred.</string>
+  <string name="starboard_platform_connection_error">Can\'t connect right now</string>
+  <!-- Button label on network connection error to retry the request. -->
+  <string name="starboard_platform_retry">Try again</string>
+  <!-- Button label on network connection error to open system network settings. -->
+  <string name="starboard_platform_network_settings">Open network settings</string>
   <!-- Toast message when we can't get the device account to sign in. -->
   <string name="starboard_account_picker_error">Account not available.</string>
   <!-- Toast message when we the account can't be authorized. -->
