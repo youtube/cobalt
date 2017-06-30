@@ -54,6 +54,11 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
                    int width,
                    int height) SB_OVERRIDE;
 
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+  bool IsStartImmediate() SB_OVERRIDE { return !HasPreloadSwitch(); }
+  bool IsPreloadImmediate() SB_OVERRIDE { return HasPreloadSwitch(); }
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+
  protected:
   // --- Application overrides ---
   void Initialize() SB_OVERRIDE;

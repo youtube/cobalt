@@ -32,9 +32,18 @@ SbWindow g_window;
 
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypePreload: {
+      SB_LOG(INFO) << "PRELOAD";
+      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+      SB_DCHECK(data);
+      break;
+    }
+#endif
     case kSbEventTypeStart: {
       SB_LOG(INFO) << "START";
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+      SB_DCHECK(data);
       g_window = SbWindowCreate(NULL);
       SB_CHECK(SbWindowIsValid(g_window));
 

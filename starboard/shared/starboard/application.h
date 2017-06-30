@@ -55,6 +55,11 @@ class Application {
     // The initial Unstarted state.
     kStateUnstarted,
 
+    // The preloading state, where the application gets as much work done as
+    // possible to launch, but is not visible. You see exits to kStateStarted
+    // and kStateSuspended.
+    kStatePreloading,
+
     // The normal foreground, fully-visible state after receiving the initial
     // START event or after UNPAUSE from Paused.
     kStateStarted,
@@ -314,12 +319,28 @@ class Application {
   // means "success" or at least "no error."
   int error_level() const { return error_level_; }
 
-  // Returns true if the Start event should be sent in |Run| before entering the
-  // event loop. Derived classes that return false must call |DispatchStart|.
+  // Returns whether the Start event should be sent in |Run| before entering the
+  // event loop. Derived classes that return false must call |DispatchStart| at
+  // some point.
   virtual bool IsStartImmediate() { return true; }
 
-  // Dispatches a Start event to the system event handler.
+  // Synchronously dispatches a Start event to the system event handler. Must be
+  // called on the main dispatch thread.
   void DispatchStart();
+
+  // Returns whether the Preload event should be sent in |Run| before entering
+  // the event loop. Derived classes that return true must call |Unpause| or
+  // |DispatchStart| at some point.
+  //
+  // |IsPreloadImmediate|, if true, takes precedence over |IsStartImmediate|.
+  virtual bool IsPreloadImmediate() { return false; }
+
+  // Synchronously dispatches a Preload event to the system event handler. Must
+  // be called on the main dispatch thread.
+  void DispatchPreload();
+
+  // Returns whether the '--preload' command-line argument is specified.
+  bool HasPreloadSwitch();
 
   // Dispatches |event| to the system event handler, taking ownership of the
   // event. Checks for consistency with the current application state when state
@@ -332,6 +353,10 @@ class Application {
   void CallTeardownCallbacks();
 
  private:
+  // Creates an initial event type of either Start or Preload with the original
+  // command line and deep link.
+  Event* CreateInitialEvent(SbEventType type);
+
   // The single application instance.
   static Application* g_instance;
 
