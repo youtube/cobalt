@@ -73,7 +73,8 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
                    const scoped_refptr<backend::RenderTarget>& render_target,
                    backend::GraphicsContext* graphics_context,
                    bool submit_even_if_render_tree_is_unchanged,
-                   ShutdownClearMode clear_on_shutdown_mode)
+                   ShutdownClearMode clear_on_shutdown_mode,
+                   const Options& options)
     : rasterizer_created_event_(true, false),
       render_target_(render_target),
       graphics_context_(graphics_context),
@@ -85,9 +86,11 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       rasterize_periodic_timer_("Renderer.Rasterize.Duration",
                                 kRasterizePeriodicTimerEntriesPerUpdate,
                                 false /*enable_entry_list_c_val*/),
-      rasterize_animations_timer_("Renderer.Rasterize.Animations",
-                                  kRasterizeAnimationsTimerMaxEntries,
-                                  true /*enable_entry_list_c_val*/),
+      ALLOW_THIS_IN_INITIALIZER_LIST(rasterize_animations_timer_(
+          "Renderer.Rasterize.Animations", kRasterizeAnimationsTimerMaxEntries,
+          true /*enable_entry_list_c_val*/,
+          base::Bind(&Pipeline::FrameStatsOnFlushCallback,
+                     base::Unretained(this)))),
       new_render_tree_rasterize_count_(
           "Count.Renderer.Rasterize.NewRenderTree", 0,
           "Total number of new render trees rasterized."),
@@ -101,19 +104,36 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           "Time.Renderer.Rasterize.Animations.Start", 0,
           "The most recent time animations started playing."),
       animations_end_time_("Time.Renderer.Rasterize.Animations.End", 0,
-                           "The most recent time animations ended playing.")
+                           "The most recent time animations ended playing."),
 #if defined(ENABLE_DEBUG_CONSOLE)
-      ,
       ALLOW_THIS_IN_INITIALIZER_LIST(dump_current_render_tree_command_handler_(
-          "dump_render_tree", base::Bind(&Pipeline::OnDumpCurrentRenderTree,
-                                         base::Unretained(this)),
+          "dump_render_tree",
+          base::Bind(&Pipeline::OnDumpCurrentRenderTree,
+                     base::Unretained(this)),
           "Dumps the current render tree to text.",
           "Dumps the current render tree either to the console if no parameter "
           "is specified, or to a file with the specified filename relative to "
-          "the debug output folder."))
+          "the debug output folder.")),
+      ALLOW_THIS_IN_INITIALIZER_LIST(toggle_fps_stdout_command_handler_(
+          "toggle_fps_stdout",
+          base::Bind(&Pipeline::OnToggleFpsStdout, base::Unretained(this)),
+          "Toggles printing framerate stats to stdout.",
+          "When enabled, at the end of each animation (or every time a maximum "
+          "number of frames are rendered), framerate statistics are printed "
+          "to stdout.")),
+      ALLOW_THIS_IN_INITIALIZER_LIST(toggle_fps_overlay_command_handler_(
+          "toggle_fps_overlay",
+          base::Bind(&Pipeline::OnToggleFpsOverlay, base::Unretained(this)),
+          "Toggles rendering framerate stats to an overlay on the display.",
+          "Framerate statistics are rendered to a display overlay.  The "
+          "numbers are updated at the end of each animation (or every time a "
+          "maximum number of frames are rendered), framerate statistics are "
+          "printed to stdout.")),
 #endif
-      ,
-      clear_on_shutdown_mode_(clear_on_shutdown_mode) {
+      clear_on_shutdown_mode_(clear_on_shutdown_mode),
+      enable_fps_stdout_(options.enable_fps_stdout),
+      enable_fps_overlay_(options.enable_fps_overlay),
+      fps_overlay_updated_(false) {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Pipeline()");
   // The actual Pipeline can be constructed from any thread, but we want
   // rasterizer_thread_checker_ to be associated with the rasterizer thread,
@@ -173,13 +193,9 @@ void Pipeline::Submit(const Submission& render_tree_submission) {
 
 void Pipeline::Clear() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::Clear()");
-  base::WaitableEvent wait_event(true, false);
-  rasterizer_thread_.message_loop()->PostTask(
+  rasterizer_thread_.message_loop()->PostBlockingTask(
       FROM_HERE,
-      base::Bind(&Pipeline::ClearCurrentRenderTree, base::Unretained(this),
-                 base::Bind(&base::WaitableEvent::Signal,
-                            base::Unretained(&wait_event))));
-  wait_event.Wait();
+      base::Bind(&Pipeline::ClearCurrentRenderTree, base::Unretained(this)));
 }
 
 void Pipeline::RasterizeToRGBAPixels(
@@ -231,17 +247,12 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   }
 }
 
-void Pipeline::ClearCurrentRenderTree(
-    const base::Closure& clear_complete_callback) {
+void Pipeline::ClearCurrentRenderTree() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
   submission_queue_->Reset();
   rasterize_timer_ = base::nullopt;
-
-  if (!clear_complete_callback.is_null()) {
-    clear_complete_callback.Run();
-  }
 }
 
 void Pipeline::RasterizeCurrentTree() {
@@ -259,7 +270,8 @@ void Pipeline::RasterizeCurrentTree() {
   // If our render tree hasn't changed from the one that was previously
   // rendered and it's okay on this system to not flip the display buffer
   // frequently, then we can just not do anything here.
-  if (!submit_even_if_render_tree_is_unchanged_ && !has_render_tree_changed) {
+  if (!fps_overlay_updated_ && !submit_even_if_render_tree_is_unchanged_ &&
+      !has_render_tree_changed) {
     return;
   }
 
@@ -364,10 +376,15 @@ void Pipeline::RasterizeSubmissionToRenderTarget(
   }
   previous_animated_area_ = rounded_bounds;
 
+  scoped_refptr<render_tree::Node> submit_tree = results.animated;
+  if (enable_fps_overlay_ && fps_overlay_) {
+    submit_tree = fps_overlay_->AnnotateRenderTreeWithOverlay(results.animated);
+  }
+
   // Rasterize the animated render tree.
   rasterizer::Rasterizer::Options rasterizer_options;
   rasterizer_options.dirty = redraw_area;
-  rasterizer_->Submit(results.animated, render_target, rasterizer_options);
+  rasterizer_->Submit(submit_tree, render_target, rasterizer_options);
 
   if (!submission.on_rasterized_callback.is_null()) {
     submission.on_rasterized_callback.Run();
@@ -478,6 +495,28 @@ void Pipeline::OnDumpCurrentRenderTree(const std::string& message) {
                          tree_dump.length());
   }
 }
+
+void Pipeline::OnToggleFpsStdout(const std::string& message) {
+  if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
+    rasterizer_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&Pipeline::OnToggleFpsStdout,
+                              base::Unretained(this), message));
+    return;
+  }
+
+  enable_fps_stdout_ = !enable_fps_stdout_;
+}
+
+void Pipeline::OnToggleFpsOverlay(const std::string& message) {
+  if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
+    rasterizer_thread_.message_loop()->PostTask(
+        FROM_HERE, base::Bind(&Pipeline::OnToggleFpsOverlay,
+                              base::Unretained(this), message));
+    return;
+  }
+
+  enable_fps_overlay_ = !enable_fps_overlay_;
+}
 #endif  // #if defined(ENABLE_DEBUG_CONSOLE)
 
 Submission Pipeline::CollectAnimations(
@@ -489,6 +528,45 @@ Submission Pipeline::CollectAnimations(
   collected_submission.render_tree = new render_tree::animations::AnimateNode(
       render_tree_submission.render_tree);
   return collected_submission;
+}
+
+namespace {
+void PrintFPS(
+    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
+        results) {
+  SbLogRaw(base::StringPrintf("FPS => # samples: %d, avg: %.1fms, "
+                              "[min, max]: [%.1fms, %.1fms]\n"
+                              "       25th : 50th : 75th : 95th pct - "
+                              "%.1fms : %.1fms : %.1fms : %.1fms\n",
+                              static_cast<unsigned int>(results.sample_count),
+                              results.average.InMillisecondsF(),
+                              results.minimum.InMillisecondsF(),
+                              results.maximum.InMillisecondsF(),
+                              results.percentile_25th.InMillisecondsF(),
+                              results.percentile_50th.InMillisecondsF(),
+                              results.percentile_75th.InMillisecondsF(),
+                              results.percentile_95th.InMillisecondsF())
+               .c_str());
+}
+}  // namespace
+
+void Pipeline::FrameStatsOnFlushCallback(
+    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
+        flush_results) {
+  DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+
+  if (enable_fps_overlay_) {
+    if (!fps_overlay_) {
+      fps_overlay_.emplace(rasterizer_->GetResourceProvider());
+    }
+
+    fps_overlay_->UpdateOverlay(flush_results);
+    fps_overlay_updated_ = true;
+  }
+
+  if (enable_fps_stdout_) {
+    PrintFPS(flush_results);
+  }
 }
 
 }  // namespace renderer

@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 
+#include "base/callback.h"
 #include "base/logging.h"
 #include "base/stringprintf.h"
 #include "base/time.h"
@@ -50,9 +51,38 @@ class CValCollectionEntryStatsImpl {
  public:
   static const size_t kNoMaxSize = 0;
 
-  CValCollectionEntryStatsImpl(const std::string& name,
-                               size_t max_size = kNoMaxSize,
-                               bool enable_entry_list_c_val = false);
+  struct FlushResults {
+    FlushResults(size_t sample_count, EntryType average, EntryType minimum,
+                 EntryType maximum, EntryType standard_deviation,
+                 EntryType percentile_25th, EntryType percentile_50th,
+                 EntryType percentile_75th, EntryType percentile_95th)
+        : sample_count(sample_count),
+          average(average),
+          minimum(minimum),
+          maximum(maximum),
+          standard_deviation(standard_deviation),
+          percentile_25th(percentile_25th),
+          percentile_50th(percentile_50th),
+          percentile_75th(percentile_75th),
+          percentile_95th(percentile_95th) {}
+
+    size_t sample_count;
+    EntryType average;
+    EntryType minimum;
+    EntryType maximum;
+    EntryType standard_deviation;
+    EntryType percentile_25th;
+    EntryType percentile_50th;
+    EntryType percentile_75th;
+    EntryType percentile_95th;
+  };
+
+  typedef base::Callback<void(const FlushResults&)> OnFlushCallback;
+
+  CValCollectionEntryStatsImpl(
+      const std::string& name, size_t max_size = kNoMaxSize,
+      bool enable_entry_list_c_val = false,
+      const OnFlushCallback& on_flush = OnFlushCallback());
 
   // Add an entry to the collection. This may trigger a Flush() if adding the
   // entry causes the max size to be reached.
@@ -76,6 +106,10 @@ class CValCollectionEntryStatsImpl {
 
   // The maximum size of the collection before Flush() is automatically called.
   const size_t max_size_;
+
+  // Callback to call whenever the values are flushed.
+  const OnFlushCallback on_flush_;
+
   // The current collection of entries. These will be used to generate the cval
   // stats during the next call of Flush().
   CollectionType collection_;
@@ -96,10 +130,12 @@ class CValCollectionEntryStatsImpl {
 
 template <typename EntryType, typename Visibility>
 CValCollectionEntryStatsImpl<EntryType, Visibility>::
-    CValCollectionEntryStatsImpl(const std::string& name,
-                                 size_t max_size /*=kNoMaxSize*/,
-                                 bool enable_entry_list_c_val /*=false*/)
+    CValCollectionEntryStatsImpl(
+        const std::string& name, size_t max_size /*=kNoMaxSize*/,
+        bool enable_entry_list_c_val /*=false*/,
+        const OnFlushCallback& on_flush /*=OnFlushCallback()*/)
     : max_size_(max_size),
+      on_flush_(on_flush),
       count_(StringPrintf("%s.Cnt", name.c_str()), 0, "Total entries."),
       average_(StringPrintf("%s.Avg", name.c_str()), EntryType(),
                "Average value."),
@@ -152,18 +188,36 @@ void CValCollectionEntryStatsImpl<EntryType, Visibility>::Flush() {
   double mean = CValDetail::ToDouble<EntryType>(sum) / collection_.size();
 
   // Update the collection stat cvals.
-  count_ = collection_.size();
-  average_ = CValDetail::FromDouble<EntryType>(mean);
-  minimum_ = collection_.front();
-  maximum_ = collection_.back();
-  percentile_25th_ = CalculatePercentile(collection_, 25);
-  percentile_50th_ = CalculatePercentile(collection_, 50);
-  percentile_75th_ = CalculatePercentile(collection_, 75);
-  percentile_95th_ = CalculatePercentile(collection_, 95);
-  standard_deviation_ = CValDetail::FromDouble<EntryType>(
+  size_t count = collection_.size();
+  EntryType average = CValDetail::FromDouble<EntryType>(mean);
+  EntryType minimum = collection_.front();
+  EntryType maximum = collection_.back();
+  EntryType percentile_25th = CalculatePercentile(collection_, 25);
+  EntryType percentile_50th = CalculatePercentile(collection_, 50);
+  EntryType percentile_75th = CalculatePercentile(collection_, 75);
+  EntryType percentile_95th = CalculatePercentile(collection_, 95);
+  EntryType standard_deviation = CValDetail::FromDouble<EntryType>(
       CalculateStandardDeviation(collection_, mean));
 
+  // Flush the computed values out to the CVals.
+  count_ = count;
+  average_ = average;
+  minimum_ = minimum;
+  maximum_ = maximum;
+  percentile_25th_ = percentile_25th;
+  percentile_50th_ = percentile_50th;
+  percentile_75th_ = percentile_75th;
+  percentile_95th_ = percentile_95th;
+  standard_deviation_ = standard_deviation;
+
   collection_.clear();
+
+  // Callback to any listeners with the flush values.
+  if (!on_flush_.is_null()) {
+    on_flush_.Run(FlushResults(
+        count, average, minimum, maximum, standard_deviation, percentile_25th,
+        percentile_50th, percentile_75th, percentile_95th));
+  }
 }
 
 template <typename EntryType, typename Visibility>
@@ -290,11 +344,15 @@ class CValCollectionEntryStats<EntryType, CValDebug>
 #endif  // ENABLE_DEBUG_C_VAL
 
  public:
+  typedef typename CValParent::OnFlushCallback OnFlushCallback;
+  typedef typename CValParent::FlushResults FlushResults;
+
   explicit CValCollectionEntryStats(const std::string& name)
       : CValParent(name) {}
   CValCollectionEntryStats(const std::string& name, size_t max_size,
-                           bool enable_entry_list_c_val)
-      : CValParent(name, max_size, enable_entry_list_c_val) {}
+                           bool enable_entry_list_c_val,
+                           const OnFlushCallback& on_flush = OnFlushCallback())
+      : CValParent(name, max_size, enable_entry_list_c_val, on_flush) {}
 };
 
 // CVals with visibility set to CValPublic are always tracked though the CVal
@@ -306,11 +364,15 @@ class CValCollectionEntryStats<EntryType, CValPublic>
       CValParent;
 
  public:
+  typedef typename CValParent::OnFlushCallback OnFlushCallback;
+  typedef typename CValParent::FlushResults FlushResults;
+
   explicit CValCollectionEntryStats(const std::string& name)
       : CValParent(name) {}
   CValCollectionEntryStats(const std::string& name, size_t max_size,
-                           bool enable_entry_list_c_val)
-      : CValParent(name, max_size, enable_entry_list_c_val) {}
+                           bool enable_entry_list_c_val,
+                           const OnFlushCallback& on_flush = OnFlushCallback())
+      : CValParent(name, max_size, enable_entry_list_c_val, on_flush) {}
 };
 
 }  // namespace base
