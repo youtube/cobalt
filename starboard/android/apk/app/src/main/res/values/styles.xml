@@ -7,5 +7,25 @@
     <!-- Color shown after the transition before the window is attached.
          Avoids a black flash between the transition and splash screen. -->
     <item name="android:windowBackground">?android:colorPrimary</item>
+
+    <item name="android:dialogTheme">@style/FullscreenDialogTheme</item>
+  </style>
+
+  <style name="FullscreenDialogTheme" parent="Theme.Leanback">
+    <item name="android:layout_width">fill_parent</item>
+    <item name="android:layout_height">fill_parent</item>
+    <item name="android:windowIsTranslucent">true</item>
+    <item name="android:windowBackground">@color/lb_error_background_color_translucent</item>
+    <item name="android:windowNoTitle">true</item>
+    <item name="android:windowIsFloating">false</item>
+    <item name="android:windowOverscan">true</item>
+    <item name="android:backgroundDimEnabled">false</item>
+    <item name="errorMessageStyle">@style/ErrorMessageStyle</item>
+    <!-- Make the buttons darker so that you can see the focus highlight on the dark background. -->
+    <item name="android:colorButtonNormal">#282828</item>
+  </style>
+
+  <style name="ErrorMessageStyle" parent="Widget.Leanback.ErrorMessageStyle">
+    <item name="android:layout_margin">16dp</item>
   </style>
 </resources>

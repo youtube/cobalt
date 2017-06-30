@@ -39,10 +39,7 @@ namespace {
 
 enum {
   // This must be kept in sync with Java foo.cobalt.PlatformError.ErrorType
-  kJniErrorTypeUnknown = -1,
   kJniErrorTypeConnectionError = 0,
-  kJniErrorTypeUserSignedOut = 1,
-  kJniErrorTypeUserAgeRestricted = 2
 };
 
 }  // namespace
@@ -57,13 +54,10 @@ SbSystemPlatformError SbSystemRaisePlatformError(
       jni_error_type = kJniErrorTypeConnectionError;
       break;
     case kSbSystemPlatformErrorTypeUserSignedOut:
-      jni_error_type = kJniErrorTypeUserSignedOut;
-      break;
     case kSbSystemPlatformErrorTypeUserAgeRestricted:
-      jni_error_type = kJniErrorTypeUserAgeRestricted;
-      break;
     default:
-      jni_error_type = kJniErrorTypeUnknown;
+      SB_NOTREACHED();
+      return kSbSystemPlatformErrorInvalid;
   }
 
   SbSystemPlatformError error_handle =
