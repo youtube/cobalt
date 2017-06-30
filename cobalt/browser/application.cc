@@ -407,6 +407,13 @@ Application::Application(const base::Closure& quit_closure)
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
 
+  if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
+    options.renderer_module_options.enable_fps_stdout = true;
+  }
+  if (command_line->HasSwitch(browser::switches::kFPSOverlay)) {
+    options.renderer_module_options.enable_fps_overlay = true;
+  }
+
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
