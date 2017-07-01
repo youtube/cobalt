@@ -110,8 +110,10 @@ void RenderTreeNodeVisitor::Visit(
 
 void RenderTreeNodeVisitor::Visit(
     render_tree::MatrixTransform3DNode* transform_3d_node) {
-  // TODO: Ignore the 3D transform matrix for now.
-  transform_3d_node->data().source->Accept(this);
+  // This is used in conjunction with a map-to-mesh filter. If that filter is
+  // implemented natively, then this transform 3D must be handled natively
+  // as well. Otherwise, use the fallback rasterizer for both.
+  FallbackRasterize(transform_3d_node);
 }
 
 void RenderTreeNodeVisitor::Visit(
