@@ -33,7 +33,7 @@ class MediaSandbox {
   typedef render_tree::Image Image;
   typedef base::Callback<scoped_refptr<Image>(const base::TimeDelta&)> FrameCB;
 
-  MediaSandbox(int argc, char** argv, const FilePath& trace_log_path);
+  explicit MediaSandbox(const FilePath& trace_log_path);
   ~MediaSandbox();
 
   // This function registers a callback so the MediaSandbox instance can pull
