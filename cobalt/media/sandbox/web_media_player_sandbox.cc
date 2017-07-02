@@ -67,16 +67,23 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 }
 
 int SandboxMain(int argc, char** argv) {
+  const char hard_coded_mp4_url[] =
+      "https://storage.googleapis.com/yt-cobalt-media-element-demo/"
+      "progressive.mp4";
+
   if (argc != 2 && argc != 3) {
-    LOG(ERROR) << "Usage: " << argv[0] << " [--null_audio_streamer] <url|path>";
-    return 1;
+    LOG(INFO) << "Warning: " << argv[0]
+              << " had no url, defaulting to hard-coded path.";
   }
+
+  const char* mp4_url =
+      (argc > 1) ? argv[argc - 1] : hard_coded_mp4_url;
+
   MediaSandbox media_sandbox(
-      argc, argv,
       FilePath(FILE_PATH_LITERAL("web_media_player_sandbox_trace.json")));
 
   // Note that we can't access PathService until MediaSandbox is initialized.
-  GURL video_url = ResolveUrl(argv[argc - 1]);
+  GURL video_url = ResolveUrl(mp4_url);
 
   if (!video_url.is_valid()) {
     LOG(ERROR) << " Invalid URL: " << video_url;
