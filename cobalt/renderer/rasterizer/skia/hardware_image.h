@@ -130,21 +130,8 @@ class HardwareFrontendImage : public SinglePlaneImage {
  private:
   ~HardwareFrontendImage() OVERRIDE;
 
-  // The following Initialize functions will construct |backend_image_|, but
-  // only if |backend_image_| is ever needed by the rasterizer thread.
-  void InitializeBackendImageFromImageData(
-      scoped_ptr<HardwareImageData> image_data,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromRawImageData(
-      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-          raw_texture_memory,
-      intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromTexture(GrContext* gr_context);
-  void InitializeBackendImageFromRenderTree(
-      const scoped_refptr<render_tree::Node>& root,
-      const SubmitOffscreenCallback& submit_offscreen_callback,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+  // Helper function to be called from the constructor.
+  void InitializeBackend();
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
