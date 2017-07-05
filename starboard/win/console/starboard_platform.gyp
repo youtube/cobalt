@@ -22,6 +22,8 @@
       '../shared/system_get_path.cc',
       '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
       '<(DEPTH)/starboard/shared/starboard/queue_application.h',
+      '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
+      '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
       '<(DEPTH)/starboard/shared/stub/system_request_pause.cc',
       '<(DEPTH)/starboard/shared/stub/system_request_stop.cc',
       '<(DEPTH)/starboard/shared/stub/system_request_suspend.cc',
