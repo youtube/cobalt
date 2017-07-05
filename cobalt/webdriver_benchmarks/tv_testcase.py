@@ -19,6 +19,11 @@ import tv
 import tv_testcase_runner
 import tv_testcase_util
 
+try:
+  import custom_query_param_constants as query_param_constants
+except ImportError:
+  import default_query_param_constants as query_param_constants
+
 # selenium imports
 # pylint: disable=C0103
 ActionChains = tv_testcase_util.import_selenium_module(
@@ -70,11 +75,9 @@ class TvTestCase(unittest.TestCase):
   def setUp(self):
     global _is_initialized
     if not _is_initialized:
-      # Initialize the tests. This involves loading a URL which applies the
-      # forcedOffAllExperiments cookies, ensuring that no subsequent loads
-      # include experiments. Additionally, loading this URL triggers a reload.
-      query_params = {"env_forcedOffAllExperiments": True}
-      triggers_reload = True
+      # Initialize the tests.
+      query_params = query_param_constants.INIT_QUERY_PARAMS
+      triggers_reload = query_param_constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
       self.load_tv(query_params, triggers_reload)
       _is_initialized = True
 
