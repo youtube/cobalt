@@ -16,7 +16,7 @@
 {
   'variables': {
     'static_contents_source_dir': '<(DEPTH)/cobalt/content',
-    'static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
-    'static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
+    'static_contents_output_base_dir': '<(PRODUCT_DIR)/content',
+    'static_contents_output_data_dir': '<(PRODUCT_DIR)/content/data',
   },
 }
