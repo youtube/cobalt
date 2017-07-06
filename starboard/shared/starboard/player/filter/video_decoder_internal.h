@@ -83,7 +83,7 @@ class HostedVideoDecoder : public VideoDecoder {
         const scoped_refptr<VideoFrame>& frame) = 0;
 
    protected:
-    ~Host() {}
+    virtual ~Host() {}
   };
 
   virtual void SetHost(Host* host) = 0;
