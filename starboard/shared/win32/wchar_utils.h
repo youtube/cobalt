@@ -47,8 +47,7 @@ inline std::string platformStringToString(Platform::String^ to_convert) {
 }
 
 inline Platform::String^ stringToPlatformString(const std::string& to_convert) {
-  std::wstring ws(to_convert.begin(), to_convert.end());
-  return ref new Platform::String(ws.c_str());
+  return ref new Platform::String(CStringToWString(to_convert.c_str()).c_str());
 }
 #endif
 
