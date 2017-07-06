@@ -292,6 +292,13 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
+    if (hardware_image->alternate_rgba_format()) {
+      // We don't yet handle alternative formats that piggyback on a GL_RGBA
+      // texture.  This comes up, for example, with UYVY (YUV 422) textures.
+      FallbackRasterize(image_node);
+      return;
+    }
+
     if (clamp_texcoords || !is_opaque) {
       draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
           data.destination_rect, kOpaqueWhite,
