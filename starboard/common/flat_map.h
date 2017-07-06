@@ -197,6 +197,8 @@ class FlatMap {
     }
   }
 
+  void erase(iterator it) { vector_.erase(it); }
+
   void erase(iterator begin_it, iterator end_it) {
     vector_.erase(begin_it, end_it);
   }
