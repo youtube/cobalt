@@ -27,6 +27,7 @@ namespace render_tree {
 enum PixelFormat {
   kPixelFormatRGBA8,
   kPixelFormatBGRA8,
+  kPixelFormatUYVY,
   kPixelFormatY8,
   kPixelFormatU8,
   kPixelFormatV8,
