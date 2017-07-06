@@ -17,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -51,7 +52,11 @@ class TexturedMeshRenderer {
       // YUV BT709 image where the Y, U and V components are all on different
       // textures.
       YUV_3PLANE_BT709,
-      RGBA,  // 1 texture is used that contains RGBA pixels.
+      // 1 texture is used that contains RGBA pixels.
+      RGBA,
+      // 1 texture plane is used where Y is sampled twice for each UV sample
+      // (horizontally).
+      YUV_UYVY_422_BT709,
     };
 
     struct Texture {
@@ -67,6 +72,7 @@ class TexturedMeshRenderer {
         case YUV_3PLANE_BT709:
           return 3;
         case RGBA:
+        case YUV_UYVY_422_BT709:
           return 1;
         default:
           NOTREACHED();
@@ -101,24 +107,31 @@ class TexturedMeshRenderer {
     std::string components;
   };
   struct ProgramInfo {
-    uint32 mvp_transform_uniform;
-    uint32 texcoord_scale_translate_uniforms[3];
-    uint32 texture_uniforms[3];
+    int32 mvp_transform_uniform;
+    int32 texcoord_scale_translate_uniforms[3];
+    int32 texture_uniforms[3];
+    int32 texture_size_uniforms[3];
     uint32 gl_program_id;
   };
   // We key each program off of their GL texture type and image type.
-  typedef std::pair<uint32, Image::Type> CacheKey;
+  typedef std::tuple<uint32, Image::Type, base::optional<int32> > CacheKey;
   typedef std::map<CacheKey, ProgramInfo> ProgramCache;
 
   uint32 GetQuadVBO();
-  ProgramInfo GetBlitProgram(Image::Type type, uint32 texture_target);
+  ProgramInfo GetBlitProgram(const Image& image);
 
   static ProgramInfo MakeBlitProgram(const float* color_matrix,
-                                     uint32 texture_target,
-                                     const std::vector<TextureInfo>& textures);
+                                     const std::vector<TextureInfo>& textures,
+                                     uint32 blit_fragment_shader);
+
   static uint32 CreateFragmentShader(uint32 texture_target,
                                      const std::vector<TextureInfo>& textures);
   static uint32 CreateVertexShader(const std::vector<TextureInfo>& textures);
+
+  // UYVY textures need a special fragment shader to handle the unique aspect
+  // of applying bilinear filtering within a texel between the two Y values.
+  static uint32 CreateUYVYFragmentShader(uint32 texture_target,
+                                         int32 texture_wrap_s);
 
   backend::GraphicsContextEGL* graphics_context_;
 
