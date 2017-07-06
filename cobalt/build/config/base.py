@@ -34,7 +34,7 @@ class Configs(object):
 VALID_BUILD_CONFIGS = [Configs.DEBUG, Configs.DEVEL, Configs.QA, Configs.GOLD]
 
 # Represents all supported platforms, uniquified and sorted.
-VALID_PLATFORMS = sorted(gyp_utils.GetThirdPartyPlatforms().keys())
+VALID_PLATFORMS = sorted(gyp_utils.GetAllPlatforms().keys())
 
 _CURRENT_PATH = os.path.abspath(os.path.dirname(__file__))
 
@@ -69,9 +69,11 @@ class PlatformConfigBase(object):
     Returns:
         A list containing paths to .gypi files.
     """
-    platforms = gyp_utils.GetThirdPartyPlatforms()
-    if self.platform in platforms:
-      return [os.path.join(platforms[self.platform], 'gyp_configuration.gypi')]
+    platforms = gyp_utils.GetAllPlatforms()
+    if self.platform in platforms.keys():
+      return [
+          os.path.join(platforms[self.platform].path, 'gyp_configuration.gypi')
+      ]
     return [os.path.join(self.config_path, self.platform + '.gypi')]
 
   def GetEnvironmentVariables(self):
@@ -111,9 +113,9 @@ def LoadPlatformConfig(platform):
   """
   try:
     logging.debug('Loading platform configuration for "%s".', platform)
-    platforms = gyp_utils.GetThirdPartyPlatforms()
-    if platform in platforms:
-      platform_path = platforms[platform]
+    platforms = gyp_utils.GetAllPlatforms()
+    if platform in platforms.keys():
+      platform_path = platforms[platform].path
       module_path = os.path.join(platform_path, 'gyp_configuration.py')
       platform_module = imp.load_source('platform_module', module_path)
     else:
