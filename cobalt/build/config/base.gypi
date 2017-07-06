@@ -43,6 +43,12 @@
     'sb_enable_lib%': '<(sb_enable_lib)',
     'cobalt_enable_lib': '<(sb_enable_lib)',
 
+    # Directory path to static contents.
+    'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
+
+    # Directory path to static contents' data.
+    'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
+
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user
     # chooses to back out of the application).
