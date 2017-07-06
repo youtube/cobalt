@@ -390,6 +390,7 @@ RGBASwizzle GetRGBASwizzleForPixelFormat(PixelFormat pixel_format) {
     case render_tree::kPixelFormatBGRA8: {
       return RGBASwizzle(2, 1, 0, 3);
     }
+    case render_tree::kPixelFormatUYVY:
     case render_tree::kPixelFormatY8:
     case render_tree::kPixelFormatU8:
     case render_tree::kPixelFormatV8:
@@ -1051,6 +1052,84 @@ scoped_refptr<Image> MakeNV12Image(ResourceProvider* resource_provider,
 #endif  // #if NV12_TEXTURE_SUPPORTED
 }  // namespace
 
+scoped_refptr<Image> MakeUYVYImage(ResourceProvider* resource_provider,
+                                   const Size& image_size) {
+  // Our UYVY image is a different pattern than the other YUV Make*Image()
+  // functions in order to better test how all channels change and interpolate
+  // in both the horizontal and vertical directions.
+  render_tree::AlphaFormat alpha_format = render_tree::kAlphaFormatOpaque;
+  CHECK(resource_provider->AlphaFormatSupported(alpha_format));
+
+  Size uv_size = image_size;
+  uv_size.set_width(image_size.width() / 2);
+
+  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+      uv_size, render_tree::kPixelFormatUYVY, alpha_format);
+
+  float x_step = 1.0f / (uv_size.width() - 1);
+  float y_step = 1.0f / (uv_size.height() - 1);
+  for (int i = 0; i < uv_size.height(); ++i) {
+    uint8_t* pixel_data = image_data->GetMemory() +
+                          image_data->GetDescriptor().pitch_in_bytes * i;
+    float y = i * y_step;
+    for (int j = 0; j < uv_size.width(); ++j) {
+      float x1 = j * x_step;
+      float x2 = (j + 0.5f) * x_step;
+
+      int pixel_offset = j * 4;
+
+      float radius1 = math::Vector2dF(x1 - 0.5f, y - 0.5f).Length() * 2;
+      float radius2 = math::Vector2dF(x2 - 0.5f, y - 0.5f).Length() * 2;
+
+      pixel_data[pixel_offset + 0] = std::min(255.0f, radius1 * 255.0f);
+      pixel_data[pixel_offset + 1] = std::min(255.0f, radius1 * 255.0f);
+      pixel_data[pixel_offset + 2] = 255 - std::min(255.0f, radius1 * 255.0f);
+      pixel_data[pixel_offset + 3] = std::min(255.0f, radius2 * 255.0f);
+    }
+  }
+
+  return resource_provider->CreateImage(image_data.Pass());
+}
+
+// Makes an image where the Y values alternate between 0 and 255.  This is
+// useful for testing y value filtering, especially when a small image of this
+// form is scaled up.
+scoped_refptr<Image> MakeAlternatingYUYVYImage(
+    ResourceProvider* resource_provider, const Size& image_size) {
+  // Our UYVY image is a different pattern than the other YUV Make*Image()
+  // functions in order to better test how all channels change and interpolate
+  // in both the horizontal and vertical directions.
+  render_tree::AlphaFormat alpha_format = render_tree::kAlphaFormatOpaque;
+  CHECK(resource_provider->AlphaFormatSupported(alpha_format));
+
+  Size uv_size = image_size;
+  uv_size.set_width(image_size.width() / 2);
+
+  scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
+      uv_size, render_tree::kPixelFormatUYVY, alpha_format);
+
+  float x_step = 1.0f / (uv_size.width() - 1);
+  float y_step = 1.0f / (uv_size.height() - 1);
+  for (int i = 0; i < uv_size.height(); ++i) {
+    uint8_t* pixel_data = image_data->GetMemory() +
+                          image_data->GetDescriptor().pitch_in_bytes * i;
+    float y = i * y_step;
+    for (int j = 0; j < uv_size.width(); ++j) {
+      float x1 = j * x_step;
+      float x2 = (j + 0.5f) * x_step;
+
+      int pixel_offset = j * 4;
+
+      pixel_data[pixel_offset + 0] = std::min(255.0f, 255.0f * y);
+      pixel_data[pixel_offset + 1] = 0;
+      pixel_data[pixel_offset + 2] = 255 - std::min(255.0f, 255.0f * y);
+      pixel_data[pixel_offset + 3] = 255;
+    }
+  }
+
+  return resource_provider->CreateImage(image_data.Pass());
+}
+
 TEST_F(PixelTest, ThreePlaneYUVImageSupport) {
   // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
   scoped_refptr<Image> image =
@@ -1087,6 +1166,35 @@ TEST_F(PixelTest, ThreePlaneYUVImageWithReflection) {
           ScaleMatrix(1.0f, -1.0f) *
           TranslateMatrix(-half_output_size.width(),
                           -half_output_size.height())));
+}
+
+TEST_F(PixelTest, YUV422UYVYImageSupport) {
+  if (!GetResourceProvider()->PixelFormatSupported(
+          render_tree::kPixelFormatUYVY)) {
+    return;
+  }
+
+  // Tests that an ImageNode hooked up to a UYVY image works fine.
+  scoped_refptr<Image> image =
+      MakeUYVYImage(GetResourceProvider(), output_surface_size());
+
+  TestTree(new ImageNode(image));
+}
+
+TEST_F(PixelTest, YUV422UYVYImageScaledUpSupport) {
+  if (!GetResourceProvider()->PixelFormatSupported(
+          render_tree::kPixelFormatUYVY)) {
+    return;
+  }
+
+  // Tests that an ImageNode hooked up to a UYVY image and then scaled onto
+  // a larger screen space works fine.  This test is particularly important in
+  // testing that the somewhat unique UYVY texture interpolation logic is
+  // working properly.
+  scoped_refptr<Image> image =
+      MakeAlternatingYUYVYImage(GetResourceProvider(), math::Size(4, 4));
+
+  TestTree(new ImageNode(image, math::Rect(output_surface_size())));
 }
 
 // The software rasterizer does not support NV12 images.
@@ -3490,6 +3598,18 @@ TEST_F(PixelTest, MapToMeshI420Test) {
   // Tests that MapToMesh filter works as expected with a I420 YUV texture.
   scoped_refptr<Image> image =
       MakeI420Image(GetResourceProvider(), Size(200, 200));
+  TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
+}
+
+TEST_F(PixelTest, MapToMeshUYVYTest) {
+  if (!GetResourceProvider()->PixelFormatSupported(
+          render_tree::kPixelFormatUYVY)) {
+    return;
+  }
+
+  // Tests that MapToMesh filter works as expected with a I420 YUV texture.
+  scoped_refptr<Image> image =
+      MakeUYVYImage(GetResourceProvider(), Size(200, 200));
   TestTree(CreateMapToMeshTestRenderTree(GetResourceProvider(), image));
 }
 
