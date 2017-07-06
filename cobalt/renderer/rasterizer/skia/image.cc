@@ -27,7 +27,8 @@ void Image::DCheckForPremultipliedAlpha(const math::Size& dimensions,
                                         render_tree::PixelFormat pixel_format,
                                         const uint8_t* source_pixels) {
   TRACE_EVENT0("cobalt::renderer", "Image::DCheckForPremultipliedAlpha()");
-  if (pixel_format == render_tree::kPixelFormatY8 ||
+  if (pixel_format == render_tree::kPixelFormatUYVY ||
+      pixel_format == render_tree::kPixelFormatY8 ||
       pixel_format == render_tree::kPixelFormatU8 ||
       pixel_format == render_tree::kPixelFormatV8 ||
       pixel_format == render_tree::kPixelFormatUV8) {

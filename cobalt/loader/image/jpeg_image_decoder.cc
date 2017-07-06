@@ -347,6 +347,7 @@ bool JPEGImageDecoder::ReadLines() {
         FillRow<2, 1, 0, 3>(static_cast<int>(info_.output_width),
                             pixel_data, sample_buffer);
       } break;
+      case render_tree::kPixelFormatUYVY:
       case render_tree::kPixelFormatY8:
       case render_tree::kPixelFormatU8:
       case render_tree::kPixelFormatV8:

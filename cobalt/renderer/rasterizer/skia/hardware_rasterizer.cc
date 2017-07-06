@@ -230,6 +230,29 @@ glm::mat4 GetFallbackTextureModelViewProjectionMatrix(
   return result;
 }
 
+// Accommodate for the fact that for some image formats, like UYVY, our texture
+// pixel width is actually half the size specified because there are two Y
+// values in each pixel.
+math::Rect AdjustContentRegionForImageType(
+    const base::optional<AlternateRgbaFormat>& alternate_rgba_format,
+    const math::Rect& content_region) {
+  if (!alternate_rgba_format) {
+    return content_region;
+  }
+
+  switch (*alternate_rgba_format) {
+    case AlternateRgbaFormat_UYVY: {
+      math::Rect adjusted_content_region = content_region;
+      adjusted_content_region.set_width(content_region.width() / 2);
+      return adjusted_content_region;
+    } break;
+    default: {
+      NOTREACHED();
+      return content_region;
+    }
+  }
+}
+
 // For stereoscopic video, the actual video is split (either horizontally or
 // vertically) in two, one video for the left eye and one for the right eye.
 // This function will adjust the content region rectangle to match only the
@@ -278,8 +301,10 @@ egl::TexturedMeshRenderer::Image::Texture GetTextureFromHardwareFrontendImage(
         0, image_size.height(), image_size.width(), -image_size.height());
   }
 
-  result.content_region =
-      AdjustContentRegionForStereoMode(stereo_mode, result.content_region);
+  result.content_region = AdjustContentRegionForStereoMode(
+      stereo_mode, AdjustContentRegionForImageType(
+                       image->alternate_rgba_format(), result.content_region));
+
   result.texture = image->GetTextureEGL();
 
   return result;
@@ -293,7 +318,17 @@ egl::TexturedMeshRenderer::Image SkiaImageToTexturedMeshRendererImage(
     HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<HardwareFrontendImage*>(image);
 
-    result.type = egl::TexturedMeshRenderer::Image::RGBA;
+    if (!hardware_image->alternate_rgba_format()) {
+      result.type = egl::TexturedMeshRenderer::Image::RGBA;
+    } else {
+      switch (*hardware_image->alternate_rgba_format()) {
+        case AlternateRgbaFormat_UYVY: {
+          result.type = egl::TexturedMeshRenderer::Image::YUV_UYVY_422_BT709;
+        } break;
+        default: { NOTREACHED(); }
+      }
+    }
+
     result.textures[0] =
         GetTextureFromHardwareFrontendImage(hardware_image, stereo_mode);
   } else if (image->GetTypeId() == base::GetTypeId<MultiPlaneImage>()) {
@@ -352,6 +387,23 @@ void SetupGLStateForImageRender(Image* image,
   }
 }
 
+void SetupGLTextureParameters(const egl::TexturedMeshRenderer::Image& image,
+                              uint32 texture_wrap_s, uint32 texture_wrap_t) {
+  for (int i = 0; i < image.num_textures(); ++i) {
+    const backend::TextureEGL* texture = image.textures[i].texture;
+    GL_CALL(glBindTexture(texture->GetTarget(), texture->gl_handle()));
+    GL_CALL(glTexParameteri(texture->GetTarget(), GL_TEXTURE_MAG_FILTER,
+                            GL_LINEAR));
+    GL_CALL(glTexParameteri(texture->GetTarget(), GL_TEXTURE_MIN_FILTER,
+                            GL_LINEAR));
+    GL_CALL(glTexParameteri(texture->GetTarget(), GL_TEXTURE_WRAP_S,
+                            texture_wrap_s));
+    GL_CALL(glTexParameteri(texture->GetTarget(), GL_TEXTURE_WRAP_T,
+                            texture_wrap_t));
+    GL_CALL(glBindTexture(texture->GetTarget(), 0));
+  }
+}
+
 FaceOrientation GetFaceOrientationFromModelViewProjectionMatrix(
     const glm::mat4& model_view_projection_matrix) {
   return glm::determinant(model_view_projection_matrix) >= 0 ?
@@ -405,10 +457,16 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
     textured_mesh_renderer_.emplace(graphics_context_);
   }
 
+  // Convert our image into a format digestable by TexturedMeshRenderer.
+  egl::TexturedMeshRenderer::Image textured_mesh_renderer_image =
+      SkiaImageToTexturedMeshRendererImage(image, render_tree::kMono);
+
+  SetupGLTextureParameters(textured_mesh_renderer_image,
+                           GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
   // Invoke our TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderQuad(
-      SkiaImageToTexturedMeshRendererImage(image, render_tree::kMono),
-      model_view_projection_matrix);
+      textured_mesh_renderer_image, model_view_projection_matrix);
 
   // Let Skia know that we've modified GL state.
   uint32_t untouched_states =
@@ -458,11 +516,18 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
           mesh_filter.mono_mesh(image->GetSize()).get())
           ->GetVBO();
 
+  // Convert our image into a format digestable by TexturedMeshRenderer.
+  egl::TexturedMeshRenderer::Image textured_mesh_renderer_image =
+      SkiaImageToTexturedMeshRendererImage(image, mesh_filter.stereo_mode());
+
+  SetupGLTextureParameters(textured_mesh_renderer_image,
+                           GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
+
   // Invoke out TexturedMeshRenderer to actually perform the draw call.
   textured_mesh_renderer_->RenderVBO(
       mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
       mono_vbo->GetDrawMode(),
-      SkiaImageToTexturedMeshRendererImage(image, mesh_filter.stereo_mode()),
+      textured_mesh_renderer_image,
       model_view_projection_matrix);
 
   // Let Skia know that we've modified GL state.

@@ -92,7 +92,8 @@ void HardwareResourceProvider::Finish() {
 
 bool HardwareResourceProvider::PixelFormatSupported(
     render_tree::PixelFormat pixel_format) {
-  return pixel_format == render_tree::kPixelFormatRGBA8;
+  return pixel_format == render_tree::kPixelFormatRGBA8 ||
+         pixel_format == render_tree::kPixelFormatUYVY;
 }
 
 bool HardwareResourceProvider::AlphaFormatSupported(
@@ -106,9 +107,6 @@ scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
     render_tree::AlphaFormat alpha_format) {
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::AllocateImageData()");
-  DCHECK_EQ(render_tree::kPixelFormatRGBA8, pixel_format)
-      << "Currently, only RGBA8 is supported.";
-
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
 
@@ -151,6 +149,9 @@ namespace {
 int PlanesPerFormat(SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+    case kSbDecodeTargetFormat1PlaneUYVY:
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
       return 1;
     case kSbDecodeTargetFormat1PlaneBGRA:
       return 1;
@@ -167,7 +168,13 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
 
 uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
   switch (format) {
-    case kSbDecodeTargetFormat1PlaneRGBA: {
+    case kSbDecodeTargetFormat1PlaneRGBA:
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+    // For UYVY, we will use a fragment shader where R = the first U, G = Y,
+    // B = the second U, and A = V.
+    case kSbDecodeTargetFormat1PlaneUYVY:
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+    {
       DCHECK_EQ(0, plane);
       return GL_RGBA;
     } break;
@@ -276,12 +283,22 @@ scoped_refptr<render_tree::Image>
         gl_format, plane.gl_texture_target,
         base::Bind(&DoNothing, decode_target_ref)));
 
+    // If the decode target is specified as UYVY format, then we need to pass
+    // this in as supplementary data, as the |texture| object only knows that
+    // it is RGBA.
+    base::optional<AlternateRgbaFormat> alternate_rgba_format;
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+    if (info.format == kSbDecodeTargetFormat1PlaneUYVY) {
+      alternate_rgba_format = AlternateRgbaFormat_UYVY;
+    }
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+
     planes.push_back(make_scoped_refptr(new HardwareFrontendImage(
         texture.Pass(), alpha_format, cobalt_context_, gr_context_,
-        content_region.Pass(), self_message_loop_)));
+        content_region.Pass(), self_message_loop_, alternate_rgba_format)));
   }
 
-  if (info.format == kSbDecodeTargetFormat1PlaneRGBA) {
+  if (planes_per_format == 1) {
     return planes[0];
   } else {
     return new HardwareMultiPlaneImage(

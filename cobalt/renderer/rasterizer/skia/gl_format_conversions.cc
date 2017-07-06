@@ -24,6 +24,7 @@ namespace skia {
 GLenum ConvertRenderTreeFormatToGL(render_tree::PixelFormat pixel_format) {
   switch (pixel_format) {
     case render_tree::kPixelFormatRGBA8:
+    case render_tree::kPixelFormatUYVY:
       return GL_RGBA;
     // Our Skia GL backend has no reason to distinguish between Y/U/V textures,
     // they can all be treated as 8-bit greyscale alpha channels, expressed by
