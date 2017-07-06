@@ -305,6 +305,23 @@
         # VS2017 always defines this for UWP apps
         '__WRL_NO_DEFAULT_LIB__',
       ],
+      'dependencies': [
+        'convert_i18n_data'
+      ]
     },
+    {
+      'target_name': 'convert_i18n_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'convert_i18n_data',
+          'variables': {
+            'input_files':
+              '<!(find <(DEPTH)/cobalt/content/i18n/platform/xb1/*.xlb)',
+          },
+          'includes': [ '../../build/convert_i18n_data.gypi' ],
+        },
+      ],
+    }
   ],
 }
