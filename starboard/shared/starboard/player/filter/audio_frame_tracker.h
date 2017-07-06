@@ -72,13 +72,13 @@ class AudioFrameTracker {
       FrameRecord& record = frame_records_.front();
       if (record.number_of_frames > number_of_frames) {
         frames_played_adjusted_to_playback_rate_ +=
-            number_of_frames * record.playback_rate;
+            static_cast<int>(number_of_frames * record.playback_rate);
         record.number_of_frames -= number_of_frames;
         number_of_frames = 0;
       } else {
         number_of_frames -= record.number_of_frames;
         frames_played_adjusted_to_playback_rate_ +=
-            record.number_of_frames * record.playback_rate;
+            static_cast<int>(record.number_of_frames * record.playback_rate);
         frame_records_.pop();
       }
     }
