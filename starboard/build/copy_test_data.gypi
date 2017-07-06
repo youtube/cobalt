@@ -53,12 +53,12 @@
     '<!@pymod_do_main(starboard.build.copy_data --inputs <(input_files))',
   ],
   'outputs': [
-    '<!@pymod_do_main(starboard.build.copy_data -o <(PRODUCT_DIR)/content/dir_source_root/<(output_dir) --outputs <(input_files))',
+    '<!@pymod_do_main(starboard.build.copy_data -o <(sb_static_contents_output_data_dir)/dir_source_root/<(output_dir) --outputs <(input_files))',
   ],
   'action': [
     'python',
     '<(DEPTH)/starboard/build/copy_data.py',
-    '-o', '<(PRODUCT_DIR)/content/dir_source_root/<(output_dir)',
+    '-o', '<(sb_static_contents_output_data_dir)/dir_source_root/<(output_dir)',
     '<@(input_files)',
   ],
 }
