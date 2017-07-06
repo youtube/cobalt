@@ -145,7 +145,7 @@
 
   'copies': [
     {
-      'destination': '<(static_contents_output_data_dir)/fonts/',
+      'destination': '<(sb_static_contents_output_data_dir)/fonts/',
       'files': [
         '<(source_font_config_dir)/fonts.xml',
       ],
