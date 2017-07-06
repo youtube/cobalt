@@ -46,6 +46,8 @@ def _CleanupProcess(process):
     process: Current pexpect process.
   """
   if process is not None and process.isalive():
+    # Send ctrl-c to the raspi.
+    process.sendline(chr(3))
     process.close()
 
 
