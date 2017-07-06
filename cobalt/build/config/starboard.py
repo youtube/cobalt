@@ -30,6 +30,13 @@ class PlatformConfigStarboard(PlatformConfigBase):
   def IsStarboard(self):
     return True
 
+  def GetEnvironmentVariables(self):
+    raise NotImplementedError
+
+  def GetToolchain(self):
+    """Returns the instance of the toolchain implementation class."""
+    return None
+
   def GetVariables(self, config, use_clang=0):
     use_asan = 0
     use_tsan = 0
