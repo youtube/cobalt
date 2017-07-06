@@ -236,13 +236,55 @@ class HardwareFrontendImage::HardwareBackendImage {
   bool initialized_task_executed_;
 };
 
+namespace {
+// Given a ImageDataDescriptor, returns a AlternateRgbaFormat value for it,
+// which for most formats will be base::nullopt, but for those that piggy-back
+// on RGBA but assign different meanings to each of the 4 pixels, this will
+// return a special formatting option.
+base::optional<AlternateRgbaFormat> AlternateRgbaFormatFromImageDataDescriptor(
+    const render_tree::ImageDataDescriptor& descriptor) {
+  if (descriptor.pixel_format == render_tree::kPixelFormatUYVY) {
+    return AlternateRgbaFormat_UYVY;
+  } else {
+    return base::nullopt;
+  }
+}
+
+// Depending on the alternate RGBA format, possibly adjust the content rect
+// size.  For example, UYVY needs the content rect's width to be multiplied
+// by two since each "pixel" actually represents two pixels side-by-side.  This
+// allows render_tree::ImageNode objects that are constructed without an
+// explicit size assigned to them to take on the size of the Y-width for UYVY,
+// which is more natural.
+math::Size AdjustSizeForFormat(
+    const math::Size& size,
+    const base::optional<AlternateRgbaFormat>& alternate_rgba_format) {
+  if (!alternate_rgba_format) {
+    return size;
+  }
+
+  switch (*alternate_rgba_format) {
+    case AlternateRgbaFormat_UYVY: {
+      return math::Size(size.width() * 2, size.height());
+    }
+    default: {
+      NOTREACHED();
+      return size;
+    }
+  }
+}
+}  // namespace
+
 HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<HardwareImageData> image_data,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : is_opaque_(image_data->GetDescriptor().alpha_format ==
                  render_tree::kAlphaFormatOpaque),
-      size_(image_data->GetDescriptor().size),
+      alternate_rgba_format_(AlternateRgbaFormatFromImageDataDescriptor(
+          image_data->GetDescriptor())),
+      size_(AdjustSizeForFormat(image_data->GetDescriptor().size,
+                                alternate_rgba_format_)),
       rasterizer_message_loop_(rasterizer_message_loop) {
   backend_image_.reset(new HardwareBackendImage(base::Bind(
       &HardwareBackendImage::InitializeFromImageData,
@@ -256,8 +298,12 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : is_opaque_(descriptor.alpha_format == render_tree::kAlphaFormatOpaque),
-      size_(descriptor.size),
+      alternate_rgba_format_(
+          AlternateRgbaFormatFromImageDataDescriptor(descriptor)),
+      size_(AdjustSizeForFormat(descriptor.size, alternate_rgba_format_)),
       rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
   backend_image_.reset(new HardwareBackendImage(base::Bind(
       &HardwareBackendImage::InitializeFromRawImageData,
       raw_texture_memory, offset, descriptor, cobalt_context, gr_context)));
@@ -268,13 +314,19 @@ HardwareFrontendImage::HardwareFrontendImage(
     scoped_ptr<backend::TextureEGL> texture,
     render_tree::AlphaFormat alpha_format,
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
-    scoped_ptr<math::Rect> content_region, MessageLoop* rasterizer_message_loop)
+    scoped_ptr<math::Rect> content_region, MessageLoop* rasterizer_message_loop,
+    base::optional<AlternateRgbaFormat> alternate_rgba_format)
     : is_opaque_(alpha_format == render_tree::kAlphaFormatOpaque),
       content_region_(content_region.Pass()),
-      size_(content_region_ ? math::Size(std::abs(content_region_->width()),
-                                         std::abs(content_region_->height()))
-                            : texture->GetSize()),
+      alternate_rgba_format_(alternate_rgba_format),
+      size_(AdjustSizeForFormat(
+          content_region_ ? math::Size(std::abs(content_region_->width()),
+                                       std::abs(content_region_->height()))
+                          : texture->GetSize(),
+          alternate_rgba_format_)),
       rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
   backend_image_.reset(new HardwareBackendImage(base::Bind(
       &HardwareBackendImage::InitializeFromTexture, base::Passed(&texture),
       gr_context)));
@@ -287,9 +339,13 @@ HardwareFrontendImage::HardwareFrontendImage(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
     MessageLoop* rasterizer_message_loop)
     : is_opaque_(false),
-      size_(static_cast<int>(root->GetBounds().right()),
-            static_cast<int>(root->GetBounds().bottom())),
+      size_(AdjustSizeForFormat(
+          math::Size(static_cast<int>(root->GetBounds().right()),
+                     static_cast<int>(root->GetBounds().bottom())),
+          alternate_rgba_format_)),
       rasterizer_message_loop_(rasterizer_message_loop) {
+  TRACE_EVENT0("cobalt::renderer",
+               "HardwareFrontendImage::HardwareFrontendImage()");
   backend_image_.reset(new HardwareBackendImage(base::Bind(
       &HardwareBackendImage::InitializeFromRenderTree, root, size_,
       submit_offscreen_callback, cobalt_context, gr_context)));
@@ -345,7 +401,8 @@ bool HardwareFrontendImage::CanRenderInSkia() const {
   // We also fallback if a content region is specified on the image, since we
   // don't support handling that in the normal flow.
   return !GetContentRegion() &&
-         (!GetTextureEGL() || GetTextureEGL()->GetTarget() == GL_TEXTURE_2D);
+         (!GetTextureEGL() || GetTextureEGL()->GetTarget() == GL_TEXTURE_2D) &&
+         !alternate_rgba_format_;
 }
 
 bool HardwareFrontendImage::EnsureInitialized() {
