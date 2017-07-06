@@ -99,7 +99,7 @@
       ],
       'copies': [
       {
-        'destination': '<(static_contents_output_data_dir)/ssl',
+        'destination': '<(sb_static_contents_output_data_dir)/ssl',
         'files': ['<(static_contents_source_dir)/ssl/certs/'],
       }],
     },
