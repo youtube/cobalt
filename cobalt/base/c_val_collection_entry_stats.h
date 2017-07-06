@@ -273,7 +273,6 @@ CValCollectionEntryStatsImpl<EntryType, Visibility>::CalculateStandardDeviation(
 
   double variance =
       dif_squared_sum / static_cast<double>(collection.size() - 1);
-  variance = std::max(variance, 0.0);
 
   return std::sqrt(variance);
 }
