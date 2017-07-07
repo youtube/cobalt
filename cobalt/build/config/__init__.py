@@ -14,7 +14,6 @@
 # limitations under the License.
 """Initialization for the config package."""
 
-
-from base import LoadPlatformConfig
+from base import GetPlatformConfig
 from base import VALID_BUILD_CONFIGS
 from base import VALID_PLATFORMS
