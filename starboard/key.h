@@ -202,11 +202,19 @@ typedef enum SbKey {
   kSbKeyPlay = 0xFA,
 
   // Beyond this point are non-Windows key codes that are provided as
-  // extensions, as they otherwise have no analogs
+  // extensions, as they otherwise have no analogs.
 
   // Some media keys that are used around the industry.
   kSbKeyMediaRewind = 0xE3,
   kSbKeyMediaFastForward = 0xE4,
+
+#if SB_API_VESRION >= SB_COLOR_KEYCODES_API_VERSION
+  // The colored keys found on most contemporary TV remotes.
+  kSbKeyRed = 0x193,
+  kSbKeyGreen = 0x194,
+  kSbKeyYellow = 0x195,
+  kSbKeyBlue = 0x196,
+#endif  // SB_API_VESRION >= SB_COLOR_KEYCODES_API_VERSION
 
   // Mouse buttons, starting with the left mouse button.
   kSbKeyMouse1 = 0x7000,
