@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <app_common.h>
+#include <unistd.h>
 
 #include "starboard/log.h"
 #include "starboard/shared/nouser/user_internal.h"
@@ -24,19 +25,27 @@ namespace nouser {
 
 bool GetHomeDirectory(SbUser user, char* out_path, int path_size) {
   if (user != SbUserGetCurrent()) {
+    SB_DLOG(ERROR) << "Invalid User";
     return false;
   }
 
-  const char* home_directory = app_get_data_path();
-
-  if (!home_directory) {
-    SB_DLOG(WARNING) << "No HOME environment variable.";
-    return false;
+  const char* data_path = app_get_data_path();
+  if (data_path) {
+    SB_DLOG(INFO) << "App data path [" << data_path << "]";
+    SbStringCopy(out_path, data_path, path_size);
+    return true;
   }
 
-  SB_DLOG(INFO) << "Tizen Home Directory[" << home_directory << "]";
-  SbStringCopy(out_path, home_directory, path_size);
-  return true;
+  // for nplb, unittest, ...
+  const char* curr_dir = getcwd(NULL, 0);
+  if (curr_dir) {
+    SB_DLOG(WARNING) << "No data path. Set CWD " << curr_dir;
+    SbStringCopy(out_path, curr_dir, path_size);
+    return true;
+  }
+
+  SB_DLOG(ERROR) << "No home directory variable";
+  return false;
 }
 
 }  // namespace nouser
