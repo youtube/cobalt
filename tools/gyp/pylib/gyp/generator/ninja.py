@@ -13,9 +13,7 @@ import signal
 import subprocess
 import sys
 
-_COBALT_SRC = os.path.abspath(os.path.join(*([__file__] + 6 * [os.pardir])))
-sys.path.append(os.path.join(_COBALT_SRC, 'cobalt', 'build', 'config'))
-from base import LoadPlatformConfig
+from cobalt.build import config
 
 import gyp
 import gyp.common
@@ -89,16 +87,9 @@ microsoft_flavors = ['win', 'win-console', 'win-lib', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
-_platform_configs = {}
-
 
 def GetToolchainOrNone(flavor):
-  if not flavor in _platform_configs.keys():
-    _platform_configs[flavor] = LoadPlatformConfig(flavor)
-  toolchain = _platform_configs[flavor].GetToolchain()
-  if toolchain:
-    return toolchain
-  return None
+  return config.GetPlatformConfig(flavor).GetToolchain()
 
 
 def StripPrefix(arg, prefix):
