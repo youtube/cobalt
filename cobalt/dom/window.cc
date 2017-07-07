@@ -71,7 +71,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
-Window::Window(int width, int height,
+Window::Window(int width, int height, float device_pixel_ratio,
                base::ApplicationState initial_application_state,
                cssom::CSSParser* css_parser, Parser* dom_parser,
                loader::FetcherFactory* fetcher_factory,
@@ -101,14 +101,13 @@ Window::Window(int width, int height,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
                const base::Closure& window_minimize_callback,
-               system_window::SystemWindow* system_window,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
-               float video_playback_rate_multiplier,
-               ClockType clock_type)
+               float video_playback_rate_multiplier, ClockType clock_type)
     : width_(width),
       height_(height),
+      device_pixel_ratio_(device_pixel_ratio),
 #if defined(ENABLE_TEST_RUNNER)
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
@@ -121,10 +120,9 @@ Window::Window(int width, int height,
           initial_application_state, video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner ?
-              test_runner_->GetClock() :
+          clock_type == kClockTypeTestRunner ? test_runner_->GetClock() :
 #endif
-              new base::SystemMonotonicClock())),
+                                             new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -157,25 +155,12 @@ Window::Window(int width, int height,
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
-      window_minimize_callback_(window_minimize_callback),
-      system_window_(system_window) {
+      window_minimize_callback_(window_minimize_callback) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
-
-  if (system_window_) {
-    SbWindow sb_window = system_window_->GetSbWindow();
-    SbWindowSize size;
-    if (SbWindowGetSize(sb_window, &size)) {
-      device_pixel_ratio_ = size.video_pixel_ratio;
-    } else {
-      device_pixel_ratio_ = 1.0f;
-    }
-  } else {
-      device_pixel_ratio_ = 1.0f;
-  }
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document

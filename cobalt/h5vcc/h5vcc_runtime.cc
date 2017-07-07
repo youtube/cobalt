@@ -14,9 +14,9 @@
 
 #include "cobalt/h5vcc/h5vcc_runtime.h"
 
+#include "cobalt/base/application_event.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/system_window/application_event.h"
 
 namespace cobalt {
 namespace h5vcc {
@@ -31,7 +31,7 @@ H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher,
   DCHECK(event_dispatcher_);
   application_event_callback_ =
       base::Bind(&H5vccRuntime::OnApplicationEvent, base::Unretained(this));
-  event_dispatcher_->AddEventCallback(system_window::ApplicationEvent::TypeId(),
+  event_dispatcher_->AddEventCallback(base::ApplicationEvent::TypeId(),
                                       application_event_callback_);
   deep_link_event_callback_ =
       base::Bind(&H5vccRuntime::OnDeepLinkEvent, base::Unretained(this));
@@ -40,8 +40,8 @@ H5vccRuntime::H5vccRuntime(base::EventDispatcher* event_dispatcher,
 }
 
 H5vccRuntime::~H5vccRuntime() {
-  event_dispatcher_->RemoveEventCallback(
-      system_window::ApplicationEvent::TypeId(), application_event_callback_);
+  event_dispatcher_->RemoveEventCallback(base::ApplicationEvent::TypeId(),
+                                         application_event_callback_);
   event_dispatcher_->RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                          deep_link_event_callback_);
 }
@@ -64,13 +64,11 @@ const scoped_refptr<H5vccRuntimeEventTarget>& H5vccRuntime::on_resume() const {
 }
 
 void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
-  const system_window::ApplicationEvent* app_event =
-      base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
-  if (app_event->type() == system_window::ApplicationEvent::kPause) {
-    // DLOG(INFO) << "Got pause event.";
+  const base::ApplicationEvent* app_event =
+      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
+  if (app_event->type() == kSbEventTypePause) {
     on_pause()->DispatchEvent();
-  } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
-    // DLOG(INFO) << "Got unpause event.";
+  } else if (app_event->type() == kSbEventTypeUnpause) {
     on_resume()->DispatchEvent();
   }
 }

@@ -21,11 +21,12 @@
 
 #include "base/callback.h"
 #include "base/logging.h"
-#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/base/token.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -39,7 +40,7 @@ class DebugConsole : public LifecycleObserver {
       base::ApplicationState initial_application_state,
       const WebModule::OnRenderTreeProducedCallback&
           render_tree_produced_callback,
-      media::MediaModule* media_module, network::NetworkModule* network_module,
+      network::NetworkModule* network_module,
       const math::Size& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
       float layout_refresh_rate,
@@ -77,6 +78,8 @@ class DebugConsole : public LifecycleObserver {
   void OnError(const GURL& /* url */, const std::string& error) {
     LOG(ERROR) << error;
   }
+
+  media::MediaModuleStub stub_media_module_;
 
   // The current console visibility mode.  The mutex is required since the debug
   // console's visibility mode may be accessed from both the WebModule thread

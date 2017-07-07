@@ -29,7 +29,7 @@ H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
       new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
   settings_ = new H5vccSettings(settings.media_module);
   storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem(settings.media_module);
+  system_ = new H5vccSystem();
   trace_event_ = new H5vccTraceEvent();
 }
 

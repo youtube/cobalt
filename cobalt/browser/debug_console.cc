@@ -162,8 +162,7 @@ DebugConsole::DebugConsole(
     base::ApplicationState initial_application_state,
     const WebModule::OnRenderTreeProducedCallback&
         render_tree_produced_callback,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
+    network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
     const script::JavaScriptEngine::Options& js_options) {
@@ -187,14 +186,15 @@ DebugConsole::DebugConsole(
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
                  get_debug_server_callback);
-  web_module_.reset(new WebModule(
-      GURL(kInitialDebugConsoleUrl), initial_application_state,
-      render_tree_produced_callback,
-      base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-      base::Closure(), /* window_close_callback */
-      base::Closure(), /* window_minimize_callback */
-      media_module, network_module, window_dimensions, resource_provider,
-      media_module->system_window(), layout_refresh_rate, web_module_options));
+  web_module_.reset(
+      new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
+                    render_tree_produced_callback,
+                    base::Bind(&DebugConsole::OnError, base::Unretained(this)),
+                    base::Closure(), /* window_close_callback */
+                    base::Closure(), /* window_minimize_callback */
+                    &stub_media_module_, network_module, window_dimensions,
+                    1.f /*video_pixel_ratio*/, resource_provider,
+                    layout_refresh_rate, web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}
