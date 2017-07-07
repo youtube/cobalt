@@ -24,7 +24,8 @@
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  explicit SbWindowPrivate(const SbWindowOptions* options);
+  explicit SbWindowPrivate(const SbWindowOptions* options,
+                           float pixel_ratio = 1.0);
   ~SbWindowPrivate() {}
 
   struct wl_surface* surface;
@@ -38,9 +39,10 @@ struct SbWindowPrivate {
   Evas_Object* video_window;
 #endif
 
-  // The width, height of this window.
+  // The width, height, pixel ratio of this window.
   int width;
   int height;
+  float video_pixel_ratio;
 };
 
 #endif  // STARBOARD_SHARED_WAYLAND_WINDOW_INTERNAL_H_

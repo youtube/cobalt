@@ -36,7 +36,7 @@ namespace wayland {
 
 class ApplicationWayland : public shared::starboard::QueueApplication {
  public:
-  ApplicationWayland();
+  explicit ApplicationWayland(float video_pixel_ratio);
   ~ApplicationWayland() SB_OVERRIDE{};
 
   static ApplicationWayland* Get() {
@@ -54,6 +54,7 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   void SetPolicy(tizen_policy* policy) { tz_policy_ = policy; }
   tizen_policy* GetPolicy() { return tz_policy_; }
   void WindowRaise();
+  wl_display* GetWLDisplay() { return display_; }
 
   // input devices
   void SetKeyboard(wl_keyboard* keyboard) { keyboard_ = keyboard; }
@@ -62,13 +63,16 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   wl_seat* GetSeat() { return seat_; }
 
   // key event
+  void UpdateKeyModifiers(unsigned int modifiers) {
+    key_modifiers_ = modifiers;
+  }
   void CreateRepeatKey();
   void DeleteRepeatKey();
   void CreateKey(int key, int state, bool is_repeat);
 
   // state change
-  void Pause() SB_OVERRIDE;
-  void Unpause() SB_OVERRIDE;
+  void Pause(void* context, EventHandledCallback callback) SB_OVERRIDE;
+  void Unpause(void* context, EventHandledCallback callback) SB_OVERRIDE;
 
   // state change observer
   class StateObserver {
@@ -80,6 +84,9 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   };
   void RegisterObserver(StateObserver* observer);
   void UnregisterObserver(StateObserver* observer);
+
+  // deeplink
+  void Deeplink(char* payload);
 
  protected:
   // --- Application overrides ---
@@ -100,6 +107,7 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
 
   // window
   SbWindow window_;
+  float video_pixel_ratio_;
   wl_display* display_;
   wl_compositor* compositor_;
   wl_shell* shell_;
@@ -112,6 +120,7 @@ class ApplicationWayland : public shared::starboard::QueueApplication {
   int key_repeat_state_;
   SbEventId key_repeat_event_id_;
   SbTime key_repeat_interval_;
+  unsigned int key_modifiers_;
 
   // wakeup event
   int wakeup_fd_;
