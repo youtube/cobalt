@@ -12,12 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "cobalt/system_window/system_window.h"
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/system_window/input_event.h"
-#include "cobalt/system_window/system_window.h"
+#include "starboard/double.h"
 #include "starboard/system.h"
 
 namespace cobalt {
@@ -26,6 +28,11 @@ namespace system_window {
 namespace {
 
 SystemWindow* g_the_window = NULL;
+
+int Round(const float f) {
+  double d(f + 0.5f);
+  return static_cast<int>(SbDoubleFloor(d));
+}
 
 }  // namespace
 
@@ -73,6 +80,12 @@ float SystemWindow::GetVideoPixelRatio() const {
     return 1.0;
   }
   return window_size.video_pixel_ratio;
+}
+
+math::Size SystemWindow::GetVideoOutputResolution() const {
+  float ratio = GetVideoPixelRatio();
+  math::Size size = GetWindowSize();
+  return math::Size(Round(size.width() * ratio), Round(size.height() * ratio));
 }
 
 SbWindow SystemWindow::GetSbWindow() { return window_; }

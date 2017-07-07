@@ -22,11 +22,7 @@
 namespace cobalt {
 namespace h5vcc {
 
-H5vccSystem::H5vccSystem(const media::MediaModule* media_module) {
-  video_container_size_ =
-      base::StringPrintf("%dx%d", media_module->output_size().width(),
-                         media_module->output_size().height());
-}
+H5vccSystem::H5vccSystem() {}
 
 bool H5vccSystem::are_keys_reversed() const {
   return SbSystemHasCapability(kSbSystemCapabilityReversedEnterAndBack);

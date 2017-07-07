@@ -88,8 +88,8 @@ browser::WebModule::LayoutResults SnapshotURL(
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       base::Closure() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */, stub_media_module.get(),
-      &network_module, viewport_size, resource_provider,
-      stub_media_module->system_window(), 60.0f, web_module_options);
+      &network_module, viewport_size, 1.f, resource_provider, 60.0f,
+      web_module_options);
 
   run_loop.Run();
 

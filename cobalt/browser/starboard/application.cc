@@ -23,9 +23,9 @@ namespace browser {
 
 class ApplicationStarboard : public Application {
  public:
-  explicit ApplicationStarboard(const base::Closure& quit_closure)
-      : Application(quit_closure), event_handler_(&event_dispatcher_) {}
-  ~ApplicationStarboard() OVERRIDE {}
+  ApplicationStarboard(const base::Closure& quit_closure, bool should_preload)
+      : Application(quit_closure, should_preload),
+        event_handler_(&event_dispatcher_) {}
 
  private:
   // Event handler to receive Starboard events, convert to Cobalt events
@@ -34,7 +34,13 @@ class ApplicationStarboard : public Application {
 };
 
 scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure) {
-  return scoped_ptr<Application>(new ApplicationStarboard(quit_closure));
+  return scoped_ptr<Application>(
+      new ApplicationStarboard(quit_closure, false /*should_preload*/));
+}
+
+scoped_ptr<Application> PreloadApplication(const base::Closure& quit_closure) {
+  return scoped_ptr<Application>(
+      new ApplicationStarboard(quit_closure, true /*should_preload*/));
 }
 
 }  // namespace browser
