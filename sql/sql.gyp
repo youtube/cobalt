@@ -63,15 +63,6 @@
         '..',
       ],
       'conditions': [
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'conditions': [
-            ['linux_use_tcmalloc==1', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
-          ],
-        }],
         ['OS == "android" and gtest_target_type == "shared_library"', {
           'dependencies': [
             '../testing/android/native_test.gyp:native_test_native_code',
