@@ -45,8 +45,8 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
       base::Closure(),  // window_minimize_callback
-      &stub_media_module_, network_module, window_dimensions, resource_provider,
-      stub_media_module_.system_window(), layout_refresh_rate,
+      &stub_media_module_, network_module, window_dimensions,
+      1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
       web_module_options));
 }
 

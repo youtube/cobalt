@@ -54,7 +54,6 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/script/script_runner.h"
-#include "cobalt/system_window/system_window.h"
 #include "cobalt/webdriver/session_driver.h"
 #include "googleurl/src/gurl.h"
 
@@ -191,9 +190,8 @@ class WebModule : public LifecycleObserver {
             const base::Closure& window_minimize_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
-            const math::Size& window_dimensions,
+            const math::Size& window_dimensions, float video_pixel_ratio,
             render_tree::ResourceProvider* resource_provider,
-            system_window::SystemWindow* system_window,
             float layout_refresh_rate, const Options& options);
   ~WebModule();
 
@@ -232,6 +230,11 @@ class WebModule : public LifecycleObserver {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
+  // Sets the size and pixel ratio of this web module, possibly causing relayout
+  // and re-render with the new parameters. Does nothing if the parameters are
+  // not different from the current parameters.
+  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio);
+
   // LifecycleObserver implementation
   void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE;
   void Pause() OVERRIDE;
@@ -252,10 +255,10 @@ class WebModule : public LifecycleObserver {
         const base::Closure& window_minimize_callback,
         media::MediaModule* media_module,
         network::NetworkModule* network_module,
-        const math::Size& window_dimensions,
+        const math::Size& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
-        int dom_max_element_depth, system_window::SystemWindow* system_window,
-        float layout_refresh_rate, const Options& options)
+        int dom_max_element_depth, float layout_refresh_rate,
+        const Options& options)
         : initial_url(initial_url),
           initial_application_state(initial_application_state),
           render_tree_produced_callback(render_tree_produced_callback),
@@ -265,9 +268,9 @@ class WebModule : public LifecycleObserver {
           media_module(media_module),
           network_module(network_module),
           window_dimensions(window_dimensions),
+          video_pixel_ratio(video_pixel_ratio),
           resource_provider(resource_provider),
           dom_max_element_depth(dom_max_element_depth),
-          system_window_(system_window),
           layout_refresh_rate(layout_refresh_rate),
           options(options) {}
 
@@ -280,9 +283,9 @@ class WebModule : public LifecycleObserver {
     media::MediaModule* media_module;
     network::NetworkModule* network_module;
     math::Size window_dimensions;
+    float video_pixel_ratio;
     render_tree::ResourceProvider* resource_provider;
     int dom_max_element_depth;
-    system_window::SystemWindow* system_window_;
     float layout_refresh_rate;
     Options options;
   };

@@ -139,6 +139,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
   GURL url(std::string("file:///cobalt/accessibility/testdata/live_region/" +
                        GetParam().html_file_name));
   const math::Size kDefaultViewportSize(1280, 720);
+  const float kDefaultVideoPixelRatio = 1.0f;
   const float kRefreshRate = 60.0f;
 
   network::NetworkModule network_module((network::NetworkModule::Options()));
@@ -167,7 +168,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
       NULL /* media_module */, &network_module, kDefaultViewportSize,
-      &resource_provider, NULL /* system_window */, kRefreshRate,
+      kDefaultVideoPixelRatio, &resource_provider, kRefreshRate,
       web_module_options);
 
   // Wait for the test to quit.

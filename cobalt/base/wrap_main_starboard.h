@@ -29,15 +29,18 @@ namespace cobalt {
 namespace wrap_main {
 
 // Starboard implementation of the "Base Main" use case.
-template <StartFunction start_function, EventFunction event_function,
-          StopFunction stop_function>
+template <StartFunction preload_function, StartFunction start_function,
+          EventFunction event_function, StopFunction stop_function>
 void BaseEventHandler(const SbEvent* event) {
   static base::AtExitManager* g_at_exit = NULL;
   static MessageLoopForUI* g_loop = NULL;
+  static bool g_started = false;
   switch (event->type) {
-    case kSbEventTypeStart: {
+#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypePreload: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
+      DCHECK(!g_started);
       DCHECK(!g_at_exit);
       g_at_exit = new base::AtExitManager();
       InitCobalt(data->argument_count, data->argument_values, data->link);
@@ -47,11 +50,34 @@ void BaseEventHandler(const SbEvent* event) {
       g_loop->set_thread_name("Main");
       g_loop->Start();
 
+      preload_function(data->argument_count, data->argument_values, data->link,
+                       base::Bind(&SbSystemRequestStop, 0));
+      g_started = true;
+      break;
+    }
+#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+    case kSbEventTypeStart: {
+      SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
+
+      if (!g_started) {
+        DCHECK(!g_at_exit);
+        g_at_exit = new base::AtExitManager();
+
+        InitCobalt(data->argument_count, data->argument_values, data->link);
+
+        DCHECK(!g_loop);
+        g_loop = new MessageLoopForUI();
+        g_loop->set_thread_name("Main");
+        g_loop->Start();
+      }
+
       start_function(data->argument_count, data->argument_values, data->link,
                      base::Bind(&SbSystemRequestStop, 0));
+      g_started = true;
       break;
     }
     case kSbEventTypeStop: {
+      DCHECK(g_started);
       DCHECK(g_at_exit);
       DCHECK(g_loop);
 
@@ -83,25 +109,34 @@ int CobaltMainAddOns(int argc, char** argv) {
 }  // namespace wrap_main
 }  // namespace cobalt
 
-// Calls |main_function| at startup, creates an AtExitManager and calls
-// InitCobalt, and terminates once it is completed.
-#define COBALT_WRAP_SIMPLE_MAIN(main_function)                          \
-  STARBOARD_WRAP_SIMPLE_MAIN(                                           \
-      ::cobalt::wrap_main::CobaltMainAddOns<main_function>);
+// The generic main wrapper that initializes the main MessageLoop and
+// AtExitManager, supports a preload function, start function, event handler,
+// and stop function.
+#define COBALT_WRAP_MAIN(preload_function, start_function, event_function, \
+                         stop_function)                                    \
+  void SbEventHandle(const SbEvent* event) {                               \
+    return ::cobalt::wrap_main::BaseEventHandler<                          \
+        preload_function, start_function, event_function, stop_function>(  \
+        event);                                                            \
+  }
 
 // Like COBALT_WRAP_BASE_MAIN, but supports an event_function to forward
 // non-application events to.
 #define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
-  void SbEventHandle(const SbEvent* event) {                                  \
-    return ::cobalt::wrap_main::BaseEventHandler<                             \
-        start_function, event_function, stop_function>(event);                \
-  }
+  COBALT_WRAP_MAIN(::cobalt::wrap_main::NoopStartFunction, start_function,    \
+                   event_function, stop_function)
 
 // Creates a MessageLoop and an AtExitManager, calls |start_function|, and
 // terminates once the MessageLoop terminates, calling |stop_function| on the
 // way out.
-#define COBALT_WRAP_BASE_MAIN(start_function, stop_function) \
-  COBALT_WRAP_EVENT_MAIN(                                    \
-      start_function, ::cobalt::wrap_main::NoopEventFunction, stop_function)
+#define COBALT_WRAP_BASE_MAIN(start_function, stop_function)               \
+  COBALT_WRAP_MAIN(::cobalt::wrap_main::NoopStartFunction, start_function, \
+                   ::cobalt::wrap_main::NoopEventFunction, stop_function)
+
+// Calls |main_function| at startup, creates an AtExitManager and calls
+// InitCobalt, and terminates once it is completed.
+#define COBALT_WRAP_SIMPLE_MAIN(main_function) \
+  STARBOARD_WRAP_SIMPLE_MAIN(                  \
+      ::cobalt::wrap_main::CobaltMainAddOns<main_function>);
 
 #endif  // COBALT_BASE_WRAP_MAIN_STARBOARD_H_

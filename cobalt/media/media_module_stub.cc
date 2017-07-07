@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/compiler_specific.h"
+#include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace media {
@@ -118,6 +119,7 @@ std::string MediaModuleStub::CanPlayType(const std::string& mime_type,
 scoped_ptr<WebMediaPlayer> MediaModuleStub::CreateWebMediaPlayer(
     WebMediaPlayerClient* client) {
   UNREFERENCED_PARAMETER(client);
+  TRACK_MEMORY_SCOPE("Media");
   return make_scoped_ptr<WebMediaPlayer>(new DummyWebMediaPlayer);
 }
 
