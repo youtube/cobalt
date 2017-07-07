@@ -24,10 +24,21 @@ namespace {
 
 cobalt::browser::Application* g_application = NULL;
 
+void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
+                        const base::Closure& quit_closure) {
+  DCHECK(!g_application);
+  g_application = cobalt::browser::PreloadApplication(quit_closure).release();
+  DCHECK(g_application);
+}
+
 void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                       const base::Closure& quit_closure) {
-  DCHECK(!g_application);
-  g_application = cobalt::browser::CreateApplication(quit_closure).release();
+  if (!g_application) {
+    g_application = cobalt::browser::CreateApplication(quit_closure).release();
+  } else {
+    g_application->Start();
+  }
+
   DCHECK(g_application);
 }
 
@@ -40,9 +51,8 @@ void StopApplication() {
 }  // namespace
 
 #if defined(OS_STARBOARD)
-COBALT_WRAP_EVENT_MAIN(StartApplication,
-                       cobalt::browser::EventHandler::HandleEvent,
-                       StopApplication);
+COBALT_WRAP_MAIN(PreloadApplication, StartApplication,
+                 cobalt::browser::EventHandler::HandleEvent, StopApplication);
 #else
 COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
 #endif

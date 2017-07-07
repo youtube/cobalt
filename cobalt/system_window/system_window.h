@@ -76,6 +76,11 @@ class SystemWindow {
   // to be played in higher resolution than the window.
   float GetVideoPixelRatio() const;
 
+  // Returns the resolution of the video output size, which may be different
+  // from the window size. This will generally be GetWindowSize() multiplied by
+  // GetVideoPixelRatio().
+  math::Size GetVideoOutputResolution() const;
+
   base::EventDispatcher* event_dispatcher() const { return event_dispatcher_; }
 
   // Returns a handle to the Starboard window object.

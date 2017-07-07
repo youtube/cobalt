@@ -55,7 +55,6 @@
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
-#include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 
@@ -109,7 +108,8 @@ class Window : public EventTarget,
   };
 
   Window(
-      int width, int height, base::ApplicationState initial_application_state,
+      int width, int height, float device_pixel_ratio,
+      base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
       render_tree::ResourceProvider** resource_provider,
@@ -138,7 +138,6 @@ class Window : public EventTarget,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const base::Closure& window_close_callback,
       const base::Closure& window_minimize_callback,
-      system_window::SystemWindow* system_window,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
@@ -348,8 +347,6 @@ class Window : public EventTarget,
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
   const base::Closure window_minimize_callback_;
-
-  system_window::SystemWindow* system_window_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

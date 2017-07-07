@@ -25,7 +25,7 @@ namespace h5vcc {
 
 class H5vccSystem : public script::Wrappable {
  public:
-  explicit H5vccSystem(const media::MediaModule* media_module);
+  H5vccSystem();
 
   bool are_keys_reversed() const;
   std::string build_id() const;
