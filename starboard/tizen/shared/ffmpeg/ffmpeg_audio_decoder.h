@@ -42,6 +42,9 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   void Reset() SB_OVERRIDE;
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
   int GetSamplesPerSecond() const SB_OVERRIDE;
+  bool CanAcceptMoreData() const SB_OVERRIDE {
+    return !stream_ended_ && decoded_audios_.size() <= kMaxDecodedAudiosSize;
+  }
 
   bool is_valid() const { return codec_context_ != NULL; }
 
@@ -49,6 +52,9 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
   void InitializeCodec();
   void TeardownCodec();
 
+  static const int kMaxDecodedAudiosSize = 64;
+
+  SbMediaAudioCodec audio_codec_;
   SbMediaAudioSampleType sample_type_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
