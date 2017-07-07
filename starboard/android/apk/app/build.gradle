@@ -141,7 +141,7 @@ COBALT_ARCH_MAP.keySet().each { abi ->
 }
 
 COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
-    // Add a build directory for each buildType to the Android JNI sourceSets for libstarboard.so
+    // Add a build directory for each buildType to the Android JNI sourceSets for libcoat.so
     // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
     def cobaltBuildDir = "${buildDir}/intermediates/cobalt/${buildType}"
     android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
@@ -164,7 +164,7 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
         task(copyTaskName, type: Copy, dependsOn: buildTaskName) {
             from "${productDir}/lib/lib${STARBOARD_APP}.so"
             into "${cobaltBuildDir}/${abi}"
-            rename("lib${STARBOARD_APP}.so", 'libstarboard.so')
+            rename("lib${STARBOARD_APP}.so", 'libcoat.so')
             doLast {
                 source.files.each { println it }
             }
