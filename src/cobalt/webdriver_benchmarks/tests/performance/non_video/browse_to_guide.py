@@ -8,8 +8,11 @@ from __future__ import print_function
 import os
 import sys
 
-# The parent directory is a module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+# Add the base webdriver_benchmarks path
+sys.path.insert(0,
+                os.path.dirname(
+                    os.path.dirname((os.path.dirname(
+                        os.path.dirname(os.path.realpath(__file__)))))))
 
 # pylint: disable=C6204,C6203
 import tv

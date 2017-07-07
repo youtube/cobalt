@@ -218,6 +218,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
  private:
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
+  void OnOutputModeChanged();
 
   base::Thread pipeline_thread_;
 

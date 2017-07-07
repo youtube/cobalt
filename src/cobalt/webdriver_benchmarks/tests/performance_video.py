@@ -1,5 +1,5 @@
 #!/usr/bin/python2
-"""Target for running all tests cases."""
+"""Target for running video performance test cases."""
 
 from __future__ import absolute_import
 from __future__ import division
@@ -18,10 +18,11 @@ import tv_testcase
 
 
 def _add_test(test_suite, dir_path, test_name):
-  if os.path.isfile(os.path.join(dir_path, test_name + ".py")):
+  if os.path.isfile(
+      os.path.join(dir_path, "performance", "video", test_name + ".py")):
     print("Adding test: {}".format(test_name))
     test_suite.addTest(unittest.TestLoader().loadTestsFromModule(
-        importlib.import_module("tests." + test_name)))
+        importlib.import_module("tests.performance.video." + test_name)))
 
 
 # pylint: disable=unused-argument
@@ -30,15 +31,7 @@ def load_tests(loader, tests, pattern):
   test_suite = unittest.TestSuite()
   dir_path = os.path.dirname(__file__)
 
-  # "time_to_shelf" must be the first test added. The timings that it
-  # records require it to run first.
-  _add_test(test_suite, dir_path, "startup")
-  _add_test(test_suite, dir_path, "browse_horizontal")
-  _add_test(test_suite, dir_path, "browse_vertical")
-  _add_test(test_suite, dir_path, "browse_to_guide")
-  _add_test(test_suite, dir_path, "browse_to_search")
   _add_test(test_suite, dir_path, "browse_to_watch")
-  _add_test(test_suite, dir_path, "csi")
 
   return test_suite
 

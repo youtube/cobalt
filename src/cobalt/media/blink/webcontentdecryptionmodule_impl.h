@@ -53,7 +53,7 @@ class MEDIA_BLINK_EXPORT WebContentDecryptionModuleImpl
   scoped_refptr<MediaKeys> GetCdm();
 
  private:
-  friend CdmSessionAdapter;
+  friend class CdmSessionAdapter;
 
   // Takes reference to |adapter|.
   explicit WebContentDecryptionModuleImpl(

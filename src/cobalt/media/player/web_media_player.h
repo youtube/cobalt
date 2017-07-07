@@ -196,6 +196,7 @@ class WebMediaPlayerClient {
   virtual void ReadyStateChanged() = 0;
   virtual void TimeChanged() = 0;
   virtual void DurationChanged() = 0;
+  virtual void OutputModeChanged() = 0;
   virtual void PlaybackStateChanged() = 0;
   // TODO: Revisit the necessity of the following function.
   virtual void SetOpaque(bool /* opaque */) {}

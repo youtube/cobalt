@@ -78,7 +78,7 @@ class SkFileMemoryChunkStreamManager {
   void PurgeUnusedMemoryChunks();
 
  private:
-  friend SkFileMemoryChunkStreamProvider;
+  friend class SkFileMemoryChunkStreamProvider;
 
   // Attempts to reserve an available memory chunk and returns true if
   // successful. On success, |available_chunk_count_| is decremented by one.
@@ -124,8 +124,8 @@ class SkFileMemoryChunkStreamProvider {
   void PurgeUnusedMemoryChunks();
 
  private:
-  friend SkFileMemoryChunkStream;
-  friend SkFileMemoryChunkStreamManager;
+  friend class SkFileMemoryChunkStream;
+  friend class SkFileMemoryChunkStreamManager;
 
   SkFileMemoryChunkStreamProvider(const std::string& file_path,
                                   SkFileMemoryChunkStreamManager* manager);
@@ -183,7 +183,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
   virtual size_t getLength() const SK_OVERRIDE;
 
  private:
-  friend SkFileMemoryChunkStreamProvider;
+  friend class SkFileMemoryChunkStreamProvider;
 
   explicit SkFileMemoryChunkStream(
       SkFileMemoryChunkStreamProvider* stream_provider);

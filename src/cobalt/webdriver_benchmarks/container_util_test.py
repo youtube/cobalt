@@ -85,50 +85,5 @@ class PercentileTest(unittest.TestCase):
     self.assertEqual(container_util.percentile([2, 1, 3, 4, 5], 100), 5)
 
 
-class MergeDictTest(unittest.TestCase):
-
-  def test_empty_merge(self):
-    a = {'x': 4}
-    b = {}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': 4})
-
-  def test_merge_into_empty(self):
-    a = {}
-    b = {'x': 4}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': 4})
-
-  def test_merge_non_overlapping_item(self):
-    a = {'x': 4}
-    b = {'y': 5}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': 4, 'y': 5})
-
-  def test_overlapping_item_with_item(self):
-    a = {'x': 4}
-    b = {'x': 5}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': [4, 5]})
-
-  def test_overlapping_list_with_item(self):
-    a = {'x': [4]}
-    b = {'x': 5}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': [4, 5]})
-
-  def test_overlapping_list_with_list(self):
-    a = {'x': [4]}
-    b = {'x': [5]}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': [4, 5]})
-
-  def test_overlapping_item_with_list(self):
-    a = {'x': 4}
-    b = {'x': [5]}
-    container_util.merge_dict(a, b)
-    self.assertEqual(a, {'x': [4, 5]})
-
-
 if __name__ == '__main__':
   sys.exit(unittest.main())

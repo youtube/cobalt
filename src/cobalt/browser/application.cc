@@ -51,22 +51,15 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
-#if defined(OS_STARBOARD)
 #include "nb/lexical_cast.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
-#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
-#if defined(COBALT_BUILD_TYPE_GOLD)
-const int kLiteStatUpdatePeriodMs = 1000;
-#else
-const int kLiteStatUpdatePeriodMs = 16;
-#endif
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
@@ -380,8 +373,8 @@ Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       start_time_(base::TimeTicks::Now()),
-      stats_update_timer_(true, true),
-      lite_stats_update_timer_(true, true) {
+      c_val_stats_(start_time_),
+      stats_update_timer_(true, true) {
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -406,10 +399,6 @@ Application::Application(const base::Closure& quit_closure)
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
-  lite_stats_update_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
-      base::Bind(&Application::UpdatePeriodicLiteStats,
-                 base::Unretained(this)));
 
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
@@ -695,7 +684,7 @@ void Application::WebModuleRecreated() {
 #endif
 }
 
-Application::CValStats::CValStats()
+Application::CValStats::CValStats(base::TimeTicks start_time)
     : free_cpu_memory("Memory.CPU.Free", 0,
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
@@ -704,16 +693,16 @@ Application::CValStats::CValStats()
       exe_memory("Memory.CPU.Exe", 0,
                  "Total memory occupied by the size of the executable."),
 #endif
+      app_start_time("Time.Cobalt.Start", start_time.ToInternalValue(),
+                     "Start time of the application in microseconds."),
       app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
-                   "Application lifetime.") {
-#if defined(OS_STARBOARD)
+                   "Application lifetime in microseconds.") {
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     free_gpu_memory.emplace("Memory.GPU.Free", 0,
                             "Total free application GPU memory remaining.");
     used_gpu_memory.emplace("Memory.GPU.Used", 0,
                             "Total GPU memory allocated by the application.");
   }
-#endif  // defined(OS_STARBOARD)
 }
 
 void Application::RegisterUserLogs() {
@@ -762,10 +751,6 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
                             non_trivial_static_fields.Get().user_agent.c_str(),
                             non_trivial_static_fields.Get().user_agent.size());
   }
-}
-
-void Application::UpdatePeriodicLiteStats() {
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 math::Size Application::InitSystemWindow(CommandLine* command_line) {
@@ -821,6 +806,8 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
 
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
+  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
+
 #if defined(__LB_SHELL__)
   bool memory_stats_updated = false;
 #if !defined(__LB_SHELL__FOR_RELEASE__)

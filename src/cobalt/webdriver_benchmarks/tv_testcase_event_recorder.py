@@ -24,8 +24,8 @@ class EventRecorderOptions(object):
     self.event_name = event_name
     self.event_type = event_type
 
-    self.record_rasterize_animations = True
-    self.record_video_start_delay = False
+    self.record_animations = True
+    self.record_video = False
 
 
 class EventRecorder(object):
@@ -37,8 +37,8 @@ class EventRecorder(object):
   tv_testcase_util.py.
 
   Both rasterize animations and video start delay data can potentially be
-  recorded, depending on the |record_rasterize_animations| and
-  |record_video_start_delay| option flags.
+  recorded, depending on the |record_animations| and |record_video| option
+  flags.
   """
 
   def __init__(self, options):
@@ -59,20 +59,53 @@ class EventRecorder(object):
     # Each entry in the list contains a tuple with a key and value recorder.
     self.value_dictionary_recorders = []
 
+    # Optional animations recorders
     self.animations_recorder = None
+    self.animations_start_delay_recorder = None
+    self.animations_end_delay_recorder = None
+
+    # Optional video recorders
     self.video_delay_recorder = None
 
     # Count record strategies
     count_record_strategies = []
-    count_record_strategies.append(tv_testcase_util.RecordStrategyMax())
-    count_record_strategies.append(tv_testcase_util.RecordStrategyMedian())
     count_record_strategies.append(tv_testcase_util.RecordStrategyMean())
+    count_record_strategies.append(tv_testcase_util.RecordStrategyMedian())
+    count_record_strategies.append(tv_testcase_util.RecordStrategyMax())
 
-    # Count recorders
+    # Duration record strategies
+    duration_record_strategies = []
+    duration_record_strategies.append(tv_testcase_util.RecordStrategyMean())
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(25))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(50))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(75))
+    duration_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(95))
+
+    # Video delay record strategies
+    video_delay_record_strategies = []
+    video_delay_record_strategies.append(tv_testcase_util.RecordStrategyMean())
+    video_delay_record_strategies.append(tv_testcase_util.RecordStrategyMin())
+    video_delay_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(25))
+    video_delay_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(50))
+    video_delay_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(75))
+    video_delay_record_strategies.append(
+        tv_testcase_util.RecordStrategyPercentile(95))
+    video_delay_record_strategies.append(tv_testcase_util.RecordStrategyMax())
+
+    # Dictionary count recorders
     self._add_value_dictionary_recorder("CntDomEventListeners",
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntDomNodes", count_record_strategies)
     self._add_value_dictionary_recorder("CntDomHtmlElements",
+                                        count_record_strategies)
+    self._add_value_dictionary_recorder("CntDomDocumentHtmlElements",
                                         count_record_strategies)
     self._add_value_dictionary_recorder("CntDomHtmlElementsCreated",
                                         count_record_strategies)
@@ -95,19 +128,7 @@ class EventRecorder(object):
     self._add_value_dictionary_recorder("CntLayoutUpdateCrossReferences",
                                         count_record_strategies)
 
-    # Duration record strategies
-    duration_record_strategies = []
-    duration_record_strategies.append(tv_testcase_util.RecordStrategyMean())
-    duration_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentile(25))
-    duration_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentile(50))
-    duration_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentile(75))
-    duration_record_strategies.append(
-        tv_testcase_util.RecordStrategyPercentile(95))
-
-    # Duration recorders
+    # Dictionary duration recorders
     self._add_value_dictionary_recorder("DurTotalUs",
                                         duration_record_strategies)
     self._add_value_dictionary_recorder("DurDomInjectEventUs",
@@ -125,16 +146,32 @@ class EventRecorder(object):
     self._add_value_dictionary_recorder("DurLayoutRenderAndAnimateUs",
                                         duration_record_strategies)
 
-    # Optional rasterize animations recorders
-    if options.record_rasterize_animations:
+    self.count_render_trees_recorder = tv_testcase_util.ResultsRecorder(
+        self.event_name + "CntRenderTrees", count_record_strategies)
+    self.count_requested_images_recorder = tv_testcase_util.ResultsRecorder(
+        self.event_name + "CntRequestedImages", count_record_strategies)
+
+    # Optional animations recorder
+    if options.record_animations:
       self.animations_recorder = tv_testcase_util.ResultsRecorder(
           self.event_name + "DurRasterizeAnimationsUs",
           duration_record_strategies)
+      self.animations_start_delay_recorder = tv_testcase_util.ResultsRecorder(
+          self.event_name + "DurAnimationsStartDelayUs",
+          duration_record_strategies)
+      self.animations_end_delay_recorder = tv_testcase_util.ResultsRecorder(
+          self.event_name + "DurAnimationsEndDelayUs",
+          duration_record_strategies)
 
-    # Optional video start delay recorder
-    if options.record_video_start_delay:
+    self.final_render_tree_delay_recorder = tv_testcase_util.ResultsRecorder(
+        self.event_name + "DurFinalRenderTreeDelayUs",
+        duration_record_strategies)
+
+    # Optional video recorder
+    if options.record_video:
       self.video_delay_recorder = tv_testcase_util.ResultsRecorder(
-          self.event_name + "DurVideoStartDelayUs", duration_record_strategies)
+          self.event_name + "DurVideoStartDelayUs",
+          video_delay_record_strategies)
 
   def _add_value_dictionary_recorder(self, key, record_strategies):
     recorder = tv_testcase_util.ResultsRecorder(self.event_name + key,
@@ -143,7 +180,10 @@ class EventRecorder(object):
 
   def on_start_event(self):
     """Handles logic related to the start of the event instance."""
-    pass
+    self.count_render_trees_start = self.test.get_cval(
+        c_val_names.count_rasterize_new_render_tree())
+    self.count_requested_images_start = self.test.get_cval(
+        c_val_names.count_image_cache_requested_resources())
 
   def on_end_event(self):
     """Handles logic related to the end of the event instance."""
@@ -159,17 +199,43 @@ class EventRecorder(object):
           self.event_name, self.render_tree_failure_count))
       return
 
+    event_start_time = value_dictionary.get("StartTime")
+
     # Record all of the values from the event.
     for value_dictionary_recorder in self.value_dictionary_recorders:
       value = value_dictionary.get(value_dictionary_recorder[0])
       if value is not None:
         value_dictionary_recorder[1].collect_value(value)
 
+    self.count_render_trees_end = self.test.get_cval(
+        c_val_names.count_rasterize_new_render_tree())
+    self.count_render_trees_recorder.collect_value(
+        self.count_render_trees_end - self.count_render_trees_start)
+
+    self.count_requested_images_end = self.test.get_cval(
+        c_val_names.count_image_cache_requested_resources())
+    self.count_requested_images_recorder.collect_value(
+        self.count_requested_images_end - self.count_requested_images_start)
+
     if self.animations_recorder:
       animation_entries = self.test.get_cval(
           c_val_names.rasterize_animations_entry_list())
       for value in animation_entries:
         self.animations_recorder.collect_value(value)
+
+      animations_start_time = self.test.get_cval(
+          c_val_names.time_rasterize_animations_start())
+      self.animations_start_delay_recorder.collect_value(
+          animations_start_time - event_start_time)
+      animations_end_time = self.test.get_cval(
+          c_val_names.time_rasterize_animations_end())
+      self.animations_end_delay_recorder.collect_value(animations_end_time -
+                                                       event_start_time)
+
+    final_render_tree_time = self.test.get_cval(
+        c_val_names.time_rasterize_new_render_tree())
+    self.final_render_tree_delay_recorder.collect_value(final_render_tree_time -
+                                                        event_start_time)
 
     if self.video_delay_recorder:
       self.video_delay_recorder.collect_value(
@@ -182,8 +248,15 @@ class EventRecorder(object):
     for value_dictionary_recorder in self.value_dictionary_recorders:
       value_dictionary_recorder[1].on_end_test()
 
+    self.count_render_trees_recorder.on_end_test()
+    self.count_requested_images_recorder.on_end_test()
+
     if self.animations_recorder:
       self.animations_recorder.on_end_test()
+      self.animations_start_delay_recorder.on_end_test()
+      self.animations_end_delay_recorder.on_end_test()
+
+    self.final_render_tree_delay_recorder.on_end_test()
 
     if self.video_delay_recorder:
       self.video_delay_recorder.on_end_test()

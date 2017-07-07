@@ -131,7 +131,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   GetOpaqueRootFunction get_opaque_root_function_;
   GetReachableWrappablesFunction get_reachable_wrappables_function_;
 
-  friend Tracer;
+  friend class Tracer;
 };
 
 }  // namespace mozjs

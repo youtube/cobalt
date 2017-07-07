@@ -14,6 +14,11 @@ import urlparse
 
 import container_util
 
+try:
+  import custom_query_param_constants as query_param_constants
+except ImportError:
+  import default_query_param_constants as query_param_constants
+
 # These are watched for in webdriver_benchmark_test.py
 TEST_RESULT = "webdriver_benchmark TEST RESULT"
 TEST_COMPLETE = "webdriver_benchmark TEST COMPLETE"
@@ -21,11 +26,6 @@ TEST_COMPLETE = "webdriver_benchmark TEST COMPLETE"
 # These are event types that can be injected
 EVENT_TYPE_KEY_DOWN = "KeyDown"
 EVENT_TYPE_KEY_UP = "KeyUp"
-
-# URL-related constants
-BASE_URL = "https://www.youtube.com/"
-TV_APP_PATH = "/tv"
-BASE_PARAMS = {}
 
 
 def import_selenium_module(submodule=None):
@@ -61,21 +61,26 @@ def import_selenium_module(submodule=None):
   return module
 
 
-def get_url(path, query_params=None):
-  """Returns the URL indicated by the path and query parameters."""
-  parsed_url = list(urlparse.urlparse(BASE_URL))
-  parsed_url[2] = path
-  query_dict = BASE_PARAMS.copy()
-  if query_params:
-    query_dict.update(urlparse.parse_qsl(parsed_url[4]))
-    container_util.merge_dict(query_dict, query_params)
-  parsed_url[4] = urlencode(query_dict, doseq=True)
+def generate_url(default_url, query_params_override=None):
+  """Returns the URL indicated by the path and query parameters.
+
+  Args:
+    default_url: the default url to use; its query params may be overridden
+    query_params_override: optional query params that override the ones
+                           contained within the default URL
+  Returns:
+    the url generated from the parameters
+  """
+  parsed_url = list(urlparse.urlparse(default_url))
+
+  query_params = query_param_constants.BASE_QUERY_PARAMS
+  if query_params_override:
+    query_params.update(query_params_override)
+  else:
+    query_params.update(urlparse.parse_qsl(parsed_url[4]))
+
+  parsed_url[4] = urlencode(query_params, doseq=True)
   return urlparse.urlunparse(parsed_url)
-
-
-def get_tv_url(query_params=None):
-  """Returns the tv URL indicated by the query parameters."""
-  return get_url(TV_APP_PATH, query_params)
 
 
 def record_test_result(name, result):

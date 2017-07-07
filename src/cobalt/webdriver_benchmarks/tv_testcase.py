@@ -19,16 +19,24 @@ import tv
 import tv_testcase_runner
 import tv_testcase_util
 
+try:
+  import custom_query_param_constants as query_param_constants
+except ImportError:
+  import default_query_param_constants as query_param_constants
+
 # selenium imports
 # pylint: disable=C0103
 ActionChains = tv_testcase_util.import_selenium_module(
     submodule="webdriver.common.action_chains").ActionChains
+keys = tv_testcase_util.import_selenium_module("webdriver.common.keys")
 
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
 PAGE_LOAD_WAIT_SECONDS = 30
-PROCESSING_TIMEOUT_SECONDS = 15
+PROCESSING_TIMEOUT_SECONDS = 60
+HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
+SKIP_AD_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
 
 _is_initialized = False
@@ -50,8 +58,8 @@ class TvTestCase(unittest.TestCase):
   class ProcessingTimeoutException(BaseException):
     """Exception thrown when processing did not complete in time."""
 
-  class MediaTimeoutException(BaseException):
-    """Exception thrown when media did not complete in time."""
+  class HtmlScriptElementExecuteTimeoutException(BaseException):
+    """Exception thrown when processing did not complete in time."""
 
   class TitleCardHiddenTimeoutException(BaseException):
     """Exception thrown when title card did not disappear in time."""
@@ -67,16 +75,17 @@ class TvTestCase(unittest.TestCase):
   def setUp(self):
     global _is_initialized
     if not _is_initialized:
-      # Initialize the tests. This involves loading a URL which applies the
-      # forcedOffAllExperiments cookies, ensuring that no subsequent loads
-      # include experiments. Additionally, loading this URL triggers a reload.
-      query_params = {"env_forcedOffAllExperiments": True}
-      triggers_reload = True
-      self.load_tv(None, query_params, triggers_reload)
+      # Initialize the tests.
+      query_params = query_param_constants.INIT_QUERY_PARAMS
+      triggers_reload = query_param_constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
+      self.load_tv(query_params, triggers_reload)
       _is_initialized = True
 
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
+
+  def get_default_url(self):
+    return tv_testcase_runner.GetDefaultUrl()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -103,26 +112,19 @@ class TvTestCase(unittest.TestCase):
     self.get_webdriver().get("about:blank")
     self.wait_for_url_loaded_events()
 
-  def load_tv(self,
-              label=None,
-              additional_query_params=None,
-              triggers_reload=False):
+  def load_tv(self, query_params=None, triggers_reload=False):
     """Loads the main TV page and waits for it to display.
 
     Args:
-      label: A value for the label query parameter.
-      additional_query_params: A dict containing additional query parameters.
+      query_params: A dict containing additional query parameters.
       triggers_reload: Whether or not the navigation will trigger a reload.
     Raises:
       Underlying WebDriver exceptions
     """
-    query_params = {}
-    if label is not None:
-      query_params = {"label": label}
-    if additional_query_params is not None:
-      query_params.update(additional_query_params)
+    self.get_webdriver().execute_script("h5vcc.storage.clearCookies()")
     self.clear_url_loaded_events()
-    self.get_webdriver().get(tv_testcase_util.get_tv_url(query_params))
+    self.get_webdriver().get(
+        tv_testcase_util.generate_url(self.get_default_url(), query_params))
     self.wait_for_url_loaded_events()
     if triggers_reload:
       self.clear_url_loaded_events()
@@ -191,16 +193,16 @@ class TvTestCase(unittest.TestCase):
       self.assertEqual(len(elements), expected_num)
     return elements
 
-  def send_keys(self, keys):
+  def send_keys(self, key_events):
     """Sends keys to whichever element currently has focus.
 
     Args:
-      keys: key events
+      key_events: key events
 
     Raises:
       Underlying WebDriver exceptions
     """
-    ActionChains(self.get_webdriver()).send_keys(keys).perform()
+    ActionChains(self.get_webdriver()).send_keys(key_events).perform()
 
   def clear_url_loaded_events(self):
     """Clear the events that indicate that Cobalt finished loading a URL."""
@@ -240,6 +242,18 @@ class TvTestCase(unittest.TestCase):
       required time.
     """
     start_time = time.time()
+
+    # First simply check for whether or not the event is still processing.
+    # There's no need to check anything else while the event is still going on.
+    # Once it is done processing, it won't get re-set, so there's no need to
+    # re-check it.
+    while self.get_cval(c_val_names.event_is_processing()):
+      if time.time() - start_time > PROCESSING_TIMEOUT_SECONDS:
+        raise TvTestCase.ProcessingTimeoutException()
+
+      time.sleep(0.1)
+
+    # Now wait for all processing to complete in Cobalt.
     count = 0
     while count < 2:
       if self.is_processing(check_animations):
@@ -254,25 +268,61 @@ class TvTestCase(unittest.TestCase):
 
   def is_processing(self, check_animations):
     """Checks to see if Cobalt is currently processing."""
-    return (self.get_cval(c_val_names.count_dom_active_dispatch_events()) or
+    return (self.get_cval(c_val_names.count_dom_active_java_script_events()) or
             self.get_cval(c_val_names.layout_is_dirty()) or
             (check_animations and
              self.get_cval(c_val_names.renderer_has_active_animations())) or
             self.get_cval(c_val_names.count_image_cache_loading_resources()))
 
+  def wait_for_html_script_element_execute_count(self, required_count):
+    """Waits for specified number of html script element Execute() calls.
+
+    Args:
+      required_count: the number of executions that must occur
+
+    Raises:
+      HtmlScriptElementExecuteTimeoutException: The required html script element
+      executions did not occur within the required time.
+    """
+    start_time = time.time()
+    while self.get_cval(
+        c_val_names.count_dom_html_script_element_execute()) < required_count:
+      if time.time() - start_time > HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS:
+        raise TvTestCase.HtmlScriptElementExecuteTimeoutException()
+      time.sleep(0.1)
+
   def wait_for_media_element_playing(self):
     """Waits for a video to begin playing.
 
-    Raises:
-      MediaTimeoutException: The video does not start playing within the
-      required time.
+    Returns:
+      Whether or not the video started.
     """
     start_time = time.time()
     while self.get_cval(
         c_val_names.event_duration_dom_video_start_delay()) == 0:
       if time.time() - start_time > MEDIA_TIMEOUT_SECONDS:
-        raise TvTestCase.MediaTimeoutException()
+        return False
       time.sleep(0.1)
+
+    return True
+
+  def skip_advertisement_if_playing(self):
+    """Waits to skip an ad if it is encountered.
+
+    Returns:
+      True if a skippable advertisement was encountered
+    """
+    start_time = time.time()
+    if not self.find_elements(tv.SKIP_AD_BUTTON_HIDDEN):
+      while not self.find_elements(tv.SKIP_AD_BUTTON_CAN_SKIP):
+        if time.time() - start_time > SKIP_AD_TIMEOUT_SECONDS:
+          return True
+        time.sleep(0.1)
+      self.send_keys(keys.Keys.ENTER)
+      self.wait_for_processing_complete(False)
+      return True
+
+    return False
 
   def wait_for_title_card_hidden(self):
     """Waits for the title to disappear while a video is playing.

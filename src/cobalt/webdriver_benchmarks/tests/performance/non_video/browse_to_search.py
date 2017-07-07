@@ -8,8 +8,11 @@ from __future__ import print_function
 import os
 import sys
 
-# The parent directory is a module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+# Add the base webdriver_benchmarks path
+sys.path.insert(0,
+                os.path.dirname(
+                    os.path.dirname((os.path.dirname(
+                        os.path.dirname(os.path.realpath(__file__)))))))
 
 # pylint: disable=C6204,C6203
 import tv
@@ -35,13 +38,13 @@ class BrowseToSearchTest(tv_testcase.TvTestCase):
   def test_simple(self):
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, BROWSE_TO_SEARCH_EVENT_NAME, BROWSE_TO_SEARCH_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
+    recorder_options.record_animations = False
     browse_to_search_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
 
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, SEARCH_TO_BROWSE_EVENT_NAME, SEARCH_TO_BROWSE_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
+    recorder_options.record_animations = False
     search_to_browse_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
 

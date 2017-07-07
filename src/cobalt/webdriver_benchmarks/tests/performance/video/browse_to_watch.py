@@ -8,8 +8,11 @@ from __future__ import print_function
 import os
 import sys
 
-# The parent directory is a module
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
+# Add the base webdriver_benchmarks path
+sys.path.insert(0,
+                os.path.dirname(
+                    os.path.dirname((os.path.dirname(
+                        os.path.dirname(os.path.realpath(__file__)))))))
 
 # pylint: disable=C6204,C6203
 import tv_testcase
@@ -19,8 +22,11 @@ import tv_testcase_util
 # selenium imports
 keys = tv_testcase_util.import_selenium_module("webdriver.common.keys")
 
-NUM_LOAD_TV_CALLS = 1
-NUM_ITERATIONS_PER_LOAD_TV_CALL = 10
+MAX_VIDEO_FAILURE_COUNT = 10
+MAX_SKIPPABLE_AD_COUNT = 8
+
+NUM_LOAD_TV_CALLS = 4
+NUM_ITERATIONS_PER_LOAD_TV_CALL = 25
 
 BROWSE_TO_WATCH_EVENT_NAME = "wbBrowseToWatch"
 BROWSE_TO_WATCH_EVENT_TYPE = tv_testcase_util.EVENT_TYPE_KEY_UP
@@ -31,19 +37,28 @@ WATCH_TO_BROWSE_EVENT_TYPE = tv_testcase_util.EVENT_TYPE_KEY_UP
 
 class BrowseToWatchTest(tv_testcase.TvTestCase):
 
+  class VideoFailureException(BaseException):
+    """Exception thrown when MAX_VIDEO_FAILURE_COUNT is exceeded."""
+
+  class AdvertisementFailureException(BaseException):
+    """Exception thrown when MAX_SKIPPABLE_AD_COUNT is exceeded."""
+
   def test_simple(self):
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, BROWSE_TO_WATCH_EVENT_NAME, BROWSE_TO_WATCH_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
-    recorder_options.record_video_start_delay = True
+    recorder_options.record_animations = False
+    recorder_options.record_video = True
     browse_to_watch_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
 
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, WATCH_TO_BROWSE_EVENT_NAME, WATCH_TO_BROWSE_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
+    recorder_options.record_animations = False
     watch_to_browse_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
+
+    failure_count = 0
+    skippable_ad_count = 0
 
     for _ in xrange(NUM_LOAD_TV_CALLS):
       self.load_tv()
@@ -54,7 +69,29 @@ class BrowseToWatchTest(tv_testcase.TvTestCase):
 
         browse_to_watch_recorder.on_start_event()
         self.send_keys(keys.Keys.ENTER)
-        self.wait_for_media_element_playing()
+
+        if not self.wait_for_media_element_playing():
+          failure_count += 1
+          print("Video failed to play! {} events failed.".format(failure_count))
+          if failure_count > MAX_VIDEO_FAILURE_COUNT:
+            raise BrowseToWatchTest.VideoFailureException()
+
+          self.send_keys(keys.Keys.ESCAPE)
+          self.wait_for_processing_complete_after_focused_shelf()
+          continue
+
+        if self.skip_advertisement_if_playing():
+          skippable_ad_count += 1
+          print(
+              "Encountered skippable ad! {} total.".format(skippable_ad_count))
+          if skippable_ad_count > MAX_SKIPPABLE_AD_COUNT:
+            raise BrowseToWatchTest.AdvertisementFailureException()
+
+          self.wait_for_title_card_hidden()
+          self.send_keys(keys.Keys.ESCAPE)
+          self.wait_for_processing_complete_after_focused_shelf()
+          continue
+
         browse_to_watch_recorder.on_end_event()
 
         # Wait for the title card hidden before sending the escape. Otherwise,
