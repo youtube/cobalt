@@ -1217,13 +1217,6 @@
                 # GoogleTest doesn't support WinRT
                 'angle_build_deqp_gtest_executables%': 1,
             }],
-            ['OS=="linux" and use_x11==1',
-            {
-                'deqp_include_dirs':
-                [
-                    '<(deqp_path)/framework/platform/x11',
-                ],
-            }],
             ['OS=="linux"',
             {
                 'deqp_defines':
