@@ -367,6 +367,24 @@
         'filters/video_frame_generator.h',
         'filters/video_renderer_base.cc',
         'filters/video_renderer_base.h',
+        'mp4/aac.cc',
+        'mp4/aac.h',
+        'mp4/avc.cc',
+        'mp4/avc.h',
+        'mp4/box_definitions.cc',
+        'mp4/box_definitions.h',
+        'mp4/box_reader.cc',
+        'mp4/box_reader.h',
+        'mp4/cenc.cc',
+        'mp4/cenc.h',
+        'mp4/es_descriptor.cc',
+        'mp4/es_descriptor.h',
+        'mp4/mp4_stream_parser.cc',
+        'mp4/mp4_stream_parser.h',
+        'mp4/offset_byte_queue.cc',
+        'mp4/offset_byte_queue.h',
+        'mp4/track_run_iterator.cc',
+        'mp4/track_run_iterator.h',
         'video/capture/fake_video_capture_device.cc',
         'video/capture/fake_video_capture_device.h',
         'video/capture/linux/video_capture_device_linux.cc',
@@ -799,19 +817,6 @@
             ],
           },
         }],
-        # A simple WebM encoder for animated avatars on ChromeOS.
-        ['chromeos==1', {
-          'dependencies': [
-            '../third_party/libvpx/libvpx.gyp:libvpx',
-            '../third_party/libyuv/libyuv.gyp:libyuv',
-          ],
-          'sources': [
-            'webm/chromeos/ebml_writer.cc',
-            'webm/chromeos/ebml_writer.h',
-            'webm/chromeos/webm_encoder.cc',
-            'webm/chromeos/webm_encoder.h',
-          ],
-        }],
         ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
           'link_settings': {
             'libraries': [
@@ -944,28 +949,6 @@
             },
           },
         }],
-        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell" or OS=="starboard"', {
-          'sources': [
-            'mp4/aac.cc',
-            'mp4/aac.h',
-            'mp4/avc.cc',
-            'mp4/avc.h',
-            'mp4/box_definitions.cc',
-            'mp4/box_definitions.h',
-            'mp4/box_reader.cc',
-            'mp4/box_reader.h',
-            'mp4/cenc.cc',
-            'mp4/cenc.h',
-            'mp4/es_descriptor.cc',
-            'mp4/es_descriptor.h',
-            'mp4/mp4_stream_parser.cc',
-            'mp4/mp4_stream_parser.h',
-            'mp4/offset_byte_queue.cc',
-            'mp4/offset_byte_queue.h',
-            'mp4/track_run_iterator.cc',
-            'mp4/track_run_iterator.h',
-          ],
-        }],
       ],
       'target_conditions': [
         ['OS == "ios"', {
@@ -1074,6 +1057,13 @@
         'filters/source_buffer_stream_unittest.cc',
         'filters/video_decoder_selector_unittest.cc',
         'filters/video_renderer_base_unittest.cc',
+        'mp4/aac_unittest.cc',
+        'mp4/avc_unittest.cc',
+        'mp4/box_reader_unittest.cc',
+        'mp4/es_descriptor_unittest.cc',
+        'mp4/mp4_stream_parser_unittest.cc',
+        'mp4/offset_byte_queue_unittest.cc',
+        'mp4/track_run_iterator_unittest.cc',
         'video/capture/video_capture_device_unittest.cc',
         'webm/cluster_builder.cc',
         'webm/cluster_builder.h',
@@ -1096,15 +1086,6 @@
         ['use_ffmpeg == 1', {
           'dependencies': [
             '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-          ],
-        }],
-        ['os_posix==1 and OS!="mac" and OS!="ios"', {
-          'conditions': [
-            ['linux_use_tcmalloc==1', {
-              'dependencies': [
-                '../base/allocator/allocator.gyp:allocator',
-              ],
-            }],
           ],
         }],
         ['OS == "ios"', {
@@ -1154,17 +1135,6 @@
         [ 'target_arch=="ia32" or target_arch=="x64"', {
           'sources': [
             'base/simd/convert_rgb_to_yuv_unittest.cc',
-          ],
-        }],
-        ['proprietary_codecs==1 or branding=="Chrome" or OS=="lb_shell" or OS=="starboard"', {
-          'sources': [
-            'mp4/aac_unittest.cc',
-            'mp4/avc_unittest.cc',
-            'mp4/box_reader_unittest.cc',
-            'mp4/es_descriptor_unittest.cc',
-            'mp4/mp4_stream_parser_unittest.cc',
-            'mp4/offset_byte_queue_unittest.cc',
-            'mp4/track_run_iterator_unittest.cc',
           ],
         }],
         ['OS == "lb_shell" or OS=="starboard"', {
@@ -1432,53 +1402,6 @@
         },
       ],
     }],
-    ['(OS == "win" or toolkit_uses_gtk == 1) and use_aura != 1', {
-      'targets': [
-        {
-          'target_name': 'shader_bench',
-          'type': 'executable',
-          'dependencies': [
-            'media',
-            'yuv_convert',
-            '../base/base.gyp:base',
-            '../ui/gl/gl.gyp:gl',
-            '../ui/ui.gyp:ui',
-          ],
-          'sources': [
-            'tools/shader_bench/cpu_color_painter.cc',
-            'tools/shader_bench/cpu_color_painter.h',
-            'tools/shader_bench/gpu_color_painter.cc',
-            'tools/shader_bench/gpu_color_painter.h',
-            'tools/shader_bench/gpu_painter.cc',
-            'tools/shader_bench/gpu_painter.h',
-            'tools/shader_bench/painter.cc',
-            'tools/shader_bench/painter.h',
-            'tools/shader_bench/shader_bench.cc',
-            'tools/shader_bench/window.cc',
-            'tools/shader_bench/window.h',
-          ],
-          'conditions': [
-            ['toolkit_uses_gtk == 1', {
-              'dependencies': [
-                '../build/linux/system.gyp:gtk',
-              ],
-              'sources': [
-                'tools/shader_bench/window_linux.cc',
-              ],
-            }],
-            ['OS=="win"', {
-              'dependencies': [
-                '../third_party/angle/src/build_angle.gyp:libEGL',
-                '../third_party/angle/src/build_angle.gyp:libGLESv2',
-              ],
-              'sources': [
-                'tools/shader_bench/window_win.cc',
-              ],
-            }],
-          ],
-        },
-      ],
-    }],
     ['OS == "linux" and target_arch != "arm" and target_arch != "mipsel"', {
       'targets': [
         {
@@ -1695,99 +1618,5 @@
 
       ],
     }],
-    ['OS != "android" and OS != "ios" and OS != "lb_shell" and OS != "starboard"', {
-      # Android and iOS do not use ffmpeg, so disable the targets which require
-      # it.
-      'targets': [
-        {
-          'target_name': 'ffmpeg_unittests',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            '../base/base.gyp:base_i18n',
-            '../base/base.gyp:test_support_base',
-            '../base/base.gyp:test_support_perf',
-            '../testing/gtest.gyp:gtest',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-            'media',
-            'media_test_support',
-          ],
-          'sources': [
-            'ffmpeg/ffmpeg_unittest.cc',
-          ],
-          'conditions': [
-            ['toolkit_uses_gtk == 1', {
-              'dependencies': [
-                # Needed for the following #include chain:
-                #   base/run_all_unittests.cc
-                #   ../base/test_suite.h
-                #   gtk/gtk.h
-                '../build/linux/system.gyp:gtk',
-              ],
-              'conditions': [
-                ['linux_use_tcmalloc==1', {
-                  'dependencies': [
-                    '../base/allocator/allocator.gyp:allocator',
-                  ],
-                }],
-              ],
-            }],
-          ],
-        },
-        {
-          'target_name': 'ffmpeg_regression_tests',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:test_support_base',
-            '../testing/gmock.gyp:gmock',
-            '../testing/gtest.gyp:gtest',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-            'media',
-            'media_test_support',
-          ],
-          'sources': [
-            'base/run_all_unittests.cc',
-            'base/test_data_util.cc',
-            'ffmpeg/ffmpeg_regression_tests.cc',
-            'filters/pipeline_integration_test_base.cc',
-          ],
-          'conditions': [
-            ['os_posix==1 and OS!="mac"', {
-              'conditions': [
-                ['linux_use_tcmalloc==1', {
-                  'dependencies': [
-                    '../base/allocator/allocator.gyp:allocator',
-                  ],
-                }],
-              ],
-            }],
-          ],
-        },
-        {
-          'target_name': 'ffmpeg_tests',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-            'media',
-          ],
-          'sources': [
-            'test/ffmpeg_tests/ffmpeg_tests.cc',
-          ],
-        },
-        {
-          'target_name': 'media_bench',
-          'type': 'executable',
-          'dependencies': [
-            '../base/base.gyp:base',
-            '../third_party/ffmpeg/ffmpeg.gyp:ffmpeg',
-            'media',
-          ],
-          'sources': [
-            'tools/media_bench/media_bench.cc',
-          ],
-        },
-      ],
-    }]
   ],
 }

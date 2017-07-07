@@ -11,7 +11,7 @@
     'base.gypi',
   ],
   'conditions': [
-    ['disable_nacl==0 and disable_nacl_untrusted==0', {
+    ['disable_nacl==0', {
       'targets': [
         {
           'target_name': 'base_untrusted',
