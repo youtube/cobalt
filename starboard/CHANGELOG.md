@@ -50,6 +50,12 @@ Add support for UYVY decode targets (e.g. YUV 422) via the
 This adds SbKey codes for the colored keys found on most contemporary TV
 remotes.
 
+### kSbEventTypeLowMemory
+
+Adds a new event type -- `kSbEventTypeLowMemory` -- to allow a platform to
+signal that the application may soon be terminated due to low memory
+availability.
+
 ## Version 5
 
 ### Add Speech Recognizer API
