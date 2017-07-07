@@ -26,6 +26,9 @@
         '<(tcmalloc_dir)/src',
         '../..',
       ],
+      'defines': [
+        'NO_HEAP_CHECK',
+      ],
       'direct_dependent_settings': {
         'configurations': {
           'Common_Base': {
@@ -120,8 +123,6 @@
         '<(tcmalloc_dir)/src/gperftools/profiler.h',
         '<(tcmalloc_dir)/src/gperftools/stacktrace.h',
         '<(tcmalloc_dir)/src/gperftools/tcmalloc.h',
-        '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
-        '<(tcmalloc_dir)/src/heap-checker.cc',
         '<(tcmalloc_dir)/src/heap-profile-table.cc',
         '<(tcmalloc_dir)/src/heap-profile-table.h',
         '<(tcmalloc_dir)/src/heap-profiler.cc',
@@ -376,8 +377,6 @@
             '<(tcmalloc_dir)/src/base/thread_lister.h',
             '<(tcmalloc_dir)/src/deep-heap-profile.cc',
             '<(tcmalloc_dir)/src/deep-heap-profile.h',
-            '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
-            '<(tcmalloc_dir)/src/heap-checker.cc',
             '<(tcmalloc_dir)/src/heap-profiler.cc',
             '<(tcmalloc_dir)/src/heap-profile-table.cc',
             '<(tcmalloc_dir)/src/heap-profile-table.h',
@@ -433,30 +432,6 @@
           'cflags': [
             '-fvtable-verify=preinit',
           ],
-        }],
-        [ 'linux_keep_shadow_stacks==1', {
-          'sources': [
-            '<(tcmalloc_dir)/src/linux_shadow_stacks.cc',
-            '<(tcmalloc_dir)/src/linux_shadow_stacks.h',
-            '<(tcmalloc_dir)/src/stacktrace_shadow-inl.h',
-          ],
-          'cflags': [
-            '-finstrument-functions',
-          ],
-          'defines': [
-            'KEEP_SHADOW_STACKS',
-          ],
-        }],
-        [ 'linux_use_heapchecker==0', {
-          # Do not compile and link the heapchecker source.
-          'sources!': [
-            '<(tcmalloc_dir)/src/heap-checker-bcad.cc',
-            '<(tcmalloc_dir)/src/heap-checker.cc',
-          ],
-          # Disable the heap checker in tcmalloc.
-          'defines': [
-            'NO_HEAP_CHECK',
-           ],
         }],
         [ 'clang==1', {
           'cflags': [
