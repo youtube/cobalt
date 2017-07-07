@@ -12,13 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# The Gradle build already puts libstarboard.so into the APK, but we have to
+# The Gradle build already puts libcoat.so into the APK, but we have to
 # declare it here as an imported library so that the debugger recognizes it.
 #
 # Since we don't build from source here, in order to debug in Android Studio
 # you have to manually set the debugger type so that LLDB will be started:
-# Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Hybrid
+# Run -> Edit Configurations -> "app" -> Debugger -> Debug Type = Dual
 
 cmake_minimum_required(VERSION 3.4.1)
-add_library(starboard SHARED IMPORTED)
-set_target_properties(starboard PROPERTIES IMPORTED_LOCATION libstarboard.so)
+add_library(coat SHARED IMPORTED)
+set_target_properties(coat PROPERTIES IMPORTED_LOCATION libcoat.so)
