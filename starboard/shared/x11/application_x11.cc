@@ -14,6 +14,7 @@
 
 #include "starboard/shared/x11/application_x11.h"
 
+#include <math.h>
 #include <stdlib.h>
 #include <unistd.h>
 #define XK_3270  // for XK_3270_BackTab

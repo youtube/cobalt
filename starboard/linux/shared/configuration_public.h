@@ -24,7 +24,7 @@
 #define STARBOARD_LINUX_SHARED_CONFIGURATION_PUBLIC_H_
 
 #ifndef SB_API_VERSION
-#define SB_API_VERSION 4
+#define SB_API_VERSION 6
 #endif
 
 // --- System Header Configuration -------------------------------------------
