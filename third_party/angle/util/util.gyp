@@ -140,24 +140,6 @@
                             ],
                         },
                     }],
-                    ['use_x11==1',
-                    {
-                        'sources':
-                        [
-                            '<@(util_x11_sources)',
-                        ],
-                        'link_settings':
-                        {
-                            'ldflags':
-                            [
-                                '<!@(<(pkg-config) --libs-only-L --libs-only-other x11 xi)',
-                            ],
-                            'libraries':
-                            [
-                                '<!@(<(pkg-config) --libs-only-l x11 xi)',
-                            ],
-                        },
-                    }],
                     ['use_ozone==1',
                     {
                         'sources':

@@ -151,12 +151,5 @@
                 '<@(angle_end2end_tests_win_sources)',
             ],
         }],
-        ['use_x11==1',
-        {
-            'sources':
-            [
-                '<@(angle_end2end_tests_x11_sources)',
-            ],
-        }],
     ]
 }
