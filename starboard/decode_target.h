@@ -142,6 +142,19 @@ typedef enum SbDecodeTargetFormat {
   // A decoder target format consisting of Y, U, and V planes, in that order.
   kSbDecodeTargetFormat3PlaneYUVI420,
 
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
+  // A decoder target format consisting of a single plane with pixels layed out
+  // in the format UYVY.  Since there are two Y values per sample, but only one
+  // U value and only one V value, horizontally the Y resolution is twice the
+  // size of both the U and V resolutions.  Vertically, they Y, U and V all
+  // have the same resolution.  This is a YUV 422 format.  When using this
+  // format with GL platforms, it is expected that the underlying texture will
+  // be set to the GL_RGBA format, and the width of the texture will be equal to
+  // the number of UYVY tuples per row (e.g. the u/v width resolution).
+  // Content region left/right should be specified in u/v width resolution.
+  kSbDecodeTargetFormat1PlaneUYVY,
+#endif  // SB_DECODE_TARGET_UYVY_SUPPORT
+
   // An invalid decode target format.
   kSbDecodeTargetFormatInvalid,
 } SbDecodeTargetFormat;
@@ -344,6 +357,9 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
     SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
+    case kSbDecodeTargetFormat1PlaneUYVY:
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
       return 1;
     case kSbDecodeTargetFormat1PlaneBGRA:
       return 1;
