@@ -12,36 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SYSTEM_WINDOW_APPLICATION_EVENT_H_
-#define COBALT_SYSTEM_WINDOW_APPLICATION_EVENT_H_
+#ifndef COBALT_BASE_APPLICATION_EVENT_H_
+#define COBALT_BASE_APPLICATION_EVENT_H_
 
 #include "cobalt/base/event.h"
+#include "starboard/event.h"
 
-namespace cobalt {
-namespace system_window {
+namespace base {
 
 class ApplicationEvent : public base::Event {
  public:
-  enum Type {
-    kPause,
-    kPreload,
-    kQuit,
-    kResume,
-    kStart,
-    kSuspend,
-    kUnpause,
-  };
-
-  explicit ApplicationEvent(Type type) : type_(type) {}
-  Type type() const { return type_; }
+  explicit ApplicationEvent(SbEventType type) : type_(type) {}
+  SbEventType type() const { return type_; }
 
   BASE_EVENT_SUBCLASS(ApplicationEvent);
 
  private:
-  Type type_;
+  SbEventType type_;
 };
 
-}  // namespace system_window
-}  // namespace cobalt
+}  // namespace base
 
-#endif  // COBALT_SYSTEM_WINDOW_APPLICATION_EVENT_H_
+#endif  // COBALT_BASE_APPLICATION_EVENT_H_

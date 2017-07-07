@@ -125,6 +125,8 @@ class RendererModule {
     return pipeline_->GetResourceProvider();
   }
 
+  math::Size render_target_size() { return render_target()->GetSize(); }
+
  private:
   system_window::SystemWindow* system_window_;
   Options options_;

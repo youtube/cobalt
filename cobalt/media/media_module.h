@@ -25,6 +25,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/message_loop.h"
 #include "base/message_loop_proxy.h"
+#include "base/optional.h"
 #include "base/threading/thread.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/math/size.h"
@@ -65,9 +66,15 @@ class MediaModule : public CanPlayTypeHandler,
     bool use_null_audio_streamer;
     bool use_video_decoder_stub;
     bool disable_webm_vp9;
+    base::optional<math::Size> output_resolution_override;
   };
 
   typedef render_tree::Image Image;
+
+  // Calculates the output resolution based on the window size and override.
+  static math::Size CalculateOutputResolution(
+      system_window::SystemWindow* system_window,
+      const base::optional<math::Size>& output_resolution_override);
 
   virtual ~MediaModule() {}
 
@@ -107,18 +114,15 @@ class MediaModule : public CanPlayTypeHandler,
   void RegisterPlayer(WebMediaPlayer* player) OVERRIDE;
   void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE;
 
-  const math::Size& output_size() const { return output_size_; }
-
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.
   static scoped_ptr<MediaModule> Create(
-      system_window::SystemWindow* system_window, const math::Size& output_size,
+      system_window::SystemWindow* system_window,
       render_tree::ResourceProvider* resource_provider,
       const Options& options = Options());
 
  protected:
-  explicit MediaModule(const math::Size& output_size)
-      : thread_("media_module"), output_size_(output_size), suspended_(false) {
+  MediaModule() : thread_("media_module"), suspended_(false) {
     thread_.Start();
     message_loop_ = thread_.message_loop_proxy();
   }
@@ -139,7 +143,6 @@ class MediaModule : public CanPlayTypeHandler,
   base::Thread thread_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
   Players players_;
-  math::Size output_size_;
   bool suspended_;
 };
 

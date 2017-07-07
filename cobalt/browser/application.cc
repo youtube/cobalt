@@ -29,6 +29,7 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "build/build_config.h"
+#include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/base/init_cobalt.h"
@@ -46,7 +47,6 @@
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif
-#include "cobalt/system_window/application_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
 #if defined(__LB_SHELL__)
@@ -220,6 +220,32 @@ void EnableUsingStubImageDecoderIfRequired() {
 }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+base::optional<math::Size> GetVideoOutputResolutionOverride(
+    CommandLine* command_line) {
+  DCHECK(command_line);
+  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
+    std::string size_override = command_line->GetSwitchValueASCII(
+        browser::switches::kVideoContainerSizeOverride);
+    DLOG(INFO) << "Set video container size override from command line to "
+               << size_override;
+    // Override string should be something like "1920x1080".
+    int32 width, height;
+    std::vector<std::string> tokens;
+    base::SplitString(size_override, 'x', &tokens);
+    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
+        base::StringToInt32(tokens[1], &height)) {
+      return math::Size(width, height);
+    }
+
+    DLOG(WARNING) << "Invalid size specified for video container: "
+                  << size_override;
+  }
+
+  return base::nullopt;
+}
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
 // Represents a parsed int.
 struct ParsedIntValue {
  public:
@@ -229,6 +255,7 @@ struct ParsedIntValue {
   int value_;
   bool error_;  // true if there was a parse error.
 };
+
 // Parses a string like "1234x5678" to vector of parsed int values.
 std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
   std::vector<ParsedIntValue> output;
@@ -242,6 +269,51 @@ std::vector<ParsedIntValue> ParseDimensions(const std::string& value_str) {
     output.push_back(parsed_value);
   }
   return output;
+}
+
+base::optional<math::Size> GetRequestedViewportSize(CommandLine* command_line) {
+  DCHECK(command_line);
+  if (!command_line->HasSwitch(browser::switches::kViewport)) {
+    return base::nullopt;
+  }
+
+  const std::string switchValue =
+      command_line->GetSwitchValueASCII(browser::switches::kViewport);
+  std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
+  if (parsed_ints.size() < 1) {
+    return base::nullopt;
+  }
+
+  const ParsedIntValue parsed_width = parsed_ints[0];
+  if (parsed_width.error_) {
+    DLOG(ERROR) << "Invalid value specified for viewport width: " << switchValue
+                << ". Using default viewport size.";
+    return base::nullopt;
+  }
+
+  const ParsedIntValue* parsed_height_ptr = NULL;
+  if (parsed_ints.size() >= 2) {
+    parsed_height_ptr = &parsed_ints[1];
+  }
+
+  if (!parsed_height_ptr) {
+    // Allow shorthand specification of the viewport by only giving the
+    // width. This calculates the height at 4:3 aspect ratio for smaller
+    // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
+    if (parsed_width.value_ >= 1280) {
+      return math::Size(parsed_width.value_, 9 * parsed_width.value_ / 16);
+    }
+
+    return math::Size(parsed_width.value_, 3 * parsed_width.value_ / 4);
+  }
+
+  if (parsed_height_ptr->error_) {
+    DLOG(ERROR) << "Invalid value specified for viewport height: "
+                << switchValue << ". Using default viewport size.";
+    return base::nullopt;
+  }
+
+  return math::Size(parsed_width.value_, parsed_height_ptr->value_);
 }
 
 std::string GetMinLogLevelString() {
@@ -349,7 +421,7 @@ Application::NetworkStatus Application::network_status_ =
 int Application::network_connect_count_ = 0;
 int Application::network_disconnect_count_ = 0;
 
-Application::Application(const base::Closure& quit_closure)
+Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       stats_update_timer_(true, true) {
@@ -392,7 +464,8 @@ Application::Application(const base::Closure& quit_closure)
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  InitSystemWindow(command_line);
+  base::optional<math::Size> requested_viewport_size =
+      GetRequestedViewportSize(command_line);
 
   WebModule::Options web_options;
   // Create the main components of our browser.
@@ -496,6 +569,8 @@ Application::Application(const base::Closure& quit_closure)
     DLOG(INFO) << "Use ShellRawVideoDecoderStub";
     options.media_module_options.use_video_decoder_stub = true;
   }
+  options.media_module_options.output_resolution_override =
+      GetVideoOutputResolutionOverride(command_line);
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
@@ -511,13 +586,16 @@ Application::Application(const base::Closure& quit_closure)
     options.web_module_options.location_policy = "h5vcc-location-src *";
   }
 
+  options.requested_viewport_size = requested_viewport_size;
   account_manager_.reset(new account::AccountManager());
   browser_module_.reset(
-      new BrowserModule(initial_url, base::kApplicationStateStarted,
-                        system_window_.get(), account_manager_.get(), options));
+      new BrowserModule(initial_url,
+                        (should_preload ? base::kApplicationStatePreloading
+                                        : base::kApplicationStateStarted),
+                        &event_dispatcher_, account_manager_.get(), options));
   UpdateAndMaybeRegisterUserAgent();
 
-  app_status_ = kRunningAppStatus;
+  app_status_ = (should_preload ? kPreloadingAppStatus : kRunningAppStatus);
 
   // Register event callbacks.
   network_event_callback_ =
@@ -526,8 +604,9 @@ Application::Application(const base::Closure& quit_closure)
                                      network_event_callback_);
   application_event_callback_ =
       base::Bind(&Application::OnApplicationEvent, base::Unretained(this));
-  event_dispatcher_.AddEventCallback(system_window::ApplicationEvent::TypeId(),
+  event_dispatcher_.AddEventCallback(base::ApplicationEvent::TypeId(),
                                      application_event_callback_);
+
   deep_link_event_callback_ =
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
@@ -583,12 +662,29 @@ Application::~Application() {
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
                                         network_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
-      system_window::ApplicationEvent::TypeId(), application_event_callback_);
+  event_dispatcher_.RemoveEventCallback(base::ApplicationEvent::TypeId(),
+                                        application_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       base::DeepLinkEvent::TypeId(), deep_link_event_callback_);
 
   app_status_ = kShutDownAppStatus;
+}
+
+void Application::Start() {
+  if (MessageLoop::current() != message_loop_) {
+    message_loop_->PostTask(
+        FROM_HERE, base::Bind(&Application::Start, base::Unretained(this)));
+    return;
+  }
+
+  if (app_status_ != kPreloadingAppStatus) {
+    NOTREACHED() << __FUNCTION__ << ": Redundant call.";
+    return;
+  }
+
+  event_dispatcher_.DispatchEvent(make_scoped_ptr<base::Event>(
+      new base::ApplicationEvent(kSbEventTypeStart)));
+  app_status_ = kRunningAppStatus;
 }
 
 void Application::Quit() {
@@ -630,29 +726,29 @@ void Application::OnNetworkEvent(const base::Event* event) {
 void Application::OnApplicationEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK(application_event_thread_checker_.CalledOnValidThread());
-  const system_window::ApplicationEvent* app_event =
-      base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
-  if (app_event->type() == system_window::ApplicationEvent::kQuit) {
+  const base::ApplicationEvent* app_event =
+      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
+  if (app_event->type() == kSbEventTypeStop) {
     DLOG(INFO) << "Got quit event.";
     app_status_ = kWillQuitAppStatus;
     Quit();
-  } else if (app_event->type() == system_window::ApplicationEvent::kPause) {
+  } else if (app_event->type() == kSbEventTypePause) {
     DLOG(INFO) << "Got pause event.";
     app_status_ = kPausedAppStatus;
     ++app_pause_count_;
     browser_module_->Pause();
-  } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
+  } else if (app_event->type() == kSbEventTypeUnpause) {
     DLOG(INFO) << "Got unpause event.";
     app_status_ = kRunningAppStatus;
     ++app_unpause_count_;
     browser_module_->Unpause();
-  } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
+  } else if (app_event->type() == kSbEventTypeSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kSuspendedAppStatus;
     ++app_suspend_count_;
     browser_module_->Suspend();
     DLOG(INFO) << "Finished suspending.";
-  } else if (app_event->type() == system_window::ApplicationEvent::kResume) {
+  } else if (app_event->type() == kSbEventTypeResume) {
     DLOG(INFO) << "Got resume event.";
     app_status_ = kPausedAppStatus;
     ++app_resume_count_;
@@ -747,55 +843,6 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
     base::UserLog::Register(base::UserLog::kUserAgentStringIndex, "UserAgent",
                             non_trivial_static_fields.Get().user_agent.c_str(),
                             non_trivial_static_fields.Get().user_agent.size());
-  }
-}
-
-void Application::InitSystemWindow(CommandLine* command_line) {
-  base::optional<math::Size> viewport_size;
-  if (command_line->HasSwitch(browser::switches::kViewport)) {
-    const std::string switchValue =
-        command_line->GetSwitchValueASCII(browser::switches::kViewport);
-
-    std::vector<ParsedIntValue> parsed_ints = ParseDimensions(switchValue);
-
-    if (parsed_ints.size() >= 1) {
-      const ParsedIntValue parsed_width = parsed_ints[0];
-      if (!parsed_width.error_) {
-        const ParsedIntValue* parsed_height_ptr = NULL;
-        if (parsed_ints.size() >= 2) {
-          parsed_height_ptr = &parsed_ints[1];
-        }
-
-        if (!parsed_height_ptr) {
-          // Allow shorthand specification of the viewport by only giving the
-          // width. This calculates the height at 4:3 aspect ratio for smaller
-          // viewport widths, and 16:9 for viewports 1280 pixels wide or larger.
-          if (parsed_width.value_ >= 1280) {
-            viewport_size.emplace(parsed_width.value_,
-                                  9 * parsed_width.value_ / 16);
-          } else {
-            viewport_size.emplace(parsed_width.value_,
-                                  3 * parsed_width.value_ / 4);
-          }
-        } else if (!parsed_height_ptr->error_) {
-          viewport_size.emplace(parsed_width.value_,
-                                parsed_height_ptr->value_);
-        } else {
-          DLOG(ERROR) << "Invalid value specified for viewport height: "
-                      << switchValue << ". Using default viewport size.";
-        }
-      } else {
-        DLOG(ERROR) << "Invalid value specified for viewport width: "
-                    << switchValue << ". Using default viewport size.";
-      }
-    }
-  }
-
-  system_window_.reset(
-      new system_window::SystemWindow(&event_dispatcher_, viewport_size));
-
-  if (viewport_size) {
-    DCHECK_EQ(viewport_size, system_window_->GetWindowSize());
   }
 }
 

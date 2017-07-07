@@ -58,10 +58,9 @@ PageVisibilityState::PageVisibilityState(
     base::ApplicationState initial_application_state)
     : application_state_(initial_application_state) {
   DCHECK((application_state_ == base::kApplicationStateStarted) ||
-         (application_state_ == base::kApplicationStatePreloading));
-
-  // TODO: Support Preloading
-  DCHECK_NE(base::kApplicationStatePreloading, application_state_);
+         (application_state_ == base::kApplicationStatePreloading) ||
+         (application_state_ == base::kApplicationStatePaused))
+      << "application_state_=" << application_state_;
 }
 
 bool PageVisibilityState::HasWindowFocus() const {
