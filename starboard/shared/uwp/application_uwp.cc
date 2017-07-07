@@ -15,6 +15,7 @@
 #include "starboard/shared/uwp/application_uwp.h"
 
 #include <windows.h>
+#include <WinSock2.h>
 
 #include <memory>
 #include <string>
@@ -25,6 +26,7 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/uwp/window_internal.h"
+#include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
 
@@ -57,6 +59,11 @@ using Windows::UI::Core::KeyEventArgs;
 namespace sbwin32 = starboard::shared::win32;
 
 namespace {
+
+const int kWinSockVersionMajor = 2;
+const int kWinSockVersionMinor = 2;
+
+int main_return_value = 0;
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
@@ -136,10 +143,10 @@ ref class App sealed : public IFrameworkView {
   }
   virtual void Load(Platform::String^ entryPoint) {}
   virtual void Run() {
-    CoreWindow^ window = CoreWindow::GetForCurrentThread();
-    window->Activate();
-    window->Dispatcher->ProcessEvents(
-        CoreProcessEventsOption::ProcessUntilQuit);
+    args_.push_back(GetArgvZero());
+    argv_.push_back(args_.begin()->c_str());
+    main_return_value = application_.Run(
+        static_cast<int>(argv_.size()), const_cast<char**>(argv_.data()));
   }
   virtual void Uninitialize() { SbAudioSinkPrivate::TearDown(); }
 
@@ -237,6 +244,8 @@ ref class App sealed : public IFrameworkView {
   ActivationKind previous_activation_kind_;
   std::vector<std::string> args_;
   std::vector<const char *> argv_;
+
+  starboard::shared::uwp::ApplicationUwp application_;
 };
 
 ref class Direct3DApplicationSource sealed : IFrameworkViewSource {
@@ -308,8 +317,9 @@ bool ApplicationUwp::DestroyWindow(SbWindow window) {
 }
 
 bool ApplicationUwp::DispatchNextEvent() {
-  auto direct3DApplicationSource = ref new Direct3DApplicationSource();
-  CoreApplication::Run(direct3DApplicationSource);
+  core_window_->Activate();
+  core_window_->Dispatcher->ProcessEvents(
+      CoreProcessEventsOption::ProcessUntilQuit);
   return false;
 }
 
@@ -377,3 +387,35 @@ SbTimeMonotonic ApplicationUwp::GetNextTimedEventTargetTime() {
 }  // namespace uwp
 }  // namespace shared
 }  // namespace starboard
+
+[Platform::MTAThread]
+int main(Platform::Array<Platform::String^>^ args) {
+  if (!IsDebuggerPresent()) {
+    // By default, a Windows application will display a dialog box
+    // when it crashes. This is extremely undesirable when run offline.
+    // The following configures messages to be print to the console instead.
+    _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_FILE | _CRTDBG_MODE_DEBUG);
+    _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  }
+
+  WSAData wsaData;
+  int init_result = WSAStartup(
+      MAKEWORD(kWinSockVersionMajor, kWinSockVersionMajor), &wsaData);
+
+  SB_CHECK(init_result == 0);
+  // WSAStartup returns the highest version that is supported up to the version
+  // we request.
+  SB_CHECK(LOBYTE(wsaData.wVersion) == kWinSockVersionMajor &&
+           HIBYTE(wsaData.wVersion) == kWinSockVersionMinor);
+
+  starboard::shared::win32::RegisterMainThread();
+
+  auto direct3DApplicationSource = ref new Direct3DApplicationSource();
+  CoreApplication::Run(direct3DApplicationSource);
+
+  WSACleanup();
+
+  return main_return_value;
+}
