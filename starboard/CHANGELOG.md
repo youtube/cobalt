@@ -40,6 +40,11 @@ to utilize it.
 
 Removes `SbSystemPlatformErrorType` values specific to user status.
 
+### SbDecodeTarget support for the UYVY (i.e. YUV 422) format
+
+Add support for UYVY decode targets (e.g. YUV 422) via the
+`kSbDecodeTargetFormat1PlaneUYVY` enum.
+
 ## Version 5
 
 ### Add Speech Recognizer API
