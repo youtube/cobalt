@@ -205,6 +205,15 @@ typedef enum SbEventType {
   // new settings.
   kSbEventTypeAccessiblitySettingsChanged,
 #endif
+
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+  // An optional event that platforms may send to indicate that the application
+  // may soon be terminated (or crash) due to low memory availability. The
+  // application may respond by reducing memory consumption by running a Garbage
+  // Collection, flushing caches, or something similar. There is no requirement
+  // to respond to or handle this event, it is only advisory.
+  kSbEventTypeLowMemory,
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
