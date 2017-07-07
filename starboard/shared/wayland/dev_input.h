@@ -349,7 +349,7 @@ static void KeyboardHandleLeave(void* data,
                                 struct wl_surface* surface) {
   SB_DLOG(INFO) << "[Key] Keyboard lost focus";
   ApplicationWayland* wayland_window_ =
-      reinterpret_cast<ApplicationWayland*> data;
+      reinterpret_cast<ApplicationWayland*>(data);
   wayland_window_->DeleteRepeatKey();
 }
 
@@ -361,7 +361,7 @@ static void KeyboardHandleKey(void* data,
                               uint32_t state) {
   SB_DLOG(INFO) << "[Key] Key :" << key << ", state:" << state;
   ApplicationWayland* wayland_window_ =
-      reinterpret_cast<ApplicationWayland*> data;
+      reinterpret_cast<ApplicationWayland*>(data);
   if (key == KEY_LEFT || key == KEY_RIGHT || key == KEY_UP || key == KEY_DOWN) {
     wayland_window_->CreateKey(key, state, true);
   } else {
@@ -376,9 +376,23 @@ static void KeyboardHandleModifiers(void* data,
                                     uint32_t mods_latched,
                                     uint32_t mods_locked,
                                     uint32_t group) {
+  ApplicationWayland* wayland_window_ =
+      reinterpret_cast<ApplicationWayland*>(data);
+  // Convert to SbKeyModifiers.
+  unsigned int modifiers = kSbKeyModifiersNone;
+
+  if (mods_depressed & 1)
+    modifiers |= kSbKeyModifiersShift;
+  if (mods_depressed & 4)
+    modifiers |= kSbKeyModifiersCtrl;
+  if (mods_depressed & 8)
+    modifiers |= kSbKeyModifiersAlt;
+
   SB_DLOG(INFO) << "[Key] Modifiers depressed " << mods_depressed
                 << ", latched " << mods_latched << ", locked " << mods_locked
-                << ", group " << group;
+                << ", group " << group << ", key modifiers " << modifiers;
+
+  wayland_window_->UpdateKeyModifiers(modifiers);
 }
 
 static const struct wl_keyboard_listener keyboard_listener_ = {
@@ -391,14 +405,14 @@ static void SeatHandleCapabilities(void* data,
                                    struct wl_seat* seat,
                                    unsigned int caps) {
   ApplicationWayland* wayland_window_ =
-      reinterpret_cast<ApplicationWayland*> data;
+      reinterpret_cast<ApplicationWayland*>(data);
   if (!wayland_window_->GetKeyboard()) {
     SB_DLOG(INFO) << "[Key] seat_handle_capabilities caps: " << caps;
     if (caps & WL_SEAT_CAPABILITY_KEYBOARD) {
       SB_DLOG(INFO) << "[Key] wl_seat_get_keyboard";
       wayland_window_->SetKeyboard(wl_seat_get_keyboard(seat));
       wl_keyboard_add_listener(wayland_window_->GetKeyboard(),
-                               &keyboard_listener, data);
+                               &keyboard_listener_, data);
     } else if (!(caps & WL_SEAT_CAPABILITY_KEYBOARD)) {
       SB_DLOG(INFO) << "[Key] wl_keyboard_destroy";
       wl_keyboard_destroy(wayland_window_->GetKeyboard());
@@ -418,7 +432,7 @@ static void RegistryAddObject(void* data,
                               const char* interface,
                               uint32_t version) {
   ApplicationWayland* wayland_window_ =
-      reinterpret_cast<ApplicationWayland*> data;
+      reinterpret_cast<ApplicationWayland*>(data);
   if (strcmp(interface, "wl_compositor") == 0) {
     wayland_window_->SetCompositor(static_cast<wl_compositor*>(
         wl_registry_bind(registry, name, &wl_compositor_interface, 1)));
@@ -454,7 +468,7 @@ static void ShellSurfaceConfigure(void* data,
   SB_DLOG(INFO) << "shell_surface_configure width(" << width << "), height("
                 << height << ")";
   if (width && height) {
-    SbWindowPrivate* window = reinterpret_cast<SbWindowPrivate*> data;
+    SbWindowPrivate* window = reinterpret_cast<SbWindowPrivate*>(data);
     wl_egl_window_resize(window->egl_window, width, height, 0, 0);
   } else {
     SB_DLOG(INFO) << "width and height is 0. we don't resize that";
@@ -470,10 +484,17 @@ static void WindowCbVisibilityChange(void* data,
                                      struct tizen_visibility* tizen_visibility
                                          EINA_UNUSED,
                                      uint32_t visibility) {
+#if SB_HAS(LAZY_SUSPEND)
   if (visibility == TIZEN_VISIBILITY_VISIBILITY_FULLY_OBSCURED)
-    ApplicationWayland::Get()->Pause();
+    ApplicationWayland::Get()->Pause(NULL, NULL);
   else
-    ApplicationWayland::Get()->Unpause();
+    ApplicationWayland::Get()->Unpause(NULL, NULL);
+#else
+  if (visibility == TIZEN_VISIBILITY_VISIBILITY_FULLY_OBSCURED)
+    shared::starboard::Application::Get()->Suspend(NULL, NULL);
+  else
+    shared::starboard::Application::Get()->Unpause(NULL, NULL);
+#endif
 }
 
 static const struct tizen_visibility_listener tizen_visibility_listener = {
