@@ -18,15 +18,7 @@
         # - EGL_PLATFORM_SURFACELESS because there are no native windows
         'use_ozone%': 0,
 
-        'conditions':
-        [
-            ['OS=="linux" and use_x11==1 and chromeos==0', {
-                'angle_use_glx%': 1,
-            },
-            {
-                'angle_use_glx%': 0,
-            }],
-        ],
+        'angle_use_glx%': 0,
 
         # root of the OSX SDK for Chromium builds, the system root for standalone builds
         'SDKROOT%': "",

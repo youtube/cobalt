@@ -32,11 +32,6 @@
                 'angle_enable_hlsl%': 1,
                 'angle_enable_vulkan%': 1,
             }],
-            ['OS=="linux" and use_x11==1 and chromeos==0',
-            {
-                'angle_enable_gl%': 1,
-                'angle_enable_vulkan%': 1,
-            }],
             ['OS=="mac"',
             {
                 'angle_enable_gl%': 1,
@@ -277,32 +272,6 @@
                     [
                         '<@(libangle_gpu_info_util_linux_sources)',
                     ],
-                }],
-                ['OS=="linux" and use_x11==1',
-                {
-                    'sources':
-                    [
-                        '<@(libangle_gpu_info_util_x11_sources)',
-                    ],
-                    'defines':
-                    [
-                        'GPU_INFO_USE_X11',
-                    ],
-                    'dependencies':
-                    [
-                        '<(DEPTH)/src/third_party/libXNVCtrl/libXNVCtrl.gyp:libXNVCtrl',
-                    ],
-                    'link_settings':
-                    {
-                        'ldflags':
-                        [
-                            '<!@(<(pkg-config) --libs-only-L --libs-only-other x11 xi xext)',
-                        ],
-                        'libraries':
-                        [
-                            '<!@(<(pkg-config) --libs-only-l x11 xi xext) -ldl',
-                        ],
-                    },
                 }],
                 ['OS=="linux" and use_libpci==1',
                 {
