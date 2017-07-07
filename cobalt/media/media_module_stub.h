@@ -28,7 +28,7 @@ typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 
 class MediaModuleStub : public MediaModule {
  public:
-  MediaModuleStub() : MediaModule(math::Size(1920, 1080)) {}
+  MediaModuleStub() {}
 
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system) OVERRIDE;

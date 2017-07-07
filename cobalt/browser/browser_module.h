@@ -84,6 +84,7 @@ class BrowserModule {
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::optional<GURL> splash_screen_url;
+    base::optional<math::Size> requested_viewport_size;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -92,7 +93,7 @@ class BrowserModule {
 
   BrowserModule(const GURL& url,
                 base::ApplicationState initial_application_state,
-                system_window::SystemWindow* system_window,
+                base::EventDispatcher* event_dispatcher,
                 account::AccountManager* account_manager,
                 const Options& options);
   ~BrowserModule();
@@ -249,11 +250,9 @@ class BrowserModule {
       scoped_ptr<webdriver::WindowDriver>* out_window_driver);
 #endif
 
-#if defined(OS_STARBOARD)
   // Called when a renderer submission has been rasterized. Used to hide the
   // system splash screen after the first render has completed.
   void OnRendererSubmissionRasterized();
-#endif  // OS_STARBOARD
 
   // Process all messages queued into the |render_tree_submission_queue_|.
   void ProcessRenderTreeSubmissionQueue();
@@ -263,7 +262,18 @@ class BrowserModule {
   void OnPollForRenderTimeout(const GURL& url);
 #endif
 
+  // Gets the current resource provider.
   render_tree::ResourceProvider* GetResourceProvider();
+
+  // Initializes the system window, and all components that require it.
+  void InitializeSystemWindow();
+
+  // Gets a viewport size to use for now. This may change depending on the
+  // current application state. While preloading, this returns the requested
+  // viewport size. If there was no requested viewport size, it returns a
+  // default viewport size of 1280x720 (720p). Once a system window is created,
+  // it returns the confirmed size of the window.
+  math::Size GetViewportSize();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -296,13 +306,17 @@ class BrowserModule {
   // using it to initialize a new WebModule.
   URLHandlerCollection url_handlers_;
 
+  base::EventDispatcher* event_dispatcher_;
+
   storage::StorageManager storage_manager_;
 
-#if defined(OS_STARBOARD)
   // Whether the browser module has yet rendered anything. On the very first
   // render, we hide the system splash screen.
   bool is_rendered_;
-#endif  // OS_STARBOARD
+
+  // The main system window for our application. This routes input event
+  // callbacks, and provides a native window handle on desktop systems.
+  scoped_ptr<system_window::SystemWindow> system_window_;
 
   // Wraps input device and produces input events that can be passed into
   // the web module.
@@ -310,7 +324,7 @@ class BrowserModule {
 
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
-  renderer::RendererModule renderer_module_;
+  scoped_ptr<renderer::RendererModule> renderer_module_;
 
   // Optional memory allocator used by ArrayBuffer.
   scoped_ptr<dom::ArrayBuffer::Allocator> array_buffer_allocator_;
@@ -325,7 +339,7 @@ class BrowserModule {
   network::NetworkModule network_module_;
 
   // Manages the two render trees, combines and renders them.
-  RenderTreeCombiner render_tree_combiner_;
+  scoped_ptr<RenderTreeCombiner> render_tree_combiner_;
 
 #if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
@@ -384,7 +398,7 @@ class BrowserModule {
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
-  H5vccURLHandler h5vcc_url_handler_;
+  scoped_ptr<H5vccURLHandler> h5vcc_url_handler_;
 
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
@@ -409,8 +423,6 @@ class BrowserModule {
   // this object) and read from another. This lock is used to
   // ensure synchronous access.
   base::Lock quit_lock_;
-
-  system_window::SystemWindow* system_window_;
 
   // The current application state.
   base::ApplicationState application_state_;
