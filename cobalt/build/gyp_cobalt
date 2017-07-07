@@ -144,7 +144,7 @@ class _GypRunner(object):
   def __init__(self, options):
     self.options = options
     self.common_args = []
-    self.platform_config = config.LoadPlatformConfig(options.platform)
+    self.platform_config = config.GetPlatformConfig(options.platform)
     if not self.platform_config:
       raise RuntimeError('Unable to load platform configuration.')
 

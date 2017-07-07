@@ -109,7 +109,7 @@ def _ModuleLoaded(module_name, module_path):
   return extensionless_loaded_path == extensionless_module_path
 
 
-def LoadPlatformConfig(platform):
+def _LoadPlatformConfig(platform):
   """Loads a platform specific configuration.
 
   The function will use the provided platform name to load
@@ -144,3 +144,28 @@ def LoadPlatformConfig(platform):
     return None
 
   return platform_module.CreatePlatformConfig()
+
+
+# Global cache of the platform configurations, so that platform config objects
+# are only created once.
+_PLATFORM_CONFIG_DICT = {}
+
+
+def GetPlatformConfig(platform):
+  """Returns a platform specific configuration.
+
+  This function will return a cached platform configuration object, loading it
+  if it doesn't exist via a call to _LoadPlatformConfig().
+
+  Args:
+    platform: Platform name.
+
+  Returns:
+    Instance of a class derived from PlatformConfigBase.
+  """
+
+  global _PLATFORM_CONFIG_DICT
+  if platform not in _PLATFORM_CONFIG_DICT:
+    _PLATFORM_CONFIG_DICT[platform] = _LoadPlatformConfig(platform)
+
+  return _PLATFORM_CONFIG_DICT[platform]
