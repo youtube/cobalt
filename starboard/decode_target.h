@@ -142,7 +142,7 @@ typedef enum SbDecodeTargetFormat {
   // A decoder target format consisting of Y, U, and V planes, in that order.
   kSbDecodeTargetFormat3PlaneYUVI420,
 
-#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
   // A decoder target format consisting of a single plane with pixels layed out
   // in the format UYVY.  Since there are two Y values per sample, but only one
   // U value and only one V value, horizontally the Y resolution is twice the
@@ -153,7 +153,7 @@ typedef enum SbDecodeTargetFormat {
   // the number of UYVY tuples per row (e.g. the u/v width resolution).
   // Content region left/right should be specified in u/v width resolution.
   kSbDecodeTargetFormat1PlaneUYVY,
-#endif  // SB_DECODE_TARGET_UYVY_SUPPORT
+#endif  // SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
 
   // An invalid decode target format.
   kSbDecodeTargetFormatInvalid,
@@ -357,9 +357,9 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
     SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
-#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
+#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
     case kSbDecodeTargetFormat1PlaneUYVY:
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
       return 1;
     case kSbDecodeTargetFormat1PlaneBGRA:
       return 1;
