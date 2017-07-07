@@ -22,14 +22,31 @@ namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
+namespace {
+
+AVCodecID GetFfmpegCodecIdByMediaCodec(SbMediaAudioCodec audio_codec) {
+  switch (audio_codec) {
+    case kSbMediaAudioCodecAac:
+      return AV_CODEC_ID_AAC;
+    case kSbMediaAudioCodecOpus:
+      return AV_CODEC_ID_OPUS;
+    default:
+      return AV_CODEC_ID_NONE;
+  }
+}
+
+}  // namespace
+
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header)
-    : sample_type_(kSbMediaAudioSampleTypeInt16),
+    : audio_codec_(audio_codec),
+      sample_type_(kSbMediaAudioSampleTypeInt16),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       audio_header_(audio_header) {
-  SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
+  SB_DCHECK(GetFfmpegCodecIdByMediaCodec(audio_codec) != AV_CODEC_ID_NONE)
+      << "Unsupported audio codec " << audio_codec;
 
   InitializeCodec();
 }
@@ -74,7 +91,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer) {
         input_buffer.pts(),
         codec_context_->channels * av_frame_->nb_samples *
             (sample_type_ == kSbMediaAudioSampleTypeInt16 ? 2 : 4));
-    SbMemoryCopy(decoded_audio->buffer(), av_frame_->extended_data,
+    SbMemoryCopy(decoded_audio->buffer(), *av_frame_->extended_data,
                  decoded_audio->size());
     decoded_audios_.push(decoded_audio);
   } else {
@@ -126,7 +143,7 @@ void AudioDecoder::InitializeCodec() {
   }
 
   codec_context_->codec_type = AVMEDIA_TYPE_AUDIO;
-  codec_context_->codec_id = AV_CODEC_ID_AAC;
+  codec_context_->codec_id = GetFfmpegCodecIdByMediaCodec(audio_codec_);
   // Request_sample_fmt is set by us, but sample_fmt is set by the decoder.
   if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
     codec_context_->request_sample_fmt = AV_SAMPLE_FMT_S16;
@@ -148,7 +165,7 @@ void AudioDecoder::InitializeCodec() {
     return;
   }
 
-  int rv = avcodec_open2(codec_context_, codec, NULL);
+  int rv = OpenCodec(codec_context_, codec);
   if (rv < 0) {
     SB_LOG(ERROR) << "Unable to open codec";
     TeardownCodec();
@@ -164,7 +181,7 @@ void AudioDecoder::InitializeCodec() {
 
 void AudioDecoder::TeardownCodec() {
   if (codec_context_) {
-    avcodec_close(codec_context_);
+    CloseCodec(codec_context_);
     av_free(codec_context_);
     codec_context_ = NULL;
   }
@@ -175,6 +192,5 @@ void AudioDecoder::TeardownCodec() {
 }
 
 }  // namespace ffmpeg
-
 }  // namespace shared
 }  // namespace starboard
