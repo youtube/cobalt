@@ -262,6 +262,10 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
   if (status == JSGC_END) {
     engine->accumulated_extra_memory_cost_ = 0;
+    // Reset the GC timer to avoid having the timed GC come soon after this one.
+    if (engine->gc_timer_.IsRunning()) {
+      engine->gc_timer_.Reset();
+    }
   }
   for (int i = 0; i < engine->contexts_.size(); ++i) {
     MozjsGlobalEnvironment* global_environment =
