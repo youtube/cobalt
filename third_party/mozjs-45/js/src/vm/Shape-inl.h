@@ -37,25 +37,27 @@ Shape::search(ExclusiveContext* cx, jsid id)
     return search(cx, this, id, &_);
 }
 
-/* static */ inline Shape*
-Shape::search(ExclusiveContext* cx, Shape* start, jsid id, ShapeTable::Entry** pentry, bool adding)
+/* static */
+template <bool adding>
+inline Shape*
+Shape::search(ExclusiveContext* cx, Shape* start, jsid id, ShapeTable::Entry** pentry)
 {
     if (start->inDictionary()) {
-        *pentry = &start->table().search(id, adding);
+        *pentry = &start->table().search<adding>(id);
         return (*pentry)->shape();
     }
 
     *pentry = nullptr;
 
     if (start->hasTable()) {
-        ShapeTable::Entry& entry = start->table().search(id, adding);
+        ShapeTable::Entry& entry = start->table().search<adding>(id);
         return entry.shape();
     }
 
     if (start->numLinearSearches() == LINEAR_SEARCHES_MAX) {
         if (start->isBigEnoughForAShapeTable()) {
             if (Shape::hashify(cx, start)) {
-                ShapeTable::Entry& entry = start->table().search(id, adding);
+                ShapeTable::Entry& entry = start->table().search<adding>(id);
                 return entry.shape();
             } else {
                 cx->recoverFromOutOfMemory();
@@ -95,6 +97,101 @@ Shape::new_(ExclusiveContext* cx, Handle<StackShape> other, uint32_t nfixed)
         new (shape) Shape(other, nfixed);
 
     return shape;
+}
+
+
+namespace shape_internal {
+
+/*
+ * Double hashing needs the second hash code to be relatively prime to table
+ * size, so we simply make hash2 odd.
+ */
+static HashNumber
+Hash1(HashNumber hash0, uint32_t shift)
+{
+    return hash0 >> shift;
+}
+
+static HashNumber
+Hash2(HashNumber hash0, uint32_t log2, uint32_t shift)
+{
+    return ((hash0 << log2) >> shift) | 1;
+}
+
+}  // namespace shape_internal
+
+template <bool adding>
+ShapeTable::Entry&
+ShapeTable::search(jsid id)
+{
+    using namespace shape_internal;
+
+    MOZ_ASSERT(entries_);
+    MOZ_ASSERT(!JSID_IS_EMPTY(id));
+
+    /* Compute the primary hash address. */
+    HashNumber hash0 = HashId(id);
+    HashNumber hash1 = Hash1(hash0, hashShift_);
+    Entry* entry = &getEntry(hash1);
+
+    /* Miss: return space for a new entry. */
+    if (entry->isFree())
+        return *entry;
+
+    /* Hit: return entry. */
+    Shape* shape = entry->shape();
+    if (shape && shape->propidRaw() == id)
+        return *entry;
+
+    /* Collision: double hash. */
+    uint32_t sizeLog2 = HASH_BITS - hashShift_;
+    HashNumber hash2 = Hash2(hash0, sizeLog2, hashShift_);
+    uint32_t sizeMask = JS_BITMASK(sizeLog2);
+
+#ifdef DEBUG
+    bool collisionFlag = true;
+#endif
+
+    /* Save the first removed entry pointer so we can recycle it if adding. */
+    Entry* firstRemoved;
+    if (entry->isRemoved()) {
+        firstRemoved = entry;
+    } else {
+        firstRemoved = nullptr;
+        if (adding && !entry->hadCollision())
+            entry->flagCollision();
+#ifdef DEBUG
+        collisionFlag &= entry->hadCollision();
+#endif
+    }
+
+    while (true) {
+        hash1 -= hash2;
+        hash1 &= sizeMask;
+        entry = &getEntry(hash1);
+
+        if (entry->isFree())
+            return (adding && firstRemoved) ? *firstRemoved : *entry;
+
+        shape = entry->shape();
+        if (shape && shape->propidRaw() == id) {
+            MOZ_ASSERT(collisionFlag);
+            return *entry;
+        }
+
+        if (entry->isRemoved()) {
+            if (!firstRemoved)
+                firstRemoved = entry;
+        } else {
+            if (adding && !entry->hadCollision())
+                entry->flagCollision();
+#ifdef DEBUG
+            collisionFlag &= entry->hadCollision();
+#endif
+        }
+    }
+
+    MOZ_CRASH("Shape::search failed to find an expected entry.");
 }
 
 template<class ObjectSubclass>

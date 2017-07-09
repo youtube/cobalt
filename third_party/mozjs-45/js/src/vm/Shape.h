@@ -223,7 +223,8 @@ class ShapeTable {
      */
     bool init(ExclusiveContext* cx, Shape* lastProp);
     bool change(int log2Delta, ExclusiveContext* cx);
-    Entry& search(jsid id, bool adding);
+    template <bool adding = false>
+    Entry& search(jsid id);
 
   private:
     Entry& getEntry(uint32_t i) const {
@@ -580,8 +581,9 @@ class Shape : public gc::TenuredCell
                                    last, else to obj->shape_ */
     };
 
+    template <bool adding = false>
     static inline Shape* search(ExclusiveContext* cx, Shape* start, jsid id,
-                                ShapeTable::Entry** pentry, bool adding = false);
+                                ShapeTable::Entry** pentry);
     static inline Shape* searchNoHashify(Shape* start, jsid id);
 
     void removeFromDictionary(NativeObject* obj);
@@ -1369,7 +1371,7 @@ Shape::searchNoHashify(Shape* start, jsid id)
      * search. We never hashify into a table in parallel.
      */
     if (start->hasTable()) {
-        ShapeTable::Entry& entry = start->table().search(id, false);
+        ShapeTable::Entry& entry = start->table().search(id);
         return entry.shape();
     }
 
