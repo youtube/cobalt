@@ -123,7 +123,6 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(
     JSRuntime* runtime, const JavaScriptEngine::Options& options)
     : context_(NULL),
       garbage_collection_count_(0),
-      cached_interface_data_deleter_(&cached_interface_data_),
       context_destructor_(&context_),
       environment_settings_(NULL),
       last_error_message_(NULL),
@@ -384,12 +383,12 @@ void MozjsGlobalEnvironment::EvaluateAutomatics() {
       "fetch.js");
 }
 
-InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(intptr_t key) {
-  CachedInterfaceData::iterator it = cached_interface_data_.find(key);
-  if (it != cached_interface_data_.end()) {
-    return it->second;
+InterfaceData* MozjsGlobalEnvironment::GetInterfaceData(int key) {
+  DCHECK_GE(key, 0);
+  if (key >= cached_interface_data_.size()) {
+    cached_interface_data_.resize(key + 1);
   }
-  return NULL;
+  return &cached_interface_data_[key];
 }
 
 void MozjsGlobalEnvironment::DoSweep() {
@@ -451,13 +450,6 @@ void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
   SetCachedWrapper(wrappable.get(), object_handle.Pass());
 }
 
-void MozjsGlobalEnvironment::CacheInterfaceData(intptr_t key,
-                                                InterfaceData* interface_data) {
-  std::pair<CachedInterfaceData::iterator, bool> pib =
-      cached_interface_data_.insert(std::make_pair(key, interface_data));
-  DCHECK(pib.second);
-}
-
 void MozjsGlobalEnvironment::ReportError(const char* message,
                                          JSErrorReport* report) {
   std::string error_message;
@@ -483,20 +475,19 @@ void MozjsGlobalEnvironment::TraceFunction(JSTracer* trace, void* data) {
     JS_CallObjectTracer(trace, &global_object_environment->global_object_proxy_,
                         "MozjsGlobalEnvironment");
   }
-  for (CachedInterfaceData::iterator it =
-           global_object_environment->cached_interface_data_.begin();
-       it != global_object_environment->cached_interface_data_.end(); ++it) {
-    InterfaceData* data = it->second;
-    // Check whether prototype and interface object for this interface have been
-    // created yet or not before attempting to trace them.
-    if (data->prototype) {
-      JS_CallObjectTracer(trace, &data->prototype, "MozjsGlobalEnvironment");
+
+  for (int i = 0; i < global_object_environment->cached_interface_data_.size();
+       i++) {
+    InterfaceData& data = global_object_environment->cached_interface_data_[i];
+    if (data.prototype) {
+      JS_CallObjectTracer(trace, &data.prototype, "MozjsGlobalEnvironment");
     }
-    if (data->interface_object) {
-      JS_CallObjectTracer(trace, &data->interface_object,
+    if (data.interface_object) {
+      JS_CallObjectTracer(trace, &data.interface_object,
                           "MozjsGlobalEnvironment");
     }
   }
+
   for (CachedWrapperMultiMap::iterator it =
            global_object_environment->kept_alive_objects_.begin();
        it != global_object_environment->kept_alive_objects_.end(); ++it) {

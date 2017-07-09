@@ -596,6 +596,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
                                             context['named_property_getter'] or
                                             context['named_property_deleter'])
 
+    names = sorted([key for key in interfaces_info])
+    context['unique_id'] = names.index(interface.name)
+
     return context
 
 
