@@ -118,10 +118,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
       const scoped_refptr<Wrappable>& wrappable);
 
   // Any tracked InterfaceData will have it's GC handles visited and marked as
-  // roots. The MozjsGlobalEnvironment takes ownership of the InterfaceData
-  // instances and will destroy them.
-  void CacheInterfaceData(intptr_t key, InterfaceData* interface_data);
-  InterfaceData* GetInterfaceData(intptr_t key);
+  // roots.  |key| is the interface's unique id, which is generated during
+  // bindings idl compilation.
+  InterfaceData* GetInterfaceData(int key);
 
   // This will be called during garbage collection after GC objects have been
   // marked, but before they have been finalized. This allows an opportunity to
@@ -157,7 +156,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     JSContext** const context;
   };
 
-  typedef base::hash_map<intptr_t, InterfaceData*> CachedInterfaceData;
   typedef base::hash_multimap<Wrappable*, JS::Heap<JSObject*> >
       CachedWrapperMultiMap;
 
@@ -167,8 +165,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   WeakHeapObjectManager weak_object_manager_;
   CachedWrapperMultiMap kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
-  CachedInterfaceData cached_interface_data_;
-  STLValueDeleter<CachedInterfaceData> cached_interface_data_deleter_;
+  std::vector<InterfaceData> cached_interface_data_;
+
   ContextDestructor context_destructor_;
   scoped_ptr<WrapperFactory> wrapper_factory_;
   scoped_ptr<MozjsScriptValueFactory> script_value_factory_;

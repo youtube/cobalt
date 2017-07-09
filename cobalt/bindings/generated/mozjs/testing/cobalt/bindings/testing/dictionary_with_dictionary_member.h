@@ -24,6 +24,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
 
