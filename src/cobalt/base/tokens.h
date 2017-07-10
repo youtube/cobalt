@@ -50,7 +50,9 @@ namespace base {
     MacroOpWithNameOnly(change)                                      \
     MacroOpWithNameOnly(characterData)                               \
     MacroOpWithNameOnly(childList)                                   \
+    MacroOpWithNameOnly(click)                                       \
     MacroOpWithNameOnly(close)                                       \
+    MacroOpWithNameOnly(deviceorientation)                           \
     MacroOpWithNameOnly(durationchange)                              \
     MacroOpWithNameOnly(emptied)                                     \
     MacroOpWithNameOnly(end)                                         \
@@ -70,9 +72,23 @@ namespace base {
     MacroOpWithNameOnly(loadstart)                                   \
     MacroOpWithNameOnly(mark)                                        \
     MacroOpWithNameOnly(message)                                     \
+    MacroOpWithNameOnly(mousedown)                                   \
+    MacroOpWithNameOnly(mouseenter)                                  \
+    MacroOpWithNameOnly(mouseleave)                                  \
+    MacroOpWithNameOnly(mousemove)                                   \
+    MacroOpWithNameOnly(mouseout)                                    \
+    MacroOpWithNameOnly(mouseover)                                   \
+    MacroOpWithNameOnly(mouseup)                                     \
     MacroOpWithNameOnly(nomatch)                                     \
     MacroOpWithNameOnly(off)                                         \
     MacroOpWithNameOnly(open)                                        \
+    MacroOpWithNameOnly(pointerdown)                                 \
+    MacroOpWithNameOnly(pointerenter)                                \
+    MacroOpWithNameOnly(pointerleave)                                \
+    MacroOpWithNameOnly(pointermove)                                 \
+    MacroOpWithNameOnly(pointerout)                                  \
+    MacroOpWithNameOnly(pointerover)                                 \
+    MacroOpWithNameOnly(pointerup)                                   \
     MacroOpWithNameOnly(pause)                                       \
     MacroOpWithNameOnly(play)                                        \
     MacroOpWithNameOnly(playing)                                     \
@@ -105,15 +121,18 @@ namespace base {
     MacroOpWithNameOnly(update)                                      \
     MacroOpWithNameOnly(updateend)                                   \
     MacroOpWithNameOnly(updatestart)                                 \
+    MacroOpWithNameOnly(visibilitychange)                            \
     MacroOpWithNameOnly(voiceschanged)                               \
     MacroOpWithNameOnly(volumechange)                                \
-    MacroOpWithNameOnly(waiting)
+    MacroOpWithNameOnly(waiting)                                     \
+    MacroOpWithNameOnly(wheel)
 
 #define TOKENS_FOR_EACH_WITH_NAME_AND_VALUE(MacroOpWithNameAndValue)    \
     MacroOpWithNameAndValue(active_pseudo_class_selector, "active")     \
     MacroOpWithNameAndValue(after_pseudo_element_selector, "after")     \
     MacroOpWithNameAndValue(aria_atomic, "aria-atomic")                 \
     MacroOpWithNameAndValue(aria_busy, "aria-busy")                     \
+    MacroOpWithNameAndValue(aria_describedby, "aria-describedby")       \
     MacroOpWithNameAndValue(aria_hidden, "aria-hidden")                 \
     MacroOpWithNameAndValue(aria_label, "aria-label")                   \
     MacroOpWithNameAndValue(aria_labelledby, "aria-labelledby")         \

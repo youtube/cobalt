@@ -27,6 +27,10 @@ class BASE_EXPORT MessageLoopProxyImpl : public MessageLoopProxy {
       const base::Closure& task,
       base::TimeDelta delay) OVERRIDE;
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+#if defined(COBALT)
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) OVERRIDE;
+#endif
 
  protected:
   virtual ~MessageLoopProxyImpl();

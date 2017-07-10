@@ -231,6 +231,13 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
                              const Closure& task,
                              TimeDelta delay);
 
+#if defined(COBALT)
+  // Like PostWorkerTask, but blocks until the posted task completes. Returns
+  // false and does not block if task was not posted.
+  bool PostBlockingWorkerTask(const tracked_objects::Location& from_here,
+                              const Closure& task);
+#endif
+
   // Same as PostWorkerTask but allows specification of the shutdown behavior.
   bool PostWorkerTaskWithShutdownBehavior(
       const tracked_objects::Location& from_here,
@@ -285,6 +292,10 @@ class BASE_EXPORT SequencedWorkerPool : public TaskRunner {
   virtual bool PostDelayedTask(const tracked_objects::Location& from_here,
                                const Closure& task,
                                TimeDelta delay) OVERRIDE;
+#if defined(COBALT)
+  virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
+                                const Closure& task) OVERRIDE;
+#endif
   virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
 
   // Returns true if the current thread is processing a task with the given

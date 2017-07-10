@@ -25,7 +25,9 @@ namespace renderer {
 
 RendererModule::Options::Options()
     : skia_glyph_texture_atlas_dimensions(2048, 2048),
-      purge_skia_font_caches_on_destruction(true) {
+      purge_skia_font_caches_on_destruction(true),
+      enable_fps_stdout(false),
+      enable_fps_overlay(false) {
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }
@@ -76,12 +78,16 @@ void RendererModule::Resume() {
   // Direct it to render directly to the display.
   {
     TRACE_EVENT0("cobalt::renderer", "new renderer::Pipeline()");
+    renderer::Pipeline::Options pipeline_options;
+    pipeline_options.enable_fps_stdout = options_.enable_fps_stdout;
+    pipeline_options.enable_fps_overlay = options_.enable_fps_overlay;
+
     pipeline_ = make_scoped_ptr(new renderer::Pipeline(
         base::Bind(options_.create_rasterizer_function, graphics_context_.get(),
                    options_),
         display_->GetRenderTarget(), graphics_context_.get(),
         options_.submit_even_if_render_tree_is_unchanged,
-        renderer::Pipeline::kClearToBlack));
+        renderer::Pipeline::kClearToBlack, pipeline_options));
   }
 }
 

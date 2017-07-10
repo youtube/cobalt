@@ -19,5 +19,12 @@ interface CloseEvent : Event {
   readonly attribute boolean wasClean;
   readonly attribute unsigned short code;
   readonly attribute DOMString reason;
+
+  void initCloseEvent(DOMString type,
+                      boolean canBubble,
+                      boolean cancelable,
+                      boolean wasClean,
+                      unsigned short code,
+                      DOMString reason);
 };
 

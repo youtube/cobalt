@@ -385,7 +385,8 @@ ToInt32(double d)
 {
     // clang crashes compiling this when targeting arm-darwin:
     // https://llvm.org/bugs/show_bug.cgi?id=22974
-#if defined (__arm__) && defined (__GNUC__) && !defined(__APPLE__)
+    // Cobalt update: More than just arm-darwin, just don't bother with this on clang.
+#if defined (__arm__) && defined (__GNUC__) && !defined(__APPLE__) && !defined(__clang__)
     int32_t i;
     uint32_t    tmp0;
     uint32_t    tmp1;

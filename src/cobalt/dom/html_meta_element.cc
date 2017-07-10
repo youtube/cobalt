@@ -55,8 +55,7 @@ void HTMLMetaElement::OnInsertedIntoDocument() {
 }
 
 bool HTMLMetaElement::IsDescendantOfHeadElement() const {
-  for (scoped_refptr<Node> node = parent_node(); node;
-       node = node->parent_node()) {
+  for (Node* node = parent_node(); node; node = node->parent_node()) {
     if (node->AsElement() && node->AsElement()->AsHTMLElement() &&
         node->AsElement()->AsHTMLElement()->AsHTMLHeadElement())
       return true;

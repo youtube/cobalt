@@ -93,6 +93,9 @@ class SystemWindow {
  private:
   void UpdateModifiers(SbKey key, bool pressed);
   InputEvent::Modifiers GetModifiers();
+  void DispatchInputEvent(const SbInputData& data, InputEvent::Type type,
+                          bool is_repeat);
+  void HandlePointerInputEvent(const SbInputData& data);
 
   base::EventDispatcher* event_dispatcher_;
 

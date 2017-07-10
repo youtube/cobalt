@@ -290,14 +290,14 @@ void GoogleSpeechService::StartInternal(const SpeechRecognitionConfig& config,
 
   const char* speech_api_key = "";
 #if defined(OS_STARBOARD)
-#if SB_VERSION(2)
+#if SB_API_VERSION >= 2
   const int kSpeechApiKeyLength = 100;
   char buffer[kSpeechApiKeyLength] = {0};
   bool result = SbSystemGetProperty(kSbSystemPropertySpeechApiKey, buffer,
                                     SB_ARRAY_SIZE_INT(buffer));
   SB_DCHECK(result);
   speech_api_key = result ? buffer : "";
-#endif  // SB_VERSION(2)
+#endif  // SB_API_VERSION >= 2
 #endif  // defined(OS_STARBOARD)
 
   up_url = AppendQueryParameter(up_url, "key", speech_api_key);

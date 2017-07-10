@@ -20,6 +20,7 @@
 #include "base/debug/trace_event.h"
 #include "base/memory/scoped_vector.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/render_tree/filter_node.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
@@ -33,6 +34,8 @@
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkRefCnt.h"
+#include "third_party/skia/include/core/SkSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
 
 namespace cobalt {
@@ -56,8 +59,8 @@ class HardwareRasterizer::Impl {
 
   void SubmitToFallbackRasterizer(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Matrix3F& transform,
-      const OffscreenTargetManager::TargetInfo& target);
+      SkCanvas* fallback_render_target, const math::Matrix3F& transform,
+      const math::RectF& scissor, float opacity, uint32_t rasterize_flags);
 
   render_tree::ResourceProvider* GetResourceProvider() {
     return fallback_rasterizer_->GetResourceProvider();
@@ -69,9 +72,14 @@ class HardwareRasterizer::Impl {
   }
 
   void ResetFallbackContextDuringFrame();
+  void FlushFallbackOffscreenDraws();
 
   void RasterizeTree(const scoped_refptr<render_tree::Node>& render_tree,
-                     backend::RenderTargetEGL* render_target);
+                     backend::RenderTargetEGL* render_target,
+                     const math::Rect& content_rect);
+
+  SkSurface* CreateFallbackSurface(
+      const backend::RenderTarget* render_target);
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
   scoped_ptr<GraphicsState> graphics_state_;
@@ -103,7 +111,10 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   graphics_state_.reset(new GraphicsState());
   shader_program_manager_.reset(new ShaderProgramManager());
   offscreen_target_manager_.reset(new OffscreenTargetManager(
-      graphics_context_, GetFallbackContext(), surface_cache_size_in_bytes));
+      graphics_context_,
+      base::Bind(&HardwareRasterizer::Impl::CreateFallbackSurface,
+                 base::Unretained(this)),
+      surface_cache_size_in_bytes));
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -128,73 +139,59 @@ void HardwareRasterizer::Impl::Submit(
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
 
-  // Make sure this render target has a depth buffer. This is only relevant
-  // for framebuffer render targets. Other render target types should already
-  // have a depth buffer set up by the graphics system's config.
-  if (render_target_egl->GetSurface() == EGL_NO_SURFACE) {
-    backend::FramebufferRenderTargetEGL* framebuffer_render_target =
-        base::polymorphic_downcast<backend::FramebufferRenderTargetEGL*>(
-            render_target_egl);
-    framebuffer_render_target->EnsureDepthBufferAttached(GL_DEPTH_COMPONENT16);
-  }
-
   fallback_rasterizer_->AdvanceFrame();
-
-  const math::Size& target_size = render_target->GetSize();
-  graphics_state_->SetClipAdjustment(target_size);
-  graphics_state_->Viewport(0, 0, target_size.width(), target_size.height());
 
   // Update only the dirty pixels if the render target contents are preserved
   // between frames.
+  math::Rect content_rect(render_target->GetSize());
   if (options.dirty && render_target_egl->ContentWasPreservedAfterSwap()) {
-    graphics_state_->Scissor(options.dirty->x(), options.dirty->y(),
-        options.dirty->width(), options.dirty->height());
-  } else {
-    graphics_state_->Scissor(0, 0, target_size.width(), target_size.height());
+    content_rect = *options.dirty;
   }
 
-  offscreen_target_manager_->Update(target_size);
+  offscreen_target_manager_->Update(render_target->GetSize());
 
-  RasterizeTree(render_tree, render_target_egl);
+  RasterizeTree(render_tree, render_target_egl, content_rect);
 
   graphics_context_->SwapBuffers(render_target_egl);
 }
 
 void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
     const scoped_refptr<render_tree::Node>& render_tree,
-    const math::Matrix3F& transform,
-    const OffscreenTargetManager::TargetInfo& target) {
+    SkCanvas* fallback_render_target, const math::Matrix3F& transform,
+    const math::RectF& scissor, float opacity, uint32_t rasterize_flags) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "SubmitToFallbackRasterizer");
 
   // Use skia to rasterize to the allocated offscreen target.
-  target.skia_canvas->save();
+  fallback_render_target->save();
 
-  if (target.is_scratch_surface) {
-    // The scratch surface is used immediately after rendering to it. So we
-    // are switching from this rasterizer to skia, then will switch back to
-    // our rasterizer context.
-    ResetFallbackContextDuringFrame();
-    target.skia_canvas->clear(SK_ColorTRANSPARENT);
+  fallback_render_target->clipRect(SkRect::MakeXYWH(
+      scissor.x(), scissor.y(), scissor.width(), scissor.height()));
+  fallback_render_target->concat(skia::CobaltMatrixToSkia(transform));
+
+  if ((rasterize_flags & RenderTreeNodeVisitor::kFallbackShouldClear) != 0) {
+    fallback_render_target->clear(SK_ColorTRANSPARENT);
   }
 
-  target.skia_canvas->clipRect(SkRect::MakeXYWH(
-      target.region.x(), target.region.y(),
-      target.region.width(), target.region.height()));
-  target.skia_canvas->translate(target.region.x(), target.region.y());
-  target.skia_canvas->concat(skia::CobaltMatrixToSkia(transform));
-  fallback_rasterizer_->SubmitOffscreen(render_tree, target.skia_canvas);
-
-  if (target.is_scratch_surface) {
-    // Flush the skia draw calls so the contents can be used immediately.
-    target.skia_canvas->flush();
-
-    // Switch back to the current render target and context.
-    graphics_context_->ResetCurrentSurface();
-    graphics_state_->SetDirty();
+  if (opacity < 1.0f) {
+    scoped_refptr<render_tree::Node> opacity_node =
+        new render_tree::FilterNode(render_tree::OpacityFilter(opacity),
+                                    render_tree);
+    fallback_rasterizer_->SubmitOffscreen(opacity_node, fallback_render_target);
+  } else {
+    fallback_rasterizer_->SubmitOffscreen(render_tree, fallback_render_target);
   }
 
-  target.skia_canvas->restore();
+  if ((rasterize_flags & RenderTreeNodeVisitor::kFallbackShouldFlush) != 0) {
+    fallback_render_target->flush();
+  }
+
+  fallback_render_target->restore();
+}
+
+void HardwareRasterizer::Impl::FlushFallbackOffscreenDraws() {
+  TRACE_EVENT0("cobalt::renderer", "Skia Flush");
+  offscreen_target_manager_->Flush();
 }
 
 void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
@@ -202,27 +199,28 @@ void HardwareRasterizer::Impl::ResetFallbackContextDuringFrame() {
   // states that this rasterizer pollutes.
   uint32_t untouched_states = kMSAAEnable_GrGLBackendState |
       kStencil_GrGLBackendState | kPixelStore_GrGLBackendState |
-      kFixedFunction_GrGLBackendState | kPathRendering_GrGLBackendState;
-
-  // Manually reset a subset of kMisc_GrGLBackendState
-  untouched_states |= kMisc_GrGLBackendState;
-  GL_CALL(glDisable(GL_DEPTH_TEST));
-  GL_CALL(glDepthMask(GL_FALSE));
+      kFixedFunction_GrGLBackendState | kPathRendering_GrGLBackendState |
+      kMisc_GrGLBackendState;
 
   GetFallbackContext()->resetContext(~untouched_states & kAll_GrBackendState);
 }
 
 void HardwareRasterizer::Impl::RasterizeTree(
     const scoped_refptr<render_tree::Node>& render_tree,
-    backend::RenderTargetEGL* render_target) {
-  DrawObjectManager draw_object_manager;
-  RenderTreeNodeVisitor::FallbackRasterizeFunction fallback_rasterize =
+    backend::RenderTargetEGL* render_target,
+    const math::Rect& content_rect) {
+  DrawObjectManager draw_object_manager(
+      base::Bind(&HardwareRasterizer::Impl::ResetFallbackContextDuringFrame,
+                 base::Unretained(this)),
+      base::Bind(&HardwareRasterizer::Impl::FlushFallbackOffscreenDraws,
+                 base::Unretained(this)));
+  RenderTreeNodeVisitor visitor(
+      graphics_state_.get(), &draw_object_manager,
+      offscreen_target_manager_.get(),
       base::Bind(&HardwareRasterizer::Impl::SubmitToFallbackRasterizer,
-                 base::Unretained(this));
-  RenderTreeNodeVisitor visitor(graphics_state_.get(),
-                                &draw_object_manager,
-                                offscreen_target_manager_.get(),
-                                &fallback_rasterize);
+                 base::Unretained(this)),
+      fallback_rasterizer_->GetCachedCanvas(render_target),
+      render_target, content_rect);
 
   // Traverse the render tree to populate the draw object manager.
   {
@@ -235,32 +233,21 @@ void HardwareRasterizer::Impl::RasterizeTree(
   // Rasterize to offscreen targets using skia.
   {
     TRACE_EVENT0("cobalt::renderer", "OffscreenRasterize");
-    backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
-        graphics_context_, render_target);
 
-    // Reset the skia graphics context since the egl rasterizer dirtied it.
+    // Ensure the skia context is fully reset.
     GetFallbackContext()->resetContext();
     draw_object_manager.ExecuteOffscreenRasterize(graphics_state_.get(),
         shader_program_manager_.get());
-
-    {
-      TRACE_EVENT0("cobalt::renderer", "Skia Flush");
-      offscreen_target_manager_->Flush();
-    }
-
-    // Reset the egl graphics state since skia dirtied it.
-    graphics_state_->SetDirty();
-    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
   }
 
+  // Clear the dirty region of the render target.
+  graphics_state_->BindFramebuffer(render_target);
+  graphics_state_->Viewport(0, 0,
+                            render_target->GetSize().width(),
+                            render_target->GetSize().height());
+  graphics_state_->Scissor(content_rect.x(), content_rect.y(),
+                           content_rect.width(), content_rect.height());
   graphics_state_->Clear();
-
-  {
-    TRACE_EVENT0("cobalt::renderer", "OnscreenUpdateVertexBuffer");
-    draw_object_manager.ExecuteOnscreenUpdateVertexBuffer(graphics_state_.get(),
-        shader_program_manager_.get());
-    graphics_state_->UpdateVertexData();
-  }
 
   {
     TRACE_EVENT0("cobalt::renderer", "OnscreenRasterize");
@@ -268,7 +255,29 @@ void HardwareRasterizer::Impl::RasterizeTree(
         shader_program_manager_.get());
   }
 
+  graphics_context_->ResetCurrentSurface();
   graphics_state_->EndFrame();
+}
+
+SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
+    const backend::RenderTarget* render_target) {
+  // Wrap the given render target in a new skia surface.
+  GrBackendRenderTargetDesc skia_desc;
+  skia_desc.fWidth = render_target->GetSize().width();
+  skia_desc.fHeight = render_target->GetSize().height();
+  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
+  skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+  skia_desc.fSampleCnt = 0;
+  skia_desc.fStencilBits = 0;
+  skia_desc.fRenderTargetHandle = render_target->GetPlatformHandle();
+
+  SkAutoTUnref<GrRenderTarget> skia_render_target(
+      GetFallbackContext()->wrapBackendRenderTarget(skia_desc));
+  SkSurfaceProps skia_surface_props(
+      SkSurfaceProps::kUseDistanceFieldFonts_Flag,
+      SkSurfaceProps::kLegacyFontHost_InitType);
+  return SkSurface::NewRenderTargetDirect(
+      skia_render_target, &skia_surface_props);
 }
 
 HardwareRasterizer::HardwareRasterizer(

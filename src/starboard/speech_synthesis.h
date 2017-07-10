@@ -29,7 +29,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
+#if SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
 
 #ifdef __cplusplus
 extern "C" {
@@ -64,6 +64,6 @@ SB_EXPORT void SbSpeechSynthesisCancel();
 }  // extern "C"
 #endif
 
-#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
+#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
 
 #endif  // STARBOARD_SPEECH_SYNTHESIS_H_

@@ -17,6 +17,8 @@
 #ifndef COBALT_DOM_CAMERA_3D_H_
 #define COBALT_DOM_CAMERA_3D_H_
 
+#include "base/timer.h"
+#include "cobalt/dom/event_target.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/script/wrappable.h"
 
@@ -34,6 +36,18 @@ class Camera3D : public script::Wrappable {
     // Restricted to [0deg, 360deg]
     kDomCameraYaw = input::Camera3D::kCameraYaw,
   };
+
+  // The frequency at which Camera3D will poll the hardware implementation.
+  // Effectively the maximum frequency at which orientation events will be
+  // dispatched.
+  static constexpr double ORIENTATION_POLL_FREQUENCY_HZ = 30.0;
+  // The minimum frequency at which Camera3D will dispatch events. Its inverse
+  // is the most that will elapse between dispatching consecutive events (might
+  // not be true in practice due to other processing done on the web thread).
+  static constexpr double ORIENTATION_EVENT_MIN_FREQUENCY_HZ = 0.5;
+  // The minimum change in any of the angles that will trigger an event. The
+  // above frequencies still have precedence to decide the timing.
+  static constexpr double ORIENTATION_EVENT_DELTA_THRESHOLD_DEGREES = 0.5;
 
   explicit Camera3D(const scoped_refptr<input::Camera3D>& impl);
 
@@ -54,9 +68,14 @@ class Camera3D : public script::Wrappable {
   // Custom, not in any spec.
   scoped_refptr<input::Camera3D> impl() { return impl_; }
 
+  void StartOrientationEvents(const base::WeakPtr<EventTarget>& target);
+  void StopOrientationEvents();
+
   DEFINE_WRAPPABLE_TYPE(Camera3D);
 
  private:
+  void FireOrientationEvent(const base::WeakPtr<EventTarget> target);
+
   // We delegate all calls to the implementation of Camera3D so that all camera
   // state is stored within an object that is *not* a script::Wrappable. This
   // is important because input::Camera3D will typically be attached to a render
@@ -64,6 +83,13 @@ class Camera3D : public script::Wrappable {
   // outlive the WebModule that created them, and input::Camera3D is designed
   // for just this.
   scoped_refptr<input::Camera3D> impl_;
+
+  // State to control the polling and event firing rate.
+  base::RepeatingTimer<Camera3D> orientation_event_timer_;
+  base::optional<base::TimeTicks> last_event_time_;
+  double last_event_alpha_;
+  double last_event_beta_;
+  double last_event_gamma_;
 
   DISALLOW_COPY_AND_ASSIGN(Camera3D);
 };

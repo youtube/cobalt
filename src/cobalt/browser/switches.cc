@@ -82,6 +82,11 @@ const char kShutdownAfter[] = "shutdown_after";
 // Decode all images using StubImageDecoder.
 const char kStubImageDecoder[] = "stub_image_decoder";
 
+// If this flag is set, alternating calls to |SbSystemRequestSuspend| and
+// |SbSystemRequestUnpause| will be made periodically. Requires
+// SB_API_VERSION >= 4, and will otherwise just no-op.
+const char kSuspendFuzzer[] = "suspend_fuzzer";
+
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on
 // Cobalt startup.  A value must also be specified for this switch, which is
 // the duration in seconds of how long the trace will be done for before ending
@@ -111,6 +116,15 @@ const char kWebDriverListenIp[] = "webdriver_listen_ip";
 const char kMemoryTracker[] = "memory_tracker";
 
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+// If toggled, framerate statistics will be printed to stdout after each
+// animation completes, or after a maximum number of frames has been collected.
+const char kFPSPrint[] = "fps_stdout";
+
+// If toggled, framerate statistics will be displayed in an on-screen overlay
+// and updated after each animation completes, or after a maximum number of
+// frames has been collected.
+const char kFPSOverlay[] = "fps_overlay";
 
 // Disables the hard-coded navigation whitelist without disabling any other
 // security checks. This is enabled in Gold builds.

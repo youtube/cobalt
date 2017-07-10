@@ -27,7 +27,6 @@ From [`starboard/player.h`](../player.h),
 
 From [`starboard/decode_target.h`](../decode_target.h),
 
-* `SbDecodeTargetCreate()`
 * `SbDecodeTargetRelease()`
 * `SbDecodeTargetGetInfo()`
 

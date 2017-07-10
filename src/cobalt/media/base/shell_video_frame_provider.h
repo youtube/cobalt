@@ -28,7 +28,7 @@ namespace media {
 //       We should consider remove VideoFrame as it is no longer useful.
 class VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
  public:
-  int texture_id() const { return 0; }
+  uintptr_t texture_id() const { return 0; }
   base::TimeDelta GetTimestamp() const { return base::TimeDelta(); }
 };
 

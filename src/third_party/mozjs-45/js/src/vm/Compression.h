@@ -7,7 +7,11 @@
 #ifndef vm_Compression_h
 #define vm_Compression_h
 
+#if defined(STARBOARD)
+#include "third_party/zlib/zlib.h"
+#else
 #include <zlib.h>
+#endif
 
 #include "jstypes.h"
 

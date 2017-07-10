@@ -62,10 +62,13 @@ void SourceBufferRange::AppendBuffersToEnd(
     buffers_.push_back(*itr);
     size_in_bytes_ += (*itr)->data_size();
 
+    DCHECK_LE(buffers_.size(), kint32max);
     if ((*itr)->is_key_frame()) {
+      int offset =
+          static_cast<int>(buffers_.size()) - 1 + keyframe_map_index_base_;
+      DCHECK_GE(offset, 0);
       keyframe_map_.insert(
-          std::make_pair((*itr)->GetDecodeTimestamp(),
-                         buffers_.size() - 1 + keyframe_map_index_base_));
+          std::make_pair((*itr)->GetDecodeTimestamp(), offset));
     }
   }
 }

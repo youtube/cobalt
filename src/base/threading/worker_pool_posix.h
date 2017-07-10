@@ -60,6 +60,12 @@ class BASE_EXPORT PosixDynamicThreadPool
   void PostTask(const tracked_objects::Location& from_here,
                 const Closure& task);
 
+#if defined(COBALT)
+  // Like PostTask, but blocks until the posted task completes.
+  void PostBlockingTask(const tracked_objects::Location& from_here,
+                        const Closure& task);
+#endif
+
   // Worker thread method to wait for up to |idle_seconds_before_exit| for more
   // work from the thread pool.  Returns NULL if no work is available.
   PendingTask WaitForTask();

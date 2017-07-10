@@ -277,8 +277,8 @@ def GetConstantValue(file_path, constant_name):
   return value
 
 
-def _FindThirdPartyPlatforms():
-  """Workhorse for GetThirdPartyPlatforms().
+def _FindAllPlatforms():
+  """Workhorse for GetAllPlatforms().
 
   Search through directories listed in _PORT_SEARCH_PATH to find valid
   ports, so that they can be added to the VALID_PLATFORMS list. This
@@ -286,7 +286,7 @@ def _FindThirdPartyPlatforms():
   code in src/cobalt/.
 
   Returns:
-    A dictionary of name->absolute paths to the port directory.
+    A dictionary of name->PlatformInfo.
 
   """
 
@@ -306,19 +306,19 @@ def _FindThirdPartyPlatforms():
         logging.error('Found duplicate port name "%s" at "%s" and "%s"',
                       platform_info.port_name, result[platform_info.port_name],
                       platform_info.path)
-      result[platform_info.port_name] = platform_info.path
+      result[platform_info.port_name] = platform_info
 
   return result
 
 
 # Global cache of TPP so the filesystem walk is only done once, and the values
 # are always consistent.
-_THIRD_PARTY_PLATFORMS = None
+_ALL_PLATFORMS = None
 
 
-def GetThirdPartyPlatforms():
+def GetAllPlatforms():
   """Return valid platform definitions found by scanning the source tree."""
-  global _THIRD_PARTY_PLATFORMS
-  if _THIRD_PARTY_PLATFORMS is None:
-    _THIRD_PARTY_PLATFORMS = _FindThirdPartyPlatforms()
-  return _THIRD_PARTY_PLATFORMS
+  global _ALL_PLATFORMS
+  if _ALL_PLATFORMS is None:
+    _ALL_PLATFORMS = _FindAllPlatforms()
+  return _ALL_PLATFORMS

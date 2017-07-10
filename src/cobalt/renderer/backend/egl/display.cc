@@ -27,7 +27,7 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
   DisplayRenderTargetEGL(EGLDisplay display, EGLConfig config,
                          EGLNativeWindowType window_handle);
 
-  const math::Size& GetSize() OVERRIDE;
+  const math::Size& GetSize() const OVERRIDE;
 
   EGLSurface GetSurface() const OVERRIDE;
 
@@ -72,7 +72,7 @@ DisplayRenderTargetEGL::DisplayRenderTargetEGL(
   size_.SetSize(egl_surface_width, egl_surface_height);
 }
 
-const math::Size& DisplayRenderTargetEGL::GetSize() { return size_; }
+const math::Size& DisplayRenderTargetEGL::GetSize() const { return size_; }
 
 DisplayRenderTargetEGL::~DisplayRenderTargetEGL() {
   eglDestroySurface(display_, surface_);

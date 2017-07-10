@@ -17,6 +17,7 @@
 
 #include <deque>
 #include <map>
+#include <queue>
 #include <string>
 
 #include "base/callback.h"
@@ -40,6 +41,8 @@
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
+#include "cobalt/page_visibility/page_visibility_state.h"
+#include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
@@ -81,7 +84,9 @@ class DocumentObserver {
 // (the DOM tree, including elements such as <head> and <body>) and provides
 // functionality which is global to the document.
 //   https://www.w3.org/TR/dom/#document
-class Document : public Node, public cssom::MutationObserver {
+class Document : public Node,
+                 public cssom::MutationObserver,
+                 public page_visibility::PageVisibilityState::Observer {
  public:
   struct Options {
     Options()
@@ -186,6 +191,7 @@ class Document : public Node, public cssom::MutationObserver {
   scoped_refptr<HTMLHeadElement> head() const;
 
   scoped_refptr<Element> active_element() const;
+  scoped_refptr<HTMLElement> indicated_element() const;
 
   const EventListenerScriptValue* onreadystatechange() const {
     return GetAttributeEventListener(base::Tokens::readystatechange());
@@ -212,7 +218,7 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Custom, not in any spec: Node.
   //
-  scoped_refptr<Document> AsDocument() OVERRIDE { return this; }
+  Document* AsDocument() OVERRIDE { return this; }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
@@ -252,9 +258,13 @@ class Document : public Node, public cssom::MutationObserver {
   bool HasBrowsingContext() { return !!window_; }
 
   void set_window(Window* window) { window_ = window; }
+  const scoped_refptr<Window> window();
 
   // Sets the active element of the document.
   void SetActiveElement(Element* active_element);
+
+  // Sets the indicated element of the document.
+  void SetIndicatedElement(HTMLElement* indicated_element);
 
   // Count all ongoing loadings, including document itself and its dependent
   // resources, and dispatch OnLoad() if necessary.
@@ -347,12 +357,45 @@ class Document : public Node, public cssom::MutationObserver {
   // Disable just-in-time compilation of JavaScript code.
   void DisableJit();
 
+  // Page Visibility fields.
+  bool hidden() const {
+    return visibility_state() == page_visibility::kVisibilityStateHidden;
+  }
+  page_visibility::VisibilityState visibility_state() const {
+    return page_visibility_state()->GetVisibilityState();
+  }
+  const EventListenerScriptValue* onvisibilitychange() const {
+    return GetAttributeEventListener(base::Tokens::visibilitychange());
+  }
+  void set_onvisibilitychange(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::visibilitychange(), event_listener);
+  }
+
+  // page_visibility::PageVisibilityState::Observer implementation.
+  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnVisibilityStateChanged(
+      page_visibility::VisibilityState visibility_state) OVERRIDE;
+
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
+  // Queue up pointer related events.
+  void QueuePointerEvent(const scoped_refptr<Event>& event);
+
+  // Get the next queued pointer event.
+  scoped_refptr<Event> GetNextQueuedPointerEvent();
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
   ~Document() OVERRIDE;
+
+  page_visibility::PageVisibilityState* page_visibility_state() {
+    return html_element_context_->page_visibility_state();
+  }
+
+  const page_visibility::PageVisibilityState* page_visibility_state() const {
+    return html_element_context_->page_visibility_state();
+  }
 
  private:
   void DispatchOnLoadEvent();
@@ -405,6 +448,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   // Weak reference to the active element.
   base::WeakPtr<Element> active_element_;
+  // Weak reference to the indicated element.
+  base::WeakPtr<HTMLElement> indicated_element_;
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
   // Selector Tree.
@@ -426,6 +471,8 @@ class Document : public Node, public cssom::MutationObserver {
 
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;
+
+  std::queue<scoped_refptr<Event> > pointer_events_;
 };
 
 }  // namespace dom

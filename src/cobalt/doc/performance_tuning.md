@@ -295,16 +295,12 @@ as the media buffers.  By default, Cobalt pre-allocates the memory and
 wraps it with a custom allocator, in order to avoid fragmentation of main
 memory.  However, depending on your platform and your system allocator,
 overall memory usage may improve if media buffer allocations were made
-normally via the system allocator instead.  TODO: Unfortunately, there is
-currently no flip to switch to toggle one method or the other, however
-we should look into this because switching to using the system allocator
-has been found to reduce memory usage by ~5MB.  In the meantime, it can
-be hacked by modifying
-[`cobalt/media/shell_media_platform_starboard.cc`](../media/shell_media_platform_starboard.cc).
-Note also that if you choose to pre-allocate memory, for 1080p video it has been
-found that 24MB is a good media buffer size.  The pre-allocated media buffer
-capacity size can be adjusted by modifying the value of
-`SB_MEDIA_MAIN_BUFFER_BUDGET` in your platform's `configuration_public.h` file.
+normally via the system allocator instead.  This can be achieved by setting
+`cobalt_media_buffer_initial_capacity` and `cobalt_media_buffer_allocation_unit`
+to 0 in gyp_configuration.gypi.  Note also that if you choose to pre-allocate
+memory, for 1080p video it has been found that 24MB is a good media buffer size.
+The pre-allocated media buffer capacity size can be adjusted by modifying the
+value of `cobalt_media_buffer_initial_capacity` mentioned above.
 
 **Tags:** *configuration_public.h, cpu memory.*
 

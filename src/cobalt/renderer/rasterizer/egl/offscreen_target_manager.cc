@@ -19,10 +19,6 @@
 #include "base/hash_tables.h"
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-#include "third_party/skia/include/core/SkSurface.h"
-#include "third_party/skia/include/core/SkSurfaceProps.h"
-#include "third_party/skia/include/gpu/GrRenderTarget.h"
-#include "third_party/skia/include/gpu/GrTypes.h"
 
 namespace {
 // Structure describing the key for render target allocations in a given
@@ -111,16 +107,17 @@ struct OffscreenTargetManager::OffscreenAtlas {
   RectAllocator allocator;
   AllocationMap allocation_map;
   size_t allocations_used;
-  scoped_ptr<backend::FramebufferEGL> framebuffer;
+  scoped_refptr<backend::FramebufferRenderTargetEGL> framebuffer;
   SkAutoTUnref<SkSurface> skia_surface;
   bool needs_flush;
 };
 
 OffscreenTargetManager::OffscreenTargetManager(
-    backend::GraphicsContextEGL* graphics_context, GrContext* skia_context,
+    backend::GraphicsContextEGL* graphics_context,
+    const CreateFallbackSurfaceFunction& create_fallback_surface,
     size_t memory_limit)
     : graphics_context_(graphics_context),
-      skia_context_(skia_context),
+      create_fallback_surface_(create_fallback_surface),
       offscreen_target_size_mask_(0, 0),
       memory_limit_(memory_limit) {
 }
@@ -185,7 +182,6 @@ bool OffscreenTargetManager::GetCachedOffscreenTarget(
     out_target_info->framebuffer = offscreen_cache_->framebuffer.get();
     out_target_info->skia_canvas = offscreen_cache_->skia_surface->getCanvas();
     out_target_info->region = iter->second;
-    out_target_info->is_scratch_surface = false;
     return true;
   }
   return false;
@@ -228,12 +224,11 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
     }
   }
 
-  // Use the scratch surface if needed.
-  bool scratch_surface_used = false;
   if (target_rect.IsEmpty()) {
-    scratch_surface_used = true;
-    atlas = scratch_surface_.get();
-    target_rect = math::Rect(atlas->framebuffer->GetSize());
+    // There wasn't enough room for the requested offscreen target.
+    out_target_info->framebuffer = nullptr;
+    out_target_info->skia_canvas = nullptr;
+    out_target_info->region.SetRect(0, 0, 0, 0);
   } else {
     // Inset to prevent interpolation with unwanted pixels at the edge.
     target_rect.Inset(kInterpolatePad, kInterpolatePad);
@@ -247,12 +242,11 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
         AllocationKey(node, size), target_rect));
     atlas->allocations_used += 1;
     atlas->needs_flush = true;
-  }
 
-  out_target_info->framebuffer = atlas->framebuffer.get();
-  out_target_info->skia_canvas = atlas->skia_surface->getCanvas();
-  out_target_info->region = target_rect;
-  out_target_info->is_scratch_surface = scratch_surface_used;
+    out_target_info->framebuffer = atlas->framebuffer.get();
+    out_target_info->skia_canvas = atlas->skia_surface->getCanvas();
+    out_target_info->region = target_rect;
+  }
 }
 
 void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
@@ -266,43 +260,34 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
     offscreen_target_size_mask_.SetSize(0, 0);
   }
 
-  math::Size max_size(NextPowerOf2(frame_size.width()) / 2,
-                      NextPowerOf2(frame_size.height()) / 2);
-  max_size.SetToMax(math::Size(1, 1));
+  // Allow offscreen targets to be as large as the frame.
+  math::Size max_size(std::max(frame_size.width(), 1),
+                      std::max(frame_size.height(), 1));
 
-  // A full-screen scratch surface is required. This avoids pixelation when an
-  // offscreen target is needed.
-  scratch_surface_.reset(CreateOffscreenAtlas(frame_size));
-
-  // Other offscreen render targets are optional but highly recommended. These
+  // Offscreen render targets are optional but highly recommended. These
   // allow caching of render results for improved performance. At least two
   // must exist -- one for the cache and the other a working scratch.
   size_t half_memory_limit = memory_limit_ / 2;
   math::Size atlas_size(1, 1);
   for (;;) {
-    if (atlas_size == max_size) {
-      break;
-    }
-    if (GetMemorySize(atlas_size) * 2 <= half_memory_limit) {
-      // Memory limit allows a bigger atlas.
-      if (atlas_size.width() <= atlas_size.height()) {
-        // Prefer growing by width.
-        if (atlas_size.width() < max_size.width()) {
-          atlas_size.set_width(atlas_size.width() * 2);
-        } else {
-          atlas_size.set_height(atlas_size.height() * 2);
-        }
-      } else {
-        // Prefer growing by height.
-        if (atlas_size.height() < max_size.height()) {
-          atlas_size.set_height(atlas_size.height() * 2);
-        } else {
-          atlas_size.set_width(atlas_size.width() * 2);
-        }
-      }
+    // See if the next atlas size will fit in the memory budget.
+    // Try to keep the atlas square-ish.
+    math::Size next_size(atlas_size);
+    if (atlas_size.width() < max_size.width() &&
+        (atlas_size.width() <= atlas_size.height() ||
+        atlas_size.height() >= max_size.height())) {
+      next_size.set_width(
+          std::min(atlas_size.width() * 2, max_size.width()));
+    } else if (atlas_size.height() < max_size.height()) {
+      next_size.set_height(
+          std::min(atlas_size.height() * 2, max_size.height()));
     } else {
       break;
     }
+    if (GetMemorySize(next_size) > half_memory_limit) {
+      break;
+    }
+    atlas_size = next_size;
   }
 
   // It is better to have fewer, large atlases than many small atlases to
@@ -335,26 +320,11 @@ OffscreenTargetManager::OffscreenAtlas*
   OffscreenAtlas* atlas = new OffscreenAtlas(size);
 
   // Create a new framebuffer.
-  atlas->framebuffer.reset(new backend::FramebufferEGL(
-      graphics_context_, size, GL_RGBA, GL_NONE));
+  atlas->framebuffer = new backend::FramebufferRenderTargetEGL(
+      graphics_context_, size);
 
   // Wrap the framebuffer as a skia surface.
-  GrBackendRenderTargetDesc skia_desc;
-  skia_desc.fWidth = size.width();
-  skia_desc.fHeight = size.height();
-  skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
-  skia_desc.fSampleCnt = 0;
-  skia_desc.fStencilBits = 0;
-  skia_desc.fRenderTargetHandle = atlas->framebuffer->gl_handle();
-
-  SkAutoTUnref<GrRenderTarget> skia_render_target(
-      skia_context_->wrapBackendRenderTarget(skia_desc));
-  SkSurfaceProps skia_surface_props(
-      SkSurfaceProps::kUseDistanceFieldFonts_Flag,
-      SkSurfaceProps::kLegacyFontHost_InitType);
-  atlas->skia_surface.reset(SkSurface::NewRenderTargetDirect(
-      skia_render_target, &skia_surface_props));
+  atlas->skia_surface.reset(create_fallback_surface_.Run(atlas->framebuffer));
 
   return atlas;
 }

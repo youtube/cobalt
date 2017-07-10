@@ -13,6 +13,7 @@
 #include "jscntxt.h"
 #include "jsprf.h"
 #include "jsutil.h"
+#include "js-confdefs.h"
 
 #include "ds/LifoAlloc.h"
 

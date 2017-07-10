@@ -25,6 +25,7 @@
 #include "starboard/byte_swap.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
+#include "starboard/shared/win32/adapter_utils.h"
 #include "starboard/shared/win32/socket_internal.h"
 
 namespace sbwin32 = starboard::shared::win32;
@@ -118,61 +119,11 @@ bool PopulateNetmask(const IP_ADAPTER_UNICAST_ADDRESS& unicast_address,
   return true;
 }
 
-bool GetAdapters(const SbSocketAddressType address_type,
-                 std::unique_ptr<char[]>* adapter_info) {
-  SB_DCHECK(adapter_info);
-
-  ULONG family = 0;
-  int address_length_bytes = 0;
-
-  switch (address_type) {
-    case kSbSocketAddressTypeIpv4:
-      family = AF_INET;
-      address_length_bytes = sbwin32::kAddressLengthIpv4;
-      break;
-    case kSbSocketAddressTypeIpv6:
-      family = AF_INET6;
-      address_length_bytes = sbwin32::kAddressLengthIpv6;
-      break;
-    default:
-      SB_NOTREACHED() << "Invalid address type: " << address_type;
-      return false;
-  }
-
-  ULONG adapter_addresses_number_bytes = kDefaultAdapterInfoBufferSizeInBytes;
-
-  for (int try_count = 0; try_count != 2; ++try_count) {
-    // Using auto for return value here, since different versions of windows use
-    // slightly different datatypes.  These differences do not matter to us, but
-    // the compiler might warn on them.
-    adapter_info->reset(new char[adapter_addresses_number_bytes]);
-    PIP_ADAPTER_ADDRESSES adapter_addresses =
-        reinterpret_cast<PIP_ADAPTER_ADDRESSES>(adapter_info->get());
-
-    // Note: If |GetAdapterAddresses| deems that buffer supplied is not enough,
-    // it will return the recommended number of bytes in
-    // |adapter_addresses_number_bytes|.
-    auto retval = GetAdaptersAddresses(
-        family, GAA_FLAG_SKIP_FRIENDLY_NAME | GAA_FLAG_SKIP_DNS_SERVER, nullptr,
-        adapter_addresses, &adapter_addresses_number_bytes);
-
-    if (retval == ERROR_SUCCESS) {
-      return true;
-    }
-    if (retval != ERROR_BUFFER_OVERFLOW) {
-      // Only retry with more memory if the error says so.
-      break;
-    }
-    SB_LOG(ERROR) << "GetAdapterAddresses() failed with error code " << retval;
-  }
-
-  return false;
-}
-
 bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
                                    SbSocketAddress* out_netmask) {
   std::unique_ptr<char[]> adapter_info_memory_block;
-  if (!GetAdapters(interface_address.type, &adapter_info_memory_block)) {
+  if (!sbwin32::GetAdapters(
+      interface_address.type, &adapter_info_memory_block)) {
     return false;
   }
   const void* const interface_address_buffer =
@@ -181,8 +132,7 @@ bool GetNetmaskForInterfaceAddress(const SbSocketAddress& interface_address,
            adapter_info_memory_block.get());
        adapter != nullptr; adapter = adapter->Next) {
     if ((adapter->OperStatus != IfOperStatusUp) ||
-        (adapter->IfType != IF_TYPE_ETHERNET_CSMACD)) {
-      // Note: IfType == IF_TYPE_SOFTWARE_LOOPBACK is also skipped.
+        !sbwin32::IsIfTypeEthernet(adapter->IfType)) {
       continue;
     }
 
@@ -242,7 +192,7 @@ bool FindInterfaceIP(const SbSocketAddressType address_type,
   }
 
   std::unique_ptr<char[]> adapter_info_memory_block;
-  if (!GetAdapters(address_type, &adapter_info_memory_block)) {
+  if (!sbwin32::GetAdapters(address_type, &adapter_info_memory_block)) {
     return false;
   }
 
@@ -250,8 +200,7 @@ bool FindInterfaceIP(const SbSocketAddressType address_type,
            adapter_info_memory_block.get());
        adapter != nullptr; adapter = adapter->Next) {
     if ((adapter->OperStatus != IfOperStatusUp) ||
-        (adapter->IfType != IF_TYPE_ETHERNET_CSMACD)) {
-      // Note: IfType == IF_TYPE_SOFTWARE_LOOPBACK is also skipped.
+        !sbwin32::IsIfTypeEthernet(adapter->IfType)) {
       continue;
     }
 

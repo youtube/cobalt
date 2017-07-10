@@ -11,6 +11,8 @@
 #include <stddef.h>
 #include <stdio.h>
 
+#include "js-confdefs.h"
+
 class JSString;
 
 namespace js {

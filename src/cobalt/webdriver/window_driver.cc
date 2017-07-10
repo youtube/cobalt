@@ -108,12 +108,16 @@ WindowDriver::WindowDriver(
     const protocol::WindowId& window_id,
     const base::WeakPtr<dom::Window>& window,
     const GetGlobalEnvironmentFunction& get_global_environment_function,
-    KeyboardEventInjector keyboard_injector,
+    KeyboardEventInjector keyboard_event_injector,
+    PointerEventInjector pointer_event_injector,
+    WheelEventInjector wheel_event_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
       get_global_environment_(get_global_environment_function),
-      keyboard_injector_(keyboard_injector),
+      keyboard_event_injector_(keyboard_event_injector),
+      pointer_event_injector_(pointer_event_injector),
+      wheel_event_injector_(wheel_event_injector),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
       next_element_id_(0) {
@@ -354,9 +358,10 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
       base::StringPrintf("element-%d", next_element_id_++));
   std::pair<ElementDriverMapIt, bool> pair_it =
       element_drivers_.insert(std::make_pair(
-          element_id.id(), new ElementDriver(element_id, weak_element, this,
-                                             keyboard_injector_,
-                                             window_message_loop_)));
+          element_id.id(),
+          new ElementDriver(element_id, weak_element, this,
+                            keyboard_event_injector_, pointer_event_injector_,
+                            wheel_event_injector_, window_message_loop_)));
   DCHECK(pair_it.second)
       << "An ElementDriver was already mapped to the element id: "
       << element_id.id();
@@ -429,7 +434,8 @@ util::CommandResult<void> WindowDriver::SendKeysInternal(
   }
 
   for (size_t i = 0; i < events->size(); ++i) {
-    keyboard_injector_.Run(scoped_refptr<dom::Element>(), (*events)[i]);
+    keyboard_event_injector_.Run(scoped_refptr<dom::Element>(),
+                                 (*events)[i].first, (*events)[i].second);
   }
   return CommandResult(protocol::Response::kSuccess);
 }

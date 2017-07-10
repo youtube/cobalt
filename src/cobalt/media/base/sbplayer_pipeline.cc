@@ -39,6 +39,7 @@
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/starboard_player.h"
 #include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/base/video_dumper.h"
 #include "ui/gfx/size.h"
 
 namespace cobalt {
@@ -51,6 +52,8 @@ using base::TimeDelta;
 
 namespace {
 
+const char kVideoDumpFileName[] = "video_content.dmp";
+
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
 struct StartTaskParameters {
@@ -61,6 +64,7 @@ struct StartTaskParameters {
   PipelineStatusCB seek_cb;
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
+  base::Closure output_mode_change_cb;
 };
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
@@ -79,10 +83,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Resume() OVERRIDE;
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+             const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
              const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
-             const base::Closure& duration_change_cb) OVERRIDE;
+             const base::Closure& duration_change_cb,
+             const base::Closure& output_mode_change_cb) OVERRIDE;
 
   void Stop(const base::Closure& stop_cb) OVERRIDE;
   void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
@@ -136,6 +144,15 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void SuspendTask(base::WaitableEvent* done_event);
   void ResumeTask(base::WaitableEvent* done_event);
 
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+  void OnEMEInitDataReady(const std::vector<uint8_t>& eme_init_data) {
+    DCHECK(!eme_init_data.empty());
+    eme_init_datas_.push_back(eme_init_data);
+  }
+
+  std::vector<std::vector<uint8_t> > eme_init_datas_;
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
 
@@ -187,6 +204,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   PipelineStatusCB error_cb_;
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
+  base::Closure output_mode_change_cb_;
   base::optional<bool> decode_to_texture_output_mode_;
 
   // Demuxer reference used for setting the preload value.
@@ -210,6 +228,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool suspended_;
   bool stopped_;
 
+  VideoDumper video_dumper_;
+
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 
@@ -229,7 +249,8 @@ SbPlayerPipeline::SbPlayerPipeline(
       video_read_in_progress_(false),
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       suspended_(false),
-      stopped_(false) {}
+      stopped_(false),
+      video_dumper_(kVideoDumpFileName) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
 
@@ -255,13 +276,15 @@ void SbPlayerPipeline::Resume() {
   waitable_event.Wait();
 }
 
-void SbPlayerPipeline::Start(Demuxer* demuxer,
-                             const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-                             const PipelineStatusCB& ended_cb,
-                             const PipelineStatusCB& error_cb,
-                             const PipelineStatusCB& seek_cb,
-                             const BufferingStateCB& buffering_state_cb,
-                             const base::Closure& duration_change_cb) {
+void SbPlayerPipeline::Start(
+    Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+    const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+    const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
+    const PipelineStatusCB& seek_cb, const BufferingStateCB& buffering_state_cb,
+    const base::Closure& duration_change_cb,
+    const base::Closure& output_mode_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(demuxer);
@@ -270,6 +293,7 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   DCHECK(!seek_cb.is_null());
   DCHECK(!buffering_state_cb.is_null());
   DCHECK(!duration_change_cb.is_null());
+  DCHECK(!output_mode_change_cb.is_null());
 
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
@@ -279,6 +303,12 @@ void SbPlayerPipeline::Start(Demuxer* demuxer,
   parameters.seek_cb = seek_cb;
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
+  parameters.output_mode_change_cb = output_mode_change_cb;
+
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+  set_eme_init_data_ready_cb.Run(base::Bind(
+      &SbPlayerPipeline::OnEMEInitDataReady, base::Unretained(this)));
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
   message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
@@ -489,6 +519,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   }
   buffering_state_cb_ = parameters.buffering_state_cb;
   duration_change_cb_ = parameters.duration_change_cb;
+  output_mode_change_cb_ = parameters.output_mode_change_cb;
 
   const bool kEnableTextTracks = false;
   demuxer_->Initialize(this,
@@ -578,6 +609,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   const VideoDecoderConfig& video_config =
       video_stream_->video_decoder_config();
 
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+  video_dumper_.DumpEmeInitData(eme_init_datas_);
+  video_dumper_.DumpConfigs(audio_config, video_config);
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
   {
     base::AutoLock auto_lock(lock_);
     player_.reset(new StarboardPlayer(
@@ -588,6 +623,14 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   }
 
   if (player_->IsValid()) {
+    base::Closure output_mode_change_cb;
+    {
+      base::AutoLock auto_lock(lock_);
+      DCHECK(!output_mode_change_cb_.is_null());
+      output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
+    }
+    output_mode_change_cb.Run();
+
     return;
   }
 
@@ -724,6 +767,7 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     video_read_in_progress_ = false;
   }
 
+  video_dumper_.DumpAccessUnit(buffer);
   player_->WriteBuffer(type, buffer);
 }
 

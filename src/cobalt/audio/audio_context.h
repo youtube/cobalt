@@ -88,6 +88,7 @@ class AudioContext : public dom::EventTarget {
   typedef DecodeErrorCallbackArg::Reference DecodeErrorCallbackReference;
 
   AudioContext();
+  ~AudioContext();
 
   // Web API: AudioContext
   //

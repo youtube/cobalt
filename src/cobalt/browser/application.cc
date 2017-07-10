@@ -32,6 +32,7 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/checker.h"
@@ -41,6 +42,7 @@
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network/network_event.h"
+#include "cobalt/script/javascript_engine.h"
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif
@@ -53,21 +55,14 @@
 #endif  // defined(__LB_SHELL__FOR_RELEASE__)
 #include "lbshell/src/lb_memory_pages.h"
 #endif  // defined(__LB_SHELL__)
-#if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
 #include "starboard/log.h"
-#endif  // defined(OS_STARBOARD)
 
 namespace cobalt {
 namespace browser {
 
 namespace {
 const int kStatUpdatePeriodMs = 1000;
-#if defined(COBALT_BUILD_TYPE_GOLD)
-const int kLiteStatUpdatePeriodMs = 1000;
-#else
-const int kLiteStatUpdatePeriodMs = 16;
-#endif
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
 
@@ -345,10 +340,12 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
 
   // Right now the bytes_per_pixel is assumed in the engine. Any other value
   // is currently forbidden.
-  DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
-  options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
-      math::Size(skia_glyph_atlas_texture_dimensions.width(),
-                 skia_glyph_atlas_texture_dimensions.height());
+  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
+    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
+    options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
+        math::Size(skia_glyph_atlas_texture_dimensions.width(),
+                   skia_glyph_atlas_texture_dimensions.height());
+  }
 
   options->web_module_options.remote_typeface_cache_capacity =
       static_cast<int>(
@@ -365,9 +362,7 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
 Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
-      start_time_(base::TimeTicks::Now()),
-      stats_update_timer_(true, true),
-      lite_stats_update_timer_(true, true) {
+      stats_update_timer_(true, true) {
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -392,10 +387,6 @@ Application::Application(const base::Closure& quit_closure)
   stats_update_timer_.Start(
       FROM_HERE, base::TimeDelta::FromMilliseconds(kStatUpdatePeriodMs),
       base::Bind(&Application::UpdatePeriodicStats, base::Unretained(this)));
-  lite_stats_update_timer_.Start(
-      FROM_HERE, base::TimeDelta::FromMilliseconds(kLiteStatUpdatePeriodMs),
-      base::Bind(&Application::UpdatePeriodicLiteStats,
-                 base::Unretained(this)));
 
   // Get the initial URL.
   GURL initial_url = GetInitialURL();
@@ -415,6 +406,13 @@ Application::Application(const base::Closure& quit_closure)
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
+
+  if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
+    options.renderer_module_options.enable_fps_stdout = true;
+  }
+  if (command_line->HasSwitch(browser::switches::kFPSOverlay)) {
+    options.renderer_module_options.enable_fps_overlay = true;
+  }
 
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
@@ -523,8 +521,9 @@ Application::Application(const base::Closure& quit_closure)
   }
 
   account_manager_.reset(new account::AccountManager());
-  browser_module_.reset(new BrowserModule(initial_url, system_window_.get(),
-                                          account_manager_.get(), options));
+  browser_module_.reset(
+      new BrowserModule(initial_url, base::kApplicationStateStarted,
+                        system_window_.get(), account_manager_.get(), options));
   UpdateAndMaybeRegisterUserAgent();
 
   app_status_ = kRunningAppStatus;
@@ -650,10 +649,12 @@ void Application::OnApplicationEvent(const base::Event* event) {
     DLOG(INFO) << "Got pause event.";
     app_status_ = kPausedAppStatus;
     ++app_pause_count_;
+    browser_module_->Pause();
   } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
     DLOG(INFO) << "Got unpause event.";
     app_status_ = kRunningAppStatus;
     ++app_unpause_count_;
+    browser_module_->Unpause();
   } else if (app_event->type() == system_window::ApplicationEvent::kSuspend) {
     DLOG(INFO) << "Got suspend event.";
     app_status_ = kSuspendedAppStatus;
@@ -693,20 +694,21 @@ Application::CValStats::CValStats()
                       "Total free application CPU memory remaining."),
       used_cpu_memory("Memory.CPU.Used", 0,
                       "Total CPU memory allocated via the app's allocators."),
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-      exe_memory("Memory.CPU.Exe", 0,
-                 "Total memory occupied by the size of the executable."),
-#endif
+      js_reserved_memory("Memory.JS", 0,
+                         "The total memory that is reserved by the engine, "
+                         "including the part that is actually occupied by "
+                         "JS objects, and the part that is not yet."),
+      app_start_time("Time.Cobalt.Start",
+                     base::StartupTimer::StartTime().ToInternalValue(),
+                     "Start time of the application in microseconds."),
       app_lifetime("Cobalt.Lifetime", base::TimeDelta(),
-                   "Application lifetime.") {
-#if defined(OS_STARBOARD)
+                   "Application lifetime in microseconds.") {
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     free_gpu_memory.emplace("Memory.GPU.Free", 0,
                             "Total free application GPU memory remaining.");
     used_gpu_memory.emplace("Memory.GPU.Used", 0,
                             "Total GPU memory allocated by the application.");
   }
-#endif  // defined(OS_STARBOARD)
 }
 
 void Application::RegisterUserLogs() {
@@ -755,10 +757,6 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
                             non_trivial_static_fields.Get().user_agent.c_str(),
                             non_trivial_static_fields.Get().user_agent.size());
   }
-}
-
-void Application::UpdatePeriodicLiteStats() {
-  c_val_stats_.app_lifetime = base::TimeTicks::Now() - start_time_;
 }
 
 math::Size Application::InitSystemWindow(CommandLine* command_line) {
@@ -814,6 +812,8 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
 
 void Application::UpdatePeriodicStats() {
   TRACE_EVENT0("cobalt::browser", "Application::UpdatePeriodicStats()");
+  c_val_stats_.app_lifetime = base::StartupTimer::TimeElapsed();
+
   int64_t used_cpu_memory = SbSystemGetUsedCPUMemory();
   base::optional<int64_t> used_gpu_memory;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
@@ -830,6 +830,9 @@ void Application::UpdatePeriodicStats() {
         SbSystemGetTotalGPUMemory() - *used_gpu_memory;
     *c_val_stats_.used_gpu_memory = *used_gpu_memory;
   }
+
+  c_val_stats_.js_reserved_memory =
+      script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
 
   memory_settings_checker_.RunChecks(
       *auto_mem_, used_cpu_memory, used_gpu_memory);

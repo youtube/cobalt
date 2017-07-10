@@ -26,6 +26,7 @@
 #include "starboard/once.h"
 #include "third_party/mozjs-45/js/public/Initialization.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/vm/Runtime.h"
 
 namespace cobalt {
 namespace script {
@@ -79,38 +80,35 @@ class EngineStats {
                      StaticMemorySingletonTraits<EngineStats> >::get();
   }
 
-  void EngineCreated() {
-    base::AutoLock auto_lock(lock_);
-    ++engine_count_;
-  }
-
-  void EngineDestroyed() {
-    base::AutoLock auto_lock(lock_);
-    --engine_count_;
-  }
+  void EngineCreated() { ++engine_count_; }
+  void EngineDestroyed() { --engine_count_; }
 
   size_t UpdateMemoryStatsAndReturnReserved() {
-    base::AutoLock auto_lock(lock_);
-    if (engine_count_.value() == 0) {
-      return 0u;
-    }
+    // Accessing CVals triggers a lock, so rely on local variables when
+    // possible to avoid unecessary locking.
+    size_t allocated_memory =
+        MemoryAllocatorReporter::Get()->GetCurrentBytesAllocated();
+    size_t mapped_memory =
+        MemoryAllocatorReporter::Get()->GetCurrentBytesMapped();
 
-    return 0u;
+    allocated_memory_ = allocated_memory;
+    mapped_memory_ = mapped_memory;
+
+    return allocated_memory + mapped_memory;
   }
 
  private:
-  base::Lock lock_;
-  base::CVal<size_t, base::CValPublic> allocated_memory_;
-  base::CVal<size_t, base::CValPublic> mapped_memory_;
-  base::CVal<size_t> engine_count_;
+  base::CVal<int> engine_count_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> allocated_memory_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> mapped_memory_;
 };
 
 EngineStats::EngineStats()
-    : allocated_memory_("Memory.JS.AllocatedMemory", 0,
+    : engine_count_("Count.JS.Engine", 0,
+                    "Total JavaScript engine registered."),
+      allocated_memory_("Memory.JS.AllocatedMemory", 0,
                         "JS memory occupied by the Mozjs allocator."),
-      mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory."),
-      engine_count_("Count.JS.Engine", 0,
-                    "Total JavaScript engine registered.") {}
+      mapped_memory_("Memory.JS.MappedMemory", 0, "JS mapped memory.") {}
 
 // Pretend we always preserve wrappers since we never call
 // SetPreserveWrapperCallback anywhere else. This is necessary for
@@ -126,6 +124,7 @@ SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
 void CallShutDown(void*) { JS_ShutDown(); }
 
 void CallInitAndRegisterShutDownOnce() {
+  js::DisableExtraThreads();
   const bool js_init_result = JS_Init();
   CHECK(js_init_result);
   base::AtExitManager::RegisterCallback(CallShutDown, NULL);
@@ -231,10 +230,6 @@ void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   }
 }
 
-size_t MozjsEngine::UpdateMemoryStatsAndReturnReserved() {
-  return EngineStats::GetInstance()->UpdateMemoryStatsAndReturnReserved();
-}
-
 bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   error_handler_ = handler;
   return true;
@@ -329,6 +324,11 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
   mozjs::MozjsEngine::Options moz_options(options);
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(moz_options));
+}
+
+size_t JavaScriptEngine::UpdateMemoryStatsAndReturnReserved() {
+  return mozjs::EngineStats::GetInstance()
+      ->UpdateMemoryStatsAndReturnReserved();
 }
 
 }  // namespace script

@@ -21,9 +21,9 @@
     # Whether Cobalt is being built.
     'cobalt': 1,
 
-    # Similarly to chromium_code, marks the projects that are created by the
-    # Cobalt team and thus are held to the highest standards of code health.
-    'cobalt_code%': 0,
+    # Enabling this variable enables pedantic levels of warnings for the current
+    # toolchain.
+    'sb_pedantic_warnings%': 0,
 
     # Contains the current build configuration.
     'cobalt_config%': 'gold',
@@ -206,13 +206,14 @@
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
 
+    # Set to 1 to enable filtering of HTTP headers before sending.
+    'enable_xhr_header_filtering%': 0,
+
     # Halt execution on failure to allocate memory.
     'abort_on_allocation_failure%': 1,
 
     # Used by cobalt/media/media.gyp to pick a proper media platform.
     'sb_media_platform%': 'starboard',
-
-    'sb_has_deploy_step%': 0,
 
     # Needed for backwards compatibility with lbshell code.
     'lbshell_root%': '<(DEPTH)/lbshell',
@@ -407,10 +408,10 @@
     'platform_libraries%': [],
 
 
-    # The only currently-supported Javascript engine is 'mozjs'.
+    # The only currently-supported Javascript engine is 'mozjs-45'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'mozjs',
+    #'javascript_engine%': 'mozjs-45',
 
     # Disable jit and run in interpreter-only mode by default. It can be set to
     # 1 to run in jit mode.  We have found that disabling jit often results in
@@ -489,16 +490,16 @@
 
   'target_defaults': {
     'variables': {
-      # The condition that operates on cobalt_code is in a target_conditions
-      # section, and will not have access to the default fallback value of
-      # cobalt_code at the top of this file, or to the cobalt_code
-      # variable placed at the root variables scope of .gyp files, because
-      # those variables are not set at target scope.  As a workaround,
-      # if cobalt_code is not set at target scope, define it in target scope
-      # to contain whatever value it has during early variable expansion.
-      # That's enough to make it available during target conditional
-      # processing.
-      'cobalt_code%': '<(cobalt_code)',
+      # The condition that operates on sb_pedantic_warnings is in a
+      # target_conditions section, and will not have access to the default
+      # fallback value of sb_pedantic_warnings at the top of this file,
+      # or to the sb_pedantic_warnings variable placed at the root
+      # variables scope of .gyp files, because those variables are not set at
+      # target scope.  As a workaround, if sb_pedantic_warnings is not
+      # set at target scope, define it in target scope to contain whatever
+      # value it has during early variable expansion. That's enough to make
+      # it available during target conditional processing.
+      'sb_pedantic_warnings%': '<(sb_pedantic_warnings)',
     },
     'defines': [
       'COBALT',

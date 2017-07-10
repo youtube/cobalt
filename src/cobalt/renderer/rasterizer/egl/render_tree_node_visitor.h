@@ -33,10 +33,12 @@
 #include "cobalt/render_tree/rect_shadow_node.h"
 #include "cobalt/render_tree/text_node.h"
 #include "cobalt/renderer/backend/egl/texture.h"
+#include "cobalt/renderer/backend/render_target.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object_manager.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
+#include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
 namespace renderer {
@@ -47,16 +49,23 @@ namespace egl {
 // DrawObjects which must then be processed using calls to ExecuteDraw.
 class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  public:
+  enum FallbackRasterizeFlags {
+    kFallbackShouldClear = 1 << 0,
+    kFallbackShouldFlush = 1 << 1,
+  };
   typedef base::Callback<void(
       const scoped_refptr<render_tree::Node>& render_tree,
-      const math::Matrix3F& transform,
-      const OffscreenTargetManager::TargetInfo& target)>
+      SkCanvas* fallback_render_target, const math::Matrix3F& transform,
+      const math::RectF& scissor, float opacity, uint32_t rasterize_flags)>
       FallbackRasterizeFunction;
 
   RenderTreeNodeVisitor(GraphicsState* graphics_state,
                         DrawObjectManager* draw_object_manager,
                         OffscreenTargetManager* offscreen_target_manager,
-                        const FallbackRasterizeFunction* fallback_rasterize);
+                        const FallbackRasterizeFunction& fallback_rasterize,
+                        SkCanvas* fallback_render_target,
+                        backend::RenderTarget* render_target,
+                        const math::Rect& content_rect);
 
   void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
     NOTREACHED();
@@ -72,23 +81,41 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
+  void GetOffscreenTarget(scoped_refptr<render_tree::Node> node,
+                          bool* out_content_cached,
+                          OffscreenTargetManager::TargetInfo* out_target_info,
+                          math::RectF* out_content_rect);
+  void FallbackRasterize(scoped_refptr<render_tree::Node> node);
   void FallbackRasterize(scoped_refptr<render_tree::Node> node,
-                         DrawObjectManager::OffscreenType offscreen_type);
+                         const OffscreenTargetManager::TargetInfo& target_info,
+                         const math::RectF& content_rect);
+  void OffscreenRasterize(scoped_refptr<render_tree::Node> node,
+                          const backend::TextureEGL** out_texture,
+                          math::Matrix3F* out_texcoord_transform,
+                          math::RectF* out_content_rect);
+
   bool IsVisible(const math::RectF& bounds);
   void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     DrawObjectManager::OnscreenType onscreen_type,
-                     DrawObjectManager::OffscreenType offscreen_type);
+                     const math::RectF& local_bounds);
   void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          DrawObjectManager::OnscreenType onscreen_type,
-                          DrawObjectManager::OffscreenType offscreen_type,
                           const math::RectF& local_bounds);
+  void AddExternalDraw(scoped_ptr<DrawObject> object,
+                       const math::RectF& world_bounds, base::TypeId draw_type);
 
   GraphicsState* graphics_state_;
   DrawObjectManager* draw_object_manager_;
   OffscreenTargetManager* offscreen_target_manager_;
-  const FallbackRasterizeFunction* fallback_rasterize_;
+  FallbackRasterizeFunction fallback_rasterize_;
 
   DrawObject::BaseState draw_state_;
+  SkCanvas* fallback_render_target_;
+  backend::RenderTarget* render_target_;
+  bool render_target_is_offscreen_;
+
+  bool allow_offscreen_targets_;
+  bool failed_offscreen_target_request_;
+
+  uint32_t last_draw_id_;
 };
 
 }  // namespace egl

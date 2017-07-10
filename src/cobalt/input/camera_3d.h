@@ -19,6 +19,7 @@
 #include "cobalt/base/camera_transform.h"
 #include "cobalt/input/input_poller.h"
 #include "starboard/window.h"
+#include "third_party/glm/glm/gtc/quaternion.hpp"
 
 namespace cobalt {
 namespace input {
@@ -29,12 +30,14 @@ namespace input {
 // have empty default implementations.
 class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
  public:
+  // The rotations around the axes are intrinsic, meaning they are applied in
+  // sequence, each on the rotated frame produced by the previous one.
   enum CameraAxes {
-    // Restricted to [0deg, 360deg]
+    // Applied around the Z axis. Restricted to [0deg, 360deg).
     kCameraRoll = 0x00,
-    // Restricted to [-90deg, 90deg]
+    // Applied around the X axis. Restricted to [-90deg, 90deg)
     kCameraPitch = 0x01,
-    // Restricted to [0deg, 360deg]
+    // Applied around the Y axis. Restricted to [0deg, 360deg)
     kCameraYaw = 0x02,
   };
 
@@ -49,7 +52,7 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   virtual void ClearAllKeyMappings() {}
 
   // Return the camera's current view direction.
-  virtual base::CameraOrientation GetOrientation() const = 0;
+  virtual glm::quat GetOrientation() const = 0;
 
   // The above methods are meant as an interface for the Camera3D's WebAPI on
   // the WebModule thread, but the methods below will be accessed on the
@@ -74,6 +77,16 @@ class Camera3D : public base::RefCountedThreadSafe<Camera3D> {
   virtual void Reset() {}
 
   virtual ~Camera3D() {}
+
+  template <typename FloatType>
+  static FloatType DegreesToRadians(FloatType degrees) {
+    return (degrees / 360) * 2 * static_cast<FloatType>(M_PI);
+  }
+
+  template <typename FloatType>
+  static FloatType RadiansToDegrees(FloatType radians) {
+    return radians * 180 / static_cast<FloatType>(M_PI);
+  }
 };
 
 }  // namespace input

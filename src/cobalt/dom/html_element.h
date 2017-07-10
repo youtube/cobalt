@@ -131,7 +131,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-htmlelement-interface
-  scoped_refptr<Element> offset_parent();
+  Element* offset_parent();
   float offset_top();
   float offset_left();
   float offset_width();
@@ -181,7 +181,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   //
   // Returns the cached matching rules of this element.
   cssom::RulesWithCascadePrecedence* matching_rules() {
-    return matching_rules_.get();
+    return &matching_rules_;
   }
   // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
@@ -263,11 +263,18 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   bool matching_rules_valid() const { return matching_rules_valid_; }
 
+  // Returns whether the element has been designated.
+  //   https://www.w3.org/TR/selectors4/#hover-pseudo
+  bool IsDesignated();
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
   HTMLElement(Document* document, base::Token local_name);
   ~HTMLElement() OVERRIDE;
+
+  void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 
   void CopyDirectionality(const HTMLElement& other);
 
@@ -279,7 +286,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
  private:
   // From Node.
   void OnMutation() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
 
   // From Element.
   void OnSetAttribute(const std::string& name,
@@ -349,8 +355,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::AnimationSet css_animations_;
 
   // The following fields are used in rule matching.
-  scoped_ptr<cssom::RulesWithCascadePrecedence> old_matching_rules_;
-  scoped_ptr<cssom::RulesWithCascadePrecedence> matching_rules_;
+  cssom::RulesWithCascadePrecedence old_matching_rules_;
+  cssom::RulesWithCascadePrecedence matching_rules_;
   RuleMatchingState rule_matching_state_;
 
   // This contains information about the boxes generated from the element.

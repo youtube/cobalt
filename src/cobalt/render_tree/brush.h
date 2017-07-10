@@ -16,12 +16,14 @@
 #define COBALT_RENDER_TREE_BRUSH_H_
 
 #include <cmath>
+#include <utility>
 #include <vector>
 
 #include "base/compiler_specific.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/point_f.h"
+#include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/brush_visitor.h"
 #include "cobalt/render_tree/color_rgba.h"
 
@@ -84,23 +86,53 @@ typedef std::vector<ColorStop> ColorStopList;
 bool IsNear(const render_tree::ColorStopList& lhs,
             const render_tree::ColorStopList& rhs, float epsilon);
 
+// Calculate the source and destination points to use for a linear gradient
+// of the specified angle to cover the given frame.
+//
+// The method of defining the source and destination points for the linear
+// gradient are defined here:
+//   https://www.w3.org/TR/2012/CR-css3-images-20120417/#linear-gradients
+//
+// "Starting from the center of the gradient box, extend a line at the
+//  specified angle in both directions. The ending point is the point on the
+//  gradient line where a line drawn perpendicular to the gradient line would
+//  intersect the corner of the gradient box in the specified direction. The
+//  starting point is determined identically, but in the opposite direction."
+std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
+    float ccw_radians_from_right, const math::SizeF& frame_size);
+
 // Linear gradient brushes can be used to fill a shape with a linear color
 // gradient with arbitrary many color stops.  It is specified by a source
 // and destination point, which define a line segment along which the color
 // stops apply, each having a position between 0 and 1 representing the
 // position of the stop along that line.  Interpolation occurs in premultiplied
 // alpha space.
+// NOTE: The source and destination points may lie inside or outside the shape
+// which uses the gradient brush. Always consider the shape as a mask over the
+// gradient whose first and last color stops extend infinitely in their
+// respective directions.
 class LinearGradientBrush : public Brush {
  public:
   // The ColorStopList passed into LienarGradientBrush must have at least two
   // stops and they must be sorted in order of increasing position.
   LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
                       const ColorStopList& color_stops);
+  LinearGradientBrush(const std::pair<math::PointF, math::PointF>& source_dest,
+                      const ColorStopList& color_stops)
+      : LinearGradientBrush(source_dest.first, source_dest.second,
+                            color_stops)
+      {}
 
   // Creates a 2-stop linear gradient from source to dest.
   LinearGradientBrush(const math::PointF& source, const math::PointF& dest,
                       const ColorRGBA& source_color,
                       const ColorRGBA& dest_color);
+  LinearGradientBrush(const std::pair<math::PointF, math::PointF>& source_dest,
+                      const ColorRGBA& source_color,
+                      const ColorRGBA& dest_color)
+      : LinearGradientBrush(source_dest.first, source_dest.second,
+                            source_color, dest_color)
+      {}
 
   struct Data {
     Data();
@@ -130,10 +162,14 @@ class LinearGradientBrush : public Brush {
   const ColorStopList& color_stops() const { return data_.color_stops_; }
 
   // Returns true if, and only if the brush is horizontal.
-  bool IsHorizontal() const { return (data_.source_.y() == data_.dest_.y()); }
+  bool IsHorizontal(float epsilon = 0.001f) const {
+    return std::abs(data_.source_.y() - data_.dest_.y()) < epsilon;
+  }
 
   // Returns true if, and only if the brush is vertical.
-  bool IsVertical() const { return (data_.source_.x() == data_.dest_.x()); }
+  bool IsVertical(float epsilon = 0.001f) const {
+    return std::abs(data_.source_.x() - data_.dest_.x()) < epsilon;
+  }
 
   const Data& data() const { return data_; }
 

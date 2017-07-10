@@ -131,6 +131,10 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
 #endif  // SB_API_VERSION >= 4 ||
         // SB_IS(PLAYER_PUNCHED_OUT)
 
+  XSelectInput(display, window,
+               VisibilityChangeMask | ExposureMask | FocusChangeMask |
+                   StructureNotifyMask | KeyPressMask | KeyReleaseMask |
+                   ButtonPressMask | ButtonReleaseMask | PointerMotionMask);
   XMapWindow(display, window);
 }
 

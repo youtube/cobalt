@@ -35,27 +35,16 @@ class DrawRectTexture : public DrawObject {
                   const backend::TextureEGL* texture,
                   const math::Matrix3F& texcoord_transform);
 
-  DrawRectTexture(GraphicsState* graphics_state,
-                  const BaseState& base_state,
-                  const math::RectF& rect,
-                  const backend::TextureEGL* texture,
-                  const math::Matrix3F& texcoord_transform,
-                  const base::Closure& draw_offscreen,
-                  const base::Closure& draw_onscreen);
-
-  void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   math::Matrix3F texcoord_transform_;
   math::RectF rect_;
   const backend::TextureEGL* texture_;
-  base::Closure draw_offscreen_;
-  base::Closure draw_onscreen_;
 
   uint8_t* vertex_buffer_;
   bool tile_texture_;

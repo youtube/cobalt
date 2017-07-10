@@ -54,7 +54,7 @@ using nb::analytics::MemoryTracker;
 
 size_t AllocationSizeBinner::GetBucketIndexForAllocationSize(size_t size) {
   for (int i = 0; i < 32; ++i) {
-    size_t val = 0x1 << i;
+    size_t val = static_cast<size_t>(0x1) << i;
     if (val > size) {
       return i;
     }
@@ -76,7 +76,7 @@ void AllocationSizeBinner::IndexToSizeRange(size_t idx, size_t* min_value,
     *max_value = 0;
     return;
   }
-  *min_value = 0x1 << (idx - 1);
+  *min_value = static_cast<size_t>(0x1) << (idx - 1);
   *max_value = (*min_value << 1) - 1;
   return;
 }
@@ -86,7 +86,7 @@ size_t AllocationSizeBinner::GetIndexRepresentingMostMemoryConsumption() const {
   size_t largest_allocation_total_idx = 0;
 
   for (size_t i = 0; i < allocation_histogram_.size(); ++i) {
-    size_t alloc_size = 0x1 << i;
+    size_t alloc_size = static_cast<size_t>(0x1) << i;
     size_t count = allocation_histogram_[i];
     int64 allocation_total =
         static_cast<int64>(alloc_size) * static_cast<int64>(count);

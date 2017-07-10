@@ -24,6 +24,7 @@
 #include "cobalt/cssom/user_agent_style_sheet.h"
 #include "cobalt/dom/camera_3d.h"
 #include "cobalt/dom/console.h"
+#include "cobalt/dom/device_orientation_event.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
@@ -31,13 +32,17 @@
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/navigator.h"
 #include "cobalt/dom/performance.h"
+#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/screen.h"
 #include "cobalt/dom/storage.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/javascript_engine.h"
@@ -66,8 +71,10 @@ class Window::RelayLoadEvent : public DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
-Window::Window(int width, int height, cssom::CSSParser* css_parser,
-               Parser* dom_parser, loader::FetcherFactory* fetcher_factory,
+Window::Window(int width, int height,
+               base::ApplicationState initial_application_state,
+               cssom::CSSParser* css_parser, Parser* dom_parser,
+               loader::FetcherFactory* fetcher_factory,
                render_tree::ResourceProvider** resource_provider,
                loader::image::AnimatedImageTracker* animated_image_tracker,
                loader::image::ImageCache* image_cache,
@@ -107,7 +114,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
           media_source_registry, resource_provider, animated_image_tracker,
           image_cache, reduced_image_cache_capacity_manager,
           remote_typeface_cache, mesh_cache, dom_stat_tracker, language,
-          video_playback_rate_multiplier)),
+          initial_application_state, video_playback_rate_multiplier)),
       performance_(new Performance(new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
@@ -147,6 +154,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   test_runner_ = new TestRunner();
 #endif  // ENABLE_TEST_RUNNER
   document_->AddObserver(relay_on_load_event_.get());
+  html_element_context_->page_visibility_state()->AddObserver(this);
 
   if (system_window_) {
     SbWindow sb_window = system_window_->GetSbWindow();
@@ -166,6 +174,7 @@ Window::Window(int width, int height, cssom::CSSParser* css_parser,
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
                             url, dom_parser, error_callback));
+  camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
 }
 
 void Window::StartDocumentLoad(
@@ -399,27 +408,43 @@ bool Window::HasPendingAnimationFrameCallbacks() const {
 
 void Window::InjectEvent(const scoped_refptr<Event>& event) {
   // Forward the event on to the correct object in DOM.
-  if (event->type() == base::Tokens::keydown() ||
-      event->type() == base::Tokens::keypress() ||
-      event->type() == base::Tokens::keyup()) {
+  if (event->GetWrappableType() == base::GetTypeId<KeyboardEvent>()) {
     // Event.target:focused element processing the key event or if no element
     // focused, then the body element if available, otherwise the root element.
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keydown
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keypress
-    //   https://www.w3.org/TR/DOM-Level-3-Events/#event-type-keyup
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keydown
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keypress
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-keyup
     if (document_->active_element()) {
       document_->active_element()->DispatchEvent(event);
     } else {
       document_->DispatchEvent(event);
     }
+  } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
+             event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
+             event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
+    document_->QueuePointerEvent(event);
   } else {
-    NOTREACHED();
+    SB_NOTREACHED();
   }
+}
+
+void Window::SetApplicationState(base::ApplicationState state) {
+  html_element_context_->page_visibility_state()->SetApplicationState(state);
 }
 
 void Window::SetSynchronousLayoutCallback(
     const base::Closure& synchronous_layout_callback) {
   document_->set_synchronous_layout_callback(synchronous_layout_callback);
+}
+
+void Window::OnWindowFocusChanged(bool has_focus) {
+  DispatchEvent(
+      new Event(has_focus ? base::Tokens::focus() : base::Tokens::blur()));
+}
+
+void Window::OnVisibilityStateChanged(
+    page_visibility::VisibilityState visibility_state) {
+  UNREFERENCED_PARAMETER(visibility_state);
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {
@@ -436,7 +461,9 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(screen_);
 }
 
-Window::~Window() {}
+Window::~Window() {
+  html_element_context_->page_visibility_state()->RemoveObserver(this);
+}
 
 void Window::FireHashChangeEvent() {
   PostToDispatchEvent(FROM_HERE, base::Tokens::hashchange());

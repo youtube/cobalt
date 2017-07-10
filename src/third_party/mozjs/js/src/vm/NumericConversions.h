@@ -132,11 +132,10 @@ ToIntWidth(double d)
 inline int32_t
 ToInt32(double d)
 {
-#if defined(__ANDROID__) && defined(__clang__) && \
-    __clang_major__ == 3 && __clang_minor__ == 8
-#define ANDROID_CLANG38 1
+#if defined(__ANDROID__) && defined(__clang__)
+#define ANDROID_CLANG 1
 #endif
-#if defined (__arm__) && defined (__GNUC__) && !defined(ANDROID_CLANG38)
+#if defined (__arm__) && defined (__GNUC__) && !defined(ANDROID_CLANG)
     int32_t i;
     uint32_t    tmp0;
     uint32_t    tmp1;
@@ -260,7 +259,7 @@ ToInt32(double d)
 #else
     return detail::ToIntWidth<int32_t>(d);
 #endif
-#undef ANDROID_CLANG38
+#undef ANDROID_CLANG
 }
 
 /* ES5 9.6 (specialized for doubles). */

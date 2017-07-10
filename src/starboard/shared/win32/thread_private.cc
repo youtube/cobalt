@@ -52,8 +52,17 @@ void RegisterMainThread() {
 }
 
 SbThreadPrivate* GetCurrentSbThreadPrivate() {
-  return static_cast<SbThreadPrivate*>(SbThreadGetLocalValue(
-      GetThreadSubsystemSingleton()->thread_private_key_));
+  SbThreadPrivate* sb_thread_private =
+      static_cast<SbThreadPrivate*>(SbThreadGetLocalValue(
+          GetThreadSubsystemSingleton()->thread_private_key_));
+  if (sb_thread_private == nullptr) {
+    // We are likely on a thread we did not create, so TLS needs to be setup.
+    RegisterMainThread();
+    sb_thread_private = static_cast<SbThreadPrivate*>(SbThreadGetLocalValue(
+        GetThreadSubsystemSingleton()->thread_private_key_));
+    // TODO: Clean up TLS storage for threads we do not create.
+  }
+  return sb_thread_private;
 }
 
 }  // namespace win32

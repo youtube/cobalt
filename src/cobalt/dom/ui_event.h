@@ -20,6 +20,7 @@
 #include "base/string_piece.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
+#include "cobalt/dom/ui_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/wrappable.h"
 
@@ -28,15 +29,17 @@ namespace dom {
 
 // The UIEvent provides specific contextual information associated with User
 // Interface events.
-//   https://www.w3.org/TR/DOM-Level-3-Events/#events-uievents
+//   https://www.w3.org/TR/2016/WD-uievents-20160804/#events-uievents
 class UIEvent : public Event {
  public:
   explicit UIEvent(const std::string& type);
+  UIEvent(const std::string& type, const UIEventInit& init_dict);
 
   // Creates an event with its "initialized flag" unset.
   explicit UIEvent(UninitializedFlag uninitialized_flag);
 
-  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable);
+  UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+          const scoped_refptr<Window>& view);
 
   // Web API: UIEvent
   //
@@ -44,20 +47,27 @@ class UIEvent : public Event {
                    const scoped_refptr<Window>& view, int32 detail);
 
   const scoped_refptr<Window>& view() const { return view_; }
+  int32 detail() const { return detail_; }
+
   // The following properties are defined inside UIEvent but are not valid for
   // all UIEvent subtypes.  Subtypes should override the getters when necessary.
   virtual int32 page_x() const { return 0; }
   virtual int32 page_y() const { return 0; }
-  virtual uint32 which() const { return 0; }
+  virtual uint32 which() const { return which_; }
 
   DEFINE_WRAPPABLE_TYPE(UIEvent);
 
  protected:
   explicit UIEvent(base::Token type);
+  explicit UIEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
+                   const scoped_refptr<Window>& view,
+                   const UIEventInit& init_dict);
 
   ~UIEvent() OVERRIDE {}
 
   scoped_refptr<Window> view_;
+  int32 detail_;
+  uint32 which_;
 };
 
 }  // namespace dom

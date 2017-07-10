@@ -39,19 +39,18 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 6
+#define SB_MAXIMUM_API_VERSION 7
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 6
+#define SB_EXPERIMENTAL_API_VERSION 7
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-// #undef SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_RELEASE_CANDIDATE_API_VERSION 5
+#define SB_RELEASE_CANDIDATE_API_VERSION 6
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -65,29 +64,18 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Introduce pointer (mouse) input support. This extends the SbInput interface
-// with some enum values and data members to allow mouse, wheel, and more
-// generic pointer input.
-#define SB_POINTER_INPUT_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// SbMediaAudioHeader::audio_specific_config will be a pointer instead of an
-// array.
-#define SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER SB_EXPERIMENTAL_API_VERSION
-
-// Removes SbTimeZoneGetDstName() - Daylight saving time version of time zone.
-// Changes SbTimeZoneGetName() is more flexible now in what it is allowed to
-// return.
-#define SB_TIME_ZONE_FLEXIBLE_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Adds the convenience inline function, SbDecodeTargetNumberOfPlanesForFormat()
-// to starboard/decode_target.h.
-#define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_EXPERIMENTAL_API_VERSION
-
 // --- Release Candidate Feature Defines -------------------------------------
 
-#define SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION \
+#define SB_POINTER_INPUT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_TIME_ZONE_FLEXIBLE_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_PRELOAD_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_PLATFORM_ERROR_CLEANUP_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION \
   SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_SPEECH_RECOGNIZER_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_COLOR_KEYCODES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_LOW_MEMORY_EVENT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -117,6 +105,7 @@
 
 // Determines at compile-time if this platform implements a given Starboard API
 // version number (or above).
+// This macro is deprecated, please instead use the expanded form directly.
 #define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
 
 // A constant expression that evaluates to the size_t size of a statically-sized
@@ -450,11 +439,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
-#if SB_VERSION(2) && !defined(SB_HAS_MICROPHONE)
+#if SB_API_VERSION >= 2 && !defined(SB_HAS_MICROPHONE)
 #error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
-#if SB_VERSION(3) && !defined(SB_HAS_TIME_THREAD_NOW)
+#if SB_API_VERSION >= 3 && !defined(SB_HAS_TIME_THREAD_NOW)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
@@ -574,11 +563,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 #endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
-#endif  // SB_API_VERSION >= SB_SPEECH_RECOGNIZER_API_VERSION
+#endif  // SB_API_VERSION >= 5
 
 // --- Derived Configuration -------------------------------------------------
 

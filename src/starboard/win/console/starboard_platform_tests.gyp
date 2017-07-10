@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  'variables': {
+    'sb_pedantic_warnings': 1,
+  },
   'targets': [
     {
       'target_name': 'starboard_platform_tests',

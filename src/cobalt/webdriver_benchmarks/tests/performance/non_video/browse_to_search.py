@@ -38,13 +38,13 @@ class BrowseToSearchTest(tv_testcase.TvTestCase):
   def test_simple(self):
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, BROWSE_TO_SEARCH_EVENT_NAME, BROWSE_TO_SEARCH_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
+    recorder_options.record_animations = False
     browse_to_search_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
 
     recorder_options = tv_testcase_event_recorder.EventRecorderOptions(
         self, SEARCH_TO_BROWSE_EVENT_NAME, SEARCH_TO_BROWSE_EVENT_TYPE)
-    recorder_options.record_rasterize_animations = False
+    recorder_options.record_animations = False
     search_to_browse_recorder = tv_testcase_event_recorder.EventRecorder(
         recorder_options)
 

@@ -12,21 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
-  'includes': [ '../shared/starboard_platform.gypi' ],
-  'sources': [
-    'atomic_public.h',
-    'configuration_public.h',
-    'thread_types_public.h',
+  'includes': [
+    '../shared/starboard_platform.gypi',
+    '../../shared/uwp/starboard_platform.gypi'
   ],
   'variables': {
-    'starboard_platform_dependent_sources': [
+    'starboard_platform_dependent_files': [
       'atomic_public.h',
       'configuration_public.h',
       'thread_types_public.h',
-      'main.cc',
       '../shared/system_get_path.cc',
-      '<(DEPTH)/starboard/shared/uwp/application_uwp.cc',
-      '<(DEPTH)/starboard/shared/uwp/application_uwp.h',
     ],
-  },
+  }
 }

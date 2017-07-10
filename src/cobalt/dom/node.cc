@@ -36,6 +36,7 @@
 #include "cobalt/dom/node_list_live.h"
 #include "cobalt/dom/rule_matching.h"
 #include "cobalt/dom/text.h"
+#include "cobalt/dom/window.h"
 #if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -85,8 +86,8 @@ base::LazyInstance<NodeCountLog> node_count_log = LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
-// Algorithm for DispatchEvent:
-//   https://www.w3.org/TR/dom/#dispatching-events
+// Diagram for DispatchEvent:
+//  https://www.w3.org/TR/DOM-Level-3-Events/#event-flow
 bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event);
   DCHECK(!event->IsBeingDispatched());
@@ -100,38 +101,59 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
   }
 
   // The event is now being dispatched. Track it in the global stats.
-  GlobalStats::GetInstance()->StartDispatchEvent();
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
+  scoped_refptr<Window> window;
+  if (IsInDocument()) {
+    DCHECK(node_document());
+    window = node_document()->default_view();
+  }
 
   typedef std::vector<scoped_refptr<Node> > Ancestors;
   Ancestors ancestors;
-  for (scoped_refptr<Node> current = this->parent_node(); current != NULL;
+  for (Node* current = this->parent_node(); current != NULL;
        current = current->parent_node()) {
     ancestors.push_back(current);
   }
 
   event->set_target(this);
 
-  // The capture phase
-  if (!ancestors.empty()) {
-    event->set_event_phase(Event::kCapturingPhase);
+  // The capture phase: The event object propagates through the target's
+  // ancestors from the Window to the target's parent. This phase is also known
+  // as the capturing phase.
+  event->set_event_phase(Event::kCapturingPhase);
+  if (window) {
+    window->FireEventOnListeners(event);
+  }
+  if (!event->propagation_stopped() && !ancestors.empty()) {
     for (Ancestors::reverse_iterator iter = ancestors.rbegin();
          iter != ancestors.rend() && !event->propagation_stopped(); ++iter) {
       (*iter)->FireEventOnListeners(event);
     }
   }
 
-  // The at target phase
   if (!event->propagation_stopped()) {
+    // The target phase: The event object arrives at the event object's event
+    // target. This phase is also known as the at-target phase.
     event->set_event_phase(Event::kAtTarget);
     FireEventOnListeners(event);
   }
 
-  // The bubbling phase
-  if (!event->propagation_stopped() && event->bubbles() && !ancestors.empty()) {
-    event->set_event_phase(Event::kBubblingPhase);
-    for (Ancestors::iterator iter = ancestors.begin();
-         iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
-      (*iter)->FireEventOnListeners(event);
+  // If the event type indicates that the event doesn't bubble, then the event
+  // object will halt after completion of this phase.
+  if (!event->propagation_stopped() && event->bubbles()) {
+    if (!ancestors.empty()) {
+      // The bubble phase: The event object propagates through the target's
+      // ancestors in reverse order, starting with the target's parent and
+      // ending with the Window. This phase is also known as the bubbling phase.
+      event->set_event_phase(Event::kBubblingPhase);
+      for (Ancestors::iterator iter = ancestors.begin();
+           iter != ancestors.end() && !event->propagation_stopped(); ++iter) {
+        (*iter)->FireEventOnListeners(event);
+      }
+      if (window) {
+        window->FireEventOnListeners(event);
+      }
     }
   }
 
@@ -139,14 +161,14 @@ bool Node::DispatchEvent(const scoped_refptr<Event>& event) {
 
   // The event has completed being dispatched. Stop tracking it in the global
   // stats.
-  GlobalStats::GetInstance()->StopDispatchEvent();
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
 
   return !event->default_prevented();
 }
 
 // Algorithm for owner_document:
 //   https://www.w3.org/TR/2015/WD-dom-20150618/#dom-node-ownerdocument
-scoped_refptr<Document> Node::owner_document() const {
+Document* Node::owner_document() const {
   // 1. If the context object is a document, return null.
   if (IsDocument()) {
     return NULL;
@@ -155,7 +177,7 @@ scoped_refptr<Document> Node::owner_document() const {
   return node_document();
 }
 
-scoped_refptr<Element> Node::parent_element() const {
+Element* Node::parent_element() const {
   return parent_ ? parent_->AsElement() : NULL;
 }
 
@@ -322,7 +344,7 @@ scoped_refptr<HTMLCollection> Node::children() const {
   return HTMLCollection::CreateWithChildElements(this);
 }
 
-scoped_refptr<Element> Node::first_element_child() const {
+Element* Node::first_element_child() const {
   Node* child = first_child();
   while (child) {
     if (child->IsElement()) {
@@ -333,7 +355,7 @@ scoped_refptr<Element> Node::first_element_child() const {
   return NULL;
 }
 
-scoped_refptr<Element> Node::last_element_child() const {
+Element* Node::last_element_child() const {
   Node* child = last_child();
   while (child) {
     if (child->IsElement()) {
@@ -366,7 +388,7 @@ scoped_refptr<NodeList> Node::QuerySelectorAll(const std::string& selectors) {
       this, selectors, node_document_->html_element_context()->css_parser());
 }
 
-scoped_refptr<Element> Node::previous_element_sibling() const {
+Element* Node::previous_element_sibling() const {
   Node* sibling = previous_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -377,7 +399,7 @@ scoped_refptr<Element> Node::previous_element_sibling() const {
   return NULL;
 }
 
-scoped_refptr<Element> Node::next_element_sibling() const {
+Element* Node::next_element_sibling() const {
   Node* sibling = next_sibling();
   while (sibling) {
     if (sibling->IsElement()) {
@@ -415,25 +437,25 @@ void Node::AdoptIntoDocument(Document* document) {
   // 4. Not needed by Cobalt.
 }
 
-scoped_refptr<Node> Node::GetRootNode() {
+Node* Node::GetRootNode() {
   Node* root = this;
   while (root->parent_node()) {
     root = root->parent_node();
   }
-  return make_scoped_refptr(root);
+  return root;
 }
 
-scoped_refptr<CDATASection> Node::AsCDATASection() { return NULL; }
+CDATASection* Node::AsCDATASection() { return NULL; }
 
-scoped_refptr<Comment> Node::AsComment() { return NULL; }
+Comment* Node::AsComment() { return NULL; }
 
-scoped_refptr<Document> Node::AsDocument() { return NULL; }
+Document* Node::AsDocument() { return NULL; }
 
-scoped_refptr<DocumentType> Node::AsDocumentType() { return NULL; }
+DocumentType* Node::AsDocumentType() { return NULL; }
 
-scoped_refptr<Element> Node::AsElement() { return NULL; }
+Element* Node::AsElement() { return NULL; }
 
-scoped_refptr<Text> Node::AsText() { return NULL; }
+Text* Node::AsText() { return NULL; }
 
 void Node::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);

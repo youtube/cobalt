@@ -40,85 +40,75 @@
       'cobalt_config/include',
       '<(DEPTH)/third_party/icu/source/common',
     ],
+    'common_msvs_disabled_warnings': [
+      # Level 2, Possible loss of data due to type conversion.
+      4244,
+      # Level 3, Possible loss of data due to type conversion from size_t.
+      4267,
+    ],
 
     'conditions': [
       ['target_arch == "x86"', {
         'common_defines': [
           'JS_CPU_X86=1',
+          'JS_CODEGEN_X86=1',
           'JS_NUNBOX32=1',
         ],
       }],
       ['target_arch == "x64"', {
         'common_defines': [
           'JS_CPU_X64=1',
+          'JS_CODEGEN_X64=1',
           'JS_PUNBOX64=1',
         ],
       }],
       ['target_arch == "arm"', {
         'common_defines': [
           'JS_CPU_ARM=1',
+          'JS_CODEGEN_ARM=1',
           'JS_NUNBOX32=1',
         ],
       }],
       ['target_arch == "arm64"', {
         'common_defines': [
           'JS_CPU_ARM64=1',
+          'JS_CODEGEN_ARM64=1',
           'JS_PUNBOX64=1',
+          # arm64 jit appears to not be ready, won't even compile without
+          # compiling in the simulator.  It is highly recommended that
+          # |cobalt_enable_jit| be set to |0| when building for architecture
+          # |arm64|.
+          'JS_SIMULATOR=1',
+          'JS_SIMULATOR_ARM64=1',
         ],
       }],
       ['target_arch == "mips"', {
         'common_defines': [
           'JS_CPU_MIPS=1',
+          'JS_CODEGEN_MIPS32=1',
           'JS_NUNBOX32=1',
         ],
       }],
       ['target_arch == "mips64"', {
         'common_defines': [
           'JS_CPU_MIPS=1',
-          'JS_PUNBOX64=1',
-        ],
-      }],
-      # TODO: Remove once ps4 configuration todos are addressed.
-      ['target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
-        'common_defines': [
-          'JS_CPU_X64=1',
+          'JS_CODEGEN_MIPS64=1',
           'JS_PUNBOX64=1',
         ],
       }],
 
-      ['cobalt_enable_jit == 0', {
+      ['cobalt_enable_jit != 1', {
         'common_defines': [
-          'JS_CODEGEN_NONE=1',
+          'COBALT_DISABLE_JIT=1',
         ],
       }],
-      ['target_arch == "x86" and cobalt_enable_jit == 1', {
+
+      # TODO: Remove once ps4 configuration todos are addressed.
+      ['target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
         'common_defines': [
-          'JS_CODEGEN_X86=1',
-        ],
-      }],
-      ['target_arch == "x64" and cobalt_enable_jit == 1', {
-        'common_defines': [
+          'JS_CPU_X64=1',
           'JS_CODEGEN_X64=1',
-        ],
-      }],
-      ['target_arch == "arm" and cobalt_enable_jit == 1', {
-        'common_defines': [
-          'JS_CODEGEN_ARM=1',
-        ],
-      }],
-      ['target_arch == "arm64" and cobalt_enable_jit == 1', {
-        'common_defines': [
-          'JS_CODEGEN_ARM64=1',
-        ],
-      }],
-      ['target_arch == "mips" and cobalt_enable_jit == 1', {
-        'common_defines': [
-          'JS_CODEGEN_MIPS32=1',
-        ],
-      }],
-      ['target_arch == "mips64" and cobalt_enable_jit == 1', {
-        'common_defines': [
-          'JS_CODEGEN_MIPS64=1',
+          'JS_PUNBOX64=1',
         ],
       }],
 
@@ -138,6 +128,12 @@
 
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
+    'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+
+    # Unfortunately, there is code that generate warnings in the headers.
+    'direct_dependent_settings': {
+      'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+    },
   },
 
   'targets': [
@@ -165,7 +161,7 @@
         '<@(mozjs-45_sources)',
       ],
       'conditions': [
-        ['target_arch == "x86" and cobalt_enable_jit == 1', {
+        ['target_arch == "x86"', {
           'sources': [
             'js/src/jit/x86-shared/Architecture-x86-shared.cpp',
             'js/src/jit/x86-shared/Assembler-x86-shared.cpp',
@@ -188,7 +184,8 @@
             'js/src/jit/x86/Trampoline-x86.cpp',
           ],
         }],
-        ['target_arch == "x64" and cobalt_enable_jit == 1', {
+        # TODO: Remove "* == ps4" once ps4 configuration todos are addressed.
+        ['target_arch == "x64" or target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
           'sources': [
             'js/src/jit/x64/Assembler-x64.cpp',
             'js/src/jit/x64/Bailouts-x64.cpp',
@@ -211,7 +208,7 @@
             'js/src/jit/x86-shared/MoveEmitter-x86-shared.cpp',
           ],
         }],
-        ['target_arch == "arm" and cobalt_enable_jit == 1', {
+        ['target_arch == "arm"', {
           'sources': [
             'js/src/jit/arm/Architecture-arm.cpp',
             'js/src/jit/arm/Architecture-arm.h',
@@ -243,7 +240,7 @@
             'js/src/jit/arm/Trampoline-arm.cpp',
           ],
         }],
-        ['target_arch == "arm64" and cobalt_enable_jit == 1', {
+        ['target_arch == "arm64"', {
           'sources': [
             'js/src/jit/arm64/Architecture-arm64.cpp',
             'js/src/jit/arm64/Architecture-arm64.h',
@@ -270,9 +267,23 @@
             'js/src/jit/arm64/SharedICHelpers-arm64.h',
             'js/src/jit/arm64/SharedICRegisters-arm64.h',
             'js/src/jit/arm64/Trampoline-arm64.cpp',
+            'js/src/jit/arm64/vixl/Assembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/Cpu-vixl.cpp',
+            'js/src/jit/arm64/vixl/Debugger-vixl.cpp',
+            'js/src/jit/arm64/vixl/Decoder-vixl.cpp',
+            'js/src/jit/arm64/vixl/Disasm-vixl.cpp',
+            'js/src/jit/arm64/vixl/Instructions-vixl.cpp',
+            'js/src/jit/arm64/vixl/Instrument-vixl.cpp',
+            'js/src/jit/arm64/vixl/Logic-vixl.cpp',
+            'js/src/jit/arm64/vixl/MacroAssembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozAssembler-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozInstructions-vixl.cpp',
+            'js/src/jit/arm64/vixl/MozSimulator-vixl.cpp',
+            'js/src/jit/arm64/vixl/Simulator-vixl.cpp',
+            'js/src/jit/arm64/vixl/Utils-vixl.cpp',
           ],
         }],
-        ['target_arch == "mips" and cobalt_enable_jit == 1', {
+        ['target_arch == "mips"', {
           'sources': [
             'js/src/jit/mips-shared/Architecture-mips-shared.cpp',
             'js/src/jit/mips-shared/Assembler-mips-shared.cpp',
@@ -296,7 +307,7 @@
             'js/src/jit/mips32/Trampoline-mips32.cpp',
           ],
         }],
-        ['target_arch == "mips64" and cobalt_enable_jit == 1', {
+        ['target_arch == "mips64"', {
           'sources': [
             'js/src/jit/mips-shared/Architecture-mips-shared.cpp',
             'js/src/jit/mips-shared/Assembler-mips-shared.cpp',
@@ -318,11 +329,6 @@
             'js/src/jit/mips64/MoveEmitter-mips64.cpp',
             'js/src/jit/mips64/SharedIC-mips64.cpp',
             'js/src/jit/mips64/Trampoline-mips64.cpp',
-          ],
-        }],
-        ['cobalt_enable_jit == 0', {
-          'sources': [
-            'js/src/jit/none/Trampoline-none.cpp',
           ],
         }],
       ],

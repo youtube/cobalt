@@ -110,7 +110,7 @@ void TextAlternativeHelper::AppendTextAlternative(
   // Rule 1
   // Skip hidden elements unless the author specifies to use them via an
   // aria-labelledby or aria-describedby being used in the current computation.
-  if (!in_labelled_by_ && IsAriaHidden(element)) {
+  if (!in_labelled_by_or_described_by_ && IsAriaHidden(element)) {
     return;
   }
 
@@ -118,8 +118,9 @@ void TextAlternativeHelper::AppendTextAlternative(
   // The aria-labelledby attribute takes precedence as the element's text
   // alternative unless this computation is already occurring as the result of a
   // recursive aria-labelledby declaration.
-  if (!in_labelled_by_) {
-    if (TryAppendFromLabelledBy(element)) {
+  if (!in_labelled_by_or_described_by_) {
+    if (TryAppendFromLabelledByOrDescribedBy(element,
+                                             base::Tokens::aria_labelledby())) {
       return;
     }
   }
@@ -180,6 +181,16 @@ void TextAlternativeHelper::AppendTextAlternative(
     scoped_refptr<dom::Node> child = children->Item(i);
     AppendTextAlternative(child);
   }
+
+  // 5.6.1.2. Description Compution
+  // If aria-describedby is present, user agents MUST compute the accessible
+  // description by concatenating the text alternatives for nodes referenced by
+  // an aria-describedby attribute on the current node. The text alternatives
+  // for the referenced nodes are computed using a number of methods.
+  if (!in_labelled_by_or_described_by_) {
+    TryAppendFromLabelledByOrDescribedBy(element,
+                                         base::Tokens::aria_describedby());
+  }
 }
 
 std::string TextAlternativeHelper::GetTextAlternative() {
@@ -199,36 +210,34 @@ bool TextAlternativeHelper::IsAriaHidden(
   return IsAriaHidden(element->parent_element());
 }
 
-bool TextAlternativeHelper::TryAppendFromLabelledBy(
-    const scoped_refptr<dom::Element>& element) {
-  DCHECK(!in_labelled_by_);
-  base::optional<std::string> labelled_by_attribute =
-      element->GetAttribute(base::Tokens::aria_labelledby().c_str());
-  std::vector<std::string> labelled_by_ids;
+bool TextAlternativeHelper::TryAppendFromLabelledByOrDescribedBy(
+    const scoped_refptr<dom::Element>& element, const base::Token& token) {
+  DCHECK(!in_labelled_by_or_described_by_);
+  base::optional<std::string> attributes = element->GetAttribute(token.c_str());
+  std::vector<std::string> ids;
   // If aria-labelledby is empty or undefined, the aria-label attribute ... is
   // used (defined below).
-  base::SplitStringAlongWhitespace(labelled_by_attribute.value_or(""),
-                                   &labelled_by_ids);
+  base::SplitStringAlongWhitespace(attributes.value_or(""), &ids);
   const size_t current_num_alternatives = alternatives_.size();
-  if (!labelled_by_ids.empty()) {
-    in_labelled_by_ = true;
-    for (int i = 0; i < labelled_by_ids.size(); ++i) {
-      if (visited_element_ids_.find(base::Token(labelled_by_ids[i])) !=
+  if (!ids.empty()) {
+    in_labelled_by_or_described_by_ = true;
+    for (int i = 0; i < ids.size(); ++i) {
+      if (visited_element_ids_.find(base::Token(ids[i])) !=
           visited_element_ids_.end()) {
-        DLOG(WARNING) << "Skipping reference to ID: " << labelled_by_ids[i]
+        DLOG(WARNING) << "Skipping reference to ID: " << ids[i]
                       << " to prevent reference loop.";
         continue;
       }
-      scoped_refptr<dom::Element> labelled_by_element =
-          GetElementById(element, labelled_by_ids[i]);
-      if (!labelled_by_element) {
-        DLOG(WARNING) << "Could not find aria-labelledby target: "
-                      << labelled_by_ids[i];
+      scoped_refptr<dom::Element> target_element =
+          GetElementById(element, ids[i]);
+      if (!target_element) {
+        DLOG(WARNING) << "Could not find " << token.c_str()
+                      << " target: " << ids[i];
         continue;
       }
-      AppendTextAlternative(labelled_by_element);
+      AppendTextAlternative(target_element);
     }
-    in_labelled_by_ = false;
+    in_labelled_by_or_described_by_ = false;
   }
   // Check if any of these recursive calls to AppendTextAlternative actually
   // ended up appending something.

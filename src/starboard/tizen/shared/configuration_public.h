@@ -17,9 +17,6 @@
 #ifndef STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_TIZEN_SHARED_CONFIGURATION_PUBLIC_H_
 
-// The API version implemented by this platform.
-#define SB_API_VERSION 1
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -48,9 +45,6 @@
 
 // Whether the current platform provides the standard header float.h.
 #define SB_HAS_FLOAT_H 1
-
-// Whether the current platform provides ssize_t.
-#define SB_HAS_SSIZE_T 1
 
 // Type detection for wchar_t.
 #if defined(__WCHAR_MAX__) && \
@@ -251,7 +245,7 @@
 // --- Network Configuration -------------------------------------------------
 
 // Specifies whether this platform supports IPV6.
-#define SB_HAS_IPV6 1
+#define SB_HAS_IPV6 0
 
 // Specifies whether this platform supports pipe.
 #define SB_HAS_PIPE 1

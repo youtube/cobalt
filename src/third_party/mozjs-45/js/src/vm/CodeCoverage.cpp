@@ -10,7 +10,9 @@
 #include "mozilla/IntegerPrintfMacros.h"
 
 #include <stdio.h>
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+#include "starboard/thread.h"
+#elif defined(XP_WIN)
 # include <windows.h>
 #else
 # include <unistd.h>
@@ -509,7 +511,9 @@ LCovCompartment::writeCompartmentName(JSCompartment* comp)
 
 LCovRuntime::LCovRuntime()
   : out_(),
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+  pid_(SbThreadGetId()),
+#elif defined(XP_WIN)
     pid_(GetCurrentProcessId()),
 #else
     pid_(getpid()),
@@ -578,7 +582,9 @@ LCovRuntime::writeLCovResult(LCovCompartment& comp)
     if (!out_.isInitialized())
         return;
 
-#if defined(XP_WIN)
+#if defined(STARBOARD)
+    size_t p = SbThreadGetId();
+#elif defined(XP_WIN)
     size_t p = GetCurrentProcessId();
 #else
     size_t p = getpid();

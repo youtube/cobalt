@@ -710,69 +710,11 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromDirection(
   }
 }
 
-// Returns the corner points that should be used to calculate the source and
-// destination gradient points.  This is determined by which quadrant the
-// gradient direction vector lies within.
-std::pair<math::PointF, math::PointF>
-GetSourceAndDestinationPointsFromGradientVector(
-    const math::Vector2dF& gradient_vector, const math::SizeF& frame_size) {
-  std::pair<math::PointF, math::PointF> ret;
-  if (gradient_vector.x() >= 0 && gradient_vector.y() >= 0) {
-    ret.first = math::PointF(0, 0);
-    ret.second = math::PointF(frame_size.width(), frame_size.height());
-  } else if (gradient_vector.x() < 0 && gradient_vector.y() >= 0) {
-    ret.first = math::PointF(frame_size.width(), 0);
-    ret.second = math::PointF(0, frame_size.height());
-  } else if (gradient_vector.x() < 0 && gradient_vector.y() < 0) {
-    ret.first = math::PointF(frame_size.width(), frame_size.height());
-    ret.second = math::PointF(0, 0);
-  } else if (gradient_vector.x() >= 0 && gradient_vector.y() < 0) {
-    ret.first = math::PointF(0, frame_size.height());
-    ret.second = math::PointF(frame_size.width(), 0);
-  } else {
-    NOTREACHED();
-  }
-
-  return ret;
-}
-
-math::PointF IntersectLines(math::PointF point_a, math::Vector2dF dir_a,
-                            math::PointF point_b, math::Vector2dF dir_b) {
-  DCHECK(dir_a.y() != 0 || dir_b.y() != 0);
-
-  if (dir_a.x() == 0) {
-    // Swap a and b so that we are guaranteed not to divide by 0.
-    std::swap(point_a, point_b);
-    std::swap(dir_a, dir_b);
-  }
-
-  float slope_a = dir_a.y() / dir_a.x();
-
-  // Calculate how far from |point_b| we should travel in units of |dir_b|
-  // in order to reach the point of intersection.
-  float distance_from_point_b =
-      (point_a.y() - point_b.y() + slope_a * (point_b.x() - point_a.x())) /
-      (dir_b.y() - slope_a * dir_b.x());
-
-  dir_b.Scale(distance_from_point_b);
-  return point_b + dir_b;
-}
-
 std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
     float angle_in_radians, const math::SizeF& frame_size) {
   // The method of defining the source and destination points for the linear
   // gradient are defined here:
   //   https://www.w3.org/TR/2012/CR-css3-images-20120417/#linear-gradients
-  //
-  // "Starting from the center of the gradient box, extend a line at the
-  //  specified angle in both directions. The ending point is the point on the
-  //  gradient line where a line drawn perpendicular to the gradient line would
-  //  intersect the corner of the gradient box in the specified direction. The
-  //  starting point is determined identically, but in the opposite direction."
-
-  // First determine the line parallel to the gradient angle.
-  math::PointF gradient_line_point(frame_size.width() / 2.0f,
-                                   frame_size.height() / 2.0f);
 
   // The angle specified by linear gradient has "up" as its origin direction
   // and rotates clockwise as the angle increases.  We must convert this to
@@ -780,29 +722,8 @@ std::pair<math::PointF, math::PointF> LinearGradientPointsFromAngle(
   // we can pass it into the trigonometric functions cos() and sin().
   float ccw_angle_from_right = -angle_in_radians + static_cast<float>(M_PI / 2);
 
-  // Note that we flip the y value here since we move down in our screen space
-  // as y increases.
-  math::Vector2dF gradient_vector(
-      static_cast<float>(cos(ccw_angle_from_right)),
-      static_cast<float>(-sin(ccw_angle_from_right)));
-
-  // Determine the line direction that is perpendicular to the gradient line.
-  math::Vector2dF perpendicular_vector(-gradient_vector.y(),
-                                       gradient_vector.x());
-
-  // Determine the corner points that should be used to calculate the source
-  // and destination points, based on which quadrant the gradient direction
-  // vector lies within.
-  std::pair<math::PointF, math::PointF> corners =
-      GetSourceAndDestinationPointsFromGradientVector(gradient_vector,
-                                                      frame_size);
-
-  // Intersect the perpendicular line running through the source corner with
-  // the gradient line to get our source point.
-  return std::make_pair(IntersectLines(gradient_line_point, gradient_vector,
-                                       corners.first, perpendicular_vector),
-                        IntersectLines(gradient_line_point, gradient_vector,
-                                       corners.second, perpendicular_vector));
+  return render_tree::LinearGradientPointsFromAngle(
+      ccw_angle_from_right, frame_size);
 }
 
 // The specifications indicate that if positions are not specified for color

@@ -37,7 +37,7 @@ class ResourceProviderArrayBufferAllocator
   void Free(void* p) OVERRIDE;
 
   scoped_ptr<render_tree::RawImageMemory> gpu_memory_buffer_space_;
-  starboard::LockedPtr<nb::MemoryPool> gpu_memory_pool_;
+  starboard::LockedPtr<nb::FirstFitMemoryPool> gpu_memory_pool_;
 };
 
 }  // namespace browser

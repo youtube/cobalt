@@ -83,10 +83,18 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
     return false;
   }
 
+  // The event is now being dispatched. Track it in the global stats.
+  GlobalStats::GetInstance()->StartJavaScriptEvent();
+
   event->set_target(this);
   event->set_event_phase(Event::kAtTarget);
   FireEventOnListeners(event);
   event->set_event_phase(Event::kNone);
+
+  // The event has completed being dispatched. Stop tracking it in the global
+  // stats.
+  GlobalStats::GetInstance()->StopJavaScriptEvent();
+
   return !event->default_prevented();
 }
 

@@ -29,6 +29,7 @@
 #include "cobalt/base/address_sanitizer.h"
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/css_parser/parser.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/debug_server.h"
@@ -37,9 +38,11 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/layout/layout_manager.h"
@@ -74,7 +77,7 @@ namespace browser {
 // This necessarily implies that details contained within WebModule, such as the
 // DOM, are intentionally kept private, since these structures expect to be
 // accessed from only one thread.
-class WebModule {
+class WebModule : public LifecycleObserver {
  public:
   struct Options {
     typedef base::Callback<scoped_refptr<script::Wrappable>(
@@ -181,6 +184,7 @@ class WebModule {
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
 
   WebModule(const GURL& initial_url,
+            base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
             const base::Closure& window_close_callback,
@@ -193,8 +197,19 @@ class WebModule {
             float layout_refresh_rate, const Options& options);
   ~WebModule();
 
-  // Call this to inject a keyboard event into the web module.
-  void InjectKeyboardEvent(const dom::KeyboardEvent::Data& event);
+  // Call this to inject a keyboard event into the web module. The value for
+  // type represents the event name, for example 'keydown' or 'keyup'.
+  void InjectKeyboardEvent(base::Token type,
+                           const dom::KeyboardEventInit& event);
+
+  // Call this to inject a pointer event into the web module. The value for type
+  // represents the event name, for example 'pointerdown', 'pointerup', or
+  // 'pointermove'.
+  void InjectPointerEvent(base::Token type, const dom::PointerEventInit& event);
+
+  // Call this to inject a wheel event into the web module. The value for type
+  // represents the event name, for example 'wheel'.
+  void InjectWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
   // Call this to execute Javascript code in this web module.  The calling
   // thread will block until the JavaScript has executed and the output results
@@ -217,13 +232,12 @@ class WebModule {
   debug::DebugServer* GetDebugServer();
 #endif  // ENABLE_DEBUG_CONSOLE
 
-  // Suspends the WebModule from creating new render trees, and releases this
-  // web module's reference to the resource provider, clearing it out and
-  // releasing all references to any resources created from it.
-  void Suspend();
-  // Resumes the WebModule, possibly with a new resource provider.  This method
-  // can only be called if we have previously suspended the WebModule.
-  void Resume(render_tree::ResourceProvider* resource_provider);
+  // LifecycleObserver implementation
+  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+  void Pause() OVERRIDE;
+  void Unpause() OVERRIDE;
+  void Suspend() OVERRIDE;
+  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and
@@ -231,6 +245,7 @@ class WebModule {
   struct ConstructionData {
     ConstructionData(
         const GURL& initial_url,
+        base::ApplicationState initial_application_state,
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
         const base::Closure& window_close_callback,
@@ -242,6 +257,7 @@ class WebModule {
         int dom_max_element_depth, system_window::SystemWindow* system_window,
         float layout_refresh_rate, const Options& options)
         : initial_url(initial_url),
+          initial_application_state(initial_application_state),
           render_tree_produced_callback(render_tree_produced_callback),
           error_callback(error_callback),
           window_close_callback(window_close_callback),
@@ -256,6 +272,7 @@ class WebModule {
           options(options) {}
 
     GURL initial_url;
+    base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
     const base::Closure& window_close_callback;

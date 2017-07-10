@@ -22,10 +22,6 @@
 namespace cobalt {
 namespace media {
 
-namespace {
-const bool kPreAllocateAllMemory = true;
-}  // namespace
-
 DecoderBufferAllocator::DecoderBufferAllocator() : memory_block_(NULL) {
   TRACK_MEMORY_SCOPE("Media");
   if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0) {
@@ -36,9 +32,8 @@ DecoderBufferAllocator::DecoderBufferAllocator() : memory_block_(NULL) {
   if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 ||
       COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0) {
     // TODO: Support COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0.
-    memory_pool_.set(starboard::make_scoped_ptr(
-        new nb::MemoryPool(memory_block_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
-                           kPreAllocateAllMemory)));
+    memory_pool_.set(starboard::make_scoped_ptr(new nb::FirstFitMemoryPool(
+        memory_block_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY)));
   }
 }
 
