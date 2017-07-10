@@ -48,16 +48,16 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  VideoDecoderImpl* video_decoder =
-      new VideoDecoderImpl(video_parameters.video_codec);
+  VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
+      video_parameters.video_codec, video_parameters.output_mode,
+      video_parameters.decode_target_graphics_context_provider);
   if (!video_decoder->is_valid()) {
     delete video_decoder;
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
   AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(audio_parameters.job_queue,
-                            scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
+      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
                             audio_parameters.audio_header);
   VideoRendererImpl* video_renderer = new VideoRendererImpl(
       scoped_ptr<HostedVideoDecoder>(video_decoder).Pass());

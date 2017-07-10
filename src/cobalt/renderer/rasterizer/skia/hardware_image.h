@@ -130,21 +130,8 @@ class HardwareFrontendImage : public SinglePlaneImage {
  private:
   ~HardwareFrontendImage() OVERRIDE;
 
-  // The following Initialize functions will construct |backend_image_|, but
-  // only if |backend_image_| is ever needed by the rasterizer thread.
-  void InitializeBackendImageFromImageData(
-      scoped_ptr<HardwareImageData> image_data,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromRawImageData(
-      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-          raw_texture_memory,
-      intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromTexture(GrContext* gr_context);
-  void InitializeBackendImageFromRenderTree(
-      const scoped_refptr<render_tree::Node>& root,
-      const SubmitOffscreenCallback& submit_offscreen_callback,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+  // Helper function to be called from the constructor.
+  void InitializeBackend();
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
@@ -214,6 +201,17 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
       int plane_index) const {
     return planes_[plane_index];
   }
+
+  // Always fallback to custom non-skia code for rendering multi-plane images.
+  // The main reason to unconditionally fallback here is because Skia does a
+  // check internally to see if GL_RED is supported, and if so it will use
+  // GL_RED for 1-channel textures, and if not it will use GL_ALPHA for
+  // 1-channel textures.  If we want to create textures like this manually (and
+  // later wrap it into a Skia texture), we must know in advance which GL format
+  // to set it up as, but Skia's GL_RED support decision is private information
+  // that we can't access.  So, we choose instead to just not rely on Skia
+  // for this so that we don't have to worry about format mismatches.
+  bool CanRenderInSkia() const OVERRIDE { return false; }
 
   bool EnsureInitialized() OVERRIDE;
 

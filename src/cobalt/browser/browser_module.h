@@ -19,19 +19,25 @@
 #include <vector>
 
 #include "base/memory/scoped_ptr.h"
+#include "base/observer_list.h"
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
 #include "cobalt/account/account_manager.h"
+#include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
+#include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
+#include "cobalt/browser/suspend_fuzzer.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/array_buffer.h"
-#include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
@@ -75,7 +81,9 @@ class BrowserModule {
   // a URL before using it to initialize a new WebModule.
   typedef std::vector<URLHandler::URLHandlerCallback> URLHandlerCollection;
 
-  BrowserModule(const GURL& url, system_window::SystemWindow* system_window,
+  BrowserModule(const GURL& url,
+                base::ApplicationState initial_application_state,
+                system_window::SystemWindow* system_window,
                 account::AccountManager* account_manager,
                 const Options& options);
   ~BrowserModule();
@@ -115,11 +123,11 @@ class BrowserModule {
   // Change the network proxy settings while the application is running.
   void SetProxy(const std::string& proxy_rules);
 
-  // Suspends the browser module from activity, and releases all graphical
-  // resources, placing the application into a low-memory state.
+  // LifecycleObserver-similar interface.
+  void Start();
+  void Pause();
+  void Unpause();
   void Suspend();
-
-  // Undoes the call to Suspend(), returning to normal functionality.
   void Resume();
 
  private:
@@ -154,15 +162,28 @@ class BrowserModule {
   // persist the user's preference.
   void SaveDebugConsoleMode();
 
-  // Glue function to deal with the production of an input event from the
-  // input device, and manage handing it off to the web module for
+  // Glue function to deal with the production of a keyboard input event from a
+  // keyboard input device, and manage handing it off to the web module for
   // interpretation.
-  void OnKeyEventProduced(const dom::KeyboardEvent::Data& event);
+  void OnKeyEventProduced(base::Token type,
+                          const dom::KeyboardEventInit& event);
+
+  // Glue function to deal with the production of a pointer input event from a
+  // pointer input device, and manage handing it off to the web module for
+  // interpretation.
+  void OnPointerEventProduced(base::Token type,
+                              const dom::PointerEventInit& event);
+
+  // Glue function to deal with the production of a wheel input event from a
+  // wheel input device, and manage handing it off to the web module for
+  // interpretation.
+  void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main
   // web module and not filtered into the debug console.
-  void InjectKeyEventToMainWebModule(const dom::KeyboardEvent::Data& event);
+  void InjectKeyEventToMainWebModule(base::Token type,
+                                     const dom::KeyboardEventInit& event);
 
   // Error callback for any error that stops the program.
   void OnError(const GURL& url, const std::string& error);
@@ -170,12 +191,13 @@ class BrowserModule {
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEvent(const dom::KeyboardEvent::Data& event);
+  bool FilterKeyEvent(base::Token type, const dom::KeyboardEventInit& event);
 
   // Filters a key event for hotkeys.
   // Returns true if the event should be passed on to other handlers,
   // false if it was consumed within this function.
-  bool FilterKeyEventForHotkeys(const dom::KeyboardEvent::Data& event);
+  bool FilterKeyEventForHotkeys(base::Token type,
+                                const dom::KeyboardEventInit& event);
 
   // Tries all registered URL handlers for a URL. Returns true if one of the
   // handlers handled the URL, false if otherwise.
@@ -228,6 +250,8 @@ class BrowserModule {
   // Poll for render timeout. Called from timeout_polling_thread_.
   void OnPollForRenderTimeout(const GURL& url);
 #endif
+
+  render_tree::ResourceProvider* GetResourceProvider();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -310,6 +334,13 @@ class BrowserModule {
   // which could occur on navigation.
   base::Closure web_module_recreated_callback_;
 
+  // The time when a URL navigation starts. This is recorded after the previous
+  // WebModule is destroyed.
+  base::CVal<int64> navigate_time_;
+
+  // The time when the WebModule's Window.onload event is fired.
+  base::CVal<int64> on_load_event_time_;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   // Possibly null, but if not, will contain a reference to an instance of
   // a debug fuzzer input device manager.
@@ -330,6 +361,8 @@ class BrowserModule {
   // Command handler object for screenshot command from the debug console.
   base::ConsoleCommandManager::CommandHandler screenshot_command_handler_;
 #endif  // defined(ENABLE_SCREENSHOT)
+
+  base::optional<SuspendFuzzer> suspend_fuzzer_;
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
   // Handler object for h5vcc URLs.
@@ -362,9 +395,13 @@ class BrowserModule {
   // ensure synchronous access.
   base::Lock quit_lock_;
 
-  bool suspended_;
-
   system_window::SystemWindow* system_window_;
+
+  // The current application state.
+  base::ApplicationState application_state_;
+
+  // The list of LifecycleObserver that need to be managed.
+  ObserverList<LifecycleObserver> lifecycle_observers_;
 };
 
 }  // namespace browser

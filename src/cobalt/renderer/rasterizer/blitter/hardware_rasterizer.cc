@@ -282,8 +282,11 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
       context, SbBlitterMakeRect(0, 0, size.width(), size.height())));
 
   RenderTreeNodeVisitor visitor(
-      context_->GetSbBlitterDevice(), context,
-      initial_render_state, NULL, NULL, NULL, NULL, NULL);
+      context_->GetSbBlitterDevice(), context, initial_render_state,
+      &scratch_surface_cache_,
+      surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+      surface_cache_ ? &surface_cache_.value() : NULL, &software_surface_cache_,
+      &linear_gradient_cache_);
   render_tree->Accept(&visitor);
 
   CHECK(SbBlitterFlushContext(context));

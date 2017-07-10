@@ -14,6 +14,7 @@
 
 #include "cobalt/input/key_repeat_filter.h"
 
+#include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 
 namespace cobalt {
@@ -36,22 +37,22 @@ KeyRepeatFilter::KeyRepeatFilter(KeyEventHandler* filter)
     : KeyEventHandler(filter) {}
 
 void KeyRepeatFilter::HandleKeyboardEvent(
-    const dom::KeyboardEvent::Data& keyboard_event) {
-  if (keyboard_event.type == dom::KeyboardEvent::kTypeKeyDown) {
-    HandleKeyDown(keyboard_event);
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
+  if (type == base::Tokens::keydown()) {
+    HandleKeyDown(type, keyboard_event);
   }
 
-  if (keyboard_event.type == dom::KeyboardEvent::kTypeKeyUp) {
-    HandleKeyUp(keyboard_event);
+  if (type == base::Tokens::keyup()) {
+    HandleKeyUp(type, keyboard_event);
   }
 }
 
 void KeyRepeatFilter::HandleKeyDown(
-    const dom::KeyboardEvent::Data& keyboard_event) {
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
   // Record the information of the KeyboardEvent for firing repeat events.
   last_event_data_ = keyboard_event;
 
-  DispatchKeyboardEvent(keyboard_event);
+  DispatchKeyboardEvent(type, keyboard_event);
 
   // This key down event is triggered for the first time, so start the timer
   // with |kRepeatInitialDelay|.
@@ -60,21 +61,21 @@ void KeyRepeatFilter::HandleKeyDown(
 }
 
 void KeyRepeatFilter::HandleKeyUp(
-    const dom::KeyboardEvent::Data& keyboard_event) {
-  DispatchKeyboardEvent(keyboard_event);
+    base::Token type, const dom::KeyboardEventInit& keyboard_event) {
+  DispatchKeyboardEvent(type, keyboard_event);
 
   // If it is a key up event and it matches the previous one, stop the key
   // repeat timer.
-  if (last_event_data_->key_code == keyboard_event.key_code) {
+  if (last_event_data_->key_code() == keyboard_event.key_code()) {
     key_repeat_timer_.Stop();
   }
 }
 
 void KeyRepeatFilter::FireKeyRepeatEvent() {
-  dom::KeyboardEvent::Data repeat_event(*last_event_data_);
-  repeat_event.repeat = true;
+  dom::KeyboardEventInit repeat_event(*last_event_data_);
+  repeat_event.set_repeat(true);
 
-  DispatchKeyboardEvent(repeat_event);
+  DispatchKeyboardEvent(base::Tokens::keydown(), repeat_event);
 
   // If |FireKeyRepeatEvent| is triggered for the first time then reset the
   // timer to the repeat rate instead of the initial delay.

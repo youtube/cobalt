@@ -15,6 +15,8 @@
 #ifndef STARBOARD_SHARED_UWP_WINDOW_INTERNAL_H_
 #define STARBOARD_SHARED_UWP_WINDOW_INTERNAL_H_
 
+#include <EGL/egl.h>
+
 #include "starboard/atomic.h"
 #include "starboard/time.h"
 #include "starboard/window.h"
@@ -33,6 +35,8 @@ struct SbWindowPrivate {
   // indicates success.
   bool GetRefreshRate(uint64_t* refresh_rate);
 
+  EGLNativeWindowType egl_native_window() const { return egl_native_window_; }
+
   // The width of this window.
   int width;
 
@@ -46,6 +50,8 @@ struct SbWindowPrivate {
   int output_height;
 
  private:
+  EGLNativeWindowType egl_native_window_;
+
   // Open and Initialize the video output port.
   void SetupVideo();
 

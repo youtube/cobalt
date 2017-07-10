@@ -40,7 +40,7 @@ class Camera3DInputPoller : public Camera3D {
                         float degrees_per_second) OVERRIDE;
   void ClearKeyMapping(int keycode) OVERRIDE;
   void ClearAllKeyMappings() OVERRIDE;
-  base::CameraOrientation GetOrientation() const OVERRIDE;
+  glm::quat GetOrientation() const OVERRIDE;
 
   // Returns the camera transforms based on hand-controlled inputs mapped
   // by the functions above
@@ -64,11 +64,16 @@ class Camera3DInputPoller : public Camera3D {
   typedef std::map<int, KeycodeMappingInfo> KeycodeMap;
 
   void AccumulateOrientation();
+  void ClampAngles();
+
+  glm::quat orientation() const;
 
   mutable base::Lock mutex_;
 
   // The current accumulated camera orientation state.
-  base::CameraOrientation orientation_;
+  float roll_in_radians_;
+  float pitch_in_radians_;
+  float yaw_in_radians_;
 
   // The time that the last update to the camera's state has occurred.
   base::optional<base::TimeTicks> last_update_;

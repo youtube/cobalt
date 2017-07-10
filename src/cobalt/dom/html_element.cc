@@ -328,7 +328,7 @@ float HTMLElement::client_height() {
 
 // Algorithm for offsetParent:
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-htmlelement-offsetparent
-scoped_refptr<Element> HTMLElement::offset_parent() {
+Element* HTMLElement::offset_parent() {
   DCHECK(node_document());
   node_document()->DoSynchronousLayout();
 
@@ -341,7 +341,7 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   if (!layout_boxes_ || IsRootElement() || AsHTMLBodyElement() ||
       !computed_style() ||
       computed_style()->position() == cssom::KeywordValue::GetFixed()) {
-    return scoped_refptr<Element>();
+    return NULL;
   }
 
   // 2. Return the nearest ancestor element of the element for which at least
@@ -349,14 +349,13 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   //    ancestor is found:
   //    . The computed value of the 'position' property is not 'static'.
   //    . It is the HTML body element.
-  for (scoped_refptr<Node> ancestor_node = parent_node(); ancestor_node;
+  for (Node* ancestor_node = parent_node(); ancestor_node;
        ancestor_node = ancestor_node->parent_node()) {
-    scoped_refptr<Element> ancestor_element = ancestor_node->AsElement();
+    Element* ancestor_element = ancestor_node->AsElement();
     if (!ancestor_element) {
       continue;
     }
-    scoped_refptr<HTMLElement> ancestor_html_element =
-        ancestor_element->AsHTMLElement();
+    HTMLElement* ancestor_html_element = ancestor_element->AsHTMLElement();
     if (!ancestor_html_element) {
       continue;
     }
@@ -369,7 +368,7 @@ scoped_refptr<Element> HTMLElement::offset_parent() {
   }
 
   // 3. Return null.
-  return scoped_refptr<Element>();
+  return NULL;
 }
 
 // Algorithm for offset_top:
@@ -600,7 +599,7 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
   // are updated.
   old_matching_rules_.swap(matching_rules_);
 
-  matching_rules_->clear();
+  matching_rules_.clear();
   rule_matching_state_.matching_nodes.clear();
   rule_matching_state_.descendant_potential_nodes.clear();
   rule_matching_state_.following_sibling_potential_nodes.clear();
@@ -739,8 +738,6 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
       ALLOW_THIS_IN_INITIALIZER_LIST(
           animations_adapter_(new DOMAnimatable(this))),
       css_animations_(&animations_adapter_),
-      old_matching_rules_(new cssom::RulesWithCascadePrecedence()),
-      matching_rules_(new cssom::RulesWithCascadePrecedence()),
       matching_rules_valid_(false) {
   css_computed_style_declaration_->set_animations(animations());
   style_->set_mutation_observer(this);
@@ -750,7 +747,11 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
 
 HTMLElement::~HTMLElement() {
   --(non_trivial_static_fields.Get().html_element_count_log.count);
+  if (IsInDocument()) {
+    dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
+  }
   dom_stat_tracker_->OnHtmlElementDestroyed();
+
   style_->set_mutation_observer(NULL);
 }
 
@@ -758,10 +759,14 @@ void HTMLElement::CopyDirectionality(const HTMLElement& other) {
   directionality_ = other.directionality_;
 }
 
-void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
+void HTMLElement::OnInsertedIntoDocument() {
+  Node::OnInsertedIntoDocument();
+  dom_stat_tracker_->OnHtmlElementInsertedIntoDocument();
+}
 
 void HTMLElement::OnRemovedFromDocument() {
   Node::OnRemovedFromDocument();
+  dom_stat_tracker_->OnHtmlElementRemovedFromDocument();
 
   // When an element that is focused stops being a focusable element, or stops
   // being focused without another element being explicitly focused in its
@@ -778,6 +783,8 @@ void HTMLElement::OnRemovedFromDocument() {
     document->OnFocusChange();
   }
 }
+
+void HTMLElement::OnMutation() { InvalidateMatchingRulesRecursively(); }
 
 void HTMLElement::OnSetAttribute(const std::string& name,
                                  const std::string& value) {
@@ -856,7 +863,8 @@ void HTMLElement::RunFocusingSteps() {
   // before focus is shifted, and does bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusin
   DispatchEvent(new FocusEvent(base::Tokens::focusin(), Event::kBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // 3. Make the element the currently focused element in its top-level browsing
   // context.
@@ -871,7 +879,8 @@ void HTMLElement::RunFocusingSteps() {
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focus
   DispatchEvent(new FocusEvent(base::Tokens::focus(), Event::kNotBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
@@ -888,11 +897,12 @@ void HTMLElement::RunUnFocusingSteps() {
   // focus. This event type is similar to blur, but is dispatched before focus
   // is shifted, and does bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-focusout
+  Document* document = node_document();
+  scoped_refptr<Window> window(document ? document->window() : NULL);
   DispatchEvent(new FocusEvent(base::Tokens::focusout(), Event::kBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, window, this));
 
   // 2. Unfocus the element.
-  Document* document = node_document();
   if (document && document->active_element() == this->AsElement()) {
     document->SetActiveElement(NULL);
   }
@@ -904,7 +914,8 @@ void HTMLElement::RunUnFocusingSteps() {
   // focus is shifted, and does not bubble.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#event-type-blur
   DispatchEvent(new FocusEvent(base::Tokens::blur(), Event::kNotBubbles,
-                               Event::kNotCancelable, this));
+                               Event::kNotCancelable, document->window(),
+                               this));
 
   // Custom, not in any sepc.
   InvalidateMatchingRulesRecursively();
@@ -1113,7 +1124,7 @@ void HTMLElement::UpdateComputedStyle(
 
     // Check for whether the matching rules have changed. If they have, then a
     // new computed style must be generated from them.
-    if (!generate_computed_style && *old_matching_rules_ != *matching_rules_) {
+    if (!generate_computed_style && old_matching_rules_ != matching_rules_) {
       generate_computed_style = true;
     }
   }
@@ -1220,6 +1231,22 @@ void HTMLElement::UpdateComputedStyle(
   }
 
   computed_style_valid_ = true;
+}
+
+bool HTMLElement::IsDesignated() {
+  Document* document = node_document();
+  if (document) {
+    scoped_refptr<Element> element = document->indicated_element();
+    while (element) {
+      if (element == this) {
+        return true;
+      }
+      // The parent of an element that is :hover is also in that state.
+      //  https://www.w3.org/TR/selectors4/#hover-pseudo
+      element = element->parent_element();
+    }
+  }
+  return false;
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {

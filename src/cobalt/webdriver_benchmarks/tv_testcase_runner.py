@@ -114,6 +114,9 @@ class CobaltRunner(object):
   def __init__(self, platform, executable, devkit_name, command_line_args,
                default_url, log_file_path):
     global _default_url
+    if default_url is not None:
+      _default_url = default_url
+
     self.selenium_webdriver_module = tv_testcase_util.import_selenium_module(
         "webdriver")
 
@@ -133,10 +136,7 @@ class CobaltRunner(object):
     args.append("--enable_webdriver")
     args.append("--null_savegame")
     args.append("--debug_console=off")
-    args.append("--url=about:blank")
-
-    if default_url is not None:
-      _default_url = default_url
+    args.append("--url=" + _default_url)
 
     self.launcher.SetArgs(args)
     self.launcher.SetOutputCallback(self._HandleLine)

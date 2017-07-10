@@ -15,29 +15,26 @@
 #ifndef STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
+#include <agile.h>
+
+#include <string>
+#include <unordered_map>
+
 #include "starboard/configuration.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
-
-namespace __winRT {
-// TODO: without this, we get the following error at CoreApplication::Run:
-// 'long __winRT::__getActivationFactoryByPCWSTR(i
-//  void *,Platform::Guid &,void **)':
-//  cannot convert argument 1 from 'const wchar_t [46]' to 'void *'
-inline long __getActivationFactoryByPCWSTR(const wchar_t* a,
-                                           Platform::Guid& b,
-                                           void** c) {
-  return __getActivationFactoryByPCWSTR(
-      static_cast<void*>(const_cast<wchar_t*>(a)), b, c);
-}
-}  // namespace __winRT
 
 namespace starboard {
 namespace shared {
 namespace uwp {
+
+// Returns win32's GetModuleFileName(). For cases where we'd like an argv[0].
+std::string GetArgvZero();
 
 class ApplicationUwp : public shared::starboard::Application {
  public:
@@ -48,15 +45,40 @@ class ApplicationUwp : public shared::starboard::Application {
     return static_cast<ApplicationUwp*>(shared::starboard::Application::Get());
   }
 
-// Do not use the macro from windows.h.
-#undef CreateWindow
-#undef CreateWindowW
-  SbWindow CreateWindow(const SbWindowOptions* options);
+  SbWindow CreateWindowForUWP(const SbWindowOptions* options);
 
   bool DestroyWindow(SbWindow window);
 
   void DispatchStart() {
     shared::starboard::Application::DispatchStart();
+  }
+
+  // public for IFrameworkView subclass
+  void SetCommandLine(int argc, const char** argv) {
+    shared::starboard::Application::SetCommandLine(argc, argv);
+  }
+
+  // public for IFrameworkView subclass
+  bool DispatchAndDelete(Application::Event* event) {
+    return shared::starboard::Application::DispatchAndDelete(event);
+  }
+
+  Platform::Agile<Windows::UI::Core::CoreWindow> GetCoreWindow() const {
+    return core_window_;
+  }
+
+  // public for IFrameworkView subclass
+  void SetCoreWindow(Windows::UI::Core::CoreWindow^ window) {
+    core_window_ = window;
+  }
+
+  void OnKeyEvent(Windows::UI::Core::CoreWindow^ sender,
+      Windows::UI::Core::KeyEventArgs^ args, bool up);
+
+  void Inject(Event* event) SB_OVERRIDE;
+
+  void SetStartLink(const char* link) SB_OVERRIDE {
+    shared::starboard::Application::SetStartLink(link);
   }
 
  private:
@@ -66,7 +88,6 @@ class ApplicationUwp : public shared::starboard::Application {
   void Teardown() SB_OVERRIDE;
   Event* GetNextEvent() SB_OVERRIDE;
   bool DispatchNextEvent() SB_OVERRIDE;
-  void Inject(Event* event) SB_OVERRIDE;
   void InjectTimedEvent(TimedEvent* timed_event) SB_OVERRIDE;
   void CancelTimedEvent(SbEventId event_id) SB_OVERRIDE;
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
@@ -74,6 +95,12 @@ class ApplicationUwp : public shared::starboard::Application {
 
   // The single open window, if any.
   SbWindow window_;
+  Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
+
+  Mutex mutex_;
+  // Locked by mutex_
+  std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
+    timer_event_map_;
 };
 
 }  // namespace uwp

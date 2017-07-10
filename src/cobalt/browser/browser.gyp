@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
   'targets': [
     {
@@ -29,6 +29,7 @@
         'debug_console.h',
         'h5vcc_url_handler.cc',
         'h5vcc_url_handler.h',
+        'lifecycle_observer.h',
         'memory_settings/auto_mem.cc',
         'memory_settings/auto_mem.h',
         'memory_settings/build_settings.cc',
@@ -84,6 +85,8 @@
         'splash_screen.h',
         'storage_upgrade_handler.cc',
         'storage_upgrade_handler.h',
+        'suspend_fuzzer.cc',
+        'suspend_fuzzer.h',
         'switches.cc',
         'switches.h',
         'trace_manager.cc',
@@ -126,6 +129,7 @@
         '<(DEPTH)/cobalt/math/math.gyp:math',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
+        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
@@ -195,7 +199,7 @@
       'variables': {
         # This target includes non-Cobalt code that produces pendantic
         # warnings as errors.
-        'cobalt_code': 0,
+        'sb_pedantic_warnings': 0,
       },
       'conditions': [
         ['enable_screenshot==1', {

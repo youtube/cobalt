@@ -43,6 +43,7 @@
 {% endif %}
 #include <string>
 
+#include "base/optional.h"
 #include "cobalt/script/sequence.h"
 {% for include in includes %}
 #include "{{include}}"

@@ -22,6 +22,7 @@
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/timer.h"
+#include "cobalt/base/application_state.h"
 #include "cobalt/cssom/css_parser.h"
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/dom/animation_frame_request_callback_list.h"
@@ -31,12 +32,10 @@
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/parser.h"
-#include "cobalt/dom/url_registry.h"
-#include "cobalt/network_bridge/cookie_jar.h"
-#include "cobalt/network_bridge/net_poster.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
 #endif  // ENABLE_TEST_RUNNER
+#include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/loader/decoder.h"
@@ -48,6 +47,9 @@
 #include "cobalt/loader/mesh/mesh_cache.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/web_media_player_factory.h"
+#include "cobalt/network_bridge/cookie_jar.h"
+#include "cobalt/network_bridge/net_poster.h"
+#include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/script/execution_state.h"
@@ -89,7 +91,8 @@ class WindowTimers;
 //   https://www.w3.org/TR/html5/browsers.html#the-window-object
 //
 // TODO: Properly handle viewport resolution change event.
-class Window : public EventTarget {
+class Window : public EventTarget,
+               public page_visibility::PageVisibilityState::Observer {
  public:
   typedef AnimationFrameRequestCallbackList::FrameRequestCallback
       FrameRequestCallback;
@@ -102,7 +105,8 @@ class Window : public EventTarget {
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
 
   Window(
-      int width, int height, cssom::CSSParser* css_parser, Parser* dom_parser,
+      int width, int height, base::ApplicationState initial_application_state,
+      cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
       render_tree::ResourceProvider** resource_provider,
       loader::image::AnimatedImageTracker* animated_image_tracker,
@@ -278,6 +282,16 @@ class Window : public EventTarget {
   // Sets the function to call to trigger a synchronous layout.
   void SetSynchronousLayoutCallback(
       const base::Closure& synchronous_layout_callback);
+
+  // Sets the current application state, forwarding on to the
+  // PageVisibilityState associated with it and its document, causing
+  // precipitate events to be dispatched.
+  void SetApplicationState(base::ApplicationState state);
+
+  // page_visibility::PageVisibilityState::Observer implementation.
+  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnVisibilityStateChanged(
+      page_visibility::VisibilityState visibility_state) OVERRIDE;
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 

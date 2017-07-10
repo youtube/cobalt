@@ -215,6 +215,11 @@ void LibxmlParserWrapper::OnEndDocument() {
   if (node_stack_.empty()) {
     LOG(WARNING) << "OnEndDocument is called without OnStartDocument.";
   } else {
+    while (parent_node_ != node_stack_.top()) {
+      LOG(WARNING) << "some elements did not get called on OnEndElement()";
+      node_stack_.pop();
+    }
+    DCHECK_GT(node_stack_.size(), static_cast<uint64_t>(0));
     DCHECK_EQ(parent_node_, node_stack_.top());
     node_stack_.pop();
   }

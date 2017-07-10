@@ -1331,7 +1331,8 @@ struct JSRuntime : public JS::shadow::Runtime,
 
     js::DateTimeInfo    dateTimeInfo;
 
-    js::ConservativeGCData conservativeGC;
+    js::ConservativeGCData* conservativeGC_memory;
+    js::ConservativeGCData& conservativeGC;
 
     /* Pool of maps used during parse/emit. */
     js::frontend::ParseMapPool parseMapPool;

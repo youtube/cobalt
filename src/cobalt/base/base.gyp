@@ -58,6 +58,8 @@
         'polymorphic_equatable.h',
         'ref_counted_lock.h',
         'source_location.h',
+        'startup_timer.cc',
+        'startup_timer.h',
         'stop_watch.cc',
         'stop_watch.h',
         'token.cc',

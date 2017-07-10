@@ -96,9 +96,6 @@ class Application {
   base::ThreadChecker network_event_thread_checker_;
   base::ThreadChecker application_event_thread_checker_;
 
-  // Time the application started
-  base::TimeTicks start_time_;
-
 #if defined(ENABLE_WEBDRIVER)
   // WebDriver implementation with embedded HTTP server.
   scoped_ptr<webdriver::WebDriverModule> web_driver_module_;
@@ -141,10 +138,11 @@ class Application {
     base::optional<base::CVal<base::cval::SizeInBytes, base::CValPublic> >
         used_gpu_memory;
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
-    base::CVal<base::cval::SizeInBytes, base::CValPublic> exe_memory;
-#endif
+    // The total memory that is reserved by the engine, including the part that
+    // is actually occupied by JS objects, and the part that is not yet.
+    base::CVal<base::cval::SizeInBytes, base::CValPublic> js_reserved_memory;
 
+    base::CVal<int64> app_start_time;
     base::CVal<base::TimeDelta, base::CValPublic> app_lifetime;
   };
 
@@ -152,7 +150,6 @@ class Application {
   void UpdateAndMaybeRegisterUserAgent();
 
   void UpdatePeriodicStats();
-  void UpdatePeriodicLiteStats();
 
   math::Size InitSystemWindow(CommandLine* command_line);
 
@@ -172,7 +169,6 @@ class Application {
   CValStats c_val_stats_;
 
   base::Timer stats_update_timer_;
-  base::Timer lite_stats_update_timer_;
 
   scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
 

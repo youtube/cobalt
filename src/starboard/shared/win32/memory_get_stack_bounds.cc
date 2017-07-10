@@ -14,10 +14,10 @@
 
 #include "starboard/memory.h"
 
-#include "starboard/log.h"
+#include <windows.h>
 
-void SbMemoryGetStackBounds(void** /*out_high*/, void** /*out_low*/) {
-  // TODO the common way to do this is with NtQueryInformationThread
-  // for ThreadBasicInformation but that may not be available on UWP.
-  SB_NOTIMPLEMENTED();
+void SbMemoryGetStackBounds(void** out_high, void** out_low) {
+  _NT_TIB* tib = reinterpret_cast<_NT_TIB*>(NtCurrentTeb());
+  *out_high = tib->StackBase;
+  *out_low = tib->StackLimit;
 }

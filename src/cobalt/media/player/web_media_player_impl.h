@@ -184,6 +184,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 
   void SetDrmSystem(DrmSystem* drm_system) OVERRIDE;
   void SetDrmSystemReadyCB(const DrmSystemReadyCB& drm_system_ready_cb);
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+  void SetEMEInitDataReadyCB(const EMEInitDataReadyCB& eme_init_data_ready_cb);
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);
@@ -218,6 +221,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
  private:
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
+  void OnOutputModeChanged();
 
   base::Thread pipeline_thread_;
 
@@ -309,6 +313,11 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       media_time_and_seeking_state_cb_;
 
   DrmSystemReadyCB drm_system_ready_cb_;
+
+#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+  EMEInitDataReadyCB eme_init_data_ready_cb_;
+#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+
   DrmSystem* drm_system_;
 
   DISALLOW_COPY_AND_ASSIGN(WebMediaPlayerImpl);

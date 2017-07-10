@@ -27,8 +27,8 @@ ResourceProviderArrayBufferAllocator::ResourceProviderArrayBufferAllocator(
   DCHECK(gpu_memory_buffer_space_->GetMemory());
 
   gpu_memory_pool_.set(starboard::make_scoped_ptr(
-      new nb::MemoryPool(gpu_memory_buffer_space_->GetMemory(),
-                         gpu_memory_buffer_space_->GetSizeInBytes())));
+      new nb::FirstFitMemoryPool(gpu_memory_buffer_space_->GetMemory(),
+                                 gpu_memory_buffer_space_->GetSizeInBytes())));
 }
 
 void* ResourceProviderArrayBufferAllocator::Allocate(size_t size) {

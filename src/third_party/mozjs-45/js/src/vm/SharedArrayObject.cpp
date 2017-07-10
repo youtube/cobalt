@@ -15,7 +15,10 @@
 # include "jswin.h"
 #endif
 #include "jswrapper.h"
-#ifndef XP_WIN
+#if defined(STARBOARD)
+#include "starboard/log.h"
+#include "starboard/memory.h"
+#elif !defined(XP_WIN)
 # include <sys/mman.h>
 #endif
 #ifdef MOZ_VALGRIND
@@ -33,7 +36,12 @@ using namespace js;
 static inline void*
 MapMemory(size_t length, bool commit)
 {
-#ifdef XP_WIN
+#if defined(STARBOARD)
+    if (!commit) {
+        SB_NOTREACHED();
+    }
+    return SbMemoryMap(length, kSbMemoryMapProtectReadWrite, NULL);
+#elif defined(XP_WIN)
     int prot = (commit ? MEM_COMMIT : MEM_RESERVE);
     int flags = (commit ? PAGE_READWRITE : PAGE_NOACCESS);
     return VirtualAlloc(nullptr, length, prot, flags);
@@ -49,7 +57,9 @@ MapMemory(size_t length, bool commit)
 static inline void
 UnmapMemory(void* addr, size_t len)
 {
-#ifdef XP_WIN
+#if defined(STARBOARD)
+    SbMemoryUnmap(addr, len);
+#elif defined(XP_WIN)
     VirtualFree(addr, 0, MEM_RELEASE);
 #else
     munmap(addr, len);
@@ -59,7 +69,10 @@ UnmapMemory(void* addr, size_t len)
 static inline bool
 MarkValidRegion(void* addr, size_t len)
 {
-#ifdef XP_WIN
+#if defined(STARBOARD)
+    SB_NOTIMPLEMENTED();
+    return false;
+#elif defined(XP_WIN)
     if (!VirtualAlloc(addr, len, MEM_COMMIT, PAGE_READWRITE))
         return false;
     return true;

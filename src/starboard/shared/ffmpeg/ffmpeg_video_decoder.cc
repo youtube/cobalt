@@ -14,7 +14,10 @@
 
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
+#include "starboard/linux/shared/decode_target_internal.h"
+
 #include "starboard/memory.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
@@ -93,14 +96,21 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
 
 }  // namespace
 
-VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec)
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
+                           SbPlayerOutputMode output_mode,
+                           SbDecodeTargetGraphicsContextProvider*
+                               decode_target_graphics_context_provider)
     : video_codec_(video_codec),
       host_(NULL),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
       error_occured_(false),
-      decoder_thread_(kSbThreadInvalid) {
+      decoder_thread_(kSbThreadInvalid),
+      output_mode_(output_mode),
+      decode_target_graphics_context_provider_(
+          decode_target_graphics_context_provider),
+      decode_target_(kSbDecodeTargetInvalid) {
   InitializeCodec();
 }
 
@@ -156,6 +166,11 @@ void VideoDecoder::Reset() {
 
   decoder_thread_ = kSbThreadInvalid;
   stream_ended_ = false;
+
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    TeardownCodec();
+    InitializeCodec();
+  }
 }
 
 // static
@@ -227,6 +242,27 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
       codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
       av_frame_->data[2]);
   host_->OnDecoderStatusUpdate(kBufferFull, frame);
+
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    return UpdateDecodeTarget(frame);
+  }
+
+  return true;
+}
+
+bool VideoDecoder::UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame) {
+  SbDecodeTarget decode_target = DecodeTargetCreate(
+      decode_target_graphics_context_provider_, frame, decode_target_);
+
+  // Lock only after the post to the renderer thread, to prevent deadlock.
+  ScopedLock lock(decode_target_mutex_);
+  decode_target_ = decode_target;
+
+  if (!SbDecodeTargetIsValid(decode_target)) {
+    SB_LOG(ERROR) << "Could not acquire a decode target from provider.";
+    return false;
+  }
+
   return true;
 }
 
@@ -289,6 +325,31 @@ void VideoDecoder::TeardownCodec() {
     av_free(av_frame_);
     av_frame_ = NULL;
   }
+
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    ScopedLock lock(decode_target_mutex_);
+    if (SbDecodeTargetIsValid(decode_target_)) {
+      DecodeTargetRelease(decode_target_graphics_context_provider_,
+                          decode_target_);
+      decode_target_ = kSbDecodeTargetInvalid;
+    }
+  }
+}
+
+// When in decode-to-texture mode, this returns the current decoded video frame.
+SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+
+  // We must take a lock here since this function can be called from a
+  // separate thread.
+  ScopedLock lock(decode_target_mutex_);
+  if (SbDecodeTargetIsValid(decode_target_)) {
+    // Make a disposable copy, since the state is internally reused by this
+    // class (to avoid recreating GL objects).
+    return DecodeTargetCopy(decode_target_);
+  } else {
+    return kSbDecodeTargetInvalid;
+  }
 }
 
 }  // namespace ffmpeg
@@ -305,7 +366,12 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
   SB_UNREFERENCED_PARAMETER(codec);
   SB_UNREFERENCED_PARAMETER(drm_system);
 
-  return output_mode == kSbPlayerOutputModePunchOut;
+  if (output_mode == kSbPlayerOutputModePunchOut ||
+      output_mode == kSbPlayerOutputModeDecodeToTexture) {
+    return true;
+  }
+
+  return false;
 }
 #endif  // SB_API_VERSION >= 4
 

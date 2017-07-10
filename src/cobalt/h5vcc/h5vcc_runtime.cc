@@ -67,10 +67,10 @@ void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
   const system_window::ApplicationEvent* app_event =
       base::polymorphic_downcast<const system_window::ApplicationEvent*>(event);
   if (app_event->type() == system_window::ApplicationEvent::kPause) {
-    DLOG(INFO) << "Got pause event.";
+    // DLOG(INFO) << "Got pause event.";
     on_pause()->DispatchEvent();
   } else if (app_event->type() == system_window::ApplicationEvent::kUnpause) {
-    DLOG(INFO) << "Got unpause event.";
+    // DLOG(INFO) << "Got unpause event.";
     on_resume()->DispatchEvent();
   }
 }

@@ -24,65 +24,115 @@
 namespace cobalt {
 namespace dom {
 
-namespace {
-base::Token TypeEnumToToken(KeyboardEvent::Type type) {
-  switch (type) {
-    case KeyboardEvent::kTypeKeyDown:
-      return base::Tokens::keydown();
-    case KeyboardEvent::kTypeKeyUp:
-      return base::Tokens::keyup();
-    case KeyboardEvent::kTypeKeyPress:
-      return base::Tokens::keypress();
-    default:
-      NOTREACHED() << "Invalid KeyboardEvent::Type";
-      return base::Tokens::keydown();
+KeyboardEvent::KeyboardEvent(const std::string& type)
+    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable, NULL),
+      key_location_(kDomKeyLocationStandard),
+      key_code_(0),
+      char_code_(0),
+      repeat_(false) {}
+
+// TODO: Initialize from init_dict.key() or init_dict.code() when not empty.
+KeyboardEvent::KeyboardEvent(const std::string& type,
+                             const KeyboardEventInit& init_dict)
+    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable,
+                          init_dict.view(), init_dict),
+      key_location_(static_cast<KeyLocationCode>(init_dict.location())),
+      key_code_(init_dict.key_code()),
+      char_code_(init_dict.char_code()),
+      repeat_(init_dict.repeat()) {}
+
+KeyboardEvent::KeyboardEvent(base::Token type,
+                             const scoped_refptr<Window>& view,
+                             const KeyboardEventInit& init_dict)
+    : UIEventWithKeyState(type, kBubbles, kCancelable, view, init_dict),
+      key_location_(static_cast<KeyLocationCode>(init_dict.location())),
+      key_code_(init_dict.key_code()),
+      char_code_(init_dict.char_code()),
+      repeat_(init_dict.repeat()) {}
+
+KeyboardEvent::KeyboardEvent(UninitializedFlag uninitialized_flag)
+    : UIEventWithKeyState(uninitialized_flag),
+      key_code_(0),
+      char_code_(0),
+      repeat_(false) {}
+
+void KeyboardEvent::InitKeyboardEvent(const std::string& type, bool bubbles,
+                                      bool cancelable,
+                                      const scoped_refptr<Window>& view,
+                                      const std::string& key, uint32 location,
+                                      const std::string& modifierslist,
+                                      bool repeat) {
+  InitUIEventWithKeyState(type, bubbles, cancelable, view, 0, modifierslist);
+  key_location_ = static_cast<KeyLocationCode>(location);
+  repeat_ = repeat;
+
+  // TODO: Implement full keyCode determination according to 'Legacy key models'
+  // from: https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-models
+
+  // Parse keys from the "Fixed virtual key codes" table from:
+  // https://www.w3.org/TR/2016/WD-uievents-20160804/#fixed-virtual-key-codes
+  if (key == "Backspace") {
+    key_code_ = keycode::kBack;
+  } else if (key == "Tab") {
+    key_code_ = keycode::kTab;
+  } else if (key == "Enter") {
+    key_code_ = keycode::kReturn;
+  } else if (key == "Shift") {
+    key_code_ = keycode::kShift;
+  } else if (key == "Control") {
+    key_code_ = keycode::kControl;
+  } else if (key == "Alt") {
+    key_code_ = keycode::kMenu;
+  } else if (key == "CapsLock") {
+    key_code_ = keycode::kCapital;
+  } else if (key == "Escape") {
+    key_code_ = keycode::kEscape;
+  } else if (key == "Space") {
+    key_code_ = keycode::kSpace;
+  } else if (key == "PageUp") {
+    key_code_ = keycode::kPrior;
+  } else if (key == "PageDown") {
+    key_code_ = keycode::kNext;
+  } else if (key == "End") {
+    key_code_ = keycode::kEnd;
+  } else if (key == "Home") {
+    key_code_ = keycode::kHome;
+  } else if (key == "ArrowLeft") {
+    key_code_ = keycode::kLeft;
+  } else if (key == "ArrowUp") {
+    key_code_ = keycode::kUp;
+  } else if (key == "ArrowRight") {
+    key_code_ = keycode::kRight;
+  } else if (key == "ArrowDown") {
+    key_code_ = keycode::kDown;
+  } else if (key == "Delete") {
+    key_code_ = keycode::kDelete;
   }
 }
-}  // namespace
-
-KeyboardEvent::KeyboardEvent(const std::string& type)
-    : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable, 0) {}
-
-KeyboardEvent::KeyboardEvent(const Data& data)
-    : UIEventWithKeyState(TypeEnumToToken(data.type), kBubbles, kCancelable,
-                          data.modifiers),
-      data_(data) {}
-
-KeyboardEvent::KeyboardEvent(Type type, KeyLocationCode location,
-                             unsigned int modifiers, int key_code,
-                             int char_code, bool is_repeat)
-    : UIEventWithKeyState(TypeEnumToToken(type), kBubbles, kCancelable,
-                          modifiers),
-      data_(type, location, modifiers, key_code, char_code, is_repeat) {}
 
 // How to determine keycode:
-//   https://www.w3.org/TR/DOM-Level-3-Events/#determine-keydown-keyup-keyCode
+//   https://www.w3.org/TR/2016/WD-uievents-20160804/#determine-keydown-keyup-keyCode
 // Virtual key code for keyup/keydown, 0 for keypress (split model)
-int KeyboardEvent::key_code() const {
+uint32 KeyboardEvent::key_code() const {
   if (type() == base::Tokens::keydown() || type() == base::Tokens::keyup()) {
-    return data_.key_code;
+    return key_code_;
   }
 
   return 0;
 }
 
-int KeyboardEvent::char_code() const {
-  return type() == base::Tokens::keypress() ? data_.char_code : 0;
+uint32 KeyboardEvent::char_code() const {
+  return type() == base::Tokens::keypress() ? char_code_ : 0;
 }
 
-std::string KeyboardEvent::key() const {
-  // First check if the event corresponds to a printable character.
-  // If so, just return a string containing that single character.
-  int char_code = ComputeCharCode(data_.key_code, modifiers());
-  if (char_code > 0 && char_code <= 127) {
-    return std::string(1, static_cast<char>(char_code));
-  }
+uint32 KeyboardEvent::which() const { return key_code(); }
 
+std::string KeyboardEvent::NonPrintableKey(int32_t key_code) const {
   // Otherwise, we have one of the non-printable characters.
   // Definitions taken from:
   //   https://www.w3.org/TR/DOM-Level-3-Events-key/
   //   https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key.
-  switch (data_.key_code) {
+  switch (key_code) {
     case keycode::kBack:
       return "Backspace";
     case keycode::kTab:
@@ -305,9 +355,111 @@ std::string KeyboardEvent::key() const {
   }
 }
 
+std::string KeyboardEvent::key() const {
+  // First check if the event corresponds to a printable character.
+  // If so, just return a string containing that single character.
+  int char_code = ComputeCharCode(key_code_, shift_key());
+  if (char_code > 0 && char_code <= 127) {
+    return std::string(1, static_cast<char>(char_code));
+  }
+
+  return NonPrintableKey(key_code_);
+}
+
+std::string KeyboardEvent::code() const {
+  // First check if the event corresponds to a named key in the tables here:
+  // https://www.w3.org/TR/uievents-code/#code-value-tables
+
+  // First check if the event corresponds to a alphanumeric key.
+  if (key_code_ >= keycode::kA && key_code_ <= keycode::kZ) {
+    std::string key_code = "Key";
+    key_code.append(1, static_cast<char>(key_code_));
+    return key_code;
+  }
+
+  // Check if the event corresponds to a digit key.
+  if (key_code_ >= keycode::k0 && key_code_ <= keycode::k9) {
+    std::string key_code = "Digit";
+    key_code.append(1, static_cast<char>(key_code_));
+    return key_code;
+  }
+
+  // Check if the event corresponds to a numpad digit key.
+  //  https://www.w3.org/TR/uievents-code/#key-numpad-section
+  if (key_code_ >= keycode::kNumpad0 && key_code_ <= keycode::kDivide) {
+    std::string key_code = "Numpad";
+    char numpad_digit = '0' + static_cast<char>(key_code_ - keycode::kNumpad0);
+    key_code.append(1, numpad_digit);
+    return key_code;
+  }
+
+  // Check if the event corresponds to a remaining named key
+  switch (key_code_) {
+    case keycode::kSpace:
+      return "Space";
+    case keycode::kMultiply:
+      return "NumpadMultiply";
+    case keycode::kAdd:
+      return "NumpadAdd";
+    case keycode::kSeparator:
+      return "NumpadComma";
+    case keycode::kSubtract:
+      return "NumpadSubtract";
+    case keycode::kDecimal:
+      return "NumpadDecimal";
+    case keycode::kDivide:
+      return "NumpadDivide";
+    case keycode::kOem1:
+      return "Semicolon";
+    case keycode::kOemPlus:
+      return "Equal";
+    case keycode::kOemComma:
+      return "Comma";
+    case keycode::kOemMinus:
+      return "Minus";
+    case keycode::kOemPeriod:
+      return "Period";
+    case keycode::kOem2:
+      return "Slash";
+    case keycode::kOem3:
+      return "Backquote";
+    case keycode::kOem4:
+      return "BracketLeft";
+    case keycode::kOem5:
+      return "Backslash";
+    case keycode::kOem6:
+      return "BracketRight";
+    case keycode::kOem7:
+      return "Quote";
+    case keycode::kLwin:
+      return "MetaLeft";
+    case keycode::kRwin:
+      return "MetaRight";
+    case keycode::kLshift:
+      return "ShiftLeft";
+    case keycode::kRshift:
+      return "ShiftRight";
+    case keycode::kLcontrol:
+      return "ControlLeft";
+    case keycode::kRcontrol:
+      return "ControlRight";
+    case keycode::kLmenu:
+      return "AltLeft";
+    case keycode::kRmenu:
+      return "AltRight";
+    default:
+      // Nothing.
+      break;
+  }
+
+  // The event corresponds to a nonprintable key with a name that matches the
+  // named value for the key.
+  return NonPrintableKey(key_code_);
+}
+
 // Static.
-int32 KeyboardEvent::ComputeCharCode(int32 key_code, uint32 modifiers) {
-  if (modifiers & UIEventWithKeyState::kShiftKey) {
+int32 KeyboardEvent::ComputeCharCode(int32 key_code, bool shift_key) {
+  if (shift_key) {
     return KeyCodeToCharCodeWithShift(key_code);
   } else {
     return KeyCodeToCharCodeNoShift(key_code);
@@ -426,10 +578,12 @@ KeyboardEvent::KeyLocationCode KeyboardEvent::KeyCodeToKeyLocation(
     case keycode::kLshift:
     case keycode::kLcontrol:
     case keycode::kLmenu:
+    case keycode::kLwin:
       return kDomKeyLocationLeft;
     case keycode::kRshift:
     case keycode::kRcontrol:
     case keycode::kRmenu:
+    case keycode::kRwin:
       return kDomKeyLocationRight;
     default:
       return kDomKeyLocationStandard;

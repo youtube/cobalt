@@ -43,7 +43,7 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_HAS(MICROPHONE) && SB_VERSION(2)
+#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #ifdef __cplusplus
 extern "C" {
@@ -194,6 +194,6 @@ SB_EXPORT void SbMicrophoneDestroy(SbMicrophone microphone);
 }  // extern "C"
 #endif
 
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #endif  // STARBOARD_MICROPHONE_H_

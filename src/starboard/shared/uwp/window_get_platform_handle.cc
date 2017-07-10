@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <EGL/egl.h>
+
+#include "starboard/shared/uwp/window_internal.h"
 #include "starboard/window.h"
 
 void* SbWindowGetPlatformHandle(SbWindow window) {
@@ -19,5 +22,5 @@ void* SbWindowGetPlatformHandle(SbWindow window) {
     return NULL;
   }
 
-  return static_cast<void*>(window);
+  return reinterpret_cast<EGLNativeWindowType>(window->egl_native_window());
 }

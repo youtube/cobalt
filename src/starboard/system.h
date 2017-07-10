@@ -109,17 +109,17 @@ typedef enum SbSystemPropertyId {
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
 
-#if SB_VERSION(2)
+#if SB_API_VERSION >= 2
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
   // Console (http://developers.google.com/console), you can enable the
   // Speech APIs and generate a Speech API key.
   kSbSystemPropertySpeechApiKey,
 #endif  // SB_VERSION(2)
-#if SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+#if SB_API_VERSION >= 5
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
-#endif  // SB_API_VERSION >= SB_USER_AGENT_AUX_SYSTEM_PROPERTY_API_VERSION
+#endif  // SB_API_VERSION >= 5
 } SbSystemPropertyId;
 
 // Enumeration of device types.
@@ -185,14 +185,18 @@ typedef enum SbSystemCapabilityId {
 // |SbSystemRaisePlatformError| function.
 typedef enum SbSystemPlatformErrorType {
   // Cobalt received a network connection error, or a network disconnection
-  // event.
+  // event. If the |response| passed to |SbSystemPlatformErrorCallback| is
+  // |kSbSystemPlatformErrorResponsePositive| then the request should be
+  // retried, otherwise the app should be stopped.
   kSbSystemPlatformErrorTypeConnectionError,
 
-  // The current user is not signed in (e.g. to PSN network).
+#if SB_API_VERSION < SB_PLATFORM_ERROR_CLEANUP_API_VERSION
+  // The current user is not signed in.
   kSbSystemPlatformErrorTypeUserSignedOut,
 
   // The current user does not meet the age requirements to use the app.
   kSbSystemPlatformErrorTypeUserAgeRestricted
+#endif
 } SbSystemPlatformErrorType;
 
 // Possible responses for |SbSystemPlatformErrorCallback|.

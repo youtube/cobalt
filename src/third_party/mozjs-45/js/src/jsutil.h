@@ -21,6 +21,8 @@
 #include "js/Utility.h"
 #include "js/Value.h"
 
+#include "js-confdefs.h"
+
 #define JS_ALWAYS_TRUE(expr)      MOZ_ALWAYS_TRUE(expr)
 #define JS_ALWAYS_FALSE(expr)     MOZ_ALWAYS_FALSE(expr)
 

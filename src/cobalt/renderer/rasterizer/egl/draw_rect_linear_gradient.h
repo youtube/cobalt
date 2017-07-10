@@ -15,26 +15,33 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_LINEAR_GRADIENT_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_LINEAR_GRADIENT_H_
 
+#include <vector>
+
+#include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/brush.h"
-#include "cobalt/renderer/rasterizer/egl/draw_depth_stencil.h"
+#include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-// Handles drawing a rectangle with a linear color gradient. This may use a
-// depth stencil, so it must be processed with other transparent draws.
-class DrawRectLinearGradient : public DrawDepthStencil {
+// Handles drawing a rectangle with a linear color gradient. This may use
+// transparency to mask out unwanted pixels, so it must be processed with other
+// transparent draws.
+class DrawRectLinearGradient : public DrawObject {
  public:
   DrawRectLinearGradient(GraphicsState* graphics_state,
                          const BaseState& base_state,
                          const math::RectF& rect,
                          const render_tree::LinearGradientBrush& brush);
 
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteRasterize(GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   void AddRectWithHorizontalGradient(
@@ -46,14 +53,23 @@ class DrawRectLinearGradient : public DrawDepthStencil {
   void AddRectWithAngledGradient(
       const math::RectF& rect, const render_tree::LinearGradientBrush& brush);
   uint32_t GetGLColor(const render_tree::ColorStop& color_stop);
+  void AddVertex(float x, float y, uint32_t color);
 
-  // Index of the first vertex for the rect with gradient.
-  size_t first_rect_vert_;
+  // For angled gradients, this is the rotation needed to transform a
+  // horizontal gradient into the desired rect with angled gradient. The
+  // include scissor will be used to ensure that only the desired pixels
+  // are modified.
+  math::Matrix3F transform_;
+  math::RectF include_scissor_;
 
-  // For angled gradients, this is the rotation angle needed to transform the
-  // submitted rect with horizontal gradient into the desired rect with angled
-  // gradient.
-  float gradient_angle_;
+  struct VertexAttributes {
+    float position[2];
+    float offset[2];
+    uint32_t color;
+  };
+  std::vector<VertexAttributes> attributes_;
+
+  uint8_t* vertex_buffer_;
 };
 
 }  // namespace egl

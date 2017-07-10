@@ -15,6 +15,8 @@
 #ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 #define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/camera_3d.h"
 #include "cobalt/input/input_poller.h"
 #include "cobalt/input/key_event_handler.h"
@@ -29,6 +31,12 @@ class SystemWindow;
 
 namespace input {
 
+typedef base::Callback<void(base::Token type, const dom::PointerEventInit&)>
+    PointerEventCallback;
+
+typedef base::Callback<void(base::Token type, const dom::WheelEventInit&)>
+    WheelEventCallback;
+
 // InputDeviceManager listens to events from platform-specific input devices
 // and maps them to platform-independent keyboard key events.
 class InputDeviceManager {
@@ -36,7 +44,9 @@ class InputDeviceManager {
   // Creates an instance using a SystemWindow parameter.
   // This allows us to hook up keyboard events on desktop systems.
   static scoped_ptr<InputDeviceManager> CreateFromWindow(
-      const KeyboardEventCallback& callback,
+      const KeyboardEventCallback& keyboard_event_callback,
+      const PointerEventCallback& pointer_event_callback,
+      const WheelEventCallback& wheel_event_callback,
       system_window::SystemWindow* system_window);
 
   virtual ~InputDeviceManager() {}

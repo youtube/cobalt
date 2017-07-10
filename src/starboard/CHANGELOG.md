@@ -6,6 +6,56 @@ be updated each time a new Starboard version is released.  Each section in
 this file describes the changes made to the Starboard interface since the
 version previous to it.
 
+## Version 6
+
+### Introduce pointer (mouse) input support.
+
+This extends the `SbInput` interface with some enum values and data members to
+allow mouse, wheel, and more generic pointer input.
+
+### Flexible audio specific config.
+
+`SbMediaAudioHeader::audio_specific_config` will be a pointer instead of an
+array.
+
+### Time Zone API Cleanup
+
+Removes `SbTimeZoneGetDstName()` -- The Daylight Savings Time version of the
+time zone.
+
+Changes `SbTimeZoneGetName()` to be more flexible in what it is allowed to
+return.
+
+### SbDecodeTargetNumberOfPlanesForFormat
+
+Adds the convenience inline function, SbDecodeTargetNumberOfPlanesForFormat() to
+`starboard/decode_target.h`.
+
+### Preload Support
+
+Adds the `kSbEventTypePreload` event, and modifies the application state machine
+to utilize it.
+
+### Platform Error Cleanup
+
+Removes `SbSystemPlatformErrorType` values specific to user status.
+
+### SbDecodeTarget support for the UYVY (i.e. YUV 422) format
+
+Add support for UYVY decode targets (e.g. YUV 422) via the
+`kSbDecodeTargetFormat1PlaneUYVY` enum.
+
+### Add Color Remote Keys
+
+This adds SbKey codes for the colored keys found on most contemporary TV
+remotes.
+
+### kSbEventTypeLowMemory
+
+Adds a new event type -- `kSbEventTypeLowMemory` -- to allow a platform to
+signal that the application may soon be terminated due to low memory
+availability.
+
 ## Version 5
 
 ### Add Speech Recognizer API

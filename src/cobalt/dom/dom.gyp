@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
   'targets': [
     {
@@ -40,8 +40,6 @@
         'buffer_source.h',
         'camera_3d.cc',
         'camera_3d.h',
-        'camera_3d_impl.cc',
-        'camera_3d_impl.h',
         'cdata_section.cc',
         'cdata_section.h',
         'character_data.cc',
@@ -65,6 +63,9 @@
         'css_transitions_adapter.h',
         'data_view.cc',
         'data_view.h',
+        'device_orientation_event.cc',
+        'device_orientation_event.h',
+        'device_orientation_event_init.h',
         'document.cc',
         'document.h',
         'document_timeline.cc',
@@ -178,6 +179,8 @@
         'message_event.h',
         'mime_type_array.cc',
         'mime_type_array.h',
+        'mouse_event.cc',
+        'mouse_event.h',
         'mutation_observer.cc',
         'mutation_observer.h',
         'mutation_observer_init.h',
@@ -206,6 +209,8 @@
         'performance_timing.h',
         'plugin_array.cc',
         'plugin_array.h',
+        'pointer_event.cc',
+        'pointer_event.h',
         'progress_event.cc',
         'progress_event.h',
         'pseudo_element.cc',
@@ -250,6 +255,8 @@
         'url_utils.h',
         'video_track.h',
         'video_track_list.h',
+        'wheel_event.cc',
+        'wheel_event.h',
         'window.cc',
         'window.h',
         'window_timers.cc',
@@ -268,6 +275,7 @@
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
+        '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
         '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/cobalt/storage/storage.gyp:storage',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
@@ -333,10 +341,10 @@
       'hard_dependency': 1,
       'export_dependent_settings': [
         # Additionally, ensure that the include directories for generated
-        # headers are put on the include directories for targets that depend
-        # on this one.
+        # headers are put on the include directories for targets that depend on
+        # this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-      ]
+      ],
     },
 
     {

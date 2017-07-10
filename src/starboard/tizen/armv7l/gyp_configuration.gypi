@@ -15,8 +15,6 @@
 {
   'variables': {
     'target_arch': 'arm',
-    'target_os': 'linux',
-    'tizen_os': 1,
 
     'gl_type': 'system_gles2',
 
@@ -25,24 +23,24 @@
     'armv7': 1,
     'arm_neon': 0,
 
-    # Some package use tizen system instead of third_party
-    'use_system_icu': 1,
-    'use_system_libxml': 1,
-
-    # scratch surface cache is designed to choose large offscreen surfaces so
-    # that they can be maximally reused, it is not a very good fit for a tiled
-    # renderer.
-    'scratch_surface_cache_size_in_bytes' : 0,
-
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs',
-    'cobalt_enable_jit': 0,
-
     # Reduce garbage collection threshold from the default of 8MB in order to
     # save on memory.  This will mean that garbage collection occurs more
     # frequently.
     'mozjs_garbage_collection_threshold_in_bytes%': 4 * 1024 * 1024,
+
+    # The rasterizer does not benefit much from rendering only the dirty
+    # region. Disable this option since it costs GPU time.
+    'render_dirty_region_only': 0,
+
+    # Use media source extension implementation that is conformed to the
+    # Candidate Recommandation of July 5th 2016.
+    'cobalt_media_source_2016': 1,
+    'cobalt_media_buffer_storage_type': 'memory',
+    'cobalt_media_buffer_initial_capacity': 26 * 1024 * 1024,
+    'cobalt_media_buffer_allocation_unit': 0 * 1024 * 1024,
+    'cobalt_media_buffer_non_video_budget': 5 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_1080p': 16 * 1024 * 1024,
+    'cobalt_media_buffer_video_budget_4k': 60 * 1024 * 1024,
 
     'platform_libraries': [
       '-lasound',
@@ -51,82 +49,9 @@
       '-lavutil',
       '-ldlog',
     ],
-    'linker_flags': [
-    ],
-    'linker_flags_gold': [
-      '-O3',
-      '-flto',
-    ],
-    'compiler_flags_debug': [
-      '-O0',
-    ],
-    'compiler_flags_devel': [
-      '-O2',
-    ],
-    'compiler_flags_cc_qa': [
-      '-fno-rtti',
-    ],
-    'compiler_flags_qa': [
-      '-O3',
-    ],
-    'compiler_flags_cc_gold': [
-      '-fno-rtti',
-    ],
-    'compiler_flags_gold': [
-      '-O3',
-    ],
-    'conditions': [
-      ['cobalt_fastbuild==0', {
-        'compiler_flags_debug': [
-          '-g',
-        ],
-        'compiler_flags_devel': [
-          '-g',
-        ],
-        'compiler_flags_qa': [
-        ],
-        'compiler_flags_gold': [
-          '-flto',
-        ],
-      }],
-    ],
   },
 
   'target_defaults': {
-    'defines': [
-      # Cobalt on Tizen flag
-      'COBALT_TIZEN',
-      'PNG_SKIP_SETJMP_CHECK',
-      '__STDC_FORMAT_MACROS', # so that we get PRI*
-      # Enable GNU extensions to get prototypes like ffsl.
-      '_GNU_SOURCE=1',
-    ],
-    'cflags': [
-      '-pthread',
-      # Do not warn about locally defined but not used.
-      '-Wno-unused-local-typedefs',
-      # Do not warn about XXX is deprecated.
-      '-Wno-deprecated-declarations',
-      # Do not warn about missing initializer for member XXX.
-      '-Wno-missing-field-initializers',
-      # Do not warn about unused functions.
-      '-Wno-unused-function',
-      # Do not warn about type qualifiers ignored on function return type.
-      '-Wno-ignored-qualifiers',
-      # Do not warn about the use of multi-line comments.
-      '-Wno-comment',
-      # Do not warn about sign compares.
-      '-Wno-sign-compare',
-    ],
-    'cflags_c': [
-      '-std=c11',
-    ],
-    'cflags_cc': [
-      '-std=gnu++11',
-    ],
-    'ldflags': [
-      '-pthread',
-    ],
     'default_configuration': 'tizen-armv7l_debug',
     'configurations': {
       'tizen-armv7l_debug': {
@@ -143,4 +68,8 @@
       },
     }, # end of configurations
   }, # end of target_defaults
+
+  'includes': [
+    '../shared/gyp_configuration.gypi',
+  ],
 }

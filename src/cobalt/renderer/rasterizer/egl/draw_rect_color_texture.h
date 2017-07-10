@@ -38,21 +38,11 @@ class DrawRectColorTexture : public DrawObject {
                        const math::Matrix3F& texcoord_transform,
                        bool clamp_texcoords);
 
-  DrawRectColorTexture(GraphicsState* graphics_state,
-                       const BaseState& base_state,
-                       const math::RectF& rect,
-                       const render_tree::ColorRGBA& color,
-                       const backend::TextureEGL* texture,
-                       const math::Matrix3F& texcoord_transform,
-                       const base::Closure& draw_offscreen,
-                       const base::Closure& draw_onscreen);
-
-  void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  private:
   math::Matrix3F texcoord_transform_;

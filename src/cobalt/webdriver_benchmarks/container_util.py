@@ -52,3 +52,39 @@ def percentile(list_values, target_percentile):
 
   return sorted_values[index] * (
       1 - fractional) + sorted_values[index + 1] * fractional
+
+
+def sample_variance(list_values):
+  """Returns the variance of a list of numeric values.
+
+  Args:
+      list_values: A list of numeric values.
+  Returns:
+      Appropriate value.
+  """
+  if not list_values:
+    return None
+  if len(list_values) <= 1:
+    return 0
+
+  mean_of_values = mean(list_values)
+  dif_squared_sum = 0
+  for value in list_values:
+    dif = value - mean_of_values
+    dif_squared_sum += dif * dif
+
+  return dif_squared_sum / (len(list_values) - 1)
+
+
+def sample_standard_deviation(list_values):
+  """Returns the standard deviation of a list of numeric values.
+
+  Args:
+      list_values: A list of numeric values.
+  Returns:
+      Appropriate value.
+  """
+  if not list_values:
+    return None
+
+  return math.sqrt(sample_variance(list_values))

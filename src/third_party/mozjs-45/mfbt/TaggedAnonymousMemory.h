@@ -34,6 +34,7 @@
 
 #ifndef XP_WIN
 
+// TODO: Starboardize
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -66,6 +67,7 @@ MozTagAnonymousMemory(const void* aPtr, size_t aLength, const char* aTag)
 {
 }
 
+// TODO: Starboardize.
 static inline void*
 MozTaggedAnonymousMmap(void* aAddr, size_t aLength, int aProt, int aFlags,
                        int aFd, off_t aOffset, const char* aTag)

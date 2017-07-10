@@ -692,6 +692,11 @@ PerThreadData::PerThreadData(JSRuntime *runtime)
     suppressGC(0)
 {}
 
+namespace {
+  // Some platforms require atleast a 16-byte alignment for jmp_buf.
+  const std::size_t kDesiredJmpBufAlignment = 16;
+}
+
 JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)
   : mainThread(this),
     interrupt(0),
@@ -850,6 +855,12 @@ JSRuntime::JSRuntime(JSUseHelperThreads useHelperThreads)
     decimalSeparator(0),
     numGrouping(0),
 #endif
+    // Note: alignas(16) is too big for some compilers, and thus a more
+    // verbose approach needed to be taken.
+    conservativeGC_memory(reinterpret_cast<js::ConservativeGCData*>(
+                SbMemoryAllocateAligned(kDesiredJmpBufAlignment,
+                                        sizeof(js::ConservativeGCData)))),
+    conservativeGC(*conservativeGC_memory),
     mathCache_(NULL),
     dtoaState(NULL),
     activeCompilations(0),
@@ -964,6 +975,7 @@ JSRuntime::init(uint32_t maxbytes)
 
 JSRuntime::~JSRuntime()
 {
+  SbMemoryDeallocateAligned(conservativeGC_memory);
 #ifdef JS_THREADSAFE
     clearOwnerThread();
 

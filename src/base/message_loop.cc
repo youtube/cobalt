@@ -19,6 +19,7 @@
 #include "base/metrics/histogram.h"
 #include "base/metrics/statistics_recorder.h"
 #include "base/run_loop.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/third_party/dynamic_annotations/dynamic_annotations.h"
 #include "base/thread_task_runner_handle.h"
 #include "base/threading/thread_local.h"
@@ -327,6 +328,35 @@ void MessageLoop::PostNonNestableDelayedTask(
       from_here, task, CalculateDelayedRuntime(delay), false);
   AddToIncomingQueue(&pending_task);
 }
+
+#if defined(COBALT)
+namespace {
+// Runs the given task, and then signals the given WaitableEvent.
+void RunAndSignal(const base::Closure& task, base::WaitableEvent* event) {
+  TRACE_EVENT0("task", "RunAndSignal");
+  task.Run();
+  event->Signal();
+}
+}  // namespace
+
+void MessageLoop::PostBlockingTask(
+    const tracked_objects::Location& from_here, const base::Closure& task) {
+  TRACE_EVENT0("task", "MessageLoop::PostBlockingTask");
+  DCHECK_NE(this, current())
+      << "PostBlockingTask can't be called from the MessageLoop's own thread. "
+      << from_here.ToString();
+  DCHECK(!task.is_null()) << from_here.ToString();
+
+  base::WaitableEvent task_finished(true /* manual reset */,
+                                    false /* initially unsignaled */);
+  PostTask(
+      from_here,
+      base::Bind(&RunAndSignal, task, base::Unretained(&task_finished)));
+
+  // Wait for the task to complete before proceeding.
+  task_finished.Wait();
+}
+#endif
 
 void MessageLoop::Run() {
   base::RunLoop run_loop;

@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
   'targets': [
     {
@@ -78,6 +78,8 @@
         'size_layout_unit.h',
         'text_box.cc',
         'text_box.h',
+        'topmost_event_target.cc',
+        'topmost_event_targer.h',
         'used_style.cc',
         'used_style.h',
         'vector2d_layout_unit.cc',
@@ -93,6 +95,11 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
+      ],
+      # Exporting dom so that layout_test gets the transitive include paths to
+      # include generated headers.
+      'export_dependent_settings': [
+        '<(DEPTH)/cobalt/dom/dom.gyp:dom',
       ],
     },
 

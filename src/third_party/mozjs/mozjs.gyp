@@ -39,6 +39,25 @@
       # them.
       'JS_THREADSAFE',
     ],
+    'msvs_disabled_warnings': [
+      # Level 2, Typename first seen as 'type1', but then seen as 'type2'.
+      4099,
+      # Level 2, Possible loss of data due to type conversion.
+      4244,
+      # Level 3, Possible loss of data due to type conversion from size_t.
+      4267,
+    ],
+    # Unfortunately, there is code that generate warnings in the headers.
+    'direct_dependent_settings': {
+      'msvs_disabled_warnings': [
+        # Level 2, Typename first seen as 'type1', but then seen as 'type2'.
+        4099,
+        # Level 2, Possible loss of data due to type conversion.
+        4244,
+        # Level 3, Possible loss of data due to type conversion from size_t.
+        4267,
+      ],
+    },
     'include_dirs': [
       'cobalt_config/include',
       'js/src',

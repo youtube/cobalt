@@ -87,6 +87,9 @@ class RendererModule {
     // transforms needed to render the scene from the camera's view.
     GetCameraTransformCallback get_camera_transform;
 
+    bool enable_fps_stdout;
+    bool enable_fps_overlay;
+
    private:
     // Implemented per-platform, and allows each platform to customize
     // the renderer options.
@@ -103,6 +106,14 @@ class RendererModule {
   renderer::Pipeline* pipeline() { return pipeline_.get(); }
   const scoped_refptr<renderer::backend::RenderTarget> render_target() {
     return display_->GetRenderTarget();
+  }
+
+  render_tree::ResourceProvider* resource_provider() {
+    if (!pipeline_) {
+      return NULL;
+    }
+
+    return pipeline_->GetResourceProvider();
   }
 
  private:

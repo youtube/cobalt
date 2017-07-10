@@ -41,7 +41,7 @@ DrawPolyColor::DrawPolyColor(const BaseState& base_state)
       vertex_buffer_(NULL) {
 }
 
-void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
+void DrawPolyColor::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   vertex_buffer_ = graphics_state->AllocateVertexData(
@@ -50,11 +50,16 @@ void DrawPolyColor::ExecuteOnscreenUpdateVertexBuffer(
                attributes_.size() * sizeof(VertexAttributes));
 }
 
-void DrawPolyColor::ExecuteOnscreenRasterize(
+void DrawPolyColor::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   SetupShader(graphics_state, program_manager);
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+}
+
+base::TypeId DrawPolyColor::GetTypeId() const {
+  return ShaderProgram<ShaderVertexColor,
+                       ShaderFragmentColor>::GetTypeId();
 }
 
 void DrawPolyColor::SetupShader(GraphicsState* graphics_state,
@@ -71,7 +76,7 @@ void DrawPolyColor::SetupShader(GraphicsState* graphics_state,
   graphics_state->Scissor(base_state_.scissor.x(), base_state_.scissor.y(),
       base_state_.scissor.width(), base_state_.scissor.height());
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_position(), 3, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_position(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
@@ -89,7 +94,7 @@ void DrawPolyColor::AddRect(const math::RectF& rect, uint32_t color) {
 }
 
 void DrawPolyColor::AddVertex(float x, float y, uint32_t color) {
-  VertexAttributes attribute = { { x, y, base_state_.depth }, color };
+  VertexAttributes attribute = { { x, y }, color };
   attributes_.push_back(attribute);
 }
 

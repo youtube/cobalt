@@ -37,8 +37,10 @@
       'type': 'static_library',
 
       'sources': [
-        'draw_depth_stencil.h',
-        'draw_depth_stencil.cc',
+        'draw_callback.h',
+        'draw_callback.cc',
+        'draw_clear.h',
+        'draw_clear.cc',
         'draw_object.h',
         'draw_object.cc',
         'draw_object_manager.h',

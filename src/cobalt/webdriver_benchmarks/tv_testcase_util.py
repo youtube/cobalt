@@ -14,6 +14,11 @@ import urlparse
 
 import container_util
 
+try:
+  import custom_query_param_constants as query_param_constants
+except ImportError:
+  import default_query_param_constants as query_param_constants
+
 # These are watched for in webdriver_benchmark_test.py
 TEST_RESULT = "webdriver_benchmark TEST RESULT"
 TEST_COMPLETE = "webdriver_benchmark TEST COMPLETE"
@@ -56,12 +61,24 @@ def import_selenium_module(submodule=None):
   return module
 
 
-def generate_url(default_url, query_params):
-  """Returns the URL indicated by the path and query parameters."""
-  if not query_params:
-    return default_url
+def generate_url(default_url, query_params_override=None):
+  """Returns the URL indicated by the path and query parameters.
 
+  Args:
+    default_url: the default url to use; its query params may be overridden
+    query_params_override: optional query params that override the ones
+                           contained within the default URL
+  Returns:
+    the url generated from the parameters
+  """
   parsed_url = list(urlparse.urlparse(default_url))
+
+  query_params = query_param_constants.BASE_QUERY_PARAMS
+  if query_params_override:
+    query_params.update(query_params_override)
+  else:
+    query_params.update(urlparse.parse_qsl(parsed_url[4]))
+
   parsed_url[4] = urlencode(query_params, doseq=True)
   return urlparse.urlunparse(parsed_url)
 
@@ -155,6 +172,22 @@ class RecordStrategyPercentile(object):
     """
     record_test_result("{}Pct{}".format(name, self.percentile),
                        container_util.percentile(values, self.percentile))
+
+
+class RecordStrategyStandardDeviation(object):
+  """Records the standard deviation of an array of values."""
+
+  def run(self, name, values):
+    """Records the standard deviation of an array of values.
+
+    Args:
+      name: string name of test case
+      values: must be array of JSON encodable scalar
+    Raises:
+      RuntimeError: Raised on invalid args.
+    """
+    record_test_result("{}StdDev".format(name),
+                       container_util.sample_standard_deviation(values))
 
 
 class ResultsRecorder(object):

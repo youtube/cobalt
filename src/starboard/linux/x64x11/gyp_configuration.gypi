@@ -18,6 +18,7 @@
     # there for acceptable values for this variable.
     'javascript_engine': 'mozjs-45',
     'cobalt_enable_jit': 0,
+    'enable_map_to_mesh%': 1,
   },
   'target_defaults': {
     'default_configuration': 'linux-x64x11_debug',

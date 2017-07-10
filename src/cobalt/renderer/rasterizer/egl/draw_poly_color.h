@@ -34,10 +34,11 @@ class DrawPolyColor : public DrawObject {
                 const math::RectF& rect,
                 const render_tree::ColorRGBA& color);
 
-  void ExecuteOnscreenUpdateVertexBuffer(GraphicsState* graphics_state,
+  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
+  void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
+  base::TypeId GetTypeId() const OVERRIDE;
 
  protected:
   explicit DrawPolyColor(const BaseState& base_state);
@@ -47,7 +48,7 @@ class DrawPolyColor : public DrawObject {
   void AddVertex(float x, float y, uint32_t color);
 
   struct VertexAttributes {
-    float position[3];
+    float position[2];
     uint32_t color;
   };
   std::vector<VertexAttributes> attributes_;

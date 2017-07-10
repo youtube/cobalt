@@ -15,11 +15,11 @@
 #include "starboard/speech_synthesis.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
+#if SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
 
 TEST(SbSpeechSynthesisBasicTest, Basic) {
   SbSpeechSynthesisSpeak("Hello");
   SbSpeechSynthesisCancel();
 }
 
-#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_VERSION(3)
+#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3

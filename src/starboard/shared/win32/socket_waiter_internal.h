@@ -132,10 +132,10 @@ class SbSocketWaiterPrivate {
   WaiteeRegistry waitees_;
   WaiteeRegistry::LookupToken wakeup_event_token_;
 
-  // Number of times wake up has been called, and not handled.
+  // This mutex covers the next two variables.
   starboard::Mutex unhandled_wakeup_count_mutex_;
+  // Number of times wake up has been called, and not handled.
   std::int32_t unhandled_wakeup_count_;
-
   // The WSAEvent that is set by Wakeup();
   sbwin32::AutoEventHandle wakeup_event_;
 };

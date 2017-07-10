@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'cobalt_code': 1,
+    'sb_pedantic_warnings': 1,
   },
   'targets': [
     {
@@ -32,6 +32,24 @@
         '<(DEPTH)/cobalt/dom/dom.gyp:dom',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
         '<(DEPTH)/cobalt/dom_parser/dom_parser.gyp:dom_parser',
+      ],
+      'conditions': [
+        ['enable_xhr_header_filtering == 1', {
+          'sources': [
+            'xhr_modify_headers.h',
+          ],
+          'dependencies': [
+            '<@(cobalt_platform_dependencies)',
+          ],
+          'defines': [
+            'COBALT_ENABLE_XHR_HEADER_FILTERING',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_XHR_HEADER_FILTERING',
+            ],
+          },
+        }],
       ],
     },
     {

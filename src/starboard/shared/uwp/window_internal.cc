@@ -12,11 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <EGL/egl.h>
+#include <windows.h>
+
+// For __getActivationFactoryByPCWSTR custom definition.
+#include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/window_internal.h"
+
+using Windows::UI::Core::CoreWindow;
 
 // TODO: Make sure the width and height here behave well given that we want
 // 1080 video, but perhaps 4k UI where applicable.
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /*options*/)
-    : width(1920), height(1080) {}
+    : width(1920),
+      height(1080),
+      output_width(1920),
+      output_height(1080) {
+  egl_native_window_ = reinterpret_cast<EGLNativeWindowType>(
+      starboard::shared::uwp::ApplicationUwp::Get()->GetCoreWindow().Get());
+}
 
 SbWindowPrivate::~SbWindowPrivate() {}

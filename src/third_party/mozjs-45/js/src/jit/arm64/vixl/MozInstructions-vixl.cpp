@@ -115,6 +115,8 @@ bool Instruction::IsTargetReachable(Instruction* target) const {
       default:
         VIXL_UNREACHABLE();
     }
+
+    return false;
 }
 
 
