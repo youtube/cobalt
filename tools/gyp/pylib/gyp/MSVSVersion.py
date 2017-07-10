@@ -313,7 +313,7 @@ def _DetectVisualStudioVersions(versions_to_check, force_express,
         path = r'C:\Program Files (x86)\Microsoft Visual Studio\2017\Professional\Common7\IDE'
       path = _ConvertToCygpath(path)
       full_path = os.path.join(path, 'devenv.exe')
-      if os.path.exists(full_path):
+      if os.path.exists(full_path) and version in version_to_year:
         versions.append(_CreateVersion(version_to_year[version],
             os.path.join(path, '..', '..')))
       continue
@@ -332,12 +332,13 @@ def _DetectVisualStudioVersions(versions_to_check, force_express,
       # Check for full.
       full_path = os.path.join(path, 'devenv.exe')
       express_path = os.path.join(path, 'vcexpress.exe')
-      if not force_express and os.path.exists(full_path):
+      if (not force_express and os.path.exists(full_path) and
+          version in version_to_year):
         # Add this one.
         versions.append(_CreateVersion(version_to_year[version],
             os.path.join(path, '..', '..')))
       # Check for express.
-      elif os.path.exists(express_path):
+      elif os.path.exists(express_path) and version in version_to_year:
         # Add this one.
         versions.append(_CreateVersion(version_to_year[version] + 'e',
             os.path.join(path, '..', '..')))
@@ -350,9 +351,9 @@ def _DetectVisualStudioVersions(versions_to_check, force_express,
       if not path:
         continue
       path = _ConvertToCygpath(path)
-      versions.append(_CreateVersion(version_to_year[version] + 'e',
-          os.path.join(path, '..'), sdk_based=True))
-
+      if version in version_to_year:
+        versions.append(_CreateVersion(version_to_year[version] + 'e',
+            os.path.join(path, '..'), sdk_based=True))
   return versions
 
 
