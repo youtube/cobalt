@@ -18,6 +18,7 @@ import imp
 import importlib
 import logging
 import os
+import sys
 
 import gyp_utils
 
@@ -98,6 +99,16 @@ class PlatformConfigBase(object):
     return {}
 
 
+def _ModuleLoaded(module_name, module_path):
+  if module_name not in sys.modules:
+    return False
+  # Sometimes one of these has .pyc and the other has .py, but we don't care.
+  extensionless_loaded_path = os.path.splitext(
+      os.path.abspath(sys.modules['platform_module'].__file__))[0]
+  extensionless_module_path = os.path.splitext(os.path.abspath(module_path))[0]
+  return extensionless_loaded_path == extensionless_module_path
+
+
 def LoadPlatformConfig(platform):
   """Loads a platform specific configuration.
 
@@ -117,7 +128,10 @@ def LoadPlatformConfig(platform):
     if platform in platforms.keys():
       platform_path = platforms[platform].path
       module_path = os.path.join(platform_path, 'gyp_configuration.py')
-      platform_module = imp.load_source('platform_module', module_path)
+      if not _ModuleLoaded('platform_module', module_path):
+        platform_module = imp.load_source('platform_module', module_path)
+      else:
+        platform_module = sys.modules['platform_module']
     else:
       module_path = 'config/{}.py'.format(platform)
       platform_module = importlib.import_module('config.{}'.format(platform))
