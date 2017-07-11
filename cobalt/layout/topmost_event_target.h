@@ -28,10 +28,9 @@ namespace layout {
 
 class TopmostEventTarget {
  public:
-  explicit TopmostEventTarget() {}
+  TopmostEventTarget() {}
 
-  void MaybeSendPointerEvents(const scoped_refptr<dom::Event>& event,
-                              const scoped_refptr<dom::Window>& window);
+  void MaybeSendPointerEvents(const scoped_refptr<dom::Event>& event);
 
   scoped_refptr<dom::HTMLElement> previous_html_element_;
   scoped_refptr<dom::HTMLElement> html_element_;
