@@ -20,6 +20,9 @@
     {
       'target_name': 'browser',
       'type': 'static_library',
+      'includes': [
+        '../renderer/renderer_parameters_setup.gypi',
+      ],
       'sources': [
         'application.cc',
         'application.h',
@@ -105,6 +108,7 @@
         'COBALT_IMAGE_CACHE_SIZE_IN_BYTES=<(image_cache_size_in_bytes)',
         'COBALT_REMOTE_TYPEFACE_CACHE_SIZE_IN_BYTES=<(remote_font_cache_size_in_bytes)',
         'COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO=<(image_cache_capacity_multiplier_when_playing_video)',
+        'COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES=<(offscreen_target_cache_size_in_bytes)',
         'COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES=<(software_surface_cache_size_in_bytes)',
         'COBALT_JS_GARBAGE_COLLECTION_THRESHOLD_IN_BYTES=<(mozjs_garbage_collection_threshold_in_bytes)',
         'COBALT_MAX_CPU_USAGE_IN_BYTES=<(max_cobalt_cpu_usage)',

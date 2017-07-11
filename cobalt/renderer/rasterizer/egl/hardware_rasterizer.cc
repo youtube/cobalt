@@ -49,7 +49,7 @@ class HardwareRasterizer::Impl {
                 int skia_atlas_width, int skia_atlas_height,
                 int skia_cache_size_in_bytes,
                 int scratch_surface_cache_size_in_bytes,
-                int surface_cache_size_in_bytes,
+                int offscreen_target_cache_size_in_bytes,
                 bool purge_skia_font_caches_on_destruction);
   ~Impl();
 
@@ -94,7 +94,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               int surface_cache_size_in_bytes,
+                               int offscreen_target_cache_size_in_bytes,
                                bool purge_skia_font_caches_on_destruction)
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
@@ -104,7 +104,8 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)) {
-  DLOG(INFO) << "surface_cache_size_in_bytes: " << surface_cache_size_in_bytes;
+  DLOG(INFO) << "offscreen_target_cache_size_in_bytes: "
+             << offscreen_target_cache_size_in_bytes;
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_);
@@ -114,7 +115,7 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       graphics_context_,
       base::Bind(&HardwareRasterizer::Impl::CreateFallbackSurface,
                  base::Unretained(this)),
-      surface_cache_size_in_bytes));
+      offscreen_target_cache_size_in_bytes));
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -283,12 +284,14 @@ SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
-    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+    int scratch_surface_cache_size_in_bytes,
+    int offscreen_target_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
     : impl_(new Impl(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction)) {
+          offscreen_target_cache_size_in_bytes,
+          purge_skia_font_caches_on_destruction)) {
 }
 
 void HardwareRasterizer::Submit(

@@ -91,6 +91,11 @@ void CheckMemoryChange(const std::string& setting_name,
                        int64_t old_memory_consumption,
                        int64_t new_memory_consumption,
                        double constraining_value) {
+  if (old_memory_consumption == 0) {
+    // If the system is already using no memory, then it can't use any less.
+    return;
+  }
+
   // Represents 1% allowed difference.
   static const double kErrorThreshold = 0.01;
 
