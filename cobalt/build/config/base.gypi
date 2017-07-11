@@ -146,12 +146,19 @@
     # Defines what kind of rasterizer will be used.  This can be adjusted to
     # force a stub graphics implementation or software graphics implementation.
     # It can be one of the following options:
-    #   'hardware' -- As much hardware acceleration of graphics commands as
-    #                 possible. Required for 360 rendering.
-    #   'software' -- Perform most rasterization using the CPU and only interact
-    #                 with the GPU to send the final image to the output window.
-    #   'stub'     -- Stub graphics rasterization.  A rasterizer object will
-    #                 still be available and valid, but it will do nothing.
+    #   'direct-gles' -- Uses a light wrapper over OpenGL ES to handle most
+    #                    draw elements. This will fall back to the skia hardware
+    #                    rasterizer for some render tree node types, but is
+    #                    generally faster on the CPU and GPU. This can handle
+    #                    360 rendering.
+    #   'hardware'    -- As much hardware acceleration of graphics commands as
+    #                    possible. This uses skia to wrap OpenGL ES commands.
+    #                    Required for 360 rendering.
+    #   'software'    -- Perform most rasterization using the CPU and only
+    #                    interact with the GPU to send the final image to the
+    #                    output window.
+    #   'stub'        -- Stub graphics rasterization.  A rasterizer object will
+    #                    still be available and valid, but it will do nothing.
     'rasterizer_type%': 'hardware',
 
     # If set to 1, will enable support for rendering only the regions of the
@@ -282,6 +289,15 @@
     # which render tree nodes are being re-used across frames and stores the
     # nodes that are most CPU-expensive to render into surfaces.
     'surface_cache_size_in_bytes%': 0,
+
+    # Determines the amount of GPU memory the offscreen target atlases will
+    # use. This is specific to the direct-GLES rasterizer and serves a similar
+    # purpose as the surface_cache_size_in_bytes, but caches any render tree
+    # nodes which require skia for rendering. Two atlases will be allocated
+    # from this memory or multiple atlases of the frame size if the limit
+    # allows. It is recommended that enough memory be reserved for two RGBA
+    # atlases about a quarter of the frame size.
+    'offscreen_target_cache_size_in_bytes%': -1,
 
     # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
