@@ -24,10 +24,31 @@ namespace cobalt {
 namespace renderer {
 
 RendererModule::Options::Options()
-    : skia_glyph_texture_atlas_dimensions(2048, 2048),
-      purge_skia_font_caches_on_destruction(true),
+    : purge_skia_font_caches_on_destruction(true),
       enable_fps_stdout(false),
       enable_fps_overlay(false) {
+  // These default values may ultimately be overridden by AutoMem.
+  // These settings are suited for a 1080p frame.
+  scratch_surface_cache_size_in_bytes = 0;
+  skia_glyph_texture_atlas_dimensions.SetSize(2048, 2048);
+  skia_cache_size_in_bytes = 4 * 1024 * 1024;
+
+#if SB_HAS(GLES2)
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  software_surface_cache_size_in_bytes = 0;
+  surface_cache_size_in_bytes = 0;
+  offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
+#else
+  software_surface_cache_size_in_bytes = 0;
+  surface_cache_size_in_bytes = 0;
+  offscreen_target_cache_size_in_bytes = 0;
+#endif
+#else
+  software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
+  surface_cache_size_in_bytes = 0;
+  offscreen_target_cache_size_in_bytes = 0;
+#endif
+
   // Call into platform-specific code for setting up render module options.
   SetPerPlatformDefaultOptions();
 }
