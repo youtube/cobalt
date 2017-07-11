@@ -326,7 +326,7 @@ class WebModule::Impl {
 
   scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 
-  layout::TopmostEventTarget topmost_event_target_;
+  scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -557,6 +557,7 @@ WebModule::Impl::~Impl() {
   // crash when the callback attempts to access a stale Document pointer.
   DisableCallbacksInResourceCaches();
 
+  topmost_event_target_.reset();
   layout_manager_.reset();
   environment_settings_.reset();
   window_weak_.reset();
@@ -1157,7 +1158,10 @@ void WebModule::Impl::HandlePointerEvents() {
           window_ ==
           base::polymorphic_downcast<const dom::UIEvent* const>(event.get())
               ->view());
-      topmost_event_target_.MaybeSendPointerEvents(event, window_);
+      if (!topmost_event_target_) {
+        topmost_event_target_.reset(new layout::TopmostEventTarget());
+      }
+      topmost_event_target_->MaybeSendPointerEvents(event);
     }
   } while (event && !layout_manager_->IsNewRenderTreePending());
 }
