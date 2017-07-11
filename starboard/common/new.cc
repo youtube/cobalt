@@ -21,7 +21,7 @@ void* operator new(size_t size) {
   return SbMemoryAllocate(size);
 }
 
-void operator delete(void* pointer) {
+void operator delete(void* pointer) noexcept {
   SbMemoryDeallocate(pointer);
 }
 
@@ -29,6 +29,6 @@ void* operator new[](size_t size) {
   return SbMemoryAllocate(size);
 }
 
-void operator delete[](void* pointer) {
+void operator delete[](void* pointer) noexcept {
   SbMemoryDeallocate(pointer);
 }
