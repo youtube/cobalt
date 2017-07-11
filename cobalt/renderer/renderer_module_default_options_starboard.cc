@@ -15,6 +15,7 @@
 #include "cobalt/renderer/renderer_module.h"
 
 #include "base/debug/trace_event.h"
+#include "base/logging.h"
 #include "cobalt/renderer/rasterizer/blitter/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/blitter/software_rasterizer.h"
 #include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
@@ -41,15 +42,21 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           graphics_context, options.surface_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 #elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  // This rasterizer uses offscreen_target_cache_size_in_bytes instead of
+  // surface_cache_size_in_bytes.
+  DCHECK_EQ(0, options.surface_cache_size_in_bytes);
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes,
+          options.offscreen_target_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 #else
+  // This rasterizer uses surface_cache_size_in_bytes instead of
+  // offscreen_target_cache_size_in_bytes.
+  DCHECK_EQ(0, options.offscreen_target_cache_size_in_bytes);
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
@@ -84,15 +91,6 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 }  // namespace
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
-  // Set default options from the current build's Starboard configuration.
-  surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
-  // Default to 4MB, but this may be modified externally.
-  skia_cache_size_in_bytes = 4 * 1024 * 1024;
-  scratch_surface_cache_size_in_bytes =
-      COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
-  // 8MB default for software_surface_cache.
-  software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
-
   // If there is no need to frequently flip the display buffer, then enable
   // support for an optimization where the scene is not re-rasterized each frame
   // if it has not changed from the last frame.

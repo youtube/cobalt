@@ -34,15 +34,6 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 }  // namespace
 
 void RendererModule::Options::SetPerPlatformDefaultOptions() {
-  // Set default options from the current build's configuration.
-  surface_cache_size_in_bytes = COBALT_SURFACE_CACHE_SIZE_IN_BYTES;
-
-  // Default to 4MB, but this may be modified externally.
-  skia_cache_size_in_bytes = 4 * 1024 * 1024;
-
-  scratch_surface_cache_size_in_bytes =
-      COBALT_SCRATCH_SURFACE_CACHE_SIZE_IN_BYTES;
-
   // Ensure the scene is re-rasterized even if the render tree is unchanged so
   // that headset look changes are properly rendered.
   submit_even_if_render_tree_is_unchanged = true;

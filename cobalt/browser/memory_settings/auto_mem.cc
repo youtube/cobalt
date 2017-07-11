@@ -329,6 +329,10 @@ const IntSetting* AutoMem::software_surface_cache_size_in_bytes() const {
   return software_surface_cache_size_in_bytes_.get();
 }
 
+const IntSetting* AutoMem::offscreen_target_cache_size_in_bytes() const {
+  return offscreen_target_cache_size_in_bytes_.get();
+}
+
 const IntSetting* AutoMem::max_cpu_bytes() const {
   return max_cpu_bytes_.get();
 }
@@ -356,6 +360,7 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
   all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
   all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
+  all_settings.push_back(offscreen_target_cache_size_in_bytes_.get());
   all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
   all_settings.push_back(skia_cache_size_in_bytes_.get());
@@ -542,6 +547,24 @@ void AutoMem::ConstructSettings(
         MemorySetting::kNotApplicable);
   }
   EnsureValuePositive(software_surface_cache_size_in_bytes_.get());
+
+  // Set offscreen_target_cache_size_in_bytes (relevant to the direct-gles
+  // rasterizer).
+  offscreen_target_cache_size_in_bytes_ =
+      CreateMemorySetting<IntSetting, int64_t>(
+          switches::kOffscreenTargetCacheSizeInBytes,
+          command_line,
+          build_settings.offscreen_target_cache_size_in_bytes,
+          CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
+  offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
+      MakeLinearMemoryScaler(0.25, 1.0));
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
+#else
+  offscreen_target_cache_size_in_bytes_->set_memory_type(
+      MemorySetting::kNotApplicable);
+#endif
+  EnsureValuePositive(offscreen_target_cache_size_in_bytes_.get());
 
   // Final stage: Check that all constraining functions are monotonically
   // increasing.
