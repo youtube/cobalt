@@ -34,12 +34,12 @@
         'submission_queue.cc',
         'submission_queue.h',
       ],
-
       'defines': [
         'COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS=<(cobalt_minimum_frame_time_in_milliseconds)',
       ],
       'includes': [
         'copy_font_data.gypi',
+        'renderer_parameters_setup.gypi',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
@@ -55,13 +55,6 @@
         ['OS=="starboard"', {
           'dependencies': [
             '<(default_renderer_options_dependency)',
-          ],
-        }, {
-          'includes': [
-            'renderer_parameters_setup.gypi',
-          ],
-          'sources': [
-            'renderer_module_default_options_<(actual_target_arch).cc',
           ],
         }],
       ],
