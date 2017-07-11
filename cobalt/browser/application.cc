@@ -357,6 +357,9 @@ void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
   options->renderer_module_options.software_surface_cache_size_in_bytes =
       static_cast<int>(
           auto_mem.software_surface_cache_size_in_bytes()->value());
+  options->renderer_module_options.offscreen_target_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.offscreen_target_cache_size_in_bytes()->value());
 }
 
 Application::Application(const base::Closure& quit_closure)

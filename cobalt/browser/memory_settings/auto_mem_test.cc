@@ -70,6 +70,8 @@ TEST(AutoMem, CommandLineOverrides) {
                                  "1234x5678");
   command_line.AppendSwitchASCII(switches::kSoftwareSurfaceCacheSizeInBytes,
                                  "4567");
+  command_line.AppendSwitchASCII(switches::kOffscreenTargetCacheSizeInBytes,
+                                 "5678");
 
   for (int i = 0; i <= 1; ++i) {
     BuildSettings build_settings = GetDefaultBuildSettings();
@@ -84,6 +86,11 @@ TEST(AutoMem, CommandLineOverrides) {
 
     EXPECT_MEMORY_SETTING(auto_mem.javascript_gc_threshold_in_bytes(),
                           MemorySetting::kCmdLine, MemorySetting::kCPU, 2345);
+
+    if (auto_mem.offscreen_target_cache_size_in_bytes()->valid()) {
+      EXPECT_MEMORY_SETTING(auto_mem.offscreen_target_cache_size_in_bytes(),
+                            MemorySetting::kCmdLine, MemorySetting::kGPU, 5678);
+    }
 
     // Certain features are only available for the blitter, and some features
     // are disabled, vice versa.
@@ -239,7 +246,7 @@ TEST(AutoMem, ConstrainedCPUEnvironment) {
   EXPECT_LE(cpu_memory_consumption, kSmallEngineCpuMemorySize);
 }
 
-// Tests the expectation that constraining the CPU memory to 40MB will result
+// Tests the expectation that constraining the GPU memory will result
 // in AutoMem reducing the the memory footprint.
 TEST(AutoMem, ConstrainedGPUEnvironment) {
   CommandLine empty_command_line(CommandLine::NO_PROGRAM);
@@ -250,7 +257,7 @@ TEST(AutoMem, ConstrainedGPUEnvironment) {
   std::vector<const MemorySetting*> settings = auto_mem.AllMemorySettings();
   const int64_t gpu_memory_consumption =
       SumMemoryConsumption(MemorySetting::kGPU, settings);
-  EXPECT_LE(gpu_memory_consumption, 57 * 1024 * 1024);
+  EXPECT_LE(gpu_memory_consumption, *build_settings.max_gpu_in_bytes);
 }
 
 // Tests the expectation that constraining the CPU memory to 40MB will result
@@ -418,7 +425,7 @@ TEST(AutoMem, MaxGpuIsEnabledWhenReduceCpuMemoryIsExplicitlyDisabled) {
   // Max memory is 1-byte. We expect that the kReduceCpuMemoryBy = "-1"
   // passed to the command line will cause max_cpu_in_bytes to be the
   // dominating memory reduction mechanism.
-  build_settings.max_cpu_in_bytes = kSmallEngineGpuMemorySize;
+  build_settings.max_gpu_in_bytes = kSmallEngineGpuMemorySize;
   command_line.AppendSwitchASCII(switches::kReduceGpuMemoryBy, "-1");
 
   AutoMem auto_mem_no_reduce_cpu(kResolution1080p, command_line,
