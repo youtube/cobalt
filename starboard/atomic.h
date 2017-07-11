@@ -115,7 +115,11 @@ static SbAtomic64 SbAtomicRelease_Load64(volatile const SbAtomic64* ptr);
 
 // Pointer-sized atomic operations. Forwards to either 32-bit or 64-bit
 // functions as appropriate.
-typedef intptr_t SbAtomicPtr;
+#if SB_HAS(64_BIT_POINTERS)
+typedef SbAtomic64 SbAtomicPtr;
+#else
+typedef SbAtomic32 SbAtomicPtr;
+#endif
 
 static SB_C_FORCE_INLINE SbAtomicPtr
 SbAtomicNoBarrier_CompareAndSwapPtr(volatile SbAtomicPtr* ptr,
