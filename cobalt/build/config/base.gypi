@@ -448,17 +448,6 @@
     # implementation is a no-op.
     'cobalt_enable_jit%': 0,
 
-    # Customize variables used by Chromium's build/common.gypi.
-
-    # Disable a check that looks for an official google api key.
-    'use_official_google_api_keys': 0,
-    # Prevents common.gypi from running a bash script which is not required
-    # to compile Cobalt.
-    'clang_use_chrome_plugins': 0,
-    # Disables treat warnings as errors.
-    'werror': '',
-    # Cobalt doesn't currently support tcmalloc.
-    'linux_use_tcmalloc': 0,
     # The event polling mechanism available on this platform to support libevent.
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
