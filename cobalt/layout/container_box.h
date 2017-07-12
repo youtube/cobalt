@@ -115,10 +115,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   const Boxes& child_boxes() const { return child_boxes_; }
 
   void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block,
-      bool is_nearest_stacking_context) OVERRIDE;
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context) OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
   void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
