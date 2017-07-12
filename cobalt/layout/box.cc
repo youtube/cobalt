@@ -802,11 +802,28 @@ const ContainerBox* Box::GetContainingBlock() const {
 
 const ContainerBox* Box::GetStackingContext() const {
   if (!parent_) return AsContainerBox();
+
+  // If the z-index is non-zero, then the nearest stacking context is always
+  // returned as the box's stacking context. Otherwise, the nearest ancestor
+  // between the stacking context and the containing block is returned.
+  bool accept_absolute_containing_block = false;
+  bool accept_fixed_containing_block = false;
   if (GetZIndex() == 0) {
-    return GetContainingBlock();
+    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
+      accept_absolute_containing_block = true;
+    } else if (computed_style()->position() ==
+               cssom::KeywordValue::GetFixed()) {
+      accept_fixed_containing_block = true;
+    } else {
+      return parent_;
+    }
   }
   ContainerBox* containing_block = parent_;
-  while (!containing_block->IsStackingContext()) {
+  while (!containing_block->IsStackingContext() &&
+         (!accept_absolute_containing_block ||
+          !containing_block->IsContainingBlockForPositionAbsoluteElements()) &&
+         (!accept_fixed_containing_block ||
+          !containing_block->IsContainingBlockForPositionFixedElements())) {
     containing_block = containing_block->parent_;
   }
   return containing_block;
@@ -830,36 +847,44 @@ bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {
 }
 
 void Box::UpdateCrossReferencesOfContainerBox(
-    ContainerBox* source_box, bool is_nearest_containing_block,
-    bool is_nearest_absolute_containing_block,
-    bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context) {
+    ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+    RelationshipToBox nearest_absolute_containing_block,
+    RelationshipToBox nearest_fixed_containing_block,
+    RelationshipToBox nearest_stacking_context) {
   // Containing blocks and stacking contexts only matter for positioned boxes.
   if (IsPositioned() || IsTransformed()) {
-    bool is_my_containing_block;
+    RelationshipToBox my_nearest_containing_block;
     // Establish the containing block, as described in
     // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
     if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
       // If the element has 'position: absolute', the containing block is
       // established by the nearest ancestor with a 'position' of 'absolute',
       // 'relative' or 'fixed'.
-      is_my_containing_block = is_nearest_absolute_containing_block;
+      my_nearest_containing_block = nearest_absolute_containing_block;
     } else if (computed_style()->position() ==
                cssom::KeywordValue::GetFixed()) {
       // If the element has 'position: fixed', the containing block is
       // established by the viewport in the case of continuous media or the page
       // area in the case of paged media.
-      is_my_containing_block = is_nearest_fixed_containing_block;
+      my_nearest_containing_block = nearest_fixed_containing_block;
     } else {
       // If the element's position is "relative" or "static", the containing
       // block is formed by the content edge of the nearest block container
       // ancestor box.
-      is_my_containing_block = is_nearest_containing_block;
+      my_nearest_containing_block = nearest_containing_block;
     }
 
-    // If this box has a z_index of zero, then its containing block is its
-    // stacking context. Otherwise, the nearest stacking context is used.
+    bool is_my_containing_block = my_nearest_containing_block == kIsBox;
+
+    // If the z-index is non-zero, then the nearest stacking context is always
+    // used as the box's stacking context. Otherwise, the nearest ancestor
+    // between the stacking context and the containing block is selected.
     bool is_my_stacking_context =
-        GetZIndex() == 0 ? is_my_containing_block : is_nearest_stacking_context;
+        GetZIndex() == 0 ? ((my_nearest_containing_block == kIsBox &&
+                             nearest_stacking_context != kIsBoxDescendant) ||
+                            (nearest_stacking_context == kIsBox &&
+                             my_nearest_containing_block != kIsBoxDescendant))
+                         : nearest_stacking_context == kIsBox;
 
     if (is_my_containing_block) {
       source_box->AddContainingBlockChild(this);
