@@ -41,9 +41,9 @@ void TopmostEventTarget::FindTopmostEventTarget(
     const scoped_refptr<dom::Document>& document,
     const math::Vector2dF& coordinate) {
   const scoped_refptr<dom::HTMLElement>& html_element = document->html();
-  box_ = NULL;
+  DCHECK(!box_);
+  DCHECK(render_sequence_.empty());
   html_element_ = html_element;
-  render_sequence_.clear();
   if (html_element) {
     dom::LayoutBoxes* boxes = html_element->layout_boxes();
     if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
@@ -54,6 +54,8 @@ void TopmostEventTarget::FindTopmostEventTarget(
       }
     }
   }
+  box_ = NULL;
+  render_sequence_.clear();
 }
 
 void TopmostEventTarget::ConsiderElement(
@@ -63,7 +65,7 @@ void TopmostEventTarget::ConsiderElement(
   math::Vector2dF element_coordinate(coordinate);
   dom::LayoutBoxes* boxes = html_element->layout_boxes();
   if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
-    SB_DCHECK(html_element->computed_style());
+    DCHECK(html_element->computed_style());
     LayoutBoxes* layout_boxes = base::polymorphic_downcast<LayoutBoxes*>(boxes);
     const Boxes& boxes = layout_boxes->boxes();
     if (!boxes.empty()) {
@@ -112,16 +114,15 @@ void TopmostEventTarget::ConsiderBoxes(
 }
 
 void TopmostEventTarget::MaybeSendPointerEvents(
-    const scoped_refptr<dom::Event>& event,
-    const scoped_refptr<dom::Window>& window) {
+    const scoped_refptr<dom::Event>& event) {
   const dom::MouseEvent* const mouse_event =
       base::polymorphic_downcast<const dom::MouseEvent* const>(event.get());
-  SB_DCHECK(mouse_event);
-  const scoped_refptr<dom::Document>& document =
-      mouse_event->view()->document();
+  DCHECK(mouse_event);
+  DCHECK(!html_element_);
+  scoped_refptr<dom::Window> view = mouse_event->view();
 
   math::Vector2dF coordinate(mouse_event->client_x(), mouse_event->client_y());
-  FindTopmostEventTarget(document, coordinate);
+  FindTopmostEventTarget(view->document(), coordinate);
 
   if (html_element_) {
     html_element_->DispatchEvent(event);
@@ -154,11 +155,11 @@ void TopmostEventTarget::MaybeSendPointerEvents(
         mouse_event_init.set_button(pointer_event->button());
         mouse_event_init.set_buttons(pointer_event->buttons());
         html_element_->DispatchEvent(
-            new dom::MouseEvent(type, window, mouse_event_init));
+            new dom::MouseEvent(type, view, mouse_event_init));
         if (pointer_event->type() == base::Tokens::pointerup()) {
           type = base::Tokens::click();
           html_element_->DispatchEvent(
-              new dom::MouseEvent(type, window, mouse_event_init));
+              new dom::MouseEvent(type, view, mouse_event_init));
         }
       }
     }
@@ -195,9 +196,9 @@ void TopmostEventTarget::MaybeSendPointerEvents(
 
       if (previous_html_element_) {
         previous_html_element_->DispatchEvent(new dom::PointerEvent(
-            base::Tokens::pointerout(), window, event_init));
+            base::Tokens::pointerout(), view, event_init));
         previous_html_element_->DispatchEvent(
-            new dom::MouseEvent(base::Tokens::mouseout(), window, event_init));
+            new dom::MouseEvent(base::Tokens::mouseout(), view, event_init));
 
         // Find the nearest common ancestor, if there is any.
         dom::Document* previous_document =
@@ -222,10 +223,10 @@ void TopmostEventTarget::MaybeSendPointerEvents(
                element = element->parent_element()) {
             element->DispatchEvent(new dom::PointerEvent(
                 base::Tokens::pointerleave(), dom::Event::kNotBubbles,
-                dom::Event::kNotCancelable, window, event_init));
+                dom::Event::kNotCancelable, view, event_init));
             element->DispatchEvent(new dom::MouseEvent(
                 base::Tokens::mouseleave(), dom::Event::kNotBubbles,
-                dom::Event::kNotCancelable, window, event_init));
+                dom::Event::kNotCancelable, view, event_init));
           }
 
           if (!html_element_ ||
@@ -236,19 +237,19 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       }
       if (html_element_) {
         html_element_->DispatchEvent(new dom::PointerEvent(
-            base::Tokens::pointerover(), window, event_init));
+            base::Tokens::pointerover(), view, event_init));
         html_element_->DispatchEvent(
-            new dom::MouseEvent(base::Tokens::mouseover(), window, event_init));
+            new dom::MouseEvent(base::Tokens::mouseover(), view, event_init));
 
         for (scoped_refptr<dom::Element> element = html_element_;
              element != nearest_common_ancestor;
              element = element->parent_element()) {
           element->DispatchEvent(new dom::PointerEvent(
               base::Tokens::pointerenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, window, event_init));
+              dom::Event::kNotCancelable, view, event_init));
           element->DispatchEvent(new dom::MouseEvent(
               base::Tokens::mouseenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, window, event_init));
+              dom::Event::kNotCancelable, view, event_init));
         }
 
         dom::Document* document = html_element_->node_document();
@@ -259,6 +260,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       previous_html_element_ = html_element_;
     }
   }
+  html_element_ = NULL;
 }
 
 }  // namespace layout

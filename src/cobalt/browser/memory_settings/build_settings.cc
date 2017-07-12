@@ -69,9 +69,14 @@ BuildSettings GetDefaultBuildSettings() {
           TextureDimensions(COBALT_SKIA_GLYPH_ATLAS_WIDTH,
                             COBALT_SKIA_GLYPH_ATLAS_HEIGHT,
                             kSkiaGlyphAtlasTextureBytesPerPixel));
+
+  // Render tree node cache settings for various rasterizers.
   settings.software_surface_cache_size_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(
           COBALT_SOFTWARE_SURFACE_CACHE_SIZE_IN_BYTES);
+  settings.offscreen_target_cache_size_in_bytes =
+      MakeValidIfGreaterThanOrEqualToZero(
+          COBALT_OFFSCREEN_TARGET_CACHE_SIZE_IN_BYTES);
 
   settings.max_cpu_in_bytes =
       MakeValidIfGreaterThanOrEqualToZero(COBALT_MAX_CPU_USAGE_IN_BYTES);

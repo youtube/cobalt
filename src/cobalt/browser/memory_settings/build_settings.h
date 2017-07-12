@@ -35,6 +35,7 @@ struct BuildSettings {
   base::optional<int64_t> skia_cache_size_in_bytes;
   base::optional<TextureDimensions> skia_texture_atlas_dimensions;
   base::optional<int64_t> software_surface_cache_size_in_bytes;
+  base::optional<int64_t> offscreen_target_cache_size_in_bytes;
 
   base::optional<int64_t> max_cpu_in_bytes;
   base::optional<int64_t> max_gpu_in_bytes;

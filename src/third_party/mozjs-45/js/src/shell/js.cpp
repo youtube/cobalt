@@ -108,6 +108,8 @@
 #define PATH_MAX (SB_FILE_MAX_PATH + 1)
 #endif
 
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
 #include "starboard/client_porting/wrap_main/wrap_main.h"
 #include "starboard/memory.h"
 

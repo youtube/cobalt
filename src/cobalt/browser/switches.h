@@ -53,6 +53,7 @@ extern const char kFPSPrint[];
 extern const char kFPSOverlay[];
 extern const char kImageCacheSizeInBytes[];
 extern const char kInitialURL[];
+extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];

@@ -60,7 +60,7 @@ ShapeTable::init(ExclusiveContext* cx, Shape* lastProp)
 
     for (Shape::Range<NoGC> r(lastProp); !r.empty(); r.popFront()) {
         Shape& shape = r.front();
-        Entry& entry = search(shape.propid(), true);
+        Entry& entry = search<true>(shape.propid());
 
         /*
          * Beware duplicate args and arg vs. var conflicts: the youngest shape
@@ -186,8 +186,9 @@ Hash2(HashNumber hash0, uint32_t log2, uint32_t shift)
     return ((hash0 << log2) >> shift) | 1;
 }
 
+template <bool adding>
 ShapeTable::Entry&
-ShapeTable::search(jsid id, bool adding)
+ShapeTable::search(jsid id)
 {
     MOZ_ASSERT(entries_);
     MOZ_ASSERT(!JSID_IS_EMPTY(id));
@@ -257,6 +258,9 @@ ShapeTable::search(jsid id, bool adding)
     MOZ_CRASH("Shape::search failed to find an expected entry.");
 }
 
+template ShapeTable::Entry& ShapeTable::search<false>(jsid id);
+template ShapeTable::Entry& ShapeTable::search<true>(jsid id);
+
 bool
 ShapeTable::change(int log2Delta, ExclusiveContext* cx)
 {
@@ -284,7 +288,7 @@ ShapeTable::change(int log2Delta, ExclusiveContext* cx)
     /* Copy only live entries, leaving removed and free ones behind. */
     for (Entry* oldEntry = oldTable; oldSize != 0; oldEntry++) {
         if (Shape* shape = oldEntry->shape()) {
-            Entry& entry = search(shape->propid(), true);
+            Entry& entry = search<true>(shape->propid());
             MOZ_ASSERT(entry.isFree());
             entry.setShape(shape);
         }
@@ -495,7 +499,7 @@ NativeObject::addProperty(ExclusiveContext* cx, HandleNativeObject obj, HandleId
 
     ShapeTable::Entry* entry = nullptr;
     if (obj->inDictionaryMode())
-        entry = &obj->lastProperty()->table().search(id, true);
+        entry = &obj->lastProperty()->table().search<true>(id);
 
     return addPropertyInternal(cx, obj, id, getter, setter, slot, attrs, flags, entry,
                                allowDictionary);
@@ -545,14 +549,14 @@ NativeObject::addPropertyInternal(ExclusiveContext* cx,
             if (!obj->toDictionaryMode(cx))
                 return nullptr;
             table = &obj->lastProperty()->table();
-            entry = &table->search(id, true);
+            entry = &table->search<true>(id);
         }
     } else {
         table = &obj->lastProperty()->table();
         if (table->needsToGrow()) {
             if (!table->grow(cx))
                 return nullptr;
-            entry = &table->search(id, true);
+            entry = &table->search<true>(id);
             MOZ_ASSERT(!entry->shape());
         }
     }
@@ -713,7 +717,7 @@ NativeObject::putProperty(ExclusiveContext* cx, HandleNativeObject obj, HandleId
      * shape table.
      */
     ShapeTable::Entry* entry;
-    RootedShape shape(cx, Shape::search(cx, obj->lastProperty(), id, &entry, true));
+    RootedShape shape(cx, Shape::search<true>(cx, obj->lastProperty(), id, &entry));
     if (!shape) {
         /*
          * You can't add properties to a non-extensible object, but you can change
@@ -777,7 +781,7 @@ NativeObject::putProperty(ExclusiveContext* cx, HandleNativeObject obj, HandleId
     if (shape != obj->lastProperty() && !obj->inDictionaryMode()) {
         if (!obj->toDictionaryMode(cx))
             return nullptr;
-        entry = &obj->lastProperty()->table().search(shape->propid(), false);
+        entry = &obj->lastProperty()->table().search(shape->propid());
         shape = entry->shape();
     }
 
@@ -925,7 +929,7 @@ NativeObject::removeProperty(ExclusiveContext* cx, jsid id_)
     if (!self->inDictionaryMode() && (shape != self->lastProperty() || !self->canRemoveLastProperty())) {
         if (!self->toDictionaryMode(cx))
             return false;
-        entry = &self->lastProperty()->table().search(shape->propid(), false);
+        entry = &self->lastProperty()->table().search(shape->propid());
         shape = entry->shape();
     }
 
@@ -1108,7 +1112,7 @@ NativeObject::replaceWithNewEquivalentShape(ExclusiveContext* cx, Shape* oldShap
     ShapeTable& table = self->lastProperty()->table();
     ShapeTable::Entry* entry = oldShape->isEmptyShape()
                                ? nullptr
-                               : &table.search(oldShape->propidRef(), false);
+                               : &table.search(oldShape->propidRef());
 
     /*
      * Splice the new shape into the same position as the old shape, preserving

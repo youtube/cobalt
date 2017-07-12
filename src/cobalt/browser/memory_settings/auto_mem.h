@@ -53,6 +53,7 @@ class AutoMem {
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
+  const IntSetting* offscreen_target_cache_size_in_bytes() const;
 
   // max_cpu/gpu_bytes represents the maximum amount of memory that should
   // be consumed by the engine. These values can be set by the command line
@@ -87,6 +88,7 @@ class AutoMem {
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
+  scoped_ptr<IntSetting> offscreen_target_cache_size_in_bytes_;
 
   // These settings are used for constraining the memory and are NOT included
   // in AllMemorySettings().
