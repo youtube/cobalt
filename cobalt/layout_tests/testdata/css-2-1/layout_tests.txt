@@ -136,6 +136,7 @@
 9-9-1-absolute-positioned-elements-should-render-on-top-of-static-elements
 9-9-1-containing-block-may-be-farther-than-stacking-context
 9-9-1-elements-with-transform-should-appear-over-normal-flow-elements
+9-9-1-nearest-ancestor-stacking-context-should-contain-element
 9-9-1-negative-z-indices
 9-9-1-simple-positive-z-indices
 9-9-1-stacking-context-should-take-into-account-intermediate-containing-blocks

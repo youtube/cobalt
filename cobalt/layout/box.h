@@ -470,6 +470,12 @@ class Box : public base::RefCounted<Box> {
   void InvalidateParent() { parent_ = NULL; }
 
  protected:
+  enum RelationshipToBox {
+    kIsBoxAncestor,
+    kIsBox,
+    kIsBoxDescendant,
+  };
+
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
@@ -554,9 +560,10 @@ class Box : public base::RefCounted<Box> {
   // the box tree that have it as their containing block or stacking context.
   // This function is called recursively.
   virtual void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context);
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See
