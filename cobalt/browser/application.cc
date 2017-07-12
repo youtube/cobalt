@@ -272,6 +272,7 @@ const char kYouTubeTvLocationPolicy[] =
     "https://www.youtube.com/tv/ "
     "https://web-release-qa.youtube.com/tv "
     "https://web-release-qa.youtube.com/tv/ "
+    "https://www.youtube.com/tv_kids"
 #if defined(ENABLE_ABOUT_SCHEME)
     "about: "
 #endif
