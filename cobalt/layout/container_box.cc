@@ -189,20 +189,22 @@ void ContainerBox::UpdateCrossReferences() {
     negative_z_index_child_.clear();
     non_negative_z_index_child_.clear();
 
-    const bool kIsNearestContainingBlockOfChildren = true;
-    bool is_nearest_absolute_containing_block =
-        IsContainingBlockForPositionAbsoluteElements();
-    bool is_nearest_fixed_containing_block =
-        IsContainingBlockForPositionFixedElements();
-    bool is_nearest_stacking_context = IsStackingContext();
+    const RelationshipToBox kNearestContainingBlockOfChildren = kIsBox;
+    RelationshipToBox nearest_absolute_containing_block =
+        IsContainingBlockForPositionAbsoluteElements() ? kIsBox
+                                                       : kIsBoxAncestor;
+    RelationshipToBox nearest_fixed_containing_block =
+        IsContainingBlockForPositionFixedElements() ? kIsBox : kIsBoxAncestor;
+    RelationshipToBox nearest_stacking_context =
+        IsStackingContext() ? kIsBox : kIsBoxAncestor;
 
     for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
       child_box->UpdateCrossReferencesOfContainerBox(
-          this, kIsNearestContainingBlockOfChildren,
-          is_nearest_absolute_containing_block,
-          is_nearest_fixed_containing_block, is_nearest_stacking_context);
+          this, kNearestContainingBlockOfChildren,
+          nearest_absolute_containing_block, nearest_fixed_containing_block,
+          nearest_stacking_context);
     }
 
     are_cross_references_valid_ = true;
@@ -516,14 +518,14 @@ void ContainerBox::SplitBidiLevelRuns() {
 }
 
 void ContainerBox::UpdateCrossReferencesOfContainerBox(
-    ContainerBox* source_box, bool is_nearest_containing_block,
-    bool is_nearest_absolute_containing_block,
-    bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context) {
+    ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+    RelationshipToBox nearest_absolute_containing_block,
+    RelationshipToBox nearest_fixed_containing_block,
+    RelationshipToBox nearest_stacking_context) {
   // First update the source container box's cross references with this box.
   Box::UpdateCrossReferencesOfContainerBox(
-      source_box, is_nearest_containing_block,
-      is_nearest_absolute_containing_block, is_nearest_fixed_containing_block,
-      is_nearest_stacking_context);
+      source_box, nearest_containing_block, nearest_absolute_containing_block,
+      nearest_fixed_containing_block, nearest_stacking_context);
 
   // In addition to updating the source container box's cross references with
   // this box, we also recursively update it with our children.
@@ -532,30 +534,36 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
   // specified types, then the target container box cannot be the nearest box of
   // that type for the children.
 
-  const bool kIsNearestContainingBlockOfChildren = false;
-  bool is_nearest_absolute_containing_block_of_children =
-      is_nearest_absolute_containing_block &&
-      !IsContainingBlockForPositionAbsoluteElements();
-  bool is_nearest_fixed_containing_block_of_children =
-      is_nearest_fixed_containing_block &&
-      !IsContainingBlockForPositionFixedElements();
-  bool is_nearest_stacking_context_of_children =
-      is_nearest_stacking_context && !IsStackingContext();
+  const RelationshipToBox kNearestContainingBlockOfChildren = kIsBoxDescendant;
+  RelationshipToBox nearest_absolute_containing_block_of_children =
+      nearest_absolute_containing_block != kIsBoxDescendant &&
+              IsContainingBlockForPositionAbsoluteElements()
+          ? kIsBoxDescendant
+          : nearest_absolute_containing_block;
+  RelationshipToBox nearest_fixed_containing_block_of_children =
+      nearest_fixed_containing_block != kIsBoxDescendant &&
+              IsContainingBlockForPositionFixedElements()
+          ? kIsBoxDescendant
+          : nearest_fixed_containing_block;
+  RelationshipToBox nearest_stacking_context_of_children =
+      nearest_stacking_context != kIsBoxDescendant && IsStackingContext()
+          ? kIsBoxDescendant
+          : nearest_stacking_context;
 
   // Only process the children if the target container box is still the nearest
   // box of one of the types. If it is not, then it is impossible for any of the
   // children to be added to the cross references.
-  if (is_nearest_absolute_containing_block_of_children ||
-      is_nearest_fixed_containing_block_of_children ||
-      is_nearest_stacking_context_of_children) {
+  if (nearest_absolute_containing_block_of_children == kIsBox ||
+      nearest_fixed_containing_block_of_children == kIsBox ||
+      nearest_stacking_context_of_children == kIsBox) {
     for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
          child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
       child_box->UpdateCrossReferencesOfContainerBox(
-          source_box, kIsNearestContainingBlockOfChildren,
-          is_nearest_absolute_containing_block_of_children,
-          is_nearest_fixed_containing_block_of_children,
-          is_nearest_stacking_context_of_children);
+          source_box, kNearestContainingBlockOfChildren,
+          nearest_absolute_containing_block_of_children,
+          nearest_fixed_containing_block_of_children,
+          nearest_stacking_context_of_children);
     }
   }
 }
