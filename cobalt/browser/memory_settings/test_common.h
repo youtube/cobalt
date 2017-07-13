@@ -70,26 +70,21 @@ class TestSettingGroup {
   TestSettingGroup() {}
 
   void LoadDefault() {
-    MakeSetting(MemorySetting::kInt, MemorySetting::kCmdLine,
-                MemorySetting::kGPU, switches::kImageCacheSizeInBytes,
-                "1234");
+    MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
+                switches::kImageCacheSizeInBytes, 1234);
 
-    MakeSetting(MemorySetting::kInt, MemorySetting::kAutoSet,
-                MemorySetting::kCPU, switches::kJavaScriptGcThresholdInBytes,
-                "1112");
+    MakeSetting(MemorySetting::kAutoSet, MemorySetting::kCPU,
+                switches::kJavaScriptGcThresholdInBytes, 1112);
 
-    MakeSetting(MemorySetting::kDimensions, MemorySetting::kCmdLine,
-                MemorySetting::kGPU, switches::kSkiaTextureAtlasDimensions,
-                "1234x4567");
+    MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
+                switches::kSkiaTextureAtlasDimensions,
+                TextureDimensions(1234, 4567, 2));
 
-    MakeSetting(MemorySetting::kInt, MemorySetting::kCmdLine,
-                MemorySetting::kGPU, switches::kSkiaCacheSizeInBytes,
-                "12345678");
+    MakeSetting(MemorySetting::kCmdLine, MemorySetting::kGPU,
+                switches::kSkiaCacheSizeInBytes, 12345678);
 
-    MakeSetting(MemorySetting::kInt, MemorySetting::kBuildSetting,
-                MemorySetting::kNotApplicable,
-                switches::kSoftwareSurfaceCacheSizeInBytes,
-                "8910");
+    MakeSetting(MemorySetting::kBuildSetting, MemorySetting::kNotApplicable,
+                switches::kSoftwareSurfaceCacheSizeInBytes, 8910);
   }
 
   ~TestSettingGroup() {
@@ -99,16 +94,14 @@ class TestSettingGroup {
   }
 
   // The memory setting is owned internally.
-  void MakeSetting(
-      MemorySetting::ClassType class_type,
-      MemorySetting::SourceType source_type,
-      MemorySetting::MemoryType memory_type,
-      const std::string& name, const std::string& value) {
+  template <typename ValueType>
+  void MakeSetting(MemorySetting::SourceType source_type,
+                   MemorySetting::MemoryType memory_type,
+                   const std::string& name, const ValueType& value) {
     const bool found = (map_.find(name) !=  map_.end());
 
     ASSERT_FALSE(found);
-    map_[name] =
-        CreateMemorySetting(class_type, source_type, memory_type, name, value);
+    map_[name] = CreateMemorySetting(source_type, memory_type, name, value);
   }
 
   std::vector<const MemorySetting*> AsConstVector() const {
@@ -128,35 +121,34 @@ class TestSettingGroup {
   }
 
  private:
+  template <typename ValueType>
   static MemorySetting* CreateMemorySetting(
-      MemorySetting::ClassType class_type,
       MemorySetting::SourceType source_type,
       MemorySetting::MemoryType memory_type, const std::string& name,
-      const std::string& value) {
-    MemorySetting* memory_setting = NULL;
-    switch (class_type) {
-      case MemorySetting::kInt: {
-        memory_setting = new IntSetting(name);
-        break;
-      }
-      case MemorySetting::kDimensions: {
-        memory_setting = new TestDimensionSetting(name);
-        break;
-      }
-      default: {
-        EXPECT_TRUE(false) << "Unexpected type " << class_type;
-        memory_setting = new IntSetting(name);
-        break;
-      }
-    }
-    EXPECT_TRUE(memory_setting->TryParseValue(source_type, value));
+      const ValueType& value) {
+    IntSetting* memory_setting = new IntSetting(name);
     memory_setting->set_memory_type(memory_type);
+    memory_setting->set_value(source_type, value);
     return memory_setting;
   }
 
   typedef std::map<std::string, MemorySetting*> MemoryMap;
   MemoryMap map_;
 };
+
+// Specialization for TextureDimensions.
+
+// static
+template <>
+inline MemorySetting* TestSettingGroup::CreateMemorySetting(
+    MemorySetting::SourceType source_type,
+    MemorySetting::MemoryType memory_type, const std::string& name,
+    const TextureDimensions& value) {
+  TestDimensionSetting* memory_setting = new TestDimensionSetting(name);
+  memory_setting->set_memory_type(memory_type);
+  memory_setting->set_value(source_type, value);
+  return memory_setting;
+}
 
 }  // namespace memory_settings
 }  // namespace browser

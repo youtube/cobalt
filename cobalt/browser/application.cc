@@ -35,6 +35,7 @@
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
+#include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_tracker/tool.h"
@@ -423,11 +424,9 @@ Application::Application(const base::Closure& quit_closure)
     options.web_module_options.javascript_options.disable_jit = true;
   }
 
-  auto_mem_.reset(
-      new memory_settings::AutoMem(
-          window_size,
-          *command_line,
-          memory_settings::GetDefaultBuildSettings()));
+  auto_mem_.reset(new memory_settings::AutoMem(
+      window_size, memory_settings::GetSettings(*command_line),
+      memory_settings::GetDefaultBuildSettings()));
 
   ApplyAutoMemSettings(*auto_mem_, &options);
 
