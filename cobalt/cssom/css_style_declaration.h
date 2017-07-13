@@ -314,6 +314,10 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_padding_top(const std::string& padding_top,
                        script::ExceptionState* exception_state);
 
+  std::string pointer_events(script::ExceptionState* exception_state) const;
+  void set_pointer_events(const std::string& pointer_events,
+                          script::ExceptionState* exception_state);
+
   std::string position(script::ExceptionState* exception_state) const;
   void set_position(const std::string& position,
                     script::ExceptionState* exception_state);

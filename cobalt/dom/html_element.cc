@@ -1330,12 +1330,12 @@ void HTMLElement::UpdateComputedStyle(
   computed_style_valid_ = true;
 }
 
-bool HTMLElement::IsDesignated() {
+bool HTMLElement::IsDesignated() const {
   Document* document = node_document();
   if (document) {
     scoped_refptr<Element> element = document->indicated_element();
     while (element) {
-      if (element == this) {
+      if (element.get() == this) {
         return true;
       }
       // The parent of an element that is :hover is also in that state.
@@ -1344,6 +1344,11 @@ bool HTMLElement::IsDesignated() {
     }
   }
   return false;
+}
+
+bool HTMLElement::CanbeDesignatedByPointerIfDisplayed() const {
+  return computed_style()->pointer_events() != cssom::KeywordValue::GetNone() &&
+         computed_style()->visibility() == cssom::KeywordValue::GetVisible();
 }
 
 void HTMLElement::ClearActiveBackgroundImages() {
