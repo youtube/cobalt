@@ -404,6 +404,7 @@ BrowserModule::BrowserModule(const GURL& url,
   // TODO: Render tree combiner should probably be refactored.
   render_tree_combiner_.set_render_debug_console(true);
 
+  splash_screen_url_ = options.splash_screen_url;
   // Synchronously construct our WebModule object.
   NavigateInternal(url);
   DCHECK(web_module_);
@@ -476,13 +477,15 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = renderer_module_.render_target()->GetSize();
   DestroySplashScreen();
-  splash_screen_.reset(
-      new SplashScreen(application_state_,
-                       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
-                                  base::Unretained(this)),
-                       &network_module_, viewport_size, GetResourceProvider(),
-                       kLayoutMaxRefreshFrequencyInHz));
-  lifecycle_observers_.AddObserver(splash_screen_.get());
+  if (splash_screen_url_) {
+    splash_screen_.reset(
+        new SplashScreen(application_state_,
+                         base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                                    base::Unretained(this)),
+                         &network_module_, viewport_size, GetResourceProvider(),
+                         kLayoutMaxRefreshFrequencyInHz, *splash_screen_url_));
+    lifecycle_observers_.AddObserver(splash_screen_.get());
+  }
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
