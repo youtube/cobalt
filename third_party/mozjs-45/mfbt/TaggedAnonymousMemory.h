@@ -32,9 +32,33 @@
 #ifndef mozilla_TaggedAnonymousMemory_h
 #define mozilla_TaggedAnonymousMemory_h
 
-#ifndef XP_WIN
+#if defined(STARBOARD)
 
-// TODO: Starboardize
+#include "starboard/log.h"
+#include "starboard/memory.h"
+
+static inline void
+MozTagAnonymousMemory(const void* aPtr, size_t aLength, const char* aTag)
+{
+}
+
+static inline void*
+MozTaggedAnonymousMmap(void* aAddr, size_t aLength, int aProt, int aFlags,
+                       int aFd, int64_t aOffset, const char* aTag)
+{
+  // Starboard has no concept of passing an address into mmap.
+  SB_DCHECK(aAddr == nullptr);
+  return SbMemoryMap(aLength, aProt, aTag);
+}
+
+static inline int
+MozTaggedMemoryIsSupported(void)
+{
+  return 0;
+}
+
+#elif !defined(XP_WIN)
+
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -67,7 +91,6 @@ MozTagAnonymousMemory(const void* aPtr, size_t aLength, const char* aTag)
 {
 }
 
-// TODO: Starboardize.
 static inline void*
 MozTaggedAnonymousMmap(void* aAddr, size_t aLength, int aProt, int aFlags,
                        int aFd, off_t aOffset, const char* aTag)

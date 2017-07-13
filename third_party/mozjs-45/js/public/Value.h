@@ -968,8 +968,13 @@ JSVAL_IS_TRACEABLE_IMPL(jsval_layout l)
     return JSVAL_IS_GCTHING_IMPL(l) && !JSVAL_IS_NULL_IMPL(l);
 }
 
-// TODO : Fix Windows compilation problem with JSVAL_TO_IMPL.
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+// Note that the Value class's data member is private
+// if !defined(_MSC_VER) && !defined(__sparc) and is public otherwise.
+#define JSVAL_TO_IMPL(v) ((v).data)
+#else
 static inline jsval_layout JSVAL_TO_IMPL(JS::Value v);
+#endif
 static inline JS_VALUE_CONSTEXPR JS::Value IMPL_TO_JSVAL(jsval_layout l);
 
 namespace JS {
@@ -1393,7 +1398,11 @@ class Value
         JS_STATIC_ASSERT(sizeof(Value) == 8);
     }
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+    // Do not declare JSVAL_TO_IMPL a friend. It is a macro.
+#else
     friend jsval_layout (::JSVAL_TO_IMPL)(Value);
+#endif
     friend Value JS_VALUE_CONSTEXPR (::IMPL_TO_JSVAL)(jsval_layout l);
     friend Value JS_VALUE_CONSTEXPR (JS::UndefinedValue)();
 };
@@ -1896,11 +1905,15 @@ template <class S, bool v> struct BoolDefaultAdaptor { static bool defaultValue(
 
 } // namespace js
 
+#if defined(STARBOARD) && SB_IS(COMPILER_MSVC)
+// Do not define JSVAL_TO_IMPL as a function. It is a macro.
+#else
 inline jsval_layout
 JSVAL_TO_IMPL(JS::Value v)
 {
     return v.data;
 }
+#endif
 
 inline JS_VALUE_CONSTEXPR JS::Value
 IMPL_TO_JSVAL(jsval_layout l)

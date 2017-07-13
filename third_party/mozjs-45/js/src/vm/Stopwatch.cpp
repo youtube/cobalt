@@ -253,7 +253,12 @@ AutoStopwatch::~AutoStopwatch()
         return;
     }
 
+#if defined(STARBOARD)
+    auto unused = exit();
+    SB_UNREFERENCED_PARAMETER(unused);
+#else
     mozilla::Unused << exit(); // Sadly, there is nothing we can do about an error at this point.
+#endif
 
     for (auto group = groups_.begin(); group < groups_.end(); group++)
         releaseGroup(*group);
