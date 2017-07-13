@@ -58,6 +58,7 @@ extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
 extern const char kSoftwareSurfaceCacheSizeInBytes[];
+extern const char kFallbackSplashScreenURL[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
 extern const char kDisableJavaScriptJit[];

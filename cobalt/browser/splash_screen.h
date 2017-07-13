@@ -32,19 +32,13 @@ namespace browser {
 //
 class SplashScreen : public LifecycleObserver {
  public:
-  struct Options {
-    Options() : url(kDefaultSplashScreenURL) {}
-    static const char kDefaultSplashScreenURL[];
-    GURL url;
-  };
-
   SplashScreen(base::ApplicationState initial_application_state,
                const WebModule::OnRenderTreeProducedCallback&
                    render_tree_produced_callback,
                network::NetworkModule* network_module,
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
-               float layout_refresh_rate, const Options& options = Options());
+               float layout_refresh_rate, const GURL& url);
   ~SplashScreen();
 
   // LifecycleObserver implementation.
