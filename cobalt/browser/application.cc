@@ -22,9 +22,11 @@
 #include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
+#include "base/string_util.h"
 #include "base/time.h"
 #include "build/build_config.h"
 #include "cobalt/base/cobalt_paths.h"
@@ -63,6 +65,10 @@ namespace {
 const int kStatUpdatePeriodMs = 1000;
 
 const char kDefaultURL[] = "https://www.youtube.com/tv";
+
+bool IsStringNone(const std::string& str) {
+  return !base::strcasecmp(str.c_str(), "none");
+}
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
 int GetRemoteDebuggingPort() {
@@ -138,11 +144,34 @@ GURL GetInitialURL() {
     if (url.is_valid()) {
       return url;
     } else {
-      DLOG(INFO) << "URL from parameter is not valid, using default URL.";
+      LOG(FATAL) << "URL from parameter " << command_line
+                 << " is not valid, using default URL.";
     }
   }
 
   return GURL(kDefaultURL);
+}
+
+base::optional<GURL> GetSplashScreenURL() {
+  CommandLine* command_line = CommandLine::ForCurrentProcess();
+  std::string splash_screen_string;
+  if (command_line->HasSwitch(switches::kFallbackSplashScreenURL)) {
+    splash_screen_string =
+        command_line->GetSwitchValueASCII(switches::kFallbackSplashScreenURL);
+  } else {
+    splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
+  }
+  if (IsStringNone(splash_screen_string)) {
+    return base::optional<GURL>();
+  }
+  base::optional<GURL> splash_screen_url = GURL(splash_screen_string);
+  if (!splash_screen_url->is_valid() ||
+      !(StartsWithASCII(splash_screen_string, "file:///", false) ||
+        StartsWithASCII(splash_screen_string, "h5vcc-embedded://", false))) {
+    LOG(FATAL) << "Ignoring invalid fallback splash screen: "
+               << splash_screen_string;
+  }
+  return splash_screen_url;
 }
 
 base::TimeDelta GetTimedTraceDuration() {
@@ -353,6 +382,11 @@ Application::Application(const base::Closure& quit_closure)
   GURL initial_url = GetInitialURL();
   DLOG(INFO) << "Initial URL: " << initial_url;
 
+  // Get the splash screen URL.
+  base::optional<GURL> splash_screen_url = GetSplashScreenURL();
+  DLOG(INFO) << "Splash screen URL: "
+             << (splash_screen_url ? splash_screen_url->spec() : "none");
+
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
   base::LocalizedStrings::GetInstance()->Initialize(language);
@@ -370,6 +404,7 @@ Application::Application(const base::Closure& quit_closure)
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
   options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
+  options.splash_screen_url = splash_screen_url;
 
   if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
     options.renderer_module_options.enable_fps_stdout = true;
