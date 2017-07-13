@@ -18,7 +18,6 @@
 
 #include <algorithm>
 
-#include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/math/size.h"
