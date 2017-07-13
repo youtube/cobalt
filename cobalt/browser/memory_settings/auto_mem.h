@@ -17,14 +17,13 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/math/size.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -39,8 +38,8 @@ namespace memory_settings {
 class AutoMem {
  public:
   explicit AutoMem(const math::Size& ui_resolution,
-                   const CommandLine& command_line,
-                   const BuildSettings& build_settings);
+                   const AutoMemSettings& command_line_settings,
+                   const AutoMemSettings& build_settings);
   ~AutoMem();
 
   const IntSetting* image_cache_size_in_bytes() const;
@@ -72,8 +71,8 @@ class AutoMem {
 
  private:
   void ConstructSettings(const math::Size& ui_resolution,
-                         const CommandLine& command_line,
-                         const BuildSettings& build_settings);
+                         const AutoMemSettings& command_line_settings,
+                         const AutoMemSettings& build_settings);
 
   // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;

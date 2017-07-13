@@ -16,14 +16,8 @@
 
 #include "cobalt/browser/memory_settings/calculations.h"
 
-#include <algorithm>
-#include <sstream>
-#include <string>
-#include <vector>
-
 #include "base/command_line.h"
 #include "base/logging.h"
-#include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
