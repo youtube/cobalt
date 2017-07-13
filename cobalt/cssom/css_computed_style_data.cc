@@ -209,6 +209,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kPaddingProperty:
     case kPaddingRightProperty:
     case kPaddingTopProperty:
+    case kPointerEventsProperty:
     case kPositionProperty:
     case kRightProperty:
     case kSrcProperty:

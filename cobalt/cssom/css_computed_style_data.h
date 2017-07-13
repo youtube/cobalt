@@ -485,6 +485,13 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
     SetPropertyValue(kPaddingTopProperty, padding_top);
   }
 
+  const scoped_refptr<PropertyValue>& pointer_events() const {
+    return GetPropertyValueReference(kPointerEventsProperty);
+  }
+  void set_pointer_events(const scoped_refptr<PropertyValue>& pointer_events) {
+    SetPropertyValue(kPointerEventsProperty, pointer_events);
+  }
+
   const scoped_refptr<PropertyValue>& position() const {
     return GetPropertyValueReference(kPositionProperty);
   }

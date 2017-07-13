@@ -542,6 +542,17 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
 
+  // While only defined in the SVG spec, the pointer-events property has been
+  // proposed an commonly implemented to also apply to HTML elements for
+  // values of 'none' (element can not be indicated by a pointer) and 'auto'
+  // (element can be indicated by a pointer if the element has 'visibility' set
+  // to 'visible').
+  //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
+  SetPropertyDefinition(kPointerEventsProperty, "pointer-events", kInheritedYes,
+                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
+
   // https://www.w3.org/TR/css3-positioning/#position-property
   SetPropertyDefinition(kPositionProperty, "position", kInheritedNo,
                         kAnimatableNo, kImpactsChildDeclaredStyleNo,
@@ -1223,6 +1234,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kPaddingBottomProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kPointerEventsProperty))) {
+        return kPointerEventsProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextTransformProperty))) {
         return kTextTransformProperty;
       }
@@ -1391,5 +1406,7 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
   }
 }  // NOLINT(readability/fn_size)
 
+// NOLINTNEXTLINE(readability/fn_size)
 }  // namespace cssom
+// NOLINTNEXTLINE(readability/fn_size)
 }  // namespace cobalt

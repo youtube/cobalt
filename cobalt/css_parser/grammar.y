@@ -138,6 +138,7 @@
 %token kPaddingRightToken                     // padding-right
 %token kPaddingToken                          // padding
 %token kPaddingTopToken                       // padding-top
+%token kPointerEventsToken                    // pointer-events
 %token kPositionToken                         // position
 %token kRightToken                            // right
 %token kSrcToken                              // src
@@ -559,6 +560,7 @@
                        overflow_property_value
                        overflow_wrap_property_value
                        padding_side_property_value
+                       pointer_events_property_value
                        position_list_element
                        position_property_value
                        positive_length_percent_property_value
@@ -1517,6 +1519,10 @@ identifier_token:
   | kPaddingTopToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kPaddingTopProperty));
+  }
+  | kPointerEventsToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kPointerEventsProperty));
   }
   | kPositionToken {
     $$ = TrivialStringPiece::FromCString(
@@ -4169,6 +4175,23 @@ padding_property_value:
   }
   ;
 
+// Used to control designation of elements by pointers.
+// While only defined in the SVG spec, the pointer-events property has been
+// proposed an commonly implemented to also apply to HTML elements for
+// values of 'none' (element can not be indicated by a pointer) and 'auto'
+// (element can be indicated by a pointer if the element has 'visibility' set
+// to 'visible').
+//   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
+pointer_events_property_value:
+    kAutoToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetAuto().get());
+  }
+  | kNoneToken maybe_whitespace {
+    $$ = AddRef(cssom::KeywordValue::GetNone().get());
+  }
+  | common_values
+  ;
+
 // Determines which of the positioning algorithms is used to calculate
 // the position of a box.
 //   https://www.w3.org/TR/CSS21/visuren.html#choose-position
@@ -6080,6 +6103,12 @@ maybe_declaration:
     } else {
       $$ = NULL;
     }
+  }
+  | kPointerEventsToken maybe_whitespace colon pointer_events_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kPointerEventsProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
   }
   | kPositionToken maybe_whitespace colon position_property_value
       maybe_important {
