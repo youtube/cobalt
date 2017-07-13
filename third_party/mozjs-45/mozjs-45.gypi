@@ -91,7 +91,7 @@
       'js/src/jit/EdgeCaseAnalysis.cpp',
       'js/src/jit/EffectiveAddressAnalysis.cpp',
       'js/src/jit/ExecutableAllocator.cpp',
-      'js/src/jit/ExecutableAllocatorPosix.cpp',
+      'js/src/jit/ExecutableAllocatorStarboard.cpp',
       'js/src/jit/InstructionReordering.cpp',
       'js/src/jit/Ion.cpp',
       'js/src/jit/IonAnalysis.cpp',
@@ -239,7 +239,6 @@
       'mfbt/double-conversion/strtod.cc',
       'mfbt/FloatingPoint.cpp',
       'mfbt/HashFunctions.cpp',
-      'mfbt/TaggedAnonymousMemory.cpp',
       # Note that this file was renamed from 'mfbt/Compression.cpp'.  Some
       # build systems, e.g. MSVC08, cannot handle several files with the
       # same basename.

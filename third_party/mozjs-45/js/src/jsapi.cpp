@@ -92,6 +92,12 @@
 #include "vm/SavedStacks-inl.h"
 #include "vm/String-inl.h"
 
+#if defined(STARBOARD)
+
+#include "starboard/file.h"
+
+#endif
+
 using namespace js;
 using namespace js::gc;
 
@@ -3778,7 +3784,69 @@ JS_DefineFunctionById(JSContext* cx, HandleObject obj, HandleId id, JSNative cal
 
 typedef Vector<char, 8, TempAllocPolicy> FileContents;
 
-// TODO: Starboardize this similar to mozjs 24.
+#if defined(STARBOARD)
+
+static bool
+ReadCompleteFile(JSContext *cx, SbFile file, FileContents &buffer)
+{
+    SbFileInfo info;
+    bool success = SbFileGetInfo(file, &info);
+    if (!success) {
+        return false;
+    }
+    const int64_t kFileSize = info.size;
+    buffer.resize(kFileSize);
+    if (SbFileReadAll(file, buffer.begin(), kFileSize) < 0) {
+        return false;
+    }
+
+    return true;
+}
+
+namespace {
+
+class AutoFile
+{
+    SbFile sb_file_;
+  public:
+    AutoFile() {}
+    ~AutoFile()
+    {
+        SbFileClose(sb_file_);
+    }
+    SbFile sb_file() const { return sb_file_; }
+    bool open(JSContext *cx, const char *filename);
+    bool readAll(JSContext *cx, FileContents &buffer)
+    {
+        return ReadCompleteFile(cx, sb_file_, buffer);
+    }
+};
+
+}  // namespace
+
+/*
+ * Open a source file for reading. Supports "-" and NULL to mean stdin. The
+ * return value must be fclosed unless it is stdin.
+ */
+bool
+AutoFile::open(JSContext *cx, const char *filename)
+{
+    // Starboard does not support stdin.
+    if (!filename || strcmp(filename, "-") == 0) {
+        return false;
+    } else {
+        sb_file_ = SbFileOpen(filename, kSbFileOpenOnly | kSbFileRead, NULL,
+            NULL);
+        if (!SbFileIsValid(sb_file_)) {
+            JS_ReportErrorNumber(cx, GetErrorMessage, NULL, JSMSG_CANT_OPEN,
+                                 filename, "No such file or directory");
+            return false;
+        }
+    }
+    return true;
+}
+
+#else  // defined(STARBOARD)
 static bool
 ReadCompleteFile(JSContext* cx, FILE* fp, FileContents& buffer)
 {
@@ -3851,6 +3919,8 @@ AutoFile::open(JSContext* cx, const char* filename)
     }
     return true;
 }
+
+#endif  // defined(STARBOARD)
 
 void
 JS::TransitiveCompileOptions::copyPODTransitiveOptions(const TransitiveCompileOptions& rhs)
@@ -4043,6 +4113,21 @@ Compile(JSContext* cx, const ReadOnlyCompileOptions& options, SyntacticScopeOpti
     return ::Compile(cx, options, scopeOption, chars.get(), length, script);
 }
 
+#if defined(STARBOARD)
+
+static bool
+Compile(JSContext* cx, const ReadOnlyCompileOptions& options, SyntacticScopeOption scopeOption,
+        SbFile fp, MutableHandleScript script)
+{
+    FileContents buffer(cx);
+    if (!ReadCompleteFile(cx, fp, buffer))
+        return false;
+
+    return ::Compile(cx, options, scopeOption, buffer.begin(), buffer.length(), script);
+}
+
+#else
+
 static bool
 Compile(JSContext* cx, const ReadOnlyCompileOptions& options, SyntacticScopeOption scopeOption,
         FILE* fp, MutableHandleScript script)
@@ -4054,6 +4139,8 @@ Compile(JSContext* cx, const ReadOnlyCompileOptions& options, SyntacticScopeOpti
     return ::Compile(cx, options, scopeOption, buffer.begin(), buffer.length(), script);
 }
 
+#endif
+
 static bool
 Compile(JSContext* cx, const ReadOnlyCompileOptions& optionsArg, SyntacticScopeOption scopeOption,
         const char* filename, MutableHandleScript script)
@@ -4063,7 +4150,11 @@ Compile(JSContext* cx, const ReadOnlyCompileOptions& optionsArg, SyntacticScopeO
         return false;
     CompileOptions options(cx, optionsArg);
     options.setFileAndLine(filename, 1);
+#if defined(STARBOARD)
+    return ::Compile(cx, options, scopeOption, file.sb_file(), script);
+#else
     return ::Compile(cx, options, scopeOption, file.fp(), script);
+#endif
 }
 
 bool
@@ -4087,12 +4178,25 @@ JS::Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
     return ::Compile(cx, options, HasSyntacticScope, chars, length, script);
 }
 
+#if defined(STARBOARD)
+
+bool
+JS::Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
+            SbFile file, JS::MutableHandleScript script)
+{
+    return ::Compile(cx, options, HasSyntacticScope, file, script);
+}
+
+#else
+
 bool
 JS::Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
             FILE* file, JS::MutableHandleScript script)
 {
     return ::Compile(cx, options, HasSyntacticScope, file, script);
 }
+
+#endif
 
 bool
 JS::Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
@@ -4123,12 +4227,21 @@ JS::CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& opt
     return ::Compile(cx, options, HasNonSyntacticScope, chars, length, script);
 }
 
+#if defined(STARBOARD)
+bool
+JS::CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
+                                SbFile file, JS::MutableHandleScript script)
+{
+    return ::Compile(cx, options, HasNonSyntacticScope, file, script);
+}
+#else
 bool
 JS::CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
                                 FILE* file, JS::MutableHandleScript script)
 {
     return ::Compile(cx, options, HasNonSyntacticScope, file, script);
 }
+#endif
 
 bool
 JS::CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,

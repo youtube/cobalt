@@ -49,6 +49,11 @@
       4244,
       # Level 3, Possible loss of data due to type conversion from size_t.
       4267,
+      # Level 1, conversion from 'type1' to 'type2' of greater size.
+      4312,
+      # Level 1, no suitable definition provided for explicit template
+      # instantiation request.
+      4661,
     ],
 
     'conditions': [
@@ -132,7 +137,16 @@
 
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
-    'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+    'msvs_disabled_warnings': [
+      '<@(common_msvs_disabled_warnings)',
+      # Level 2, unary minus operator applied to unsigned type, result still
+      # unsigned.
+      4146,
+      # Level 1, unsafe use of type 'bool' in operation.
+      4804,
+      # Level 1, unsafe mix of type 'type' and type 'type' in operation
+      4805,
+    ],
 
     # Unfortunately, there is code that generate warnings in the headers.
     'direct_dependent_settings': {

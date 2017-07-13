@@ -28,10 +28,6 @@
 #include "mozilla/DebugOnly.h"
 #include "mozilla/TaggedAnonymousMemory.h"
 
-#include <errno.h>
-#include <sys/mman.h>
-#include <unistd.h>
-
 #include "jit/ExecutableAllocator.h"
 #include "js/Utility.h"
 
@@ -40,24 +36,32 @@ using namespace js::jit;
 size_t
 ExecutableAllocator::determinePageSize()
 {
-    return getpagesize();
+    return SB_MEMORY_PAGE_SIZE;
 }
 
 void*
 js::jit::AllocateExecutableMemory(void* addr, size_t bytes, unsigned permissions, const char* tag,
                                   size_t pageSize)
 {
+    // Starboard memory has no concept of passing in an address.
+    SB_DCHECK(addr == nullptr);
     MOZ_ASSERT(bytes % pageSize == 0);
-    void* p = MozTaggedAnonymousMmap(addr, bytes, permissions, MAP_PRIVATE | MAP_ANON, -1, 0, tag);
-    return p == MAP_FAILED ? nullptr : p;
+
+#if !SB_CAN(MAP_EXECUTABLE_MEMORY)
+    SB_NOTREACHED();
+    return nullptr;
+#else
+    void* p = SbMemoryMap(bytes, kSbMemoryMapProtectReadWrite | kSbMemoryMapProtectExec, tag);
+    return (p == SB_MEMORY_MAP_FAILED) ? nullptr : p;
+#endif
 }
 
 void
 js::jit::DeallocateExecutableMemory(void* addr, size_t bytes, size_t pageSize)
 {
     MOZ_ASSERT(bytes % pageSize == 0);
-    mozilla::DebugOnly<int> result = munmap(addr, bytes);
-    MOZ_ASSERT(!result || errno == ENOMEM);
+    mozilla::DebugOnly<bool> result = SbMemoryUnmap(addr, bytes);
+    MOZ_ASSERT(result);
 }
 
 ExecutablePool::Allocation
@@ -75,34 +79,19 @@ ExecutableAllocator::systemRelease(const ExecutablePool::Allocation& alloc)
     DeallocateExecutableMemory(alloc.pages, alloc.size, pageSize);
 }
 
-static const unsigned FLAGS_RW = PROT_READ | PROT_WRITE;
-static const unsigned FLAGS_RX = PROT_READ | PROT_EXEC;
-
 void
 ExecutableAllocator::reprotectRegion(void* start, size_t size, ProtectionSetting setting)
 {
-    MOZ_ASSERT(nonWritableJitCode);
-    MOZ_ASSERT(pageSize);
-
-    // Calculate the start of the page containing this region,
-    // and account for this extra memory within size.
-    intptr_t startPtr = reinterpret_cast<intptr_t>(start);
-    intptr_t pageStartPtr = startPtr & ~(pageSize - 1);
-    void* pageStart = reinterpret_cast<void*>(pageStartPtr);
-    size += (startPtr - pageStartPtr);
-
-    // Round size up
-    size += (pageSize - 1);
-    size &= ~(pageSize - 1);
-
-    mprotect(pageStart, size, (setting == Writable) ? FLAGS_RW : FLAGS_RX);
+    // Starboard has no concept of reprotecting memory.
+    SB_NOTREACHED();
 }
 
 /* static */ unsigned
 ExecutableAllocator::initialProtectionFlags(ProtectionSetting protection)
 {
-    if (!nonWritableJitCode)
-        return FLAGS_RW | FLAGS_RX;
-
-    return (protection == Writable) ? FLAGS_RW : FLAGS_RX;
+#if SB_CAN(MAP_EXECUTABLE_MEMORY)
+    return kSbMemoryMapProtectRead | kSbMemoryMapProtectExec;
+#else
+    return kSbMemoryMapProtectReadWrite;
+#endif
 }
