@@ -63,24 +63,27 @@ void TopmostEventTarget::ConsiderElement(
     const math::Vector2dF& coordinate) {
   if (!html_element) return;
   math::Vector2dF element_coordinate(coordinate);
-  dom::LayoutBoxes* boxes = html_element->layout_boxes();
-  if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
-    DCHECK(html_element->computed_style());
-    LayoutBoxes* layout_boxes = base::polymorphic_downcast<LayoutBoxes*>(boxes);
-    const Boxes& boxes = layout_boxes->boxes();
-    if (!boxes.empty()) {
-      const Box* box = boxes.front();
-      box->UpdateCoordinateForTransform(&element_coordinate);
+  if (html_element->CanbeDesignatedByPointerIfDisplayed()) {
+    dom::LayoutBoxes* boxes = html_element->layout_boxes();
+    if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
+      DCHECK(html_element->computed_style());
+      LayoutBoxes* layout_boxes =
+          base::polymorphic_downcast<LayoutBoxes*>(boxes);
+      const Boxes& boxes = layout_boxes->boxes();
+      if (!boxes.empty()) {
+        const Box* box = boxes.front();
+        box->UpdateCoordinateForTransform(&element_coordinate);
 
-      if (box->computed_style()->position() ==
-          cssom::KeywordValue::GetAbsolute()) {
-        // The containing block for position:absolute elements is formed by the
-        // padding box instead of the content box, as described in
-        // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-        element_coordinate +=
-            box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
+        if (box->computed_style()->position() ==
+            cssom::KeywordValue::GetAbsolute()) {
+          // The containing block for position:absolute elements is formed by
+          // the padding box instead of the content box, as described in
+          // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+          element_coordinate +=
+              box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
+        }
+        ConsiderBoxes(html_element, layout_boxes, element_coordinate);
       }
-      ConsiderBoxes(html_element, layout_boxes, element_coordinate);
     }
   }
 

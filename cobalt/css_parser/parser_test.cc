@@ -8695,5 +8695,41 @@ TEST_F(ParserTest, EmptyPropertyValueRemovesProperty) {
   EXPECT_FALSE(style_data->GetPropertyValue(cssom::kDisplayProperty));
 }
 
+TEST_F(ParserTest, ParsesPointerEventsWithKeywordAuto) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("pointer-events: auto;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetAuto(),
+            style->GetPropertyValue(cssom::kPointerEventsProperty));
+}
+
+TEST_F(ParserTest, ParsesPointerEventsWithKeywordInherit) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("pointer-events: inherit;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInherit(),
+            style->GetPropertyValue(cssom::kPointerEventsProperty));
+}
+
+TEST_F(ParserTest, ParsesPointerEventsWithKeywordInitial) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("pointer-events: initial;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetInitial(),
+            style->GetPropertyValue(cssom::kPointerEventsProperty));
+}
+
+TEST_F(ParserTest, ParsesPointerEventsWithKeywordNone) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("pointer-events: none;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetNone(),
+            style->GetPropertyValue(cssom::kPointerEventsProperty));
+}
+
 }  // namespace css_parser
 }  // namespace cobalt
