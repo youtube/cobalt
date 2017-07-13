@@ -1625,6 +1625,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kPointerEventsProperty))) {
+        *property_name_token = kPointerEventsToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kTextTransformProperty))) {
         *property_name_token = kTextTransformToken;
         return true;

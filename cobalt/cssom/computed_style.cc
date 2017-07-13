@@ -2971,6 +2971,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kOpacityProperty:
     case kOverflowProperty:
     case kOverflowWrapProperty:
+    case kPointerEventsProperty:
     case kPositionProperty:
     case kTextAlignProperty:
     case kTextDecorationLineProperty:
@@ -3099,6 +3100,7 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kPaddingProperty:
     case kPaddingRightProperty:
     case kPaddingTopProperty:
+    case kPointerEventsProperty:
     case kRightProperty:
     case kSrcProperty:
     case kTextAlignProperty:

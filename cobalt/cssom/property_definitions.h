@@ -93,6 +93,7 @@ enum PropertyKey {
   kPaddingLeftProperty,
   kPaddingRightProperty,
   kPaddingTopProperty,
+  kPointerEventsProperty,
   kPositionProperty,
   kRightProperty,
   kTextAlignProperty,

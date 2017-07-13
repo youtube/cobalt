@@ -266,7 +266,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Returns whether the element has been designated.
   //   https://www.w3.org/TR/selectors4/#hover-pseudo
-  bool IsDesignated();
+  bool IsDesignated() const;
+
+  // Returns whether the element can be designated by a pointer.
+  //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
+  bool CanbeDesignatedByPointerIfDisplayed() const;
 
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
