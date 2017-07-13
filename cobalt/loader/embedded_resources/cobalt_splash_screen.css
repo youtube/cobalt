@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Google Inc. All Rights Reserved.
+ * Copyright 2017 Google Inc. All Rights Reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,11 +20,11 @@ body {
 }
 
 #splash {
-  background-color: #e62117;
-  background-image: url("h5vcc-embedded://you_tube_logo.png");
+  background-color: #ffffff;
+  background-image: url("h5vcc-embedded://cobalt_word_logo_1024.png");
   background-position: center center;
   background-repeat: no-repeat;
-  background-size: 50%;
+  background-size: auto 33%;
   height: 100%;
   left: 0;
   position: absolute;
