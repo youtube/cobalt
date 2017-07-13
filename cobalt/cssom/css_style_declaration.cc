@@ -796,6 +796,18 @@ void CSSStyleDeclaration::set_padding_top(
                               exception_state);
 }
 
+std::string CSSStyleDeclaration::pointer_events(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kPointerEventsProperty);
+}
+
+void CSSStyleDeclaration::set_pointer_events(
+    const std::string& pointer_events,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kPointerEventsProperty, pointer_events,
+                              exception_state);
+}
+
 std::string CSSStyleDeclaration::position(
     script::ExceptionState* /*exception_state*/) const {
   return GetDeclaredPropertyValueStringByKey(kPositionProperty);
