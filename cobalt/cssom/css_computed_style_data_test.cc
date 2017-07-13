@@ -143,6 +143,238 @@ TEST(CSSComputedStyleDataTest, BorderRadiusSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kBorderRadiusProperty));
 }
 
+TEST(CSSComputedStyleDataTest,
+     BorderTopColorComputedInitialValueIsSameAsColor) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopColorProperty),
+            KeywordValue::GetCurrentColor());
+  EXPECT_EQ(style->border_top_color(),
+            style->GetPropertyValue(kBorderTopColorProperty));
+
+  style->set_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderTopColorProperty));
+
+  style->SetPropertyValue(kBorderTopColorProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopColorProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     BorderRightColorComputedInitialValueIsSameAsColor) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderRightColorProperty),
+            KeywordValue::GetCurrentColor());
+  EXPECT_EQ(style->border_right_color(),
+            style->GetPropertyValue(kBorderRightColorProperty));
+
+  style->set_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_right_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderRightColorProperty));
+
+  style->SetPropertyValue(kBorderRightColorProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_right_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderRightColorProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     BorderBottomColorComputedInitialValueIsSameAsColor) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomColorProperty),
+            KeywordValue::GetCurrentColor());
+  EXPECT_EQ(style->border_bottom_color(),
+            style->GetPropertyValue(kBorderBottomColorProperty));
+
+  style->set_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderBottomColorProperty));
+
+  style->SetPropertyValue(kBorderBottomColorProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomColorProperty));
+}
+
+TEST(CSSComputedStyleDataTest,
+     BorderLeftColorComputedInitialValueIsSameAsColor) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftColorProperty),
+            KeywordValue::GetCurrentColor());
+  EXPECT_EQ(style->border_left_color(),
+            style->GetPropertyValue(kBorderLeftColorProperty));
+
+  style->set_color(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_left_color());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderLeftColorProperty));
+
+  style->SetPropertyValue(kBorderLeftColorProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_left_color());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderLeftColorProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BorderTopWidthIsZeroWhenStyleIsNoneOrHidden) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(style->border_top_width(),
+            style->GetPropertyValue(kBorderTopWidthProperty));
+
+  style->set_border_top_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopWidthProperty),
+            style->border_top_width());
+
+  style->set_border_top_style(KeywordValue::GetNone());
+  LengthValue* length_value =
+      dynamic_cast<LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
+            style->border_top_width());
+
+  style->set_border_top_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopWidthProperty),
+            style->border_top_width());
+
+  style->set_border_top_style(KeywordValue::GetHidden());
+  length_value = dynamic_cast<LengthValue*>(style->border_top_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
+            style->border_top_width());
+
+  style->SetPropertyValue(kBorderTopWidthProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_width());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopWidthProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BorderRightWidthIsZeroWhenStyleIsNoneOrHidden) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(style->border_right_width(),
+            style->GetPropertyValue(kBorderRightWidthProperty));
+
+  style->set_border_right_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderRightWidthProperty),
+            style->border_right_width());
+
+  style->set_border_right_style(KeywordValue::GetNone());
+  LengthValue* length_value =
+      dynamic_cast<LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
+            style->border_right_width());
+
+  style->set_border_right_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderRightWidthProperty),
+            style->border_right_width());
+
+  style->set_border_right_style(KeywordValue::GetHidden());
+  length_value = dynamic_cast<LengthValue*>(style->border_right_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
+            style->border_right_width());
+
+  style->SetPropertyValue(kBorderRightWidthProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_right_width());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderRightWidthProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BorderBottomWidthIsZeroWhenStyleIsNoneOrHidden) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(style->border_bottom_width(),
+            style->GetPropertyValue(kBorderBottomWidthProperty));
+
+  style->set_border_bottom_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomWidthProperty),
+            style->border_bottom_width());
+
+  style->set_border_bottom_style(KeywordValue::GetNone());
+  LengthValue* length_value =
+      dynamic_cast<LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
+            style->border_bottom_width());
+
+  style->set_border_bottom_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomWidthProperty),
+            style->border_bottom_width());
+
+  style->set_border_bottom_style(KeywordValue::GetHidden());
+  length_value = dynamic_cast<LengthValue*>(style->border_bottom_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
+            style->border_bottom_width());
+
+  style->SetPropertyValue(kBorderBottomWidthProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_width());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomWidthProperty));
+}
+
+TEST(CSSComputedStyleDataTest, BorderLeftWidthIsZeroWhenStyleIsNoneOrHidden) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(style->border_left_width(),
+            style->GetPropertyValue(kBorderLeftWidthProperty));
+
+  style->set_border_left_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftWidthProperty),
+            style->border_left_width());
+
+  style->set_border_left_style(KeywordValue::GetNone());
+  LengthValue* length_value =
+      dynamic_cast<LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
+            style->border_left_width());
+
+  style->set_border_left_style(KeywordValue::GetSolid());
+  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftWidthProperty),
+            style->border_left_width());
+
+  style->set_border_left_style(KeywordValue::GetHidden());
+  length_value = dynamic_cast<LengthValue*>(style->border_left_width().get());
+  ASSERT_TRUE(length_value);
+  EXPECT_EQ(0.0f, length_value->value());
+  EXPECT_EQ(kPixelsUnit, length_value->unit());
+  EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
+            style->border_left_width());
+
+  style->SetPropertyValue(kBorderLeftWidthProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_left_width());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderLeftWidthProperty));
+}
+
 TEST(CSSComputedStyleDataTest, ColorSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -192,6 +424,23 @@ TEST(CSSComputedStyleDataTest, DisplaySettersAndGettersAreConsistent) {
   EXPECT_EQ(KeywordValue::GetInherit(), style->display());
   EXPECT_EQ(KeywordValue::GetInherit(),
             style->GetPropertyValue(kDisplayProperty));
+}
+
+TEST(CSSComputedStyleDataTest, FilterSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kFilterProperty), style->filter());
+  EXPECT_EQ(style->filter(), style->GetPropertyValue(kFilterProperty));
+
+  style->set_filter(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->filter());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kFilterProperty));
+
+  style->SetPropertyValue(kFilterProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->filter());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kFilterProperty));
 }
 
 TEST(CSSComputedStyleDataTest, FontFamilySettersAndGettersAreConsistent) {
@@ -564,6 +813,25 @@ TEST(CSSComputedStyleDataTest, PaddingTopSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kPaddingTopProperty));
 }
 
+TEST(CSSComputedStyleDataTest, PointerEventsSettersAndGettersAreConsistent) {
+  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+
+  EXPECT_EQ(GetPropertyInitialValue(kPointerEventsProperty),
+            style->pointer_events());
+  EXPECT_EQ(style->pointer_events(),
+            style->GetPropertyValue(kPointerEventsProperty));
+
+  style->set_pointer_events(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->pointer_events());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kPointerEventsProperty));
+
+  style->SetPropertyValue(kPointerEventsProperty, KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->pointer_events());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kPointerEventsProperty));
+}
+
 TEST(CSSComputedStyleDataTest, PositionSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
@@ -881,236 +1149,59 @@ TEST(CSSComputedStyleDataTest, ZIndexSettersAndGettersAreConsistent) {
             style->GetPropertyValue(kZIndexProperty));
 }
 
-TEST(CSSComputedStyleDataTest,
-     BorderTopColorComputedInitialValueIsSameAsColor) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+TEST(CSSComputedStyleDataTest, TwoComputedStyleDataWithSamePropertiesAreEqual) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
 
-  EXPECT_EQ(GetPropertyInitialValue(kBorderTopColorProperty),
-            KeywordValue::GetCurrentColor());
-  EXPECT_EQ(style->border_top_color(),
-            style->GetPropertyValue(kBorderTopColorProperty));
-
-  style->set_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderTopColorProperty));
-
-  style->SetPropertyValue(kBorderTopColorProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderTopColorProperty));
+  ASSERT_TRUE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_TRUE(style2->DoDeclaredPropertiesMatch(style1));
 }
 
 TEST(CSSComputedStyleDataTest,
-     BorderRightColorComputedInitialValueIsSameAsColor) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+     TwoComputedStyleDataWithDifferentPropertiesAreUnequal) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->SetPropertyValue(kBorderRightWidthProperty,
+                           KeywordValue::GetInherit());
 
-  EXPECT_EQ(GetPropertyInitialValue(kBorderRightColorProperty),
-            KeywordValue::GetCurrentColor());
-  EXPECT_EQ(style->border_right_color(),
-            style->GetPropertyValue(kBorderRightColorProperty));
-
-  style->set_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_right_color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderRightColorProperty));
-
-  style->SetPropertyValue(kBorderRightColorProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_right_color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderRightColorProperty));
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
 }
 
 TEST(CSSComputedStyleDataTest,
-     BorderBottomColorComputedInitialValueIsSameAsColor) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+     ComputedStyleDataIsUnequalToComputedStyleDataWithPropertySuperset) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
+  style2->SetPropertyValue(kBorderRightWidthProperty,
+                           KeywordValue::GetInherit());
 
-  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomColorProperty),
-            KeywordValue::GetCurrentColor());
-  EXPECT_EQ(style->border_bottom_color(),
-            style->GetPropertyValue(kBorderBottomColorProperty));
-
-  style->set_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderBottomColorProperty));
-
-  style->SetPropertyValue(kBorderBottomColorProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderBottomColorProperty));
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
 }
 
 TEST(CSSComputedStyleDataTest,
-     BorderLeftColorComputedInitialValueIsSameAsColor) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
+     ComputedStyleDataIsUnequalToComputedStyleDataWithPropertySubset) {
+  scoped_refptr<CSSComputedStyleData> style1 = new CSSComputedStyleData();
+  style1->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
+  style1->SetPropertyValue(kBorderRightWidthProperty,
+                           KeywordValue::GetInherit());
+  scoped_refptr<CSSComputedStyleData> style2 = new CSSComputedStyleData();
+  style2->SetPropertyValue(kBorderLeftWidthProperty,
+                           KeywordValue::GetInherit());
 
-  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftColorProperty),
-            KeywordValue::GetCurrentColor());
-  EXPECT_EQ(style->border_left_color(),
-            style->GetPropertyValue(kBorderLeftColorProperty));
-
-  style->set_color(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_left_color());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderLeftColorProperty));
-
-  style->SetPropertyValue(kBorderLeftColorProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_left_color());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderLeftColorProperty));
-}
-
-TEST(CSSComputedStyleDataTest, BorderTopWidthIsZeroWhenStyleIsNoneOrHidden) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(style->border_top_width(),
-            style->GetPropertyValue(kBorderTopWidthProperty));
-
-  style->set_border_top_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderTopWidthProperty),
-            style->border_top_width());
-
-  style->set_border_top_style(KeywordValue::GetNone());
-  LengthValue* length_value =
-      dynamic_cast<LengthValue*>(style->border_top_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
-            style->border_top_width());
-
-  style->set_border_top_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderTopWidthProperty),
-            style->border_top_width());
-
-  style->set_border_top_style(KeywordValue::GetHidden());
-  length_value = dynamic_cast<LengthValue*>(style->border_top_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderTopWidthProperty),
-            style->border_top_width());
-
-  style->SetPropertyValue(kBorderTopWidthProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_width());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderTopWidthProperty));
-}
-
-TEST(CSSComputedStyleDataTest, BorderRightWidthIsZeroWhenStyleIsNoneOrHidden) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(style->border_right_width(),
-            style->GetPropertyValue(kBorderRightWidthProperty));
-
-  style->set_border_right_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderRightWidthProperty),
-            style->border_right_width());
-
-  style->set_border_right_style(KeywordValue::GetNone());
-  LengthValue* length_value =
-      dynamic_cast<LengthValue*>(style->border_right_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
-            style->border_right_width());
-
-  style->set_border_right_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderRightWidthProperty),
-            style->border_right_width());
-
-  style->set_border_right_style(KeywordValue::GetHidden());
-  length_value = dynamic_cast<LengthValue*>(style->border_right_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderRightWidthProperty),
-            style->border_right_width());
-
-  style->SetPropertyValue(kBorderRightWidthProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_right_width());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderRightWidthProperty));
-}
-
-TEST(CSSComputedStyleDataTest, BorderBottomWidthIsZeroWhenStyleIsNoneOrHidden) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(style->border_bottom_width(),
-            style->GetPropertyValue(kBorderBottomWidthProperty));
-
-  style->set_border_bottom_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomWidthProperty),
-            style->border_bottom_width());
-
-  style->set_border_bottom_style(KeywordValue::GetNone());
-  LengthValue* length_value =
-      dynamic_cast<LengthValue*>(style->border_bottom_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
-            style->border_bottom_width());
-
-  style->set_border_bottom_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomWidthProperty),
-            style->border_bottom_width());
-
-  style->set_border_bottom_style(KeywordValue::GetHidden());
-  length_value = dynamic_cast<LengthValue*>(style->border_bottom_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderBottomWidthProperty),
-            style->border_bottom_width());
-
-  style->SetPropertyValue(kBorderBottomWidthProperty,
-                          KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_width());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderBottomWidthProperty));
-}
-
-TEST(CSSComputedStyleDataTest, BorderLeftWidthIsZeroWhenStyleIsNoneOrHidden) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(style->border_left_width(),
-            style->GetPropertyValue(kBorderLeftWidthProperty));
-
-  style->set_border_left_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftWidthProperty),
-            style->border_left_width());
-
-  style->set_border_left_style(KeywordValue::GetNone());
-  LengthValue* length_value =
-      dynamic_cast<LengthValue*>(style->border_left_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
-            style->border_left_width());
-
-  style->set_border_left_style(KeywordValue::GetSolid());
-  EXPECT_EQ(GetPropertyInitialValue(kBorderLeftWidthProperty),
-            style->border_left_width());
-
-  style->set_border_left_style(KeywordValue::GetHidden());
-  length_value = dynamic_cast<LengthValue*>(style->border_left_width().get());
-  ASSERT_TRUE(length_value);
-  EXPECT_EQ(0.0f, length_value->value());
-  EXPECT_EQ(kPixelsUnit, length_value->unit());
-  EXPECT_NE(GetPropertyInitialValue(kBorderLeftWidthProperty),
-            style->border_left_width());
-
-  style->SetPropertyValue(kBorderLeftWidthProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_left_width());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderLeftWidthProperty));
+  ASSERT_FALSE(style1->DoDeclaredPropertiesMatch(style2));
+  ASSERT_FALSE(style2->DoDeclaredPropertiesMatch(style1));
 }
 
 TEST(CSSComputedStyleDataTest, DisplayIsBlockWhenPositionIsAbsoluteOrFixed) {
@@ -1187,23 +1278,6 @@ TEST(CSSComputedStyleDataTest,
 
   ASSERT_TRUE(style1->DoDeclaredPropertiesMatch(style2));
   ASSERT_TRUE(style2->DoDeclaredPropertiesMatch(style1));
-}
-
-TEST(CSSComputedStyleDataTest, FilterSettersAndGettersAreConsistent) {
-  scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
-
-  EXPECT_EQ(GetPropertyInitialValue(kFilterProperty), style->filter());
-  EXPECT_EQ(style->filter(), style->GetPropertyValue(kFilterProperty));
-
-  style->set_filter(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->filter());
-  EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kFilterProperty));
-
-  style->SetPropertyValue(kFilterProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->filter());
-  EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kFilterProperty));
 }
 
 }  // namespace cssom

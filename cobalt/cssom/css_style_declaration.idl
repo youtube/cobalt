@@ -82,10 +82,12 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingLeft;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingRight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingTop;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString pointerEvents;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString position;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString right;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textAlign;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecoration;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecorationColor;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecorationLine;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textIndent;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textOverflow;
