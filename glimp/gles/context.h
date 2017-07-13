@@ -133,6 +133,7 @@ class Context {
   void DeleteTextures(GLsizei n, const GLuint* textures);
   void ActiveTexture(GLenum texture);
   void BindTexture(GLenum target, GLuint texture);
+  void GetTexParameteriv(GLenum target, GLenum pname, GLint* params);
   void TexParameteri(GLenum target, GLenum pname, GLint param);
   void TexImage2D(GLenum target,
                   GLint level,

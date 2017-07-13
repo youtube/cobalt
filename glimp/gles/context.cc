@@ -1172,7 +1172,81 @@ Sampler::WrapMode WrapModeFromGLEnum(GLenum wrap_mode) {
       return Sampler::kWrapModeInvalid;
   }
 }
+
+GLenum GLEnumFromMinFilter(Sampler::MinFilter min_filter) {
+  switch (min_filter) {
+    case Sampler::kMinFilterNearest:
+      return GL_NEAREST;
+    case Sampler::kMinFilterLinear:
+      return GL_LINEAR;
+    case Sampler::kMinFilterNearestMipMapNearest:
+      return GL_NEAREST_MIPMAP_NEAREST;
+    case Sampler::kMinFilterNearestMipMapLinear:
+      return GL_NEAREST_MIPMAP_LINEAR;
+    case Sampler::kMinFilterLinearMipMapNearest:
+      return GL_LINEAR_MIPMAP_NEAREST;
+    case Sampler::kMinFilterLinearMipMapLinear:
+      return GL_LINEAR_MIPMAP_LINEAR;
+    default: {
+      SB_NOTREACHED();
+      return GL_LINEAR;
+    }
+  }
+}
+
+GLenum GLEnumFromMagFilter(Sampler::MagFilter mag_filter) {
+  switch (mag_filter) {
+    case Sampler::kMagFilterNearest:
+      return GL_NEAREST;
+    case Sampler::kMagFilterLinear:
+      return GL_LINEAR;
+    default: {
+      SB_NOTREACHED();
+      return GL_LINEAR;
+    }
+  }
+}
+
+GLenum GLEnumFromWrapMode(Sampler::WrapMode wrap_mode) {
+  switch (wrap_mode) {
+    case Sampler::kWrapModeClampToEdge:
+      return GL_CLAMP_TO_EDGE;
+    case Sampler::kWrapModeMirroredRepeat:
+      return GL_MIRRORED_REPEAT;
+    case Sampler::kWrapModeRepeat:
+      return GL_REPEAT;
+    default: {
+      SB_NOTREACHED();
+      return GL_REPEAT;
+    }
+  }
+}
 }  // namespace
+
+void Context::GetTexParameteriv(GLenum target, GLenum pname, GLint* params) {
+  GLIMP_TRACE_EVENT0(__FUNCTION__);
+  Sampler* active_sampler = (*GetBoundTextureForTarget(target, active_texture_))
+                                ->sampler_parameters();
+  switch (pname) {
+    case GL_TEXTURE_MAG_FILTER: {
+      *params = GLEnumFromMagFilter(active_sampler->mag_filter);
+    } break;
+    case GL_TEXTURE_MIN_FILTER: {
+      *params = GLEnumFromMinFilter(active_sampler->min_filter);
+    } break;
+    case GL_TEXTURE_WRAP_S: {
+      *params = GLEnumFromWrapMode(active_sampler->wrap_s);
+    } break;
+    case GL_TEXTURE_WRAP_T: {
+      *params = GLEnumFromWrapMode(active_sampler->wrap_t);
+    } break;
+
+    default: {
+      SetError(GL_INVALID_ENUM);
+      return;
+    }
+  }
+}
 
 void Context::TexParameteri(GLenum target, GLenum pname, GLint param) {
   GLIMP_TRACE_EVENT0(__FUNCTION__);

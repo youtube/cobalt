@@ -661,7 +661,12 @@ void GL_APIENTRY glGetTexParameterfv(GLenum target,
 void GL_APIENTRY glGetTexParameteriv(GLenum target,
                                      GLenum pname,
                                      GLint* params) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->GetTexParameteriv(target, pname, params);
 }
 
 void GL_APIENTRY glGetUniformfv(GLuint program,
