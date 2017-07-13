@@ -36,6 +36,10 @@
 #include "js/Value.h"
 #include "js/Vector.h"
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#endif
+
 /************************************************************************/
 
 namespace JS {
@@ -3927,9 +3931,15 @@ extern JS_PUBLIC_API(bool)
 Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
         const char16_t* chars, size_t length, JS::MutableHandleScript script);
 
+#if defined(STARBOARD)
+extern JS_PUBLIC_API(bool)
+Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
+        SbFile file, JS::MutableHandleScript script);
+#else
 extern JS_PUBLIC_API(bool)
 Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
         FILE* file, JS::MutableHandleScript script);
+#endif
 
 extern JS_PUBLIC_API(bool)
 Compile(JSContext* cx, const ReadOnlyCompileOptions& options,
@@ -3947,9 +3957,15 @@ extern JS_PUBLIC_API(bool)
 CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
                             const char16_t* chars, size_t length, JS::MutableHandleScript script);
 
+#if defined(STARBOARD)
+extern JS_PUBLIC_API(bool)
+CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
+                            SbFile file, JS::MutableHandleScript script);
+#else
 extern JS_PUBLIC_API(bool)
 CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
                             FILE* file, JS::MutableHandleScript script);
+#endif
 
 extern JS_PUBLIC_API(bool)
 CompileForNonSyntacticScope(JSContext* cx, const ReadOnlyCompileOptions& options,
