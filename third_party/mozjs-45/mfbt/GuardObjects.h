@@ -9,6 +9,7 @@
 #ifndef mozilla_GuardObjects_h
 #define mozilla_GuardObjects_h
 
+#include "js-confdefs.h"
 #include "mozilla/Assertions.h"
 #include "mozilla/Move.h"
 #include "mozilla/Types.h"
