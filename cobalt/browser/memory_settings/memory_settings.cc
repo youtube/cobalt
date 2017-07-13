@@ -24,91 +24,14 @@
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/logging.h"
-#include "base/string_number_conversions.h"
-#include "base/string_split.h"
 #include "base/stringprintf.h"
-#include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/math/linear_interpolator.h"
-#include "nb/lexical_cast.h"
 
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
-namespace {
-
-struct ParsedIntValue {
- public:
-  ParsedIntValue() : value_(0), error_(false) {}
-  ParsedIntValue(const ParsedIntValue& other)
-      : value_(other.value_), error_(other.error_) {}
-  int value_;
-  bool error_;  // true if there was a parse error.
-};
-
-char ToLowerCharTypesafe(int c) {
-  return static_cast<char>(::tolower(c));
-}
-
-std::string ToLower(const std::string& input) {
-  std::string value_str = input;
-  std::transform(value_str.begin(), value_str.end(),
-                 value_str.begin(), ToLowerCharTypesafe);
-
-  return value_str;
-}
-
-// Parses a string like "1234x5678" to vector of parsed int values.
-std::vector<ParsedIntValue> ParseDimensions(const std::string& input) {
-  std::string value_str = ToLower(input);
-  std::vector<ParsedIntValue> output;
-
-  std::vector<std::string> lengths;
-  base::SplitString(value_str, 'x', &lengths);
-
-  for (size_t i = 0; i < lengths.size(); ++i) {
-    ParsedIntValue parsed_value;
-    parsed_value.error_ = !base::StringToInt(lengths[i], &parsed_value.value_);
-    output.push_back(parsed_value);
-  }
-  return output;
-}
-
-bool StringEndsWith(const std::string& value, const std::string& ending) {
-  if (ending.size() > value.size()) {
-    return false;
-  }
-  // Reverse search through the back of the string.
-  return std::equal(ending.rbegin(), ending.rend(), value.rbegin());
-}
-
-// Handles bytes: "12435"
-// Handles kilobytes: "128KB"
-// Handles megabytes: "64MB"
-// Handles gigabytes: "1GB"
-// Handles fractional units for kilo/mega/gigabytes
-int64_t ParseMemoryValue(const std::string& value, bool* parse_ok) {
-  // nb::lexical_cast<> will parse out the number but it will ignore the
-  // unit part, such as "kb" or "mb".
-  double numerical_value = nb::lexical_cast<double>(value, parse_ok);
-  if (!(*parse_ok)) {
-    return static_cast<int64_t>(numerical_value);
-  }
-
-  // Lowercasing the string makes the units easier to detect.
-  std::string value_lower_case = ToLower(value);
-
-  if (StringEndsWith(value_lower_case, "kb")) {
-    numerical_value *= 1024;  // convert kb -> bytes.
-  } else if (StringEndsWith(value_lower_case, "mb")) {
-    numerical_value *= 1024 * 1024;  // convert mb -> bytes.
-  } else if (StringEndsWith(value_lower_case, "gb")) {
-    numerical_value *= 1024 * 1024 * 1024;  // convert gb -> bytes.
-  }
-  return static_cast<int64_t>(numerical_value);
-}
-}  // namespace
 
 void MemorySetting::set_memory_scaling_function(ScalingFunction function) {
   memory_scaling_function_ = function;
@@ -148,20 +71,6 @@ void IntSetting::ScaleMemory(double memory_scale) {
   set_value(MemorySetting::kAutosetConstrained, new_value);
 }
 
-bool IntSetting::TryParseValue(SourceType source_type,
-                               const std::string& string_value) {
-  bool parse_ok = false;
-  int64_t int_value = ParseMemoryValue(string_value, &parse_ok);
-
-  if (parse_ok) {
-    set_value(source_type, int_value);
-    return true;
-  } else {
-    LOG(ERROR) << "Invalid value for command line setting: " << string_value;
-    return false;
-  }
-}
-
 DimensionSetting::DimensionSetting(const std::string& name)
     : MemorySetting(kDimensions, name) {}
 
@@ -175,33 +84,6 @@ std::string DimensionSetting::ValueToString() const {
 
 int64_t DimensionSetting::MemoryConsumption() const {
   return value().TotalBytes();
-}
-
-bool DimensionSetting::TryParseValue(SourceType source_type,
-                                     const std::string& string_value) {
-  std::vector<ParsedIntValue> int_values = ParseDimensions(string_value);
-
-  if ((int_values.size() < 2) || (int_values.size() > 3)) {
-    LOG(ERROR) << "Invalid value for parse value setting: " << string_value;
-    return false;  // Parse failed.
-  }
-
-  for (size_t i = 0; i < int_values.size(); ++i) {
-    if (int_values[i].error_) {
-      LOG(ERROR) << "Invalid value for parse value setting: " << string_value;
-      return false;  // Parse failed.
-    }
-  }
-
-  const int bytes_per_pixel =
-      int_values.size() == 3 ?
-      int_values[2].value_ : kSkiaGlyphAtlasTextureBytesPerPixel;
-
-  TextureDimensions tex_dimensions(int_values[0].value_, int_values[1].value_,
-                                   bytes_per_pixel);
-
-  set_value(source_type, tex_dimensions);
-  return true;
 }
 
 SkiaGlyphAtlasTextureSetting::SkiaGlyphAtlasTextureSetting()
