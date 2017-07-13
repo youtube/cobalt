@@ -30,6 +30,24 @@
 namespace cobalt {
 namespace render_tree {
 
+namespace Internal {
+
+const int kDefaultTypefaceSizeInBytes = 256;
+const render_tree::TypefaceId kDefaultTypefaceId = 0xffffffff;
+
+const float kRobotoAscentSizeMultiplier = 0.927734f;
+const float kRobotoDescentSizeMultiplier = 0.244141f;
+const float kRobotoLeadingSizeMultiplier = 0.f;
+const float kRobotoXHeightSizeMultiplier = 0.52832f;
+
+const int32 kDefaultCharacter = 48;  // Decimal value for '0'
+const render_tree::GlyphIndex kDefaultGlyphIndex = 1;
+
+const float kDefaultCharacterRobotoGlyphWidthSizeMultiplier = 0.562012f;
+const float kDefaultCharacterRobotoGlyphHeightSizeMultiplier = 0.7f;
+
+}  // namespace Internal
+
 // The ResourceProvider defined in this file provides a bare minimum of
 // implementation necessary.  It is useful for tests that do not care about
 // actually rasterizing render trees.  For certain resources like Images,
@@ -76,21 +94,34 @@ class ImageStub : public Image {
   scoped_ptr<ImageDataStub> image_data_;
 };
 
-// Simple class that returns dummy data for metric information.
+// Simple class that returns dummy data for metric information modeled on
+// Roboto.
 class FontStub : public Font {
  public:
-  explicit FontStub(const scoped_refptr<Typeface>& typeface)
-      : typeface_(typeface) {
-    FontMetrics font_metrics = GetFontMetrics();
-    glyph_bounds_ =
-        math::RectF(0, 0, 1, font_metrics.ascent() + font_metrics.descent());
-  }
+  FontStub(const scoped_refptr<Typeface>& typeface, float font_size)
+      : typeface_(typeface),
+        font_metrics_(Internal::kRobotoAscentSizeMultiplier * font_size,
+                      Internal::kRobotoDescentSizeMultiplier * font_size,
+                      Internal::kRobotoLeadingSizeMultiplier * font_size,
+                      Internal::kRobotoXHeightSizeMultiplier * font_size),
+        glyph_bounds_(
+            0,
+            -std::max(
+                static_cast<int>(
+                    Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
+                    font_size),
+                1),
+            Internal::kDefaultCharacterRobotoGlyphWidthSizeMultiplier *
+                font_size,
+            std::max(
+                static_cast<int>(
+                    Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
+                    font_size),
+                1)) {}
 
   TypefaceId GetTypefaceId() const OVERRIDE { return typeface_->GetId(); }
 
-  FontMetrics GetFontMetrics() const OVERRIDE {
-    return FontMetrics(10, 5, 3, 6);
-  }
+  FontMetrics GetFontMetrics() const OVERRIDE { return font_metrics_; }
 
   GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE {
     return typeface_->GetGlyphForCharacter(utf32_character);
@@ -103,33 +134,36 @@ class FontStub : public Font {
 
   float GetGlyphWidth(GlyphIndex glyph) OVERRIDE {
     UNREFERENCED_PARAMETER(glyph);
-    return 1;
+    return glyph_bounds_.width();
   }
 
  private:
   ~FontStub() OVERRIDE {}
 
   const scoped_refptr<Typeface> typeface_;
+  const FontMetrics font_metrics_;
   math::RectF glyph_bounds_;
 };
 
-// Simple class that returns dummy data for metric information.
+// Simple class that returns dummy data for metric information modeled on
+// Roboto.
 class TypefaceStub : public Typeface {
  public:
   explicit TypefaceStub(const void* data) { UNREFERENCED_PARAMETER(data); }
 
-  TypefaceId GetId() const OVERRIDE { return 0; }
+  TypefaceId GetId() const OVERRIDE { return Internal::kDefaultTypefaceId; }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE { return 256; }
+  uint32 GetEstimatedSizeInBytes() const OVERRIDE {
+    return Internal::kDefaultTypefaceSizeInBytes;
+  }
 
   scoped_refptr<Font> CreateFontWithSize(float font_size) OVERRIDE {
-    UNREFERENCED_PARAMETER(font_size);
-    return make_scoped_refptr(new FontStub(this));
+    return make_scoped_refptr(new FontStub(this, font_size));
   }
 
   GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE {
     UNREFERENCED_PARAMETER(utf32_character);
-    return GlyphIndex(1);
+    return Internal::kDefaultGlyphIndex;
   }
 
  private:
@@ -290,9 +324,14 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);
-    UNREFERENCED_PARAMETER(font_provider);
-    UNREFERENCED_PARAMETER(maybe_used_fonts);
-    return static_cast<float>(text_length);
+    render_tree::GlyphIndex glyph_index;
+    const scoped_refptr<render_tree::Font>& font =
+        font_provider->GetCharacterFont(Internal::kDefaultCharacter,
+                                        &glyph_index);
+    if (maybe_used_fonts) {
+      maybe_used_fonts->push_back(font);
+    }
+    return font->GetGlyphWidth(glyph_index) * text_length;
   }
 
   // Creates a glyph buffer, which is populated with shaped text, and used to
@@ -304,9 +343,14 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(text_buffer);
     UNREFERENCED_PARAMETER(language);
     UNREFERENCED_PARAMETER(is_rtl);
-    UNREFERENCED_PARAMETER(font_provider);
-    return make_scoped_refptr(
-        new GlyphBuffer(math::RectF(0, 0, static_cast<float>(text_length), 1)));
+    render_tree::GlyphIndex glyph_index;
+    const scoped_refptr<render_tree::Font>& font =
+        font_provider->GetCharacterFont(Internal::kDefaultCharacter,
+                                        &glyph_index);
+    const math::RectF& glyph_bounds = font->GetGlyphBounds(glyph_index);
+    return make_scoped_refptr(new GlyphBuffer(
+        math::RectF(0, glyph_bounds.y(), glyph_bounds.width() * text_length,
+                    glyph_bounds.height())));
   }
 
   // Creates a glyph buffer, which is populated with shaped text, and used to
@@ -314,9 +358,11 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<GlyphBuffer> CreateGlyphBuffer(
       const std::string& utf8_string,
       const scoped_refptr<Font>& font) OVERRIDE {
-    UNREFERENCED_PARAMETER(font);
-    return make_scoped_refptr(new GlyphBuffer(
-        math::RectF(0, 0, static_cast<float>(utf8_string.size()), 1)));
+    const math::RectF& glyph_bounds =
+        font->GetGlyphBounds(Internal::kDefaultGlyphIndex);
+    return make_scoped_refptr(new GlyphBuffer(math::RectF(
+        0, glyph_bounds.y(), glyph_bounds.width() * utf8_string.size(),
+        glyph_bounds.height())));
   }
 
   // Create a mesh which can map replaced boxes to 3D shapes.
