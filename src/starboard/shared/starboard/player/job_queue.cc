@@ -103,6 +103,7 @@ void JobQueue::StopSoon() {
     ScopedLock scoped_lock(mutex_);
     stopped_ = true;
     time_to_job_map_.clear();
+    condition_.Signal();
   }
 }
 
@@ -199,11 +200,15 @@ bool JobQueue::TryToRunOneJob(bool wait_for_next_job) {
     if (time_to_job_map_.empty()) {
       return false;
     }
+
     TimeToJobMap::iterator first_delayed_job = time_to_job_map_.begin();
     SbTimeMonotonic delay = first_delayed_job->first - SbTimeGetMonotonicNow();
     if (delay > 0) {
       if (wait_for_next_job) {
         condition_.WaitTimed(delay);
+        if (time_to_job_map_.empty()) {
+          return false;
+        }
       } else {
         return false;
       }
