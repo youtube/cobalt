@@ -100,6 +100,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     FollowingSiblingPotentialNodes following_sibling_potential_nodes;
   };
 
+  enum AncestorsAreDisplayed {
+    kAncestorsAreDisplayed,
+    kAncestorsAreNotDisplayed,
+  };
+
   // Web API: HTMLElement
   //
   std::string dir() const;
@@ -203,6 +208,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return css_computed_style_declaration_->data();
   }
 
+  void MarkDisplayNoneOnNodeAndDescendants() OVERRIDE;
   void PurgeCachedBackgroundImagesOfNodeAndDescendants() OVERRIDE;
   void InvalidateComputedStylesOfNodeAndDescendants() OVERRIDE;
   void InvalidateLayoutBoxesOfNodeAndAncestors() OVERRIDE;
@@ -220,21 +226,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
       const base::TimeDelta& style_change_event_time, bool ancestors_were_valid,
       int current_element_depth);
 
-  // Updates the cached computed style of this element and its anecstors.
-  void UpdateComputedStyleAlongAncestors(
-      const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
-          parent_computed_style,
-      const scoped_refptr<const cssom::CSSComputedStyleData>&
-          root_computed_style,
-      const base::TimeDelta& style_change_event_time);
-
   // Updates the cached computed style of this element.
   void UpdateComputedStyle(
       const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           parent_computed_style_declaration,
       const scoped_refptr<const cssom::CSSComputedStyleData>&
           root_computed_style,
-      const base::TimeDelta& style_change_event_time);
+      const base::TimeDelta& style_change_event_time,
+      AncestorsAreDisplayed ancestor_is_displayed);
 
   // Layout box related methods.
   //
@@ -260,7 +259,9 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
 
   bool computed_style_valid() const { return computed_style_valid_; }
-
+  bool descendant_computed_styles_valid() const {
+    return descendant_computed_styles_valid_;
+  }
   bool matching_rules_valid() const { return matching_rules_valid_; }
 
   // Returns whether the element has been designated.
@@ -322,6 +323,13 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // https://www.w3.org/TR/html5/semantics.html#the-root-element.
   bool IsRootElement();
 
+  // Purge the cached background images on only this node.
+  void PurgeCachedBackgroundImages();
+
+  // Returns true if this node and all of its ancestors do NOT have display set
+  // to 'none'.
+  bool IsDisplayed() const;
+
   bool locked_for_focus_;
 
   // The directionality of the html element is determined by the 'dir'
@@ -344,6 +352,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Keeps track of whether the HTML element's descendants' computed styles are
   // out of date or not.
   bool descendant_computed_styles_valid_;
+
+  // Indicates whether this node has an ancestor which has display set to none
+  // or not. This value gets updated when computed style is updated.
+  AncestorsAreDisplayed ancestors_are_displayed_;
 
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       css_computed_style_declaration_;
