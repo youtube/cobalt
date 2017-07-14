@@ -19,7 +19,8 @@
 namespace cobalt {
 namespace dom {
 
-TestRunner::TestRunner() : should_wait_(false) {}
+TestRunner::TestRunner() :
+    should_wait_(false), clock_(new base::ManualAdvanceClock()) {}
 
 void TestRunner::NotifyDone() {
   if (should_wait_) {
@@ -39,6 +40,14 @@ void TestRunner::DoNonMeasuredLayout() {
   if (should_wait_ && !trigger_layout_callback_.is_null()) {
     trigger_layout_callback_.Run();
   }
+}
+
+void TestRunner::AdvanceClockByMs(uint64 amount) {
+  clock_->Advance(base::TimeDelta::FromMilliseconds(amount));
+}
+
+scoped_refptr<base::Clock> TestRunner::GetClock() {
+  return clock_;
 }
 
 }  // namespace dom

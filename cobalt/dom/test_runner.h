@@ -18,6 +18,7 @@
 #if defined(ENABLE_TEST_RUNNER)
 
 #include "base/callback.h"
+#include "cobalt/base/clock.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -45,6 +46,13 @@ class TestRunner : public script::Wrappable {
   // layouts.
   void DoNonMeasuredLayout();
 
+  // Increment's the web page's clock by the specified number of milliseconds.
+  // This will result in the advance of animations.
+  void AdvanceClockByMs(uint64 amount);
+
+  // Returns the clock controlled by test runner.
+  scoped_refptr<base::Clock> GetClock();
+
   // When this callback is called, a layout should be triggered. Not all
   // triggered layouts should be measured, and the callback function should call
   // should_wait() to ensure that measurements are only taken when should_wait()
@@ -63,6 +71,7 @@ class TestRunner : public script::Wrappable {
 
   bool should_wait_;
   base::Closure trigger_layout_callback_;
+  scoped_refptr<base::ManualAdvanceClock> clock_;
 
   DISALLOW_COPY_AND_ASSIGN(TestRunner);
 };

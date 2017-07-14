@@ -63,6 +63,10 @@
     if (window.testRunner) {
       // Do another layout to start the transitions.
       window.testRunner.DoNonMeasuredLayout();
+
+      // Advance the clock to exactly the end of the transition
+      // durations.
+      window.testRunner.AdvanceClockByMs(NUM_DIVS * 10);
     }
   });
 </script>
