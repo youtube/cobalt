@@ -212,6 +212,10 @@ class Pipeline {
   // |RasterizeSubmissionToRenderTarget| when the render tree has changed.
   // The tracking is flushed when the max count is hit.
   base::CValCollectionTimerStats<base::CValPublic> rasterize_periodic_timer_;
+  // Timer tracking the amount of time spent in
+  // |RasterizeSubmissionToRenderTarget| while animations are active. The
+  // tracking is flushed when the animations expire.
+  base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
 
   // Accumulates render tree rasterization interval times but does not flush
   // them until the maximum number of samples is gathered.

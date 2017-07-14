@@ -87,10 +87,12 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       rasterize_periodic_timer_("Renderer.Rasterize.Duration",
                                 kRasterizePeriodicTimerEntriesPerUpdate,
                                 false /*enable_entry_list_c_val*/),
-      rasterize_periodic_interval_timer_(
-          "Renderer.Rasterize.DurationInterval",
-          kRasterizeAnimationsTimerMaxEntries,
-          true /*enable_entry_list_c_val*/),
+      rasterize_animations_timer_("Renderer.Rasterize.Animations",
+                                  kRasterizeAnimationsTimerMaxEntries,
+                                  true /*enable_entry_list_c_val*/),
+      rasterize_periodic_interval_timer_("Renderer.Rasterize.DurationInterval",
+                                         kRasterizeAnimationsTimerMaxEntries,
+                                         true /*enable_entry_list_c_val*/),
       rasterize_animations_interval_timer_(
           "Renderer.Rasterize.AnimationsInterval",
           kRasterizeAnimationsTimerMaxEntries,
@@ -317,6 +319,16 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
   }
 
   if (last_animations_active || animations_active) {
+    // The rasterization is only timed with the animations timer when there are
+    // animations to track. This applies when animations were active during
+    // either the last rasterization or the current one. The reason for
+    // including the last one is that if animations have just expired, then this
+    // rasterization produces the final state of the animated tree.
+    if (did_rasterize) {
+      rasterize_animations_timer_.Start(start_time);
+      rasterize_animations_timer_.Stop(end_time);
+    }
+
     // If animations are going from being inactive to active, then set the c_val
     // prior to starting the animation so that it's in the correct state while
     // the tree is being rendered.
@@ -352,6 +364,7 @@ void Pipeline::UpdateRasterizeStats(bool did_rasterize,
       animations_end_time_ = end_time.ToInternalValue();
       has_active_animations_c_val_ = false;
       rasterize_animations_interval_timer_.Flush();
+      rasterize_animations_timer_.Flush();
     }
   }
 
