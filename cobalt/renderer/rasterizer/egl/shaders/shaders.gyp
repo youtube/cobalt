@@ -21,6 +21,7 @@
     'shader_sources': [
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_texcoord.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color.glsl',
+      '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_between_rrects.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_blur.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_include.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_texcoord.glsl',
