@@ -15,6 +15,7 @@
 #include "cobalt/websocket/web_socket_impl.h"
 
 #include <algorithm>
+#include <cstdint>
 
 #include "base/basictypes.h"
 #include "base/bind_helpers.h"
@@ -586,12 +587,13 @@ void WebSocketImpl::OnClose(net::SocketStream *socket) {
   DCHECK(delegate_task_runner_->BelongsToCurrentThread());
 
   bool close_was_clean = false;
-  net::WebSocketError close_code = net::kWebSocketErrorAbnormalClosure;
+  std::uint16_t close_code =
+      static_cast<std::uint16_t>(net::kWebSocketErrorAbnormalClosure);
   std::string close_reason;
 
   if (peer_close_info_) {
     close_was_clean = true;
-    close_code = peer_close_info_->code;
+    close_code = static_cast<std::uint16_t>(peer_close_info_->code);
     close_reason = peer_close_info_->reason;
   }
 
@@ -773,7 +775,7 @@ bool WebSocketImpl::SendText(const char *data, std::size_t length,
   header.masked = true;
   header.payload_length = length;
 
-  *buffered_amount += length;
+  *buffered_amount += static_cast<int>(length);
 
   return SendHelper(header, data, error_message);
 }
@@ -795,7 +797,7 @@ bool WebSocketImpl::SendBinary(const char *data, std::size_t length,
   header.masked = true;
   header.payload_length = length;
 
-  *buffered_amount += length;
+  *buffered_amount += static_cast<int>(length);
 
   return SendHelper(header, data, error_message);
 }
