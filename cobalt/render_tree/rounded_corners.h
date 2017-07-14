@@ -18,6 +18,7 @@
 #include <algorithm>
 
 #include "cobalt/math/insets_f.h"
+#include "cobalt/math/rect_f.h"
 
 namespace cobalt {
 namespace render_tree {
@@ -89,6 +90,10 @@ struct RoundedCorners {
   RoundedCorners Inset(const math::InsetsF& insets) const {
     return Inset(insets.left(), insets.top(), insets.right(), insets.bottom());
   }
+
+  // Ensure the rounded corners' radii do not exceed the length of the
+  // corresponding edge of the given rect.
+  void Normalize(const math::RectF& rect);
 
   bool AreSquares() const {
     return top_left.IsSquare() && top_right.IsSquare() &&
