@@ -20,4 +20,8 @@
   void notifyDone();
   void waitUntilDone();
   void DoNonMeasuredLayout();
+
+  // Increment's the web page's clock by the specified number of milliseconds.
+  // This will result in the advance of animations.
+  void AdvanceClockByMs(long long amount);
 };

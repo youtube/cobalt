@@ -477,7 +477,15 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.system_window_, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier);
+      data.options.video_playback_rate_multiplier,
+#if defined(ENABLE_TEST_RUNNER)
+      data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode ?
+          dom::Window::kClockTypeTestRunner :
+          dom::Window::kClockTypeSystemTime
+#else
+      dom::Window::kClockTypeSystemTime
+#endif
+      );  // NOLINT(whitespace/parens)
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
