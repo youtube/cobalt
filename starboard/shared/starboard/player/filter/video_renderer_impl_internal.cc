@@ -86,6 +86,7 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
 scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
     SbMediaTime media_time) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedLock lock(mutex_);
 
   if (frames_.empty()) {
     return last_displayed_frame_;
@@ -105,6 +106,7 @@ scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
 
 bool VideoRendererImpl::IsEndOfStreamPlayed() const {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedLock lock(mutex_);
   return end_of_stream_written_ && frames_.size() <= 1;
 }
 
