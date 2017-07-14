@@ -49,10 +49,8 @@ class UIEvent : public Event {
   const scoped_refptr<Window>& view() const { return view_; }
   int32 detail() const { return detail_; }
 
-  // The following properties are defined inside UIEvent but are not valid for
-  // all UIEvent subtypes.  Subtypes should override the getters when necessary.
-  virtual int32 page_x() const { return 0; }
-  virtual int32 page_y() const { return 0; }
+  // The following property is defined inside UIEvent but is not valid for all
+  // UIEvent subtypes.  Subtypes should override the getter when necessary.
   virtual uint32 which() const { return which_; }
 
   DEFINE_WRAPPABLE_TYPE(UIEvent);
