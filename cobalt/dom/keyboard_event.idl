@@ -13,6 +13,8 @@
 // limitations under the License.
 
 // https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-keyboardevent
+// https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-attributes
+// https://www.w3.org/TR/2009/WD-DOM-Level-3-Events-20090908/#events-Events-KeyboardEvent-keylocation
 
 [Constructor(DOMString type, optional KeyboardEventInit eventInitDict)]
 interface KeyboardEvent : UIEvent {
@@ -36,11 +38,11 @@ interface KeyboardEvent : UIEvent {
 
   boolean getModifierState(DOMString text);
 
-  // Deprecated. These features have been removed from the Web standards.
-  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-models
+  // Legacy Key Attributes.
   readonly attribute unsigned long keyCode;
   readonly attribute unsigned long charCode;
-  readonly attribute unsigned long which;
+
+  // Deprecated. These features have been removed from the latest Web standards.
   readonly attribute unsigned long keyLocation;
   readonly attribute DOMString keyIdentifier;
 
