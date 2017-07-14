@@ -70,6 +70,22 @@ class OffsetClock : public Clock {
   const base::TimeDelta origin_;
 };
 
+// Simple clock that needs to be manually advanced.
+class ManualAdvanceClock : public base::Clock {
+ public:
+  base::TimeDelta Now() OVERRIDE { return value_; }
+
+  void Advance(const base::TimeDelta& advance_amount) {
+    DCHECK_GE(advance_amount, base::TimeDelta());
+    value_ += advance_amount;
+  }
+
+ private:
+  ~ManualAdvanceClock() OVERRIDE {}
+
+  base::TimeDelta value_;
+};
+
 }  // namespace base
 
 #endif  // COBALT_BASE_CLOCK_H_
