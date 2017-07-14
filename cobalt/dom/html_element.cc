@@ -648,7 +648,7 @@ void HTMLElement::UpdateComputedStyleRecursively(
       ancestors_were_valid && matching_rules_valid_ && computed_style_valid_;
   if (!is_valid) {
     UpdateComputedStyle(parent_computed_style_declaration, root_computed_style,
-                        style_change_event_time);
+                        style_change_event_time, kAncestorsAreDisplayed);
   }
 
   // Do not update computed style for descendants of "display: none" elements,
@@ -678,14 +678,42 @@ void HTMLElement::UpdateComputedStyleRecursively(
   descendant_computed_styles_valid_ = true;
 }
 
+void HTMLElement::MarkDisplayNoneOnNodeAndDescendants() {
+  // While we do want to clear the animations immediately, we also want to
+  // ensure that they are also reset starting with the next computed style
+  // update.  This ensures that for example a transition will not be triggered
+  // on the next computed style update.
+  ancestors_are_displayed_ = kAncestorsAreNotDisplayed;
+
+  PurgeCachedBackgroundImages();
+
+  if (!css_animations_.empty() || !css_transitions_.empty()) {
+    css_transitions_.Clear();
+    css_animations_.Clear();
+    computed_style_valid_ = false;
+    descendant_computed_styles_valid_ = false;
+  }
+
+  MarkDisplayNoneOnDescendants();
+}
+
 void HTMLElement::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
+  PurgeCachedBackgroundImages();
+  PurgeCachedBackgroundImagesOfDescendants();
+}
+
+void HTMLElement::PurgeCachedBackgroundImages() {
   ClearActiveBackgroundImages();
   if (!cached_background_images_.empty()) {
     cached_background_images_.clear();
     computed_style_valid_ = false;
     descendant_computed_styles_valid_ = false;
   }
-  PurgeCachedBackgroundImagesOfDescendants();
+}
+
+bool HTMLElement::IsDisplayed() const {
+  return ancestors_are_displayed_ == kAncestorsAreDisplayed &&
+         computed_style()->display() != cssom::KeywordValue::GetNone();
 }
 
 void HTMLElement::InvalidateComputedStylesOfNodeAndDescendants() {
@@ -731,6 +759,7 @@ HTMLElement::HTMLElement(Document* document, base::Token local_name)
           document->html_element_context()->css_parser())),
       computed_style_valid_(false),
       descendant_computed_styles_valid_(false),
+      ancestors_are_displayed_(kAncestorsAreDisplayed),
       css_computed_style_declaration_(new cssom::CSSComputedStyleDeclaration()),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           transitions_adapter_(new DOMAnimatable(this))),
@@ -830,7 +859,7 @@ bool HTMLElement::IsBeingRendered() {
   }
   DCHECK(computed_style());
 
-  return computed_style()->display() != cssom::KeywordValue::GetNone() &&
+  return IsDisplayed() &&
          computed_style()->visibility() == cssom::KeywordValue::GetVisible();
 }
 
@@ -947,13 +976,7 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const math::Size& viewport_size,
-    const base::TimeDelta& style_change_event_time,
-    const scoped_refptr<const cssom::CSSComputedStyleData>&
-        previous_computed_style,
-    cssom::TransitionSet* css_transitions, cssom::AnimationSet* css_animations,
-    const cssom::CSSKeyframesRule::NameMap& keyframes_map,
-    bool* animations_modified) {
+    const math::Size& viewport_size) {
   // Select the winning value for each property by performing the cascade,
   // that is, apply values from matching rules on top of inline style, taking
   // into account rule specificity and location in the source file, as well as
@@ -973,31 +996,65 @@ scoped_refptr<cssom::CSSComputedStyleData> PromoteMatchingRulesToComputedStyle(
       computed_style, parent_computed_style_declaration, root_computed_style,
       viewport_size, property_key_to_base_url_map);
 
-  if (previous_computed_style) {
-    // Now that we have updated our computed style, compare it to the previous
-    // style and see if we need to adjust our animations.
-    css_transitions->UpdateTransitions(
-        style_change_event_time, *previous_computed_style, *computed_style);
-  }
-  // Update the set of currently running animations and track whether or not the
-  // animations changed.
-  *animations_modified = css_animations->Update(style_change_event_time,
-                                                *computed_style, keyframes_map);
-
   return computed_style;
+}
+
+void PossiblyActivateAnimations(
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
+        previous_computed_style,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& new_computed_style,
+    const base::TimeDelta& style_change_event_time,
+    cssom::TransitionSet* css_transitions, cssom::AnimationSet* css_animations,
+    const cssom::CSSKeyframesRule::NameMap& keyframes_map,
+    HTMLElement::AncestorsAreDisplayed old_ancestors_are_displayed,
+    HTMLElement::AncestorsAreDisplayed new_ancestors_are_displayed,
+    bool* animations_modified) {
+  // Calculate some helper values to help determine if we are transitioning from
+  // not being displayed to being displayed, or vice-versa.  Animations should
+  // not be playing if we are not being displayed.
+  bool old_is_displayed =
+      old_ancestors_are_displayed == HTMLElement::kAncestorsAreDisplayed &&
+      (previous_computed_style &&
+       previous_computed_style->display() != cssom::KeywordValue::GetNone());
+  bool new_is_displayed =
+      new_ancestors_are_displayed == HTMLElement::kAncestorsAreDisplayed &&
+      new_computed_style->display() != cssom::KeywordValue::GetNone();
+
+  if (new_is_displayed) {
+    // Don't start any transitions if we are transitioning from display: none.
+    if (previous_computed_style && old_is_displayed) {
+      // Now that we have updated our computed style, compare it to the previous
+      // style and see if we need to adjust our animations.
+      css_transitions->UpdateTransitions(style_change_event_time,
+                                         *previous_computed_style,
+                                         *new_computed_style);
+    }
+    // Update the set of currently running animations and track whether or not
+    // the animations changed.
+    *animations_modified = css_animations->Update(
+        style_change_event_time, *new_computed_style, keyframes_map);
+  } else {
+    if (old_is_displayed) {
+      css_transitions->Clear();
+      css_animations->Clear();
+    } else {
+      DCHECK(css_transitions->empty());
+      DCHECK(css_animations->empty());
+    }
+  }
 }
 
 // Flags tracking which cached values must be invalidated.
 struct UpdateComputedStyleInvalidationFlags {
   UpdateComputedStyleInvalidationFlags()
-      : purge_cached_background_images_of_descendants(false),
+      : mark_descendants_as_display_none(false),
         invalidate_computed_styles_of_descendants(false),
         invalidate_layout_boxes(false),
         invalidate_sizes(false),
         invalidate_cross_references(false),
         invalidate_render_tree_nodes(false) {}
 
-  bool purge_cached_background_images_of_descendants;
+  bool mark_descendants_as_display_none;
   bool invalidate_computed_styles_of_descendants;
   bool invalidate_layout_boxes;
   bool invalidate_sizes;
@@ -1005,7 +1062,7 @@ struct UpdateComputedStyleInvalidationFlags {
   bool invalidate_render_tree_nodes;
 };
 
-bool NewComputedStylePurgesCachedBackgroundImagesOfDescendants(
+bool NewComputedStyleMarksDescendantsAsDisplayNone(
     const scoped_refptr<const cssom::CSSComputedStyleData>& old_computed_style,
     const scoped_refptr<cssom::CSSComputedStyleData>& new_computed_style) {
   return old_computed_style->display() != cssom::KeywordValue::GetNone() &&
@@ -1058,11 +1115,11 @@ void UpdateInvalidationFlagsFromNewComputedStyle(
     bool animations_modified, IsPseudoElement is_pseudo_element,
     UpdateComputedStyleInvalidationFlags* flags) {
   if (old_computed_style) {
-    if (!flags->purge_cached_background_images_of_descendants &&
+    if (!flags->mark_descendants_as_display_none &&
         is_pseudo_element == kIsNotPseudoElement &&
-        NewComputedStylePurgesCachedBackgroundImagesOfDescendants(
-            old_computed_style, new_computed_style)) {
-      flags->purge_cached_background_images_of_descendants = true;
+        NewComputedStyleMarksDescendantsAsDisplayNone(old_computed_style,
+                                                      new_computed_style)) {
+      flags->mark_descendants_as_display_none = true;
     }
     if (!flags->invalidate_computed_styles_of_descendants &&
         NewComputedStyleInvalidatesComputedStylesOfDescendants(
@@ -1095,13 +1152,52 @@ void UpdateInvalidationFlagsFromNewComputedStyle(
   }
 }
 
+void DoComputedStyleUpdate(
+    cssom::RulesWithCascadePrecedence* matching_rules,
+    cssom::GURLMap* property_key_to_base_url_map,
+    const scoped_refptr<const cssom::CSSDeclaredStyleData>& inline_style,
+    const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
+        parent_computed_style_declaration,
+    const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
+    const math::Size& viewport_size,
+    const scoped_refptr<const cssom::CSSComputedStyleData>&
+        previous_computed_style,
+    const base::TimeDelta& style_change_event_time,
+    cssom::TransitionSet* css_transitions, cssom::AnimationSet* css_animations,
+    const cssom::CSSKeyframesRule::NameMap& keyframes_map,
+    HTMLElement::AncestorsAreDisplayed old_ancestors_are_displayed,
+    HTMLElement::AncestorsAreDisplayed new_ancestors_are_displayed,
+    IsPseudoElement is_pseudo_element,
+    UpdateComputedStyleInvalidationFlags* invalidation_flags,
+    cssom::CSSComputedStyleDeclaration* css_computed_style_declaration) {
+  bool animations_modified = false;
+
+  scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
+      PromoteMatchingRulesToComputedStyle(
+          matching_rules, property_key_to_base_url_map, inline_style,
+          parent_computed_style_declaration, root_computed_style,
+          viewport_size);
+
+  PossiblyActivateAnimations(previous_computed_style, new_computed_style,
+                             style_change_event_time, css_transitions,
+                             css_animations, keyframes_map,
+                             old_ancestors_are_displayed,
+                             new_ancestors_are_displayed, &animations_modified);
+
+  UpdateInvalidationFlagsFromNewComputedStyle(
+      previous_computed_style, new_computed_style, animations_modified,
+      is_pseudo_element, invalidation_flags);
+
+  css_computed_style_declaration->SetData(new_computed_style);
+}
 }  // namespace
 
 void HTMLElement::UpdateComputedStyle(
     const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
         parent_computed_style_declaration,
     const scoped_refptr<const cssom::CSSComputedStyleData>& root_computed_style,
-    const base::TimeDelta& style_change_event_time) {
+    const base::TimeDelta& style_change_event_time,
+    AncestorsAreDisplayed ancestors_are_displayed) {
   Document* document = node_document();
   DCHECK(document) << "Element should be attached to document in order to "
                       "participate in layout.";
@@ -1137,6 +1233,15 @@ void HTMLElement::UpdateComputedStyle(
     generate_computed_style = true;
   }
 
+  // It is possible for computed style to have been updated on this element even
+  // if its ancestors were set to display: none.  If this has changed, we would
+  // need to update our computed style again, even if nothing else has changed.
+  if (!generate_computed_style &&
+      ancestors_are_displayed_ == kAncestorsAreNotDisplayed &&
+      ancestors_are_displayed == kAncestorsAreDisplayed) {
+    generate_computed_style = true;
+  }
+
   // TODO: It maybe helpful to generalize this mapping framework in the
   // future to allow more data and context about where a cssom::PropertyValue
   // came from.
@@ -1147,23 +1252,19 @@ void HTMLElement::UpdateComputedStyle(
   // Flags tracking which cached values must be invalidated.
   UpdateComputedStyleInvalidationFlags invalidation_flags;
 
+  // We record this now before we make changes to the computed style and use
+  // it later for the pseudo element computed style updates.
+  bool old_is_displayed = computed_style() && IsDisplayed();
+
   if (generate_computed_style) {
     dom_stat_tracker_->OnGenerateHtmlElementComputedStyle();
-    bool animations_modified = false;
-
-    scoped_refptr<cssom::CSSComputedStyleData> new_computed_style =
-        PromoteMatchingRulesToComputedStyle(
-            matching_rules(), &property_key_to_base_url_map, style_->data(),
-            parent_computed_style_declaration, root_computed_style,
-            document->viewport_size(), style_change_event_time,
-            computed_style(), &css_transitions_, &css_animations_,
-            document->keyframes_map(), &animations_modified);
-
-    UpdateInvalidationFlagsFromNewComputedStyle(
-        computed_style(), new_computed_style, animations_modified,
-        kIsNotPseudoElement, &invalidation_flags);
-
-    css_computed_style_declaration_->SetData(new_computed_style);
+    DoComputedStyleUpdate(
+        matching_rules(), &property_key_to_base_url_map, style_->data(),
+        parent_computed_style_declaration, root_computed_style,
+        document->viewport_size(), computed_style(), style_change_event_time,
+        &css_transitions_, &css_animations_, document->keyframes_map(),
+        ancestors_are_displayed_, ancestors_are_displayed, kIsNotPseudoElement,
+        &invalidation_flags, css_computed_style_declaration_);
 
     // Update cached background images after resolving the urls in
     // background_image CSS property of the computed style, so we have all the
@@ -1175,6 +1276,9 @@ void HTMLElement::UpdateComputedStyle(
     css_computed_style_declaration_->UpdateInheritedData();
   }
 
+  // Update the displayed status of our ancestors.
+  ancestors_are_displayed_ = ancestors_are_displayed;
+
   // NOTE: Currently, pseudo element's computed styles are always generated. If
   // this becomes a performance bottleneck, change the logic so that it only
   // occurs when needed.
@@ -1184,32 +1288,26 @@ void HTMLElement::UpdateComputedStyle(
        ++pseudo_element_type) {
     if (pseudo_elements_[pseudo_element_type]) {
       dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
-      bool animations_modified = false;
-
-      scoped_refptr<cssom::CSSComputedStyleData> pseudo_element_computed_style =
-          PromoteMatchingRulesToComputedStyle(
-              pseudo_elements_[pseudo_element_type]->matching_rules(),
-              &property_key_to_base_url_map, style_->data(),
-              css_computed_style_declaration(), root_computed_style,
-              document->viewport_size(), style_change_event_time,
-              pseudo_elements_[pseudo_element_type]->computed_style(),
-              pseudo_elements_[pseudo_element_type]->css_transitions(),
-              pseudo_elements_[pseudo_element_type]->css_animations(),
-              document->keyframes_map(), &animations_modified);
-
-      UpdateInvalidationFlagsFromNewComputedStyle(
+      DoComputedStyleUpdate(
+          pseudo_elements_[pseudo_element_type]->matching_rules(),
+          &property_key_to_base_url_map, style_->data(),
+          css_computed_style_declaration(), root_computed_style,
+          document->viewport_size(),
           pseudo_elements_[pseudo_element_type]->computed_style(),
-          pseudo_element_computed_style, animations_modified, kIsPseudoElement,
-          &invalidation_flags);
-
-      pseudo_elements_[pseudo_element_type]
-          ->css_computed_style_declaration()
-          ->SetData(pseudo_element_computed_style);
+          style_change_event_time,
+          pseudo_elements_[pseudo_element_type]->css_transitions(),
+          pseudo_elements_[pseudo_element_type]->css_animations(),
+          document->keyframes_map(),
+          old_is_displayed ? kAncestorsAreDisplayed : kAncestorsAreNotDisplayed,
+          IsDisplayed() ? kAncestorsAreDisplayed : kAncestorsAreNotDisplayed,
+          kIsPseudoElement, &invalidation_flags,
+          pseudo_elements_[pseudo_element_type]
+              ->css_computed_style_declaration());
     }
   }
 
-  if (invalidation_flags.purge_cached_background_images_of_descendants) {
-    PurgeCachedBackgroundImagesOfDescendants();
+  if (invalidation_flags.mark_descendants_as_display_none) {
+    MarkDisplayNoneOnDescendants();
   }
   if (invalidation_flags.invalidate_computed_styles_of_descendants) {
     InvalidateComputedStylesOfDescendants();

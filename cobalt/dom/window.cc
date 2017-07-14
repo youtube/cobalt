@@ -211,7 +211,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
     const scoped_refptr<Element>& elt) {
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   if (html_element) {
-    document_->UpdateComputedStyles();
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
     return html_element->css_computed_style_declaration();
   }
   return NULL;
@@ -230,7 +230,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   scoped_refptr<cssom::CSSComputedStyleDeclaration> obj;
   if (html_element) {
-    document_->UpdateComputedStyles();
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
 
     // 2. Let obj be elt.
     obj = html_element->css_computed_style_declaration();

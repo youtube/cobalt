@@ -51,6 +51,12 @@ class AnimationSet {
               const CSSComputedStyleData& style,
               const CSSKeyframesRule::NameMap& keyframes_map);
 
+  // Returns true if there are no animations in this set.
+  bool empty() const { return animations_.empty(); }
+
+  // Clears all animations out of this animation set.
+  void Clear();
+
  private:
   // Our internal collection of animations, mapping 'animation-name' to
   // a Animation object.
