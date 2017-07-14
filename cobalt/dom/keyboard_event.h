@@ -64,18 +64,26 @@ class KeyboardEvent : public UIEventWithKeyState {
   bool repeat() const { return repeat_; }
   bool is_composing() const { return false; }
 
-  // Non-standard and deprecated.
-  // key code for keydown and keyup, character for keypress
-  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-models
+  // Legacy Key Attributes.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#legacy-key-attributes
   uint32 key_code() const;
   uint32 char_code() const;
-  uint32 which() const;
 
+  // Web API: UIEvent
+  // This holds a system- and implementation-dependent numerical code signifying
+  // the unmodified identifier associated with the key pressed. In most cases,
+  // the value is identical to keyCode.
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#dom-keyboardevent-which
+  uint32 which() const OVERRIDE;
+
+  // keyLocation is deprecated and non-standard.
+  //   https://www.w3.org/TR/2009/WD-DOM-Level-3-Events-20090908/#events-Events-KeyboardEvent-keylocation
   KeyLocationCode key_location() const { return key_location_; }
 
   // keyIdentifier is deprecated and non-standard.
   // Here, we just map it to the standardized key() method, which matches some,
   // but not all browser implementations.
+  //   https://www.w3.org/TR/2009/WD-DOM-Level-3-Events-20090908/#events-Events-KeyboardEvent-keyIdentifier
   std::string key_identifier() const { return key(); }
 
   // Custom, not in any spec.
