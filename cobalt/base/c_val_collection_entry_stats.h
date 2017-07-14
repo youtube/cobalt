@@ -26,6 +26,7 @@
 #include "base/stringprintf.h"
 #include "base/time.h"
 #include "cobalt/base/c_val.h"
+#include "cobalt/base/unused.h"
 
 namespace base {
 namespace CValDetail {
@@ -305,14 +306,19 @@ void CValCollectionEntryStatsImpl<EntryType, Visibility>::PopulateEntryList() {
 template <typename EntryType>
 class CValCollectionEntryStatsStub {
  public:
+  typedef base::Unused FlushResults;
+  typedef base::Unused OnFlushCallback;
+
   explicit CValCollectionEntryStatsStub(const std::string& name) {
     UNREFERENCED_PARAMETER(name);
   }
-  CValCollectionEntryStatsStub(const std::string& name, size_t max_size,
-                               bool enable_entry_list_c_val) {
+  CValCollectionEntryStatsStub(
+      const std::string& name, size_t max_size, bool enable_entry_list_c_val,
+      const OnFlushCallback& on_flush = OnFlushCallback()) {
     UNREFERENCED_PARAMETER(name);
     UNREFERENCED_PARAMETER(max_size);
     UNREFERENCED_PARAMETER(enable_entry_list_c_val);
+    UNREFERENCED_PARAMETER(on_flush);
   }
 
   void AddEntry(const EntryType& value) { UNREFERENCED_PARAMETER(value); }

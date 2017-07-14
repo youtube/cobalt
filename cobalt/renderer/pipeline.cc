@@ -86,11 +86,14 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
       rasterize_periodic_timer_("Renderer.Rasterize.Duration",
                                 kRasterizePeriodicTimerEntriesPerUpdate,
                                 false /*enable_entry_list_c_val*/),
-      ALLOW_THIS_IN_INITIALIZER_LIST(rasterize_animations_timer_(
-          "Renderer.Rasterize.Animations", kRasterizeAnimationsTimerMaxEntries,
-          true /*enable_entry_list_c_val*/,
+      ALLOW_THIS_IN_INITIALIZER_LIST(rasterize_animations_interval_timer_(
+          "Renderer.Rasterize.AnimationsInterval",
+          kRasterizeAnimationsTimerMaxEntries, true /*enable_entry_list_c_val*/,
           base::Bind(&Pipeline::FrameStatsOnFlushCallback,
                      base::Unretained(this)))),
+      rasterize_animations_timer_("Renderer.Rasterize.Animations",
+                                  kRasterizeAnimationsTimerMaxEntries,
+                                  true /*enable_entry_list_c_val*/),
       new_render_tree_rasterize_count_(
           "Count.Renderer.Rasterize.NewRenderTree", 0,
           "Total number of new render trees rasterized."),
@@ -285,8 +288,12 @@ void Pipeline::RasterizeCurrentTree() {
   // If animations are going from being inactive to active, then set the c_val
   // prior to starting the animation so that it's in the correct state while the
   // tree is being rendered.
+  // Also, start the interval timer now. While the first entry only captures a
+  // partial interval, it's recorded to include the duration of the first
+  // submission. All subsequent entries will record a full interval.
   if (!last_render_animations_active_ && are_animations_active) {
     has_active_animations_c_val_ = true;
+    rasterize_animations_interval_timer_.Start(now);
   }
 
   // The rasterization is only timed with the periodic timer when the render
@@ -312,24 +319,34 @@ void Pipeline::RasterizeCurrentTree() {
   // Rasterize the last submitted render tree.
   RasterizeSubmissionToRenderTarget(submission, render_target_);
 
+  // Update now with the post-submission time.
+  now = base::TimeTicks::Now();
+
   if (should_run_periodic_timer) {
-    rasterize_periodic_timer_.Stop();
+    rasterize_periodic_timer_.Stop(now);
   }
   if (should_run_animations_timer) {
-    rasterize_animations_timer_.Stop();
+    rasterize_animations_interval_timer_.Stop(now);
+    rasterize_animations_timer_.Stop(now);
+    // If animations are active, then they are guaranteed at least one more
+    // interval. Start the timer to record its duration.
+    if (are_animations_active) {
+      rasterize_animations_interval_timer_.Start(now);
+    }
   }
 
   if (is_new_render_tree) {
     ++new_render_tree_rasterize_count_;
-    new_render_tree_rasterize_time_ = base::TimeTicks::Now().ToInternalValue();
+    new_render_tree_rasterize_time_ = now.ToInternalValue();
   }
 
   // Check for if the animations are starting or ending.
   if (!last_render_animations_active_ && are_animations_active) {
-    animations_start_time_ = base::TimeTicks::Now().ToInternalValue();
+    animations_start_time_ = now.ToInternalValue();
   } else if (last_render_animations_active_ && !are_animations_active) {
-    animations_end_time_ = base::TimeTicks::Now().ToInternalValue();
+    animations_end_time_ = now.ToInternalValue();
     has_active_animations_c_val_ = false;
+    rasterize_animations_interval_timer_.Flush();
     rasterize_animations_timer_.Flush();
   }
 
