@@ -416,7 +416,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   const render_tree::RectShadowNode::Builder& data = shadow_node->data();
-  if (data.rounded_corners) {
+  base::optional<render_tree::RoundedCorners> spread_corners =
+      data.rounded_corners;
+
+  if (data.rounded_corners && data.shadow.blur_sigma > 0.0f) {
     FallbackRasterize(shadow_node);
     return;
   }
@@ -434,34 +437,35 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
     // data.rect is outermost.
     // spread_rect is in the middle.
     // blur_rect is innermost.
-    spread_rect.Inset(data.spread, data.spread);
-    spread_rect.Intersect(data.rect);
-    if (spread_rect.IsEmpty()) {
-      // Spread covers the whole data.rect.
-      spread_rect.set_origin(data.rect.CenterPoint());
-      spread_rect.set_size(math::SizeF());
+    if (spread_corners) {
+      spread_corners = spread_corners->Inset(
+          data.spread, data.spread, data.spread, data.spread);
     }
+    spread_rect.Inset(data.spread, data.spread);
     if (!spread_rect.IsEmpty() && data.shadow.blur_sigma > 0.0f) {
       math::RectF blur_rect(spread_rect);
       math::Vector2dF blur_extent(data.shadow.BlurExtent());
       blur_rect.Inset(blur_extent.x(), blur_extent.y());
-      blur_rect.Intersect(spread_rect);
       if (blur_rect.IsEmpty()) {
         // Blur covers all of spread.
         blur_rect.set_origin(spread_rect.CenterPoint());
-        blur_rect.set_size(math::SizeF());
       }
       draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
           blur_rect, data.rect, spread_rect, shadow_color,
           data.shadow.blur_sigma, data.inset));
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          spread_rect, data.rect, shadow_color, data.rect));
+          spread_rect, spread_corners, data.rect, data.rounded_corners,
+          shadow_color));
     }
   } else {
     // blur_rect is outermost.
     // spread_rect is in the middle (barring negative |spread| values).
     // data.rect is innermost (though it may not overlap due to offset).
+    if (spread_corners) {
+      spread_corners = spread_corners->Inset(
+          -data.spread, -data.spread, -data.spread, -data.spread);
+    }
     spread_rect.Outset(data.spread, data.spread);
     if (spread_rect.IsEmpty()) {
       // Negative spread shenanigans! Nothing to draw.
@@ -476,7 +480,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
           data.shadow.blur_sigma, data.inset));
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          data.rect, spread_rect, shadow_color, spread_rect));
+          data.rect, data.rounded_corners, spread_rect, spread_corners,
+          shadow_color));
     }
     node_bounds.Union(blur_rect);
   }
