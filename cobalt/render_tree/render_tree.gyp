@@ -61,6 +61,7 @@
         'resource_provider.h',
         'resource_provider_stub.h',
         'rounded_corners.h',
+        'rounded_corners.cc',
         'rounded_viewport_filter.h',
         'shadow.h',
         'text_node.cc',
