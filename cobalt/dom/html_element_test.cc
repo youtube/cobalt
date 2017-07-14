@@ -124,11 +124,23 @@ class HTMLElementTest : public ::testing::Test {
   scoped_refptr<HTMLElement> CreateHTMLElementTreeWithMockLayoutBoxes(
       const char* null_terminated_element_names[]);
 
+  void SetElementStyle(const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
+                       HTMLElement* html_element);
+
   cssom::testing::MockCSSParser css_parser_;
   scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
+
+void HTMLElementTest::SetElementStyle(
+    const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
+    HTMLElement* html_element) {
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(data));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+}
 
 scoped_refptr<HTMLElement>
 HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
@@ -225,6 +237,32 @@ TEST_F(HTMLElementTest, Focus) {
 
   html_element_2->set_tab_index(-1);
   html_element_2->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+
+  // Make sure that if we try to focus an element that has display set to none,
+  // it will not take the focus.
+  scoped_refptr<cssom::CSSDeclaredStyleData> display_none_style(
+      new cssom::CSSDeclaredStyleData());
+  display_none_style->SetPropertyValueAndImportance(
+      cssom::kDisplayProperty, cssom::KeywordValue::GetNone(), false);
+  SetElementStyle(display_none_style, html_element_1);
+  html_element_1->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+
+  // Make sure that if we try to focus an element whose ancestor has display
+  // set to none, it will not take the focus.
+  scoped_refptr<HTMLElement> html_element_3 =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<HTMLElement> html_element_4 =
+      document_->CreateElement("div")->AsHTMLElement();
+  document_->AppendChild(html_element_3);
+  html_element_3->AppendChild(html_element_4);
+
+  html_element_4->set_tab_index(-1);
+  SetElementStyle(display_none_style, html_element_3);
+  html_element_4->Focus();
   ASSERT_TRUE(document_->active_element());
   EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
 }

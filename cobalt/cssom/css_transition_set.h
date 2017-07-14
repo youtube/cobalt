@@ -78,6 +78,9 @@ class TransitionSet {
   // Returns true if there are no animations in this animation set.
   bool empty() const { return transitions_.IsEmpty(); }
 
+  // Clears out all currently running transitions.
+  void Clear();
+
  private:
   void UpdateTransitionForProperty(
       PropertyKey property, const base::TimeDelta& current_time,
@@ -103,6 +106,10 @@ class TransitionSet {
     // Removes an existing transition from the map.  The transition must
     // already exist in the map.
     void RemoveTransitionForProperty(PropertyKey property);
+
+    // Clears all entries from the map, as if RemoveTransitionForProperty()
+    // had been called on each property.
+    void Clear();
 
     typedef std::map<PropertyKey, Transition> InternalTransitionMap;
     const InternalTransitionMap& GetInternalMap() const { return transitions_; }
