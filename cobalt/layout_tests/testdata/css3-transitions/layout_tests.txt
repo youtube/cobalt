@@ -1,1 +1,2 @@
 5-multiple-transitions-should-fire-in-correct-order
+5-simple-transition
