@@ -204,5 +204,12 @@ bool AnimationSet::Update(const base::TimeDelta& current_time,
   return animations_modified;
 }
 
+void AnimationSet::Clear() {
+  for (auto& animation : animations_) {
+    event_handler_->OnAnimationRemoved(animation.second);
+  }
+  animations_.clear();
+}
+
 }  // namespace cssom
 }  // namespace cobalt
