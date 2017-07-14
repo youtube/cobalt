@@ -137,6 +137,12 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(
     CSSTransitionLayoutTests, LayoutTest,
     ::testing::ValuesIn(EnumerateLayoutTests("css3-transitions")));
+// Custom CSS Animation
+// (https://www.w3.org/TR/2013/WD-css3-animations-20130219/#animations)
+// test cases.
+INSTANTIATE_TEST_CASE_P(
+    CSSAnimationLayoutTests, LayoutTest,
+    ::testing::ValuesIn(EnumerateLayoutTests("css3-animations")));
 // Custom bidi text (http://www.unicode.org/reports/tr9/)
 // (https://www.w3.org/TR/CSS21/visuren.html#direction) test cases.
 INSTANTIATE_TEST_CASE_P(
