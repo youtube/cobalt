@@ -12,21 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2015/WD-uievents-20151215/#interface-UIEvent
+// https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-uievent
+// https://w3c.github.io/uievents/#legacy-interface-UIEvent
 
 [Constructor(DOMString type, optional UIEventInit eventInitDict)]
 interface UIEvent : Event {
   readonly attribute Window? view;
   readonly attribute long detail;
 
-  // Note that the following properties are not part of any specification but
-  // are commonly implemented and required by Cobalt.
-  // The horizontal coordinate of the event relative to the whole document.
-  readonly attribute long pageX;
-  // The vertical coordinate of the event relative to the whole document.
-  readonly attribute long pageY;
-  // The numeric keyCode of the key pressed, or the character code (charCode)
-  // for an alphanumeric key pressed.
   readonly attribute unsigned long which;
 
   void initUIEvent(DOMString type,

@@ -260,6 +260,7 @@
         '../dom/global_crypto.idl',
         '../dom/global_event_handlers.idl',
         '../dom/html_element_cssom_view.idl',
+        '../dom/mouse_event_cssom_view.idl',
         '../dom/navigator_id.idl',
         '../dom/navigator_language.idl',
         '../dom/navigator_plugins.idl',
