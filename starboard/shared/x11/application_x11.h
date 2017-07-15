@@ -17,6 +17,7 @@
 
 #include <X11/Xlib.h>
 
+#include <queue>
 #include <vector>
 
 #include "starboard/configuration.h"
@@ -87,6 +88,10 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   // Shuts X down.
   void StopX();
 
+  // Retreive the next pending event, such as keypresses from a paste buffer.
+  // Returns NULL if there are no pending events.
+  Event* GetPendingEvent();
+
   // Creates a new shared::Application::Event from an XEvent, passing ownership
   // of the Event to the caller.
   Event* XEventToEvent(XEvent* x_event);
@@ -106,6 +111,12 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
 
   Display* display_;
   SbWindowVector windows_;
+
+  // Storage for characters pending from a clipboard paste.
+  std::queue<unsigned char> paste_buffer_pending_characters_;
+  // Indicates whether a key press event that requires a matching release has
+  // been dispatched.
+  bool paste_buffer_key_release_pending_;
 };
 
 }  // namespace x11
