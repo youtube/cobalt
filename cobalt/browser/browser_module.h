@@ -28,6 +28,8 @@
 #include "cobalt/base/message_queue.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/lifecycle_observer.h"
+#include "cobalt/browser/memory_settings/auto_mem.h"
+#include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/render_tree_combiner.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
@@ -66,7 +68,11 @@ class BrowserModule {
   // setup reasonable default options.
   struct Options {
     explicit Options(const WebModule::Options& web_options)
-        : web_module_options(web_options) {}
+        : web_module_options(web_options),
+          command_line_auto_mem_settings(
+              memory_settings::AutoMemSettings::kTypeCommandLine),
+          build_auto_mem_settings(
+              memory_settings::AutoMemSettings::kTypeBuild) {}
     network::NetworkModule::Options network_module_options;
     renderer::RendererModule::Options renderer_module_options;
     storage::StorageManager::Options storage_manager_options;
@@ -75,6 +81,8 @@ class BrowserModule {
     std::string language;
     std::string initial_deep_link;
     base::Closure web_module_recreated_callback;
+    memory_settings::AutoMemSettings command_line_auto_mem_settings;
+    memory_settings::AutoMemSettings build_auto_mem_settings;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -129,6 +137,9 @@ class BrowserModule {
   void Unpause();
   void Suspend();
   void Resume();
+
+  void CheckMemory(const int64_t& used_cpu_memory,
+                   const base::optional<int64_t>& used_gpu_memory);
 
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -271,6 +282,12 @@ class BrowserModule {
   // |weak_ptr_factory_.GetWeakPtr() which is not).
   base::WeakPtr<BrowserModule> weak_this_;
 
+  // Memory configuration tool.
+  scoped_ptr<memory_settings::AutoMem> auto_mem_;
+
+  // A copy of the BrowserModule Options passed into the constructor.
+  Options options_;
+
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;
 
@@ -368,9 +385,6 @@ class BrowserModule {
   // Handler object for h5vcc URLs.
   H5vccURLHandler h5vcc_url_handler_;
 
-  // WebModule options.
-  WebModule::Options web_module_options_;
-
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
@@ -402,6 +416,10 @@ class BrowserModule {
 
   // The list of LifecycleObserver that need to be managed.
   ObserverList<LifecycleObserver> lifecycle_observers_;
+
+  // Fires memory warning once when memory exceeds specified max cpu/gpu
+  // memory.
+  memory_settings::Checker memory_settings_checker_;
 };
 
 }  // namespace browser

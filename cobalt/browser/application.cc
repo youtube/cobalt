@@ -34,10 +34,7 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
-#include "cobalt/browser/memory_settings/auto_mem.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
-#include "cobalt/browser/memory_settings/checker.h"
-#include "cobalt/browser/memory_settings/pretty_print.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/loader/image/image_decoder.h"
@@ -323,46 +320,6 @@ Application::NetworkStatus Application::network_status_ =
 int Application::network_connect_count_ = 0;
 int Application::network_disconnect_count_ = 0;
 
-void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
-                          BrowserModule::Options* options) {
-  std::stringstream ss;
-  const bool enable_color = SbLogIsTty();
-  ss << "\n\n" << auto_mem.ToPrettyPrintString(enable_color) << "\n\n";
-  SB_LOG(INFO) << ss.str();
-
-  options->web_module_options.image_cache_capacity =
-      static_cast<int>(auto_mem.image_cache_size_in_bytes()->value());
-
-  options->renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
-
-  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
-      auto_mem.skia_atlas_texture_dimensions()->value();
-
-  // Right now the bytes_per_pixel is assumed in the engine. Any other value
-  // is currently forbidden.
-  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
-    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
-    options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
-        math::Size(skia_glyph_atlas_texture_dimensions.width(),
-                   skia_glyph_atlas_texture_dimensions.height());
-  }
-
-  options->web_module_options.remote_typeface_cache_capacity =
-      static_cast<int>(
-          auto_mem.remote_typeface_cache_size_in_bytes()->value());
-
-  options->web_module_options.javascript_options.gc_threshold_bytes =
-      static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
-
-  options->renderer_module_options.software_surface_cache_size_in_bytes =
-      static_cast<int>(
-          auto_mem.software_surface_cache_size_in_bytes()->value());
-  options->renderer_module_options.offscreen_target_cache_size_in_bytes =
-      static_cast<int>(
-          auto_mem.offscreen_target_cache_size_in_bytes()->value());
-}
-
 Application::Application(const base::Closure& quit_closure)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
@@ -401,7 +358,7 @@ Application::Application(const base::Closure& quit_closure)
   base::LocalizedStrings::GetInstance()->Initialize(language);
 
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  math::Size window_size = InitSystemWindow(command_line);
+  InitSystemWindow(command_line);
 
   WebModule::Options web_options;
   // Create the main components of our browser.
@@ -410,6 +367,9 @@ Application::Application(const base::Closure& quit_closure)
   options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
+  options.command_line_auto_mem_settings =
+      memory_settings::GetSettings(*command_line);
+  options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
 
   if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
     options.renderer_module_options.enable_fps_stdout = true;
@@ -423,12 +383,6 @@ Application::Application(const base::Closure& quit_closure)
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
   }
-
-  auto_mem_.reset(new memory_settings::AutoMem(
-      window_size, memory_settings::GetSettings(*command_line),
-      memory_settings::GetDefaultBuildSettings()));
-
-  ApplyAutoMemSettings(*auto_mem_, &options);
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
@@ -761,7 +715,7 @@ void Application::UpdateAndMaybeRegisterUserAgent() {
   }
 }
 
-math::Size Application::InitSystemWindow(CommandLine* command_line) {
+void Application::InitSystemWindow(CommandLine* command_line) {
   base::optional<math::Size> viewport_size;
   if (command_line->HasSwitch(browser::switches::kViewport)) {
     const std::string switchValue =
@@ -805,11 +759,9 @@ math::Size Application::InitSystemWindow(CommandLine* command_line) {
   system_window_.reset(
       new system_window::SystemWindow(&event_dispatcher_, viewport_size));
 
-  math::Size window_size = system_window_->GetWindowSize();
   if (viewport_size) {
-    DCHECK_EQ(viewport_size, window_size);
+    DCHECK_EQ(viewport_size, system_window_->GetWindowSize());
   }
-  return window_size;
 }
 
 void Application::UpdatePeriodicStats() {
@@ -836,8 +788,7 @@ void Application::UpdatePeriodicStats() {
   c_val_stats_.js_reserved_memory =
       script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
 
-  memory_settings_checker_.RunChecks(
-      *auto_mem_, used_cpu_memory, used_gpu_memory);
+  browser_module_->CheckMemory(used_cpu_memory, used_gpu_memory);
 }
 
 }  // namespace browser
