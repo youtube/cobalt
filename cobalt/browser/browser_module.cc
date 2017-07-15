@@ -206,6 +206,46 @@ renderer::RendererModule::Options RendererModuleWithCameraOptions(
   return options;  // Copy.
 }
 
+BrowserModule::Options ApplyAutoMemSettings(
+    const memory_settings::AutoMem& auto_mem,
+    const BrowserModule::Options& incoming_options) {
+  SB_LOG(INFO) << "\n\n"
+               << auto_mem.ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+
+  BrowserModule::Options options(incoming_options);
+  options.web_module_options.image_cache_capacity =
+      static_cast<int>(auto_mem.image_cache_size_in_bytes()->value());
+
+  options.renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
+
+  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
+      auto_mem.skia_atlas_texture_dimensions()->value();
+
+  // Right now the bytes_per_pixel is assumed in the engine. Any other value
+  // is currently forbidden.
+  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
+    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
+    options.renderer_module_options.skia_glyph_texture_atlas_dimensions =
+        math::Size(skia_glyph_atlas_texture_dimensions.width(),
+                   skia_glyph_atlas_texture_dimensions.height());
+  }
+
+  options.web_module_options.remote_typeface_cache_capacity =
+      static_cast<int>(auto_mem.remote_typeface_cache_size_in_bytes()->value());
+
+  options.web_module_options.javascript_options.gc_threshold_bytes =
+      static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
+
+  options.renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.software_surface_cache_size_in_bytes()->value());
+  options.renderer_module_options.offscreen_target_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.offscreen_target_cache_size_in_bytes()->value());
+  return options;
+}
+
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -216,6 +256,11 @@ BrowserModule::BrowserModule(const GURL& url,
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      auto_mem_(
+          new memory_settings::AutoMem(system_window->GetWindowSize(),
+                                       options.command_line_auto_mem_settings,
+                                       options.build_auto_mem_settings)),
+      options_(ApplyAutoMemSettings(*auto_mem_, options)),
       self_message_loop_(MessageLoop::current()),
       storage_manager_(
           scoped_ptr<StorageUpgradeHandler>(new StorageUpgradeHandler(url))
@@ -271,7 +316,6 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
       ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
-      web_module_options_(options.web_module_options),
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
@@ -319,14 +363,15 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 
   // Setup our main web module to have the H5VCC API injected into it.
-  DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
+  DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
+                      "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = &network_module_;
   h5vcc_settings.account_manager = account_manager;
   h5vcc_settings.event_dispatcher = system_window->event_dispatcher();
   h5vcc_settings.initial_deep_link = options.initial_deep_link;
-  web_module_options_.injected_window_attributes["h5vcc"] =
+  options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
 #if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -350,7 +395,7 @@ BrowserModule::BrowserModule(const GURL& url,
       renderer_module_.render_target()->GetSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      web_module_options_.javascript_options));
+      options_.web_module_options.javascript_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -441,10 +486,10 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
-  web_module_options_.csp_insecure_allowed_token =
+  options_.web_module_options.csp_insecure_allowed_token =
       dom::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
-  WebModule::Options options(web_module_options_);
+  WebModule::Options options(options_.web_module_options);
   options.navigation_callback =
       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   options.loaded_callbacks.push_back(
@@ -968,6 +1013,13 @@ void BrowserModule::Resume() {
                     Resume(resource_provider));
 
   application_state_ = base::kApplicationStatePaused;
+}
+
+void BrowserModule::CheckMemory(
+    const int64_t& used_cpu_memory,
+    const base::optional<int64_t>& used_gpu_memory) {
+  memory_settings_checker_.RunChecks(*auto_mem_, used_cpu_memory,
+                                     used_gpu_memory);
 }
 
 #if defined(OS_STARBOARD)
