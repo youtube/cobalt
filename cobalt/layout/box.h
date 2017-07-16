@@ -109,6 +109,12 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  enum RelationshipToBox {
+    kIsBoxAncestor,
+    kIsBox,
+    kIsBoxDescendant,
+  };
+
   // The RenderSequence of a box is used to compare the relative drawing order
   // of boxes. It stores a value for the box's drawing order at each ancestor
   // composition node up to the root of the render tree. As a result, starting
@@ -496,12 +502,6 @@ class Box : public base::RefCounted<Box> {
   void UpdateCoordinateForTransform(math::Vector2dF* coordinate) const;
 
  protected:
-  enum RelationshipToBox {
-    kIsBoxAncestor,
-    kIsBox,
-    kIsBoxDescendant,
-  };
-
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
