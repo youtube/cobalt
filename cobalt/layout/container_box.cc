@@ -217,7 +217,9 @@ void ContainerBox::AddContainingBlockChild(Box* child_box) {
   positioned_child_boxes_.push_back(child_box);
 }
 
-void ContainerBox::AddStackingContextChild(Box* child_box) {
+void ContainerBox::AddStackingContextChild(
+    Box* child_box, RelationshipToBox containing_block_relationship,
+    int z_index) {
   DCHECK_NE(this, child_box);
   DCHECK_EQ(this, child_box->GetStackingContext());
   int child_z_index = child_box->GetZIndex();
@@ -226,9 +228,11 @@ void ContainerBox::AddStackingContextChild(Box* child_box) {
          "boxes that establish stacking contexts.";
 
   if (child_z_index < 0) {
-    negative_z_index_child_.insert(child_box);
+    negative_z_index_child_.insert(StackingContextChildInfo(
+        child_box, containing_block_relationship, z_index));
   } else {
-    non_negative_z_index_child_.insert(child_box);
+    non_negative_z_index_child_.insert(StackingContextChildInfo(
+        child_box, containing_block_relationship, z_index));
   }
 }
 
@@ -402,84 +406,68 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
 
 namespace {
 
-Vector2dLayoutUnit GetOffsetFromContainingBlockToStackingContext(
-    Box* child_box) {
-  DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
-
+Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
+    const Box* child_box,
+    const Box::RelationshipToBox
+        containing_block_relationship_to_stacking_context) {
   Vector2dLayoutUnit relative_position;
-  for (Box *containing_block = child_box->GetContainingBlock(),
-           *current_box = child_box->GetStackingContext();
-       current_box != containing_block;
-       current_box = current_box->GetContainingBlock()) {
-    if (!current_box) {
-      DLOG(WARNING)
-          << "Unsupported stacking context and containing block relation.";
-      break;
-    }
+  if (containing_block_relationship_to_stacking_context != Box::kIsBox) {
+    const Box* current_box =
+        containing_block_relationship_to_stacking_context == Box::kIsBoxAncestor
+            ? child_box->GetStackingContext()
+            : child_box->GetContainingBlock();
+    const Box* end_box =
+        containing_block_relationship_to_stacking_context == Box::kIsBoxAncestor
+            ? child_box->GetContainingBlock()
+            : child_box->GetStackingContext();
+
+    while (current_box != end_box) {
+      if (!current_box) {
+        NOTREACHED()
+            << "Unsupported stacking context and containing block relation.";
+        break;
+      }
 #if !defined(NDEBUG)
-    // We should not determine a used position through a transform, as
-    // rectangles may not remain rectangles past it, and thus obtaining
-    // a position may be misleading.
-    if (current_box->IsTransformed()) {
-      DLOG(WARNING) << "Boxes with stacking contexts above containing blocks "
-                       "with transforms may not be positioned correctly.";
-    }
+      // We should not determine a used position through a transform, as
+      // rectangles may not remain rectangles past it, and thus obtaining
+      // a position may be misleading.
+      if (current_box->IsTransformed()) {
+        DLOG(WARNING) << "Boxes with stacking contexts unequal to their "
+                         "containing blocks that include transforms may not be "
+                         "positioned correctly.";
+      }
 #endif
 
-    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
-    relative_position += current_box->margin_box_offset_from_containing_block();
-  }
-  return relative_position;
-}
+      relative_position += current_box->GetContentBoxOffsetFromMarginBox();
+      relative_position +=
+          current_box->margin_box_offset_from_containing_block();
 
-Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
-    Box* child_box) {
-  const scoped_refptr<cssom::PropertyValue>& child_box_position =
-      child_box->computed_style()->position();
-  if (child_box_position == cssom::KeywordValue::GetFixed()) {
-    // Elements with fixed position will have their containing block farther
-    // up the hierarchy than the stacking context, so handle this case
-    // specially.
-    return -GetOffsetFromContainingBlockToStackingContext(child_box);
+      if (current_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()) {
+        relative_position -= current_box->GetContainingBlock()
+                                 ->GetContentBoxOffsetFromPaddingBox();
+      }
+      current_box = current_box->GetContainingBlock();
+    }
+
+    // If the containing block is an ancestor of the stacking context, then
+    // reverse the relative position now. The earlier calculations were for the
+    // containing block being a descendant of the stacking context.
+    if (containing_block_relationship_to_stacking_context ==
+        Box::kIsBoxAncestor) {
+      relative_position = -relative_position;
+    }
   }
 
-  Vector2dLayoutUnit relative_position;
-  if (child_box_position == cssom::KeywordValue::GetAbsolute()) {
+  if (child_box->computed_style()->position() ==
+      cssom::KeywordValue::GetAbsolute()) {
     // The containing block is formed by the padding box instead of the content
     // box, as described in
     // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
     relative_position -=
         child_box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
   }
-  for (Box *current_box = child_box->GetContainingBlock(),
-           *stacking_context = child_box->GetStackingContext();
-       current_box != stacking_context;
-       current_box = current_box->GetContainingBlock()) {
-    if (!current_box) {
-      // Positioned elements may have their containing block farther
-      // up the hierarchy than the stacking context, so handle this case here.
-      DCHECK(child_box->IsPositioned() || child_box->IsTransformed());
-      return -GetOffsetFromContainingBlockToStackingContext(child_box);
-    }
-#if !defined(NDEBUG)
-    // We should not determine a used position through a transform, as
-    // rectangles may not remain rectangles past it, and thus obtaining
-    // a position may be misleading.
-    if (current_box->IsTransformed()) {
-      DLOG(WARNING) << "Boxes with stacking contexts below containing blocks "
-                       "with transforms may not be positioned correctly.";
-    }
-#endif
 
-    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
-    relative_position += current_box->margin_box_offset_from_containing_block();
-
-    if (current_box->computed_style()->position() ==
-        cssom::KeywordValue::GetAbsolute()) {
-      relative_position -= current_box->GetContainingBlock()
-                               ->GetContentBoxOffsetFromPaddingBox();
-    }
-  }
   return relative_position;
 }
 
@@ -492,11 +480,14 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
   // Render all children of the passed in list in sorted order.
   for (ZIndexSortedList::const_iterator iter = z_index_child_list.begin();
        iter != z_index_child_list.end(); ++iter) {
-    Box* child_box = *iter;
+    const StackingContextChildInfo& stacking_context_child_info = *iter;
+    Box* child_box = stacking_context_child_info.box;
 
     DCHECK_EQ(this, child_box->GetStackingContext());
     Vector2dLayoutUnit position_offset =
-        GetOffsetFromStackingContextToContainingBlock(child_box) +
+        GetOffsetFromStackingContextToContainingBlock(
+            child_box,
+            stacking_context_child_info.containing_block_relationship) +
         offset_from_parent_node;
 
     child_box->RenderAndAnimate(content_node_builder, position_offset);
