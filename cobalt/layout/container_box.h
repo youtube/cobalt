@@ -83,15 +83,31 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   bool IsStackingContext() const;
 
  protected:
+  struct StackingContextChildInfo {
+    StackingContextChildInfo(Box* box,
+                             RelationshipToBox containing_block_relationship,
+                             int z_index)
+        : box(box),
+          containing_block_relationship(containing_block_relationship),
+          z_index(z_index) {}
+
+    Box* box;
+    RelationshipToBox containing_block_relationship;
+    int z_index;
+  };
+
   class ZIndexComparator {
    public:
-    bool operator()(const Box* lhs, const Box* rhs) const {
-      return lhs->GetZIndex() < rhs->GetZIndex();
+    bool operator()(const StackingContextChildInfo& lhs,
+                    const StackingContextChildInfo& rhs) const {
+      return lhs.z_index < rhs.z_index;
     }
   };
-  // Note: find(Box*) and erase(Box*) on ZIndexSortedList may not work as
-  // expected due to the use of reflexive comparison for equality.
-  typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
+  // Note: find(StackingContextChildInfo) and erase(StackingContextChildInfo) on
+  // ZIndexSortedList may not work as expected due to the use of reflexive
+  // comparison for equality.
+  typedef std::multiset<StackingContextChildInfo, ZIndexComparator>
+      ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
       const LayoutParams& relative_child_layout_params,
@@ -134,7 +150,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // These helper functions are called from
   // Box::UpdateCrossReferencesOfContainerBox().
   void AddContainingBlockChild(Box* child_box);
-  void AddStackingContextChild(Box* child_box);
+  void AddStackingContextChild(Box* child_box,
+                               RelationshipToBox containing_block_relationship,
+                               int z_index);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
