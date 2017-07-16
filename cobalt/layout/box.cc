@@ -843,7 +843,8 @@ void Box::UpdateCrossReferencesOfContainerBox(
       source_box->AddContainingBlockChild(this);
     }
     if (is_my_stacking_context) {
-      source_box->AddStackingContextChild(this);
+      source_box->AddStackingContextChild(this, my_nearest_containing_block,
+                                          GetZIndex());
     }
   }
 }

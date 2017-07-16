@@ -107,6 +107,12 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  enum RelationshipToBox {
+    kIsBoxAncestor,
+    kIsBox,
+    kIsBoxDescendant,
+  };
+
   Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
       UsedStyleProvider* used_style_provider,
@@ -470,12 +476,6 @@ class Box : public base::RefCounted<Box> {
   void InvalidateParent() { parent_ = NULL; }
 
  protected:
-  enum RelationshipToBox {
-    kIsBoxAncestor,
-    kIsBox,
-    kIsBoxDescendant,
-  };
-
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
