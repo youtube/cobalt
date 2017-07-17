@@ -21,6 +21,11 @@
 
 namespace base {
 
+typedef CValDetail::CValCollectionEntryStatsFlushResults<TimeDelta>
+    CValCollectionTimerStatsFlushResults;
+typedef typename CValCollectionTimerStatsFlushResults::OnFlushCallback
+    CValCollectionTimerStatsOnFlushCallback;
+
 // This class is a wrapper around |CValCollectionEntryStats|.
 // |CValCollectionTimerStats| calculates the time elapsed between calls to
 // Start() and Stop() and adds it as an entry to |CValCollectionEntryStats|. It
@@ -31,10 +36,7 @@ namespace base {
 template <typename Visibility = CValDebug>
 class CValCollectionTimerStats {
  public:
-  typedef typename base::CValCollectionEntryStats<
-      base::TimeDelta, Visibility>::OnFlushCallback OnFlushCallback;
-  typedef typename base::CValCollectionEntryStats<
-      base::TimeDelta, Visibility>::FlushResults FlushResults;
+  typedef CValCollectionTimerStatsOnFlushCallback OnFlushCallback;
 
   explicit CValCollectionTimerStats(const std::string& name)
       : entry_stats_(name) {}
