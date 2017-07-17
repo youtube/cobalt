@@ -56,12 +56,22 @@ scoped_refptr<T> InterpolatePropertyTyped(
 }
 }  // namespace
 
+TEST(InterpolatePropertyValueTest, LengthValuesInterpolate) {
+  scoped_refptr<LengthValue> interpolated =
+      InterpolatePropertyTyped<LengthValue>(0.5f,
+                                            new LengthValue(0.0f, kPixelsUnit),
+                                            new LengthValue(4.0f, kPixelsUnit));
+
+  EXPECT_NEAR(interpolated->value(), 2.0f, kErrorEpsilon);
+  EXPECT_EQ(interpolated->unit(), kPixelsUnit);
+}
+
 TEST(InterpolatePropertyValueTest, NumberValuesInterpolate) {
   scoped_refptr<NumberValue> interpolated =
       InterpolatePropertyTyped<NumberValue>(0.5f, new NumberValue(0.0f),
-                                            new NumberValue(1.0f));
+                                            new NumberValue(4.0f));
 
-  EXPECT_NEAR(interpolated->value(), 0.5f, kErrorEpsilon);
+  EXPECT_NEAR(interpolated->value(), 2.0f, kErrorEpsilon);
 }
 
 TEST(InterpolatePropertyValueTest, RGBAColorValuesInterpolate) {

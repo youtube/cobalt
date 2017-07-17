@@ -716,6 +716,49 @@ void CSSStyleDeclaration::set_opacity(const std::string& opacity,
   SetPropertyValueStringByKey(kOpacityProperty, opacity, exception_state);
 }
 
+std::string CSSStyleDeclaration::outline(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kOutlineProperty);
+}
+
+void CSSStyleDeclaration::set_outline(const std::string& outline,
+                                      script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kOutlineProperty, outline, exception_state);
+}
+
+std::string CSSStyleDeclaration::outline_color(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kOutlineColorProperty);
+}
+
+void CSSStyleDeclaration::set_outline_color(
+    const std::string& outline_color, script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kOutlineColorProperty, outline_color,
+                              exception_state);
+}
+
+std::string CSSStyleDeclaration::outline_style(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kOutlineStyleProperty);
+}
+
+void CSSStyleDeclaration::set_outline_style(
+    const std::string& outline_style, script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kOutlineStyleProperty, outline_style,
+                              exception_state);
+}
+
+std::string CSSStyleDeclaration::outline_width(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kOutlineWidthProperty);
+}
+
+void CSSStyleDeclaration::set_outline_width(
+    const std::string& outline_width, script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kOutlineWidthProperty, outline_width,
+                              exception_state);
+}
+
 std::string CSSStyleDeclaration::overflow(
     script::ExceptionState* /*exception_state*/) const {
   return GetDeclaredPropertyValueStringByKey(kOverflowProperty);

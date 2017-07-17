@@ -85,6 +85,8 @@
 12-1-before-pseudoelement-does-not-inherit-inline-style
 16-2-text-align-can-be-left-center-right
 16-2-text-align-should-not-apply-when-child-boxes-overflow
+18-4-outline
+18-4-outline-animation
 8-1-margin-should-be-transparent
 8-3-margin-percentage-should-refer-containing-block-width
 8-3-negative_margins-should-be-allowed-to-produce_negative-box-widths
