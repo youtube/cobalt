@@ -86,8 +86,7 @@ scoped_refptr<render_tree::Node> ConvertLinesToOverlay(
 
 scoped_refptr<render_tree::Node> ConvertFPSStatsToOverlay(
     render_tree::ResourceProvider* resource_provider, render_tree::Font* font,
-    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-        fps_stats) {
+    const base::CValCollectionTimerStatsFlushResults& fps_stats) {
   std::vector<std::string> lines;
   lines.push_back(base::StringPrintf(
       "Samples: %d", static_cast<unsigned int>(fps_stats.sample_count)));
@@ -118,8 +117,7 @@ FpsOverlay::FpsOverlay(render_tree::ResourceProvider* resource_provider)
 }
 
 void FpsOverlay::UpdateOverlay(
-    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-        fps_stats) {
+    const base::CValCollectionTimerStatsFlushResults& fps_stats) {
   cached_overlay_ =
       ConvertFPSStatsToOverlay(resource_provider_, font_, fps_stats);
 }

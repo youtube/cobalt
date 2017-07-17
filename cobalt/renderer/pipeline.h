@@ -151,8 +151,7 @@ class Pipeline {
   Submission CollectAnimations(const Submission& render_tree_submission);
 
   void FrameStatsOnFlushCallback(
-      const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-          flush_results);
+      const base::CValCollectionTimerStatsFlushResults& flush_results);
 
   base::WaitableEvent rasterizer_created_event_;
 

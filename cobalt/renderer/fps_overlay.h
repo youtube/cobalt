@@ -28,8 +28,7 @@ class FpsOverlay {
   explicit FpsOverlay(render_tree::ResourceProvider* resource_provider);
 
   void UpdateOverlay(
-      const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-          fps_stats);
+      const base::CValCollectionTimerStatsFlushResults& fps_stats);
   scoped_refptr<render_tree::Node> AnnotateRenderTreeWithOverlay(
       render_tree::Node* original_tree);
 
