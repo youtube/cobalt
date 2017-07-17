@@ -1105,6 +1105,69 @@ TEST(PromoteToComputedStyle, BoxShadowWithNone) {
   EXPECT_EQ(KeywordValue::GetNone(), computed_style->box_shadow());
 }
 
+TEST(PromoteToComputedStyle, OutlineColorWithCurrentColorValue) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_outline_color(KeywordValue::GetCurrentColor());
+  computed_style->set_color(RGBAColorValue::GetAqua());
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  scoped_refptr<RGBAColorValue> outline_color =
+      dynamic_cast<RGBAColorValue*>(computed_style->outline_color().get());
+  ASSERT_TRUE(outline_color);
+  EXPECT_EQ(0x00FFFFFF, outline_color->value());
+}
+
+TEST(PromoteToComputedStyle, OutlineWidthWithOutlineStyleNone) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_outline_style(KeywordValue::GetNone());
+  computed_style->set_outline_width(new LengthValue(2, kFontSizesAkaEmUnit));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  scoped_refptr<LengthValue> outline_width =
+      dynamic_cast<LengthValue*>(computed_style->outline_width().get());
+  ASSERT_TRUE(outline_width);
+  EXPECT_EQ(0, outline_width->value());
+  EXPECT_EQ(kPixelsUnit, outline_width->unit());
+}
+
+TEST(PromoteToComputedStyle, OutlineWidthInEmShouldBeComputedAfterFontSize) {
+  scoped_refptr<CSSComputedStyleData> computed_style(
+      new CSSComputedStyleData());
+  computed_style->set_outline_style(KeywordValue::GetSolid());
+  computed_style->set_font_size(new LengthValue(2, kFontSizesAkaEmUnit));
+  computed_style->set_outline_width(new LengthValue(2, kFontSizesAkaEmUnit));
+
+  scoped_refptr<CSSComputedStyleData> parent_computed_style(
+      new CSSComputedStyleData());
+  parent_computed_style->set_font_size(new LengthValue(100, kPixelsUnit));
+  scoped_refptr<CSSComputedStyleDeclaration> parent_computed_style_declaration(
+      CreateComputedStyleDeclaration(parent_computed_style));
+
+  PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
+                         parent_computed_style, math::Size(), NULL);
+
+  scoped_refptr<LengthValue> outline_width =
+      dynamic_cast<LengthValue*>(computed_style->outline_width().get());
+  EXPECT_EQ(400, outline_width->value());
+  EXPECT_EQ(kPixelsUnit, outline_width->unit());
+}
+
 TEST(PromoteToComputedStyle, TextDecorationWithCurrentColor) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());

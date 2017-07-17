@@ -69,39 +69,31 @@ class RectNode : public Node {
 
   RectNode(const math::RectF& rect, scoped_ptr<Border> border)
       : data_(rect, border.Pass()) {
-    DCheckData(data_);
   }
   RectNode(const math::RectF& rect, scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, border.Pass(), rounded_corners.Pass()) {
-    DCheckData(data_);
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush)
       : data_(rect, background_brush.Pass()) {
-    DCheckData(data_);
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border)
       : data_(rect, background_brush.Pass(), border.Pass()) {
-    DCheckData(data_);
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, background_brush.Pass(), rounded_corners.Pass()) {
-    DCheckData(data_);
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, background_brush.Pass(), border.Pass(),
               rounded_corners.Pass()) {
-    DCheckData(data_);
   }
   explicit RectNode(const Builder& builder) : data_(builder) {
-    DCheckData(data_);
   }
   explicit RectNode(Builder::Moved builder) : data_(builder) {
-    DCheckData(data_);
   }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
@@ -114,10 +106,6 @@ class RectNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
-  void DCheckData(const Builder& data) {
-    DCHECK(data.background_brush || data.border || data.rounded_corners);
-  }
-
   const Builder data_;
 };
 

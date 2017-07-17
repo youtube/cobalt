@@ -74,6 +74,7 @@
         'replaced_box.h',
         'rect_layout_unit.cc',
         'rect_layout_unit.h',
+        'render_tree_animations.h',
         'size_layout_unit.cc',
         'size_layout_unit.h',
         'text_box.cc',

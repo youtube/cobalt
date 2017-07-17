@@ -3088,7 +3088,7 @@ TEST_F(ParserTest, ParsesBorderWithWidthColorAndStyle) {
             style->GetPropertyValue(cssom::kBorderBottomStyleProperty));
 }
 
-TEST_F(ParserTest, ParsesBorderWithInvaildValue) {
+TEST_F(ParserTest, ParsesBorderWithInvalidValue) {
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:9: warning: unsupported value"));
 
@@ -3098,8 +3098,8 @@ TEST_F(ParserTest, ParsesBorderWithInvaildValue) {
 
 TEST_F(ParserTest, InvalidBorderWithTwoColors) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:30: error: border-color value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:30: error: color value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:1: warning: invalid border"));
 
@@ -3126,8 +3126,8 @@ TEST_F(ParserTest, InvalidBorderWithTwoColors) {
 
 TEST_F(ParserTest, InvalidBorderBottomWithTwoColors) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:37: error: border-color value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:37: error: color value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(
       parser_observer_,
       OnWarning("[object ParserTest]:1:1: warning: invalid border-bottom"));
@@ -3144,8 +3144,8 @@ TEST_F(ParserTest, InvalidBorderBottomWithTwoColors) {
 
 TEST_F(ParserTest, InvalidBorderLeftWithTwoColors) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:35: error: border-color value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:35: error: color value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(
       parser_observer_,
       OnWarning("[object ParserTest]:1:1: warning: invalid border-left"));
@@ -3162,8 +3162,8 @@ TEST_F(ParserTest, InvalidBorderLeftWithTwoColors) {
 
 TEST_F(ParserTest, InvalidBorderRightWithTwoColors) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:36: error: border-color value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:36: error: color value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(
       parser_observer_,
       OnWarning("[object ParserTest]:1:1: warning: invalid border-right"));
@@ -3180,8 +3180,8 @@ TEST_F(ParserTest, InvalidBorderRightWithTwoColors) {
 
 TEST_F(ParserTest, InvalidBorderTopWithTwoColors) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:34: error: border-color value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:34: error: color value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(
       parser_observer_,
       OnWarning("[object ParserTest]:1:1: warning: invalid border-right"));
@@ -3198,8 +3198,8 @@ TEST_F(ParserTest, InvalidBorderTopWithTwoColors) {
 
 TEST_F(ParserTest, InvalidBorderWithTwoStyles) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:15: error: border-style value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:15: error: style value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:1: warning: invalid border"));
 
@@ -3225,8 +3225,8 @@ TEST_F(ParserTest, InvalidBorderWithTwoStyles) {
 
 TEST_F(ParserTest, InvalidBorderWithTwoWidths) {
   EXPECT_CALL(parser_observer_,
-              OnError("[object ParserTest]:1:7: error: border-width value "
-                      "declared twice in border."));
+              OnError("[object ParserTest]:1:7: error: width value declared "
+                      "twice in border or outline."));
   EXPECT_CALL(parser_observer_,
               OnWarning("[object ParserTest]:1:1: warning: invalid border"));
 
@@ -5109,6 +5109,211 @@ TEST_F(ParserTest, ClampsOpacityToOne) {
       style->GetPropertyValue(cssom::kOpacityProperty).get());
   ASSERT_TRUE(opaque);
   EXPECT_FLOAT_EQ(1, opaque->value());
+}
+
+TEST_F(ParserTest, ParsesOutlineWithWidthColorAndStyle) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline: .5em #fff solid;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> outline_width =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
+  ASSERT_TRUE(outline_width);
+  EXPECT_FLOAT_EQ(0.5f, outline_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, outline_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> outline_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kOutlineColorProperty).get());
+  ASSERT_TRUE(outline_color);
+  EXPECT_EQ(0xffffffff, outline_color->value());
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(),
+            style->GetPropertyValue(cssom::kOutlineStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineWithInvalidValue) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:10: warning: unsupported value"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline: foo, bar;", source_location_);
+}
+
+TEST_F(ParserTest, InvalidOutlineWithTwoColors) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:31: error: color value declared "
+                      "twice in border or outline."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid outline"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "outline: rgba(255,255,255,.1) rgba(255,255,255,.1)",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidOutlineWithTwoStyles) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:16: error: style value declared "
+                      "twice in border or outline."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid outline"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline: solid hidden",
+                                        source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
+}
+
+TEST_F(ParserTest, InvalidOutlineWithTwoWidths) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:8: error: width value declared "
+                      "twice in border or outline."));
+  EXPECT_CALL(parser_observer_,
+              OnWarning("[object ParserTest]:1:1: warning: invalid outline"));
+
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline: 10px 20px", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineColorProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineStyleProperty));
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineColorWidth) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline: gray 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> outline_width =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
+  ASSERT_TRUE(outline_width);
+  EXPECT_FLOAT_EQ(20.0f, outline_width->value());
+  EXPECT_EQ(cssom::kPixelsUnit, outline_width->unit());
+
+  scoped_refptr<cssom::RGBAColorValue> outline_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kOutlineColorProperty).get());
+  ASSERT_TRUE(outline_color);
+  EXPECT_EQ(0x808080FF, outline_color->value());
+}
+
+TEST_F(ParserTest, ParsesOutlineColor) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-color: rgba(0, 0, 0, .8);",
+                                        source_location_);
+
+  scoped_refptr<cssom::RGBAColorValue> outline_color =
+      dynamic_cast<cssom::RGBAColorValue*>(
+          style->GetPropertyValue(cssom::kOutlineColorProperty).get());
+  ASSERT_TRUE(outline_color);
+  EXPECT_EQ(0x000000cc, outline_color->value());
+}
+
+TEST_F(ParserTest, ParsesOutlineWidth) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-width: .8em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> outline_width =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kOutlineWidthProperty).get());
+  ASSERT_TRUE(outline_width);
+  EXPECT_FLOAT_EQ(0.8f, outline_width->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, outline_width->unit());
+}
+
+TEST_F(ParserTest, ParsesOutlineStyleSolid) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-style: solid;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetSolid(),
+            style->GetPropertyValue(cssom::kOutlineStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineStyleHidden) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-style: hidden;",
+                                        source_location_);
+
+  EXPECT_EQ(cssom::KeywordValue::GetHidden(),
+            style->GetPropertyValue(cssom::kOutlineStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineColorWithInvalidNumberOfValues) {
+  EXPECT_CALL(parser_observer_,
+              OnError("[object ParserTest]:1:23: error: unrecoverable syntax "
+                      "error"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "outline-color: maroon green transparent #CdC transparent;",
+          source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineColorProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineColorWithZeroValue) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:16: warning: unsupported value"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-color: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineColorProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineStyleWithInvalidNumberOfValues) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:22: error: unrecoverable syntax error"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "outline-style: solid hidden none solid hidden;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineStyleWithZeroValue) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:16: warning: unsupported value"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-style: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineStyleProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineWidthWithInvalidNumberOfValues) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnError("[object ParserTest]:1:22: error: unrecoverable syntax error"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList(
+          "outline-width: 0.2em 12px 0.8em 10px 0.2em 5px;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
+}
+
+TEST_F(ParserTest, ParsesOutlineWidthWithZeroValue) {
+  EXPECT_CALL(
+      parser_observer_,
+      OnWarning("[object ParserTest]:1:16: warning: unsupported value"));
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("outline-width: ;", source_location_);
+
+  EXPECT_FALSE(style->GetPropertyValue(cssom::kOutlineWidthProperty));
 }
 
 TEST_F(ParserTest, ParsesBreakWordOverflowWrap) {
