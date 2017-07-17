@@ -43,7 +43,7 @@ const int kViewportHeight = 1080;
 
 class MediaSandbox::Impl {
  public:
-  explicit Impl(const FilePath& trace_log_path);
+  Impl(int argc, char** argv, const FilePath& trace_log_path);
 
   void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb);
   MediaModule* GetMediaModule() { return media_module_.get(); }
@@ -68,7 +68,8 @@ class MediaSandbox::Impl {
   scoped_ptr<MediaModule> media_module_;
 };
 
-MediaSandbox::Impl::Impl(const FilePath& trace_log_path) {
+MediaSandbox::Impl::Impl(int argc, char** argv,
+                         const FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
   network::NetworkModule::Options network_options;
   network_options.require_https = false;
@@ -132,8 +133,9 @@ void MediaSandbox::Impl::SetupAndSubmitScene() {
                            base::TimeDelta()));
 }
 
-MediaSandbox::MediaSandbox(const FilePath& trace_log_path) {
-  impl_ = new Impl(trace_log_path);
+MediaSandbox::MediaSandbox(int argc, char** argv,
+                           const FilePath& trace_log_path) {
+  impl_ = new Impl(argc, argv, trace_log_path);
 }
 
 MediaSandbox::~MediaSandbox() {
