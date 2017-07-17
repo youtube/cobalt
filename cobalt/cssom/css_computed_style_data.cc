@@ -122,6 +122,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBorderRightColorProperty:
     case kBorderBottomColorProperty:
     case kBorderLeftColorProperty:
+    case kOutlineColorProperty:
     case kTextDecorationColorProperty:
       // Note that border color and text decoration color are not inherited.
       // The initial value of border color is 'currentColor' which means the
@@ -133,6 +134,7 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBorderRightWidthProperty:
     case kBorderBottomWidthProperty:
     case kBorderLeftWidthProperty:
+    case kOutlineWidthProperty:
       // If the border style is 'none' or 'hidden', border width would be 0.
       //   https://www.w3.org/TR/css3-background/#border-width
       if (IsBorderStyleNoneOrHiddenForAnEdge(key)) {
@@ -202,6 +204,8 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kMinWidthProperty:
     case kNoneProperty:
     case kOpacityProperty:
+    case kOutlineProperty:
+    case kOutlineStyleProperty:
     case kOverflowProperty:
     case kOverflowWrapProperty:
     case kPaddingBottomProperty:
@@ -244,15 +248,23 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
 bool CSSComputedStyleData::IsBorderStyleNoneOrHiddenForAnEdge(
     PropertyKey key) const {
   scoped_refptr<PropertyValue> border_style;
-  if (key == kBorderTopWidthProperty) {
-    border_style = border_top_style();
-  } else if (key == kBorderRightWidthProperty) {
-    border_style = border_right_style();
-  } else if (key == kBorderBottomWidthProperty) {
-    border_style = border_bottom_style();
-  } else {
-    DCHECK_EQ(key, kBorderLeftWidthProperty);
-    border_style = border_left_style();
+  switch (key) {
+    case kBorderTopWidthProperty:
+      border_style = border_top_style();
+      break;
+    case kBorderRightWidthProperty:
+      border_style = border_right_style();
+      break;
+    case kBorderBottomWidthProperty:
+      border_style = border_bottom_style();
+      break;
+    case kBorderLeftWidthProperty:
+      border_style = border_left_style();
+      break;
+    default:
+      DCHECK_EQ(key, kOutlineWidthProperty);
+      border_style = outline_style();
+      break;
   }
 
   if (border_style == KeywordValue::GetNone() ||

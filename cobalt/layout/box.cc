@@ -482,7 +482,9 @@ void Box::RenderAndAnimate(
   // Furthermore, descendants of the element will be visible if they have
   // 'visibility: visible'.
   //   https://www.w3.org/TR/CSS21/visufx.html#propdef-visibility
-  if (computed_style()->visibility() == cssom::KeywordValue::GetVisible()) {
+  bool box_is_visible =
+      computed_style()->visibility() == cssom::KeywordValue::GetVisible();
+  if (box_is_visible) {
     RenderAndAnimateBackgroundImageResult background_image_result =
         RenderAndAnimateBackgroundImage(padding_rounded_corners);
     // If the background image is opaque, then it will occlude the background
@@ -527,6 +529,10 @@ void Box::RenderAndAnimate(
     }
     // We've already applied overflow hidden, no need to apply it again later.
     overflow_hidden_needs_to_be_applied = false;
+  }
+
+  if (box_is_visible) {
+    RenderAndAnimateOutline(&border_node_builder, &animate_node_builder);
   }
 
   if (!border_node_builder.children().empty()) {
@@ -722,6 +728,37 @@ void SetupBorderNodeFromStyle(
     rect_node_builder->rounded_corners =
         scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
   }
+}
+
+void PopulateBaseStyleForOutlineNode(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& source_style,
+    const scoped_refptr<cssom::CSSComputedStyleData>& destination_style) {
+  // NOTE: Properties set by PopulateBaseStyleForOutlineNode() should match the
+  // properties used by SetupOutlineNodeFromStyle().
+
+  destination_style->set_outline_width(source_style->outline_width());
+  destination_style->set_outline_style(source_style->outline_style());
+  destination_style->set_outline_color(source_style->outline_color());
+}
+
+void SetupOutlineNodeFromStyleWithOutset(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
+    RectNode::Builder* rect_node_builder, float outset_width) {
+  rect_node_builder->rect.Outset(outset_width, outset_width);
+  if (outset_width != 0) {
+    rect_node_builder->border =
+        scoped_ptr<Border>(new Border(render_tree::BorderSide(
+            outset_width, GetRenderTreeBorderStyle(style->outline_style()),
+            GetUsedColor(style->outline_color()))));
+  }
+}
+
+void SetupOutlineNodeFromStyle(
+    const scoped_refptr<const cssom::CSSComputedStyleData>& style,
+    RectNode::Builder* rect_node_builder) {
+  SetupOutlineNodeFromStyleWithOutset(
+      style, rect_node_builder,
+      GetUsedNonNegativeLength(style->outline_width()).toFloat());
 }
 }  // namespace
 
@@ -1016,6 +1053,11 @@ bool HasAnimatedBorder(const web_animations::AnimationSet* animation_set) {
          animation_set->IsPropertyAnimated(cssom::kBorderLeftColorProperty);
 }
 
+bool HasAnimatedOutline(const web_animations::AnimationSet* animation_set) {
+  return animation_set->IsPropertyAnimated(cssom::kOutlineColorProperty) ||
+         animation_set->IsPropertyAnimated(cssom::kOutlineWidthProperty);
+}
+
 }  // namespace
 
 void Box::RenderAndAnimateBoxShadow(
@@ -1093,9 +1135,11 @@ void Box::RenderAndAnimateBorder(
     const base::optional<RoundedCorners>& rounded_corners,
     CompositionNode::Builder* border_node_builder,
     AnimateNode::Builder* animate_node_builder) {
+  bool has_animated_border = HasAnimatedBorder(animations());
   // If the border is absent or all borders are transparent, there is no need
   // to render border.
-  if (border_insets_.zero() || AreAllBordersTransparent(computed_style())) {
+  if (border_insets_.zero() ||
+      (!has_animated_border && AreAllBordersTransparent(computed_style()))) {
     return;
   }
 
@@ -1115,11 +1159,43 @@ void Box::RenderAndAnimateBorder(
   scoped_refptr<RectNode> border_node(new RectNode(rect_node_builder.Pass()));
   border_node_builder->AddChild(border_node);
 
-  if (HasAnimatedBorder(animations())) {
+  if (has_animated_border) {
     AddAnimations<RectNode>(
         base::Bind(&PopulateBaseStyleForBorderNode),
         base::Bind(&SetupBorderNodeFromStyle, rounded_corners),
         *css_computed_style_declaration(), border_node, animate_node_builder);
+  }
+}
+
+void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
+                                  AnimateNode::Builder* animate_node_builder) {
+  // If the outline is absent or transparent, there is no need to render it.
+  if (computed_style()->outline_style() == cssom::KeywordValue::GetNone() ||
+      computed_style()->outline_style() == cssom::KeywordValue::GetHidden() ||
+      (!animations()->IsPropertyAnimated(cssom::kOutlineColorProperty) &&
+       GetUsedColor(computed_style()->outline_color()).a() == 0.0f)) {
+    return;
+  }
+
+  math::RectF rect(GetBorderBoxSize());
+  RectNode::Builder rect_node_builder(rect);
+  bool has_animated_outline = HasAnimatedOutline(animations());
+  if (has_animated_outline) {
+    SetupOutlineNodeFromStyleWithOutset(computed_style(), &rect_node_builder,
+                                        0);
+  } else {
+    SetupOutlineNodeFromStyle(computed_style(), &rect_node_builder);
+  }
+
+  scoped_refptr<RectNode> outline_node(new RectNode(rect_node_builder.Pass()));
+
+  border_node_builder->AddChild(outline_node);
+
+  if (has_animated_outline) {
+    AddAnimations<RectNode>(base::Bind(&PopulateBaseStyleForOutlineNode),
+                            base::Bind(&SetupOutlineNodeFromStyle),
+                            *css_computed_style_declaration(), outline_node,
+                            animate_node_builder);
   }
 }
 
