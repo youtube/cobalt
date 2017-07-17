@@ -516,15 +516,25 @@ bool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   JS::RootedObject object(context);
 
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
     NOTREACHED();
     return false;
   }
+
+  {{ check_if_object_implements_interface() }}
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
+
+  // |WrapperPrivate::GetFromObject| can fail if |object| is not a |Wrapper|
+  // object.
+  if (!wrapper_private) {
+    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
+    return false;
+  }
+
   {{impl_class}}* impl =
       wrapper_private->wrappable<{{impl_class}}>().get();
   if (!impl) {

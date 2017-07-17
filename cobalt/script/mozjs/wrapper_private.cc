@@ -127,6 +127,9 @@ WrapperPrivate* WrapperPrivate::GetFromWrappable(
 // static
 WrapperPrivate* WrapperPrivate::GetFromWrapperObject(JS::HandleObject wrapper) {
   DCHECK(!js::IsProxy(wrapper));
+  if (!(JS_GetClass(wrapper)->flags & JSCLASS_HAS_PRIVATE)) {
+    return NULL;
+  }
   WrapperPrivate* private_data =
       static_cast<WrapperPrivate*>(JS_GetPrivate(wrapper));
   DCHECK(private_data);
