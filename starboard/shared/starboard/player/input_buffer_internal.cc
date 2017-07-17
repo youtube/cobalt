@@ -49,6 +49,12 @@ class InputBuffer::ReferenceCountedBuffer {
     SB_DCHECK(deallocate_sample_func);
     if (has_video_sample_info_) {
       video_sample_info_ = *video_sample_info;
+      if (video_sample_info_.color_metadata) {
+        color_metadata_ = *video_sample_info_.color_metadata;
+        video_sample_info_.color_metadata = &color_metadata_;
+      } else {
+        video_sample_info_.color_metadata = NULL;
+      }
     }
     if (has_drm_info_) {
       SB_DCHECK(sample_drm_info->subsample_count > 0);
@@ -114,6 +120,7 @@ class InputBuffer::ReferenceCountedBuffer {
   int size_;
   SbMediaTime pts_;
   bool has_video_sample_info_;
+  SbMediaColorMetadata color_metadata_;
   SbMediaVideoSampleInfo video_sample_info_;
   bool has_drm_info_;
   SbDrmSampleInfo drm_info_;
