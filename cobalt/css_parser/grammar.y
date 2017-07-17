@@ -131,6 +131,10 @@
 %token kMinHeightToken                        // min-height
 %token kMinWidthToken                         // min-width
 %token kOpacityToken                          // opacity
+%token kOutlineToken                          // outline
+%token kOutlineColorToken                     // outline-color
+%token kOutlineStyleToken                     // outline-style
+%token kOutlineWidthToken                     // outline-width
 %token kOverflowToken                         // overflow
 %token kOverflowWrapToken                     // overflow-wrap
 %token kPaddingBottomToken                    // padding-bottom
@@ -860,9 +864,10 @@
 %type <position_structure> position_list
 %destructor { delete $$; } <position_structure>
 
-%union { BorderShorthand* border_shorthand; }
-%type <border_shorthand> border_property_value border_property_list
-%destructor { delete $$; } <border_shorthand>
+%union { BorderOrOutlineShorthand* border_or_outline_shorthand; }
+%type <border_or_outline_shorthand> border_or_outline_property_value
+                                    border_or_outline_property_list
+%destructor { delete $$; } <border_or_outline_shorthand>
 
 %union { ShadowPropertyInfo* shadow_info; }
 %type <shadow_info> box_shadow_list text_shadow_list
@@ -1491,6 +1496,22 @@ identifier_token:
   | kOpacityToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kOpacityProperty));
+  }
+  | kOutlineToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOutlineProperty));
+  }
+  | kOutlineColorToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOutlineColorProperty));
+  }
+  | kOutlineStyleToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOutlineStyleProperty));
+  }
+  | kOutlineWidthToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kOutlineWidthProperty));
   }
   | kOverflowToken {
     $$ = TrivialStringPiece::FromCString(
@@ -3366,53 +3387,54 @@ border_width_property_value:
   }
   ;
 
-// border_property_element represents a component of a single border property.
-// It uses $0 to access its parent's BorderShorthand object and build it, so it
-// should always be used to the right of a border shorthand object.
-// The 'border' property is a shorthand property for setting the same width,
-// color, and style for all four borders of a box. Unlike the shorthand
-// 'margin' and 'padding' properties, the 'border' property cannot set
+// border_or_outline_property_element represents a component of a single border
+// property. It uses $0 to access its parent's BorderOrOutlineShorthand object
+// and build it, so it should always be used to the right of a border shorthand
+// object.
+// The 'border' and 'outline' properties are shorthand properties for setting
+// the same width, color, and style for all four borders of a box. Unlike the
+// shorthand 'margin' and 'padding' properties, the 'border' property cannot set
 // different values on the four borders.
-border_property_element:
+border_or_outline_property_element:
     color {
     scoped_refptr<cssom::PropertyValue> color(MakeScopedRefPtrAndRelease($1));
-    if (!$<border_shorthand>0->border_color) {
-      $<border_shorthand>0->border_color = color;
+    if (!$<border_or_outline_shorthand>0->color) {
+      $<border_or_outline_shorthand>0->color = color;
     } else {
       parser_impl->LogError(
-          @1, "border-color value declared twice in border.");
-      $<border_shorthand>0->error = true;
+          @1, "color value declared twice in border or outline.");
+      $<border_or_outline_shorthand>0->error = true;
     }
   }
   | line_style {
     scoped_refptr<cssom::PropertyValue> line_style =
         MakeScopedRefPtrAndRelease($1);
-    if (!$<border_shorthand>0->border_style) {
-      $<border_shorthand>0->border_style = line_style;
+    if (!$<border_or_outline_shorthand>0->style) {
+      $<border_or_outline_shorthand>0->style = line_style;
     } else {
       parser_impl->LogError(
-          @1, "border-style value declared twice in border.");
-      $<border_shorthand>0->error = true;
+          @1, "style value declared twice in border or outline.");
+      $<border_or_outline_shorthand>0->error = true;
     }
   }
   | positive_length {
     scoped_refptr<cssom::PropertyValue> positive_length =
         MakeScopedRefPtrAndRelease($1);
-    if (!$<border_shorthand>0->border_width) {
-      $<border_shorthand>0->border_width = positive_length;
+    if (!$<border_or_outline_shorthand>0->width) {
+      $<border_or_outline_shorthand>0->width = positive_length;
     } else {
       parser_impl->LogError(
-          @1, "border-width value declared twice in border.");
-      $<border_shorthand>0->error = true;
+          @1, "width value declared twice in border or outline.");
+      $<border_or_outline_shorthand>0->error = true;
     }
   }
   ;
 
-border_property_list:
+border_or_outline_property_list:
     /* empty */ {
-    $$ = new BorderShorthand();
+    $$ = new BorderOrOutlineShorthand();
   }
-  | border_property_list border_property_element {
+  | border_or_outline_property_list border_or_outline_property_element {
     $$ = $1;
   }
   ;
@@ -3423,15 +3445,15 @@ border_property_list:
 // various properties define the style ('border-style'), color ('border-color'),
 // and thickness ('border-width') of the border.
 //   https://www.w3.org/TR/css3-background/#borders
-border_property_value:
-    border_property_list
+border_or_outline_property_value:
+    border_or_outline_property_list
   | common_values {
     // Replicate the common value into each of the properties that border is a
     // shorthand for.
-    scoped_ptr<BorderShorthand> border(new BorderShorthand());
-    border->border_color = $1;
-    border->border_style = $1;
-    border->border_width = $1;
+    scoped_ptr<BorderOrOutlineShorthand> border(new BorderOrOutlineShorthand());
+    border->color = $1;
+    border->style = $1;
+    border->width = $1;
     $$ = border.release();
   }
   ;
@@ -5347,14 +5369,29 @@ animatable_property_token:
   | kBackgroundColorToken {
     $$ = cssom::kBackgroundColorProperty;
   }
-  | kBorderRadiusToken {
-    $$ = cssom::kBorderRadiusProperty;
+  | kBorderBottomColorToken {
+    $$ = cssom::kBorderBottomColorProperty;
+  }
+  | kBorderLeftColorToken {
+    $$ = cssom::kBorderLeftColorProperty;
+  }
+  | kBorderRightColorToken {
+    $$ = cssom::kBorderRightColorProperty;
+  }
+  | kBorderTopColorToken {
+    $$ = cssom::kBorderTopColorProperty;
   }
   | kColorToken {
     $$ = cssom::kColorProperty;
   }
   | kOpacityToken {
     $$ = cssom::kOpacityProperty;
+  }
+  | kOutlineColorToken {
+    $$ = cssom::kOutlineColorProperty;
+  }
+  | kOutlineWidthToken {
+    $$ = cssom::kOutlineWidthProperty;
   }
   | kTransformToken {
     $$ = cssom::kTransformProperty;
@@ -5517,9 +5554,9 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kBorderToken maybe_whitespace colon border_property_value
+  | kBorderToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderShorthand> border($4);
+    scoped_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
       scoped_ptr<PropertyDeclaration> property_declaration(
@@ -5528,44 +5565,44 @@ maybe_declaration:
       // Unpack border color.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopColorProperty, border->border_color));
+              cssom::kBorderTopColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightColorProperty, border->border_color));
+              cssom::kBorderRightColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomColorProperty, border->border_color));
+              cssom::kBorderBottomColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftColorProperty, border->border_color));
+              cssom::kBorderLeftColorProperty, border->color));
 
       // Unpack border style.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopStyleProperty, border->border_style));
+              cssom::kBorderTopStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightStyleProperty, border->border_style));
+              cssom::kBorderRightStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomStyleProperty, border->border_style));
+              cssom::kBorderBottomStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftStyleProperty, border->border_style));
+              cssom::kBorderLeftStyleProperty, border->style));
 
       // Unpack border width.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopWidthProperty, border->border_width));
+              cssom::kBorderTopWidthProperty, border->width));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightWidthProperty, border->border_width));
+              cssom::kBorderRightWidthProperty, border->width));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomWidthProperty, border->border_width));
+              cssom::kBorderBottomWidthProperty, border->width));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftWidthProperty, border->border_width));
+              cssom::kBorderLeftWidthProperty, border->width));
 
       $$ = property_declaration.release();
     } else {
@@ -5573,9 +5610,9 @@ maybe_declaration:
       $$ = NULL;
     }
   }
-  | kBorderBottomToken maybe_whitespace colon border_property_value
+  | kBorderBottomToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderShorthand> border($4);
+    scoped_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
       scoped_ptr<PropertyDeclaration> property_declaration(
@@ -5584,13 +5621,13 @@ maybe_declaration:
       // Unpack border bottom.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomColorProperty, border->border_color));
+              cssom::kBorderBottomColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomStyleProperty, border->border_style));
+              cssom::kBorderBottomStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderBottomWidthProperty, border->border_width));
+              cssom::kBorderBottomWidthProperty, border->width));
 
       $$ = property_declaration.release();
     } else {
@@ -5651,9 +5688,9 @@ maybe_declaration:
       $$ = NULL;
     }
   }
-  | kBorderLeftToken maybe_whitespace colon border_property_value
+  | kBorderLeftToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderShorthand> border($4);
+    scoped_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
       scoped_ptr<PropertyDeclaration> property_declaration(
@@ -5662,13 +5699,13 @@ maybe_declaration:
       // Unpack border left.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftColorProperty, border->border_color));
+              cssom::kBorderLeftColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftStyleProperty, border->border_style));
+              cssom::kBorderLeftStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderLeftWidthProperty, border->border_width));
+              cssom::kBorderLeftWidthProperty, border->width));
 
       $$ = property_declaration.release();
     } else {
@@ -5700,9 +5737,9 @@ maybe_declaration:
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
-  | kBorderRightToken maybe_whitespace colon border_property_value
+  | kBorderRightToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderShorthand> border($4);
+    scoped_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
       scoped_ptr<PropertyDeclaration> property_declaration(
@@ -5711,13 +5748,13 @@ maybe_declaration:
       // Unpack border right.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightColorProperty, border->border_color));
+              cssom::kBorderRightColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightStyleProperty, border->border_style));
+              cssom::kBorderRightStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderRightWidthProperty, border->border_width));
+              cssom::kBorderRightWidthProperty, border->width));
 
       $$ = property_declaration.release();
     } else {
@@ -5778,9 +5815,9 @@ maybe_declaration:
       $$ = NULL;
     }
   }
-  | kBorderTopToken maybe_whitespace colon border_property_value
+  | kBorderTopToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
-    scoped_ptr<BorderShorthand> border($4);
+    scoped_ptr<BorderOrOutlineShorthand> border($4);
     DCHECK(border);
     if (!border->error) {
       scoped_ptr<PropertyDeclaration> property_declaration(
@@ -5789,13 +5826,13 @@ maybe_declaration:
       // Unpack border top.
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopColorProperty, border->border_color));
+              cssom::kBorderTopColorProperty, border->color));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopStyleProperty, border->border_style));
+              cssom::kBorderTopStyleProperty, border->style));
       property_declaration->property_values.push_back(
           PropertyDeclaration::PropertyKeyValuePair(
-              cssom::kBorderTopWidthProperty, border->border_width));
+              cssom::kBorderTopWidthProperty, border->width));
 
       $$ = property_declaration.release();
     } else {
@@ -6040,6 +6077,53 @@ maybe_declaration:
   | kOpacityToken maybe_whitespace colon opacity_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kOpacityProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOutlineToken maybe_whitespace colon border_or_outline_property_value
+      maybe_important {
+    scoped_ptr<BorderOrOutlineShorthand> outline($4);
+    DCHECK(outline);
+    if (!outline->error) {
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      // Unpack outline color.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kOutlineColorProperty, outline->color));
+
+      // Unpack outline style.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kOutlineStyleProperty, outline->style));
+
+      // Unpack outline width.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kOutlineWidthProperty, outline->width));
+
+      $$ = property_declaration.release();
+    } else {
+      parser_impl->LogWarning(@1, "invalid outline");
+      $$ = NULL;
+    }
+  }
+  | kOutlineColorToken maybe_whitespace colon color_property_value
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOutlineColorProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOutlineStyleToken maybe_whitespace colon line_style_with_common_values
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOutlineStyleProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kOutlineWidthToken maybe_whitespace colon
+      border_width_element_with_common_values maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kOutlineWidthProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }

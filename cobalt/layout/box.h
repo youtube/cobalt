@@ -637,6 +637,9 @@ class Box : public base::RefCounted<Box> {
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
+  void RenderAndAnimateOutline(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundColor(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,

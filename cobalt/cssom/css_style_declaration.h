@@ -286,6 +286,22 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_opacity(const std::string& opacity,
                    script::ExceptionState* exception_state);
 
+  std::string outline(script::ExceptionState* exception_state) const;
+  void set_outline(const std::string& outline,
+                   script::ExceptionState* exception_state);
+
+  std::string outline_color(script::ExceptionState* exception_state) const;
+  void set_outline_color(const std::string& outline_color,
+                         script::ExceptionState* exception_state);
+
+  std::string outline_style(script::ExceptionState* exception_state) const;
+  void set_outline_style(const std::string& outline_style,
+                         script::ExceptionState* exception_state);
+
+  std::string outline_width(script::ExceptionState* exception_state) const;
+  void set_outline_width(const std::string& outline_width,
+                         script::ExceptionState* exception_state);
+
   std::string overflow(script::ExceptionState* exception_state) const;
   void set_overflow(const std::string& overflow,
                     script::ExceptionState* exception_state);
