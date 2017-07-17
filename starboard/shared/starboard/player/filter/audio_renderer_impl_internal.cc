@@ -88,9 +88,6 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
 
   frame_buffers_[0] = &frame_buffer_[0];
 
-// TODO: The audio sink on Android is currently broken on certain devices, which
-// causes all of playback to hang.  Log it for now, so we can tell when it
-// happens, but this should be removed once the sink is fixed.
 #if defined(NDEBUG)
   const bool kLogFramesConsumed = false;
 #else
