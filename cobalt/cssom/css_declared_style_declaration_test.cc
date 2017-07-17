@@ -455,6 +455,22 @@ TEST(CSSDeclaredStyleDeclarationTest, BorderTopWidthSetter) {
   width->set_border_top_width(border_top_width, NULL);
 }
 
+TEST(CSSDeclaredStyleDeclarationTest, BorderWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> width =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string border_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kBorderWidthProperty), border_width, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_border_width(border_width, NULL);
+}
+
 TEST(CSSDeclaredStyleDeclarationTest, BottomSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
@@ -832,6 +848,70 @@ TEST(CSSDeclaredStyleDeclarationTest, OpacitySetter) {
                   GetPropertyName(kOpacityProperty), opacity, _, _));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_opacity(opacity, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, OutlineSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string outline = "100px";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kOutlineProperty), outline, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_outline(outline, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, OutlineColorSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string outline_color = "#010203";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kOutlineColorProperty), outline_color, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_outline_color(outline_color, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, OutlineStyleSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string outline_style = "solid";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kOutlineStyleProperty), outline_style, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_outline_style(outline_style, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, OutlineWidthSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> width =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string outline_width = "10px";
+  MockMutationObserver observer;
+  width->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser,
+              ParsePropertyIntoDeclarationData(
+                  GetPropertyName(kOutlineWidthProperty), outline_width, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  width->set_outline_width(outline_width, NULL);
 }
 
 TEST(CSSDeclaredStyleDeclarationTest, OverflowSetter) {

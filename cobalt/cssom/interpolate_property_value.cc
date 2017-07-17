@@ -395,9 +395,12 @@ void InterpolateVisitor::VisitKeyword(KeywordValue* start_keyword_value) {
   }
 }
 
-void InterpolateVisitor::VisitLength(LengthValue* /*start_length_value*/) {
-  NOTIMPLEMENTED();
-  interpolated_value_ = end_value_;
+void InterpolateVisitor::VisitLength(LengthValue* start_length_value) {
+  const LengthValue& end_length_value =
+      *base::polymorphic_downcast<LengthValue*>(end_value_.get());
+  interpolated_value_ = scoped_refptr<PropertyValue>(new LengthValue(
+      Lerp(start_length_value->value(), end_length_value.value(), progress_),
+      cssom::kPixelsUnit));
 }
 
 void InterpolateVisitor::VisitLinearGradient(
