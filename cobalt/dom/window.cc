@@ -208,6 +208,7 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 
 // https://www.w3.org/TR/html5/browsers.html#dom-window-close
 void Window::Close() {
+  LOG(INFO) << __func__;
   if (!window_close_callback_.is_null()) {
     window_close_callback_.Run();
   }
