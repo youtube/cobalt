@@ -254,7 +254,7 @@ float HTMLElement::client_top() {
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+  if (!layout_boxes_ || layout_boxes_->IsInline()) {
     return 0.0f;
   }
   // 2. Return the computed value of the 'border-top-width' property plus the
@@ -272,7 +272,7 @@ float HTMLElement::client_left() {
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+  if (!layout_boxes_ || layout_boxes_->IsInline()) {
     return 0.0f;
   }
   // 2. Return the computed value of the 'border-left-width' property plus the
@@ -290,7 +290,7 @@ float HTMLElement::client_width() {
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+  if (!layout_boxes_ || layout_boxes_->IsInline()) {
     return 0.0f;
   }
 
@@ -312,7 +312,7 @@ float HTMLElement::client_height() {
 
   // 1. If the element has no associated CSS layout box or if the CSS layout box
   // is inline, return zero.
-  if (!layout_boxes_ || layout_boxes_->IsInlineLevel()) {
+  if (!layout_boxes_ || layout_boxes_->IsInline()) {
     return 0.0f;
   }
 

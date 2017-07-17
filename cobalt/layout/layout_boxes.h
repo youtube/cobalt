@@ -36,7 +36,7 @@ class LayoutBoxes : public dom::LayoutBoxes {
   Type type() const OVERRIDE;
 
   scoped_refptr<dom::DOMRectList> GetClientRects() const OVERRIDE;
-  bool IsInlineLevel() const OVERRIDE;
+  bool IsInline() const OVERRIDE;
 
   float GetBorderEdgeLeft() const OVERRIDE;
   float GetBorderEdgeTop() const OVERRIDE;
