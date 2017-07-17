@@ -48,7 +48,7 @@ class LayoutBoxes {
   virtual scoped_refptr<dom::DOMRectList> GetClientRects() const = 0;
 
   // Returns true if the container box level is inline.
-  virtual bool IsInlineLevel() const = 0;
+  virtual bool IsInline() const = 0;
 
   // Returns border edge values.
   // See https://www.w3.org/TR/CSS21/box.html#box-dimensions
