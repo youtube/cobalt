@@ -548,9 +548,7 @@ Submission Pipeline::CollectAnimations(
 }
 
 namespace {
-void PrintFPS(
-    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-        results) {
+void PrintFPS(const base::CValCollectionTimerStatsFlushResults& results) {
   SbLogRaw(base::StringPrintf("FPS => # samples: %d, avg: %.1fms, "
                               "[min, max]: [%.1fms, %.1fms]\n"
                               "       25th : 50th : 75th : 95th pct - "
@@ -568,8 +566,7 @@ void PrintFPS(
 }  // namespace
 
 void Pipeline::FrameStatsOnFlushCallback(
-    const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
-        flush_results) {
+    const base::CValCollectionTimerStatsFlushResults& flush_results) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
 
   if (enable_fps_overlay_) {
