@@ -79,15 +79,19 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
       const scoped_refptr<Wrappable>& wrappable, JSContext* context,
       WrapperFactory* wrapper_factory);
 
-  // Get the WrapperPrivate instance associated with this Wrapper object.
+  // Get the |WrapperPrivate| instance associated with this |Wrapper| object.
+  // Will return |NULL| if |object| does not have a |Wrappable|, which also
+  // implies that it is not a |Wrapper|.
   static WrapperPrivate* GetFromWrapperObject(JS::HandleObject object);
 
   // Get the WrapperPrivate instance associated with the target of this proxy.
   static WrapperPrivate* GetFromProxyObject(JSContext* context,
                                             JS::HandleObject proxy_object);
 
-  // Get the WrapperPrivate instance associated with the object, which may
-  // be a proxy or a proxy target.
+  // Get the |WrapperPrivate| instance associated with the object, which may
+  // be a proxy or a proxy target. Will return |NULL| if the |JSObject| that
+  // results from traversing |object|'s proxy chain does not have a
+  // |Wrappable|, which also implies that it is not a |Wrapper|.
   static WrapperPrivate* GetFromObject(JSContext* context,
                                        JS::HandleObject object);
 
