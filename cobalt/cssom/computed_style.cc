@@ -2590,11 +2590,12 @@ class CalculateComputedStyleContext {
 
   // Helper function to return the computed border style for an edge based on
   // border width properties.
-  PropertyValue* GetBorderStyleBasedOnWidth(PropertyKey key);
+  PropertyValue* GetBorderOrOutlineStyleBasedOnWidth(PropertyKey key);
   PropertyValue* GetBorderBottomStyle();
   PropertyValue* GetBorderLeftStyle();
   PropertyValue* GetBorderRightStyle();
   PropertyValue* GetBorderTopStyle();
+  PropertyValue* GetOutlineStyle();
 
   // Helper function to return the computed color.
   RGBAColorValue* GetColor();
@@ -2625,6 +2626,7 @@ class CalculateComputedStyleContext {
   scoped_refptr<PropertyValue> computed_border_top_style_;
   scoped_refptr<PropertyValue> computed_color_;
   scoped_refptr<PropertyValue> computed_font_size_;
+  scoped_refptr<PropertyValue> computed_outline_style_;
   scoped_refptr<PropertyValue> computed_position_;
 };
 
@@ -2671,7 +2673,8 @@ const math::Size& CalculateComputedStyleContext::GetViewportSizeOnePercent() {
   return viewport_size_;
 }
 
-PropertyValue* CalculateComputedStyleContext::GetBorderStyleBasedOnWidth(
+PropertyValue*
+CalculateComputedStyleContext::GetBorderOrOutlineStyleBasedOnWidth(
     PropertyKey key) {
   if (key == kBorderBottomWidthProperty) {
     return GetBorderBottomStyle();
@@ -2679,9 +2682,11 @@ PropertyValue* CalculateComputedStyleContext::GetBorderStyleBasedOnWidth(
     return GetBorderLeftStyle();
   } else if (key == kBorderRightWidthProperty) {
     return GetBorderRightStyle();
-  } else {
-    DCHECK_EQ(key, kBorderTopWidthProperty);
+  } else if (key == kBorderTopWidthProperty) {
     return GetBorderTopStyle();
+  } else {
+    DCHECK_EQ(key, kOutlineWidthProperty);
+    return GetOutlineStyle();
   }
 }
 
@@ -2728,6 +2733,15 @@ RGBAColorValue* CalculateComputedStyleContext::GetColor() {
 
   DCHECK(computed_color_);
   return base::polymorphic_downcast<RGBAColorValue*>(computed_color_.get());
+}
+
+PropertyValue* CalculateComputedStyleContext::GetOutlineStyle() {
+  if (!computed_outline_style_) {
+    ComputeValue(kOutlineStyleProperty);
+  }
+
+  DCHECK(computed_outline_style_);
+  return computed_outline_style_.get();
 }
 
 void CalculateComputedStyleContext::ComputeValue(PropertyKey key) {
@@ -2779,6 +2793,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderLeftColorProperty:
     case kBorderRightColorProperty:
     case kBorderTopColorProperty:
+    case kOutlineColorProperty:
     case kTextDecorationColorProperty: {
       if (*value == KeywordValue::GetCurrentColor()) {
         // The computed value of the 'currentColor' keyword is the computed
@@ -2789,10 +2804,11 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderBottomWidthProperty:
     case kBorderLeftWidthProperty:
     case kBorderRightWidthProperty:
-    case kBorderTopWidthProperty: {
+    case kBorderTopWidthProperty:
+    case kOutlineWidthProperty: {
       ComputedBorderWidthProvider border_width_provider(
           GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent(),
-          GetBorderStyleBasedOnWidth(key));
+          GetBorderOrOutlineStyleBasedOnWidth(key));
       (*value)->Accept(&border_width_provider);
       *value = border_width_provider.computed_border_width();
     } break;
@@ -2969,6 +2985,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kFontFamilyProperty:
     case kFontStyleProperty:
     case kOpacityProperty:
+    case kOutlineStyleProperty:
     case kOverflowProperty:
     case kOverflowWrapProperty:
     case kPointerEventsProperty:
@@ -3002,6 +3019,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderWidthProperty:
     case kFontProperty:
     case kMarginProperty:
+    case kOutlineProperty:
     case kPaddingProperty:
     case kSrcProperty:
     case kTextDecorationProperty:
@@ -3036,6 +3054,9 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
       break;
     case kColorProperty:
       computed_color_ = value;
+      break;
+    case kOutlineStyleProperty:
+      computed_outline_style_ = value;
       break;
 
     case kAllProperty:
@@ -3093,6 +3114,9 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kMinWidthProperty:
     case kNoneProperty:
     case kOpacityProperty:
+    case kOutlineProperty:
+    case kOutlineColorProperty:
+    case kOutlineWidthProperty:
     case kOverflowProperty:
     case kOverflowWrapProperty:
     case kPaddingBottomProperty:

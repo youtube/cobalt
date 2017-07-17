@@ -75,6 +75,10 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minHeight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString opacity;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outline;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineColor;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineStyle;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString overflow;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString overflowWrap;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString padding;
