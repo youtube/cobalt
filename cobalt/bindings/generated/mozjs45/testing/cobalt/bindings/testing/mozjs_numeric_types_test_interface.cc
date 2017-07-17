@@ -1805,7 +1805,6 @@ bool fcn_byteArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1870,7 +1869,6 @@ bool fcn_byteReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1923,7 +1921,6 @@ bool fcn_doubleArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1988,7 +1985,6 @@ bool fcn_doubleReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2041,7 +2037,6 @@ bool fcn_longArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2106,7 +2101,6 @@ bool fcn_longLongArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2171,7 +2165,6 @@ bool fcn_longLongReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2224,7 +2217,6 @@ bool fcn_longReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2277,7 +2269,6 @@ bool fcn_octetArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2342,7 +2333,6 @@ bool fcn_octetReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2395,7 +2385,6 @@ bool fcn_shortArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2460,7 +2449,6 @@ bool fcn_shortReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2513,7 +2501,6 @@ bool fcn_unrestrictedDoubleArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2578,7 +2565,6 @@ bool fcn_unrestrictedDoubleReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2631,7 +2617,6 @@ bool fcn_unsignedLongArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2696,7 +2681,6 @@ bool fcn_unsignedLongLongArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2761,7 +2745,6 @@ bool fcn_unsignedLongLongReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2814,7 +2797,6 @@ bool fcn_unsignedLongReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2867,7 +2849,6 @@ bool fcn_unsignedShortArgumentOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -2932,7 +2913,6 @@ bool fcn_unsignedShortReturnOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {

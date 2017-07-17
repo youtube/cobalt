@@ -531,7 +531,6 @@ JSBool fcn_nullableBooleanArgument(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -596,7 +595,6 @@ JSBool fcn_nullableBooleanOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -649,7 +647,6 @@ JSBool fcn_nullableNumericArgument(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -714,7 +711,6 @@ JSBool fcn_nullableNumericOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -767,7 +763,6 @@ JSBool fcn_nullableObjectArgument(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -832,7 +827,6 @@ JSBool fcn_nullableObjectOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -885,7 +879,6 @@ JSBool fcn_nullableStringArgument(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -950,7 +943,6 @@ JSBool fcn_nullableStringOperation(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
