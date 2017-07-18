@@ -19,9 +19,11 @@
 #include "base/bind.h"
 #include "base/file_path.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "cobalt/loader/about_fetcher.h"
 #include "cobalt/loader/blob_fetcher.h"
+#include "cobalt/loader/cache_fetcher.h"
 #include "cobalt/loader/embedded_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
@@ -56,7 +58,9 @@ std::string ClipUrl(const GURL& url, size_t length) {
 }  // namespace
 
 FetcherFactory::FetcherFactory(network::NetworkModule* network_module)
-    : file_thread_("File"), network_module_(network_module) {
+    : file_thread_("File"),
+      network_module_(network_module),
+      read_cache_callback_() {
   file_thread_.Start();
 }
 
@@ -64,17 +68,21 @@ FetcherFactory::FetcherFactory(network::NetworkModule* network_module,
                                const FilePath& extra_search_dir)
     : file_thread_("File"),
       network_module_(network_module),
-      extra_search_dir_(extra_search_dir) {
+      extra_search_dir_(extra_search_dir),
+      read_cache_callback_() {
   file_thread_.Start();
 }
 
 FetcherFactory::FetcherFactory(
     network::NetworkModule* network_module, const FilePath& extra_search_dir,
-    const BlobFetcher::ResolverCallback& blob_resolver)
+    const BlobFetcher::ResolverCallback& blob_resolver,
+    const base::Callback<int(const std::string&, scoped_array<char>*)>&
+        read_cache_callback)
     : file_thread_("File"),
       network_module_(network_module),
       extra_search_dir_(extra_search_dir),
-      blob_resolver_(blob_resolver) {
+      blob_resolver_(blob_resolver),
+      read_cache_callback_(read_cache_callback) {
   file_thread_.Start();
 }
 
@@ -121,6 +129,17 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
                     "could not fetch the URL: "
                  << url;
     }
+  } else if (url.SchemeIs(kCacheScheme)) {
+    if (read_cache_callback_.is_null()) {
+      LOG(ERROR) << "read_cache_callback_ must be provided to CacheFetcher for "
+                    "accessing h5vcc-cache:// . This is not available in the "
+                    "main WebModule.";
+      DCHECK(!read_cache_callback_.is_null());
+      return fetcher.Pass();
+    }
+
+    fetcher.reset(new CacheFetcher(url, url_security_callback, handler,
+                                   read_cache_callback_));
   } else {  // NOLINT(readability/braces)
     DCHECK(network_module_) << "Network module required.";
     NetFetcher::Options options;

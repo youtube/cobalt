@@ -147,26 +147,27 @@ GURL GetInitialURL() {
   return GURL(kDefaultURL);
 }
 
-base::optional<GURL> GetSplashScreenURL() {
+base::optional<GURL> GetFallbackSplashScreenURL() {
   CommandLine* command_line = CommandLine::ForCurrentProcess();
-  std::string splash_screen_string;
+  std::string fallback_splash_screen_string;
   if (command_line->HasSwitch(switches::kFallbackSplashScreenURL)) {
-    splash_screen_string =
+    fallback_splash_screen_string =
         command_line->GetSwitchValueASCII(switches::kFallbackSplashScreenURL);
   } else {
-    splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
+    fallback_splash_screen_string = COBALT_FALLBACK_SPLASH_SCREEN_URL;
   }
-  if (IsStringNone(splash_screen_string)) {
+  if (IsStringNone(fallback_splash_screen_string)) {
     return base::optional<GURL>();
   }
-  base::optional<GURL> splash_screen_url = GURL(splash_screen_string);
-  if (!splash_screen_url->is_valid() ||
-      !(StartsWithASCII(splash_screen_string, "file:///", false) ||
-        StartsWithASCII(splash_screen_string, "h5vcc-embedded://", false))) {
+  base::optional<GURL> fallback_splash_screen_url =
+      GURL(fallback_splash_screen_string);
+  if (!fallback_splash_screen_url->is_valid() ||
+      !(fallback_splash_screen_url->SchemeIsFile() ||
+        fallback_splash_screen_url->SchemeIs("h5vcc-embedded"))) {
     LOG(FATAL) << "Ignoring invalid fallback splash screen: "
-               << splash_screen_string;
+               << fallback_splash_screen_string;
   }
-  return splash_screen_url;
+  return fallback_splash_screen_url;
 }
 
 base::TimeDelta GetTimedTraceDuration() {
@@ -449,10 +450,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   GURL initial_url = GetInitialURL();
   DLOG(INFO) << "Initial URL: " << initial_url;
 
-  // Get the splash screen URL.
-  base::optional<GURL> splash_screen_url = GetSplashScreenURL();
-  DLOG(INFO) << "Splash screen URL: "
-             << (splash_screen_url ? splash_screen_url->spec() : "none");
+  // Get the fallback splash screen URL.
+  base::optional<GURL> fallback_splash_screen_url =
+      GetFallbackSplashScreenURL();
+  DLOG(INFO) << "Fallback splash screen URL: "
+             << (fallback_splash_screen_url ? fallback_splash_screen_url->spec()
+                                            : "none");
 
   // Get the system language and initialize our localized strings.
   std::string language = base::GetSystemLanguage();
@@ -472,7 +475,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   options.command_line_auto_mem_settings =
       memory_settings::GetSettings(*command_line);
   options.build_auto_mem_settings = memory_settings::GetDefaultBuildSettings();
-  options.splash_screen_url = splash_screen_url;
+  options.fallback_splash_screen_url = fallback_splash_screen_url;
 
   if (command_line->HasSwitch(browser::switches::kFPSPrint)) {
     options.renderer_module_options.enable_fps_stdout = true;

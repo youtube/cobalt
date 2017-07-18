@@ -19,8 +19,10 @@
 #include "base/bind.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
+#include "base/file_path.h"
 #include "base/lazy_instance.h"
 #include "base/logging.h"
+#include "base/optional.h"
 #include "base/path_service.h"
 #include "base/stl_util.h"
 #include "base/string_number_conversions.h"
@@ -238,7 +240,8 @@ BrowserModule::BrowserModule(const GURL& url,
       render_timeout_count_(0),
 #endif
       will_quit_(false),
-      application_state_(initial_application_state) {
+      application_state_(initial_application_state),
+      splash_screen_cache_(new SplashScreenCache()) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -305,7 +308,7 @@ BrowserModule::BrowserModule(const GURL& url,
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-  splash_screen_url_ = options.splash_screen_url;
+  fallback_splash_screen_url_ = options.fallback_splash_screen_url;
   // Synchronously construct our WebModule object.
   NavigateInternal(url);
   DCHECK(web_module_);
@@ -377,14 +380,18 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = GetViewportSize();
+
   DestroySplashScreen();
-  if (splash_screen_url_) {
-    splash_screen_.reset(
-        new SplashScreen(application_state_,
-                         base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
-                                    base::Unretained(this)),
-                         &network_module_, viewport_size, GetResourceProvider(),
-                         kLayoutMaxRefreshFrequencyInHz, *splash_screen_url_));
+  base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+  if (fallback_splash_screen_url_ ||
+      (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+    splash_screen_.reset(new SplashScreen(
+        application_state_,
+        base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                   base::Unretained(this)),
+        &network_module_, viewport_size, GetResourceProvider(),
+        kLayoutMaxRefreshFrequencyInHz, *fallback_splash_screen_url_, url,
+        splash_screen_cache_.get()));
     lifecycle_observers_.AddObserver(splash_screen_.get());
   }
 
@@ -394,6 +401,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       dom::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
   WebModule::Options options(options_.web_module_options);
+  options.splash_screen_cache = splash_screen_cache_.get();
   options.navigation_callback =
       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   options.loaded_callbacks.push_back(
