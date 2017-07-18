@@ -80,6 +80,7 @@
 12-1-after-pseudoelement
 12-1-after-pseudoelement-simple
 12-1-before-pseudoelement
+12-1-before-pseudoelement-does-not-inherit-inline-style
 16-2-text-align-can-be-left-center-right
 16-2-text-align-should-not-apply-when-child-boxes-overflow
 8-1-margin-should-be-transparent
