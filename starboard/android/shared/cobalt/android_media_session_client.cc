@@ -118,6 +118,9 @@ MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
     case kPlaybackStateActionFastForward:
       result = kMediaSessionActionSeekforward;
       break;
+    default:
+      NOTREACHED() << "Unsupported MediaSessionAction 0x" << std::hex << action;
+      result = static_cast<MediaSessionAction>(-1);
   }
   return result;
 }
@@ -284,6 +287,7 @@ using starboard::android::shared::cobalt::AndroidMediaSessionClient;
 extern "C" SB_EXPORT_PLATFORM
 void Java_foo_cobalt_media_CobaltMediaSession_nativeInvokeAction(
     JNIEnv* env,
+    jclass unused_clazz,
     jlong action) {
   AndroidMediaSessionClient::NativeInvokeAction(action);
 }
