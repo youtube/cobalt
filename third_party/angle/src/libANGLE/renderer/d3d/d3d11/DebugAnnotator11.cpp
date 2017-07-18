@@ -6,6 +6,7 @@
 // DebugAnnotator11.cpp: D3D11 helpers for adding trace annotations.
 //
 
+#include <D3D11_4.h>
 #include "libANGLE/renderer/d3d/d3d11/DebugAnnotator11.h"
 
 #include "common/debug.h"
@@ -109,6 +110,11 @@ void DebugAnnotator11::initializeDevice()
             mUserDefinedAnnotation = d3d11::DynamicCastComObject<ID3DUserDefinedAnnotation>(context);
             ASSERT(mUserDefinedAnnotation != nullptr);
             mInitialized = true;
+            ID3D11Multithread* multithread =
+                d3d11::DynamicCastComObject<ID3D11Multithread>(context);
+            ASSERT(multithread != nullptr);
+            multithread->SetMultithreadProtected(true);
+            SafeRelease(multithread);
         }
 
         SafeRelease(device);
