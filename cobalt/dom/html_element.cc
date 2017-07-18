@@ -1290,9 +1290,8 @@ void HTMLElement::UpdateComputedStyle(
       dom_stat_tracker_->OnGeneratePseudoElementComputedStyle();
       DoComputedStyleUpdate(
           pseudo_elements_[pseudo_element_type]->matching_rules(),
-          &property_key_to_base_url_map, style_->data(),
-          css_computed_style_declaration(), root_computed_style,
-          document->viewport_size(),
+          &property_key_to_base_url_map, NULL, css_computed_style_declaration(),
+          root_computed_style, document->viewport_size(),
           pseudo_elements_[pseudo_element_type]->computed_style(),
           style_change_event_time,
           pseudo_elements_[pseudo_element_type]->css_transitions(),
