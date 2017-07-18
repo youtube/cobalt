@@ -142,7 +142,10 @@ class Window : public EventTarget,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
-      ClockType clock_type = kClockTypeSystemTime);
+      ClockType clock_type = kClockTypeSystemTime,
+      const base::Callback<bool(const std::string&)>&
+          splash_screen_cache_callback =
+              base::Callback<bool(const std::string&)>());
 
   // Web API: Window
   //
@@ -316,6 +319,11 @@ class Window : public EventTarget,
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
+  const base::Callback<bool(const std::string&)> splash_screen_cache_callback()
+      const {
+    return splash_screen_cache_callback_;
+  }
+
  private:
   void StartDocumentLoad(
       loader::FetcherFactory* fetcher_factory, const GURL& url,
@@ -362,6 +370,8 @@ class Window : public EventTarget,
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
   const base::Closure window_minimize_callback_;
+
+  base::Callback<bool(const std::string&)> splash_screen_cache_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

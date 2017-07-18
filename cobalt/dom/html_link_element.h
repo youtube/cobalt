@@ -16,6 +16,7 @@
 #define COBALT_DOM_HTML_LINK_ELEMENT_H_
 
 #include <string>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
@@ -34,6 +35,7 @@ class Document;
 class HTMLLinkElement : public HTMLElement {
  public:
   static const char kTagName[];
+  static const std::vector<std::string> kSupportedRelValues;
 
   explicit HTMLLinkElement(Document* document)
       : HTMLElement(document, base::Token(kTagName)) {}
@@ -68,6 +70,8 @@ class HTMLLinkElement : public HTMLElement {
 
   void OnLoadingDone(const std::string& content);
   void OnLoadingError(const std::string& error);
+  void OnSplashscreenLoaded(Document* document, const std::string& content);
+  void OnStylesheetLoaded(Document* document, const std::string& content);
   void ReleaseLoader();
 
   // Thread checker ensures all calls to DOM element are made from the same

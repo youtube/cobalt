@@ -15,17 +15,20 @@
 #include "cobalt/browser/web_module.h"
 
 #include <sstream>
+#include <string>
 
 #include "base/bind.h"
+#include "base/callback.h"
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/memory/scoped_ptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
-#include "base/optional.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/web_module_stat_tracker.h"
@@ -396,9 +399,18 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   blob_registry_.reset(new dom::Blob::Registry);
 
+  base::Callback<int(const std::string&, scoped_array<char>*)>
+      read_cache_callback;
+  if (data.options.can_fetch_cache) {
+    read_cache_callback =
+        base::Bind(&browser::SplashScreenCache::ReadCachedSplashScreen,
+                   base::Unretained(data.options.splash_screen_cache));
+  }
+
   fetcher_factory_.reset(new loader::FetcherFactory(
       data.network_module, data.options.extra_web_file_dir,
-      dom::URL::MakeBlobResolverCallback(blob_registry_.get())));
+      dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
+      read_cache_callback));
   DCHECK(fetcher_factory_);
 
   loader_factory_.reset(
@@ -492,11 +504,16 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #if defined(ENABLE_TEST_RUNNER)
       data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
           ? dom::Window::kClockTypeTestRunner
-          : dom::Window::kClockTypeSystemTime
+          : dom::Window::kClockTypeSystemTime,
 #else
-      dom::Window::kClockTypeSystemTime
+      dom::Window::kClockTypeSystemTime,
 #endif
-      );  // NOLINT(whitespace/parens)
+      data.options.splash_screen_cache
+          ? base::Bind(
+                base::Bind(&SplashScreenCache::CacheSplashScreen,
+                           base::Unretained(data.options.splash_screen_cache)),
+                *SplashScreenCache::GetKeyForStartUrl(data.initial_url))
+          : base::Callback<bool(const std::string&)>());
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -945,7 +962,8 @@ WebModule::Options::Options()
       loader_thread_priority(base::kThreadPriority_Low),
       animated_image_decode_thread_priority(base::kThreadPriority_Low),
       video_playback_rate_multiplier(1.f),
-      enable_image_animations(true) {}
+      enable_image_animations(true),
+      can_fetch_cache(false) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,

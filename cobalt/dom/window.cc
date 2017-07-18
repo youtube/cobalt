@@ -104,7 +104,9 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
-               float video_playback_rate_multiplier, ClockType clock_type)
+               float video_playback_rate_multiplier, ClockType clock_type,
+               const base::Callback<bool(const std::string&)>&
+                   splash_screen_cache_callback)
     : width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
@@ -154,7 +156,8 @@ Window::Window(int width, int height, float device_pixel_ratio,
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
-      window_minimize_callback_(window_minimize_callback) {
+      window_minimize_callback_(window_minimize_callback),
+      splash_screen_cache_callback_(splash_screen_cache_callback) {
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
