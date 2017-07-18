@@ -655,13 +655,20 @@ egl::Error DisplayWGL::initializeD3DDevice()
         return egl::Error(EGL_NOT_INITIALIZED, "Could not retrieve D3D11CreateDevice address.");
     }
 
+    ID3D11DeviceContext* context;
     HRESULT result = d3d11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0, nullptr, 0,
-                                       D3D11_SDK_VERSION, &mD3D11Device, nullptr, nullptr);
+                                       D3D11_SDK_VERSION, &mD3D11Device, nullptr, context);
     if (FAILED(result))
     {
         return egl::Error(EGL_NOT_INITIALIZED, "Could not create D3D11 device, error: 0x%X",
                           result);
     }
+    ID3D11Multithread* multithread =
+        d3d11::DynamicCastComObject<ID3D11Multithread>(context);
+    ASSERT(multithread != nullptr);
+    multithread->SetMultithreadProtected(true);
+    SafeRelease(multithread);
+    SafeRelease(context);
 
     egl::Error error = registerD3DDevice(mD3D11Device, &mD3D11DeviceHandle);
     if (error.isError())
