@@ -98,7 +98,8 @@ void ShellDemuxerStream::EnableBitstreamConverter() { NOTIMPLEMENTED(); }
 
 void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
   TRACE_EVENT1("media_stack", "ShellDemuxerStream::EnqueueBuffer()",
-               "timestamp", buffer->timestamp().InMicroseconds());
+               "timestamp", buffer->end_of_stream() ?
+                            -1 : buffer->timestamp().InMicroseconds());
   base::AutoLock auto_lock(lock_);
   if (stopped_) {
     // it's possible due to pipelining both downstream and within the
