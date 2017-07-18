@@ -15,14 +15,19 @@
 precision mediump float;
 uniform vec2 u_blur_radius;
 uniform vec2 u_scale_add;
-varying vec2 v_offset;   // Relative to the blur center.
+
+// Adjust the sigma input value to tweak the blur output so that it better
+// matches the reference. This is usually only needed for very large sigmas.
+uniform vec2 u_sigma_tweak;
+
+varying vec2 v_offset;    // Relative to the blur center.
 varying vec4 v_color;
 
 void main() {
   // Distance from the blur radius.
   // Both v_offset and u_blur_radius are expressed in terms of the
   //   blur sigma.
-  vec2 pos = abs(v_offset) - u_blur_radius;
+  vec2 pos = abs(v_offset) - u_blur_radius + u_sigma_tweak;
   vec2 pos2 = pos * pos;
   vec2 pos3 = pos2 * pos;
   vec4 posx = vec4(1.0, pos.x, pos2.x, pos3.x);

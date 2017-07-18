@@ -58,8 +58,8 @@ class DrawRectShadowSpread : public DrawObject {
       ShaderProgramManager* program_manager) OVERRIDE;
   base::TypeId GetTypeId() const OVERRIDE;
 
- private:
-  typedef ShaderVertexColorOffset VertexShader;
+ protected:
+  typedef ShaderVertexColorOffset CommonVertexShader;
 
   struct VertexAttributes {
     float position[2];
@@ -67,16 +67,22 @@ class DrawRectShadowSpread : public DrawObject {
     uint32_t color;
   };
 
-  void SetupShader(const VertexShader& shader, GraphicsState* graphics_state);
+  DrawRectShadowSpread(GraphicsState* graphics_state,
+                       const BaseState& base_state);
+  void SetupShader(const CommonVertexShader& shader,
+                   GraphicsState* graphics_state);
   void SetVertex(VertexAttributes* vertex, float x, float y);
 
   math::RectF inner_rect_;
   math::RectF outer_rect_;
   OptionalRoundedCorners inner_corners_;
   OptionalRoundedCorners outer_corners_;
+  math::PointF offset_center_;
+  float offset_scale_;
   uint32_t color_;
 
   uint8_t* vertex_buffer_;
+  int vertex_count_;
 };
 
 }  // namespace egl

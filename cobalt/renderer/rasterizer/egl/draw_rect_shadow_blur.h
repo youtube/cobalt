@@ -15,11 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_BLUR_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_BLUR_H_
 
-#include <vector>
-
-#include "cobalt/math/rect_f.h"
-#include "cobalt/render_tree/color_rgba.h"
-#include "cobalt/renderer/rasterizer/egl/draw_object.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 
 namespace cobalt {
 namespace renderer {
@@ -49,44 +45,30 @@ namespace egl {
 // See also http://stereopsis.com/shadowrect/ as reference for the formula
 // used to approximate the gaussian integral (which controls the opacity of
 // the shadow).
-class DrawRectShadowBlur : public DrawObject {
+class DrawRectShadowBlur : public DrawRectShadowSpread {
  public:
   // Draw a blurred box shadow.
-  // The box shadow exists in the area between |inner_rect| and |outer_rect|.
-  // |blur_edge| specifies the area where the "spread" region transitions
-  //   to the "blur" region. It has 50% opacity of the shadow color.
+  // The box shadow exists in the area between |base_rect| and |spread_rect|
+  // extended (inset or outset accordingly) to cover the blur kernel.
   DrawRectShadowBlur(GraphicsState* graphics_state,
                      const BaseState& base_state,
-                     const math::RectF& inner_rect,
-                     const math::RectF& outer_rect,
-                     const math::RectF& blur_edge,
+                     const math::RectF& base_rect,
+                     const OptionalRoundedCorners& base_corners,
+                     const math::RectF& spread_rect,
+                     const OptionalRoundedCorners& spread_corners,
                      const render_tree::ColorRGBA& color,
                      float blur_sigma, bool inset);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
   void ExecuteRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
   base::TypeId GetTypeId() const OVERRIDE;
 
  private:
-  struct VertexAttributes {
-    float position[2];
-    float offset[2];          // Expressed in terms of blur_sigma from center.
-    uint32_t color;
-  };
+  math::RectF spread_rect_;
+  OptionalRoundedCorners spread_corners_;
 
-  void SetVertex(VertexAttributes* vertex, float x, float y);
-
-  math::RectF inner_rect_;
-  math::RectF outer_rect_;
-  math::PointF blur_center_;
-  float blur_radius_[2];      // Expressed in terms of blur_sigma.
-  float blur_scale_add_[2];
-  float blur_sigma_scale_;    // Used to express distances as sigma-relative.
-  uint32_t color_;
-
-  uint8_t* vertex_buffer_;
+  float blur_sigma_;
+  bool is_inset_;
 };
 
 }  // namespace egl
