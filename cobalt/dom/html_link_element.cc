@@ -14,7 +14,9 @@
 
 #include "cobalt/dom/html_link_element.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
 #include "base/bind.h"
 #include "base/debug/trace_event.h"
@@ -23,18 +25,41 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/window.h"
 #include "googleurl/src/gurl.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+
+CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
+  if (rel == "stylesheet") {
+    return CspDelegate::kStyle;
+  } else if (rel == "splashscreen") {
+    return CspDelegate::kScript;
+  } else {
+    NOTIMPLEMENTED();
+    return CspDelegate::kImage;
+  }
+}
+
+bool IsRelContentCriticalResource(const std::string& rel) {
+  return rel == "stylesheet";
+}
+
+}  // namespace
 
 // static
 const char HTMLLinkElement::kTagName[] = "link";
+// static
+const std::vector<std::string> HTMLLinkElement::kSupportedRelValues = {
+    "stylesheet", "splashscreen"};
 
 void HTMLLinkElement::OnInsertedIntoDocument() {
   HTMLElement::OnInsertedIntoDocument();
-  if (rel() == "stylesheet") {
+  if (std::find(kSupportedRelValues.begin(), kSupportedRelValues.end(),
+                rel()) != kSupportedRelValues.end()) {
     Obtain();
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
@@ -61,7 +86,7 @@ void HTMLLinkElement::Obtain() {
   Document* document = node_document();
 
   // If the document has no browsing context, do not obtain, parse or apply the
-  // style sheet.
+  // resource.
   if (!document->html_element_context()) {
     return;
   }
@@ -89,7 +114,7 @@ void HTMLLinkElement::Obtain() {
   // the default origin behaviour set to taint.
   csp::SecurityCallback csp_callback = base::Bind(
       &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
-      CspDelegate::kStyle);
+      GetCspResourceTypeForRel(rel()));
 
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(
@@ -100,10 +125,12 @@ void HTMLLinkElement::Obtain() {
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
 
-  // The element must delay the load event of the element's document until all
-  // the attempts to obtain the resource and its critical subresources are
-  // complete.
-  document->IncreaseLoadingCounter();
+  if (IsRelContentCriticalResource(rel())) {
+    // The element must delay the load event of the element's document until all
+    // the attempts to obtain the resource and its critical subresources are
+    // complete.
+    document->IncreaseLoadingCounter();
+  }
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
@@ -112,25 +139,29 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
 
   Document* document = node_document();
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
-      document->html_element_context()->css_parser()->ParseStyleSheet(
-          content, base::SourceLocation(href(), 1, 1));
-  style_sheet->SetLocationUrl(absolute_url_);
-  document->style_sheets()->Append(style_sheet);
-
-  // Once the attempts to obtain the resource and its critical subresources are
-  // complete, the user agent must, if the loads were successful, queue a task
-  // to fire a simple event named load at the link element, or, if the resource
-  // or one of its critical subresources failed to completely load for any
-  // reason (e.g. DNS error, HTTP 404 response, a connection being prematurely
-  // closed, unsupported Content-Type), queue a task to fire a simple event
-  // named error at the link element.
+  if (rel() == "stylesheet") {
+    OnStylesheetLoaded(document, content);
+  } else if (rel() == "splashscreen") {
+    OnSplashscreenLoaded(document, content);
+  } else {
+    NOTIMPLEMENTED();
+    return;
+  }
+  // Once the attempts to obtain the resource and its critical subresources
+  // are complete, the user agent must, if the loads were successful, queue a
+  // task to fire a simple event named load at the link element, or, if the
+  // resource or one of its critical subresources failed to completely load
+  // for any reason (e.g. DNS error, HTTP 404 response, a connection being
+  // prematurely closed, unsupported Content-Type), queue a task to fire a
+  // simple event named error at the link element.
   PostToDispatchEvent(FROM_HERE, base::Tokens::load());
 
-  // The element must delay the load event of the element's document until all
-  // the attempts to obtain the resource and its critical subresources are
-  // complete.
-  document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+  if (IsRelContentCriticalResource(rel())) {
+    // The element must delay the load event of the element's document until all
+    // the attempts to obtain the resource and its critical subresources are
+    // complete.
+    document->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+  }
 
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
@@ -158,6 +189,26 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
 
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
+}
+
+void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
+                                           const std::string& content) {
+  scoped_refptr<Window> window = document->window();
+
+  const base::optional<base::Callback<bool(const std::string&)>>
+      splash_screen_cache_callback = window->splash_screen_cache_callback();
+  if (splash_screen_cache_callback) {
+    splash_screen_cache_callback->Run(content);
+  }
+}
+
+void HTMLLinkElement::OnStylesheetLoaded(Document* document,
+                                         const std::string& content) {
+  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+      document->html_element_context()->css_parser()->ParseStyleSheet(
+          content, base::SourceLocation(href(), 1, 1));
+  style_sheet->SetLocationUrl(absolute_url_);
+  document->style_sheets()->Append(style_sheet);
 }
 
 void HTMLLinkElement::ReleaseLoader() {

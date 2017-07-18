@@ -36,6 +36,8 @@ bool EmbeddedURLToKey(const GURL& url, std::string* key) {
 }
 }  // namespace
 
+const char kEmbeddedScheme[] = "h5vcc-embedded";
+
 EmbeddedFetcher::EmbeddedFetcher(const GURL& url,
                                  const csp::SecurityCallback& security_callback,
                                  Handler* handler, const Options& options)
