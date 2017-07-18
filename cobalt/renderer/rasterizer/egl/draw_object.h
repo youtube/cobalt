@@ -77,9 +77,12 @@ class DrawObject {
     return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
   }
 
-  // Set shader uniforms for a rounded rect.
+  // Set shader uniforms for a rounded rect. Specify a non-zero inset if
+  // the rect will be used with anti-aliasing (e.g. 0.5 inset for a 1-pixel
+  // anti-aliasing border).
   static void SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
-      const math::RectF& rect, const render_tree::RoundedCorners& corners);
+      const math::RectF& rect, const render_tree::RoundedCorners& corners,
+      float inset);
 
   BaseState base_state_;
 };

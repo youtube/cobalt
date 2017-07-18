@@ -15,6 +15,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 
 #include <GLES2/gl2.h>
+#include <algorithm>
 
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/utils.h"
@@ -27,7 +28,6 @@ namespace egl {
 
 namespace {
 const int kVertexCount = 10;
-const int kVertexCountRRect = 4;
 }
 
 DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
@@ -40,74 +40,101 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
       outer_rect_(outer_rect),
       inner_corners_(inner_corners),
       outer_corners_(outer_corners),
-      vertex_buffer_(nullptr) {
+      offset_scale_(1.0f),
+      vertex_buffer_(nullptr),
+      vertex_count_(0) {
   color_ = GetGLRGBA(color * base_state_.opacity);
   if (inner_corners_ || outer_corners_) {
     // If using rounded corners, then both inner and outer rects must have
     // rounded corner definitions.
     DCHECK(inner_corners_);
     DCHECK(outer_corners_);
-    graphics_state->ReserveVertexData(
-        kVertexCountRRect * sizeof(VertexAttributes));
-  } else {
-    // Only pixels inside the outer rect should be touched.
-    inner_rect_.Intersect(outer_rect_);
-    graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+    inner_corners_->Normalize(inner_rect_);
+    outer_corners_->Normalize(outer_rect_);
   }
+  graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+}
+
+DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
+    const BaseState& base_state)
+    : DrawObject(base_state),
+      offset_scale_(1.0f),
+      vertex_buffer_(nullptr),
+      vertex_count_(0) {
+  graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 
 void DrawRectShadowSpread::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  // Draw the box shadow's spread. This is a triangle strip covering the area
+  // between outer rect and inner rect.
+  math::RectF inside_rect(inner_rect_);
+  math::RectF outside_rect(outer_rect_);
+  VertexAttributes attributes[kVertexCount];
+
   if (inner_corners_) {
-    // Draw a rect encompassing the outer rect with a 1 pixel border for
-    // anti-aliasing, and let the shader decide which pixels to modify.
-    math::RectF rect(outer_rect_);
-    rect.Outset(1.0f, 1.0f);
-    VertexAttributes attributes[kVertexCountRRect];
-    SetVertex(&attributes[0], rect.x(), rect.y());
-    SetVertex(&attributes[1], rect.right(), rect.y());
-    SetVertex(&attributes[2], rect.x(), rect.bottom());
-    SetVertex(&attributes[3], rect.right(), rect.bottom());
-    vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
-    SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
-  } else {
-    // Draw the box shadow's spread. This is a triangle strip covering the area
-    // between outer rect and inner rect.
-    VertexAttributes attributes[kVertexCount];
-    SetVertex(&attributes[0], outer_rect_.x(), outer_rect_.y());
-    SetVertex(&attributes[1], inner_rect_.x(), inner_rect_.y());
-    SetVertex(&attributes[2], outer_rect_.right(), outer_rect_.y());
-    SetVertex(&attributes[3], inner_rect_.right(), inner_rect_.y());
-    SetVertex(&attributes[4], outer_rect_.right(), outer_rect_.bottom());
-    SetVertex(&attributes[5], inner_rect_.right(), inner_rect_.bottom());
-    SetVertex(&attributes[6], outer_rect_.x(), outer_rect_.bottom());
-    SetVertex(&attributes[7], inner_rect_.x(), inner_rect_.bottom());
-    SetVertex(&attributes[8], outer_rect_.x(), outer_rect_.y());
-    SetVertex(&attributes[9], inner_rect_.x(), inner_rect_.y());
-    vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
-    SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
+    // Inset the inside rect to include the rounded corners.
+    inside_rect.Inset(
+        std::max(inner_corners_->bottom_left.horizontal,
+                 inner_corners_->top_left.horizontal),
+        std::max(inner_corners_->top_left.vertical,
+                 inner_corners_->top_right.vertical),
+        std::max(inner_corners_->top_right.horizontal,
+                 inner_corners_->bottom_right.horizontal),
+        std::max(inner_corners_->bottom_right.vertical,
+                 inner_corners_->bottom_left.vertical));
+
+    // Add a 1 pixel border to the outer rect for anti-aliasing.
+    outside_rect.Outset(1.0f, 1.0f);
   }
+
+  // Only pixels inside the outer rect should be touched.
+  if (inside_rect.IsEmpty()) {
+    vertex_count_ = 4;
+    SetVertex(&attributes[0], outside_rect.x(), outside_rect.y());
+    SetVertex(&attributes[1], outside_rect.right(), outside_rect.y());
+    SetVertex(&attributes[2], outside_rect.x(), outside_rect.bottom());
+    SetVertex(&attributes[3], outside_rect.right(), outside_rect.bottom());
+  } else {
+    inside_rect.Intersect(outside_rect);
+    vertex_count_ = 10;
+    SetVertex(&attributes[0], outside_rect.x(), outside_rect.y());
+    SetVertex(&attributes[1], inside_rect.x(), inside_rect.y());
+    SetVertex(&attributes[2], outside_rect.right(), outside_rect.y());
+    SetVertex(&attributes[3], inside_rect.right(), inside_rect.y());
+    SetVertex(&attributes[4], outside_rect.right(), outside_rect.bottom());
+    SetVertex(&attributes[5], inside_rect.right(), inside_rect.bottom());
+    SetVertex(&attributes[6], outside_rect.x(), outside_rect.bottom());
+    SetVertex(&attributes[7], inside_rect.x(), inside_rect.bottom());
+    SetVertex(&attributes[8], outside_rect.x(), outside_rect.y());
+    SetVertex(&attributes[9], inside_rect.x(), inside_rect.y());
+  }
+
+  vertex_buffer_ = graphics_state->AllocateVertexData(
+      vertex_count_ * sizeof(VertexAttributes));
+  SbMemoryCopy(vertex_buffer_, attributes,
+      vertex_count_ * sizeof(VertexAttributes));
 }
 
 void DrawRectShadowSpread::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   if (inner_corners_) {
-    ShaderProgram<VertexShader, ShaderFragmentColorBetweenRrects>* program;
+    ShaderProgram<CommonVertexShader,
+                  ShaderFragmentColorBetweenRrects>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupShader(program->GetVertexShader(), graphics_state);
 
     SetRRectUniforms(program->GetFragmentShader().u_inner_rect(),
                      program->GetFragmentShader().u_inner_corners(),
-                     inner_rect_, *inner_corners_);
+                     inner_rect_, *inner_corners_, 0.5f);
     SetRRectUniforms(program->GetFragmentShader().u_outer_rect(),
                      program->GetFragmentShader().u_outer_corners(),
-                     outer_rect_, *outer_corners_);
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCountRRect));
+                     outer_rect_, *outer_corners_, 0.5f);
   } else {
-    ShaderProgram<VertexShader, ShaderFragmentColorInclude>* program;
+    ShaderProgram<CommonVertexShader, ShaderFragmentColorInclude>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupShader(program->GetVertexShader(), graphics_state);
@@ -119,11 +146,12 @@ void DrawRectShadowSpread::ExecuteRasterize(
       outer_rect_.bottom()
     };
     GL_CALL(glUniform4fv(program->GetFragmentShader().u_include(), 1, include));
-    GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, kVertexCount));
   }
+
+  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count_));
 }
 
-void DrawRectShadowSpread::SetupShader(const VertexShader& shader,
+void DrawRectShadowSpread::SetupShader(const CommonVertexShader& shader,
     GraphicsState* graphics_state) {
   graphics_state->UpdateClipAdjustment(shader.u_clip_adjustment());
   graphics_state->UpdateTransformMatrix(shader.u_view_matrix(),
@@ -147,10 +175,10 @@ void DrawRectShadowSpread::SetupShader(const VertexShader& shader,
 
 base::TypeId DrawRectShadowSpread::GetTypeId() const {
   if (inner_corners_) {
-    return ShaderProgram<VertexShader,
+    return ShaderProgram<CommonVertexShader,
                          ShaderFragmentColorBetweenRrects>::GetTypeId();
   } else {
-    return ShaderProgram<VertexShader,
+    return ShaderProgram<CommonVertexShader,
                          ShaderFragmentColorInclude>::GetTypeId();
   }
 }
@@ -159,8 +187,8 @@ void DrawRectShadowSpread::SetVertex(VertexAttributes* vertex,
                                      float x, float y) {
   vertex->position[0] = x;
   vertex->position[1] = y;
-  vertex->offset[0] = x;
-  vertex->offset[1] = y;
+  vertex->offset[0] = (x - offset_center_.x()) * offset_scale_;
+  vertex->offset[1] = (y - offset_center_.y()) * offset_scale_;
   vertex->color = color_;
 }
 
