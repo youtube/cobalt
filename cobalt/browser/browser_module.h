@@ -85,7 +85,7 @@ class BrowserModule {
     base::Closure web_module_recreated_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
     memory_settings::AutoMemSettings build_auto_mem_settings;
-    base::optional<GURL> splash_screen_url;
+    base::optional<GURL> fallback_splash_screen_url;
     base::optional<math::Size> requested_viewport_size;
   };
 
@@ -453,9 +453,12 @@ class BrowserModule {
   // memory.
   memory_settings::Checker memory_settings_checker_;
 
-  // The URL to the splash screen. If empty (the default), no splash
+  // The fallback URL to the splash screen. If empty (the default), no splash
   // screen will be displayed.
-  base::optional<GURL> splash_screen_url_;
+  base::optional<GURL> fallback_splash_screen_url_;
+
+  // The splash screen cache.
+  scoped_ptr<SplashScreenCache> splash_screen_cache_;
 };
 
 }  // namespace browser

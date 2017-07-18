@@ -25,7 +25,7 @@
 namespace cobalt {
 namespace loader {
 
-const char kEmbeddedScheme[] = "h5vcc-embedded";
+extern const char kEmbeddedScheme[];
 
 // EmbeddedFetcher is for fetching data embedded in the binary, probably
 // generated using generate_data_header.py. Data will be in the form of a

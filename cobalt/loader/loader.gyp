@@ -23,6 +23,8 @@
       'sources': [
         'blob_fetcher.cc',
         'blob_fetcher.h',
+        'cache_fetcher.cc',
+        'cache_fetcher.h',
         'decoder.h',
         'embedded_fetcher.cc',
         'embedded_fetcher.h',
