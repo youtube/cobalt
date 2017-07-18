@@ -6,6 +6,7 @@
 
 // Renderer11.cpp: Implements a back-end specific class for the D3D11 renderer.
 
+#include <D3D11_4.h>
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 
 #include <EGL/eglext.h>
@@ -784,6 +785,11 @@ egl::Error Renderer11::initializeD3DDevice()
         mDevice->GetImmediateContext(&mDeviceContext);
         mRenderer11DeviceCaps.featureLevel = mDevice->GetFeatureLevel();
     }
+    ID3D11Multithread* multithread =
+        d3d11::DynamicCastComObject<ID3D11Multithread>(mDeviceContext);
+    ASSERT(multithread != nullptr);
+    multithread->SetMultithreadProtected(true);
+    SafeRelease(multithread);
 
     d3d11::SetDebugName(mDeviceContext, "DeviceContext");
 
