@@ -119,7 +119,8 @@ MediaSessionAction PlaybackStateActionToMediaSessionAction(jlong action) {
       result = kMediaSessionActionSeekforward;
       break;
     default:
-      NOTREACHED() << "Unsupported MediaSessionAction 0x" << std::hex << action;
+      SB_NOTREACHED() << "Unsupported MediaSessionAction 0x"
+                      << std::hex << action;
       result = static_cast<MediaSessionAction>(-1);
   }
   return result;
@@ -139,7 +140,8 @@ MediaSessionPlaybackState PlaybackStateToMediaSessionPlaybackState(
       result = kMediaSessionPlaybackStateNone;
       break;
     default:
-      SB_NOTREACHED();
+      SB_NOTREACHED() << "Unsupported PlaybackState " << state;
+      result = static_cast<MediaSessionPlaybackState>(-1);
   }
   return result;
 }
