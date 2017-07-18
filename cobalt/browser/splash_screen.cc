@@ -14,8 +14,12 @@
 
 #include "cobalt/browser/splash_screen.h"
 
+#include <string>
+
 #include "base/bind.h"
 #include "base/threading/platform_thread.h"
+#include "cobalt/browser/splash_screen_cache.h"
+#include "cobalt/loader/cache_fetcher.h"
 
 namespace cobalt {
 namespace browser {
@@ -26,7 +30,10 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
                            network::NetworkModule* network_module,
                            const math::Size& window_dimensions,
                            render_tree::ResourceProvider* resource_provider,
-                           float layout_refresh_rate, const GURL& url)
+                           float layout_refresh_rate,
+                           const GURL& fallback_splash_screen_url,
+                           const GURL& initial_main_web_module_url,
+                           SplashScreenCache* splash_screen_cache)
     : render_tree_produced_callback_(render_tree_produced_callback),
       is_ready_(true, false) {
   WebModule::Options web_module_options;
@@ -38,9 +45,20 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
   web_module_options.loader_thread_priority = base::kThreadPriority_High;
   web_module_options.animated_image_decode_thread_priority =
       base::kThreadPriority_High;
+  GURL url_to_pass = fallback_splash_screen_url;
+
+  // Use the cached URL rather than the passed in URL if it exists.
+  base::optional<std::string> key =
+      SplashScreenCache::GetKeyForStartUrl(initial_main_web_module_url);
+  if (key && splash_screen_cache &&
+      splash_screen_cache->IsSplashScreenCached(*key)) {
+    url_to_pass = GURL(loader::kCacheScheme + ("://" + *key));
+    web_module_options.can_fetch_cache = true;
+    web_module_options.splash_screen_cache = splash_screen_cache;
+  }
 
   web_module_.reset(new WebModule(
-      url, initial_application_state,
+      url_to_pass, initial_application_state,
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
