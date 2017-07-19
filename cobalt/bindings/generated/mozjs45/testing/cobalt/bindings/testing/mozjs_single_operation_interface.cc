@@ -67,7 +67,7 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
   bool success = false;
   base::optional<int32_t > cobalt_return_value;
   JSAutoRequest auto_request(context_);
-  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
+  JS::AutoSaveExceptionState auto_save_exception_state(context_);
 
   // This could be set to NULL if it was garbage collected.
   JS::RootedObject implementing_object(context_, implementing_object_.GetObject());
@@ -107,7 +107,6 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
   }
 
   *had_exception = !success;
-  JS_RestoreExceptionState(context_, previous_exception_state);
   return cobalt_return_value;
 }
 
