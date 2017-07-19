@@ -631,6 +631,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     }
     output_mode_change_cb.Run();
 
+    UpdateDecoderConfig(audio_stream_);
+    UpdateDecoderConfig(video_stream_);
     return;
   }
 
