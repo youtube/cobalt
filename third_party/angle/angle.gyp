@@ -5,12 +5,13 @@
 {
     'variables':
     {
-        'angle_build_winrt': 1,
+        'angle_build_winrt%': 1,
         'angle_code': 1,
         'angle_gen_path': '<(SHARED_INTERMEDIATE_DIR)/angle',
         'angle_use_commit_id%': 0,
         'angle_enable_d3d9%': 0,
         'angle_enable_d3d11%': 1,
+        'enable_d3d11_feature_level_11%': 0,
         'angle_enable_gl%': 0,
         'angle_enable_vulkan%': 0,
         'angle_enable_essl%': 1, # Enable this for all configs by default

@@ -999,6 +999,12 @@
                                 '<@(libangle_d3d11_win32_sources)',
                             ],
                         }],
+                        ['enable_d3d11_feature_level_11==1',
+                        {
+                            'defines': [
+                                'ENABLE_D3D11_FEATURE_LEVEL_11'
+                            ]
+                        }],
                     ],
                 }],
                 ['angle_enable_gl==1',
