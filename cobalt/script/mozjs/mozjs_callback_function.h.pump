@@ -34,6 +34,7 @@ $var MAX_ARITY = 7
 #include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "cobalt/script/mozjs/weak_heap_object.h"
 #include "nb/memory_scope.h"
+#include "third_party/mozjs/js/jsd/jsd.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
@@ -93,41 +94,40 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
-    } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
+      return callback_result;
+    }
 
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other specifications
-      JS::Value this_value(JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = $(ARITY);
+    JSAutoCompartment auto_compartment(context_, function);
+    AutoSaveExceptionState auto_save_exception_state(context_);
 
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::Value this_value(JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = $(ARITY);
 
 $if ARITY > 0 [[
-      JS::Value args[$(ARITY)];
-      js::SetValueRangeToNull(args, kNumArguments);
-      js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
-      $for ARG [[ToJSValue(context_, a$(ARG), auto_array_rooter.handleAt($(ARG - 1)));
-      ]]
+    JS::Value args[$(ARITY)];
+    js::SetValueRangeToNull(args, kNumArguments);
+    js::AutoValueArray auto_array_rooter(context_, args, kNumArguments);
+    $for ARG [[ToJSValue(context_, a$(ARG), auto_array_rooter.handleAt($(ARG - 1)));
+    ]]
 
-      JSBool call_result = JS::Call(context_, this_value, function,
-          kNumArguments, args, return_value.address());
+    JSBool call_result = JS::Call(context_, this_value, function,
+        kNumArguments, args, return_value.address());
 ]] $else [[
-      JSBool call_result = JS::Call(context_, this_value, function, 0, NULL,
-          return_value.address());
+    JSBool call_result = JS::Call(context_, this_value, function, 0, NULL,
+        return_value.address());
 ]]
 
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
+    } else {
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
+
     return callback_result;
   }
 
