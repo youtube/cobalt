@@ -78,9 +78,13 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // section: https://www.w3.org/TR/css3-transforms/#transform-rendering.
   bool IsContainingBlockForPositionFixedElements() const;
 
-  // Returns true if this container box serves as a stacking context for
-  // descendant elements.
-  bool IsStackingContext() const;
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  bool IsStackingContext() const OVERRIDE;
 
  protected:
   struct StackingContextChildInfo {
