@@ -41,7 +41,12 @@ class SplashScreen : public LifecycleObserver {
                float layout_refresh_rate, const GURL& url);
   ~SplashScreen();
 
+  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
+    web_module_->SetSize(window_dimensions, video_pixel_ratio);
+  }
+
   // LifecycleObserver implementation.
+  void Prestart() OVERRIDE { web_module_->Prestart(); }
   void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE {
     web_module_->Start(resource_provider);
   }

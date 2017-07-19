@@ -70,6 +70,9 @@ class JavaScriptEngine {
   // Returns true if the error handler could be installed. False otherwise.
   virtual bool RegisterErrorHandler(ErrorHandler handler) = 0;
 
+  // Adjusts the memory threshold to force garbage collection.
+  virtual void SetGcThreshold(int64_t bytes) = 0;
+
  protected:
   virtual ~JavaScriptEngine() {}
   friend class scoped_ptr<JavaScriptEngine>;
