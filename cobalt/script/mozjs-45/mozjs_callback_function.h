@@ -72,28 +72,26 @@ class MozjsCallbackFunction<R(void)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
-    } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
+      return callback_result;
+    }
 
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 0;
-      JS::AutoValueVector args(context_);
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 0;
+    JS::AutoValueVector args(context_);
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
+    } else {
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -137,30 +135,28 @@ class MozjsCallbackFunction<R(A1)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 1;
+    JS::AutoValueArray<1> args(context_);
+    ToJSValue(context_, a1, args[0]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 1;
-      JS::AutoValueArray<1> args(context_);
-      ToJSValue(context_, a1, args[0]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -205,31 +201,29 @@ class MozjsCallbackFunction<R(A1, A2)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 2;
+    JS::AutoValueArray<2> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 2;
-      JS::AutoValueArray<2> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -275,32 +269,30 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 3;
+    JS::AutoValueArray<3> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+    ToJSValue(context_, a3, args[2]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 3;
-      JS::AutoValueArray<3> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-      ToJSValue(context_, a3, args[2]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -347,33 +339,31 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 4;
+    JS::AutoValueArray<4> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+    ToJSValue(context_, a3, args[2]);
+    ToJSValue(context_, a4, args[3]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 4;
-      JS::AutoValueArray<4> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-      ToJSValue(context_, a3, args[2]);
-      ToJSValue(context_, a4, args[3]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -422,34 +412,32 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 5;
+    JS::AutoValueArray<5> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+    ToJSValue(context_, a3, args[2]);
+    ToJSValue(context_, a4, args[3]);
+    ToJSValue(context_, a5, args[4]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 5;
-      JS::AutoValueArray<5> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-      ToJSValue(context_, a3, args[2]);
-      ToJSValue(context_, a4, args[3]);
-      ToJSValue(context_, a5, args[4]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -499,35 +487,33 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 6;
+    JS::AutoValueArray<6> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+    ToJSValue(context_, a3, args[2]);
+    ToJSValue(context_, a4, args[3]);
+    ToJSValue(context_, a5, args[4]);
+    ToJSValue(context_, a6, args[5]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 6;
-      JS::AutoValueArray<6> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-      ToJSValue(context_, a3, args[2]);
-      ToJSValue(context_, a4, args[3]);
-      ToJSValue(context_, a5, args[4]);
-      ToJSValue(context_, a6, args[5]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
@@ -578,36 +564,34 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
+      return callback_result;
+    }
+
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = 7;
+    JS::AutoValueArray<7> args(context_);
+    ToJSValue(context_, a1, args[0]);
+    ToJSValue(context_, a2, args[1]);
+    ToJSValue(context_, a3, args[2]);
+    ToJSValue(context_, a4, args[3]);
+    ToJSValue(context_, a5, args[4]);
+    ToJSValue(context_, a6, args[5]);
+    ToJSValue(context_, a7, args[6]);
+
+    bool call_result = JS::Call(context_, this_value, function, args,
+        &return_value);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
     } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
-
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other
-      // specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = 7;
-      JS::AutoValueArray<7> args(context_);
-      ToJSValue(context_, a1, args[0]);
-      ToJSValue(context_, a2, args[1]);
-      ToJSValue(context_, a3, args[2]);
-      ToJSValue(context_, a4, args[3]);
-      ToJSValue(context_, a5, args[4]);
-      ToJSValue(context_, a6, args[5]);
-      ToJSValue(context_, a7, args[6]);
-
-      bool call_result = JS::Call(context_, this_value, function, args,
-          &return_value);
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
