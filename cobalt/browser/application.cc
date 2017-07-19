@@ -144,8 +144,8 @@ GURL GetInitialURL() {
     if (url.is_valid()) {
       return url;
     } else {
-      LOG(FATAL) << "URL from parameter " << command_line
-                 << " is not valid, using default URL.";
+      DLOG(ERROR) << "URL from parameter " << command_line
+                  << " is not valid, using default URL.";
     }
   }
 
