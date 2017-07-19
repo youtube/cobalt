@@ -144,9 +144,6 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
   InvalidateRenderTreeNodesOfBoxAndAncestors();
 }
 
-// Returns true if the given style allows a container box to act as a containing
-// block for absolutely positioned elements.  For example it will be true if
-// this box's style is itself 'absolute'.
 bool ContainerBox::IsContainingBlockForPositionAbsoluteElements() const {
   return parent() == NULL || IsPositioned() || IsTransformed();
 }
@@ -155,12 +152,6 @@ bool ContainerBox::IsContainingBlockForPositionFixedElements() const {
   return parent() == NULL || IsTransformed();
 }
 
-// Returns true if this container box serves as a stacking context for
-// descendant elements.  The core stacking context creation criteria is given
-// here (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is
-// extended by various other specification documents such as those describing
-// opacity (https://www.w3.org/TR/css3-color/#transparency) and transforms
-// (https://www.w3.org/TR/css3-transforms/#transform-rendering).
 bool ContainerBox::IsStackingContext() const {
   bool has_opacity =
       base::polymorphic_downcast<const cssom::NumberValue*>(
@@ -566,20 +557,24 @@ void ContainerBox::RenderAndAnimateContent(
 
   Vector2dLayoutUnit content_box_offset(border_left_width() + padding_left(),
                                         border_top_width() + padding_top());
-  // Render all positioned children in our stacking context that have negative
-  // z-index values.
+
+  // Render all child stacking contexts and positioned children in our stacking
+  // context that have negative z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(
       negative_z_index_child_, border_node_builder, content_box_offset);
-  // Render laid out child boxes.
+
+  // Render in-flow, non-positioned child boxes.
+  //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   for (Boxes::const_iterator child_box_iterator = child_boxes_.begin();
        child_box_iterator != child_boxes_.end(); ++child_box_iterator) {
     Box* child_box = *child_box_iterator;
-    if (!child_box->IsPositioned() && !child_box->IsTransformed()) {
+    if (!child_box->IsPositioned() && !child_box->IsStackingContext()) {
       child_box->RenderAndAnimate(border_node_builder, content_box_offset);
     }
   }
-  // Render all positioned children with non-negative z-index values.
+  // Render all child stacking contexts and positioned children in our stacking
+  // context that have non-negative z-index values.
   //   https://www.w3.org/TR/CSS21/visuren.html#z-index
   RenderAndAnimateStackingContextChildren(
       non_negative_z_index_child_, border_node_builder, content_box_offset);
