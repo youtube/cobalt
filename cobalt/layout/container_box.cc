@@ -418,16 +418,9 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
             << "Unsupported stacking context and containing block relation.";
         break;
       }
-#if !defined(NDEBUG)
-      // We should not determine a used position through a transform, as
-      // rectangles may not remain rectangles past it, and thus obtaining
-      // a position may be misleading.
-      if (current_box->IsTransformed()) {
-        DLOG(WARNING) << "Boxes with stacking contexts unequal to their "
-                         "containing blocks that include transforms may not be "
-                         "positioned correctly.";
-      }
-#endif
+      // It should not be possible to have a transform between the stacking
+      // context and containing block.
+      DCHECK(!current_box->IsTransformed());
 
       relative_position += current_box->GetContentBoxOffsetFromMarginBox();
       relative_position +=
