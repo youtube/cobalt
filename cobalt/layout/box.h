@@ -161,6 +161,14 @@ class Box : public base::RefCounted<Box> {
   //   https://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
   bool IsAbsolutelyPositioned() const;
 
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  virtual bool IsStackingContext() const { return false; }
+
   // Updates the size of margin, border, padding, and content boxes. Lays out
   // in-flow descendants, estimates static positions (but not sizes) of
   // out-of-flow descendants. Does not update the position of the box.
