@@ -186,7 +186,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
 
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
-  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
+  JS::AutoSaveExceptionState auto_save_exception_state(context_);
   JS::RootedValue result_value(context_);
 
   std::string error_message;
@@ -205,7 +205,6 @@ bool MozjsGlobalEnvironment::EvaluateScript(
     }
   }
   last_error_message_ = NULL;
-  JS_RestoreExceptionState(context_, previous_exception_state);
   return success;
 }
 
@@ -217,7 +216,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   DCHECK(thread_checker_.CalledOnValidThread());
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
-  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
+  JS::AutoSaveExceptionState auto_save_exception_state(context_);
   JS::RootedValue result_value(context_);
   bool success = EvaluateScriptInternal(source_code, &result_value);
   if (success && out_opaque_handle) {
@@ -227,7 +226,6 @@ bool MozjsGlobalEnvironment::EvaluateScript(
                                                 wrapper_factory());
     out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
   }
-  JS_RestoreExceptionState(context_, previous_exception_state);
   return success;
 }
 
