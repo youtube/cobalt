@@ -44,13 +44,21 @@
         {
             'defines': [ 'COMPONENT_BUILD' ],
         }],
-        ['target_os=="win"',
+        ['target_os=="win" and angle_build_winrt==1',
         {
             'defines': [
-                'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+                'WINAPI_FAMILY=WINAPI_FAMILY_APP', # UWP.
                 ' __WRL_NO_DEFAULT_LIB__',
-             ],
+            ],
         }],
+        ['target_os=="win" and angle_build_winrt==0',
+        {
+            'defines': [
+                '_WIN32',
+                'WINAPI_FAMILY=WINAPI_FAMILY_DESKTOP_APP', # win32
+                ' __WRL_NO_DEFAULT_LIB__',
+            ],
+        }]
     ],
     'msvs_settings':
     {

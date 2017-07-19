@@ -14,6 +14,7 @@
         'angle_use_commit_id%': '<!(python <(angle_id_script_base) check ..)',
         'angle_enable_d3d9%': 0,
         'angle_enable_d3d11%': 0,
+        'enable_d3d11_feature_level_11%': 0,
         'angle_enable_gl%': 0,
         'angle_enable_vulkan%': 0,
         'angle_enable_essl%': 1, # Enable this for all configs by default
