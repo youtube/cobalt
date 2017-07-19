@@ -16,9 +16,6 @@
 #include "base/logging.h"
 #include "cobalt/base/wrap_main.h"
 #include "cobalt/browser/application.h"
-#if defined(OS_STARBOARD)
-#include "cobalt/browser/starboard/event_handler.h"
-#endif
 
 namespace {
 
@@ -27,19 +24,20 @@ cobalt::browser::Application* g_application = NULL;
 void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                         const base::Closure& quit_closure) {
   DCHECK(!g_application);
-  g_application = cobalt::browser::PreloadApplication(quit_closure).release();
+  g_application =
+      new cobalt::browser::Application(quit_closure, true /*should_preload*/);
   DCHECK(g_application);
 }
 
 void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                       const base::Closure& quit_closure) {
   if (!g_application) {
-    g_application = cobalt::browser::CreateApplication(quit_closure).release();
+    g_application = new cobalt::browser::Application(quit_closure,
+                                                     false /*should_preload*/);
+    DCHECK(g_application);
   } else {
     g_application->Start();
   }
-
-  DCHECK(g_application);
 }
 
 void StopApplication() {
@@ -48,11 +46,17 @@ void StopApplication() {
   g_application = NULL;
 }
 
+void HandleStarboardEvent(const SbEvent* starboard_event) {
+  DCHECK(starboard_event);
+  DCHECK(g_application);
+  g_application->HandleStarboardEvent(starboard_event);
+}
+
 }  // namespace
 
 #if defined(OS_STARBOARD)
-COBALT_WRAP_MAIN(PreloadApplication, StartApplication,
-                 cobalt::browser::EventHandler::HandleEvent, StopApplication);
+COBALT_WRAP_MAIN(PreloadApplication, StartApplication, HandleStarboardEvent,
+                 StopApplication);
 #else
 COBALT_WRAP_BASE_MAIN(StartApplication, StopApplication);
 #endif
