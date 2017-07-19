@@ -138,6 +138,7 @@
         '<(DEPTH)/cobalt/renderer/renderer.gyp:renderer',
         '<(DEPTH)/cobalt/script/engine.gyp:engine',
         '<(DEPTH)/cobalt/speech/speech.gyp:speech',
+        '<(DEPTH)/cobalt/sso/sso.gyp:sso',
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/cobalt/webdriver/webdriver.gyp:webdriver',
