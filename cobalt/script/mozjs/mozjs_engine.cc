@@ -27,6 +27,7 @@
 #include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "third_party/mozjs/cobalt_config/include/jscustomallocator.h"
 #include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs/js/src/jscntxt.h"
 #include "third_party/mozjs/js/src/jsdbgapi.h"
 
 namespace cobalt {
@@ -182,6 +183,10 @@ bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   void* closure = this;
   JS_SetDebugErrorHook(runtime_, hook, closure);
   return true;
+}
+
+void MozjsEngine::SetGcThreshold(int64_t bytes) {
+  runtime_->setGCMaxMallocBytes(static_cast<size_t>(bytes));
 }
 
 void MozjsEngine::TimerGarbageCollect() {

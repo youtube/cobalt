@@ -25,9 +25,12 @@ namespace dom {
 //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
 class Screen : public script::Wrappable {
  public:
-  Screen(int width, int height)
-      : width_(static_cast<float>(width)),
-        height_(static_cast<float>(height)) {}
+  Screen(int width, int height) { SetSize(width, height); }
+
+  void SetSize(int width, int height) {
+    width_ = static_cast<float>(width);
+    height_ = static_cast<float>(height);
+  }
 
   // Web API
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#the-screen-interface
