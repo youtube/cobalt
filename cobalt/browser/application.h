@@ -24,6 +24,7 @@
 #include "cobalt/browser/browser_module.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
+#include "starboard/event.h"
 
 #if defined(ENABLE_WEBDRIVER)
 #include "cobalt/webdriver/web_driver_module.h"
@@ -36,21 +37,21 @@
 namespace cobalt {
 namespace browser {
 
-// The Application base class is meant to manage the main thread's UI
-// message loop.  A platform-specific application will be created via
-// CreateApplication().  This class and all of its subclasses are not designed
-// to be thread safe.
+// The Application class is meant to manage the main thread's UI message
+// loop. This class is not designed to be thread safe.
 class Application {
  public:
+  // The passed in |quit_closure| can be called internally by the Application to
+  // signal that it would like to quit.
+  Application(const base::Closure& quit_closure, bool should_preload);
   virtual ~Application();
 
   // Start from a preloaded state.
   void Start();
   void Quit();
+  void HandleStarboardEvent(const SbEvent* event);
 
  protected:
-  Application(const base::Closure& quit_closure, bool should_preload);
-
   MessageLoop* message_loop() { return message_loop_; }
 
  private:
@@ -64,7 +65,7 @@ class Application {
   void OnNetworkEvent(const base::Event* event);
 
   // Called to handle an application event.
-  void OnApplicationEvent(const base::Event* event);
+  void OnApplicationEvent(SbEventType event_type);
 
   // Called to handle a deep link event.
   void OnDeepLinkEvent(const base::Event* event);
@@ -83,7 +84,6 @@ class Application {
 
   // Event callbacks.
   base::EventCallback network_event_callback_;
-  base::EventCallback application_event_callback_;
   base::EventCallback deep_link_event_callback_;
 
   // Thread checkers to ensure that callbacks for network and application events
@@ -113,6 +113,7 @@ class Application {
     kQuitAppStatus,
     kShutDownAppStatus,
   };
+
   enum NetworkStatus {
     kDisconnectedNetworkStatus,
     kConnectedNetworkStatus,
@@ -144,8 +145,8 @@ class Application {
 
   void RegisterUserLogs();
   void UpdateAndMaybeRegisterUserAgent();
-
   void UpdatePeriodicStats();
+  void DispatchEventInternal(base::Event* event);
 
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
@@ -166,16 +167,6 @@ class Application {
 
   scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
 };
-
-// Factory method for creating a started application. The passed in
-// |quit_closure| can be called internally by the application to signal that it
-// would like to quit.
-scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure);
-
-// Factory method for creating a preloading application. The passed in
-// |quit_closure| can be called internally by the application to signal that it
-// would like to quit.
-scoped_ptr<Application> PreloadApplication(const base::Closure& quit_closure);
 
 }  // namespace browser
 }  // namespace cobalt
