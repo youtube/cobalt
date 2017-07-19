@@ -14,8 +14,15 @@
 
 #include "cobalt/page_visibility/page_visibility_state.h"
 
+#include "base/debug/trace_event.h"
+#include "base/stringprintf.h"
+
 namespace cobalt {
 namespace page_visibility {
+
+#define STATE_STRING(state)                                             \
+  base::StringPrintf("%s (%d)", base::GetApplicationStateString(state), \
+                     static_cast<int>(state))
 
 namespace {
 // Converts an ApplicationState to a VisibilityState.
@@ -30,7 +37,7 @@ VisibilityState ToVisibilityState(base::ApplicationState state) {
     case base::kApplicationStateStopped:
       return kVisibilityStateHidden;
     default:
-      NOTREACHED() << "Invalid Application State: " << state;
+      NOTREACHED() << "Invalid Application State: " << STATE_STRING(state);
       return kVisibilityStateHidden;
   }
 }
@@ -45,22 +52,27 @@ bool HasFocus(base::ApplicationState state) {
     case base::kApplicationStateStopped:
       return false;
     default:
-      NOTREACHED() << "Invalid Application State: " << state;
+      NOTREACHED() << "Invalid Application State: " << STATE_STRING(state);
       return false;
   }
 }
 }  // namespace
 
 PageVisibilityState::PageVisibilityState()
-    : application_state_(base::kApplicationStateStarted) {}
+    : application_state_(base::kApplicationStateStarted) {
+  DLOG(INFO) << __FUNCTION__
+             << ": app_state=" << STATE_STRING(application_state_);
+}
 
 PageVisibilityState::PageVisibilityState(
     base::ApplicationState initial_application_state)
     : application_state_(initial_application_state) {
+  DLOG(INFO) << __FUNCTION__
+             << ": app_state=" << STATE_STRING(application_state_);
   DCHECK((application_state_ == base::kApplicationStateStarted) ||
          (application_state_ == base::kApplicationStatePreloading) ||
          (application_state_ == base::kApplicationStatePaused))
-      << "application_state_=" << application_state_;
+      << "application_state_=" << STATE_STRING(application_state_);
 }
 
 bool PageVisibilityState::HasWindowFocus() const {
@@ -72,9 +84,12 @@ VisibilityState PageVisibilityState::GetVisibilityState() const {
 }
 
 void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
+  TRACE_EVENT1("cobalt::page_visibility",
+               "PageVisibilityState::SetApplicationState", "state",
+               STATE_STRING(state).c_str());
   if (application_state_ == state) {
     DLOG(WARNING) << __FUNCTION__ << ": Attempt to re-enter "
-                  << application_state_;
+                  << STATE_STRING(application_state_);
     return;
   }
 
@@ -83,30 +98,47 @@ void PageVisibilityState::SetApplicationState(base::ApplicationState state) {
     switch (application_state_) {
       case base::kApplicationStatePaused:
         DCHECK(state == base::kApplicationStateSuspended ||
-               state == base::kApplicationStateStarted);
+               state == base::kApplicationStateStarted)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
+
         break;
       case base::kApplicationStatePreloading:
         DCHECK(state == base::kApplicationStateSuspended ||
-               state == base::kApplicationStateStarted);
+               state == base::kApplicationStateStarted)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
+        break;
       case base::kApplicationStateStarted:
-        DCHECK(state == base::kApplicationStatePaused);
+        DCHECK(state == base::kApplicationStatePaused)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
         break;
       case base::kApplicationStateStopped:
         DCHECK(state == base::kApplicationStatePreloading ||
-               state == base::kApplicationStateStarted);
+               state == base::kApplicationStateStarted)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
         break;
       case base::kApplicationStateSuspended:
         DCHECK(state == base::kApplicationStatePaused ||
-               state == base::kApplicationStateStopped);
+               state == base::kApplicationStateStopped)
+            << ": application_state_=" << STATE_STRING(application_state_)
+            << ", state=" << STATE_STRING(state);
         break;
       default:
-        NOTREACHED() << application_state_;
+        NOTREACHED() << ": application_state_="
+                     << STATE_STRING(application_state_)
+                     << ", state=" << STATE_STRING(state);
+
         break;
     }
   }
 
   bool old_has_focus = HasFocus(application_state_);
   VisibilityState old_visibility_state = ToVisibilityState(application_state_);
+  DLOG(INFO) << __FUNCTION__ << ": " << STATE_STRING(application_state_)
+             << " -> " << STATE_STRING(state);
   application_state_ = state;
   bool has_focus = HasFocus(application_state_);
   VisibilityState visibility_state = ToVisibilityState(application_state_);

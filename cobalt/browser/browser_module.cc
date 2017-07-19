@@ -182,43 +182,6 @@ renderer::RendererModule::Options RendererModuleWithCameraOptions(
   return options;  // Copy.
 }
 
-void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
-                          BrowserModule::Options* options) {
-  SB_LOG(INFO) << "\n\n"
-               << auto_mem.ToPrettyPrintString(SbLogIsTty()) << "\n\n";
-
-  options->web_module_options.image_cache_capacity =
-      static_cast<int>(auto_mem.image_cache_size_in_bytes()->value());
-
-  options->renderer_module_options.skia_cache_size_in_bytes =
-      static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
-
-  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
-      auto_mem.skia_atlas_texture_dimensions()->value();
-
-  // Right now the bytes_per_pixel is assumed in the engine. Any other value
-  // is currently forbidden.
-  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
-    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
-    options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
-        math::Size(skia_glyph_atlas_texture_dimensions.width(),
-                   skia_glyph_atlas_texture_dimensions.height());
-  }
-
-  options->web_module_options.remote_typeface_cache_capacity =
-      static_cast<int>(auto_mem.remote_typeface_cache_size_in_bytes()->value());
-
-  options->web_module_options.javascript_options.gc_threshold_bytes =
-      static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
-
-  options->renderer_module_options.software_surface_cache_size_in_bytes =
-      static_cast<int>(
-          auto_mem.software_surface_cache_size_in_bytes()->value());
-  options->renderer_module_options.offscreen_target_cache_size_in_bytes =
-      static_cast<int>(
-          auto_mem.offscreen_target_cache_size_in_bytes()->value());
-}
-
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -321,6 +284,13 @@ BrowserModule::BrowserModule(const GURL& url,
   if (application_state_ == base::kApplicationStateStarted ||
       application_state_ == base::kApplicationStatePaused) {
     InitializeSystemWindow();
+  } else if (application_state_ == base::kApplicationStatePreloading) {
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+    // Preloading is not supported on platforms that allocate ArrayBuffers on
+    // GPU memory.
+    NOTREACHED();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+    resource_provider_stub_.emplace(true /*allocate_image_data*/);
   }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -527,7 +497,8 @@ void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  if (!render_tree_combiner_) {
+  if (application_state_ == base::kApplicationStatePreloading ||
+      !render_tree_combiner_) {
     return;
   }
 
@@ -634,7 +605,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  if (!render_tree_combiner_) {
+  if (application_state_ == base::kApplicationStatePreloading ||
+      !render_tree_combiner_) {
     return;
   }
 
@@ -874,9 +846,10 @@ void BrowserModule::SetProxy(const std::string& proxy_rules) {
 void BrowserModule::Start() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Start()");
   DCHECK(application_state_ == base::kApplicationStatePreloading);
-  render_tree::ResourceProvider* resource_provider = GetResourceProvider();
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Start(resource_provider));
+
+  SuspendInternal(true /*is_start*/);
+  StartOrResumeInternal(true /*is_start*/);
+
   application_state_ = base::kApplicationStateStarted;
 }
 
@@ -896,52 +869,10 @@ void BrowserModule::Unpause() {
 
 void BrowserModule::Suspend() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Suspend()");
-  DCHECK(application_state_ == base::kApplicationStatePaused);
+  DCHECK(application_state_ == base::kApplicationStatePaused ||
+         application_state_ == base::kApplicationStatePreloading);
 
-  // First suspend all our web modules which implies that they will release
-  // their resource provider and all resources created through it.
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Suspend());
-
-  // Flush out any submitted render trees pushed since we started shutting down
-  // the web modules above.
-  render_tree_submission_queue_.ProcessAll();
-
-#if defined(ENABLE_SCREENSHOT)
-  // The screenshot writer may be holding on to a reference to a render tree
-  // which could in turn be referencing resources like images, so clear that
-  // out.
-  if (screen_shot_writer_) {
-    screen_shot_writer_->ClearLastPipelineSubmission();
-  }
-#endif
-
-  // Clear out the render tree combiner so that it doesn't hold on to any
-  // render tree resources either.
-  if (render_tree_combiner_) {
-    render_tree_combiner_->Reset();
-  }
-
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-  // Note that the following function call will leak the GPU memory allocated.
-  // This is because after renderer_module_->Suspend() is called it is no longer
-  // safe to release the GPU memory allocated.
-  //
-  // The following code can call reset() to release the allocated memory but the
-  // memory may still be used by XHR and ArrayBuffer.  As this feature is only
-  // used on platform without Resume() support, it is safer to leak the memory
-  // then to release it.
-  dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
-  if (media_module_) {
-    media_module_->Suspend();
-  }
-
-  if (renderer_module_) {
-    // Place the renderer module into a suspended state where it releases all
-    // its graphical resources.
-    renderer_module_->Suspend();
-  }
+  SuspendInternal(false /*is_start*/);
 
   application_state_ = base::kApplicationStateSuspended;
 }
@@ -950,23 +881,7 @@ void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
-  renderer_module_->Resume();
-
-  // Note that at this point, it is probable that this resource provider is
-  // different than the one that was managed in the associated call to
-  // Suspend().
-  render_tree::ResourceProvider* resource_provider = GetResourceProvider();
-
-  media_module_->Resume(resource_provider);
-
-#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-  // Resume() is not supported on platforms that allocates ArrayBuffer on GPU
-  // memory.
-  NOTREACHED();
-#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-
-  FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
-                    Resume(resource_provider));
+  StartOrResumeInternal(false /*is_start*/);
 
   application_state_ = base::kApplicationStatePaused;
 }
@@ -974,6 +889,10 @@ void BrowserModule::Resume() {
 void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
     const base::optional<int64_t>& used_gpu_memory) {
+  if (!auto_mem_) {
+    return;
+  }
+
   memory_settings_checker_.RunChecks(*auto_mem_, used_cpu_memory,
                                      used_gpu_memory);
 }
@@ -1039,6 +958,11 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
 
 render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
   if (!renderer_module_) {
+    if (resource_provider_stub_) {
+      DCHECK(application_state_ == base::kApplicationStatePreloading);
+      return &(resource_provider_stub_.value());
+    }
+
     return NULL;
   }
 
@@ -1046,13 +970,14 @@ render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
 }
 
 void BrowserModule::InitializeSystemWindow() {
+  resource_provider_stub_ = base::nullopt;
   system_window_.reset(new system_window::SystemWindow(
       event_dispatcher_, options_.requested_viewport_size));
 
   auto_mem_.reset(new memory_settings::AutoMem(
       GetViewportSize(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
-  ApplyAutoMemSettings(*auto_mem_, &options_);
+  ApplyAutoMemSettings();
 
   input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
                               base::Bind(&BrowserModule::OnKeyEventProduced,
@@ -1079,12 +1004,120 @@ void BrowserModule::InitializeSystemWindow() {
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
 #endif  // defined(ENABLE_SCREENSHOT)
-  // TODO: Pass in dialog closure instead of system window.
+  // TODO: Pass in dialog closure instead of system window, and initialize
+  // earlier.
   h5vcc_url_handler_.reset(new H5vccURLHandler(this, system_window_.get()));
 
   media_module_ =
       media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
                                  options_.media_module_options);
+}
+
+void BrowserModule::UpdateFromSystemWindow() {
+  math::Size size = GetViewportSize();
+  float video_pixel_ratio = system_window_->GetVideoPixelRatio();
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (debug_console_) {
+    debug_console_->SetSize(size, video_pixel_ratio);
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  if (splash_screen_) {
+    splash_screen_->SetSize(size, video_pixel_ratio);
+  }
+
+  if (web_module_) {
+    web_module_->SetCamera3D(input_device_manager_->camera_3d());
+    web_module_->SetMediaModule(media_module_.get());
+    web_module_->SetSize(size, video_pixel_ratio);
+  }
+}
+
+void BrowserModule::SuspendInternal(bool is_start) {
+  TRACE_EVENT1("cobalt::browser", "BrowserModule::SuspendInternal", "is_start",
+               is_start ? "true" : "false");
+  // First suspend all our web modules which implies that they will release
+  // their resource provider and all resources created through it.
+  if (is_start) {
+    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Prestart());
+  } else {
+    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_, Suspend());
+  }
+
+  // Flush out any submitted render trees pushed since we started shutting down
+  // the web modules above.
+  render_tree_submission_queue_.ProcessAll();
+
+#if defined(ENABLE_SCREENSHOT)
+  // The screenshot writer may be holding on to a reference to a render tree
+  // which could in turn be referencing resources like images, so clear that
+  // out.
+  if (screen_shot_writer_) {
+    screen_shot_writer_->ClearLastPipelineSubmission();
+  }
+#endif
+
+  // Clear out the render tree combiner so that it doesn't hold on to any
+  // render tree resources either.
+  if (render_tree_combiner_) {
+    render_tree_combiner_->Reset();
+  }
+
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Note that the following function call will leak the GPU memory allocated.
+  // This is because after renderer_module_->Suspend() is called it is no longer
+  // safe to release the GPU memory allocated.
+  //
+  // The following code can call reset() to release the allocated memory but the
+  // memory may still be used by XHR and ArrayBuffer.  As this feature is only
+  // used on platform without Resume() support, it is safer to leak the memory
+  // then to release it.
+  dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+
+  if (media_module_) {
+    media_module_->Suspend();
+  }
+
+  if (renderer_module_) {
+    // Place the renderer module into a suspended state where it releases all
+    // its graphical resources.
+    renderer_module_->Suspend();
+  }
+}
+
+void BrowserModule::StartOrResumeInternal(bool is_start) {
+  TRACE_EVENT1("cobalt::browser", "BrowserModule::StartOrResumeInternal",
+               "is_start", is_start ? "true" : "false");
+  render_tree::ResourceProvider* resource_provider = NULL;
+  if (!renderer_module_) {
+    InitializeSystemWindow();
+    UpdateFromSystemWindow();
+    resource_provider = GetResourceProvider();
+  } else {
+    renderer_module_->Resume();
+
+    // Note that at this point, it is probable that this resource provider is
+    // different than the one that was managed in the associated call to
+    // Suspend().
+    resource_provider = GetResourceProvider();
+
+    media_module_->Resume(resource_provider);
+  }
+
+#if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+  // Start() and Resume() are not supported on platforms that allocate
+  // ArrayBuffers in GPU memory.
+  NOTREACHED();
+#endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+
+  if (is_start) {
+    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+                      Start(resource_provider));
+  } else {
+    FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
+                      Resume(resource_provider));
+  }
 }
 
 math::Size BrowserModule::GetViewportSize() {
@@ -1104,6 +1137,49 @@ math::Size BrowserModule::GetViewportSize() {
   // No window and no viewport size was requested, so we return a conservative
   // default.
   return math::Size(1280, 720);
+}
+
+void BrowserModule::ApplyAutoMemSettings() {
+  LOG(INFO) << "\n\n" << auto_mem_->ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+
+  // Web Module options.
+  options_.web_module_options.image_cache_capacity =
+      static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
+  options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
+      auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+  options_.web_module_options.javascript_options.gc_threshold_bytes =
+      static_cast<size_t>(
+          auto_mem_->javascript_gc_threshold_in_bytes()->value());
+  if (web_module_) {
+    web_module_->SetImageCacheCapacity(
+        auto_mem_->image_cache_size_in_bytes()->value());
+    web_module_->SetRemoteTypefaceCacheCapacity(
+        auto_mem_->remote_typeface_cache_size_in_bytes()->value());
+    web_module_->SetJavascriptGcThreshold(
+        auto_mem_->javascript_gc_threshold_in_bytes()->value());
+  }
+
+  // Renderer Module options.
+  options_.renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(auto_mem_->skia_cache_size_in_bytes()->value());
+  options_.renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem_->software_surface_cache_size_in_bytes()->value());
+  options_.renderer_module_options.offscreen_target_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem_->offscreen_target_cache_size_in_bytes()->value());
+
+  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
+      auto_mem_->skia_atlas_texture_dimensions()->value();
+  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
+    // Right now the bytes_per_pixel is assumed in the engine. Any other value
+    // is currently forbidden.
+    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
+
+    options_.renderer_module_options.skia_glyph_texture_atlas_dimensions =
+        math::Size(skia_glyph_atlas_texture_dimensions.width(),
+                   skia_glyph_atlas_texture_dimensions.height());
+  }
 }
 
 }  // namespace browser
