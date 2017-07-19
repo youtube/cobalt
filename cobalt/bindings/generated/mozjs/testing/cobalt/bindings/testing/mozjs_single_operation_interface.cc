@@ -29,6 +29,7 @@
 #include "cobalt/script/mozjs/mozjs_callback_interface.h"
 #include "cobalt/script/mozjs/util/exception_helpers.h"
 #include "cobalt/script/mozjs/util/stack_trace_helpers.h"
+#include "third_party/mozjs/js/jsd/jsd.h"
 #include "third_party/mozjs/js/src/jsapi.h"
 #include "third_party/mozjs/js/src/jscntxt.h"
 
@@ -68,7 +69,7 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
   bool success = false;
   base::optional<int32_t > cobalt_return_value;
   JSAutoRequest auto_request(context_);
-  JSExceptionState* previous_exception_state = JS_SaveExceptionState(context_);
+  AutoSaveExceptionState auto_save_exception_state(context_);
   ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
 
   // This could be set to NULL if it was garbage collected.
@@ -112,7 +113,6 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
   }
 
   *had_exception = !success;
-  JS_RestoreExceptionState(context_, previous_exception_state);
   return cobalt_return_value;
 }
 
