@@ -15,8 +15,6 @@
 
 from __future__ import print_function
 
-import os
-
 import config.starboard
 import gyp_utils
 import sdk_utils
@@ -53,10 +51,10 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     variables.update({
         'ANDROID_HOME': self.android_home,
         'NDK_HOME': self.android_ndk_home,
-        'NDK_SYSROOT': os.path.join(self.ndk_tools, 'sysroot'),
         'ANDROID_ABI': self.android_abi,
         'enable_remote_debugging': 0,
-        'include_path_platform_deploy_gypi': 'starboard/android/shared/platform_deploy.gypi',
+        'include_path_platform_deploy_gypi':
+            'starboard/android/shared/platform_deploy.gypi',
     })
     return variables
 

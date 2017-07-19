@@ -197,8 +197,6 @@
       'ANDROID_ABI=<(ANDROID_ABI)',
     ],
     'cflags': [
-      # Use the headers in the NDK
-      '--sysroot=<(NDK_SYSROOT)',
       # application_android uses the NDK glue
       '-I<(NDK_HOME)/sources/android/native_app_glue',
       # libwebp uses the cpufeatures library to detect ARM NEON support
