@@ -230,6 +230,13 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::playing(), event_listener);
   }
 
+  const EventListenerScriptValue* onresize() {
+    return GetAttributeEventListener(base::Tokens::resize());
+  }
+  void set_onresize(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::resize(), event_listener);
+  }
+
   const EventListenerScriptValue* onpointerdown() {
     return GetAttributeEventListener(base::Tokens::pointerdown());
   }

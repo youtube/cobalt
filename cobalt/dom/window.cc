@@ -141,7 +141,6 @@ Window::Window(int width, int height, float device_pixel_ratio,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           relay_on_load_event_(new RelayLoadEvent(this))),
       console_(new Console(execution_state)),
-      camera_3d_(new Camera3D(camera_3d)),
       ALLOW_THIS_IN_INITIALIZER_LIST(window_timers_(new WindowTimers(this))),
       ALLOW_THIS_IN_INITIALIZER_LIST(animation_frame_request_callback_list_(
           new AnimationFrameRequestCallbackList(this))),
@@ -161,6 +160,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
 #endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
+  SetCamera3D(camera_3d);
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -168,7 +168,6 @@ Window::Window(int width, int height, float device_pixel_ratio,
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&Window::StartDocumentLoad, this, fetcher_factory,
                             url, dom_parser, error_callback));
-  camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
 }
 
 void Window::StartDocumentLoad(
@@ -430,6 +429,28 @@ void Window::SetApplicationState(base::ApplicationState state) {
 void Window::SetSynchronousLayoutCallback(
     const base::Closure& synchronous_layout_callback) {
   document_->set_synchronous_layout_callback(synchronous_layout_callback);
+}
+
+void Window::SetSize(int width, int height, float device_pixel_ratio) {
+  if (width_ == width && height_ == height &&
+      device_pixel_ratio_ == device_pixel_ratio) {
+    return;
+  }
+
+  width_ = width;
+  height_ = height;
+  device_pixel_ratio_ = device_pixel_ratio;
+  screen_->SetSize(width, height);
+
+  // This will cause layout invalidation.
+  document_->SetViewport(math::Size(width, height));
+
+  PostToDispatchEvent(FROM_HERE, base::Tokens::resize());
+}
+
+void Window::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
+  camera_3d_ = new Camera3D(camera_3d);
+  camera_3d_->StartOrientationEvents(base::AsWeakPtr(this));
 }
 
 void Window::OnWindowFocusChanged(bool has_focus) {
