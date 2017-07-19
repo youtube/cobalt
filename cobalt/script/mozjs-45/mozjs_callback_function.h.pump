@@ -91,36 +91,35 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
     if (!function) {
       DLOG(WARNING) << "Function was garbage collected.";
       callback_result.exception = true;
-    } else {
-      JSAutoCompartment auto_compartment(context_, function);
-      JSExceptionState* previous_exception_state =
-          JS_SaveExceptionState(context_);
+      return callback_result;
+    }
 
-      // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
-      // Callback 'this' is set to null, unless overridden by other specifications
-      JS::RootedValue this_value(context_, JS::NullValue());
-      JS::RootedValue return_value(context_);
-      const int kNumArguments = $(ARITY);
+    JSAutoCompartment auto_compartment(context_, function);
+    JS::AutoSaveExceptionState auto_save_exception_state(context_);
+
+    // https://www.w3.org/TR/WebIDL/#es-invoking-callback-functions
+    // Callback 'this' is set to null, unless overridden by other specifications
+    JS::RootedValue this_value(context_, JS::NullValue());
+    JS::RootedValue return_value(context_);
+    const int kNumArguments = $(ARITY);
 
 $if ARITY > 0 [[
-      JS::AutoValueArray<$(ARITY)> args(context_);
-      $for ARG [[ToJSValue(context_, a$(ARG), args[$(ARG - 1)]);
-      ]]
+    JS::AutoValueArray<$(ARITY)> args(context_);
+    $for ARG [[ToJSValue(context_, a$(ARG), args[$(ARG - 1)]);
+    ]]
 
-      bool call_result = JS::Call(context_, this_value, function, args, &return_value);
+    bool call_result = JS::Call(context_, this_value, function, args, &return_value);
 ]] $else [[
-      JS::AutoValueVector args(context_);
-      bool call_result = JS::Call(context_, this_value, function, args, &return_value);
+    JS::AutoValueVector args(context_);
+    bool call_result = JS::Call(context_, this_value, function, args, &return_value);
 ]]
 
-      if (!call_result) {
-        DLOG(WARNING) << "Exception in callback: "
-                      << util::GetExceptionString(context_);
-        callback_result.exception = true;
-      } else {
-        callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
-      }
-      JS_RestoreExceptionState(context_, previous_exception_state);
+    if (!call_result) {
+      DLOG(WARNING) << "Exception in callback: "
+                    << util::GetExceptionString(context_);
+      callback_result.exception = true;
+    } else {
+      callback_result = ConvertCallbackReturnValue<R>(context_, return_value);
     }
     return callback_result;
   }
