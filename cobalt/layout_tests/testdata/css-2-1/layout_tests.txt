@@ -6,6 +6,8 @@
 10-1-containing-block-should-be-ancestor-padding-edge-for-absolutely-positioned-elements
 10-1-containing-block-should-be-ancestor-padding-edge-for-percentage-of-absolutely-positioned-elements
 10-1-containing-block-above-stacking-context-should-be-padding-edge-for-absolute-positioned-elements
+10-1-non-positioned-stacking-context-above-containing-block-should-apply-proper-offset-to-children
+10-1-positioned-stacking-context-above-fixed-containing-block-should-apply-proper-offset-to-children
 10-3-1-auto-margin-should-become-zero-in-inline-non-replaced-elements
 10-3-1-width-should-not-apply-to-inline-non-replaced-elements
 10-3-2-auto-margin-should-become-zero-in-inline-replaced-elements

@@ -14,6 +14,8 @@
 
 #include "cobalt/layout/container_box.h"
 
+#include <algorithm>
+
 #include "cobalt/cssom/keyword_value.h"
 #include "cobalt/cssom/number_value.h"
 #include "cobalt/layout/used_style.h"
@@ -413,11 +415,6 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
             : child_box->GetStackingContext();
 
     while (current_box != end_box) {
-      if (!current_box) {
-        DLOG(WARNING)
-            << "Unsupported stacking context and containing block relation.";
-        break;
-      }
       // It should not be possible to have a transform between the stacking
       // context and containing block.
       DCHECK(!current_box->IsTransformed());
@@ -426,9 +423,34 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
       relative_position +=
           current_box->margin_box_offset_from_containing_block();
 
+      const Box* next_box = current_box->GetContainingBlock();
+      if (!next_box) {
+        break;
+      }
+
       if (current_box->computed_style()->position() ==
           cssom::KeywordValue::GetAbsolute()) {
-        relative_position -= current_box->GetContainingBlock()
+        relative_position -= next_box->GetContentBoxOffsetFromPaddingBox();
+      }
+      current_box = next_box;
+    }
+
+    // If |current_box| does not equal |end_box|, then |end_box| was skipped
+    // during the walk up the tree. Initiate a second walk up the tree from the
+    // end box to the root (which is where the first walk ended).
+    // The end box can be skipped during the initial walk both when the end box
+    // is not positioned and also when a fixed position box is encountered
+    // during the walk. Subtract the offsets during this walk to remove the
+    // extra offsets added after passing the end box during the first walk.
+    std::swap(current_box, end_box);
+    while (current_box != end_box) {
+      relative_position -= current_box->GetContentBoxOffsetFromMarginBox();
+      relative_position -=
+          current_box->margin_box_offset_from_containing_block();
+
+      if (current_box->computed_style()->position() ==
+          cssom::KeywordValue::GetAbsolute()) {
+        relative_position += current_box->GetContainingBlock()
                                  ->GetContentBoxOffsetFromPaddingBox();
       }
       current_box = current_box->GetContainingBlock();
