@@ -1,0 +1,53 @@
+# Copyright 2014 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Modifications Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+config("gmock_direct_config") {
+  include_dirs = [ "include" ]
+}
+
+static_library("gmock") {
+  testonly = true
+  sources = [
+    "include/gmock/gmock-actions.h",
+    "include/gmock/gmock-cardinalities.h",
+    "include/gmock/gmock-generated-actions.h",
+    "include/gmock/gmock-generated-function-mockers.h",
+    "include/gmock/gmock-generated-matchers.h",
+    "include/gmock/gmock-generated-nice-strict.h",
+    "include/gmock/gmock-matchers.h",
+    "include/gmock/gmock-spec-builders.h",
+    "include/gmock/gmock.h",
+    "include/gmock/internal/gmock-generated-internal-utils.h",
+    "include/gmock/internal/gmock-internal-utils.h",
+    "include/gmock/internal/gmock-port.h",
+    "src/gmock-cardinalities.cc",
+    "src/gmock-internal-utils.cc",
+    "src/gmock-matchers.cc",
+    "src/gmock-spec-builders.cc",
+    "src/gmock.cc",
+    "../gmock_mutant.h",
+  ]
+
+  include_dirs = [ "." ]
+
+  public_configs = [ ":gmock_direct_config" ]
+
+  public_deps = [
+    "//testing/gtest",
+  ]
+}
