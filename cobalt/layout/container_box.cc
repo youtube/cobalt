@@ -414,7 +414,7 @@ Vector2dLayoutUnit GetOffsetFromStackingContextToContainingBlock(
 
     while (current_box != end_box) {
       if (!current_box) {
-        NOTREACHED()
+        DLOG(WARNING)
             << "Unsupported stacking context and containing block relation.";
         break;
       }
