@@ -665,7 +665,7 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     animate_node_builder.Add(
         image_node,
         base::Bind(&loader::image::AnimatedImage::AnimateCallback,
-                   animated_image, image_rect,
+                   animated_image->GetFrameProvider(), image_rect,
                    image_transform_data.image_node_transform_matrix));
 
     background_node_ = new render_tree::animations::AnimateNode(

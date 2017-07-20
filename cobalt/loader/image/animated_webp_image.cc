@@ -16,6 +16,7 @@
 
 #include "cobalt/loader/image/animated_webp_image.h"
 
+#include "base/synchronization/waitable_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/brush.h"
@@ -52,15 +53,22 @@ AnimatedWebPImage::AnimatedWebPImage(
       current_frame_index_(0),
       next_frame_index_(0),
       should_dispose_previous_frame_to_background_(false),
-      resource_provider_(resource_provider) {}
+      resource_provider_(resource_provider),
+      frame_provider_(new FrameProvider()) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::AnimatedWebPImage()");
+}
 
-scoped_refptr<render_tree::Image> AnimatedWebPImage::GetFrame() {
-  base::AutoLock lock(lock_);
-  return current_canvas_;
+scoped_refptr<const AnimatedImage::FrameProvider>
+AnimatedWebPImage::GetFrameProvider() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::GetFrameProvider()");
+  return frame_provider_;
 }
 
 void AnimatedWebPImage::Play(
     const scoped_refptr<base::MessageLoopProxy>& message_loop) {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::Play()");
   base::AutoLock lock(lock_);
 
   if (is_playing_) {
@@ -75,17 +83,21 @@ void AnimatedWebPImage::Play(
 }
 
 void AnimatedWebPImage::Stop() {
-  if (!decode_closure_.callback().is_null()) {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::Stop()");
+  base::AutoLock lock(lock_);
+  if (is_playing_) {
     message_loop_->PostTask(
         FROM_HERE,
         base::Bind(&AnimatedWebPImage::StopInternal, base::Unretained(this)));
   }
 }
 
-void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
+void AnimatedWebPImage::AppendChunk(const uint8* data, size_t size) {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::AppendChunk()");
+  TRACK_MEMORY_SCOPE("Rendering");
   base::AutoLock lock(lock_);
 
-  data_buffer_.insert(data_buffer_.end(), data, data + input_byte);
+  data_buffer_.insert(data_buffer_.end(), data, data + size);
   WebPData webp_data = {&data_buffer_[0], data_buffer_.size()};
   WebPDemuxDelete(demux_);
   demux_ = WebPDemuxPartial(&webp_data, &demux_state_);
@@ -116,19 +128,38 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t input_byte) {
 }
 
 AnimatedWebPImage::~AnimatedWebPImage() {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::~AnimatedWebPImage()");
   Stop();
-  base::AutoLock lock(lock_);
+  bool is_playing = false;
+  {
+    base::AutoLock lock(lock_);
+    is_playing = is_playing_;
+  }
+  if (is_playing) {
+    base::WaitableEvent fence(true /* manual reset */,
+                              false /* initially unsignaled */);
+    message_loop_->PostTask(FROM_HERE,
+                            base::Bind(&base::WaitableEvent::Signal,
+                                        base::Unretained(&fence)));
+    fence.Wait();
+  }
   WebPDemuxDelete(demux_);
 }
 
 void AnimatedWebPImage::StopInternal() {
-  is_playing_ = false;
-  decode_closure_.Cancel();
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::StopInternal()");
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  base::AutoLock lock(lock_);
+  if (!decode_closure_.callback().is_null()) {
+    is_playing_ = false;
+    decode_closure_.Cancel();
+  }
 }
 
 void AnimatedWebPImage::PlayInternal() {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::PlayInternal()");
   current_frame_time_ = base::TimeTicks::Now();
-  DCHECK(message_loop_);
   message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
@@ -136,8 +167,11 @@ void AnimatedWebPImage::PlayInternal() {
 
 void AnimatedWebPImage::DecodeFrames() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeFrames()");
+  TRACK_MEMORY_SCOPE("Rendering");
   DCHECK(is_playing_ && received_first_frame_);
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  base::AutoLock lock(lock_);
 
   if (decode_closure_.callback().is_null()) {
     decode_closure_.Reset(
@@ -156,7 +190,6 @@ void AnimatedWebPImage::DecodeFrames() {
   current_frame_index_ = next_frame_index_;
 
   // Set up the next time to call the decode callback.
-  base::AutoLock lock(lock_);
   if (is_playing_) {
     base::TimeDelta delay = next_frame_time_ - base::TimeTicks::Now();
     const base::TimeDelta min_delay =
@@ -182,7 +215,11 @@ void RecordImage(scoped_refptr<render_tree::Image>* image_pointer,
 }  // namespace
 
 bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
-  base::AutoLock lock(lock_);
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::DecodeOneFrame()");
+  TRACK_MEMORY_SCOPE("Rendering");
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  lock_.AssertAcquired();
+
   WebPIterator webp_iterator;
   scoped_refptr<render_tree::Image> next_frame_image;
 
@@ -239,6 +276,7 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
         new render_tree::CompositionNode(builder);
 
     current_canvas_ = resource_provider_->DrawOffscreenImage(root);
+    frame_provider_->SetFrame(current_canvas_);
   }
 
   if (webp_iterator.dispose_method == WEBP_MUX_DISPOSE_BACKGROUND) {
@@ -257,7 +295,12 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
 }
 
 void AnimatedWebPImage::UpdateTimelineInfo() {
-  base::AutoLock lock(lock_);
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::UpdateTimelineInfo()");
+  TRACK_MEMORY_SCOPE("Rendering");
+  DCHECK(message_loop_->BelongsToCurrentThread());
+  lock_.AssertAcquired();
+
   base::TimeTicks current_time = base::TimeTicks::Now();
   next_frame_index_ = current_frame_index_ ? current_frame_index_ : 1;
   while (true) {
@@ -293,6 +336,8 @@ void AnimatedWebPImage::UpdateTimelineInfo() {
 
 scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData(
     const math::Size& size) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedWebPImage::AllocateImageData()");
   TRACK_MEMORY_SCOPE("Rendering");
   scoped_ptr<render_tree::ImageData> image_data =
       resource_provider_->AllocateImageData(

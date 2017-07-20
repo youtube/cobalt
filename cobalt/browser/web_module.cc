@@ -770,6 +770,9 @@ void WebModule::Impl::SuspendLoaders() {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+
+  // Clear out any currently tracked animating images.
+  animated_image_tracker_->Reset();
 }
 
 void WebModule::Impl::FinishSuspend() {
