@@ -47,8 +47,8 @@
 //
 // The first event that a Starboard application receives is either |Start|
 // (kSbEventTypeStart) or |Preload| (kSbEventTypePreload). |Start| puts the
-// application application in the |STARTED| state, whereas |Preload| puts the
-// application in the |PRELOADING| state.
+// application in the |STARTED| state, whereas |Preload| puts the application in
+// the |PRELOADING| state.
 //
 // |PRELOADING| can only happen as the first application state. In this state,
 // the application should start and run as normal, but will not receive any
