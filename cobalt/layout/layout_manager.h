@@ -67,6 +67,7 @@ class LayoutManager {
                 const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
                 const int dom_max_element_depth,
                 const float layout_refresh_rate, const std::string& language,
+                bool enable_image_animations,
                 LayoutStatTracker* layout_stat_tracker);
   ~LayoutManager();
 
