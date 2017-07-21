@@ -19,6 +19,7 @@
 #include "cobalt/media/base/demuxer_stream.h"
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/timestamp_constants.h"
+#include "nb/multipart_allocator.h"
 #include "starboard/memory.h"
 #include "starboard/types.h"
 
@@ -38,22 +39,7 @@ class MEDIA_EXPORT DecoderBuffer
     : public base::RefCountedThreadSafe<DecoderBuffer> {
  public:
   typedef DemuxerStream::Type Type;
-
-  class Allocator {
-   public:
-    typedef DecoderBuffer::Type Type;
-
-    virtual ~Allocator() {}
-
-    // Allocate a memory block that contains at least |size| bytes and its
-    // address is aligned to |alignment|.  It returns NULL on failure.
-    virtual void* Allocate(Type type, size_t size, size_t alignment) = 0;
-    // Free a memory block previously allocated by calling Allocate().  No-op on
-    // NULL.
-    virtual void Free(Type type, void* ptr) = 0;
-  };
-
-  static const size_t kAlignmentSize = 128;
+  typedef nb::MultipartAllocator Allocator;
 
   // Create a DecoderBuffer whose |data_| points to a memory with at least
   // |size| bytes.  Buffer will be padded and aligned as necessary.
@@ -68,15 +54,6 @@ class MEDIA_EXPORT DecoderBuffer
                                                const uint8_t* data,
                                                size_t size);
 
-  // Create a DecoderBuffer whose |data_| is copied from |data| and |side_data_|
-  // is copied from |side_data|. Buffers will be padded and aligned as necessary
-  // Data pointers must not be NULL and sizes must be >= 0. The buffer's
-  // |is_key_frame_| will default to false.
-  static scoped_refptr<DecoderBuffer> CopyFrom(Allocator* allocator, Type type,
-                                               const uint8_t* data, size_t size,
-                                               const uint8_t* side_data,
-                                               size_t side_data_size);
-
   // Create a DecoderBuffer indicating we've reached end of stream.
   //
   // Calling any method other than end_of_stream() on the resulting buffer
@@ -85,11 +62,11 @@ class MEDIA_EXPORT DecoderBuffer
 
   // Returns the allocator.  This is usually used when creating a copy of the
   // buffer.
-  Allocator* allocator() const { return allocator_; }
+  Allocator* allocator() const { return data_.allocator(); }
 
   // Gets the parser's media type associated with this buffer. Value is
   // meaningless for EOS buffers.
-  Type type() const { return type_; }
+  Type type() const { return data_.type(); }
   const char* GetTypeName() const;
 
   base::TimeDelta timestamp() const {
@@ -114,39 +91,21 @@ class MEDIA_EXPORT DecoderBuffer
     duration_ = duration;
   }
 
-  bool has_data() const { return data_.get() != NULL; }
+  bool has_data() const { return allocations().number_of_buffers() > 0; }
 
-  const uint8_t* data() const {
-    DCHECK(!end_of_stream());
-    return data_.get();
+  const Allocator::Allocations& allocations() const {
+    return data_.allocations();
   }
+  Allocator::Allocations& allocations() { return data_.allocations(); }
 
-  uint8_t* writable_data() {
-    DCHECK(!end_of_stream());
-    return data_.get();
-  }
-
-  size_t allocated_size() const { return allocated_size_; }
   size_t data_size() const {
     DCHECK(!end_of_stream());
-    return size_;
+    return data_.allocations().size();
   }
 
   void shrink_to(size_t size) {
-    DCHECK_LE(size, allocated_size_);
-    size_ = size;
-  }
-
-  bool has_side_data() const { return side_data_.get() != NULL; }
-
-  const uint8_t* side_data() const {
-    DCHECK(!end_of_stream());
-    return side_data_.get();
-  }
-
-  size_t side_data_size() const {
-    DCHECK(!end_of_stream());
-    return side_data_size_;
+    DCHECK_GE(static_cast<int>(size), 0);
+    allocations().ShrinkTo(static_cast<int>(size));
   }
 
   // A discard window indicates the amount of data which should be discard from
@@ -176,7 +135,7 @@ class MEDIA_EXPORT DecoderBuffer
   }
 
   // If there's no data in this buffer, it represents end of stream.
-  bool end_of_stream() const { return data_.get() == NULL; }
+  bool end_of_stream() const { return !has_data(); }
 
   // Indicates this buffer is part of a splice around |splice_timestamp_|.
   // Returns kNoTimestamp if the buffer is not part of a splice.
@@ -220,41 +179,39 @@ class MEDIA_EXPORT DecoderBuffer
   // set to NULL and |buffer_size_| to 0.  |is_key_frame_| will default to
   // false.
   DecoderBuffer(Allocator* allocator, Type type, const uint8_t* data,
-                size_t size, const uint8_t* side_data, size_t side_data_size);
+                size_t size);
+
+  // Allocates a buffer to copy the data in |allocations|.  Buffer will be
+  // padded and aligned as necessary.  |is_key_frame_| will default to false.
+  DecoderBuffer(Allocator* allocator, Type type,
+                Allocator::Allocations allocations);
+
   virtual ~DecoderBuffer();
 
  private:
   class ScopedAllocatorPtr {
    public:
-    // Extra bytes allocated at the end of a buffer to ensure that the buffer
-    // can be use optimally by specific instructions like SIMD.
-    static const size_t kPaddingSize = 32;
-
     ScopedAllocatorPtr(Allocator* allocator, Type type, size_t size);
     ~ScopedAllocatorPtr();
-    uint8_t* get() { return ptr_; }
-    const uint8_t* get() const { return ptr_; }
+
+    const Allocator::Allocations& allocations() const { return allocations_; }
+    Allocator::Allocations& allocations() { return allocations_; }
+
+    Allocator* allocator() const { return allocator_; }
+    Type type() const { return type_; }
 
    private:
     Allocator* allocator_;
     Type type_;
-    uint8_t* ptr_;
+    Allocator::Allocations allocations_;
 
     DISALLOW_COPY_AND_ASSIGN(ScopedAllocatorPtr);
   };
 
-  Allocator* allocator_;
-
-  Type type_;
-
   base::TimeDelta timestamp_;
   base::TimeDelta duration_;
 
-  const size_t allocated_size_;
-  size_t size_;
   ScopedAllocatorPtr data_;
-  size_t side_data_size_;
-  ScopedAllocatorPtr side_data_;
   scoped_ptr<DecryptConfig> decrypt_config_;
   DiscardPadding discard_padding_;
   base::TimeDelta splice_timestamp_;

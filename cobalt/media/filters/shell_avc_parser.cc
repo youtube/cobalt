@@ -54,35 +54,42 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
     NOTREACHED() << "bad input to Prepend()";
     return false;
   }
-  uint8* prepend_buffer = buffer->writable_data();
-  if (!prepend_buffer) {
-    NOTREACHED() << "empty/undersized buffer to Prepend()";
-    return false;
-  }
   if (au->GetType() == DemuxerStream::VIDEO) {
-    if (au->AddPrepend())
-      SbMemoryCopy(prepend_buffer, video_prepend_, video_prepend_size_);
+    if (au->AddPrepend()) {
+      if (buffer->data_size() <= video_prepend_size_) {
+        NOTREACHED() << "empty/undersized buffer to Prepend()";
+        return false;
+      }
+      buffer->allocations().Write(0, video_prepend_, video_prepend_size_);
+    }
   } else if (au->GetType() == DemuxerStream::AUDIO) {
 #if defined(COBALT_WIN)
     // We use raw AAC instead of ADTS on these platforms.
     DCHECK(audio_prepend_.empty());
     return true;
 #endif
-    if (audio_prepend_.empty())  // valid ADTS header not available
+    if (audio_prepend_.size() < 6) {
+      // valid ADTS header not available
       return false;
+    }
+    if (buffer->data_size() <= audio_prepend_.size()) {
+      NOTREACHED() << "empty/undersized buffer to Prepend()";
+      return false;
+    }
     // audio, need to copy ADTS header and then add buffer size
     uint32 buffer_size = au->GetSize() + audio_prepend_.size();
     // we can't express an AU size larger than 13 bits, something's bad here.
     if (buffer_size & 0xffffe000) {
       return false;
     }
-    SbMemoryCopy(prepend_buffer, &audio_prepend_[0], audio_prepend_.size());
+    std::vector<uint8_t> audio_prepend(audio_prepend_);
     // OR size into buffer, byte 3 gets 2 MSb of 13-bit size
-    prepend_buffer[3] |= (uint8)((buffer_size & 0x00001800) >> 11);
+    audio_prepend[3] |= (uint8)((buffer_size & 0x00001800) >> 11);
     // byte 4 gets bits 10-3 of size
-    prepend_buffer[4] = (uint8)((buffer_size & 0x000007f8) >> 3);
+    audio_prepend[4] = (uint8)((buffer_size & 0x000007f8) >> 3);
     // byte 5 gets bits 2-0 of size
-    prepend_buffer[5] |= (uint8)((buffer_size & 0x00000007) << 5);
+    audio_prepend[5] |= (uint8)((buffer_size & 0x00000007) << 5);
+    buffer->allocations().Write(0, audio_prepend.data(), audio_prepend.size());
   } else {
     NOTREACHED() << "unsupported demuxer stream type.";
     return false;
@@ -424,14 +431,14 @@ bool ShellAVCParser::BuildAnnexBPrepend(uint8* sps, uint32 sps_size, uint8* pps,
     return false;
   }
   // start code for sps comes first
-  endian_util::store_uint32_big_endian(kAnnexBStartCode, video_prepend_);
+  SbMemoryCopy(video_prepend_, kAnnexBStartCode, kAnnexBStartCodeSize);
   // followed by sps body
   SbMemoryCopy(video_prepend_ + kAnnexBStartCodeSize, sps, sps_size);
   int prepend_offset = kAnnexBStartCodeSize + sps_size;
   if (pps_size > 0) {
     // pps start code comes next
-    endian_util::store_uint32_big_endian(kAnnexBStartCode,
-                                         video_prepend_ + prepend_offset);
+    SbMemoryCopy(video_prepend_ + prepend_offset, kAnnexBStartCode,
+                 kAnnexBStartCodeSize);
     prepend_offset += kAnnexBStartCodeSize;
     // followed by pps
     SbMemoryCopy(video_prepend_ + prepend_offset, pps, pps_size);
