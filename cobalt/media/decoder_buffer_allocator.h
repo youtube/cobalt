@@ -17,7 +17,8 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/media/base/decoder_buffer.h"
-#include "nb/memory_pool.h"
+#include "nb/bidirectional_fit_reuse_allocator.h"
+#include "nb/starboard_memory_allocator.h"
 #include "starboard/common/locked_ptr.h"
 
 namespace cobalt {
@@ -28,12 +29,26 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() OVERRIDE;
 
-  void* Allocate(Type type, size_t size, size_t alignment) OVERRIDE;
-  void Free(Type type, void* ptr) OVERRIDE;
+  Allocations Allocate(size_t size, size_t alignment,
+                       intptr_t context) OVERRIDE;
+  void Free(Allocations allocations) OVERRIDE;
 
  private:
-  void* memory_block_;
-  starboard::LockedPtr<nb::FirstFitMemoryPool> memory_pool_;
+  class ReuseAllcator : public nb::BidirectionalFitReuseAllocator {
+   public:
+    ReuseAllcator(Allocator* fallback_allocator, std::size_t initial_capacity,
+                  std::size_t allocation_increment);
+
+    FreeBlockSet::iterator FindBestFreeBlock(
+        std::size_t size, std::size_t alignment, intptr_t context,
+        FreeBlockSet::iterator begin, FreeBlockSet::iterator end,
+        bool* allocate_from_front) SB_OVERRIDE;
+  };
+
+  void UpdateAllocationRecord(std::size_t blocks = 1) const;
+
+  nb::StarboardMemoryAllocator fallback_allocator_;
+  starboard::LockedPtr<ReuseAllcator> reuse_allcator_;
 };
 
 }  // namespace media

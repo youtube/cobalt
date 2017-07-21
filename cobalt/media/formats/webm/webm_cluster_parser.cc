@@ -509,9 +509,9 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     // TODO(wolenetz/acolwell): Validate and use a common cross-parser TrackId
     // type with remapped bytestream track numbers and allow multiple tracks as
     // applicable. See https://crbug.com/341581.
-    buffer = StreamParserBuffer::CopyFrom(
-        buffer_allocator_, data + data_offset, size - data_offset, additional,
-        additional_size, is_keyframe, buffer_type, track_num);
+    buffer = StreamParserBuffer::CopyFrom(buffer_allocator_, data + data_offset,
+                                          size - data_offset, is_keyframe,
+                                          buffer_type, track_num);
 
     if (decrypt_config) buffer->set_decrypt_config(decrypt_config.Pass());
   } else {
@@ -527,8 +527,7 @@ bool WebMClusterParser::OnBlock(bool is_simple_block, int track_num,
     // applicable. See https://crbug.com/341581.
     buffer = StreamParserBuffer::CopyFrom(
         buffer_allocator_, reinterpret_cast<const uint8_t*>(content.data()),
-        content.length(), &side_data[0], side_data.size(), true, buffer_type,
-        track_num);
+        content.length(), true, buffer_type, track_num);
   }
 
   buffer->set_timestamp(timestamp);
