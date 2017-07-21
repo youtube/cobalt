@@ -24,9 +24,20 @@
 
 namespace nb {
 
+namespace {
+
 // Minimum block size to avoid extremely small blocks inside the block list and
 // to ensure that a zero sized allocation will return a non-zero sized block.
 const std::size_t kMinBlockSizeBytes = 16;
+// Using a minimum value for size and alignment keeps things rounded and aligned
+// and help us avoid creating tiny and/or badly misaligned free blocks.  Also
+// ensures even for a 0-byte request will get a unique block.
+const std::size_t kMinAlignment = 16;
+// The max lines of allocation to print inside PrintAllocations().  Set to 0 to
+// print all allocations.
+const int kMaxAllocationLinesToPrint = 0;
+
+}  // namespace
 
 bool ReuseAllocatorBase::MemoryBlock::Merge(const MemoryBlock& other) {
   if (AsInteger(address_) + size_ == AsInteger(other.address_)) {
@@ -106,14 +117,9 @@ void* ReuseAllocatorBase::Allocate(std::size_t size) {
 }
 
 void* ReuseAllocatorBase::Allocate(std::size_t size, std::size_t alignment) {
-  // Keeping things rounded and aligned will help us avoid creating tiny and/or
-  // badly misaligned free blocks.  Also ensure even for a 0-byte request we
-  // return a unique block.
-  const std::size_t kMinAlignment = 16;
   size = AlignUp(std::max(size, kMinAlignment), kMinAlignment);
   alignment = AlignUp(std::max<std::size_t>(alignment, 1), kMinAlignment);
 
-  MemoryBlock allocated_block;
   bool allocate_from_front;
   FreeBlockSet::iterator free_block_iter =
       FindFreeBlock(size, alignment, free_blocks_.begin(), free_blocks_.end(),
@@ -130,6 +136,7 @@ void* ReuseAllocatorBase::Allocate(std::size_t size, std::size_t alignment) {
   // The block is big enough.  We may waste some space due to alignment.
   RemoveFreeBlock(free_block_iter);
 
+  MemoryBlock allocated_block;
   MemoryBlock free_block;
   block.Allocate(size, alignment, allocate_from_front, &allocated_block,
                  &free_block);
@@ -151,8 +158,9 @@ void ReuseAllocatorBase::Free(void* memory) {
 void ReuseAllocatorBase::PrintAllocations() const {
   typedef std::map<std::size_t, std::size_t> SizesHistogram;
   SizesHistogram sizes_histogram;
-  for (AllocatedBlockMap::const_iterator iter = allocated_blocks_.begin();
-       iter != allocated_blocks_.end(); ++iter) {
+
+  for (auto iter = allocated_blocks_.begin(); iter != allocated_blocks_.end();
+       ++iter) {
     std::size_t block_size = iter->second.size();
     if (sizes_histogram.find(block_size) == sizes_histogram.end()) {
       sizes_histogram[block_size] = 0;
@@ -160,11 +168,49 @@ void ReuseAllocatorBase::PrintAllocations() const {
     sizes_histogram[block_size] = sizes_histogram[block_size] + 1;
   }
 
+  SB_LOG(INFO) << "Total allocation: " << total_allocated_ << " bytes in "
+               << allocated_blocks_.size() << " blocks";
+
+  int lines = 0;
+  std::size_t accumulated_blocks = 0;
   for (SizesHistogram::const_iterator iter = sizes_histogram.begin();
        iter != sizes_histogram.end(); ++iter) {
-    SB_LOG(INFO) << iter->first << " : " << iter->second;
+    if (lines == kMaxAllocationLinesToPrint - 1 &&
+        sizes_histogram.size() > kMaxAllocationLinesToPrint) {
+      SB_LOG(INFO) << "\t" << iter->first << ".."
+                   << sizes_histogram.rbegin()->first << " : "
+                   << allocated_blocks_.size() - accumulated_blocks;
+      break;
+    }
+    SB_LOG(INFO) << "\t" << iter->first << " : " << iter->second;
+    ++lines;
+    accumulated_blocks += iter->second;
   }
-  SB_LOG(INFO) << "Total allocations: " << allocated_blocks_.size();
+
+  SB_LOG(INFO) << "Total free blocks: " << free_blocks_.size();
+  sizes_histogram.clear();
+  for (auto iter = free_blocks_.begin(); iter != free_blocks_.end(); ++iter) {
+    if (sizes_histogram.find(iter->size()) == sizes_histogram.end()) {
+      sizes_histogram[iter->size()] = 0;
+    }
+    sizes_histogram[iter->size()] = sizes_histogram[iter->size()] + 1;
+  }
+
+  lines = 0;
+  accumulated_blocks = 0;
+  for (SizesHistogram::const_iterator iter = sizes_histogram.begin();
+       iter != sizes_histogram.end(); ++iter) {
+    if (lines == kMaxAllocationLinesToPrint - 1 &&
+        sizes_histogram.size() > kMaxAllocationLinesToPrint) {
+      SB_LOG(INFO) << "\t" << iter->first << ".."
+                   << sizes_histogram.rbegin()->first << " : "
+                   << allocated_blocks_.size() - accumulated_blocks;
+      break;
+    }
+    SB_LOG(INFO) << "\t" << iter->first << " : " << iter->second;
+    ++lines;
+    accumulated_blocks += iter->second;
+  }
 }
 
 bool ReuseAllocatorBase::TryFree(void* memory) {
@@ -186,6 +232,59 @@ bool ReuseAllocatorBase::TryFree(void* memory) {
 
   allocated_blocks_.erase(it);
   return true;
+}
+
+void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
+                                            intptr_t context,
+                                            std::size_t* size_hint) {
+  const std::size_t kMinAlignment = 16;
+  std::size_t size =
+      AlignUp(std::max(*size_hint, kMinAlignment), kMinAlignment);
+  alignment = AlignUp(std::max<std::size_t>(alignment, 1), kMinAlignment);
+
+  bool allocate_from_front;
+  FreeBlockSet::iterator free_block_iter =
+      FindBestFreeBlock(size, alignment, context, free_blocks_.begin(),
+                        free_blocks_.end(), &allocate_from_front);
+
+  if (free_block_iter == free_blocks_.end()) {
+    free_block_iter = ExpandToFit(*size_hint, alignment);
+    if (free_block_iter == free_blocks_.end()) {
+      return NULL;
+    }
+  }
+
+  MemoryBlock block = *free_block_iter;
+  // The block is big enough.  We may waste some space due to alignment.
+  RemoveFreeBlock(free_block_iter);
+
+  MemoryBlock allocated_block;
+  void* user_address;
+
+  if (block.CanFullfill(size, alignment)) {
+    MemoryBlock free_block;
+    block.Allocate(size, alignment, allocate_from_front, &allocated_block,
+                   &free_block);
+    if (free_block.size() > 0) {
+      SB_DCHECK(free_block.address());
+      AddFreeBlock(free_block);
+    }
+    user_address = AlignUp(allocated_block.address(), alignment);
+  } else {
+    allocated_block = block;
+    user_address = AlignUp(allocated_block.address(), alignment);
+  }
+  SB_DCHECK(AsInteger(user_address) >= AsInteger(allocated_block.address()));
+  uintptr_t offset =
+      AsInteger(user_address) - AsInteger(allocated_block.address());
+  SB_DCHECK(allocated_block.size() >= offset);
+  if (allocated_block.size() - offset < *size_hint) {
+    *size_hint = allocated_block.size() - offset;
+  }
+
+  AddAllocatedBlock(user_address, allocated_block);
+
+  return user_address;
 }
 
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
