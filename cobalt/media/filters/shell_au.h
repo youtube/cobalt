@@ -24,9 +24,8 @@ namespace media {
 
 class ShellParser;
 
-// AnnexB start code is 4 bytes 0x00000001 big-endian
 static const int kAnnexBStartCodeSize = 4;
-static const uint32 kAnnexBStartCode = 0x00000001;
+static const uint8_t kAnnexBStartCode[] = {0, 0, 0, 1};
 
 // The basic unit of currency between ShellDemuxer and ShellParser, the ShellAU
 // defines all needed information for a given AccessUnit (Frame) of encoded

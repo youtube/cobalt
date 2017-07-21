@@ -61,6 +61,7 @@ class ShellDemuxerStream : public DemuxerStream {
   void FlushBuffers();
   void Stop();
   base::TimeDelta GetLastBufferTimestamp() const;
+  size_t GetTotalBufferSize() const;
 
  private:
   // The Ranges object doesn't offer a complement object so we rebuild
@@ -90,6 +91,8 @@ class ShellDemuxerStream : public DemuxerStream {
 
   typedef std::deque<ReadCB> ReadQueue;
   ReadQueue read_queue_;
+
+  size_t total_buffer_size_;
 
   DISALLOW_COPY_AND_ASSIGN(ShellDemuxerStream);
 };
