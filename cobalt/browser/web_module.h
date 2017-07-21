@@ -175,6 +175,10 @@ class WebModule : public LifecycleObserver {
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.
     float video_playback_rate_multiplier;
+
+    // Allows image animations to be enabled/disabled.  Its default value
+    // is true to enable them.
+    bool enable_image_animations;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
