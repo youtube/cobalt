@@ -46,6 +46,7 @@ extern const char kVideoContainerSizeOverride[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverListenIp[];
 extern const char kWebDriverPort[];
+extern const char kDisableImageAnimations[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kDisableNavigationWhitelist[];

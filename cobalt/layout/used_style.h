@@ -68,9 +68,10 @@ class UsedStyleProvider {
       const scoped_refptr<render_tree::Node>&, float max_horizontal_fov_rad,
       float max_vertical_fov_rad)> AttachCameraNodeFunction;
 
-  UsedStyleProvider(
-      dom::HTMLElementContext* html_element_context, dom::FontCache* font_cache,
-      const AttachCameraNodeFunction& attach_camera_node_function);
+  UsedStyleProvider(dom::HTMLElementContext* html_element_context,
+                    dom::FontCache* font_cache,
+                    const AttachCameraNodeFunction& attach_camera_node_function,
+                    bool enable_image_animations);
 
   scoped_refptr<dom::FontList> GetUsedFontList(
       const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -89,6 +90,8 @@ class UsedStyleProvider {
   // Notifies animated image tracker to update the playing status of animated
   // images.
   void UpdateAnimatedImages();
+
+  bool enable_image_animations() const { return enable_image_animations_; }
 
  private:
   // Called after layout is completed so that it can perform any necessary
@@ -116,6 +119,9 @@ class UsedStyleProvider {
   scoped_refptr<cssom::PropertyValue> last_font_style_refptr_;
   scoped_refptr<cssom::PropertyValue> last_font_weight_refptr_;
   scoped_refptr<dom::FontList> last_font_list_;
+
+  // If true, animated WebP images should animate, otherwise they should not.
+  const bool enable_image_animations_;
 
   friend class UsedStyleProviderLayoutScope;
   DISALLOW_COPY_AND_ASSIGN(UsedStyleProvider);

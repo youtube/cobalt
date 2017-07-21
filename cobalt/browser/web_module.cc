@@ -514,6 +514,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::HandlePointerEvents, base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
+      data.options.enable_image_animations,
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
@@ -904,7 +905,8 @@ WebModule::Options::Options()
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
       animated_image_decode_thread_priority(base::kThreadPriority_Low),
-      video_playback_rate_multiplier(1.f) {}
+      video_playback_rate_multiplier(1.f),
+      enable_image_animations(true) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,
