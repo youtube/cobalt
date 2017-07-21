@@ -811,6 +811,7 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
   // expected. Remove after switching to webdriver benchmark.
   TRACE_EVENT0("cobalt::renderer", "VisitRenderTree");
 
+  base::optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
   current_surface_origin_.emplace(origin);
 
   RenderTreeNodeVisitor::CreateScratchSurfaceFunction
@@ -830,7 +831,7 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
   DCHECK(render_tree);
   render_tree->Accept(&visitor);
 
-  current_surface_origin_ = base::nullopt;
+  current_surface_origin_ = old_origin;
 }
 
 void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
