@@ -408,12 +408,14 @@ float GetFontSize(const scoped_refptr<cssom::PropertyValue>& font_size_refptr) {
 
 UsedStyleProvider::UsedStyleProvider(
     dom::HTMLElementContext* html_element_context, dom::FontCache* font_cache,
-    const AttachCameraNodeFunction& attach_camera_node_function)
+    const AttachCameraNodeFunction& attach_camera_node_function,
+    bool enable_image_animations)
     : font_cache_(font_cache),
       animated_image_tracker_(html_element_context->animated_image_tracker()),
       image_cache_(html_element_context->image_cache()),
       mesh_cache_(html_element_context->mesh_cache()),
-      attach_camera_node_function_(attach_camera_node_function) {}
+      attach_camera_node_function_(attach_camera_node_function),
+      enable_image_animations_(enable_image_animations) {}
 
 scoped_refptr<dom::FontList> UsedStyleProvider::GetUsedFontList(
     const scoped_refptr<cssom::PropertyValue>& font_family_refptr,
@@ -657,19 +659,23 @@ void UsedBackgroundNodeProvider::VisitAbsoluteURL(
     scoped_refptr<loader::image::AnimatedImage> animated_image =
         base::polymorphic_downcast<loader::image::AnimatedImage*>(
             used_background_image.get());
-    DCHECK(animated_image);
     scoped_refptr<render_tree::ImageNode> image_node =
         new render_tree::ImageNode(
-            NULL, image_rect, image_transform_data.image_node_transform_matrix);
-    render_tree::animations::AnimateNode::Builder animate_node_builder;
-    animate_node_builder.Add(
-        image_node,
-        base::Bind(&loader::image::AnimatedImage::AnimateCallback,
-                   animated_image->GetFrameProvider(), image_rect,
-                   image_transform_data.image_node_transform_matrix));
+            animated_image->GetFrameProvider()->GetFrame(), image_rect,
+            image_transform_data.image_node_transform_matrix);
+    if (!used_style_provider_->enable_image_animations()) {
+      background_node_ = image_node;
+    } else {
+      render_tree::animations::AnimateNode::Builder animate_node_builder;
+      animate_node_builder.Add(
+          image_node,
+          base::Bind(&loader::image::AnimatedImage::AnimateCallback,
+                     animated_image->GetFrameProvider(), image_rect,
+                     image_transform_data.image_node_transform_matrix));
 
-    background_node_ = new render_tree::animations::AnimateNode(
-        animate_node_builder, image_node);
+      background_node_ = new render_tree::animations::AnimateNode(
+          animate_node_builder, image_node);
+    }
   }
 }
 

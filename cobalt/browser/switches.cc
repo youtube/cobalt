@@ -110,6 +110,9 @@ const char kWebDriverListenIp[] = "webdriver_listen_ip";
 // Enables memory tracking by installing the memory tracker on startup.
 const char kMemoryTracker[] = "memory_tracker";
 
+// Enables/disables animations on animated images (e.g. animated WebP).
+const char kDisableImageAnimations[] = "disable_image_animations";
+
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // Disables the hard-coded navigation whitelist without disabling any other
