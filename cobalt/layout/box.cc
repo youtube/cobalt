@@ -507,11 +507,20 @@ void Box::RenderAndAnimate(
 
   bool overflow_hidden_needs_to_be_applied = overflow_hidden;
 
+  // If the outline is absent or transparent, there is no need to render it.
+  bool outline_is_visible =
+      box_is_visible &&
+      (computed_style()->outline_style() != cssom::KeywordValue::GetNone() &&
+       computed_style()->outline_style() != cssom::KeywordValue::GetHidden() &&
+       (animations()->IsPropertyAnimated(cssom::kOutlineColorProperty) ||
+        GetUsedColor(computed_style()->outline_color()).a() != 0.0f));
+
   // In order to avoid the creation of a superfluous CompositionNode, we first
   // check to see if there is a need to distinguish between content and
   // background.
   if (!overflow_hidden ||
-      (computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
+      (!outline_is_visible &&
+       computed_style()->box_shadow() == cssom::KeywordValue::GetNone() &&
        border_insets_.zero())) {
     // If there's no reason to distinguish between content and background,
     // just add them all to the same composition node.
@@ -531,7 +540,7 @@ void Box::RenderAndAnimate(
     overflow_hidden_needs_to_be_applied = false;
   }
 
-  if (box_is_visible) {
+  if (outline_is_visible) {
     RenderAndAnimateOutline(&border_node_builder, &animate_node_builder);
   }
 
@@ -1169,14 +1178,6 @@ void Box::RenderAndAnimateBorder(
 
 void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
                                   AnimateNode::Builder* animate_node_builder) {
-  // If the outline is absent or transparent, there is no need to render it.
-  if (computed_style()->outline_style() == cssom::KeywordValue::GetNone() ||
-      computed_style()->outline_style() == cssom::KeywordValue::GetHidden() ||
-      (!animations()->IsPropertyAnimated(cssom::kOutlineColorProperty) &&
-       GetUsedColor(computed_style()->outline_color()).a() == 0.0f)) {
-    return;
-  }
-
   math::RectF rect(GetBorderBoxSize());
   RectNode::Builder rect_node_builder(rect);
   bool has_animated_outline = HasAnimatedOutline(animations());
