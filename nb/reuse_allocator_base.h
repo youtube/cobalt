@@ -46,6 +46,19 @@ class ReuseAllocatorBase : public Allocator {
 
   bool TryFree(void* memory);
 
+  // Try to allocate a memory block for the |*size_hint| passed in.  If there is
+  // no such block available, the function may return a block whose size is less
+  // than |*size_hint| and set |*size_hint| to that size.  |context| will be
+  // passed to FindBestFreeBlock() as is, which is useful when the user of a
+  // sub-class wants to pass extra information along with the allocation request
+  // to FindBestFreeBlock().  The function never sets |*size_hint| to a value
+  // greater than the value passed in.
+  // This allows the caller to allocate multiple smaller blocks to fulfill a
+  // large allocation request.
+  void* AllocateBestBlock(std::size_t alignment,
+                          intptr_t context,
+                          std::size_t* size_hint);
+
  protected:
   class MemoryBlock {
    public:
@@ -84,6 +97,7 @@ class ReuseAllocatorBase : public Allocator {
    private:
     void* address_;
     std::size_t size_;
+    std::size_t requested_size_;
   };
 
   // Freelist sorted by address.
@@ -105,6 +119,21 @@ class ReuseAllocatorBase : public Allocator {
                                                FreeBlockSet::iterator begin,
                                                FreeBlockSet::iterator end,
                                                bool* allocate_from_front) = 0;
+
+  // The inherited class can implement this function to return a block whose
+  // size might be smaller than the |size| passed in.  AllocateBestBlock() uses
+  // this functional internally.  The default implementation simply calls
+  // FindFreeBlock() and fails if there isn't a block that is large enough for
+  // |size| bytes.
+  virtual FreeBlockSet::iterator FindBestFreeBlock(std::size_t size,
+                                                   std::size_t alignment,
+                                                   intptr_t context,
+                                                   FreeBlockSet::iterator begin,
+                                                   FreeBlockSet::iterator end,
+                                                   bool* allocate_from_front) {
+    SB_UNREFERENCED_PARAMETER(context);
+    return FindFreeBlock(size, alignment, begin, end, allocate_from_front);
+  }
 
  private:
   // Map from pointers we returned to the user, back to memory blocks.
