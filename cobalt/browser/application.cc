@@ -577,6 +577,10 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     memory_tracker_tool_ =
         memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
+
+  if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
+    options.web_module_options.enable_image_animations = false;
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
