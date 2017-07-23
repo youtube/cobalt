@@ -149,7 +149,8 @@ scoped_refptr<render_tree::Node> Layout(
         base::StopWatch::kAutoStartOn, layout_stat_tracker);
 
     (*initial_containing_block)
-        ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0));
+        ->RenderAndAnimate(&render_tree_root_builder, math::Vector2dF(0, 0),
+                           (*initial_containing_block));
   }
 
   // During computed style update and RenderAndAnimate, we get the actual images
