@@ -80,8 +80,9 @@ class ReplacedBox : public Box {
   // From |Box|.
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
 
-  void RenderAndAnimateContent(render_tree::CompositionNode::Builder*
-                                   border_node_builder) const OVERRIDE;
+  void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      ContainerBox* stacking_context) const OVERRIDE;
 
   bool IsTransformable() const OVERRIDE { return true; }
 
