@@ -60,8 +60,9 @@ bool AnonymousBlockBox::HasTrailingLineBreak() const {
 }
 
 void AnonymousBlockBox::RenderAndAnimateContent(
-    render_tree::CompositionNode::Builder* border_node_builder) const {
-  ContainerBox::RenderAndAnimateContent(border_node_builder);
+    render_tree::CompositionNode::Builder* border_node_builder,
+    ContainerBox* stacking_context) const {
+  ContainerBox::RenderAndAnimateContent(border_node_builder, stacking_context);
 
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;

@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<!--
+ | Fixed positioned elements should appear in the correct draw order when
+ | they have later, absolutely positioned siblings. The results should show the
+ | blue box in front of the green box.
+ |   https://www.w3.org/TR/CSS21/visuren.html#z-index
+ -->
+<html>
+<head>
+  <style>
+    .container {
+      position: absolute;
+
+      width: 150px;
+      height: 150px;
+
+      background-color: rgb(158, 158, 158);
+    }
+    .fixed-green {
+      position: fixed;
+
+      left: 2px;
+      top: 0px;
+
+      width: 80px;
+      height: 80px;
+
+      background-color: rgb(15, 157, 88);
+    }
+    .absolute-blue {
+      position: absolute;
+
+      left: 20px;
+      top: 20px;
+
+      width: 80px;
+      height: 80px;
+
+      background-color: rgb(66, 133, 244);
+    }
+    .relative-yellow {
+      position: relative;
+
+      left: 40px;
+      top: 40px;
+
+      width: 80px;
+      height: 80px;
+
+      background-color: rgb(244, 180, 0);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="container">
+      <div class="fixed-green"></div>
+      <div class="absolute-blue"></div>
+      <div class="relative-yellow"></div>
+    </div>
+  </div>
+</body>
+</html>

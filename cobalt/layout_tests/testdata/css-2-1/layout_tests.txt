@@ -72,6 +72,7 @@
 11-1-1-overflow-hidden-masks-padding-box-only
 11-1-1-overflow-hidden-transform
 11-1-1-overflow-hidden-translate
+11-1-1-overflow-should-not-affect-descendants-contained-in-another-block
 11-1-1-overflow-visible
 11-1-absolutely-positioned-children-of-overflow-hidden
 11-1-absolutely-positioned-children-of-overflow-hidden-to-left
@@ -143,6 +144,8 @@
 9-9-1-absolute-positioned-elements-should-render-on-top-of-static-elements
 9-9-1-containing-block-may-be-farther-than-stacking-context
 9-9-1-elements-with-transform-should-appear-over-normal-flow-elements
+9-9-1-fixed-position-containing-block-should-form-stacking-context
+9-9-1-fixed-position-element-should-not-appear-on-top-of-later-siblings
 9-9-1-nearest-ancestor-stacking-context-should-contain-element
 9-9-1-negative-z-indices
 9-9-1-relative-positioned-element-should-not-appear-on-top-of-later-sibling
@@ -150,3 +153,4 @@
 9-9-1-simple-positive-z-indices
 9-9-1-stacking-context-should-take-into-account-intermediate-containing-blocks
 9-9-1-stacking-contexts-differ-from-containing-blocks
+9-9-1-z-index-should-only-be-applied-to-positioned-elements
