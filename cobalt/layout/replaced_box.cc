@@ -275,7 +275,8 @@ void AnimateVideoWithLetterboxing(
 }  // namespace
 
 void ReplacedBox::RenderAndAnimateContent(
-    CompositionNode::Builder* border_node_builder) const {
+    CompositionNode::Builder* border_node_builder,
+    ContainerBox* /*stacking_context*/) const {
   if (computed_style()->visibility() != cssom::KeywordValue::GetVisible()) {
     return;
   }

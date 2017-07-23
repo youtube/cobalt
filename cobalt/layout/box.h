@@ -116,10 +116,10 @@ class Box : public base::RefCounted<Box> {
   };
 
   // The RenderSequence of a box is used to compare the relative drawing order
-  // of boxes. It stores a value for the box's drawing order at each ancestor
-  // composition node up to the root of the render tree. As a result, starting
+  // of boxes. It stores a value for the box's drawing order position at each
+  // stacking context up to the root of the render tree. As a result, starting
   // from the root ancestor, the box for which the render sequence ends first,
-  // or for which the drawing order value at a composition node is lower is
+  // or for which the draw order position at a stacking context is lower is
   // drawn before the other box.
   typedef std::vector<size_t> RenderSequence;
 
@@ -438,7 +438,8 @@ class Box : public base::RefCounted<Box> {
   // on the subclasses to provide the actual content.
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
-      const math::Vector2dF& offset_from_parent_node);
+      const math::Vector2dF& offset_from_parent_node,
+      ContainerBox* stacking_context);
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
@@ -510,6 +511,20 @@ class Box : public base::RefCounted<Box> {
   void UpdateCoordinateForTransform(math::Vector2dF* coordinate) const;
 
  protected:
+  struct StackingContextContainerBoxInfo {
+    StackingContextContainerBoxInfo(ContainerBox* container_box,
+                                    bool is_absolute_containing_block)
+        : container_box(container_box),
+          is_absolute_containing_block(is_absolute_containing_block),
+          is_usable_as_child_container(is_absolute_containing_block) {}
+
+    ContainerBox* container_box;
+    bool is_absolute_containing_block;
+    bool is_usable_as_child_container;
+  };
+  typedef std::vector<StackingContextContainerBoxInfo>
+      StackingContextContainerBoxStack;
+
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
@@ -572,9 +587,17 @@ class Box : public base::RefCounted<Box> {
   //   https://www.w3.org/TR/CSS21/visuren.html#phantom-line-box
   bool HasNonZeroMarginOrBorderOrPadding() const;
 
+  // Add a box and all of its descendants that are contained within the
+  // specified stacking context to the stacking context's draw order. This is
+  // used when a render tree node that is already cached is encountered to
+  // ensure that it maintains the proper draw order in its stacking context.
+  virtual void AddBoxAndDescendantsToDrawOrderInStackingContext(
+      ContainerBox* stacking_context);
+
   // Renders the content of the box.
   virtual void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* border_node_builder) const = 0;
+      render_tree::CompositionNode::Builder* border_node_builder,
+      ContainerBox* stacking_context) const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
@@ -597,7 +620,8 @@ class Box : public base::RefCounted<Box> {
       ContainerBox* source_box, RelationshipToBox nearest_containing_block,
       RelationshipToBox nearest_absolute_containing_block,
       RelationshipToBox nearest_fixed_containing_block,
-      RelationshipToBox nearest_stacking_context);
+      RelationshipToBox nearest_stacking_context,
+      StackingContextContainerBoxStack* stacking_context_container_box_stack);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See
@@ -669,7 +693,7 @@ class Box : public base::RefCounted<Box> {
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
-      const scoped_refptr<render_tree::Node>& border_node,
+      const scoped_refptr<render_tree::Node>& content_node,
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
 
@@ -741,10 +765,10 @@ class Box : public base::RefCounted<Box> {
   // recalculated during each call to RenderAndAnimateContent.
   base::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
 
-  // A value that indicates the drawing order relative to boxes with the same
-  // rendering ancestor box (which is either the stacking context or the
-  // containing block). Smaller values indicate boxes that are drawn earlier.
-  size_t render_sequence_;
+  // A value that indicates the drawing order relative to other boxes in the
+  // same stacking context. Smaller values indicate boxes that are drawn
+  // earlier.
+  size_t draw_order_position_in_stacking_context_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;
