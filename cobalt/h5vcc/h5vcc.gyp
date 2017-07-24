@@ -94,6 +94,9 @@
             'h5vcc_sso.cc',
             'h5vcc_sso.h',
           ],
+          'defines': [
+            'COBALT_ENABLE_SSO',
+          ],
           'direct_dependent_settings': {
             'defines': [
               'COBALT_ENABLE_SSO',
