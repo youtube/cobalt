@@ -129,8 +129,6 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
         '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
         '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
