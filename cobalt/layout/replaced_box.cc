@@ -585,9 +585,9 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   if (spec.mesh_type() == cssom::MapToMeshFunction::kUrls) {
     // Custom mesh URLs.
     // Set a default mesh (in case no resolution-specific mesh matches).
-    cssom::URLValue* url_value =
+    cssom::URLValue* spec_url_value =
         base::polymorphic_downcast<cssom::URLValue*>(spec.mesh_url().get());
-    GURL default_url(url_value->value());
+    GURL default_url(spec_url_value->value());
 
     if (!default_url.is_valid()) {
       DLOG(WARNING) << kWarningInvalidMeshUrl;
