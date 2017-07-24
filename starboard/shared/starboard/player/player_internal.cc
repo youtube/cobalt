@@ -72,8 +72,9 @@ void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
 
 void SbPlayerPrivate::WriteSample(
     SbMediaType sample_type,
-    const void* sample_buffer,
-    int sample_buffer_size,
+    const void** sample_buffers,
+    int* sample_buffer_sizes,
+    int number_of_sample_buffers,
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,
     const SbDrmSampleInfo* sample_drm_info) {
@@ -81,7 +82,8 @@ void SbPlayerPrivate::WriteSample(
     ++total_video_frames_;
   }
   InputBuffer input_buffer(sample_type, sample_deallocate_func_, this, context_,
-                           sample_buffer, sample_buffer_size, sample_pts,
+                           sample_buffers, sample_buffer_sizes,
+                           number_of_sample_buffers, sample_pts,
                            video_sample_info, sample_drm_info);
   worker_->WriteSample(input_buffer);
 }

@@ -32,9 +32,9 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  if (number_of_sample_buffers != 1) {
+  if (number_of_sample_buffers < 1) {
     SB_DLOG(WARNING) << "SbPlayerWriteSample() doesn't support"
-                     << " |number_of_sample_buffers| other than one.";
+                     << " |number_of_sample_buffers| less than one.";
     return;
   }
 
@@ -48,8 +48,9 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  player->WriteSample(sample_type, sample_buffers[0], sample_buffer_sizes[0],
-                      sample_pts, video_sample_info, sample_drm_info);
+  player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
+                      number_of_sample_buffers, sample_pts, video_sample_info,
+                      sample_drm_info);
 }
 
 #else  // SB_API_VERSION >= 4
