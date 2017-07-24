@@ -65,8 +65,8 @@ class MouseEvent : public UIEventWithKeyState {
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-mouseevent-interface
   float page_x() const;
   float page_y() const;
-  float x() const { return client_x_; }
-  float y() const { return client_y_; }
+  float x() const { return static_cast<float>(client_x_); }
+  float y() const { return static_cast<float>(client_y_); }
   float offset_x();
   float offset_y() const;
 

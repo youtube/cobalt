@@ -64,11 +64,12 @@ void TopmostEventTarget::ConsiderElement(
   if (!html_element) return;
   math::Vector2dF element_coordinate(coordinate);
   if (html_element->CanbeDesignatedByPointerIfDisplayed()) {
-    dom::LayoutBoxes* boxes = html_element->layout_boxes();
-    if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
+    dom::LayoutBoxes* dom_layout_boxes = html_element->layout_boxes();
+    if (dom_layout_boxes &&
+        dom_layout_boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
       DCHECK(html_element->computed_style());
       LayoutBoxes* layout_boxes =
-          base::polymorphic_downcast<LayoutBoxes*>(boxes);
+          base::polymorphic_downcast<LayoutBoxes*>(dom_layout_boxes);
       const Boxes& boxes = layout_boxes->boxes();
       if (!boxes.empty()) {
         const Box* box = boxes.front();
@@ -124,7 +125,8 @@ void TopmostEventTarget::MaybeSendPointerEvents(
   DCHECK(!html_element_);
   scoped_refptr<dom::Window> view = mouse_event->view();
 
-  math::Vector2dF coordinate(mouse_event->client_x(), mouse_event->client_y());
+  math::Vector2dF coordinate(static_cast<float>(mouse_event->client_x()),
+                             static_cast<float>(mouse_event->client_y()));
   FindTopmostEventTarget(view->document(), coordinate);
 
   if (html_element_) {
@@ -152,9 +154,9 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       if (has_compatibility_mouse_event) {
         dom::MouseEventInit mouse_event_init;
         mouse_event_init.set_screen_x(pointer_event->screen_x());
-        mouse_event_init.set_screen_y(pointer_event->screen_x());
+        mouse_event_init.set_screen_y(pointer_event->screen_y());
         mouse_event_init.set_client_x(pointer_event->screen_x());
-        mouse_event_init.set_client_y(pointer_event->screen_x());
+        mouse_event_init.set_client_y(pointer_event->screen_y());
         mouse_event_init.set_button(pointer_event->button());
         mouse_event_init.set_buttons(pointer_event->buttons());
         html_element_->DispatchEvent(
@@ -172,17 +174,11 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       // Store the data for the status change event(s).
       dom::PointerEventInit event_init;
       event_init.set_related_target(previous_html_element_);
-      const dom::MouseEvent* const pointer_event =
-          base::polymorphic_downcast<const dom::PointerEvent* const>(
-              event.get());
-      event_init.set_screen_x(pointer_event->screen_x());
-      event_init.set_screen_y(pointer_event->screen_x());
-      event_init.set_client_x(pointer_event->screen_x());
-      event_init.set_client_y(pointer_event->screen_x());
+      event_init.set_screen_x(mouse_event->screen_x());
+      event_init.set_screen_y(mouse_event->screen_y());
+      event_init.set_client_x(mouse_event->screen_x());
+      event_init.set_client_y(mouse_event->screen_y());
       if (event->GetWrappableType() == base::GetTypeId<dom::PointerEvent>()) {
-        const dom::PointerEvent* const pointer_event =
-            base::polymorphic_downcast<const dom::PointerEvent* const>(
-                event.get());
         event_init.set_pointer_id(pointer_event->pointer_id());
         event_init.set_width(pointer_event->width());
         event_init.set_height(pointer_event->height());
