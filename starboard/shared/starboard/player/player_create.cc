@@ -17,6 +17,7 @@
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
+#include "starboard/shared/media_session/playback_state.h"
 #if SB_API_VERSION >= 4
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #endif  // SB_API_VERSION >= 4
@@ -24,6 +25,9 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
 
+using starboard::shared::media_session::
+    UpdateActiveSessionPlatformPlaybackState;
+using starboard::shared::media_session::kPlaying;
 using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
@@ -88,6 +92,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 #endif  // SB_API_VERSION >= 4
+
+  UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
 #if SB_API_VERSION >= 4
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
