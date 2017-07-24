@@ -190,6 +190,14 @@ def GetShaderInputs(filename):
   return attributes, uniforms, samplers
 
 
+def ParseUniformName(name):
+  """Parse a uniform name into the base string and array count (if array)."""
+  temp = re.match(r'(\w+)(?:\[(\d+)\])?', name)
+  base = temp.group(1)
+  count = temp.group(2)
+  return base, count
+
+
 def GetAttributeMethods(attributes):
   """Return a string representing C++ methods for the given attributes."""
   methods = ''
@@ -202,7 +210,11 @@ def GetUniformMethods(uniforms):
   """Return a string representing C++ methods for the given uniforms."""
   methods = ''
   for name in uniforms:
-    methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(name)
+    base, count = ParseUniformName(name)
+    methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(base)
+    if count:
+      methods += ('\nstatic constexpr GLsizei {0}_count() {{ return {1}; }}'
+                  .format(base, count))
   return methods
 
 
@@ -227,7 +239,8 @@ def GetInitializePostLink(uniforms):
   """Returns a string representing C++ statements to process during postlink."""
   statements = ''
   for name in uniforms:
-    statements += '\n{0}_ = GetUniformLocation(program, "{0}");'.format(name)
+    base, unused_count = ParseUniformName(name)
+    statements += '\n{0}_ = GetUniformLocation(program, "{0}");'.format(base)
   return statements
 
 
@@ -244,7 +257,8 @@ def GetVariables(variable_names):
   """Returns a string representing C++ member variable declarations."""
   variables = ''
   for name in variable_names:
-    variables += '\nGLuint {0}_;'.format(name)
+    base, unused_count = ParseUniformName(name)
+    variables += '\nGLuint {0}_;'.format(base)
   return variables
 
 
