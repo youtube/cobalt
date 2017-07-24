@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,19 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/player.h"
+#ifndef STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
+#define STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
 
-#include "starboard/shared/media_session/playback_state.h"
-#include "starboard/shared/starboard/player/player_internal.h"
+namespace starboard {
+namespace shared {
+namespace media_session {
 
-using starboard::shared::media_session::kNone;
-using starboard::shared::media_session::
-    UpdateActiveSessionPlatformPlaybackState;
+enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
-void SbPlayerDestroy(SbPlayer player) {
-  if (!SbPlayerIsValid(player)) {
-    return;
-  }
-  UpdateActiveSessionPlatformPlaybackState(kNone);
-  delete player;
-}
+void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
+
+}  // namespace media_session
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
