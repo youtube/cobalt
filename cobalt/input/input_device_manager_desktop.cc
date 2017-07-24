@@ -149,10 +149,10 @@ void UpdateMouseEventInit(const system_window::InputEvent* input_event,
   UpdateMouseEventInitButton(input_event->key_code(), mouse_event);
   UpdateMouseEventInitButtons(input_event->modifiers(), mouse_event);
 
-  mouse_event->set_screen_x(input_event->position().x());
-  mouse_event->set_screen_y(input_event->position().y());
-  mouse_event->set_client_x(input_event->position().x());
-  mouse_event->set_client_y(input_event->position().y());
+  mouse_event->set_screen_x(static_cast<float>(input_event->position().x()));
+  mouse_event->set_screen_y(static_cast<float>(input_event->position().y()));
+  mouse_event->set_client_x(static_cast<float>(input_event->position().x()));
+  mouse_event->set_client_y(static_cast<float>(input_event->position().y()));
 }
 
 }  // namespace
@@ -183,8 +183,8 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
   pointer_event.set_width(input_event->size().x());
   pointer_event.set_height(input_event->size().y());
   pointer_event.set_pressure(input_event->pressure());
-  pointer_event.set_tilt_x(input_event->tilt().x());
-  pointer_event.set_tilt_y(input_event->tilt().y());
+  pointer_event.set_tilt_x(static_cast<float>(input_event->tilt().x()));
+  pointer_event.set_tilt_y(static_cast<float>(input_event->tilt().y()));
 #endif
   pointer_event.set_is_primary(true);
   pointer_event_callback_.Run(type, pointer_event);
