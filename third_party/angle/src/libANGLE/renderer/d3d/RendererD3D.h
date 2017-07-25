@@ -218,6 +218,7 @@ class RendererD3D : public BufferFactoryD3D
     virtual gl::Error generateMipmapUsingD3D(TextureStorage *storage,
                                              const gl::TextureState &textureState) = 0;
     virtual TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain) = 0;
+    virtual TextureStorage *createTextureStorage2D(IUnknown *texture) = 0;
     virtual TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,
                                                          RenderTargetD3D *renderTargetD3D) = 0;
     virtual TextureStorage *createTextureStorageExternal(

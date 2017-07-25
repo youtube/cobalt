@@ -42,7 +42,8 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
       mHeight(static_cast<EGLint>(attribs.get(EGL_HEIGHT, 0))),
       mSwapInterval(1),
       mShareHandle(0),
-      mD3DTexture(nullptr)
+      mD3DTexture(nullptr),
+      buftype_(buftype)
 {
     if (window != nullptr && !mFixedSize)
     {
@@ -88,6 +89,18 @@ egl::Error SurfaceD3D::initialize(const DisplayImpl *displayImpl)
         if (!mNativeWindow->initialize())
         {
             return egl::Error(EGL_BAD_SURFACE);
+        }
+    }
+
+    if (buftype_ == EGL_D3D_TEXTURE_ANGLE)
+    {
+        ID3D11Texture2D* d3Texture = static_cast<ID3D11Texture2D*>(mD3DTexture);
+
+        D3D11_TEXTURE2D_DESC texture_desc;
+        d3Texture->GetDesc(&texture_desc);
+        if ((texture_desc.BindFlags & D3D11_BIND_RENDER_TARGET) == 0)
+        {
+            return egl::Error(EGL_SUCCESS);
         }
     }
 

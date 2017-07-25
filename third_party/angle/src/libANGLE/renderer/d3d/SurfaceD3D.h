@@ -57,6 +57,11 @@ class SurfaceD3D : public SurfaceImpl
                                         const gl::ImageIndex &imageIndex,
                                         FramebufferAttachmentRenderTarget **rtOut) override;
 
+    IUnknown *getD3DTexture()
+    {
+        return mD3DTexture;
+    }
+
   protected:
     SurfaceD3D(const egl::SurfaceState &state,
                RendererD3D *renderer,
@@ -90,6 +95,7 @@ class SurfaceD3D : public SurfaceImpl
 
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
+    EGLenum buftype_;
 };
 
 class WindowSurfaceD3D : public SurfaceD3D
