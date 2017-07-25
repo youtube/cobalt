@@ -51,6 +51,7 @@
         'matrix_transform_node.h',
         'mesh.h',
         'node.h',
+        'node.cc',
         'node_visitor.h',
         'opacity_filter.h',
         'punch_through_video_node.cc',
