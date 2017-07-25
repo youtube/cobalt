@@ -732,6 +732,34 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
     mHasKeyedMutex = (texDesc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX) != 0;
 }
 
+TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture)
+    : TextureStorage11(renderer,
+                       0,
+                       0,
+                       0),
+      mTexture(static_cast<ID3D11Texture2D*>(texture)),
+      mLevelZeroTexture(nullptr),
+      mLevelZeroRenderTarget(nullptr),
+      mUseLevelZeroTexture(false),
+      mSwizzleTexture(nullptr)
+{
+    mTexture->AddRef();
+
+    for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
+    {
+        mAssociatedImages[i]     = nullptr;
+        mRenderTarget[i]         = nullptr;
+    }
+
+    D3D11_TEXTURE2D_DESC texDesc;
+    mTexture->GetDesc(&texDesc);
+    mMipLevels     = texDesc.MipLevels;
+    mTextureWidth  = texDesc.Width;
+    mTextureHeight = texDesc.Height;
+    mTextureDepth  = 1;
+    mHasKeyedMutex = (texDesc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX) != 0;
+}
+
 TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
                                          GLenum internalformat,
                                          bool renderTarget,
@@ -1160,6 +1188,20 @@ gl::Error TextureStorage11_2D::createSRV(int baseLevel,
     srvDesc.ViewDimension             = D3D11_SRV_DIMENSION_TEXTURE2D;
     srvDesc.Texture2D.MostDetailedMip = mTopLevel + baseLevel;
     srvDesc.Texture2D.MipLevels       = mipLevels;
+
+    ID3D11Texture2D* d3Texture;
+    HRESULT hr = texture->QueryInterface(IID_PPV_ARGS(&d3Texture));
+
+    if (S_OK == hr)
+    {
+        D3D11_TEXTURE2D_DESC texture_desc;
+        d3Texture->GetDesc(&texture_desc);
+        if (texture_desc.Format == DXGI_FORMAT_NV12)
+        {
+            srvDesc.Format = DXGI_FORMAT_R8_UNORM;
+        }
+        d3Texture->Release();
+    }
 
     ID3D11Resource *srvTexture = texture;
 
