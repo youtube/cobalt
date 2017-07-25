@@ -576,7 +576,13 @@ void RenderTreeNodeVisitor::FallbackRasterize(
 
   // Setup draw for the contents as needed.
   if (!content_is_cached) {
+    // Cache the results when drawn with 100% opacity, then draw the cached
+    // results at the desired opacity. This avoids having to generate different
+    // caches under varying opacity filters.
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity = 1.0f;
     FallbackRasterize(node, target_info, content_rect);
+    draw_state_.opacity = old_opacity;
   }
 
   // Sub-pixel offsets are passed to the fallback rasterizer to preserve
@@ -639,7 +645,8 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   render_target_is_offscreen_ = old_render_target_is_offscreen;
 }
 
-// Add draw objects to render |node| to an offscreen render target.
+// Add draw objects to render |node| to an offscreen render target at
+//   100% opacity.
 // |out_texture| and |out_texcoord_transform| describe the texture subregion
 //   that will contain the result of rendering |node|. If not enough memory
 //   is available for the offscreen target, then |out_texture| will be null.
@@ -668,6 +675,12 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   *out_texcoord_transform = GetTexcoordTransform(target_info);
 
   if (!content_is_cached) {
+    // Cache the results at 100% opacity. The caller is responsible for
+    // drawing the cached results at the desired opacity. This avoids having
+    // to generate different caches under varying opacity filters.
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity = 1.0f;
+
     // Try to use the native rasterizer to handle the offscreen rendering.
     // However, because offscreen targets are actually regions of a texture
     // atlas, some drivers may not properly handle reading and writing to
@@ -700,7 +713,6 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
                               target_info.region.y() - out_content_rect->y()) *
         draw_state_.transform;
     draw_state_.scissor = RoundRectFToInt(target_info.region);
-    draw_state_.opacity = 1.0f;
     fallback_render_target_ = target_info.skia_canvas;
     render_target_ = target_info.framebuffer;
     render_target_is_offscreen_ = true;
@@ -723,6 +735,8 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
       draw_object_manager_->RemoveDraws(last_valid_draw_id);
       FallbackRasterize(node, target_info, *out_content_rect);
     }
+
+    draw_state_.opacity = old_opacity;
   }
 }
 
