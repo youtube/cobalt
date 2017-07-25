@@ -685,6 +685,19 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
+  scoped_refptr<backend::RenderTargetEGL> render_target_egl(
+      base::polymorphic_downcast<backend::RenderTargetEGL*>(
+          render_target.get()));
+
+  if (render_target_egl->is_surface_bad()) {
+    return;
+  }
+
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      graphics_context_, render_target_egl);
+
+  gr_context_->resetContext();
+
   // Create a canvas from the render target.
   GrBackendRenderTargetDesc skia_desc =
       CobaltRenderTargetToSkiaBackendRenderTargetDesc(render_target.get());
