@@ -28,6 +28,9 @@ void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
     case kSbMemoryMapProtectRead:
       protect = PAGE_READONLY;
       break;
+    case kSbMemoryMapProtectWrite:
+      // Windows does not provide write only mode privileges
+      // are escalated to read/write.
     case kSbMemoryMapProtectReadWrite:
       protect = PAGE_READWRITE;
       break;
