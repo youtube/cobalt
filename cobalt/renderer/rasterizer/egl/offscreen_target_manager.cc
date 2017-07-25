@@ -26,26 +26,26 @@ namespace {
 struct AllocationKey {
   AllocationKey(const cobalt::render_tree::Node* tree_node,
                 const cobalt::math::SizeF& alloc_size)
-      : node(tree_node),
+      : node_id(tree_node->GetId()),
         size(alloc_size) {}
 
   bool operator==(const AllocationKey& other) const {
-    return node == other.node && size == other.size;
+    return node_id == other.node_id && size == other.size;
   }
 
   bool operator!=(const AllocationKey& other) const {
-    return node != other.node || size != other.size;
+    return node_id != other.node_id || size != other.size;
   }
 
   bool operator<(const AllocationKey& rhs) const {
-    return (node < rhs.node) ||
-           (node == rhs.node &&
+    return (node_id < rhs.node_id) ||
+           (node_id == rhs.node_id &&
                (size.width() < rhs.size.width() ||
                (size.width() == rhs.size.width() &&
                    size.height() < rhs.size.height())));
   }
 
-  const void* node;
+  int64_t node_id;
   cobalt::math::SizeF size;
 };
 }  // namespace
@@ -55,13 +55,13 @@ namespace BASE_HASH_NAMESPACE {
 template <>
 struct hash<AllocationKey> {
   size_t operator()(const AllocationKey& key) const {
-    return reinterpret_cast<size_t>(key.node);
+    return static_cast<size_t>(key.node_id);
   }
 };
 #else
 template <>
 inline size_t hash_value<AllocationKey>(const AllocationKey& key) {
-  return reinterpret_cast<size_t>(key.node);
+  return static_cast<size_t>(key.node_id);
 }
 #endif
 }  // namespace BASE_HASH_NAMESPACE
