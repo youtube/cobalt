@@ -1174,7 +1174,10 @@ void TextureD3D_2D::bindTexImage(egl::Surface *surface)
     SurfaceD3D *surfaceD3D = GetImplAs<SurfaceD3D>(surface);
     ASSERT(surfaceD3D);
 
-    mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getSwapChain());
+    if (surfaceD3D->getSwapChain() == nullptr)
+        mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getD3DTexture());
+    else
+        mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getSwapChain());
     mEGLImageTarget = false;
 
     mDirtyImages = true;
