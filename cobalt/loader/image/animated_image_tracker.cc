@@ -114,8 +114,9 @@ void AnimatedImageTracker::OnDisplayEnd(
 }
 
 void AnimatedImageTracker::Reset() {
-  for (const auto& playing_url : playing_urls_) {
-    OnDisplayEnd(image_map_[playing_url.first]);
+  for (URLSet::const_iterator iter = playing_urls_.begin();
+       iter != playing_urls_.end(); ++iter) {
+    OnDisplayEnd(image_map_[iter->first]);
   }
 
   image_map_.clear();
