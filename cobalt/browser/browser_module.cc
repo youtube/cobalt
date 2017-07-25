@@ -1093,6 +1093,11 @@ math::Size BrowserModule::GetViewportSize() {
     return renderer_module_->render_target_size();
   }
 
+  // If the system window exists, that's almost just as good.
+  if (system_window_) {
+    return system_window_->GetWindowSize();
+  }
+
   // Otherwise, we assume we'll get the viewport size that was requested.
   if (options_.requested_viewport_size) {
     return *options_.requested_viewport_size;
