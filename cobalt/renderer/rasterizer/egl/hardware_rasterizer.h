@@ -59,6 +59,8 @@ class HardwareRasterizer : public Rasterizer {
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
 
+  void MakeCurrent() OVERRIDE;
+
  private:
   class Impl;
   scoped_ptr<Impl> impl_;

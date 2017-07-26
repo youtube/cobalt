@@ -70,6 +70,8 @@ class MockRasterizer : public Rasterizer {
     return NULL;
   }
 
+  void MakeCurrent() OVERRIDE {}
+
  private:
   int* submission_count_;
   base::optional<base::TimeTicks> last_submission_time;
