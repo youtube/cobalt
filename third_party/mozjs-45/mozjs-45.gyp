@@ -104,7 +104,7 @@
       }],
 
       # TODO: Remove once ps4 configuration todos are addressed.
-      ['target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
+      ['target_arch == "ps4" or sb_target_platform == "ps4"', {
         'common_defines': [
           'JS_CPU_X64=1',
           'JS_CODEGEN_X64=1',
@@ -185,7 +185,7 @@
           ],
         }],
         # TODO: Remove "* == ps4" once ps4 configuration todos are addressed.
-        ['target_arch == "x64" or target_arch == "ps4" or actual_target_arch == "ps4" or sb_target_platform == "ps4"', {
+        ['target_arch == "x64" or target_arch == "ps4" or sb_target_platform == "ps4"', {
           'sources': [
             'js/src/jit/x64/Assembler-x64.cpp',
             'js/src/jit/x64/Bailouts-x64.cpp',
