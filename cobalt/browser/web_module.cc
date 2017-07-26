@@ -581,8 +581,8 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
-  animated_image_tracker_.reset();
   image_cache_.reset();
+  animated_image_tracker_.reset();
   fetcher_factory_.reset();
   dom_parser_.reset();
   css_parser_.reset();
