@@ -48,6 +48,10 @@ class NodeList : public script::Wrappable {
  protected:
   ~NodeList() OVERRIDE;
 
+  void ReserveForInternalCollection(int capacity) {
+    collection_.reserve(capacity);
+  }
+
  private:
   std::vector<scoped_refptr<Node> > collection_;
 
