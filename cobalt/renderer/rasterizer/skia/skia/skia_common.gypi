@@ -62,7 +62,7 @@
         ],
       },
     }],
-    ['actual_target_arch == "win" or target_arch == "xb360"', {
+    ['target_arch == "win"', {
       'variables': {
         'skia_export_defines': [
           # Required define by Skia to take certain code paths, such
