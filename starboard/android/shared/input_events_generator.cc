@@ -74,8 +74,8 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
     SbWindow window,
     SbKey key,
     const SbInputVector& input_vector) {
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  std::unique_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
 
   // window
   data->window = window;
@@ -89,8 +89,9 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
   data->key_modifiers = kSbKeyModifiersNone;
   data->position = input_vector;
 
-  return std::unique_ptr<Event>(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+  return std::unique_ptr<Event>(
+      new Application::Event(kSbEventTypeInput, data.release(),
+                             &Application::DeleteDestructor<SbInputData>));
 }
 
 float GetFlat(jobject input_device, int axis) {
@@ -453,8 +454,8 @@ void PushKeyEvent(SbKey key,
     return;
   }
 
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  std::unique_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
 
   // window
   data->window = window;
@@ -470,8 +471,9 @@ void PushKeyEvent(SbKey key,
   data->key_location = AInputEventToSbKeyLocation(android_event);
   data->key_modifiers = AInputEventToSbModifiers(android_event);
 
-  std::unique_ptr<Event> event(new Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>));
+  std::unique_ptr<Event> event(
+      new Event(kSbEventTypeInput, data.release(),
+                &Application::DeleteDestructor<SbInputData>));
   events->push_back(std::move(event));
 }
 
@@ -664,8 +666,8 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
   float offset_y =
       AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_Y, 0);
 
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  std::unique_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   SB_DCHECK(SbWindowIsValid(data->window));
@@ -723,13 +725,13 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
       data->device_type = kSbInputDeviceTypeKeyboard;
       data->key = ScrollAxisToKey(hscroll, vscroll);
 
-      SbInputData* data_press = new SbInputData();
-      SbMemoryCopy(data_press, data, sizeof(*data_press));
+      std::unique_ptr<SbInputData> data_press(new SbInputData());
+      SbMemoryCopy(data_press.get(), data.get(), sizeof(*data_press));
 
       // Send a press and unpress event.
       data_press->type = kSbInputEventTypePress;
       events->push_back(std::unique_ptr<Event>(
-          new Application::Event(kSbEventTypeInput, data_press,
+          new Application::Event(kSbEventTypeInput, data_press.release(),
                                  &Application::DeleteDestructor<SbInputData>)));
 
       data->type = kSbInputEventTypeUnpress;
@@ -740,8 +742,9 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
       return false;
   }
 
-  events->push_back(std::unique_ptr<Event>(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
+  events->push_back(std::unique_ptr<Event>(
+      new Application::Event(kSbEventTypeInput, data.release(),
+                             &Application::DeleteDestructor<SbInputData>)));
   return true;
 }
 
@@ -885,8 +888,8 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
   events->clear();
 
   // Press event
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  std::unique_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   data->type = kSbInputEventTypePress;
@@ -898,12 +901,13 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = kSbKeyModifiersNone;
 
-  events->push_back(std::unique_ptr<Event>(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
+  events->push_back(std::unique_ptr<Event>(
+      new Application::Event(kSbEventTypeInput, data.release(),
+                             &Application::DeleteDestructor<SbInputData>)));
 
   // Unpress event
-  data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  data.reset(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
 
   data->window = window_;
   data->type = kSbInputEventTypeUnpress;
@@ -915,8 +919,9 @@ void InputEventsGenerator::CreateInputEventsFromSbKey(SbKey key,
   data->key_location = kSbKeyLocationUnspecified;
   data->key_modifiers = kSbKeyModifiersNone;
 
-  events->push_back(std::unique_ptr<Event>(new Application::Event(
-      kSbEventTypeInput, data, &Application::DeleteDestructor<SbInputData>)));
+  events->push_back(std::unique_ptr<Event>(
+      new Application::Event(kSbEventTypeInput, data.release(),
+                             &Application::DeleteDestructor<SbInputData>)));
 }
 
 }  // namespace shared
