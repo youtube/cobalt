@@ -115,6 +115,35 @@ class Box : public base::RefCounted<Box> {
     kIsBoxDescendant,
   };
 
+  // Info tracked on container boxes encountered when a stacking context is
+  // generating its cross references.
+  struct StackingContextContainerBoxInfo {
+    StackingContextContainerBoxInfo(ContainerBox* container_box,
+                                    bool is_absolute_containing_block,
+                                    bool has_absolute_position,
+                                    bool has_overflow_hidden)
+        : container_box(container_box),
+          is_absolute_containing_block(is_absolute_containing_block),
+          is_usable_as_child_container(is_absolute_containing_block),
+          has_absolute_position(has_absolute_position),
+          has_overflow_hidden(has_overflow_hidden) {}
+
+    ContainerBox* container_box;
+    bool is_absolute_containing_block;
+    bool is_usable_as_child_container;
+    bool has_absolute_position;
+    bool has_overflow_hidden;
+  };
+
+  typedef std::vector<StackingContextContainerBoxInfo>
+      StackingContextContainerBoxStack;
+
+  // List of containing blocks with overflow hidden property. Used by stacking
+  // context children that are added to a stacking context container higher up
+  // the tree than their containing block, so that they can still have the
+  // overflow hidden from those containing blocks applied.
+  typedef std::vector<ContainerBox*> ContainingBlocksWithOverflowHidden;
+
   // The RenderSequence of a box is used to compare the relative drawing order
   // of boxes. It stores a value for the box's drawing order position at each
   // stacking context up to the root of the render tree. As a result, starting
@@ -246,7 +275,9 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
   LayoutUnit GetMarginBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
+  LayoutUnit margin_left() const { return margin_insets_.left(); }
   LayoutUnit margin_top() const { return margin_insets_.top(); }
+  LayoutUnit margin_right() const { return margin_insets_.right(); }
   LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
 
   // Border box.
@@ -441,6 +472,10 @@ class Box : public base::RefCounted<Box> {
       const math::Vector2dF& offset_from_parent_node,
       ContainerBox* stacking_context);
 
+  scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
+      const scoped_refptr<render_tree::Node>& content_node,
+      const math::Vector2dF& border_offset);
+
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
   virtual ContainerBox* AsContainerBox();
@@ -511,20 +546,6 @@ class Box : public base::RefCounted<Box> {
   void UpdateCoordinateForTransform(math::Vector2dF* coordinate) const;
 
  protected:
-  struct StackingContextContainerBoxInfo {
-    StackingContextContainerBoxInfo(ContainerBox* container_box,
-                                    bool is_absolute_containing_block)
-        : container_box(container_box),
-          is_absolute_containing_block(is_absolute_containing_block),
-          is_usable_as_child_container(is_absolute_containing_block) {}
-
-    ContainerBox* container_box;
-    bool is_absolute_containing_block;
-    bool is_usable_as_child_container;
-  };
-  typedef std::vector<StackingContextContainerBoxInfo>
-      StackingContextContainerBoxStack;
-
   UsedStyleProvider* used_style_provider() const {
     return used_style_provider_;
   }
@@ -545,14 +566,12 @@ class Box : public base::RefCounted<Box> {
   //
   // Used values of "margin" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  LayoutUnit margin_left() const { return margin_insets_.left(); }
   void set_margin_left(LayoutUnit margin_left) {
     margin_insets_.set_left(margin_left);
   }
   void set_margin_top(LayoutUnit margin_top) {
     margin_insets_.set_top(margin_top);
   }
-  LayoutUnit margin_right() const { return margin_insets_.right(); }
   void set_margin_right(LayoutUnit margin_right) {
     margin_insets_.set_right(margin_right);
   }
