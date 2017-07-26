@@ -9,31 +9,24 @@
 <head>
   <style>
     .outer {
-      background-color: rgba(63, 81, 181, 0.9);
-      height: 100px;
-      margin-bottom: 100px;
+      background-color: rgb(63, 81, 181);
       overflow: hidden;
       width: 100px;
-    }
-    .absolutely-positioned {
-      position: absolute;
+      height: 100px;
+      margin-bottom: 100px;
     }
     .inner {
+      position: relative;
       background-color: #2196f3;
+      width: 100px;
       height: 100px;
       left: 50px;
-      position: absolute;
       top: 50px;
-      width: 100px;
-      z-index: -1;
     }
   </style>
 </head>
 <body>
   <div class="outer">
-    <div class="inner"></div>
-  </div>
-  <div class="absolutely-positioned outer">
     <div class="inner"></div>
   </div>
 </body>

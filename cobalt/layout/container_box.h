@@ -29,6 +29,21 @@ namespace layout {
 // not defined in CSS 2.1.
 class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
  public:
+  struct StackingContextChildInfo {
+    StackingContextChildInfo(
+        Box* box, int z_index, RelationshipToBox containing_block_relationship,
+        const ContainingBlocksWithOverflowHidden& overflow_hidden_to_apply)
+        : box(box),
+          z_index(z_index),
+          containing_block_relationship(containing_block_relationship),
+          overflow_hidden_to_apply(overflow_hidden_to_apply) {}
+
+    Box* box;
+    int z_index;
+    RelationshipToBox containing_block_relationship;
+    ContainingBlocksWithOverflowHidden overflow_hidden_to_apply;
+  };
+
   ContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                    css_computed_style_declaration,
                UsedStyleProvider* used_style_provider,
@@ -88,18 +103,6 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   bool IsStackingContext() const OVERRIDE;
 
  protected:
-  struct StackingContextChildInfo {
-    StackingContextChildInfo(Box* box, int z_index,
-                             RelationshipToBox containing_block_relationship)
-        : box(box),
-          z_index(z_index),
-          containing_block_relationship(containing_block_relationship) {}
-
-    Box* box;
-    int z_index;
-    RelationshipToBox containing_block_relationship;
-  };
-
   class ZIndexComparator {
    public:
     bool operator()(const StackingContextChildInfo& lhs,
@@ -163,8 +166,11 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // These helper functions are called from
   // Box::UpdateCrossReferencesOfContainerBox().
   void AddContainingBlockChild(Box* child_box);
-  void AddStackingContextChild(Box* child_box, int z_index,
-                               RelationshipToBox containing_block_relationship);
+  void AddStackingContextChild(
+      Box* child_box, int z_index,
+      RelationshipToBox containing_block_relationship,
+      const ContainingBlocksWithOverflowHidden&
+          containing_blocks_with_overflow_hidden_to_apply);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
