@@ -57,9 +57,14 @@ class SurfaceD3D : public SurfaceImpl
                                         const gl::ImageIndex &imageIndex,
                                         FramebufferAttachmentRenderTarget **rtOut) override;
 
-    IUnknown *getD3DTexture()
+    IUnknown *getD3DTexture() const
     {
         return mD3DTexture;
+    }
+
+    bool getBindChroma() const
+    {
+      return mBindChroma;
     }
 
   protected:
@@ -95,7 +100,8 @@ class SurfaceD3D : public SurfaceImpl
 
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
-    EGLenum buftype_;
+    EGLenum mBuftype;
+    bool mBindChroma;
 };
 
 class WindowSurfaceD3D : public SurfaceD3D
