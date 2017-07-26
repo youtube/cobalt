@@ -671,6 +671,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
   if (audio_stream == NULL || video_stream == NULL) {
+    LOG(INFO) << "The video doesn't contain both an audio and a video track.";
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
