@@ -40,6 +40,9 @@
         'persistent_cookie_store.cc',
         'persistent_cookie_store.h',
         'proxy_config_service.h',
+        'starboard/network_system.cc',
+        'starboard/proxy_config_service.cc',
+        'starboard/user_agent_string_factory_starboard.cc',
         'switches.cc',
         'switches.h',
         'url_request_context.cc',
@@ -74,19 +77,6 @@
           ],
           'defines': [
             'ENABLE_NETWORK_LOGGING',
-          ],
-        }],
-        ['OS=="starboard"', {
-          'sources': [
-            'starboard/network_system.cc',
-            'starboard/proxy_config_service.cc',
-            'starboard/user_agent_string_factory_starboard.cc',
-          ],
-        }, {
-          'sources': [
-            '<(actual_target_arch)/network_system.cc',
-            '<(actual_target_arch)/proxy_config_service.cc',
-            '<(actual_target_arch)/user_agent_string_factory_<(actual_target_arch).cc',
           ],
         }],
       ],

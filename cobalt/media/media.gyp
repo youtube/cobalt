@@ -26,8 +26,11 @@
         'fetcher_buffered_data_source.h',
         'media_module.cc',
         'media_module.h',
+        'media_module_<(sb_media_platform).cc',
         'media_module_stub.cc',
         'media_module_stub.h',
+        'shell_media_platform_<(sb_media_platform).cc',
+        'shell_media_platform_<(sb_media_platform).h',
         'shell_video_data_allocator_common.cc',
         'shell_video_data_allocator_common.h',
         'web_media_player_factory.h',
@@ -41,32 +44,10 @@
         '<(DEPTH)/media/media.gyp:media',
       ],
       'conditions': [
-        ['OS=="starboard"', {
-          'sources': [
-            'media_module_<(sb_media_platform).cc',
-            'shell_media_platform_<(sb_media_platform).cc',
-            'shell_media_platform_<(sb_media_platform).h',
-          ],
-        }],
-        ['OS=="starboard" and sb_media_platform == "ps4"', {
+        ['sb_media_platform == "ps4"', {
           'sources': [
             'decoder_working_memory_allocator_impl_ps4.cc',
             'decoder_working_memory_allocator_impl_ps4.h',
-          ],
-        }],
-        ['OS=="lb_shell"', {
-          'sources': [
-            'media_module_<(actual_target_arch).cc',
-          ],
-          'include_dirs': [
-            '<(lbshell_root)/src',
-            '<(lbshell_root)/src/platform/<(target_arch)',
-          ],
-        }],
-        ['OS=="lb_shell" and target_arch == "ps3"', {
-          'sources': [
-            'shell_media_platform_ps3.cc',
-            'shell_media_platform_ps3.h',
           ],
         }],
         ['enable_map_to_mesh == 1', {
