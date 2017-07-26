@@ -1175,7 +1175,8 @@ void TextureD3D_2D::bindTexImage(egl::Surface *surface)
     ASSERT(surfaceD3D);
 
     if (surfaceD3D->getSwapChain() == nullptr)
-        mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getD3DTexture());
+        mTexStorage = mRenderer->createTextureStorage2D(
+            surfaceD3D->getD3DTexture(), surfaceD3D->getBindChroma());
     else
         mTexStorage = mRenderer->createTextureStorage2D(surfaceD3D->getSwapChain());
     mEGLImageTarget = false;

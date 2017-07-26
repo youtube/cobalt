@@ -713,7 +713,8 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
       mLevelZeroTexture(nullptr),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
-      mSwizzleTexture(nullptr)
+      mSwizzleTexture(nullptr),
+      mBindChroma(false)
 {
     mTexture->AddRef();
 
@@ -732,7 +733,7 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
     mHasKeyedMutex = (texDesc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX) != 0;
 }
 
-TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture)
+TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture, bool bindChroma)
     : TextureStorage11(renderer,
                        0,
                        0,
@@ -741,7 +742,8 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture
       mLevelZeroTexture(nullptr),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
-      mSwizzleTexture(nullptr)
+      mSwizzleTexture(nullptr),
+      mBindChroma(bindChroma)
 {
     mTexture->AddRef();
 
@@ -1198,7 +1200,10 @@ gl::Error TextureStorage11_2D::createSRV(int baseLevel,
         d3Texture->GetDesc(&texture_desc);
         if (texture_desc.Format == DXGI_FORMAT_NV12)
         {
-            srvDesc.Format = DXGI_FORMAT_R8_UNORM;
+            if (mBindChroma)
+                srvDesc.Format = DXGI_FORMAT_R8G8_UNORM;
+            else
+                srvDesc.Format = DXGI_FORMAT_R8_UNORM;
         }
         d3Texture->Release();
     }
