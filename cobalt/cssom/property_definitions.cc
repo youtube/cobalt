@@ -523,7 +523,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
                         kAnimatableNo, kImpactsChildDeclaredStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
-                        kImpactsBoxCrossReferencesNo,
+                        kImpactsBoxCrossReferencesYes,
                         KeywordValue::GetVisible());
 
   // https://www.w3.org/TR/css-text-3/#overflow-wrap

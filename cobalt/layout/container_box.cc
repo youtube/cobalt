@@ -239,7 +239,8 @@ void ContainerBox::AddContainingBlockChild(Box* child_box) {
 
 void ContainerBox::AddStackingContextChild(
     Box* child_box, int child_z_index,
-    RelationshipToBox containing_block_relationship) {
+    RelationshipToBox containing_block_relationship,
+    const ContainingBlocksWithOverflowHidden& overflow_hidden_to_apply) {
   DCHECK_NE(this, child_box);
   DCHECK_EQ(child_z_index, child_box->GetZIndex());
   // If this is a stacking context, then verify that the child box's stacking
@@ -256,7 +257,8 @@ void ContainerBox::AddStackingContextChild(
       child_z_index < 0 ? negative_z_index_stacking_context_children_
                         : non_negative_z_index_stacking_context_children_;
   stacking_context_children.insert(StackingContextChildInfo(
-      child_box, child_z_index, containing_block_relationship));
+      child_box, child_z_index, containing_block_relationship,
+      overflow_hidden_to_apply));
 }
 
 namespace {
@@ -431,30 +433,194 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
 
 namespace {
 
-Vector2dLayoutUnit GetOffsetFromStackingContextChildContainerToContainingBlock(
-    const Box* child_box, const Box* child_container,
-    const Box::RelationshipToBox
-        containing_block_relationship_to_child_container) {
+// This class handles all logic involved with calling RenderAndAnimate() on
+// stacking context children., including determining their offset from the child
+// container and applying overflow hidden from its containing blocks.
+class RenderAndAnimateStackingContextChildrenCoordinator {
+ public:
+  RenderAndAnimateStackingContextChildrenCoordinator(
+      ContainerBox* stacking_context, const ContainerBox* child_container,
+      const Vector2dLayoutUnit& child_container_offset_from_parent_node,
+      render_tree::CompositionNode::Builder* base_node_builder)
+      : stacking_context_(stacking_context),
+        child_container_(child_container),
+        child_container_offset_from_parent_node_(
+            child_container_offset_from_parent_node),
+        base_node_builder_(base_node_builder) {}
+
+  // The destructor handles generating filter nodes for any remaining entries in
+  // |overflow_hidden_stack_|.
+  ~RenderAndAnimateStackingContextChildrenCoordinator();
+
+  // Applies overflow hidden from the child's containing blocks and then calls
+  // RenderAndAnimate() on it.
+  void RenderAndAnimateChild(
+      const ContainerBox::StackingContextChildInfo& child_info);
+
+ private:
+  struct OverflowHiddenInfo {
+    explicit OverflowHiddenInfo(ContainerBox* containing_block)
+        : node_builder(math::Vector2dF()), containing_block(containing_block) {}
+
+    render_tree::CompositionNode::Builder node_builder;
+    ContainerBox* containing_block;
+  };
+
+  typedef std::vector<OverflowHiddenInfo> OverflowHiddenStack;
+
+  // Updates |overflow_hidden_stack_| with the overflow hidden containing blocks
+  // of the current child. Any entries in |overflow_hidden_stack_| that are no
+  // longer valid are popped. All entries that remain valid are retained, so
+  // that filter nodes can be shared across stacking context children.
+  void ApplyOverflowHiddenForChild(
+      const Box::ContainingBlocksWithOverflowHidden& overflow_hidden_to_apply);
+
+  // Generates a filter node from the top entry in |overflow_hidden_stack_| and
+  // adds it to the active node builder after the top entry is popped.
+  void PopOverflowHiddenEntryFromStack();
+
+  // Returns the node builder from the top entry in |overflow_hidden_stack_| if
+  // it is not empty; otherwise, returns |base_node_builder_|.
+  render_tree::CompositionNode::Builder* GetActiveNodeBuilder();
+
+  Vector2dLayoutUnit GetOffsetFromChildContainerToContainingBlock(
+      const Box* containing_block,
+      const Box::RelationshipToBox
+          containing_block_relationship_to_child_container) const;
+
+  ContainerBox* stacking_context_;
+  const ContainerBox* child_container_;
+  const Vector2dLayoutUnit& child_container_offset_from_parent_node_;
+
+  render_tree::CompositionNode::Builder* base_node_builder_;
+  OverflowHiddenStack overflow_hidden_stack_;
+};
+
+RenderAndAnimateStackingContextChildrenCoordinator::
+    ~RenderAndAnimateStackingContextChildrenCoordinator() {
+  while (!overflow_hidden_stack_.empty()) {
+    PopOverflowHiddenEntryFromStack();
+  }
+}
+
+void RenderAndAnimateStackingContextChildrenCoordinator::RenderAndAnimateChild(
+    const ContainerBox::StackingContextChildInfo& child_info) {
+  ApplyOverflowHiddenForChild(child_info.overflow_hidden_to_apply);
+
+  // Generate the offset from the child container to the child box.
+  const ContainerBox* child_containing_block =
+      child_info.box->GetContainingBlock();
+  Vector2dLayoutUnit position_offset =
+      GetOffsetFromChildContainerToContainingBlock(
+          child_containing_block, child_info.containing_block_relationship) +
+      child_container_offset_from_parent_node_;
+  if (child_info.box->computed_style()->position() ==
+      cssom::KeywordValue::GetAbsolute()) {
+    // The containing block is formed by the padding box instead of the content
+    // box, as described in
+    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+    position_offset -=
+        child_containing_block->GetContentBoxOffsetFromPaddingBox();
+  }
+
+  child_info.box->RenderAndAnimate(GetActiveNodeBuilder(), position_offset,
+                                   stacking_context_);
+}
+
+void RenderAndAnimateStackingContextChildrenCoordinator::
+    ApplyOverflowHiddenForChild(const Box::ContainingBlocksWithOverflowHidden&
+                                    overflow_hidden_to_apply) {
+  // Walk the overflow hidden list being applied and the active overflow hidden
+  // stack looking for the first index where there's a mismatch. All entries
+  // prior to this are retained. This allows as many FilterNodes as possible to
+  // be shared between the stacking context children.
+  size_t index = 0;
+  for (; index < overflow_hidden_to_apply.size() &&
+         index < overflow_hidden_stack_.size();
+       ++index) {
+    if (overflow_hidden_to_apply[index] !=
+        overflow_hidden_stack_[index].containing_block) {
+      break;
+    }
+  }
+
+  // Pop all entries in the active overflow hidden stack that follow the index
+  // mismatch. They're no longer contained within the overflow hidden list being
+  // applied.
+  while (index < overflow_hidden_stack_.size()) {
+    PopOverflowHiddenEntryFromStack();
+  }
+
+  // Add the new overflow hidden entries to the active stack.
+  for (; index < overflow_hidden_to_apply.size(); ++index) {
+    overflow_hidden_stack_.push_back(
+        OverflowHiddenInfo(overflow_hidden_to_apply[index]));
+  }
+}
+
+void RenderAndAnimateStackingContextChildrenCoordinator::
+    PopOverflowHiddenEntryFromStack() {
+  DCHECK(!overflow_hidden_stack_.empty());
+  // Before popping the top of the stack, a filter node is generated from it
+  // that is added to next node builder.
+  OverflowHiddenInfo& overflow_hidden_info = overflow_hidden_stack_.back();
+
+  ContainerBox* containing_block = overflow_hidden_info.containing_block;
+  DCHECK_EQ(containing_block->computed_style()->overflow().get(),
+            cssom::KeywordValue::GetHidden());
+
+  // Determine the offset from the child container to this containing block's
+  // margin box.
+  Vector2dLayoutUnit containing_block_border_offset =
+      GetOffsetFromChildContainerToContainingBlock(containing_block,
+                                                   Box::kIsBoxAncestor) +
+      Vector2dLayoutUnit(containing_block->margin_left(),
+                         containing_block->margin_top());
+
+  // Apply the overflow hidden from this containing block to its composition
+  // node; the resulting filter node is added to the next active node builder.
+  scoped_refptr<render_tree::Node> filter_node =
+      containing_block->RenderAndAnimateOverflow(
+          new render_tree::CompositionNode(
+              overflow_hidden_info.node_builder.Pass()),
+          math::Vector2dF(containing_block_border_offset.x().toFloat(),
+                          containing_block_border_offset.y().toFloat()));
+
+  overflow_hidden_stack_.pop_back();
+  GetActiveNodeBuilder()->AddChild(filter_node);
+}
+
+render_tree::CompositionNode::Builder*
+RenderAndAnimateStackingContextChildrenCoordinator::GetActiveNodeBuilder() {
+  return overflow_hidden_stack_.empty()
+             ? base_node_builder_
+             : &(overflow_hidden_stack_.back().node_builder);
+}
+
+Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
+    GetOffsetFromChildContainerToContainingBlock(
+        const Box* containing_block,
+        const Box::RelationshipToBox
+            containing_block_relationship_to_child_container) const {
   Vector2dLayoutUnit relative_position;
   if (containing_block_relationship_to_child_container != Box::kIsBox) {
     const Box* current_box =
         containing_block_relationship_to_child_container == Box::kIsBoxAncestor
-            ? child_container
-            : child_box->GetContainingBlock();
+            ? child_container_
+            : containing_block;
     const Box* end_box =
         containing_block_relationship_to_child_container == Box::kIsBoxAncestor
-            ? child_box->GetContainingBlock()
-            : child_container;
+            ? containing_block
+            : child_container_;
 
     while (current_box != end_box) {
 #if !defined(NDEBUG)
       // We should not determine a used position through a transform, as
-      // rectangles may not remain rectangles past it, and thus obtaining
-      // a position may be misleading.
+      // rectangles may not remain rectangles past it, and thus obtaining a
+      // position may be misleading.
       if (current_box->IsTransformed()) {
-        DLOG(WARNING) << "Boxes with stacking contexts unequal to their "
-                         "containing blocks that include transforms may not be "
-                         "positioned correctly.";
+        DLOG(WARNING) << "Containing block offset calculations that include "
+                         "transforms may not be positioned correctly.";
       }
 #endif
 
@@ -504,15 +670,6 @@ Vector2dLayoutUnit GetOffsetFromStackingContextChildContainerToContainingBlock(
     }
   }
 
-  if (child_box->computed_style()->position() ==
-      cssom::KeywordValue::GetAbsolute()) {
-    // The containing block is formed by the padding box instead of the content
-    // box, as described in
-    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-    relative_position -=
-        child_box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
-  }
-
   return relative_position;
 }
 
@@ -523,30 +680,29 @@ void ContainerBox::RenderAndAnimateStackingContextChildren(
     render_tree::CompositionNode::Builder* content_node_builder,
     const Vector2dLayoutUnit& offset_from_parent_node,
     ContainerBox* stacking_context) const {
+  // Create a coordinator that handles all logic involved with calling
+  // RenderAndAnimate() on stacking context children., including determining
+  // their offset from the child container and applying overflow hidden from the
+  // child's containing blocks.
+  RenderAndAnimateStackingContextChildrenCoordinator coordinator(
+      stacking_context, this, offset_from_parent_node, content_node_builder);
+
   // Render all children of the passed in list in sorted order.
   for (ZIndexSortedList::const_iterator iter =
            stacking_context_child_list.begin();
        iter != stacking_context_child_list.end(); ++iter) {
-    const StackingContextChildInfo& stacking_context_child_info = *iter;
-    Box* child_box = stacking_context_child_info.box;
+    const StackingContextChildInfo& child_info = *iter;
+
     // If this container box is a stacking context, then verify that this child
-    // box belongs to this stacking context.
-    // Otherwise, verify that the container box and the child box share the
-    // same stacking context and that the child's z-index is 0.
+    // box belongs to it; otherwise, verify that the container box and the child
+    // box share the same stacking context and that the child's z-index is 0.
     DCHECK(this->IsStackingContext()
-               ? this == child_box->GetStackingContext()
+               ? this == child_info.box->GetStackingContext()
                : this->GetStackingContext() ==
-                         child_box->GetStackingContext() &&
-                     stacking_context_child_info.z_index == 0);
+                         child_info.box->GetStackingContext() &&
+                     child_info.z_index == 0);
 
-    Vector2dLayoutUnit position_offset =
-        GetOffsetFromStackingContextChildContainerToContainingBlock(
-            child_box, this,
-            stacking_context_child_info.containing_block_relationship) +
-        offset_from_parent_node;
-
-    child_box->RenderAndAnimate(content_node_builder, position_offset,
-                                stacking_context);
+    coordinator.RenderAndAnimateChild(child_info);
   }
 }
 
@@ -612,9 +768,15 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
     negative_z_index_stacking_context_children_.clear();
     non_negative_z_index_stacking_context_children_.clear();
 
+    bool has_absolute_position =
+        computed_style()->position() == cssom::KeywordValue::GetAbsolute();
+    bool has_overflow_hidden =
+        computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
+
     stacking_context_container_box_stack->push_back(
         StackingContextContainerBoxInfo(
-            this, IsContainingBlockForPositionAbsoluteElements()));
+            this, IsContainingBlockForPositionAbsoluteElements(),
+            has_absolute_position, has_overflow_hidden));
   }
 
   // Only process the children if the target container box is still the nearest
