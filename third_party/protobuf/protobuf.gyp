@@ -144,7 +144,7 @@
             'src/google/protobuf/stubs/mathlimits.h',
             'src/google/protobuf/stubs/substitute.cc',
             'src/google/protobuf/stubs/substitute.h',
-            'src/google/protobuf/stubs/singleton$.h',
+            'src/google/protobuf/stubs/singleton.h',
             'src/google/protobuf/text_format.cc',
             'src/google/protobuf/text_format.h',
             'src/google/protobuf/timestamp.pb.cc',
