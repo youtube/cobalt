@@ -65,6 +65,10 @@ ToolThread::ToolThread(nb::analytics::MemoryTracker* memory_tracker,
 }
 
 ToolThread::~ToolThread() {
+  nb::analytics::MemoryTracker* memory_tracker = params_->memory_tracker();
+  if (memory_tracker) {
+    memory_tracker->SetMemoryTrackerDebugCallback(nullptr);
+  }
   Join();
   tool_.reset();
   params_.reset();
