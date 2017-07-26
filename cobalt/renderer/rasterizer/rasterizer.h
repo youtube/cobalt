@@ -84,7 +84,7 @@ class Rasterizer {
   // rasterizer's GL context be current when they are executed.  This method
   // is essentially a hack to allow GL-based rasterizers a chance to set their
   // context current before we move to update animations.
-  virtual void MakeCurrent() {}
+  virtual void MakeCurrent() = 0;
 };
 
 }  // namespace rasterizer
