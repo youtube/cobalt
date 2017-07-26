@@ -575,17 +575,6 @@
             ['exclude', 'video/capture/fake_video_capture_device'],
           ],
           'conditions': [
-            ['target_arch=="xb1" and actual_target_arch!="win"', {
-              'dependencies' : [
-                '../third_party/modp_b64/modp_b64.gyp:modp_b64',
-                '<(lbshell_root)/build/projects/shell_scheme_handler.gyp:shell_scheme_handler',
-              ],
-              'msvs_settings': {
-                'VCCLCompilerTool': {
-                  'ComponentExtensions': 'true'
-                },
-              },
-            }],
             ['target_arch=="linux"', {
               'sources': [
                 'audio/shell_audio_streamer_linux.cc',
@@ -721,22 +710,6 @@
             ['exclude', 'shell_'],
           ],
         }],  # OS != "lb_shell" and OS != "starboard"
-        ['OS == "lb_shell"', {
-          'include_dirs': [
-            '<(lbshell_root)/src/platform/<(target_arch)/chromium',
-            '<(lbshell_root)/src/platform/<(target_arch)/lb_shell',
-          ],
-          'dependencies': [
-            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-          ],
-          'conditions': [
-            ['(target_arch=="xb1" and actual_target_arch!="win") or target_arch=="xb360"', {
-              'sources': [
-                '<!@(find <(lbshell_root)/src/platform/<(target_arch)/chromium/media -type f)',
-              ],
-            }],
-          ],
-        }],  # OS == "lb_shell"
         ['OS == "starboard"', {
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',
