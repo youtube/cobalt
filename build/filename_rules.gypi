@@ -41,16 +41,6 @@
         ['exclude', '(^|/)android/'],
       ],
     }],
-    ['OS=="lb_shell"', {
-      'sources/': [
-        # Re-include things in media/audio and media/filters
-        ['include', 'audio/shell_.*<(target_arch)'],
-        ['include', 'filters/shell_.*<(target_arch)'],
-        # Re-include things in lbshell
-        ['include', 'lbshell/src/platform/<(target_arch)'],
-        ['include', 'lbshell/src/platform/<(actual_target_arch)'],
-      ],
-    }],
     ['(OS=="win" and >(nacl_untrusted_build)==0) or OS=="lb_shell" or OS=="starboard"', {
       'sources/': [
         ['exclude', '_posix(_unittest)?\\.(h|cc)$'],
