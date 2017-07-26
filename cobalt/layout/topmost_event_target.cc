@@ -169,11 +169,14 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       }
     }
 
+    scoped_refptr<dom::HTMLElement> previous_html_element(
+        previous_html_element_weak_);
+
     // Send enter/leave/over/out (status change) events when needed.
-    if (previous_html_element_ != html_element_) {
+    if (previous_html_element != html_element_) {
       // Store the data for the status change event(s).
       dom::PointerEventInit event_init;
-      event_init.set_related_target(previous_html_element_);
+      event_init.set_related_target(previous_html_element);
       event_init.set_screen_x(mouse_event->screen_x());
       event_init.set_screen_y(mouse_event->screen_y());
       event_init.set_client_x(mouse_event->screen_x());
@@ -193,15 +196,15 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       // nearest common ancestor between the previous and current element.
       scoped_refptr<dom::Element> nearest_common_ancestor;
 
-      if (previous_html_element_) {
-        previous_html_element_->DispatchEvent(new dom::PointerEvent(
+      if (previous_html_element) {
+        previous_html_element->DispatchEvent(new dom::PointerEvent(
             base::Tokens::pointerout(), view, event_init));
-        previous_html_element_->DispatchEvent(
+        previous_html_element->DispatchEvent(
             new dom::MouseEvent(base::Tokens::mouseout(), view, event_init));
 
         // Find the nearest common ancestor, if there is any.
         dom::Document* previous_document =
-            previous_html_element_->node_document();
+            previous_html_element->node_document();
         if (previous_document) {
           if (html_element_ &&
               previous_document == html_element_->node_document()) {
@@ -217,7 +220,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
             }
           }
 
-          for (scoped_refptr<dom::Element> element = previous_html_element_;
+          for (scoped_refptr<dom::Element> element = previous_html_element;
                element != nearest_common_ancestor;
                element = element->parent_element()) {
             element->DispatchEvent(new dom::PointerEvent(
@@ -256,7 +259,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
           document->SetIndicatedElement(html_element_);
         }
       }
-      previous_html_element_ = html_element_;
+      previous_html_element_weak_ = base::AsWeakPtr(html_element_.get());
     }
   }
   html_element_ = NULL;
