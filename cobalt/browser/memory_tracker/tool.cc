@@ -121,6 +121,24 @@ std::string ParseToolArg(const std::string& command_arg) {
   std::string arg_str = command_arg.substr(begin_idx, length);
   return arg_str;
 }
+
+struct DisableMemoryTrackerInScope {
+  explicit DisableMemoryTrackerInScope(MemoryTracker* tracker)
+      : tracker_(tracker) {
+    if (tracker_) {
+      tracker_->SetMemoryTrackingEnabled(false);
+    }
+  }
+
+  ~DisableMemoryTrackerInScope() {
+    if (tracker_) {
+      tracker_->SetMemoryTrackingEnabled(true);
+    }
+  }
+
+  MemoryTracker* tracker_;
+};
+
 }  // namespace.
 
 class MemoryTrackerThreadImpl : public Tool {
@@ -307,6 +325,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       // Time until output is triggered.
       int sampling_time_ms = F::ToMilliseconds(num_mins);
       // Create a thread that will gather memory metrics for startup.
+      DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
       tool_ptr.reset(new PrintCSVTool(sampling_interval_ms, sampling_time_ms));
       break;
     }
@@ -314,6 +333,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
+      DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
       tool_ptr.reset(new PrintTool);
       break;
     }
@@ -321,12 +341,14 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
       // Create a thread that will continuously report memory use.
+      DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
       tool_ptr.reset(new CompressedTimeSeriesTool);
       break;
     }
     case kBinnerAnalytics: {
       memory_tracker = MemoryTracker::Get();
       memory_tracker->InstallGlobalTrackingHooks();
+      DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
       // Create a thread that will continuously report javascript memory
       // analytics.
       tool_ptr.reset(new MemorySizeBinnerTool(tool_arg));
@@ -368,6 +390,7 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   }
 
   if (tool_ptr.get()) {
+    DisableMemoryTrackerInScope disable_in_scope(memory_tracker);
     base::SimpleThread* thread =
         new ToolThread(memory_tracker,  // May be NULL.
                        tool_ptr.release(), new SbLogger);
