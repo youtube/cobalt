@@ -948,66 +948,74 @@ void Box::UpdateCrossReferencesOfContainerBox(
     ContainerBox* nearest_usable_child_container = source_box;
     RelationshipToBox containing_block_relationship_to_child_container =
         my_nearest_containing_block;
+    ContainingBlocksWithOverflowHidden overflow_hidden_to_apply;
 
     int z_index = GetZIndex();
-    if (z_index == 0) {
-      // If a fixed position box is encountered that has a z-index of 0, then
-      // all of the containers within the current container stack are no longer
-      // usable as child containers. The reason for this is that the fixed
-      // position box is being added directly to the stacking context and will
-      // resultantly be drawn after all of the boxes in the current container
-      // stack. Given that subsequent boxes with a z-index of 0 should be drawn
-      // after this fixed position box, using any boxes within the current
-      // container stack will produce an incorrect draw order.
-      if (position_property == cssom::KeywordValue::GetFixed()) {
-        for (StackingContextContainerBoxStack::iterator iter =
-                 stacking_context_container_box_stack->begin();
-             iter != stacking_context_container_box_stack->end(); ++iter) {
-          iter->is_usable_as_child_container = false;
-        }
-      } else if (my_nearest_containing_block == kIsBoxDescendant) {
-        // Search for the nearest absolute containing block that is usable as
-        // a child container (meaning that it guarantees the proper draw
-        // order). Adding the stacking context children as far down the tree
-        // as possible results in a significantly faster framerate and causes
-        // fewer overflow hidden bugs.
-        bool passed_containing_block = false;
-        for (StackingContextContainerBoxStack::reverse_iterator iter =
-                 stacking_context_container_box_stack->rbegin();
-             iter != stacking_context_container_box_stack->rend(); ++iter) {
-          // Always use the first encountered box that is flagged as usable as
-          // a child container. The position of the current box is guaranteed to
-          // not be fixed and all other position types can use absolute
-          // containing blocks. If the current box's containing block was
-          // passed, then it is a descendant of the child container; otherwise,
-          // it is the child container.
-          // NOTE: The containing block will not be an ancestor of the child
-          // container because none of these position types can have a
-          // containing block higher up than the first encountered absolute
-          // containing block.
-          if (iter->is_usable_as_child_container) {
-            DCHECK(iter->is_absolute_containing_block);
-            nearest_usable_child_container = iter->container_box;
-            containing_block_relationship_to_child_container =
-                passed_containing_block ? kIsBoxDescendant : kIsBox;
-            break;
-          }
+    // If a fixed position box is encountered that has a z-index of 0, then
+    // all of the containers within the current container stack are no longer
+    // usable as child containers. The reason for this is that the fixed
+    // position box is being added directly to the stacking context and will
+    // resultantly be drawn after all of the boxes in the current container
+    // stack. Given that subsequent boxes with a z-index of 0 should be drawn
+    // after this fixed position box, using any boxes within the current
+    // container stack will produce an incorrect draw order.
+    if (position_property == cssom::KeywordValue::GetFixed() && z_index == 0) {
+      for (StackingContextContainerBoxStack::iterator iter =
+               stacking_context_container_box_stack->begin();
+           iter != stacking_context_container_box_stack->end(); ++iter) {
+        iter->is_usable_as_child_container = false;
+      }
+    } else if (my_nearest_containing_block == kIsBoxDescendant) {
+      bool passed_my_containing_block = false;
+      bool next_containing_block_requires_absolute_containing_block =
+          position_property == cssom::KeywordValue::GetAbsolute();
 
-          // If this box has an absolute position, then the first container in
-          // the stack that is an absolute containing block is its containing
-          // block; otherwise, the first container in the stack, regardless of
-          // type, is always its containing block.
-          if (!passed_containing_block &&
-              (iter->is_absolute_containing_block ||
-               position_property != cssom::KeywordValue::GetAbsolute())) {
-            passed_containing_block = true;
+      // Walk up the container box stack looking for two things:
+      //   1. The nearest usable child container (meaning that it guarantees the
+      //      proper draw order).
+      //   2. All containing blocks with overflow hidden that are passed during
+      //      the walk. Because the box is being added to a child container
+      //      higher in the tree than these blocks, the box's nodes will not be
+      //      descendants of those containing blocks in the render tree and the
+      //      overflow hidden from them will need to be applied manually.
+      for (StackingContextContainerBoxStack::reverse_iterator iter =
+               stacking_context_container_box_stack->rbegin();
+           iter != stacking_context_container_box_stack->rend(); ++iter) {
+        // Only check for a usable child container if the z_index is 0. If it
+        // is not, then the stacking context must be used.
+        if (z_index == 0 && iter->is_usable_as_child_container) {
+          DCHECK(iter->is_absolute_containing_block);
+          nearest_usable_child_container = iter->container_box;
+          containing_block_relationship_to_child_container =
+              passed_my_containing_block ? kIsBoxDescendant : kIsBox;
+          break;
+        }
+
+        // Check for the current container box being the next containing block
+        // in the walk. If it is, then this box's containing block is guaranteed
+        // to have been passed during the walk (since it'll be the first
+        // containing block encountered); additionally, the ancestor containing
+        // block can potentially apply overflow hidden to this box.
+        if (iter->is_absolute_containing_block ||
+            !next_containing_block_requires_absolute_containing_block) {
+          passed_my_containing_block = true;
+          next_containing_block_requires_absolute_containing_block =
+              iter->has_absolute_position;
+          if (iter->has_overflow_hidden) {
+            overflow_hidden_to_apply.push_back(iter->container_box);
           }
         }
       }
+
+      // Reverse the containing blocks with overflow hidden, so that they'll
+      // start with the ones nearest to the child container.
+      std::reverse(overflow_hidden_to_apply.begin(),
+                   overflow_hidden_to_apply.end());
     }
 
     nearest_usable_child_container->AddStackingContextChild(
-        this, z_index, containing_block_relationship_to_child_container);
+        this, z_index, containing_block_relationship_to_child_container,
+        overflow_hidden_to_apply);
   }
 }
 
@@ -1399,9 +1407,32 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOpacity(
 }
 
 scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
+    const scoped_refptr<render_tree::Node>& content_node,
+    const math::Vector2dF& border_offset) {
+  UsedBorderRadiusProvider border_radius_provider(GetBorderBoxSize());
+  computed_style()->border_radius()->Accept(&border_radius_provider);
+
+  base::optional<RoundedCorners> padding_rounded_corners_if_different;
+  if (border_radius_provider.rounded_corners() && !border_insets_.zero()) {
+    padding_rounded_corners_if_different =
+        border_radius_provider.rounded_corners()->Inset(math::InsetsF(
+            border_insets_.left().toFloat(), border_insets_.top().toFloat(),
+            border_insets_.right().toFloat(),
+            border_insets_.bottom().toFloat()));
+  }
+  const base::optional<RoundedCorners>& padding_rounded_corners =
+      padding_rounded_corners_if_different
+          ? padding_rounded_corners_if_different
+          : border_radius_provider.rounded_corners();
+
+  return RenderAndAnimateOverflow(padding_rounded_corners, content_node, NULL,
+                                  border_offset);
+}
+
+scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
     const base::optional<render_tree::RoundedCorners>& rounded_corners,
-    const scoped_refptr<render_tree::Node>& content_node, AnimateNode::Builder*
-    /* animate_node_builder */,
+    const scoped_refptr<render_tree::Node>& content_node,
+    AnimateNode::Builder* /* animate_node_builder */,
     const math::Vector2dF& border_node_offset) {
   DCHECK_EQ(computed_style()->overflow().get(),
             cssom::KeywordValue::GetHidden());
