@@ -304,3 +304,4 @@ v8.log
 /x86-generic_out/
 /xcodebuild
 *.gyp_lb*
+.vscode
