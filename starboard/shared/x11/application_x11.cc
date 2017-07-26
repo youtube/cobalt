@@ -28,6 +28,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
@@ -1089,8 +1090,8 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
     paste_buffer_pending_characters_.pop();
   }
 
-  SbInputData* data = new SbInputData();
-  SbMemorySet(data, 0, sizeof(*data));
+  scoped_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
   data->window = windows_[0];
   SB_DCHECK(SbWindowIsValid(data->window));
   data->type = paste_buffer_key_release_pending_ ? kSbInputEventTypeUnpress
@@ -1104,7 +1105,8 @@ shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
   data->position.y = 0;
 
   paste_buffer_key_release_pending_ = !paste_buffer_key_release_pending_;
-  return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+  return new Event(kSbEventTypeInput, data.release(),
+                   &DeleteDestructor<SbInputData>);
 }
 
 shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
@@ -1153,8 +1155,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
         return NULL;
       }
 
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_key_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->type = x_event->type == KeyPress ? kSbInputEventTypePress
@@ -1166,26 +1168,30 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key_location = XKeyEventToSbKeyLocation(x_key_event);
       data->position.x = x_key_event->x;
       data->position.y = x_key_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case ButtonPress:
     case ButtonRelease: {
       XButtonEvent* x_button_event = reinterpret_cast<XButtonEvent*>(x_event);
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+      bool is_press_event = ButtonPress == x_event->type;
+      bool is_wheel_event = XButtonEventIsWheelEvent(x_button_event);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+      if (is_wheel_event && !is_press_event) {
+        // unpress events from the wheel are discarded.
+        return NULL;
+      }
+#endif
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_button_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->key = XButtonEventToSbKey(x_button_event);
-      bool is_press_event = ButtonPress == x_event->type;
       data->type =
           is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
       data->device_type = kSbInputDeviceTypeMouse;
-      if (XButtonEventIsWheelEvent(x_button_event)) {
+      if (is_wheel_event) {
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
-        if (!is_press_event) {
-          // unpress events from the wheel are discarded.
-          return NULL;
-        }
         data->pressure = NAN;
         data->size = {NAN, NAN};
         data->tilt = {NAN, NAN};
@@ -1201,12 +1207,13 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key_modifiers = XEventStateToSbKeyModifiers(x_button_event->state);
       data->position.x = x_button_event->x;
       data->position.y = x_button_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
@@ -1220,7 +1227,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key_modifiers = XEventStateToSbKeyModifiers(x_motion_event->state);
       data->position.x = x_motion_event->x;
       data->position.y = x_motion_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case FocusIn: {
       Unpause(NULL, NULL);
