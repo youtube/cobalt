@@ -42,6 +42,8 @@ class ExternalRasterizer::Impl {
 
   render_tree::ResourceProvider* GetResourceProvider();
 
+  void MakeCurrent() { hardware_rasterizer_.MakeCurrent(); }
+
  private:
   base::ThreadChecker thread_checker_;
 
@@ -146,6 +148,10 @@ void ExternalRasterizer::Submit(
 
 render_tree::ResourceProvider* ExternalRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
+}
+
+void ExternalRasterizer::MakeCurrent() {
+  return impl_->MakeCurrent();
 }
 
 }  // namespace lib
