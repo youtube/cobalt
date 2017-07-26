@@ -25,17 +25,7 @@
       'dependencies': [
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-      ],
-      'conditions': [
-        ['OS=="starboard"', {
-          'dependencies': [
-            '<(DEPTH)/cobalt/renderer/backend/starboard/platform_backend.gyp:renderer_platform_backend',
-          ],
-        }, {
-          'dependencies': [
-            '<(DEPTH)/cobalt/renderer/backend/<(actual_target_arch)/platform_backend.gyp:renderer_platform_backend',
-          ],
-        }],
+        '<(DEPTH)/cobalt/renderer/backend/starboard/platform_backend.gyp:renderer_platform_backend',
       ],
     },
   ],

@@ -30,6 +30,7 @@
         'sql_vfs.cc',
         'sql_vfs.h',
         'savegame_fake.cc',
+        'savegame_starboard.cc',
         'storage_manager.cc',
         'storage_manager.h',
         'upgrade/upgrade_reader.cc',
@@ -44,28 +45,6 @@
         '<(DEPTH)/cobalt/base/base.gyp:base',
         '<(DEPTH)/net/net.gyp:net',
         '<(DEPTH)/sql/sql.gyp:sql',
-      ],
-      'conditions': [
-        ['OS=="starboard"', {
-          'sources': [
-            'savegame_starboard.cc',
-          ],
-        }],
-        ['OS!="starboard" and target_arch=="ps3"', {
-          'sources': [
-            'savegame_ps3.cc',
-          ],
-          'copies': [
-          {
-            'destination': '<(static_contents_output_data_dir)',
-            'files': ['<(static_contents_source_dir)/platform/ps3/USRDIR/SAVE_ICON.PNG'],
-          }],
-        }],
-        ['OS!="starboard" and actual_target_arch=="win"', {
-          'sources': [
-            'savegame_file.cc',
-          ],
-        }],
       ],
     },
     {

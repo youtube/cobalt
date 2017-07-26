@@ -21,8 +21,11 @@
         'camera_3d.h',
         'create_default_camera_3d.h',
         'input_device_manager.h',
+        'input_device_manager_desktop.cc',
+        'input_device_manager_desktop.h',
         'input_device_manager_fuzzer.cc',
         'input_device_manager_fuzzer.h',
+        'input_device_manager_starboard.cc',
         'input_poller.h',
         'input_poller_impl.cc',
         'input_poller_impl.h',
@@ -40,20 +43,6 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
       ],
       'conditions': [
-        ['OS=="starboard"', {
-          'sources': [
-            'input_device_manager_desktop.cc',
-            'input_device_manager_desktop.h',
-            'input_device_manager_starboard.cc',
-          ],
-        }],
-        ['OS!="starboard" and actual_target_arch=="win"', {
-          'sources': [
-            'input_device_manager_<(actual_target_arch).cc',
-            'input_device_manager_desktop.cc',
-            'input_device_manager_desktop.h',
-          ],
-        }],
         ['enable_vr==1', {
           'sources': [
             'private/camera_3d_vr.cc',

@@ -135,11 +135,6 @@
     'cobalt_version%': 0,
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
-    # The "real" target_arch that is used to select the correct delegate source.
-    # TODO: Investigate why adding % will break the build on platforms
-    # other than Windows
-    # TODO: Remove after starboard.
-    'actual_target_arch': '<(target_arch)',
 
     # The target platform id as a string, like 'ps3', 'ps4', etc..
     'sb_target_platform': '',
@@ -228,9 +223,6 @@
 
     # Used by cobalt/media/media.gyp to pick a proper media platform.
     'sb_media_platform%': 'starboard',
-
-    # Needed for backwards compatibility with lbshell code.
-    'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
     # starboard_platform.gyp file.  It is currently set to
