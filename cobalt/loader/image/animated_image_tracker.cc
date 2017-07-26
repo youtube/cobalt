@@ -36,7 +36,6 @@ AnimatedImageTracker::AnimatedImageTracker(
 AnimatedImageTracker::~AnimatedImageTracker() {
   TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  animated_image_decode_thread_.Stop();
 }
 
 void AnimatedImageTracker::IncreaseURLCount(const GURL& url) {
