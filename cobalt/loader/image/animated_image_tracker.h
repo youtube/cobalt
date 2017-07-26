@@ -63,14 +63,14 @@ class AnimatedImageTracker {
   typedef std::map<GURL, int> URLToIntMap;
   typedef base::SmallMap<std::map<GURL, base::Unused>, 1> URLSet;
 
+  // The image decode thread is a thread created and owned by the
+  // AnimatedImageTracker, but used by the AnimatedImage decoders.
+  base::Thread animated_image_decode_thread_;
+
   URLToImageMap image_map_;
   URLToIntMap previous_url_counts_;
   URLToIntMap current_url_counts_;
   URLSet playing_urls_;
-
-  // The image decode thread is a thread created and owned by the
-  // AnimatedImageTracker, but used by the AnimatedImage decoders.
-  base::Thread animated_image_decode_thread_;
 
   // Used to ensure that all AnimatedImageTracker methods are called on the
   // same thread (*not* |animated_image_decode_thread_|), the thread that we
