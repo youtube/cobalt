@@ -150,7 +150,7 @@
             #   4267: on amd64. size_t -> int, size_t -> unsigned int
             #   4334: '<<' : result of 32-bit shift implicitly converted to 64
             #       bits (was 64-bit shift intended?)
-            ['actual_target_arch=="win"', {
+            ['target_arch=="win"', {
               'msvs_disabled_warnings': [4267, 4334],
             }],
           ],
