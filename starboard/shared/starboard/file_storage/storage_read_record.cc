@@ -12,9 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/storage.h"
+
+#include <algorithm>
+
 #include "starboard/log.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
-#include "starboard/storage.h"
 #include "starboard/string.h"
 #include "starboard/user.h"
 
@@ -38,7 +41,9 @@ int64_t SbStorageReadRecord(SbStorageRecord record,
   char* destination = out_data;
   int64_t to_read = total;
   while (to_read > 0) {
-    int64_t bytes_read = SbFileRead(record->file, destination, to_read);
+    int to_read_max =
+        static_cast<int>(std::min(to_read, static_cast<int64_t>(kSbInt32Max)));
+    int bytes_read = SbFileRead(record->file, destination, to_read_max);
     if (bytes_read < 0) {
       return -1;
     }

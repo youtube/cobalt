@@ -120,8 +120,7 @@ class PlayerWorker {
   void SetBounds(Bounds bounds) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
   void SetPause(bool pause) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
@@ -171,8 +170,7 @@ class PlayerWorker {
   void DoWriteEndOfStream(SbMediaType sample_type);
 #if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetBounds(Bounds bounds);
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetPause(bool pause);
 #if SB_API_VERSION >= 4
   void DoSetPlaybackRate(double rate);
