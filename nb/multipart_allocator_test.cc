@@ -34,6 +34,97 @@ TEST(MultipartAllocatorAllocationsTest, DefaultCtor) {
   allocations.buffer_sizes();
 }
 
+TEST(MultipartAllocatorAllocationsTest, CopyCtor) {
+  {
+    // Allocations with 0 blocks.
+    MultipartAllocator::Allocations allocations;
+    MultipartAllocator::Allocations copy(allocations);
+    EXPECT_EQ(copy.number_of_buffers(), 0);
+    // Call these functions as a sanity check that they are still callable.
+    copy.buffers();
+    copy.buffer_sizes();
+  }
+
+  {
+    // Allocations with one blocks.
+    const int kBufferSize = 128;
+    char buffer[kBufferSize];
+
+    MultipartAllocator::Allocations allocations(buffer, kBufferSize);
+    MultipartAllocator::Allocations copy(allocations);
+    EXPECT_EQ(copy.number_of_buffers(), 1);
+    EXPECT_EQ(copy.buffers()[0], buffer);
+    EXPECT_EQ(copy.buffer_sizes()[0], kBufferSize);
+  }
+
+  {
+    // Allocations with more than one blocks.
+    const int kBufferSize0 = 128;
+    const int kBufferSize1 = 16;
+    char buffer0[kBufferSize0];
+    char buffer1[kBufferSize1];
+
+    std::vector<void*> buffers = {buffer0, buffer1};
+    std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
+
+    MultipartAllocator::Allocations allocations(
+        static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
+    MultipartAllocator::Allocations copy(allocations);
+    EXPECT_EQ(copy.number_of_buffers(), 2);
+    EXPECT_EQ(copy.buffers()[0], buffer0);
+    EXPECT_EQ(copy.buffer_sizes()[0], kBufferSize0);
+    EXPECT_EQ(copy.buffers()[1], buffer1);
+    EXPECT_EQ(copy.buffer_sizes()[1], kBufferSize1);
+  }
+}
+
+TEST(MultipartAllocatorAllocationsTest, AssignmentOperator) {
+  {
+    // Allocations with 0 blocks.
+    MultipartAllocator::Allocations allocations;
+    MultipartAllocator::Allocations copy;
+    copy = allocations;
+    EXPECT_EQ(copy.number_of_buffers(), 0);
+    // Call these functions as a sanity check that they are still callable.
+    copy.buffers();
+    copy.buffer_sizes();
+  }
+
+  {
+    // Allocations with one blocks.
+    const int kBufferSize = 128;
+    char buffer[kBufferSize];
+
+    MultipartAllocator::Allocations allocations(buffer, kBufferSize);
+    MultipartAllocator::Allocations copy;
+    copy = allocations;
+    EXPECT_EQ(copy.number_of_buffers(), 1);
+    EXPECT_EQ(copy.buffers()[0], buffer);
+    EXPECT_EQ(copy.buffer_sizes()[0], kBufferSize);
+  }
+
+  {
+    // Allocations with more than one blocks.
+    const int kBufferSize0 = 128;
+    const int kBufferSize1 = 16;
+    char buffer0[kBufferSize0];
+    char buffer1[kBufferSize1];
+
+    std::vector<void*> buffers = {buffer0, buffer1};
+    std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
+
+    MultipartAllocator::Allocations allocations(
+        static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
+    MultipartAllocator::Allocations copy;
+    copy = allocations;
+    EXPECT_EQ(copy.number_of_buffers(), 2);
+    EXPECT_EQ(copy.buffers()[0], buffer0);
+    EXPECT_EQ(copy.buffer_sizes()[0], kBufferSize0);
+    EXPECT_EQ(copy.buffers()[1], buffer1);
+    EXPECT_EQ(copy.buffer_sizes()[1], kBufferSize1);
+  }
+}
+
 TEST(MultipartAllocatorAllocationsTest, SingleBuffer) {
   const int kBufferSize = 128;
   char buffer[kBufferSize];
@@ -110,7 +201,8 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffers) {
   std::vector<void*> buffers = {buffer0, buffer1};
   std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
 
-  MultipartAllocator::Allocations allocations(buffers, buffer_sizes);
+  MultipartAllocator::Allocations allocations(
+      static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
   EXPECT_EQ(allocations.number_of_buffers(), 2);
   EXPECT_EQ(allocations.buffers()[0], buffer0);
   EXPECT_EQ(allocations.buffers()[1], buffer1);
@@ -127,7 +219,8 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffersShrink) {
   std::vector<void*> buffers = {buffer0, buffer1};
   std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
 
-  MultipartAllocator::Allocations allocations(buffers, buffer_sizes);
+  MultipartAllocator::Allocations allocations(
+      static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
 
   allocations.ShrinkTo(kBufferSize0 + kBufferSize1 / 2);
   EXPECT_EQ(allocations.number_of_buffers(), 2);
@@ -168,7 +261,8 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffersWrite) {
   std::vector<void*> buffers = {buffer0, buffer1};
   std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
 
-  MultipartAllocator::Allocations allocations(buffers, buffer_sizes);
+  MultipartAllocator::Allocations allocations(
+      static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
   SbMemorySet(source, 'x', kBufferSize0 + kBufferSize1);
 
   SbMemorySet(buffer0, 0, kBufferSize0);
@@ -211,7 +305,8 @@ TEST(MultipartAllocatorAllocationsTest, MultipleBuffersRead) {
   std::vector<void*> buffers = {buffer0, buffer1};
   std::vector<int> buffer_sizes = {kBufferSize0, kBufferSize1};
 
-  MultipartAllocator::Allocations allocations(buffers, buffer_sizes);
+  MultipartAllocator::Allocations allocations(
+      static_cast<int>(buffers.size()), buffers.data(), buffer_sizes.data());
 
   SbMemorySet(buffer0, 'x', kBufferSize0);
   SbMemorySet(buffer1, 'y', kBufferSize1);
