@@ -15,56 +15,10 @@
 #include "cobalt/renderer/rasterizer/egl/offscreen_target_manager.h"
 
 #include <algorithm>
+#include <unordered_map>
 
-#include "base/hash_tables.h"
 #include "cobalt/renderer/rasterizer/egl/rect_allocator.h"
 #include "third_party/skia/include/core/SkRefCnt.h"
-
-namespace {
-// Structure describing the key for render target allocations in a given
-// offscreen target atlas.
-struct AllocationKey {
-  AllocationKey(const cobalt::render_tree::Node* tree_node,
-                const cobalt::math::SizeF& alloc_size)
-      : node_id(tree_node->GetId()),
-        size(alloc_size) {}
-
-  bool operator==(const AllocationKey& other) const {
-    return node_id == other.node_id && size == other.size;
-  }
-
-  bool operator!=(const AllocationKey& other) const {
-    return node_id != other.node_id || size != other.size;
-  }
-
-  bool operator<(const AllocationKey& rhs) const {
-    return (node_id < rhs.node_id) ||
-           (node_id == rhs.node_id &&
-               (size.width() < rhs.size.width() ||
-               (size.width() == rhs.size.width() &&
-                   size.height() < rhs.size.height())));
-  }
-
-  int64_t node_id;
-  cobalt::math::SizeF size;
-};
-}  // namespace
-
-namespace BASE_HASH_NAMESPACE {
-#if defined(BASE_HASH_USE_HASH_STRUCT)
-template <>
-struct hash<AllocationKey> {
-  size_t operator()(const AllocationKey& key) const {
-    return static_cast<size_t>(key.node_id);
-  }
-};
-#else
-template <>
-inline size_t hash_value<AllocationKey>(const AllocationKey& key) {
-  return static_cast<size_t>(key.node_id);
-}
-#endif
-}  // namespace BASE_HASH_NAMESPACE
 
 namespace cobalt {
 namespace renderer {
@@ -73,7 +27,15 @@ namespace egl {
 
 namespace {
 
-typedef base::hash_map<AllocationKey, math::Rect> AllocationMap;
+struct AllocationMapValue {
+  AllocationMapValue(const OffscreenTargetManager::ErrorData& in_error_data,
+                     const math::RectF& in_target_region)
+      : error_data(in_error_data), target_region(in_target_region) {}
+  OffscreenTargetManager::ErrorData error_data;
+  math::RectF target_region;
+};
+
+typedef std::unordered_multimap<int64_t, AllocationMapValue> AllocationMap;
 
 int32_t NextPowerOf2(int32_t num) {
   // Return the smallest power of 2 that is greater than or equal to num.
@@ -173,23 +135,36 @@ void OffscreenTargetManager::Flush() {
 }
 
 bool OffscreenTargetManager::GetCachedOffscreenTarget(
-    const render_tree::Node* node, const math::SizeF& size,
+    const render_tree::Node* node, const CacheErrorFunction& error_function,
     TargetInfo* out_target_info) {
-  AllocationMap::iterator iter = offscreen_cache_->allocation_map.find(
-      AllocationKey(node, size));
-  if (iter != offscreen_cache_->allocation_map.end()) {
+  // Find the cache of the given node (if any) with the lowest error.
+  AllocationMap::iterator best_iter = offscreen_cache_->allocation_map.end();
+  float best_error = 2.0f;
+
+  auto range = offscreen_cache_->allocation_map.equal_range(node->GetId());
+  for (auto iter = range.first; iter != range.second; ++iter) {
+    float error = error_function.Run(iter->second.error_data);
+    if (best_error > error) {
+      best_error = error;
+      best_iter = iter;
+    }
+  }
+
+  // A cache entry matches the caller's criteria only if error < 1.
+  if (best_error < 1.0f) {
     offscreen_cache_->allocations_used += 1;
     out_target_info->framebuffer = offscreen_cache_->framebuffer.get();
     out_target_info->skia_canvas = offscreen_cache_->skia_surface->getCanvas();
-    out_target_info->region = iter->second;
+    out_target_info->region = best_iter->second.target_region;
     return true;
   }
+
   return false;
 }
 
 void OffscreenTargetManager::AllocateOffscreenTarget(
     const render_tree::Node* node, const math::SizeF& size,
-    TargetInfo* out_target_info) {
+    const ErrorData& error_data, TargetInfo* out_target_info) {
   // Pad the offscreen target size to prevent interpolation with unwanted
   // texels when rendering the results.
   const int kInterpolatePad = 1;
@@ -200,13 +175,13 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.width() + 1));
   DCHECK(IsPowerOf2(offscreen_target_size_mask_.height() + 1));
   math::Size target_size(
-      (static_cast<int>(size.width()) + 2 * kInterpolatePad +
+      (static_cast<int>(std::ceil(size.width())) + 2 * kInterpolatePad +
           offscreen_target_size_mask_.width()) &
           ~offscreen_target_size_mask_.width(),
-      (static_cast<int>(size.height()) + 2 * kInterpolatePad +
+      (static_cast<int>(std::ceil(size.height())) + 2 * kInterpolatePad +
           offscreen_target_size_mask_.height()) &
           ~offscreen_target_size_mask_.height());
-  math::Rect target_rect(0, 0, 0, 0);
+  math::RectF target_rect(0.0f, 0.0f, 0.0f, 0.0f);
   OffscreenAtlas* atlas = NULL;
 
   // See if there's room in the offscreen cache for additional targets.
@@ -232,6 +207,9 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
   } else {
     // Inset to prevent interpolation with unwanted pixels at the edge.
     target_rect.Inset(kInterpolatePad, kInterpolatePad);
+    DCHECK_LE(size.width(), target_rect.width());
+    DCHECK_LE(size.height(), target_rect.height());
+    target_rect.set_size(size);
 
     // Clear the atlas if this will be the first draw into it.
     if (atlas->allocation_map.empty()) {
@@ -239,7 +217,7 @@ void OffscreenTargetManager::AllocateOffscreenTarget(
     }
 
     atlas->allocation_map.insert(AllocationMap::value_type(
-        AllocationKey(node, size), target_rect));
+        node->GetId(), AllocationMapValue(error_data, target_rect)));
     atlas->allocations_used += 1;
     atlas->needs_flush = true;
 
