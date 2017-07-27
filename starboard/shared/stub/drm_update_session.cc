@@ -14,12 +14,12 @@
 
 #include "starboard/drm.h"
 
-void SbDrmUpdateSession(SbDrmSystem drm_system,
+void SbDrmUpdateSession(SbDrmSystem /*drm_system*/,
 #if SB_API_VERSION >= 4
-                        int ticket,
+                        int /*ticket*/,
 #endif  // SB_API_VERSION >= 4
-                        const void* key,
-                        int key_size,
-                        const void* session_id,
-                        int session_id_size) {
+                        const void* /*key*/,
+                        int /*key_size*/,
+                        const void* /*session_id*/,
+                        int /*session_id_size*/) {
 }

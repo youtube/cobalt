@@ -68,7 +68,6 @@ void AppendSwitchesAndArguments(CommandLine& command_line,
     CommandLine::StringType arg = argv[i];
 
     // Begin inlined TrimWhitespace TRIM_ALL from base/string_util.cc
-    CommandLine::StringType::size_type last_char = arg.length() - 1;
     CommandLine::StringType::size_type first_good_char =
         arg.find_first_not_of(kWhitespaceASCII);
     CommandLine::StringType::size_type last_good_char =
@@ -170,6 +169,7 @@ void CommandLine::AppendArg(const CommandLine::StringType& value) {
 
 void CommandLine::AppendArguments(const CommandLine& other,
                                   bool include_program) {
+  SB_UNREFERENCED_PARAMETER(include_program);
   AppendSwitchesAndArguments(*this, other.argv());
 }
 
