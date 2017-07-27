@@ -134,8 +134,9 @@ class CobaltRunner(object):
       for command_line_arg in command_line_args:
         args.append("--" + command_line_arg)
     args.append("--enable_webdriver")
-    args.append("--null_savegame")
     args.append("--debug_console=off")
+    args.append("--disable_image_animations")
+    args.append("--null_savegame")
     args.append("--url=" + _default_url)
 
     self.launcher.SetArgs(args)

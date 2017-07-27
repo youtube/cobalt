@@ -170,6 +170,10 @@ class WebModule {
     scoped_refptr<input::InputPoller> input_poller;
 
     script::JavaScriptEngine::Options javascript_options;
+
+    // Allows image animations to be enabled/disabled.  Its default value
+    // is true to enable them.
+    bool enable_image_animations;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 
 namespace cobalt {
@@ -25,6 +26,7 @@ namespace image {
 AnimatedImageTracker::AnimatedImageTracker(
     base::ThreadPriority animated_image_decode_thread_priority)
     : animated_image_decode_thread_("AnimatedImage") {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
   base::Thread::Options options(MessageLoop::TYPE_DEFAULT,
                                 0 /* default stack size */,
                                 animated_image_decode_thread_priority);
@@ -32,25 +34,37 @@ AnimatedImageTracker::AnimatedImageTracker(
 }
 
 AnimatedImageTracker::~AnimatedImageTracker() {
-  animated_image_decode_thread_.Stop();
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
+  DCHECK(thread_checker_.CalledOnValidThread());
 }
 
 void AnimatedImageTracker::IncreaseURLCount(const GURL& url) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedImageTracker::IncreaseURLCount()");
+  DCHECK(thread_checker_.CalledOnValidThread());
   current_url_counts_[url]++;
 }
 
 void AnimatedImageTracker::DecreaseURLCount(const GURL& url) {
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedImageTracker::DecreaseURLCount()");
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK_GT(current_url_counts_[url], 0);
   current_url_counts_[url]--;
 }
 
 void AnimatedImageTracker::RecordImage(
     const GURL& url, loader::image::AnimatedImage* animated_image) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(animated_image);
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::RecordImage()");
   image_map_[url] = animated_image;
 }
 
 void AnimatedImageTracker::ProcessRecordedImages() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedImageTracker::ProcessRecordedImages()");
   for (URLToIntMap::iterator it = current_url_counts_.begin();
        it != current_url_counts_.end();) {
     const GURL& url = it->first;
@@ -83,14 +97,31 @@ void AnimatedImageTracker::ProcessRecordedImages() {
 
 void AnimatedImageTracker::OnDisplayStart(
     loader::image::AnimatedImage* animated_image) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(animated_image);
+  TRACE_EVENT0("cobalt::loader::image",
+               "AnimatedImageTracker::OnDisplayStart()");
   animated_image->Play(animated_image_decode_thread_.message_loop_proxy());
 }
 
 void AnimatedImageTracker::OnDisplayEnd(
     loader::image::AnimatedImage* animated_image) {
+  DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(animated_image);
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedImageTracker::OnDisplayEnd()");
   animated_image->Stop();
+}
+
+void AnimatedImageTracker::Reset() {
+  for (URLSet::const_iterator iter = playing_urls_.begin();
+       iter != playing_urls_.end(); ++iter) {
+    OnDisplayEnd(image_map_[iter->first]);
+  }
+
+  image_map_.clear();
+  current_url_counts_.clear();
+  previous_url_counts_.clear();
+  playing_urls_.clear();
 }
 
 }  // namespace image

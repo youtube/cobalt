@@ -526,6 +526,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
                                        base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
+      data.options.enable_image_animations,
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
@@ -594,8 +595,8 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
-  animated_image_tracker_.reset();
   image_cache_.reset();
+  animated_image_tracker_.reset();
   fetcher_factory_.reset();
   dom_parser_.reset();
   css_parser_.reset();
@@ -770,6 +771,9 @@ void WebModule::Impl::SuspendLoaders() {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+
+  // Clear out any currently tracked animating images.
+  animated_image_tracker_->Reset();
 }
 
 void WebModule::Impl::FinishSuspend() {
@@ -865,7 +869,8 @@ WebModule::Options::Options(const math::Size& ui_dimensions)
       image_cache_capacity_multiplier_when_playing_video(1.0f),
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
-      animated_image_decode_thread_priority(base::kThreadPriority_Low) {}
+      animated_image_decode_thread_priority(base::kThreadPriority_Low),
+      enable_image_animations(true) {}
 
 WebModule::WebModule(
     const GURL& initial_url,

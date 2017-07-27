@@ -763,11 +763,27 @@ const ContainerBox* Box::GetContainingBlock() const {
 
 const ContainerBox* Box::GetStackingContext() const {
   if (!parent_) return AsContainerBox();
-  if (GetZIndex() == 0) {
-    return GetContainingBlock();
+
+  const bool is_positioned = IsPositioned();
+
+  // If the box is an in-flow, non-positioned element, then simply return the
+  // parent as the stacking context.
+  //   https://www.w3.org/TR/CSS21/visuren.html#z-index
+  if (!is_positioned && !IsStackingContext()) {
+    return parent_;
   }
+
+  // If the box's position is not fixed and the z-index is 0, then the nearest
+  // absolute containing block is accepted if it is closer than the nearest
+  // stacking context.
+  bool accept_absolute_containing_block =
+      computed_style()->position() != cssom::KeywordValue::GetFixed() &&
+      GetZIndex() == 0;
+
   ContainerBox* containing_block = parent_;
-  while (!containing_block->IsStackingContext()) {
+  while (!containing_block->IsStackingContext() &&
+         (!accept_absolute_containing_block ||
+          !containing_block->IsContainingBlockForPositionAbsoluteElements())) {
     containing_block = containing_block->parent_;
   }
   return containing_block;
@@ -783,42 +799,63 @@ int Box::GetZIndex() const {
 }
 
 void Box::UpdateCrossReferencesOfContainerBox(
-    ContainerBox* source_box, bool is_nearest_containing_block,
-    bool is_nearest_absolute_containing_block,
-    bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context) {
-  // Containing blocks and stacking contexts only matter for positioned boxes.
-  if (IsPositioned() || IsTransformed()) {
-    bool is_my_containing_block;
-    // Establish the containing block, as described in
-    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-    if (computed_style()->position() == cssom::KeywordValue::GetAbsolute()) {
-      // If the element has 'position: absolute', the containing block is
-      // established by the nearest ancestor with a 'position' of 'absolute',
-      // 'relative' or 'fixed'.
-      is_my_containing_block = is_nearest_absolute_containing_block;
-    } else if (computed_style()->position() ==
-               cssom::KeywordValue::GetFixed()) {
+    ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+    RelationshipToBox nearest_absolute_containing_block,
+    RelationshipToBox nearest_fixed_containing_block,
+    RelationshipToBox nearest_stacking_context) {
+  const bool is_positioned = IsPositioned();
+  bool is_position_fixed = false;
+
+  RelationshipToBox my_nearest_containing_block = nearest_containing_block;
+
+  // Establish the containing block, as described in
+  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+  // Containing blocks only matter for descendant positioned boxes.
+  if (is_positioned) {
+    const scoped_refptr<cssom::PropertyValue>& position_property =
+        computed_style()->position();
+    if (position_property == cssom::KeywordValue::GetFixed()) {
+      is_position_fixed = true;
       // If the element has 'position: fixed', the containing block is
       // established by the viewport in the case of continuous media or the page
       // area in the case of paged media.
-      is_my_containing_block = is_nearest_fixed_containing_block;
-    } else {
-      // If the element's position is "relative" or "static", the containing
-      // block is formed by the content edge of the nearest block container
-      // ancestor box.
-      is_my_containing_block = is_nearest_containing_block;
+      my_nearest_containing_block = nearest_fixed_containing_block;
+    } else if (position_property == cssom::KeywordValue::GetAbsolute()) {
+      // If the element has 'position: absolute', the containing block is
+      // established by the nearest ancestor with a 'position' of 'absolute',
+      // 'relative' or 'fixed'.
+      my_nearest_containing_block = nearest_absolute_containing_block;
     }
+    // Otherwise, the element's position is "relative"; the containing block is
+    // formed by the content edge of the nearest block container ancestor box,
+    // which is the initial value of |my_nearest_containing_block|.
 
-    // If this box has a z_index of zero, then its containing block is its
-    // stacking context. Otherwise, the nearest stacking context is used.
-    bool is_my_stacking_context =
-        GetZIndex() == 0 ? is_my_containing_block : is_nearest_stacking_context;
-
-    if (is_my_containing_block) {
+    if (my_nearest_containing_block == kIsBox) {
       source_box->AddContainingBlockChild(this);
     }
+  }
+
+  // Establish the stacking context, as described in
+  // https://www.w3.org/TR/CSS21/visuren.html#z-index,
+  // https://www.w3.org/TR/css3-color/#transparency, and
+  // https://www.w3.org/TR/css3-transforms/#transform-rendering.
+  // Stacking contexts only matter for descendant positioned boxes and child
+  // stacking contexts.
+  if (is_positioned || IsStackingContext()) {
+    // If the box's position is not fixed and the z-index is 0, then the nearest
+    // box between the absolute containing block and the stacking context is
+    // used; otherwise, the stacking context is always used.
+    bool is_my_stacking_context =
+        !is_position_fixed && GetZIndex() == 0
+            ? ((nearest_absolute_containing_block == kIsBox &&
+                nearest_stacking_context != kIsBoxDescendant) ||
+               (nearest_stacking_context == kIsBox &&
+                nearest_absolute_containing_block != kIsBoxDescendant))
+            : nearest_stacking_context == kIsBox;
+
     if (is_my_stacking_context) {
-      source_box->AddStackingContextChild(this);
+      source_box->AddStackingContextChild(this, my_nearest_containing_block,
+                                          GetZIndex());
     }
   }
 }

@@ -78,20 +78,40 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // section: https://www.w3.org/TR/css3-transforms/#transform-rendering.
   bool IsContainingBlockForPositionFixedElements() const;
 
-  // Returns true if this container box serves as a stacking context for
-  // descendant elements.
-  bool IsStackingContext() const;
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  bool IsStackingContext() const OVERRIDE;
 
  protected:
+  struct StackingContextChildInfo {
+    StackingContextChildInfo(Box* box,
+                             RelationshipToBox containing_block_relationship,
+                             int z_index)
+        : box(box),
+          containing_block_relationship(containing_block_relationship),
+          z_index(z_index) {}
+
+    Box* box;
+    RelationshipToBox containing_block_relationship;
+    int z_index;
+  };
+
   class ZIndexComparator {
    public:
-    bool operator()(const Box* lhs, const Box* rhs) const {
-      return lhs->GetZIndex() < rhs->GetZIndex();
+    bool operator()(const StackingContextChildInfo& lhs,
+                    const StackingContextChildInfo& rhs) const {
+      return lhs.z_index < rhs.z_index;
     }
   };
-  // Note: find(Box*) and erase(Box*) on ZIndexSortedList may not work as
-  // expected due to the use of reflexive comparison for equality.
-  typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
+  // Note: find(StackingContextChildInfo) and erase(StackingContextChildInfo) on
+  // ZIndexSortedList may not work as expected due to the use of reflexive
+  // comparison for equality.
+  typedef std::multiset<StackingContextChildInfo, ZIndexComparator>
+      ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
       const LayoutParams& relative_child_layout_params,
@@ -115,10 +135,10 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   const Boxes& child_boxes() const { return child_boxes_; }
 
   void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block,
-      bool is_nearest_stacking_context) OVERRIDE;
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context) OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
   void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
@@ -134,7 +154,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // These helper functions are called from
   // Box::UpdateCrossReferencesOfContainerBox().
   void AddContainingBlockChild(Box* child_box);
-  void AddStackingContextChild(Box* child_box);
+  void AddStackingContextChild(Box* child_box,
+                               RelationshipToBox containing_block_relationship,
+                               int z_index);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.

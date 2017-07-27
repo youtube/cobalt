@@ -107,6 +107,12 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  enum RelationshipToBox {
+    kIsBoxAncestor,
+    kIsBox,
+    kIsBoxDescendant,
+  };
+
   Box(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
           css_computed_style_declaration,
       UsedStyleProvider* used_style_provider,
@@ -154,6 +160,14 @@ class Box : public base::RefCounted<Box> {
   // has the value "absolute" or "fixed".
   //   https://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
   bool IsAbsolutelyPositioned() const;
+
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  virtual bool IsStackingContext() const { return false; }
 
   // Updates the size of margin, border, padding, and content boxes. Lays out
   // in-flow descendants, estimates static positions (but not sizes) of
@@ -554,9 +568,10 @@ class Box : public base::RefCounted<Box> {
   // the box tree that have it as their containing block or stacking context.
   // This function is called recursively.
   virtual void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context);
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See

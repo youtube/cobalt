@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/message_loop_proxy.h"
+#include "base/synchronization/lock.h"
 #include "base/time.h"
 #include "cobalt/math/size_f.h"
 #include "cobalt/math/transform_2d.h"
@@ -77,12 +78,37 @@ class StaticImage : public Image {
 // when playing animation.
 class AnimatedImage : public Image {
  public:
+  // FrameProvider nested classes are used as "frame containers".  Typically
+  // they will be created by an AnimatedImage and have frames pushed into them
+  // by the creating AnimatedImage object.  They can be handed to consumers to
+  // have frames pulled out of them.  Its purpose is to allow AnimatedImage
+  // objects to be destroyed without affecting consumers of the FrameProvider.
+  // If the AnimatedImage is destroyed before the consumer is done pulling
+  // frames out of FrameProvider, they will simply be left with the last frame
+  // that was in there.
+  class FrameProvider : public base::RefCountedThreadSafe<FrameProvider> {
+   public:
+    void SetFrame(const scoped_refptr<render_tree::Image>& frame) {
+      base::AutoLock lock(mutex_);
+      frame_ = frame;
+    }
+
+    scoped_refptr<render_tree::Image> GetFrame() const {
+      base::AutoLock lock(mutex_);
+      return frame_;
+    }
+
+   private:
+    virtual ~FrameProvider() {}
+    friend class base::RefCountedThreadSafe<FrameProvider>;
+
+    mutable base::Lock mutex_;
+    scoped_refptr<render_tree::Image> frame_;
+  };
+
   bool IsAnimated() const OVERRIDE { return true; }
 
   bool IsOpaque() const OVERRIDE { return false; }
-
-  // Get the current frame. Implementation should be thread safe.
-  virtual scoped_refptr<render_tree::Image> GetFrame() = 0;
 
   // Start playing the animation, decoding on the given message loop.
   // Implementation should be thread safe.
@@ -92,14 +118,21 @@ class AnimatedImage : public Image {
   // Stop playing the animation.
   virtual void Stop() = 0;
 
+  // Returns a FrameProvider object from which frames can be pulled out of.
+  // The AnimatedImage object is expected to push frames into the FrameProvider
+  // as it generates them.
+  virtual scoped_refptr<const FrameProvider> GetFrameProvider() = 0;
+
   // This callback is intended to be used in a render_tree::AnimateNode.
-  void AnimateCallback(const math::RectF& destination_rect,
-                       const math::Matrix3F& local_transform,
-                       render_tree::ImageNode::Builder* image_node_builder,
-                       base::TimeDelta time) {
+  static void AnimateCallback(
+      scoped_refptr<const FrameProvider> frame_provider,
+      const math::RectF& destination_rect,
+      const math::Matrix3F& local_transform,
+      render_tree::ImageNode::Builder* image_node_builder,
+      base::TimeDelta time) {
     UNREFERENCED_PARAMETER(time);
 
-    image_node_builder->source = GetFrame();
+    image_node_builder->source = frame_provider->GetFrame();
     image_node_builder->destination_rect = destination_rect;
     image_node_builder->local_transform = local_transform;
   }
