@@ -269,7 +269,7 @@ class TvTestCase(unittest.TestCase):
   def is_processing(self, check_animations):
     """Checks to see if Cobalt is currently processing."""
     return (self.get_cval(c_val_names.count_dom_active_java_script_events()) or
-            self.get_cval(c_val_names.layout_is_dirty()) or
+            self.get_cval(c_val_names.layout_is_render_tree_pending()) or
             (check_animations and
              self.get_cval(c_val_names.renderer_has_active_animations())) or
             self.get_cval(c_val_names.count_image_cache_loading_resources()))

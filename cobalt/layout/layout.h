@@ -38,7 +38,8 @@ class UsedStyleProvider;
 // (https://www.w3.org/TR/CSS2/visuren.html) as recommended by a newer draft
 // (http://dev.w3.org/csswg/css-box/) which is undergoing active changes.
 
-// Update the computed styles, then generate and layout the box tree.
+// Update the computed styles, then generate and layout the box tree produced
+// by the given document.
 void UpdateComputedStylesAndLayoutBoxTree(
     const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
     int dom_max_element_depth, UsedStyleProvider* used_style_provider,
@@ -47,15 +48,11 @@ void UpdateComputedStylesAndLayoutBoxTree(
     icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
 
-// Main entry point to the layout engine.
-// Produces the render tree (along with corresponding animations) which is a
-// result of recursive layout of the given HTML element.
-scoped_refptr<render_tree::Node> Layout(
-    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
+// Generates the render tree (along with corresponding animations) of the box
+// tree contained within the provided containing block.
+scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
+    UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
-    icu::BreakIterator* line_break_iterator,
-    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block);
 
 }  // namespace layout
