@@ -151,6 +151,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
 }
 
 bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
+  SB_UNREFERENCED_PARAMETER(ticket);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
   if (!audio_renderer_ || !video_renderer_) {
