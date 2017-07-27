@@ -201,8 +201,6 @@
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',
     'final_executable_type%': 'executable',
-    'posix_emulation_target_type%': 'static_library',
-    'webkit_target_type%': 'static_library',
 
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
@@ -586,16 +584,6 @@
               '-fPIC',
             ],
           }],
-        ],
-      }],
-      ['posix_emulation_target_type == "shared_library"', {
-        'defines': [
-          '__LB_BASE_SHARED__=1',
-        ],
-      }],
-      ['webkit_target_type == "shared_library"', {
-        'defines': [
-          'COBALT_WEBKIT_SHARED=1',
         ],
       }],
       ['OS == "lb_shell"', {
