@@ -21,27 +21,52 @@
 
 namespace nb {
 
-MultipartAllocator::Allocations::Allocations(void* buffer, int size) {
-  SB_DCHECK(size > 0);
-
-  buffers_.push_back(buffer);
-  buffer_sizes_.push_back(size);
+MultipartAllocator::Allocations::Allocations(void* buffer, int buffer_size)
+    : number_of_buffers_(1),
+      buffers_(&buffer_),
+      buffer_sizes_(&buffer_size_),
+      buffer_(buffer),
+      buffer_size_(buffer_size) {
+  SB_DCHECK(buffer != NULL);
+  SB_DCHECK(buffer_size > 0);
 }
 
-MultipartAllocator::Allocations::Allocations(
-    const std::vector<void*>& buffers,
-    const std::vector<int>& buffer_sizes)
-    : buffers_(buffers), buffer_sizes_(buffer_sizes) {
-  SB_DCHECK(buffers_.size() == buffer_sizes_.size());
-  for (size_t i = 0; i < buffers_.size(); ++i) {
+MultipartAllocator::Allocations::Allocations(int number_of_buffers,
+                                             void** buffers,
+                                             const int* buffer_sizes)
+    : number_of_buffers_(0), buffers_(NULL), buffer_sizes_(NULL) {
+  SB_DCHECK(number_of_buffers > 0);
+  SB_DCHECK(buffers != NULL);
+  SB_DCHECK(buffer_sizes != NULL);
+
+  Assign(number_of_buffers, buffers, buffer_sizes);
+
+  for (int i = 0; i < number_of_buffers_; ++i) {
     SB_DCHECK(buffers_[i] != NULL);
+    SB_DCHECK(buffer_sizes_[i] > 0);
   }
+}
+
+MultipartAllocator::Allocations::Allocations(const Allocations& that)
+    : number_of_buffers_(0), buffers_(NULL), buffer_sizes_(NULL) {
+  Assign(that.number_of_buffers_, that.buffers_, that.buffer_sizes_);
+}
+
+MultipartAllocator::Allocations::~Allocations() {
+  Destroy();
+}
+
+MultipartAllocator::Allocations& MultipartAllocator::Allocations::operator=(
+    const Allocations& that) {
+  Destroy();
+  Assign(that.number_of_buffers_, that.buffers_, that.buffer_sizes_);
+  return *this;
 }
 
 int MultipartAllocator::Allocations::size() const {
   int size = 0;
 
-  for (size_t i = 0; i < buffers_.size(); ++i) {
+  for (size_t i = 0; i < number_of_buffers_; ++i) {
     size += buffer_sizes_[i];
   }
 
@@ -49,14 +74,14 @@ int MultipartAllocator::Allocations::size() const {
 }
 
 void MultipartAllocator::Allocations::ShrinkTo(int size) {
-  for (size_t i = 0; i < buffers_.size(); ++i) {
+  for (size_t i = 0; i < number_of_buffers_; ++i) {
     if (size >= buffer_sizes_[i]) {
       size -= buffer_sizes_[i];
     } else {
       buffer_sizes_[i] = size;
       size = 0;
       ++i;
-      while (i < buffers_.size()) {
+      while (i < number_of_buffers_) {
         buffer_sizes_[i] = 0;
         ++i;
       }
@@ -73,7 +98,7 @@ void MultipartAllocator::Allocations::Write(int destination_offset,
   size_t buffer_index = 0;
   const uint8_t* src_in_uint8 = static_cast<const uint8_t*>(src);
   while (size > 0) {
-    if (buffer_index >= buffers_.size()) {
+    if (buffer_index >= number_of_buffers_) {
       SB_NOTREACHED();
       return;
     }
@@ -97,10 +122,47 @@ void MultipartAllocator::Allocations::Write(int destination_offset,
 void MultipartAllocator::Allocations::Read(void* destination) const {
   uint8_t* destination_in_uint8 = static_cast<uint8_t*>(destination);
 
-  for (size_t i = 0; i < buffers_.size(); ++i) {
+  for (size_t i = 0; i < number_of_buffers_; ++i) {
     SbMemoryCopy(destination_in_uint8, buffers_[i], buffer_sizes_[i]);
     destination_in_uint8 += buffer_sizes_[i];
   }
+}
+
+void MultipartAllocator::Allocations::Assign(int number_of_buffers,
+                                             void** buffers,
+                                             const int* buffer_sizes) {
+  SB_DCHECK(number_of_buffers_ == 0);
+  SB_DCHECK(buffers_ == NULL);
+  SB_DCHECK(buffer_sizes_ == NULL);
+
+  number_of_buffers_ = number_of_buffers;
+  if (number_of_buffers_ == 0) {
+    buffers_ = NULL;
+    buffer_sizes_ = NULL;
+    return;
+  }
+  if (number_of_buffers_ == 1) {
+    buffers_ = &buffer_;
+    buffer_sizes_ = &buffer_size_;
+    buffer_ = buffers[0];
+    buffer_size_ = buffer_sizes[0];
+    return;
+  }
+  buffers_ = new void*[number_of_buffers_];
+  buffer_sizes_ = new int[number_of_buffers_];
+  SbMemoryCopy(buffers_, buffers, sizeof(*buffers_) * number_of_buffers_);
+  SbMemoryCopy(buffer_sizes_, buffer_sizes,
+               sizeof(*buffer_sizes_) * number_of_buffers_);
+}
+
+void MultipartAllocator::Allocations::Destroy() {
+  if (number_of_buffers_ > 1) {
+    delete[] buffers_;
+    delete[] buffer_sizes_;
+  }
+  number_of_buffers_ = 0;
+  buffers_ = NULL;
+  buffer_sizes_ = NULL;
 }
 
 }  // namespace nb

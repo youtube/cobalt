@@ -15,8 +15,6 @@
 #ifndef NB_MULTIPART_ALLOCATOR_H_
 #define NB_MULTIPART_ALLOCATOR_H_
 
-#include <vector>
-
 #include "starboard/configuration.h"
 #include "starboard/types.h"
 
@@ -28,19 +26,23 @@ class MultipartAllocator {
  public:
   class Allocations {
    public:
-    Allocations() {}
-    Allocations(void* buffer, int size);
-    Allocations(const std::vector<void*>& buffers,
-                const std::vector<int>& buffer_sizes);
+    Allocations()
+        : number_of_buffers_(0), buffers_(NULL), buffer_sizes_(NULL) {}
+    Allocations(void* buffer, int buffer_size);
+    Allocations(int number_of_buffers, void** buffers, const int* buffer_sizes);
+    Allocations(const Allocations& that);
+    ~Allocations();
+
+    Allocations& operator=(const Allocations& that);
 
     int size() const;
 
-    void* const* buffers() { return buffers_.data(); }
-    const void* const* buffers() const { return buffers_.data(); }
+    void* const* buffers() { return buffers_; }
+    const void* const* buffers() const { return buffers_; }
 
-    const int* buffer_sizes() const { return buffer_sizes_.data(); }
+    const int* buffer_sizes() const { return buffer_sizes_; }
 
-    int number_of_buffers() const { return static_cast<int>(buffers_.size()); }
+    int number_of_buffers() const { return number_of_buffers_; }
 
     void ShrinkTo(int size);
     // Write |size| bytes from |src| to buffers start from |destination_offset|.
@@ -50,9 +52,17 @@ class MultipartAllocator {
     void Read(void* destination) const;
 
    private:
-    // TODO: Consider replace vector<> to avoid excessive small allocations.
-    std::vector<void*> buffers_;
-    std::vector<int> buffer_sizes_;
+    void Assign(int number_of_buffers, void** buffers, const int* buffer_sizes);
+    void Destroy();
+
+    int number_of_buffers_;
+    void** buffers_;
+    int* buffer_sizes_;
+    // Store data in the class to avoid allocate memory when there is only one
+    // buffer.  In this case |buffers_| and |buffer_sizes_| will point to
+    // |buffer_| and |buffer_size_| respectively.
+    void* buffer_;
+    int buffer_size_;
   };
 
   virtual ~MultipartAllocator() {}
@@ -60,8 +70,8 @@ class MultipartAllocator {
   // Allocate a memory block that contains at least |size| bytes and its
   // address is aligned to |alignment|.  It returns an empty Allocations object
   // on failure.
-  virtual Allocations Allocate(std::size_t size,
-                               std::size_t alignment,
+  virtual Allocations Allocate(size_t size,
+                               size_t alignment,
                                intptr_t context) = 0;
   // Free a memory block previously allocated by calling Allocate().
   virtual void Free(Allocations allocations) = 0;
