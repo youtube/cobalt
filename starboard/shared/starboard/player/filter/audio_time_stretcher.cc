@@ -208,8 +208,8 @@ scoped_refptr<DecodedAudio> AudioTimeStretcher::Read(int requested_frames,
     return dest;
   }
 
-  int slower_step = ceil(ola_window_size_ * playback_rate);
-  int faster_step = ceil(ola_window_size_ / playback_rate);
+  int slower_step = static_cast<int>(ceil(ola_window_size_ * playback_rate));
+  int faster_step = static_cast<int>(ceil(ola_window_size_ / playback_rate));
 
   // Optimize the most common |playback_rate| ~= 1 case to use a single copy
   // instead of copying frame by frame.
@@ -267,7 +267,7 @@ bool AudioTimeStretcher::CanPerformWsola() const {
 int AudioTimeStretcher::ConvertMillisecondsToFrames(int ms) const {
   const double kMillsecondsPerSeconds =
       static_cast<double>(kSbTimeSecond / kSbTimeMillisecond);
-  return ms * (samples_per_second_ / kMillsecondsPerSeconds);
+  return static_cast<int>(ms * (samples_per_second_ / kMillsecondsPerSeconds));
 }
 
 bool AudioTimeStretcher::RunOneWsolaIteration(double playback_rate) {
