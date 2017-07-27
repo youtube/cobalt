@@ -14,6 +14,7 @@
 
 #include "nb/multipart_allocator.h"
 
+#include <algorithm>
 #include "starboard/log.h"
 #include "starboard/memory.h"
 
