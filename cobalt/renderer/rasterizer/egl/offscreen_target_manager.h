@@ -48,6 +48,14 @@ class OffscreenTargetManager {
     math::RectF region;
   };
 
+  // Offscreen targets are cached with additional ErrorData. When searching for
+  // a match, the caller specifies an error function which is used to verify
+  // that a particular cache entry is suitable for use. A cache entry is
+  // suitable if CacheErrorFunction(ErrorData) < 1. If multiple entries meet
+  // this criteria, then the entry with the lowest error is chosen.
+  typedef math::RectF ErrorData;
+  typedef base::Callback<float(const ErrorData&)> CacheErrorFunction;
+
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
       const CreateFallbackSurfaceFunction& create_fallback_surface,
       size_t memory_limit);
@@ -65,14 +73,14 @@ class OffscreenTargetManager {
   // otherwise, they are untouched.
   // The returned values are only valid until the next call to Update().
   bool GetCachedOffscreenTarget(
-      const render_tree::Node* node, const math::SizeF& size,
+      const render_tree::Node* node, const CacheErrorFunction& error_function,
       TargetInfo* out_target_info);
 
   // Allocate an offscreen target of the specified size.
   // The returned values are only valid until the next call to Update().
   void AllocateOffscreenTarget(
       const render_tree::Node* node, const math::SizeF& size,
-      TargetInfo* out_target_info);
+      const ErrorData& error_data, TargetInfo* out_target_info);
 
  private:
   // Use an atlas for offscreen targets.
