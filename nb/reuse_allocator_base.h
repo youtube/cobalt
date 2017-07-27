@@ -23,6 +23,7 @@
 
 #include "nb/allocator.h"
 #include "starboard/configuration.h"
+#include "starboard/types.h"
 
 namespace nb {
 
