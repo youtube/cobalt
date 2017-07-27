@@ -227,7 +227,7 @@ bool MemoryTrackerImpl::IsCurrentThreadAllowedToReport() const {
 
 void MemoryTrackerImpl::SetMemoryTrackerDebugCallback(
     MemoryTrackerDebugCallback* cb) {
-  debug_callback_ = cb;
+  debug_callback_.swap(cb);
 }
 
 MemoryTrackerImpl::DisableDeletionInScope::DisableDeletionInScope(
@@ -242,7 +242,7 @@ MemoryTrackerImpl::DisableDeletionInScope::~DisableDeletionInScope() {
 }
 
 MemoryTrackerImpl::MemoryTrackerImpl()
-    : thread_filter_id_(kSbThreadInvalidId), debug_callback_(NULL) {
+    : thread_filter_id_(kSbThreadInvalidId), debug_callback_(nullptr) {
   total_bytes_allocated_.store(0);
   global_hooks_installed_ = false;
   Initialize(&sb_memory_tracker_, &nb_memory_scope_reporter_);
@@ -302,13 +302,15 @@ bool MemoryTrackerImpl::AddMemoryTracking(const void* memory, size_t size) {
   if (added) {
     AddAllocationBytes(size);
     group->AddAllocation(size);
-    // Useful for investigating what the heck is being allocated. For example
-    // the developer may want to track certain allocations that meet a certain
-    // criteria.
-    if (debug_callback_) {
+    ConcurrentPtr<MemoryTrackerDebugCallback>::Access access_ptr =
+        debug_callback_.access_ptr(SbThreadId());
+
+    // If access_ptr is valid then it is guaranteed to be alive for the
+    // duration of the scope.
+    if (access_ptr) {
       const CallStack& callstack = *(callstack_tls_.GetOrCreate());
       DisableDeletionInScope disable_deletion_tracking(this);
-      debug_callback_->OnMemoryAllocation(memory, alloc_record, callstack);
+      access_ptr->OnMemoryAllocation(memory, alloc_record, callstack);
     }
   } else {
     // Handles the case where the memory hasn't been properly been reported
@@ -348,15 +350,14 @@ size_t MemoryTrackerImpl::RemoveMemoryTracking(const void* memory) {
   AllocationRecord alloc_record;
   bool removed = false;
 
-  // Useful for investigating what the heck is being deallocated. For example
-  // the developer may want to track certain allocations that meet a certain
-  // criteria.
-  if (debug_callback_) {
+  ConcurrentPtr<MemoryTrackerDebugCallback>::Access access_ptr =
+      debug_callback_.access_ptr(SbThreadId());
+
+  if (access_ptr) {
     if (atomic_allocation_map_.Get(memory, &alloc_record)) {
       DisableMemoryTrackingInScope no_memory_tracking(this);
       const CallStack& callstack = (*callstack_tls_.GetOrCreate());
-      debug_callback_->OnMemoryDeallocation(memory, alloc_record,
-                                            callstack);
+      access_ptr->OnMemoryDeallocation(memory, alloc_record, callstack);
     }
   }
 
