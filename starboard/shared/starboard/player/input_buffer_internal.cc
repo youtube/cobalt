@@ -115,7 +115,6 @@ class InputBuffer::ReferenceCountedBuffer {
   }
   void SetDecryptedContent(const void* buffer, int size) {
     SB_DCHECK(size == size_);
-    SB_DCHECK(deallocate_sample_func_);
     DeallocateSampleBuffer(data_);
 
     if (size > 0) {
