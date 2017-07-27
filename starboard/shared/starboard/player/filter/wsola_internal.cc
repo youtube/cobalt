@@ -17,7 +17,9 @@
 // limitations under the License.
 
 // MSVC++ requires this to be set before any other includes to get M_PI.
+#if !defined(_USE_MATH_DEFINES)
 #define _USE_MATH_DEFINES
+#endif
 
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
@@ -290,7 +292,7 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
 }
 
 void GetSymmetricHanningWindow(int window_length, float* window) {
-  const float scale = 2.0f * M_PI / window_length;
+  const float scale = static_cast<float>(2.0 * M_PI) / window_length;
   for (int n = 0; n < window_length; ++n)
     window[n] = 0.5f * (1.0f - cosf(n * scale));
 }
