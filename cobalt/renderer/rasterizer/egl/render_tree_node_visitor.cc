@@ -71,6 +71,39 @@ math::Matrix3F GetTexcoordTransform(
       0, 0, 1);
 }
 
+// Return the error value of a given offscreen taget cache entry.
+// |desired_bounds| specifies the world-space bounds to which an offscreen
+//   target will be rendered.
+// |cached_bounds| specifies the world-space bounds used when the offscreen
+//   target was generated.
+// Lower return values indicate better fits. Only cache entries with an error
+//   less than 1 will be considered suitable.
+float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
+                                   const math::RectF& cached_bounds) {
+  // The cached contents must be within 0.5 pixels of the desired size to avoid
+  // scaling artifacts.
+  if (std::abs(desired_bounds.width() - cached_bounds.width()) >= 0.5f ||
+      std::abs(desired_bounds.height() - cached_bounds.height()) >= 0.5f) {
+    return 1.0f;
+  }
+
+  // The cached contents' sub-pixel offset must be within 0.5 pixels to ensure
+  // appropriate positioning.
+  math::PointF desired_offset(
+      desired_bounds.x() - std::floor(desired_bounds.x()),
+      desired_bounds.y() - std::floor(desired_bounds.y()));
+  math::PointF cached_offset(
+      cached_bounds.x() - std::floor(cached_bounds.x()),
+      cached_bounds.y() - std::floor(cached_bounds.y()));
+  float error_x = std::abs(desired_offset.x() - cached_offset.x());
+  float error_y = std::abs(desired_offset.y() - cached_offset.y());
+  if (error_x >= 0.5f || error_y >= 0.5f) {
+    return 1.0f;
+  }
+
+  return error_x + error_y;
+}
+
 }  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
@@ -490,7 +523,7 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
     math::RectF* out_content_rect) {
   // Default to telling the caller that nothing should be rendered.
   *out_content_cached = true;
-  out_content_rect->SetRect(0, 0, 0, 0);
+  out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
 
   if (!allow_offscreen_targets_) {
     failed_offscreen_target_request_ = true;
@@ -506,47 +539,36 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   // Request a slightly larger render target than the calculated bounds. The
   // rasterizer may use an extra pixel along the edge of anti-aliased objects.
   const float kBorderWidth = 1.0f;
-
-  // The render target cache keys off the render_tree Node and target size.
-  // Since the size is rounded, it is possible to be a fraction of a pixel
-  // off. However, this in turn allows for a cache hit for "close-enough"
-  // renderings. To minimize offset errors, use the nearest full pixel offset.
-  const float kFractionPad = 1.0f;
-  float offset_x = std::floor(mapped_bounds.x() + 0.5f);
-  float offset_y = std::floor(mapped_bounds.y() + 0.5f);
   math::PointF content_offset(
-      offset_x - kBorderWidth - kFractionPad,
-      offset_y - kBorderWidth - kFractionPad);
+      std::floor(mapped_bounds.x() - kBorderWidth),
+      std::floor(mapped_bounds.y() - kBorderWidth));
   math::SizeF content_size(
-      std::ceil(mapped_bounds.width() + 2.0f * kBorderWidth + kFractionPad),
-      std::ceil(mapped_bounds.height() + 2.0f * kBorderWidth + kFractionPad));
+      std::ceil(mapped_bounds.right() + kBorderWidth - content_offset.x()),
+      std::ceil(mapped_bounds.bottom() + kBorderWidth - content_offset.y()));
+
+  // Get a suitable cache of the render tree node if one exists, or allocate
+  // a new offscreen target if possible. The OffscreenTargetErrorFunction will
+  // determine whether any caches are fit for use.
   *out_content_cached = offscreen_target_manager_->GetCachedOffscreenTarget(
-      node, content_size, out_target_info);
+      node, base::Bind(&OffscreenTargetErrorFunction, mapped_bounds),
+      out_target_info);
   if (!(*out_content_cached)) {
     offscreen_target_manager_->AllocateOffscreenTarget(node,
-        content_size, out_target_info);
+        content_size, mapped_bounds, out_target_info);
   }
 
-  // If no offscreen target was available, then set the content_rect as if
-  // rendering will occur on the current render target.
+  // If no offscreen target could be allocated, then the render tree node will
+  // be rendered directly onto the main framebuffer. Use the current scissor
+  // to minimize what has to be drawn.
   if (out_target_info->framebuffer == nullptr) {
-    mapped_bounds.Outset(kBorderWidth, kBorderWidth);
-    mapped_bounds.Intersect(draw_state_.scissor);
-    if (mapped_bounds.IsEmpty()) {
+    math::RectF content_bounds(content_offset, content_size);
+    content_bounds.Intersect(draw_state_.scissor);
+    if (content_bounds.IsEmpty()) {
       return;
     }
-    float left = std::floor(mapped_bounds.x());
-    float right = std::ceil(mapped_bounds.right());
-    float top = std::floor(mapped_bounds.y());
-    float bottom = std::ceil(mapped_bounds.bottom());
-    content_offset.SetPoint(left, top);
-    content_size.SetSize(right - left, bottom - top);
-  } else {
-    DCHECK_LE(content_size.width(), out_target_info->region.width());
-    DCHECK_LE(content_size.height(), out_target_info->region.height());
+    content_offset = content_bounds.origin();
+    content_size = content_bounds.size();
   }
-
-  out_target_info->region.set_size(content_size);
 
   out_content_rect->set_origin(content_offset);
   out_content_rect->set_size(content_size);
