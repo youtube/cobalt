@@ -166,30 +166,6 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-void GetVideoContainerSizeOverride(math::Size* output_size) {
-  DCHECK(output_size);
-  CommandLine* command_line = CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kVideoContainerSizeOverride)) {
-    std::string size_override = command_line->GetSwitchValueASCII(
-        browser::switches::kVideoContainerSizeOverride);
-    DLOG(INFO) << "Set video container size override from command line to "
-               << size_override;
-    // Override string should be something like "1920x1080".
-    int32 width, height;
-    std::vector<std::string> tokens;
-    base::SplitString(size_override, 'x', &tokens);
-    if (tokens.size() == 2 && base::StringToInt32(tokens[0], &width) &&
-        base::StringToInt32(tokens[1], &height)) {
-      *output_size = math::Size(width, height);
-    } else {
-      DLOG(WARNING) << "Invalid size specified for video container: "
-                    << size_override;
-    }
-  }
-}
-#endif
-
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
@@ -206,50 +182,73 @@ renderer::RendererModule::Options RendererModuleWithCameraOptions(
   return options;  // Copy.
 }
 
+void ApplyAutoMemSettings(const memory_settings::AutoMem& auto_mem,
+                          BrowserModule::Options* options) {
+  SB_LOG(INFO) << "\n\n"
+               << auto_mem.ToPrettyPrintString(SbLogIsTty()) << "\n\n";
+
+  options->web_module_options.image_cache_capacity =
+      static_cast<int>(auto_mem.image_cache_size_in_bytes()->value());
+
+  options->renderer_module_options.skia_cache_size_in_bytes =
+      static_cast<int>(auto_mem.skia_cache_size_in_bytes()->value());
+
+  const memory_settings::TextureDimensions skia_glyph_atlas_texture_dimensions =
+      auto_mem.skia_atlas_texture_dimensions()->value();
+
+  // Right now the bytes_per_pixel is assumed in the engine. Any other value
+  // is currently forbidden.
+  if (skia_glyph_atlas_texture_dimensions.bytes_per_pixel() > 0) {
+    DCHECK_EQ(2, skia_glyph_atlas_texture_dimensions.bytes_per_pixel());
+    options->renderer_module_options.skia_glyph_texture_atlas_dimensions =
+        math::Size(skia_glyph_atlas_texture_dimensions.width(),
+                   skia_glyph_atlas_texture_dimensions.height());
+  }
+
+  options->web_module_options.remote_typeface_cache_capacity =
+      static_cast<int>(auto_mem.remote_typeface_cache_size_in_bytes()->value());
+
+  options->web_module_options.javascript_options.gc_threshold_bytes =
+      static_cast<size_t>(auto_mem.javascript_gc_threshold_in_bytes()->value());
+
+  options->renderer_module_options.software_surface_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.software_surface_cache_size_in_bytes()->value());
+  options->renderer_module_options.offscreen_target_cache_size_in_bytes =
+      static_cast<int>(
+          auto_mem.offscreen_target_cache_size_in_bytes()->value());
+}
+
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
                              base::ApplicationState initial_application_state,
-                             system_window::SystemWindow* system_window,
+                             base::EventDispatcher* event_dispatcher,
                              account::AccountManager* account_manager,
                              const Options& options)
     : ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       ALLOW_THIS_IN_INITIALIZER_LIST(
           weak_this_(weak_ptr_factory_.GetWeakPtr())),
+      options_(options),
       self_message_loop_(MessageLoop::current()),
+      event_dispatcher_(event_dispatcher),
       storage_manager_(
           scoped_ptr<StorageUpgradeHandler>(new StorageUpgradeHandler(url))
               .PassAs<storage::StorageManager::UpgradeHandler>(),
-          options.storage_manager_options),
+          options_.storage_manager_options),
 #if defined(OS_STARBOARD)
       is_rendered_(false),
 #endif  // OS_STARBOARD
-      input_device_manager_(input::InputDeviceManager::CreateFromWindow(
-          base::Bind(&BrowserModule::OnKeyEventProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnPointerEventProduced,
-                     base::Unretained(this)),
-          base::Bind(&BrowserModule::OnWheelEventProduced,
-                     base::Unretained(this)),
-          system_window)),
-      renderer_module_(system_window, RendererModuleWithCameraOptions(
-                                          options.renderer_module_options,
-                                          input_device_manager_->camera_3d())),
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(
           new ResourceProviderArrayBufferAllocator(GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
-      network_module_(&storage_manager_, system_window->event_dispatcher(),
-                      options.network_module_options),
-      render_tree_combiner_(&renderer_module_,
-                            renderer_module_.render_target()->GetSize()),
-#if defined(ENABLE_SCREENSHOT)
-      screen_shot_writer_(new ScreenShotWriter(renderer_module_.pipeline())),
-#endif  // defined(ENABLE_SCREENSHOT)
+      network_module_(&storage_manager_, event_dispatcher_,
+                      options_.network_module_options),
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
-      web_module_recreated_callback_(options.web_module_recreated_callback),
+      web_module_recreated_callback_(options_.web_module_recreated_callback),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -270,15 +269,12 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
-      ALLOW_THIS_IN_INITIALIZER_LIST(h5vcc_url_handler_(this, system_window)),
-      web_module_options_(options.web_module_options),
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
       render_timeout_count_(0),
 #endif
       will_quit_(false),
-      system_window_(system_window),
       application_state_(initial_application_state) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
@@ -297,36 +293,17 @@ BrowserModule::BrowserModule(const GURL& url,
       base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
 #endif
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
-  // All allocations for media will be tracked by "Media" memory scope.
-  {
-    TRACK_MEMORY_SCOPE("Media");
-    math::Size output_size = renderer_module_.render_target()->GetSize();
-    if (system_window->GetVideoPixelRatio() != 1.f) {
-      output_size.set_width(
-          static_cast<int>(static_cast<float>(output_size.width()) *
-                           system_window->GetVideoPixelRatio()));
-      output_size.set_height(
-          static_cast<int>(static_cast<float>(output_size.height()) *
-                           system_window->GetVideoPixelRatio()));
-    }
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-    GetVideoContainerSizeOverride(&output_size);
-#endif
-
-    media_module_ = (media::MediaModule::Create(system_window, output_size,
-                                                GetResourceProvider(),
-                                                options.media_module_options));
-  }
 
   // Setup our main web module to have the H5VCC API injected into it.
-  DCHECK(!ContainsKey(web_module_options_.injected_window_attributes, "h5vcc"));
+  DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
+                      "h5vcc"));
   h5vcc::H5vcc::Settings h5vcc_settings;
   h5vcc_settings.media_module = media_module_.get();
   h5vcc_settings.network_module = &network_module_;
   h5vcc_settings.account_manager = account_manager;
-  h5vcc_settings.event_dispatcher = system_window->event_dispatcher();
-  h5vcc_settings.initial_deep_link = options.initial_deep_link;
-  web_module_options_.injected_window_attributes["h5vcc"] =
+  h5vcc_settings.event_dispatcher = event_dispatcher_;
+  h5vcc_settings.initial_deep_link = options_.initial_deep_link;
+  options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
 
 #if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -341,24 +318,24 @@ BrowserModule::BrowserModule(const GURL& url,
   }
 #endif  // ENABLE_DEBUG_CONSOLE && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
+  if (application_state_ == base::kApplicationStateStarted ||
+      application_state_ == base::kApplicationStatePaused) {
+    InitializeSystemWindow();
+  }
+
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_.reset(new DebugConsole(
       application_state_,
       base::Bind(&BrowserModule::QueueOnDebugConsoleRenderTreeProduced,
                  base::Unretained(this)),
-      media_module_.get(), &network_module_,
-      renderer_module_.render_target()->GetSize(), GetResourceProvider(),
+      &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      web_module_options_.javascript_options));
+      options_.web_module_options.javascript_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
-  // Always render the debug console. It will draw nothing if disabled.
-  // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
-  // TODO: Render tree combiner should probably be refactored.
-  render_tree_combiner_.set_render_debug_console(true);
-
+  splash_screen_url_ = options.splash_screen_url;
   // Synchronously construct our WebModule object.
   NavigateInternal(url);
   DCHECK(web_module_);
@@ -429,22 +406,24 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
-  const math::Size& viewport_size = renderer_module_.render_target()->GetSize();
+  const math::Size& viewport_size = GetViewportSize();
   DestroySplashScreen();
-  splash_screen_.reset(
-      new SplashScreen(application_state_,
-                       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
-                                  base::Unretained(this)),
-                       &network_module_, viewport_size, GetResourceProvider(),
-                       kLayoutMaxRefreshFrequencyInHz));
-  lifecycle_observers_.AddObserver(splash_screen_.get());
+  if (splash_screen_url_) {
+    splash_screen_.reset(
+        new SplashScreen(application_state_,
+                         base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+                                    base::Unretained(this)),
+                         &network_module_, viewport_size, GetResourceProvider(),
+                         kLayoutMaxRefreshFrequencyInHz, *splash_screen_url_));
+    lifecycle_observers_.AddObserver(splash_screen_.get());
+  }
 
   // Create new WebModule.
 #if !defined(COBALT_FORCE_CSP)
-  web_module_options_.csp_insecure_allowed_token =
+  options_.web_module_options.csp_insecure_allowed_token =
       dom::CspDelegateFactory::GetInsecureAllowedToken();
 #endif
-  WebModule::Options options(web_module_options_);
+  WebModule::Options options(options_.web_module_options);
   options.navigation_callback =
       base::Bind(&BrowserModule::Navigate, base::Unretained(this));
   options.loaded_callbacks.push_back(
@@ -464,7 +443,15 @@ void BrowserModule::NavigateInternal(const GURL& url) {
 
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
-  options.camera_3d = input_device_manager_->camera_3d();
+  if (input_device_manager_) {
+    options.camera_3d = input_device_manager_->camera_3d();
+  }
+
+  float video_pixel_ratio = 1.0f;
+  if (system_window_) {
+    video_pixel_ratio = system_window_->GetVideoPixelRatio();
+  }
+
   web_module_.reset(new WebModule(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
@@ -472,9 +459,8 @@ void BrowserModule::NavigateInternal(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      media_module_.get(), &network_module_, viewport_size,
-      GetResourceProvider(), system_window_, kLayoutMaxRefreshFrequencyInHz,
-      options));
+      media_module_.get(), &network_module_, viewport_size, video_pixel_ratio,
+      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -541,6 +527,9 @@ void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  if (!render_tree_combiner_) {
+    return;
+  }
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
@@ -548,7 +537,7 @@ void BrowserModule::OnRenderTreeProduced(
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
 #endif  // OS_STARBOARD
-  render_tree_combiner_.UpdateMainRenderTree(renderer_submission);
+  render_tree_combiner_->UpdateMainRenderTree(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
@@ -645,13 +634,16 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-
-  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
-    render_tree_combiner_.UpdateDebugConsoleRenderTree(base::nullopt);
+  if (!render_tree_combiner_) {
     return;
   }
 
-  render_tree_combiner_.UpdateDebugConsoleRenderTree(renderer::Submission(
+  if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+    render_tree_combiner_->UpdateDebugConsoleRenderTree(base::nullopt);
+    return;
+  }
+
+  render_tree_combiner_->UpdateDebugConsoleRenderTree(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
 }
 
@@ -918,29 +910,38 @@ void BrowserModule::Suspend() {
   // The screenshot writer may be holding on to a reference to a render tree
   // which could in turn be referencing resources like images, so clear that
   // out.
-  screen_shot_writer_->ClearLastPipelineSubmission();
+  if (screen_shot_writer_) {
+    screen_shot_writer_->ClearLastPipelineSubmission();
+  }
 #endif
 
   // Clear out the render tree combiner so that it doesn't hold on to any
   // render tree resources either.
-  render_tree_combiner_.Reset();
+  if (render_tree_combiner_) {
+    render_tree_combiner_->Reset();
+  }
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Note that the following function call will leak the GPU memory allocated.
-  // This is because after renderer_module_.Suspend() is called it is no longer
+  // This is because after renderer_module_->Suspend() is called it is no longer
   // safe to release the GPU memory allocated.
-  // The following code can call reset() to release the allocated memory but
-  // the memory may still be used by XHR and ArrayBuffer.  As this feature is
-  // only used on platform without Resume() support, it is safer to leak the
-  // memory then to release it.
+  //
+  // The following code can call reset() to release the allocated memory but the
+  // memory may still be used by XHR and ArrayBuffer.  As this feature is only
+  // used on platform without Resume() support, it is safer to leak the memory
+  // then to release it.
   dom::ArrayBuffer::Allocator* allocator = array_buffer_allocator_.release();
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
 
-  media_module_->Suspend();
+  if (media_module_) {
+    media_module_->Suspend();
+  }
 
-  // Place the renderer module into a suspended state where it releases all its
-  // graphical resources.
-  renderer_module_.Suspend();
+  if (renderer_module_) {
+    // Place the renderer module into a suspended state where it releases all
+    // its graphical resources.
+    renderer_module_->Suspend();
+  }
 
   application_state_ = base::kApplicationStateSuspended;
 }
@@ -949,7 +950,7 @@ void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
-  renderer_module_.Resume();
+  renderer_module_->Resume();
 
   // Note that at this point, it is probable that this resource provider is
   // different than the one that was managed in the associated call to
@@ -968,6 +969,13 @@ void BrowserModule::Resume() {
                     Resume(resource_provider));
 
   application_state_ = base::kApplicationStatePaused;
+}
+
+void BrowserModule::CheckMemory(
+    const int64_t& used_cpu_memory,
+    const base::optional<int64_t>& used_gpu_memory) {
+  memory_settings_checker_.RunChecks(*auto_mem_, used_cpu_memory,
+                                     used_gpu_memory);
 }
 
 #if defined(OS_STARBOARD)
@@ -1030,7 +1038,72 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
 #endif
 
 render_tree::ResourceProvider* BrowserModule::GetResourceProvider() {
-  return renderer_module_.resource_provider();
+  if (!renderer_module_) {
+    return NULL;
+  }
+
+  return renderer_module_->resource_provider();
+}
+
+void BrowserModule::InitializeSystemWindow() {
+  system_window_.reset(new system_window::SystemWindow(
+      event_dispatcher_, options_.requested_viewport_size));
+
+  auto_mem_.reset(new memory_settings::AutoMem(
+      GetViewportSize(), options_.command_line_auto_mem_settings,
+      options_.build_auto_mem_settings));
+  ApplyAutoMemSettings(*auto_mem_, &options_);
+
+  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
+                              base::Bind(&BrowserModule::OnKeyEventProduced,
+                                         base::Unretained(this)),
+                              base::Bind(&BrowserModule::OnPointerEventProduced,
+                                         base::Unretained(this)),
+                              base::Bind(&BrowserModule::OnWheelEventProduced,
+                                         base::Unretained(this)),
+                              system_window_.get())
+                              .Pass();
+  renderer_module_.reset(new renderer::RendererModule(
+      system_window_.get(),
+      RendererModuleWithCameraOptions(options_.renderer_module_options,
+                                      input_device_manager_->camera_3d())));
+
+  render_tree_combiner_.reset(
+      new RenderTreeCombiner(renderer_module_.get(), GetViewportSize()));
+
+  // Always render the debug console. It will draw nothing if disabled.
+  // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
+  // TODO: Render tree combiner should probably be refactored.
+  render_tree_combiner_->set_render_debug_console(true);
+
+#if defined(ENABLE_SCREENSHOT)
+  screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
+#endif  // defined(ENABLE_SCREENSHOT)
+  // TODO: Pass in dialog closure instead of system window.
+  h5vcc_url_handler_.reset(new H5vccURLHandler(this, system_window_.get()));
+
+  media_module_ =
+      media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
+                                 options_.media_module_options);
+}
+
+math::Size BrowserModule::GetViewportSize() {
+  // We trust the renderer module the most, if it exists.
+  if (renderer_module_) {
+    return renderer_module_->render_target_size();
+  }
+
+  // Otherwise, we assume we'll get the viewport size that was requested.
+  if (options_.requested_viewport_size) {
+    return *options_.requested_viewport_size;
+  }
+
+  // TODO: Allow platforms to define the default window size and return that
+  // here.
+
+  // No window and no viewport size was requested, so we return a conservative
+  // default.
+  return math::Size(1280, 720);
 }
 
 }  // namespace browser

@@ -46,6 +46,7 @@ extern const char kVideoContainerSizeOverride[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverListenIp[];
 extern const char kWebDriverPort[];
+extern const char kDisableImageAnimations[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kDisableNavigationWhitelist[];
@@ -58,6 +59,7 @@ extern const char kRemoteTypefaceCacheSizeInBytes[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
 extern const char kSoftwareSurfaceCacheSizeInBytes[];
+extern const char kFallbackSplashScreenURL[];
 extern const char kSurfaceCacheSizeInBytes[];
 extern const char kViewport[];
 extern const char kDisableJavaScriptJit[];

@@ -29,6 +29,21 @@ namespace layout {
 // not defined in CSS 2.1.
 class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
  public:
+  struct StackingContextChildInfo {
+    StackingContextChildInfo(
+        Box* box, int z_index, RelationshipToBox containing_block_relationship,
+        const ContainingBlocksWithOverflowHidden& overflow_hidden_to_apply)
+        : box(box),
+          z_index(z_index),
+          containing_block_relationship(containing_block_relationship),
+          overflow_hidden_to_apply(overflow_hidden_to_apply) {}
+
+    Box* box;
+    int z_index;
+    RelationshipToBox containing_block_relationship;
+    ContainingBlocksWithOverflowHidden overflow_hidden_to_apply;
+  };
+
   ContainerBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
                    css_computed_style_declaration,
                UsedStyleProvider* used_style_provider,
@@ -60,8 +75,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   ContainerBox* AsContainerBox() OVERRIDE;
   const ContainerBox* AsContainerBox() const OVERRIDE;
 
-  void RenderAndAnimateContent(render_tree::CompositionNode::Builder*
-                                   border_node_builder) const OVERRIDE;
+  void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      ContainerBox* stacking_context) const OVERRIDE;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
@@ -78,20 +94,27 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // section: https://www.w3.org/TR/css3-transforms/#transform-rendering.
   bool IsContainingBlockForPositionFixedElements() const;
 
-  // Returns true if this container box serves as a stacking context for
-  // descendant elements.
-  bool IsStackingContext() const;
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  bool IsStackingContext() const OVERRIDE;
 
  protected:
   class ZIndexComparator {
    public:
-    bool operator()(const Box* lhs, const Box* rhs) const {
-      return lhs->GetZIndex() < rhs->GetZIndex();
+    bool operator()(const StackingContextChildInfo& lhs,
+                    const StackingContextChildInfo& rhs) const {
+      return lhs.z_index < rhs.z_index;
     }
   };
-  // Note: find(Box*) and erase(Box*) on ZIndexSortedList may not work as
-  // expected due to the use of reflexive comparison for equality.
-  typedef std::multiset<Box*, ZIndexComparator> ZIndexSortedList;
+  // Note: find(StackingContextChildInfo) and erase(StackingContextChildInfo) on
+  // ZIndexSortedList may not work as expected due to the use of reflexive
+  // comparison for equality.
+  typedef std::multiset<StackingContextChildInfo, ZIndexComparator>
+      ZIndexSortedList;
 
   void UpdateRectOfPositionedChildBoxes(
       const LayoutParams& relative_child_layout_params,
@@ -115,13 +138,22 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   const Boxes& child_boxes() const { return child_boxes_; }
 
   void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block,
-      bool is_nearest_stacking_context) OVERRIDE;
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context,
+      StackingContextContainerBoxStack* stacking_context_container_box_stack)
+      OVERRIDE;
 
   bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
   void InvalidateUpdateSizeInputs() { update_size_results_valid_ = false; }
+
+  // Add a box and all of its descendants that are contained within the
+  // specified stacking context to the stacking context's draw order. This is
+  // used when a render tree node that is already cached is encountered to
+  // ensure that it maintains the proper draw order in its stacking context.
+  void AddBoxAndDescendantsToDrawOrderInStackingContext(
+      ContainerBox* stacking_context) OVERRIDE;
 
  private:
   static Boxes::iterator RemoveConst(Boxes* container,
@@ -134,7 +166,11 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // These helper functions are called from
   // Box::UpdateCrossReferencesOfContainerBox().
   void AddContainingBlockChild(Box* child_box);
-  void AddStackingContextChild(Box* child_box);
+  void AddStackingContextChild(
+      Box* child_box, int z_index,
+      RelationshipToBox containing_block_relationship,
+      const ContainingBlocksWithOverflowHidden&
+          containing_blocks_with_overflow_hidden_to_apply);
 
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
@@ -163,7 +199,13 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   void RenderAndAnimateStackingContextChildren(
       const ZIndexSortedList& z_index_child_list,
       render_tree::CompositionNode::Builder* border_node_builder,
-      const Vector2dLayoutUnit& offset_from_parent_node) const;
+      const Vector2dLayoutUnit& offset_from_parent_node,
+      ContainerBox* stacking_context) const;
+
+  // Called by a box within this stacking context when it is being added to the
+  // render tree so that it can get its position in the stacking context's
+  // draw order.
+  size_t AddToDrawOrderInThisStackingContext();
 
   // A list of our direct children.  If a box is one of our child boxes, we
   // are that box's parent.  We may not be the box's containing block (such
@@ -175,11 +217,11 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // used for properly positioning and sizing positioned child elements.
   std::vector<Box*> positioned_child_boxes_;
 
-  // A list of all children within our stacking context, sorted by z-index.
-  // Every positioned box should appear in exactly one z_index list somewhere
-  // in the box tree.  These lists are only used to determine render order.
-  ZIndexSortedList negative_z_index_child_;
-  ZIndexSortedList non_negative_z_index_child_;
+  // A list of descendant positioned boxes and stacking context children within
+  // our stacking context that should be drawn after this box, sorted by
+  // z-index.
+  ZIndexSortedList negative_z_index_stacking_context_children_;
+  ZIndexSortedList non_negative_z_index_stacking_context_children_;
 
   bool update_size_results_valid_;
 
@@ -191,6 +233,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // Whether or not bidi level run splitting has already occurred. This is
   // tracked so it will never be attempted more than once.
   bool are_bidi_levels_runs_split_;
+
+  // The next draw order position within this box's stacking context.
+  size_t next_draw_order_position_;
 
   // Boxes and ContainerBoxes are closely related.  For example, when
   // Box::SetupAsPositionedChild() is called, it will internally call

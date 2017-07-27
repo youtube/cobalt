@@ -47,6 +47,8 @@ class SoftwareRasterizer : public Rasterizer {
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
 
+  void MakeCurrent() OVERRIDE {}
+
  private:
   backend::GraphicsContextEGL* context_;
   skia::SoftwareRasterizer skia_rasterizer_;

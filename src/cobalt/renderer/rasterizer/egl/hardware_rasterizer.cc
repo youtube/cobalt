@@ -66,6 +66,8 @@ class HardwareRasterizer::Impl {
     return fallback_rasterizer_->GetResourceProvider();
   }
 
+  void MakeCurrent() { graphics_context_->MakeCurrent(); }
+
  private:
   GrContext* GetFallbackContext() {
     return fallback_rasterizer_->GetGrContext();
@@ -304,6 +306,10 @@ void HardwareRasterizer::Submit(
 
 render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
+}
+
+void HardwareRasterizer::MakeCurrent() {
+  return impl_->MakeCurrent();
 }
 
 }  // namespace egl

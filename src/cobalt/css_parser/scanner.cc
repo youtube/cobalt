@@ -1367,6 +1367,11 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         return true;
       }
       if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(cssom::kOutlineProperty))) {
+        *property_name_token = kOutlineToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(cssom::kPaddingProperty))) {
         *property_name_token = kPaddingToken;
         return true;
@@ -1586,6 +1591,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       if (IsEqualToCssIdentifier(
               name.begin,
+              cssom::GetPropertyName(cssom::kOutlineColorProperty))) {
+        *property_name_token = kOutlineColorToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kOutlineStyleProperty))) {
+        *property_name_token = kOutlineStyleToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kOutlineWidthProperty))) {
+        *property_name_token = kOutlineWidthToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
               cssom::GetPropertyName(cssom::kOverflowWrapProperty))) {
         *property_name_token = kOverflowWrapToken;
         return true;
@@ -1621,6 +1644,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin,
               cssom::GetPropertyName(cssom::kPaddingBottomProperty))) {
         *property_name_token = kPaddingBottomToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kPointerEventsProperty))) {
+        *property_name_token = kPointerEventsToken;
         return true;
       }
       if (IsEqualToCssIdentifier(

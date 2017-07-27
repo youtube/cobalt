@@ -55,7 +55,6 @@
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
-#include "cobalt/system_window/system_window.h"
 #include "googleurl/src/gurl.h"
 #include "starboard/window.h"
 
@@ -103,9 +102,14 @@ class Window : public EventTarget,
       const base::Callback<void(const std::string&)>&)>
       HTMLDecoderCreatorCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  enum ClockType {
+    kClockTypeTestRunner,
+    kClockTypeSystemTime
+  };
 
   Window(
-      int width, int height, base::ApplicationState initial_application_state,
+      int width, int height, float device_pixel_ratio,
+      base::ApplicationState initial_application_state,
       cssom::CSSParser* css_parser, Parser* dom_parser,
       loader::FetcherFactory* fetcher_factory,
       render_tree::ResourceProvider** resource_provider,
@@ -134,11 +138,11 @@ class Window : public EventTarget,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const base::Closure& window_close_callback,
       const base::Closure& window_minimize_callback,
-      system_window::SystemWindow* system_window,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
-      float video_playback_rate_multiplier = 1.f);
+      float video_playback_rate_multiplier = 1.f,
+      ClockType clock_type = kClockTypeSystemTime);
 
   // Web API: Window
   //
@@ -315,6 +319,10 @@ class Window : public EventTarget,
   int height_;
   float device_pixel_ratio_;
 
+#if defined(ENABLE_TEST_RUNNER)
+  scoped_refptr<TestRunner> test_runner_;
+#endif  // ENABLE_TEST_RUNNER
+
   const scoped_ptr<HTMLElementContext> html_element_context_;
   scoped_refptr<Performance> performance_;
   scoped_refptr<Document> document_;
@@ -339,12 +347,6 @@ class Window : public EventTarget,
   const base::Closure ran_animation_frame_callbacks_callback_;
   const base::Closure window_close_callback_;
   const base::Closure window_minimize_callback_;
-
-  system_window::SystemWindow* system_window_;
-
-#if defined(ENABLE_TEST_RUNNER)
-  scoped_refptr<TestRunner> test_runner_;
-#endif  // ENABLE_TEST_RUNNER
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

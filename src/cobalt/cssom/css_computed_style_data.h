@@ -443,6 +443,27 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
     SetPropertyValue(kOpacityProperty, opacity);
   }
 
+  const scoped_refptr<PropertyValue>& outline_color() const {
+    return GetPropertyValueReference(kOutlineColorProperty);
+  }
+  void set_outline_color(const scoped_refptr<PropertyValue>& outline_color) {
+    SetPropertyValue(kOutlineColorProperty, outline_color);
+  }
+
+  const scoped_refptr<PropertyValue>& outline_style() const {
+    return GetPropertyValueReference(kOutlineStyleProperty);
+  }
+  void set_outline_style(const scoped_refptr<PropertyValue>& outline_style) {
+    SetPropertyValue(kOutlineStyleProperty, outline_style);
+  }
+
+  const scoped_refptr<PropertyValue>& outline_width() const {
+    return GetPropertyValueReference(kOutlineWidthProperty);
+  }
+  void set_outline_width(const scoped_refptr<PropertyValue>& outline_width) {
+    SetPropertyValue(kOutlineWidthProperty, outline_width);
+  }
+
   const scoped_refptr<PropertyValue>& overflow() const {
     return GetPropertyValueReference(kOverflowProperty);
   }
@@ -483,6 +504,13 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
   }
   void set_padding_top(const scoped_refptr<PropertyValue>& padding_top) {
     SetPropertyValue(kPaddingTopProperty, padding_top);
+  }
+
+  const scoped_refptr<PropertyValue>& pointer_events() const {
+    return GetPropertyValueReference(kPointerEventsProperty);
+  }
+  void set_pointer_events(const scoped_refptr<PropertyValue>& pointer_events) {
+    SetPropertyValue(kPointerEventsProperty, pointer_events);
   }
 
   const scoped_refptr<PropertyValue>& position() const {

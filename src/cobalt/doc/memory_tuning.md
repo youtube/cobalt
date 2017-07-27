@@ -18,6 +18,11 @@ memory consumption will scale down for memory constrained platforms.
 
 Read on for more information.
 
+**IMPORTANT**
+*Setting `--max_cobalt_cpu_usage` and `--max_cobalt_gpu_usage` on the
+command line is a beta feature. When reducing memory, please use
+`--reduce_cpu_memory_by` and `--reduce_gpu_memory_by`.*
+
 ### Memory Settings Table ###
 
 A table similar to the one below, will be printed on startup.

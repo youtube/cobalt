@@ -119,6 +119,13 @@ int BaseMain(int argc, char** argv) {
 #define COBALT_WRAP_EVENT_MAIN(start_function, event_function, stop_function) \
   COBALT_WRAP_BASE_MAIN(start_function, stop_function)
 
+// The generic main wrapper that initializes the main MessageLoop and
+// AtExitManager, supports a preload function, start function, event handler,
+// and stop function.
+#define COBALT_WRAP_MAIN(preload_function, start_function, event_function, \
+                         stop_function)                                    \
+  COBALT_WRAP_BASE_MAIN(start_function, stop_function)
+
 }  // namespace wrap_main
 }  // namespace cobalt
 

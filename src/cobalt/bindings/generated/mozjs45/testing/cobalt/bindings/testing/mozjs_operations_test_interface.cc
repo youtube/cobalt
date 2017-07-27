@@ -189,7 +189,6 @@ bool fcn_longFunctionNoArgs(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -242,7 +241,6 @@ bool fcn_objectFunctionNoArgs(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -295,7 +293,6 @@ bool fcn_optionalArgumentWithDefault(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -358,7 +355,6 @@ bool fcn_optionalArguments(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -475,7 +471,6 @@ bool fcn_optionalNullableArgumentsWithDefaults(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -552,7 +547,6 @@ bool fcn_overloadedFunction1(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -599,7 +593,6 @@ bool fcn_overloadedFunction2(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -664,7 +657,6 @@ bool fcn_overloadedFunction3(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -729,7 +721,6 @@ bool fcn_overloadedFunction4(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -818,7 +809,6 @@ bool fcn_overloadedFunction5(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -977,7 +967,6 @@ bool fcn_overloadedNullable1(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1042,7 +1031,6 @@ bool fcn_overloadedNullable2(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1141,7 +1129,6 @@ bool fcn_stringFunctionNoArgs(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1194,7 +1181,6 @@ bool fcn_variadicPrimitiveArguments(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1261,7 +1247,6 @@ bool fcn_variadicStringArgumentsAfterOptionalArgument(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1366,7 +1351,6 @@ bool fcn_voidFunctionLongArg(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1431,7 +1415,6 @@ bool fcn_voidFunctionNoArgs(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1478,7 +1461,6 @@ bool fcn_voidFunctionObjectArg(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1543,7 +1525,6 @@ bool fcn_voidFunctionStringArg(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, &object)) {
@@ -1835,20 +1816,15 @@ void InitializePrototypeAndInterfaceObject(
   DCHECK(success);
 }
 
-InterfaceData* GetInterfaceData(JSContext* context) {
+inline InterfaceData* GetInterfaceData(JSContext* context) {
+  const int kInterfaceUniqueId = 37;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  // Use the address of the properties definition for this interface as a
-  // unique key for looking up the InterfaceData for this interface.
-  intptr_t key = reinterpret_cast<intptr_t>(&own_properties);
-  InterfaceData* interface_data = global_environment->GetInterfaceData(key);
-  if (!interface_data) {
-    interface_data = new InterfaceData();
-    DCHECK(interface_data);
-    global_environment->CacheInterfaceData(key, interface_data);
-    DCHECK_EQ(interface_data, global_environment->GetInterfaceData(key));
-  }
-  return interface_data;
+  // By convention, the |MozjsGlobalEnvironment| that we are associated with
+  // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
+  // for it to be there in the first place, and could not have conflicted with
+  // any other interface.
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 }  // namespace

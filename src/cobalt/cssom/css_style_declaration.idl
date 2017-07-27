@@ -75,6 +75,10 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minHeight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString minWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString opacity;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outline;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineColor;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineStyle;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString outlineWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString overflow;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString overflowWrap;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString padding;
@@ -82,10 +86,12 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingLeft;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingRight;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString paddingTop;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString pointerEvents;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString position;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString right;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textAlign;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecoration;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecorationColor;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textDecorationLine;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textIndent;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString textOverflow;

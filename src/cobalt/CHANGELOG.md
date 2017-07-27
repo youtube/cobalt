@@ -76,3 +76,9 @@ This document records all notable changes made to Cobalt since the last release.
    command line option "--fps_stdout".  The frame rate statistics will be
    updated each time an animation ends, or after 60 frames have been processed.
    Both command line flags are available in Gold builds.
+
+ - **Add support for rendering `kSbDecodeTargetFormat1PlaneUYVY` (YUV 422)**
+
+   Decode targets with the format `kSbDecodeTargetFormat1PlaneUYVY` will now
+   be rendered by Cobalt.  This will allow decoders that produce YUV 422 UYVY
+   video frames to now efficiently support 360 video.

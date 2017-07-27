@@ -50,13 +50,13 @@ class AnimatedWebPImage : public AnimatedImage {
 
   bool IsOpaque() const OVERRIDE { return is_opaque_; }
 
-  scoped_refptr<render_tree::Image> GetFrame() OVERRIDE;
+  scoped_refptr<const FrameProvider> GetFrameProvider() OVERRIDE;
 
   void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) OVERRIDE;
 
   void Stop() OVERRIDE;
 
-  void AppendChunk(const uint8* data, size_t input_byte);
+  void AppendChunk(const uint8* data, size_t size);
 
  private:
   ~AnimatedWebPImage() OVERRIDE;
@@ -102,6 +102,7 @@ class AnimatedWebPImage : public AnimatedImage {
   // The original encoded data.
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;
+  scoped_refptr<FrameProvider> frame_provider_;
   base::Lock lock_;
 };
 

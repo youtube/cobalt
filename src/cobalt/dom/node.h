@@ -250,6 +250,7 @@ class Node : public EventTarget {
 
   virtual bool IsInDocument() const { return inserted_into_document_; }
 
+  virtual void MarkDisplayNoneOnNodeAndDescendants();
   virtual void PurgeCachedBackgroundImagesOfNodeAndDescendants();
   virtual void InvalidateComputedStylesOfNodeAndDescendants();
   virtual void InvalidateLayoutBoxesOfNodeAndAncestors();
@@ -259,6 +260,7 @@ class Node : public EventTarget {
   virtual void InvalidateLayoutBoxCrossReferences() {}
   virtual void InvalidateLayoutBoxRenderTreeNodes() {}
 
+  void MarkDisplayNoneOnDescendants();
   void PurgeCachedBackgroundImagesOfDescendants();
   void InvalidateComputedStylesOfDescendants();
   void InvalidateLayoutBoxesOfAncestors();

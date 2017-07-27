@@ -109,11 +109,46 @@ class Box : public base::RefCounted<Box> {
     kInlineLevel,
   };
 
+  enum RelationshipToBox {
+    kIsBoxAncestor,
+    kIsBox,
+    kIsBoxDescendant,
+  };
+
+  // Info tracked on container boxes encountered when a stacking context is
+  // generating its cross references.
+  struct StackingContextContainerBoxInfo {
+    StackingContextContainerBoxInfo(ContainerBox* container_box,
+                                    bool is_absolute_containing_block,
+                                    bool has_absolute_position,
+                                    bool has_overflow_hidden)
+        : container_box(container_box),
+          is_absolute_containing_block(is_absolute_containing_block),
+          is_usable_as_child_container(is_absolute_containing_block),
+          has_absolute_position(has_absolute_position),
+          has_overflow_hidden(has_overflow_hidden) {}
+
+    ContainerBox* container_box;
+    bool is_absolute_containing_block;
+    bool is_usable_as_child_container;
+    bool has_absolute_position;
+    bool has_overflow_hidden;
+  };
+
+  typedef std::vector<StackingContextContainerBoxInfo>
+      StackingContextContainerBoxStack;
+
+  // List of containing blocks with overflow hidden property. Used by stacking
+  // context children that are added to a stacking context container higher up
+  // the tree than their containing block, so that they can still have the
+  // overflow hidden from those containing blocks applied.
+  typedef std::vector<ContainerBox*> ContainingBlocksWithOverflowHidden;
+
   // The RenderSequence of a box is used to compare the relative drawing order
-  // of boxes. It stores a value for the box's drawing order at each ancestor
-  // composition node up to the root of the render tree. As a result, starting
+  // of boxes. It stores a value for the box's drawing order position at each
+  // stacking context up to the root of the render tree. As a result, starting
   // from the root ancestor, the box for which the render sequence ends first,
-  // or for which the drawing order value at a composition node is lower is
+  // or for which the draw order position at a stacking context is lower is
   // drawn before the other box.
   typedef std::vector<size_t> RenderSequence;
 
@@ -150,7 +185,7 @@ class Box : public base::RefCounted<Box> {
   // Do not confuse with the formatting context that the element may establish.
   virtual Level GetLevel() const = 0;
 
-  // Returns trueif the box is positioned (e.g. position is non-static or
+  // Returns true if the box is positioned (e.g. position is non-static or
   // transform is not None).  Intuitively, this is true if the element does
   // not follow standard layout flow rules for determining its position.
   //   https://www.w3.org/TR/CSS21/visuren.html#positioned-element.
@@ -164,6 +199,14 @@ class Box : public base::RefCounted<Box> {
   // has the value "absolute" or "fixed".
   //   https://www.w3.org/TR/CSS21/visuren.html#absolutely-positioned
   bool IsAbsolutelyPositioned() const;
+
+  // Returns true if the box serves as a stacking context for descendant
+  // elements. The core stacking context creation criteria is given here
+  // (https://www.w3.org/TR/CSS21/visuren.html#z-index) however it is extended
+  // by various other specification documents such as those describing opacity
+  // (https://www.w3.org/TR/css3-color/#transparency) and transforms
+  // (https://www.w3.org/TR/css3-transforms/#transform-rendering).
+  virtual bool IsStackingContext() const { return false; }
 
   // Updates the size of margin, border, padding, and content boxes. Lays out
   // in-flow descendants, estimates static positions (but not sizes) of
@@ -232,7 +275,9 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
   LayoutUnit GetMarginBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
+  LayoutUnit margin_left() const { return margin_insets_.left(); }
   LayoutUnit margin_top() const { return margin_insets_.top(); }
+  LayoutUnit margin_right() const { return margin_insets_.right(); }
   LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
 
   // Border box.
@@ -424,7 +469,12 @@ class Box : public base::RefCounted<Box> {
   // on the subclasses to provide the actual content.
   void RenderAndAnimate(
       render_tree::CompositionNode::Builder* parent_content_node_builder,
-      const math::Vector2dF& offset_from_parent_node);
+      const math::Vector2dF& offset_from_parent_node,
+      ContainerBox* stacking_context);
+
+  scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
+      const scoped_refptr<render_tree::Node>& content_node,
+      const math::Vector2dF& border_offset);
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
@@ -516,14 +566,12 @@ class Box : public base::RefCounted<Box> {
   //
   // Used values of "margin" properties are set by overriders
   // of |UpdateContentSizeAndMargins| method.
-  LayoutUnit margin_left() const { return margin_insets_.left(); }
   void set_margin_left(LayoutUnit margin_left) {
     margin_insets_.set_left(margin_left);
   }
   void set_margin_top(LayoutUnit margin_top) {
     margin_insets_.set_top(margin_top);
   }
-  LayoutUnit margin_right() const { return margin_insets_.right(); }
   void set_margin_right(LayoutUnit margin_right) {
     margin_insets_.set_right(margin_right);
   }
@@ -558,9 +606,17 @@ class Box : public base::RefCounted<Box> {
   //   https://www.w3.org/TR/CSS21/visuren.html#phantom-line-box
   bool HasNonZeroMarginOrBorderOrPadding() const;
 
+  // Add a box and all of its descendants that are contained within the
+  // specified stacking context to the stacking context's draw order. This is
+  // used when a render tree node that is already cached is encountered to
+  // ensure that it maintains the proper draw order in its stacking context.
+  virtual void AddBoxAndDescendantsToDrawOrderInStackingContext(
+      ContainerBox* stacking_context);
+
   // Renders the content of the box.
   virtual void RenderAndAnimateContent(
-      render_tree::CompositionNode::Builder* border_node_builder) const = 0;
+      render_tree::CompositionNode::Builder* border_node_builder,
+      ContainerBox* stacking_context) const = 0;
 
   // A transformable element is an element whose layout is governed by the CSS
   // box model which is either a block-level or atomic inline-level element.
@@ -580,9 +636,11 @@ class Box : public base::RefCounted<Box> {
   // the box tree that have it as their containing block or stacking context.
   // This function is called recursively.
   virtual void UpdateCrossReferencesOfContainerBox(
-      ContainerBox* source_box, bool is_nearest_containing_block,
-      bool is_nearest_absolute_containing_block,
-      bool is_nearest_fixed_containing_block, bool is_nearest_stacking_context);
+      ContainerBox* source_box, RelationshipToBox nearest_containing_block,
+      RelationshipToBox nearest_absolute_containing_block,
+      RelationshipToBox nearest_fixed_containing_block,
+      RelationshipToBox nearest_stacking_context,
+      StackingContextContainerBoxStack* stacking_context_container_box_stack);
 
   // Updates the horizontal margins for block level in-flow boxes. This is used
   // for both non-replaced and replaced elements. See
@@ -622,6 +680,9 @@ class Box : public base::RefCounted<Box> {
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
+  void RenderAndAnimateOutline(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      render_tree::animations::AnimateNode::Builder* animate_node_builder);
   void RenderAndAnimateBackgroundColor(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
@@ -651,7 +712,7 @@ class Box : public base::RefCounted<Box> {
 
   scoped_refptr<render_tree::Node> RenderAndAnimateOverflow(
       const base::optional<render_tree::RoundedCorners>& rounded_corners,
-      const scoped_refptr<render_tree::Node>& border_node,
+      const scoped_refptr<render_tree::Node>& content_node,
       render_tree::animations::AnimateNode::Builder* animate_node_builder,
       const math::Vector2dF& border_node_offset);
 
@@ -723,10 +784,10 @@ class Box : public base::RefCounted<Box> {
   // recalculated during each call to RenderAndAnimateContent.
   base::optional<CachedRenderTreeNodeInfo> cached_render_tree_node_info_;
 
-  // A value that indicates the drawing order relative to boxes with the same
-  // rendering ancestor box (which is either the stacking context or the
-  // containing block). Smaller values indicate boxes that are drawn earlier.
-  size_t render_sequence_;
+  // A value that indicates the drawing order relative to other boxes in the
+  // same stacking context. Smaller values indicate boxes that are drawn
+  // earlier.
+  size_t draw_order_position_in_stacking_context_;
 
   // For write access to parent/containing_block members.
   friend class ContainerBox;

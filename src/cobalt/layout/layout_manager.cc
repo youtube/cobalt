@@ -44,7 +44,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
        const OnRenderTreeProducedCallback& on_render_tree_produced,
        const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
        int dom_max_element_depth, float layout_refresh_rate,
-       const std::string& language, LayoutStatTracker* layout_stat_tracker);
+       const std::string& language, bool enable_image_animations,
+       LayoutStatTracker* layout_stat_tracker);
   ~Impl();
 
   // From dom::DocumentObserver.
@@ -153,12 +154,13 @@ LayoutManager::Impl::Impl(
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
     int dom_max_element_depth, float layout_refresh_rate,
-    const std::string& language, LayoutStatTracker* layout_stat_tracker)
+    const std::string& language, bool enable_image_animations,
+    LayoutStatTracker* layout_stat_tracker)
     : window_(window),
       locale_(icu::Locale::createCanonical(language.c_str())),
       used_style_provider_(new UsedStyleProvider(
           window->html_element_context(), window->document()->font_cache(),
-          base::Bind(&AttachCameraNodes, window))),
+          base::Bind(&AttachCameraNodes, window), enable_image_animations)),
       on_render_tree_produced_callback_(on_render_tree_produced),
       on_layout_callback_(on_layout),
       layout_trigger_(layout_trigger),
@@ -372,10 +374,11 @@ LayoutManager::LayoutManager(
     const OnRenderTreeProducedCallback& on_render_tree_produced,
     const OnLayoutCallback& on_layout, LayoutTrigger layout_trigger,
     const int dom_max_element_depth, const float layout_refresh_rate,
-    const std::string& language, LayoutStatTracker* layout_stat_tracker)
+    const std::string& language, bool enable_image_animations,
+    LayoutStatTracker* layout_stat_tracker)
     : impl_(new Impl(name, window, on_render_tree_produced, on_layout,
                      layout_trigger, dom_max_element_depth, layout_refresh_rate,
-                     language, layout_stat_tracker)) {}
+                     language, enable_image_animations, layout_stat_tracker)) {}
 
 LayoutManager::~LayoutManager() {}
 

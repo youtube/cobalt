@@ -281,15 +281,43 @@ JSBool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
     NOTREACHED();
     return false;
   }
+
+    const JSClass* proto_class =
+      MozjsStringifierAttributeInterface::PrototypeClass(context);
+  if (proto_class == JS_GetClass(object)) {
+    // Simply returns true if the object is this class's prototype object.
+    // There is no need to return any value due to the object is not a platform
+    // object. The execution reaches here when Object.getOwnPropertyDescriptor
+    // gets called on native object prototypes.
+    return true;
+  }
+
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<StringifierAttributeInterface>())) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return false;
+  }
+
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromObject(context, object);
+
+  // |WrapperPrivate::GetFromObject| can fail if |object| is not a |Wrapper|
+  // object.
+  if (!wrapper_private) {
+    exception_state.SetSimpleException(cobalt::script::kStringifierProblem);
+    return false;
+  }
+
   StringifierAttributeInterface* impl =
       wrapper_private->wrappable<StringifierAttributeInterface>().get();
   if (!impl) {

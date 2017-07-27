@@ -50,10 +50,6 @@ class MemorySetting {
 
   // Stringify's the value of this memory setting.
   virtual std::string ValueToString() const = 0;
-  // Returns true if the TryParseValue() succeeded when converting the string
-  // into the internal value. If false, then the object should not be changed.
-  virtual bool TryParseValue(SourceType source_type,
-                             const std::string& string_value) = 0;
 
   // Returns the memory consumption (in bytes) that the memory setting will
   // be allocated.
@@ -128,8 +124,7 @@ class IntSetting : public MemorySetting {
     source_type_ = source_type;
     value_ = val;
   }
-  bool TryParseValue(SourceType source_type,
-                     const std::string& string_value) OVERRIDE;
+
  private:
   int64_t value_;
 
@@ -158,8 +153,6 @@ class DimensionSetting : public MemorySetting {
     source_type_ = source_type;
     value_ = val;
   }
-  bool TryParseValue(SourceType source_type,
-                     const std::string& string_value) OVERRIDE;
 
  private:
   TextureDimensions value_;

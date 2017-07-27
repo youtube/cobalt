@@ -41,12 +41,24 @@ void NodeListLive::MaybeRefreshCollection() {
   if (base_node_generation_ != base_->node_generation()) {
     Clear();
 
+    // The allocations caused by |AppendNode| below show up as hot in
+    // profiles.  In order to mitigate this, we do an initial traversal to
+    // figure out how many nodes we plan on appending, reserve, and then
+    // append.
     NodeChildrenIterator iterator(base_);
     Node* child = iterator.First();
+    int pending_append_count = 0;
+    while (child) {
+      pending_append_count++;
+      child = iterator.Next();
+    }
+    ReserveForInternalCollection(pending_append_count);
+    child = iterator.First();
     while (child) {
       AppendNode(child);
       child = iterator.Next();
     }
+
     base_node_generation_ = base_->node_generation();
   }
 }

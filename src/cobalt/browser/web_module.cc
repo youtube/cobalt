@@ -51,7 +51,6 @@
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
-#include "cobalt/system_window/system_window.h"
 #include "starboard/accessibility.h"
 #include "starboard/log.h"
 
@@ -150,6 +149,8 @@ class WebModule::Impl {
 #if defined(ENABLE_DEBUG_CONSOLE)
   void CreateDebugServerIfNull();
 #endif  // ENABLE_DEBUG_CONSOLE
+
+  void SetSize(math::Size window_dimensions, float video_pixel_ratio);
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
@@ -456,8 +457,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
-      data.initial_application_state, css_parser_.get(), dom_parser_.get(),
-      fetcher_factory_.get(), &resource_provider_,
+      data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
+      dom_parser_.get(), fetcher_factory_.get(), &resource_provider_,
       animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
       mesh_cache_.get(), local_storage_database_.get(), data.media_module,
@@ -474,10 +475,17 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
-      data.system_window_, data.options.camera_3d,
-      media_session_client_->GetMediaSession(),
+      data.options.camera_3d, media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
-      data.options.video_playback_rate_multiplier);
+      data.options.video_playback_rate_multiplier,
+#if defined(ENABLE_TEST_RUNNER)
+      data.options.layout_trigger == layout::LayoutManager::kTestRunnerMode
+          ? dom::Window::kClockTypeTestRunner
+          : dom::Window::kClockTypeSystemTime
+#else
+      dom::Window::kClockTypeSystemTime
+#endif
+      );  // NOLINT(whitespace/parens)
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
@@ -506,6 +514,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::HandlePointerEvents, base::Unretained(this)),
       data.options.layout_trigger, data.dom_max_element_depth,
       data.layout_refresh_rate, data.network_module->preferred_language(),
+      data.options.enable_image_animations,
       web_module_stat_tracker_->layout_stat_tracker()));
   DCHECK(layout_manager_);
 
@@ -572,8 +581,8 @@ WebModule::Impl::~Impl() {
   local_storage_database_.reset();
   mesh_cache_.reset();
   remote_typeface_cache_.reset();
-  animated_image_tracker_.reset();
   image_cache_.reset();
+  animated_image_tracker_.reset();
   fetcher_factory_.reset();
   dom_parser_.reset();
   css_parser_.reset();
@@ -751,6 +760,11 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   }
 }
 
+void WebModule::Impl::SetSize(math::Size /*window_dimensions*/,
+                              float /*video_pixel_ratio*/) {
+  NOTIMPLEMENTED();
+}
+
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
   window_->SetApplicationState(state);
 }
@@ -792,6 +806,9 @@ void WebModule::Impl::SuspendLoaders() {
   // Clear out the loader factory's resource provider, possibly aborting any
   // in-progress loads.
   loader_factory_->Suspend();
+
+  // Clear out any currently tracked animating images.
+  animated_image_tracker_->Reset();
 }
 
 void WebModule::Impl::FinishSuspend() {
@@ -888,7 +905,8 @@ WebModule::Options::Options()
       thread_priority(base::kThreadPriority_Normal),
       loader_thread_priority(base::kThreadPriority_Low),
       animated_image_decode_thread_priority(base::kThreadPriority_Low),
-      video_playback_rate_multiplier(1.f) {}
+      video_playback_rate_multiplier(1.f),
+      enable_image_animations(true) {}
 
 WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,
@@ -897,16 +915,15 @@ WebModule::WebModule(
     const base::Closure& window_close_callback,
     const base::Closure& window_minimize_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions,
-    render_tree::ResourceProvider* resource_provider,
-    system_window::SystemWindow* system_window, float layout_refresh_rate,
+    const math::Size& window_dimensions, float video_pixel_ratio,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
-      media_module, network_module, window_dimensions, resource_provider,
-      kDOMMaxElementDepth, system_window, layout_refresh_rate, options);
+      media_module, network_module, window_dimensions, video_pixel_ratio,
+      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1083,6 +1100,14 @@ debug::DebugServer* WebModule::GetDebugServer() {
   return impl_->debug_server();
 }
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+void WebModule::SetSize(const math::Size& window_dimensions,
+                        float video_pixel_ratio) {
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::SetSize, base::Unretained(impl_.get()),
+                 window_dimensions, video_pixel_ratio));
+}
 
 void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
