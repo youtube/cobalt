@@ -57,9 +57,10 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   void Suspend();
   void Resume();
 
-  bool IsNewRenderTreePending() const;
+  bool IsRenderTreePending() const;
 
  private:
+  void DirtyLayout();
   void StartLayoutTimer();
   void DoLayoutAndProduceRenderTree();
 
@@ -73,11 +74,13 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const LayoutTrigger layout_trigger_;
 
-  // This flag indicates whether or not we should do a re-layout.  The flag
-  // is checked at a regular interval (e.g. 60Hz) and if it is set to true,
-  // a layout is initiated and it is set back to false.  Events such as
-  // DOM mutations will set this flag back to true.
-  base::CVal<bool> layout_dirty_;
+  // Setting these flags triggers an update of the layout box tree and the
+  // generation of a new render tree at a regular interval (e.g. 60Hz). Events
+  // such as DOM mutations cause them to be set to true. While the render tree
+  // is excusively produced at the regular interval, the box tree can also be
+  // updated via a call to DoSynchronousLayout().
+  bool are_computed_styles_and_box_tree_dirty_;
+  base::CVal<bool> is_render_tree_pending_;
 
   // Construction of |BreakIterator| requires a disk read, so we cache them
   // in the layout manager in order to reuse them with all layouts happening
@@ -149,9 +152,10 @@ LayoutManager::Impl::Impl(
           base::Bind(&AttachCameraNodes, window), enable_image_animations)),
       on_render_tree_produced_callback_(on_render_tree_produced),
       layout_trigger_(layout_trigger),
-      layout_dirty_(StringPrintf("%s.Layout.IsDirty", name.c_str()), true,
-                    "Non-zero when the layout is dirty and a new render tree "
-                    "is pending."),
+      are_computed_styles_and_box_tree_dirty_(true),
+      is_render_tree_pending_(
+          StringPrintf("%s.Layout.IsRenderTreePending", name.c_str()), true,
+          "Non-zero when a new render tree is pending."),
       layout_timer_(true, true, true),
       dom_max_element_depth_(dom_max_element_depth),
       layout_refresh_rate_(layout_refresh_rate),
@@ -195,7 +199,7 @@ void LayoutManager::Impl::OnLoad() {
 #if defined(ENABLE_TEST_RUNNER)
   if (layout_trigger_ == kTestRunnerMode &&
       !window_->test_runner()->should_wait()) {
-    layout_dirty_ = true;
+    DirtyLayout();
 
     // Run the |DoLayoutAndProduceRenderTree| task after onload event finished.
     MessageLoop::current()->PostTask(
@@ -208,7 +212,7 @@ void LayoutManager::Impl::OnLoad() {
 
 void LayoutManager::Impl::OnMutation() {
   if (layout_trigger_ == kOnDocumentMutation) {
-    layout_dirty_ = true;
+    DirtyLayout();
   }
 }
 
@@ -218,11 +222,14 @@ void LayoutManager::Impl::DoSynchronousLayout() {
     return;
   }
 
-  layout::UpdateComputedStylesAndLayoutBoxTree(
-      locale_, window_->document(), dom_max_element_depth_,
-      used_style_provider_.get(), layout_stat_tracker_,
-      line_break_iterator_.get(), character_break_iterator_.get(),
-      &initial_containing_block_);
+  if (are_computed_styles_and_box_tree_dirty_) {
+    layout::UpdateComputedStylesAndLayoutBoxTree(
+        locale_, window_->document(), dom_max_element_depth_,
+        used_style_provider_.get(), layout_stat_tracker_,
+        line_break_iterator_.get(), character_break_iterator_.get(),
+        &initial_containing_block_);
+    are_computed_styles_and_box_tree_dirty_ = false;
+  }
 }
 
 void LayoutManager::Impl::Suspend() {
@@ -243,18 +250,18 @@ void LayoutManager::Impl::Suspend() {
 void LayoutManager::Impl::Resume() {
   // Mark that we are no longer suspended and indicate that the layout is
   // dirty since when Suspend() was called we invalidated our previous layout.
-  layout_dirty_ = true;
+  DirtyLayout();
   suspended_ = false;
 }
 
-bool LayoutManager::Impl::IsNewRenderTreePending() const {
-  return layout_dirty_;
+bool LayoutManager::Impl::IsRenderTreePending() const {
+  return is_render_tree_pending_;
 }
 
 #if defined(ENABLE_TEST_RUNNER)
 void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   DCHECK_EQ(kTestRunnerMode, layout_trigger_);
-  layout_dirty_ = true;
+  DirtyLayout();
 
   if (layout_trigger_ == kTestRunnerMode &&
       window_->test_runner()->should_wait()) {
@@ -269,6 +276,11 @@ void LayoutManager::Impl::DoTestRunnerLayoutCallback() {
   }
 }
 #endif  // ENABLE_TEST_RUNNER
+
+void LayoutManager::Impl::DirtyLayout() {
+  are_computed_styles_and_box_tree_dirty_ = true;
+  is_render_tree_pending_ = true;
+}
 
 void LayoutManager::Impl::StartLayoutTimer() {
   // TODO: Eventually we would like to instead base our layouts off of a
@@ -302,7 +314,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
 
   bool has_layout_processing_started = false;
   if (window_->HasPendingAnimationFrameCallbacks()) {
-    if (layout_dirty_) {
+    if (are_computed_styles_and_box_tree_dirty_) {
       has_layout_processing_started = true;
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
       // Update our computed style before running animation callbacks, so that
@@ -319,7 +331,10 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
     window_->RunAnimationFrameCallbacks();
   }
 
-  if (layout_dirty_) {
+  // It should never be possible for for the computed styles and box tree to
+  // be dirty when a render tree is not pending.
+  DCHECK(is_render_tree_pending_ || !are_computed_styles_and_box_tree_dirty_);
+  if (is_render_tree_pending_) {
     if (!has_layout_processing_started) {
       // We want to catch the beginning of all layout processing.  If it didn't
       // begin before the call to RunAnimationFrameCallbacks(), then the flow
@@ -327,11 +342,19 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       TRACE_EVENT_BEGIN0("cobalt::layout", kBenchmarkStatLayout);
     }
 
-    scoped_refptr<render_tree::Node> render_tree_root = layout::Layout(
-        locale_, window_->document(), dom_max_element_depth_,
-        used_style_provider_.get(), layout_stat_tracker_,
-        line_break_iterator_.get(), character_break_iterator_.get(),
-        &initial_containing_block_);
+    if (are_computed_styles_and_box_tree_dirty_) {
+      layout::UpdateComputedStylesAndLayoutBoxTree(
+          locale_, window_->document(), dom_max_element_depth_,
+          used_style_provider_.get(), layout_stat_tracker_,
+          line_break_iterator_.get(), character_break_iterator_.get(),
+          &initial_containing_block_);
+      are_computed_styles_and_box_tree_dirty_ = false;
+    }
+
+    scoped_refptr<render_tree::Node> render_tree_root =
+        layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
+                                              layout_stat_tracker_,
+                                              &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
@@ -346,8 +369,7 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
                                 *document->timeline()->current_time())));
     }
 
-    layout_dirty_ = false;
-
+    is_render_tree_pending_ = false;
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
 }
@@ -366,8 +388,8 @@ LayoutManager::~LayoutManager() {}
 
 void LayoutManager::Suspend() { impl_->Suspend(); }
 void LayoutManager::Resume() { impl_->Resume(); }
-bool LayoutManager::IsNewRenderTreePending() const {
-  return impl_->IsNewRenderTreePending();
+bool LayoutManager::IsRenderTreePending() const {
+  return impl_->IsRenderTreePending();
 }
 
 }  // namespace layout

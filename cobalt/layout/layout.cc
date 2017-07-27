@@ -127,20 +127,11 @@ void UpdateComputedStylesAndLayoutBoxTree(
   }
 }
 
-scoped_refptr<render_tree::Node> Layout(
-    const icu::Locale& locale, const scoped_refptr<dom::Document>& document,
-    int dom_max_element_depth, UsedStyleProvider* used_style_provider,
+scoped_refptr<render_tree::Node> GenerateRenderTreeFromBoxTree(
+    UsedStyleProvider* used_style_provider,
     LayoutStatTracker* layout_stat_tracker,
-    icu::BreakIterator* line_break_iterator,
-    icu::BreakIterator* character_break_iterator,
     scoped_refptr<BlockLevelBlockContainerBox>* initial_containing_block) {
-  TRACE_EVENT0("cobalt::layout", "Layout()");
-  UpdateComputedStylesAndLayoutBoxTree(
-      locale, document, dom_max_element_depth, used_style_provider,
-      layout_stat_tracker, line_break_iterator, character_break_iterator,
-      initial_containing_block);
-
-  // Add to render tree.
+  TRACE_EVENT0("cobalt::layout", "GenerateRenderTreeFromBoxTree()");
   render_tree::CompositionNode::Builder render_tree_root_builder;
   {
     TRACE_EVENT0("cobalt::layout", kBenchmarkStatRenderAndAnimate);
