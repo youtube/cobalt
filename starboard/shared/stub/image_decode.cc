@@ -25,6 +25,11 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              int data_size,
                              const char* mime_type,
                              SbDecodeTargetFormat format) {
+  SB_UNREFERENCED_PARAMETER(data);
+  SB_UNREFERENCED_PARAMETER(data_size);
+  SB_UNREFERENCED_PARAMETER(format);
+  SB_UNREFERENCED_PARAMETER(mime_type);
+  SB_UNREFERENCED_PARAMETER(provider);
   return kSbDecodeTargetInvalid;
 }
 #else   // SB_API_VERSION >= 4
@@ -33,6 +38,11 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
                              int data_size,
                              const char* mime_type,
                              SbDecodeTargetFormat format) {
+  SB_UNREFERENCED_PARAMETER(data);
+  SB_UNREFERENCED_PARAMETER(data_size);
+  SB_UNREFERENCED_PARAMETER(format);
+  SB_UNREFERENCED_PARAMETER(mime_type);
+  SB_UNREFERENCED_PARAMETER(provider);
   return kSbDecodeTargetInvalid;
 }
 #endif  // SB_API_VERSION >= 4

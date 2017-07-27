@@ -15,4 +15,5 @@
 #include "starboard/drm.h"
 
 void SbDrmDestroySystem(SbDrmSystem drm_system) {
+  SB_UNREFERENCED_PARAMETER(drm_system);
 }
