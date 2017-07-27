@@ -17,5 +17,6 @@
 #include "starboard/log.h"
 
 bool SbMediaSetOutputProtection(bool enabled) {
+  SB_UNREFERENCED_PARAMETER(enabled);
   return false;
 }

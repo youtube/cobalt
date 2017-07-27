@@ -19,5 +19,9 @@ SbDrmSystem SbDrmCreateSystem(
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback) {
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(key_system);
+  SB_UNREFERENCED_PARAMETER(update_request_callback);
+  SB_UNREFERENCED_PARAMETER(session_updated_callback);
   return kSbDrmSystemInvalid;
 }

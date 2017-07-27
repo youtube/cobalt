@@ -21,5 +21,7 @@
 
 bool SbImageIsDecodeSupported(const char* mime_type,
                               SbDecodeTargetFormat format) {
+  SB_UNREFERENCED_PARAMETER(mime_type);
+  SB_UNREFERENCED_PARAMETER(format);
   return false;
 }

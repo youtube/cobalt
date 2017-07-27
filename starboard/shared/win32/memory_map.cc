@@ -19,10 +19,11 @@
 #include "starboard/log.h"
 
 void* SbMemoryMap(int64_t size_bytes, int flags, const char* name) {
+  SB_UNREFERENCED_PARAMETER(name);
   if (size_bytes == 0) {
     return SB_MEMORY_MAP_FAILED;
   }
-  ULONG protect;
+  ULONG protect = PAGE_NOACCESS;
   // |flags| is a bitmask of SbMemoryMapFlags, but |protect| is not a bitmask.
   switch (flags) {
     case kSbMemoryMapProtectRead:

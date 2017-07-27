@@ -151,7 +151,10 @@ scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
     const uint8_t* y = &y_data[row * GetPlane(0).pitch_in_bytes];
     const uint8_t* u = &u_data[row / 2 * GetPlane(1).pitch_in_bytes];
     const uint8_t* v = &v_data[row / 2 * GetPlane(2).pitch_in_bytes];
-    int v_to_r, u_to_g, v_to_g, u_to_b;
+    int v_to_r = 0;
+    int u_to_g = 0;
+    int v_to_g = 0;
+    int u_to_b = 0;
 
     for (int column = 0; column < width; ++column) {
       if (column % 2 == 0) {

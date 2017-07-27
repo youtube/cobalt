@@ -29,7 +29,7 @@ class TimeZoneString {
  private:
   TimeZoneString() {
     DYNAMIC_TIME_ZONE_INFORMATION time_zone_info;
-    DWORD zone_id = GetDynamicTimeZoneInformation(&time_zone_info);
+    GetDynamicTimeZoneInformation(&time_zone_info);
 
     std::wstring wide_string = time_zone_info.TimeZoneKeyName;
     value_ = starboard::shared::win32::wchar_tToUTF8(wide_string.c_str());

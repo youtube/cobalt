@@ -62,5 +62,5 @@ void SbThreadSetName(const char* name) {
   // We store the thread name in our own TLS context as well as telling
   // the OS because it's much easier to retrieve from our own TLS context.
   thread_private->name_ = name;
-  SetThreadName(-1, name);
+  SetThreadName(static_cast<DWORD>(-1), name);
 }

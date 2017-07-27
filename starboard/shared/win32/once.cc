@@ -20,6 +20,8 @@ namespace {
 BOOL CALLBACK OnceTrampoline(PINIT_ONCE once_control,
                              void* parameter,
                              void** context) {
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(once_control);
   static_cast<SbOnceInitRoutine>(parameter)();
   return true;
 }

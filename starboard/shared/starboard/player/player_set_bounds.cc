@@ -34,5 +34,4 @@ void SbPlayerSetBounds(SbPlayer player,
   player->SetBounds(x, y, width, height);
 }
 
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)

@@ -14,6 +14,8 @@
 
 #include "starboard/storage.h"
 
+#include <algorithm>
+
 #include "starboard/file.h"
 #include "starboard/shared/starboard/file_storage/storage_internal.h"
 
@@ -34,7 +36,9 @@ bool SbStorageWriteRecord(SbStorageRecord record,
   const char* source = data;
   int64_t to_write = data_size;
   while (to_write > 0) {
-    int64_t bytes_written = SbFileWrite(record->file, source, to_write);
+    int to_write_max =
+        static_cast<int>(std::min(to_write, static_cast<int64_t>(kSbInt32Max)));
+    int bytes_written = SbFileWrite(record->file, source, to_write_max);
     if (bytes_written < 0) {
       SbFileTruncate(record->file, 0);
       return false;
