@@ -51,7 +51,7 @@ int DecodedAudio::frames() const {
     bytes_per_sample = 4;
   }
   SB_DCHECK(size_ % (bytes_per_sample * channels_) == 0);
-  return size_ / bytes_per_sample / channels_;
+  return static_cast<int>(size_ / bytes_per_sample / channels_);
 }
 
 void DecodedAudio::ShrinkTo(size_t new_size) {
