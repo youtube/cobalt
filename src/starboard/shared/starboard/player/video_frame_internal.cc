@@ -55,13 +55,18 @@ void EnsureYUVToRGBLookupTableInitialized() {
   SbMemorySet(s_clamp_table, 0, 512);
   SbMemorySet(s_clamp_table + 768, 0xff, 512);
 
-  for (int i = 0; i < 256; ++i) {
-    s_y_to_rgb[i] = (static_cast<uint8_t>(i) - 16) * 1.164f;
-    s_v_to_r[i] = (static_cast<uint8_t>(i) - 128) * 1.793f;
-    s_u_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.213;
-    s_v_to_g[i] = (static_cast<uint8_t>(i) - 128) * -0.533f;
-    s_u_to_b[i] = (static_cast<uint8_t>(i) - 128) * 2.112f;
-    s_clamp_table[512 + i] = i;
+  uint8_t i = 0;
+  while (true) {
+    s_y_to_rgb[i] = static_cast<int>((i - 16) * 1.164f);
+    s_v_to_r[i] = static_cast<int>((i - 128) * 1.793f);
+    s_u_to_g[i] = static_cast<int>((i - 128) * -0.213f);
+    s_v_to_g[i] = static_cast<int>((i - 128) * -0.533f);
+    s_u_to_b[i] = static_cast<int>((i - 128) * 2.112f);
+    s_clamp_table[512 + static_cast<std::size_t>(i)] = i;
+    if (i == 255) {
+      break;
+    }
+    ++i;
   }
 
   s_yuv_to_rgb_lookup_table_initialized = true;
@@ -151,7 +156,10 @@ scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
     const uint8_t* y = &y_data[row * GetPlane(0).pitch_in_bytes];
     const uint8_t* u = &u_data[row / 2 * GetPlane(1).pitch_in_bytes];
     const uint8_t* v = &v_data[row / 2 * GetPlane(2).pitch_in_bytes];
-    int v_to_r, u_to_g, v_to_g, u_to_b;
+    int v_to_r = 0;
+    int u_to_g = 0;
+    int v_to_g = 0;
+    int u_to_b = 0;
 
     for (int column = 0; column < width; ++column) {
       if (column % 2 == 0) {

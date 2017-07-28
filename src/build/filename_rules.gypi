@@ -57,7 +57,7 @@
         ['exclude', '(^|/)posix/'],
       ],
     }],
-    ['<(chromeos)!=1 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_chromeos(_unittest)?\\.(h|cc)$'] ]
     }],
     ['>(nacl_untrusted_build)==0', {
@@ -70,35 +70,35 @@
         ['exclude', '_xdg(_unittest)?\\.(h|cc)$'],
       ],
     }],
-    ['<(use_x11)!=1 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_(x|x11)(_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)x11_[^/]*\\.(h|cc)$'],
       ],
     }],
-    ['<(toolkit_uses_gtk)!=1 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [
         ['exclude', '_gtk(_browsertest|_unittest)?\\.(h|cc)$'],
         ['exclude', '(^|/)gtk/'],
         ['exclude', '(^|/)gtk_[^/]*\\.(h|cc)$'],
       ],
     }],
-    ['<(toolkit_views)==0 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_views\\.(h|cc)$'] ]
     }],
-    ['<(use_aura)==0 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aura(_unittest)?\\.(h|cc)$'],
                     ['exclude', '_aura(_browsertest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)aura/'],
       ]
     }],
-    ['<(use_aura)==0 or <(use_x11)==0 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aurax11\\.(h|cc)$'] ]
     }],
-    ['<(use_aura)==0 or OS!="win" or >(nacl_untrusted_build)==1', {
+    ['OS!="win" or >(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_aurawin\\.(h|cc)$'] ]
     }],
-    ['<(use_ash)==0 or >(nacl_untrusted_build)==1', {
+    ['>(nacl_untrusted_build)==1', {
       'sources/': [ ['exclude', '_ash(_browsertest|_unittest)?\\.(h|cc)$'],
                     ['exclude', '(^|/)ash/'],
       ]

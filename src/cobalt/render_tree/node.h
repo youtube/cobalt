@@ -38,9 +38,19 @@ class Node : public base::RefCountedThreadSafe<Node> {
   // polymorphically identify what type a node is.
   virtual base::TypeId GetTypeId() const = 0;
 
+  // Number to help differentiate nodes. This is specific to the local process
+  // and is not deterministic. Node identifiers from different processes may
+  // overlap. This is intended to be used as a key when, for example, caching
+  // render results of nodes.
+  int64_t GetId() const { return node_id_; }
+
  protected:
+  Node();
   virtual ~Node() {}
   friend class base::RefCountedThreadSafe<Node>;
+
+ private:
+  int64_t node_id_;
 };
 
 }  // namespace render_tree

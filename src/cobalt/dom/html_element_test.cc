@@ -69,7 +69,7 @@ class MockLayoutBoxes : public LayoutBoxes {
   MOCK_CONST_METHOD0(type, Type());
   MOCK_CONST_METHOD0(GetClientRects, scoped_refptr<DOMRectList>());
 
-  MOCK_CONST_METHOD0(IsInlineLevel, bool());
+  MOCK_CONST_METHOD0(IsInline, bool());
 
   MOCK_CONST_METHOD0(GetBorderEdgeLeft, float());
   MOCK_CONST_METHOD0(GetBorderEdgeTop, float());
@@ -124,11 +124,23 @@ class HTMLElementTest : public ::testing::Test {
   scoped_refptr<HTMLElement> CreateHTMLElementTreeWithMockLayoutBoxes(
       const char* null_terminated_element_names[]);
 
+  void SetElementStyle(const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
+                       HTMLElement* html_element);
+
   cssom::testing::MockCSSParser css_parser_;
   scoped_ptr<DomStatTracker> dom_stat_tracker_;
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;
 };
+
+void HTMLElementTest::SetElementStyle(
+    const scoped_refptr<cssom::CSSDeclaredStyleData>& data,
+    HTMLElement* html_element) {
+  EXPECT_CALL(css_parser_,
+              ParseStyleDeclarationList(kFooBarDeclarationString, _))
+      .WillOnce(Return(data));
+  html_element->SetAttribute("style", kFooBarDeclarationString);
+}
 
 scoped_refptr<HTMLElement>
 HTMLElementTest::CreateHTMLElementTreeWithMockLayoutBoxes(
@@ -227,6 +239,32 @@ TEST_F(HTMLElementTest, Focus) {
   html_element_2->Focus();
   ASSERT_TRUE(document_->active_element());
   EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+
+  // Make sure that if we try to focus an element that has display set to none,
+  // it will not take the focus.
+  scoped_refptr<cssom::CSSDeclaredStyleData> display_none_style(
+      new cssom::CSSDeclaredStyleData());
+  display_none_style->SetPropertyValueAndImportance(
+      cssom::kDisplayProperty, cssom::KeywordValue::GetNone(), false);
+  SetElementStyle(display_none_style, html_element_1);
+  html_element_1->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
+
+  // Make sure that if we try to focus an element whose ancestor has display
+  // set to none, it will not take the focus.
+  scoped_refptr<HTMLElement> html_element_3 =
+      document_->CreateElement("div")->AsHTMLElement();
+  scoped_refptr<HTMLElement> html_element_4 =
+      document_->CreateElement("div")->AsHTMLElement();
+  document_->AppendChild(html_element_3);
+  html_element_3->AppendChild(html_element_4);
+
+  html_element_4->set_tab_index(-1);
+  SetElementStyle(display_none_style, html_element_3);
+  html_element_4->Focus();
+  ASSERT_TRUE(document_->active_element());
+  EXPECT_EQ(html_element_2, document_->active_element()->AsHTMLElement());
 }
 
 TEST_F(HTMLElementTest, Blur) {
@@ -319,7 +357,7 @@ TEST_F(HTMLElementTest, ClientTop) {
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(true));
   EXPECT_FLOAT_EQ(html_element->client_top(), 0.0f);
 
@@ -329,7 +367,7 @@ TEST_F(HTMLElementTest, ClientTop) {
   // ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
@@ -353,7 +391,7 @@ TEST_F(HTMLElementTest, ClientLeft) {
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(true));
   EXPECT_FLOAT_EQ(html_element->client_left(), 0.0f);
 
@@ -363,7 +401,7 @@ TEST_F(HTMLElementTest, ClientLeft) {
   // ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   html_element->layout_boxes()),
@@ -390,7 +428,7 @@ TEST_F(HTMLElementTest, ClientWidth) {
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 1)->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(true));
   EXPECT_FLOAT_EQ(GetFirstChildAtDepth(root_html_element, 1)->client_width(),
                   0.0f);
@@ -398,7 +436,7 @@ TEST_F(HTMLElementTest, ClientWidth) {
   // 2. If the element is the root element, return the viewport width.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   root_html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   root_html_element->layout_boxes()),
@@ -410,7 +448,7 @@ TEST_F(HTMLElementTest, ClientWidth) {
   // to the element and its ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),
@@ -438,7 +476,7 @@ TEST_F(HTMLElementTest, ClientHeight) {
   // 1. If the CSS layout box is inline, return zero.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 1)->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(true));
   EXPECT_FLOAT_EQ(GetFirstChildAtDepth(root_html_element, 1)->client_height(),
                   0.0f);
@@ -446,7 +484,7 @@ TEST_F(HTMLElementTest, ClientHeight) {
   // 2. If the element is the root element, return the viewport height.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   root_html_element->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   root_html_element->layout_boxes()),
@@ -458,7 +496,7 @@ TEST_F(HTMLElementTest, ClientHeight) {
   // to the element and its ancestors.
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),
-              IsInlineLevel())
+              IsInline())
       .WillOnce(Return(false));
   EXPECT_CALL(*base::polymorphic_downcast<MockLayoutBoxes*>(
                   GetFirstChildAtDepth(root_html_element, 2)->layout_boxes()),

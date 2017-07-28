@@ -631,6 +631,8 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     }
     output_mode_change_cb.Run();
 
+    UpdateDecoderConfig(audio_stream_);
+    UpdateDecoderConfig(video_stream_);
     return;
   }
 
@@ -669,6 +671,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
   if (audio_stream == NULL || video_stream == NULL) {
+    LOG(INFO) << "The video doesn't contain both an audio and a video track.";
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }

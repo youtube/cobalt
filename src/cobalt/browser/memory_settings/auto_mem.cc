@@ -26,7 +26,7 @@
 #include "base/string_number_conversions.h"
 #include "base/string_split.h"
 #include "base/stringprintf.h"
-#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/calculations.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/browser/memory_settings/constrainer.h"
@@ -42,23 +42,22 @@ namespace browser {
 namespace memory_settings {
 namespace {
 
-// Determines if the string value signals "autoset".
-bool StringValueSignalsAutoset(const std::string& value) {
-  std::string value_lower_case = value;
-  std::transform(value_lower_case.begin(), value_lower_case.end(),
-                 value_lower_case.begin(), ::tolower);
-  bool is_autoset = (value_lower_case == "auto") ||
-                    (value_lower_case == "autoset") ||
-                    (value_lower_case == "-1");
-  return is_autoset;
+// Determines if the value signals "autoset".
+template <typename ValueType>
+bool SignalsAutoset(const ValueType& value) {
+  return (value < 0);
+}
+
+template <>
+bool SignalsAutoset(const TextureDimensions& value) {
+  return value.IsAutoset();
 }
 
 template <typename MemorySettingType, typename ValueType>
-void SetMemorySetting(
-    const CommandLine& cmd_line,  // Optional.
-    const base::optional<ValueType>& build_setting,
-    const ValueType& autoset_value,
-    MemorySettingType* setting) {
+void SetMemorySetting(const base::optional<ValueType>& command_line_setting,
+                      const base::optional<ValueType>& build_setting,
+                      const ValueType& autoset_value,
+                      MemorySettingType* setting) {
   const std::string setting_name = setting->name();
 
   // True when the command line explicitly requests the variable to be autoset.
@@ -67,13 +66,13 @@ void SetMemorySetting(
   // The value is set according to importance:
   // 1) Command line switches are the most important, so set those if they
   //    exist.
-  if (cmd_line.HasSwitch(setting_name)) {
-    std::string value = cmd_line.GetSwitchValueNative(setting_name);
-    if (StringValueSignalsAutoset(value)) {
-      force_autoset = true;
-    } else if (setting->TryParseValue(MemorySetting::kCmdLine, value)) {
+  if (command_line_setting) {
+    if (!SignalsAutoset(*command_line_setting)) {
+      setting->set_value(MemorySetting::kCmdLine, *command_line_setting);
       return;
     }
+
+    force_autoset = true;
   }
 
   // 2) Is there a build setting? Then set to build_setting, unless the command
@@ -86,32 +85,30 @@ void SetMemorySetting(
   }
 }
 
-// Creates the specified memory setting type and binds it to (1) command line
-// or else (2) build setting or else (3) an auto_set value.
+// Creates the specified memory setting type and binds it to (1) command line or
+// else (2) build setting or else (3) an auto_set value.
 template <typename MemorySettingType, typename ValueType>
 scoped_ptr<MemorySettingType> CreateMemorySetting(
     const char* setting_name,
-    const CommandLine& cmd_line,  // Optional.
+    const base::optional<ValueType>& command_line_setting,
     const base::optional<ValueType>& build_setting,
     const ValueType& autoset_value) {
   scoped_ptr<MemorySettingType> output(new MemorySettingType(setting_name));
-  SetMemorySetting(cmd_line, build_setting, autoset_value, output.get());
+  SetMemorySetting(command_line_setting, build_setting, autoset_value,
+                   output.get());
   return output.Pass();
 }
 
 scoped_ptr<IntSetting> CreateSystemMemorySetting(
-    const char* setting_name,
-    MemorySetting::MemoryType memory_type,
-    const CommandLine& command_line,
+    const char* setting_name, MemorySetting::MemoryType memory_type,
+    const base::optional<int64_t>& command_line_setting,
     const base::optional<int64_t>& build_setting,
     const base::optional<int64_t>& starboard_value) {
   scoped_ptr<IntSetting> setting(new IntSetting(setting_name));
   setting->set_memory_type(memory_type);
-  if (command_line.HasSwitch(setting_name)) {
-    const std::string value = command_line.GetSwitchValueNative(setting_name);
-    if (setting->TryParseValue(MemorySetting::kCmdLine, value)) {
-      return setting.Pass();
-    }
+  if (command_line_setting) {
+    setting->set_value(MemorySetting::kCmdLine, *command_line_setting);
+    return setting.Pass();
   }
 
   if (build_setting) {
@@ -178,35 +175,31 @@ int64_t SumMemoryConsumption(
 // Creates the GPU setting.
 // This setting is unique because it may not be defined by command line, or
 // build. In this was, it can be unset.
-scoped_ptr<IntSetting> CreateGpuSetting(const CommandLine& command_line,
-                                        const BuildSettings& build_settings) {
+scoped_ptr<IntSetting> CreateGpuSetting(
+    const AutoMemSettings& command_line_settings,
+    const AutoMemSettings& build_settings) {
   // Bind to the starboard api, if applicable.
   base::optional<int64_t> starboard_setting;
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     starboard_setting = SbSystemGetTotalGPUMemory();
   }
 
-  scoped_ptr<IntSetting> gpu_setting =
-      CreateSystemMemorySetting(
-          switches::kMaxCobaltGpuUsage,
-          MemorySetting::kGPU,
-          command_line,
-          build_settings.max_gpu_in_bytes,
-          starboard_setting);
+  scoped_ptr<IntSetting> gpu_setting = CreateSystemMemorySetting(
+      switches::kMaxCobaltGpuUsage, MemorySetting::kGPU,
+      command_line_settings.max_gpu_in_bytes, build_settings.max_gpu_in_bytes,
+      starboard_setting);
 
   EnsureValuePositive(gpu_setting.get());
   return gpu_setting.Pass();
 }
 
-scoped_ptr<IntSetting> CreateCpuSetting(const CommandLine& command_line,
-                                        const BuildSettings& build_settings) {
-  scoped_ptr<IntSetting> cpu_setting =
-      CreateSystemMemorySetting(
-          switches::kMaxCobaltCpuUsage,
-          MemorySetting::kCPU,
-          command_line,
-          build_settings.max_cpu_in_bytes,
-          SbSystemGetTotalCPUMemory());
+scoped_ptr<IntSetting> CreateCpuSetting(
+    const AutoMemSettings& command_line_settings,
+    const AutoMemSettings& build_settings) {
+  scoped_ptr<IntSetting> cpu_setting = CreateSystemMemorySetting(
+      switches::kMaxCobaltCpuUsage, MemorySetting::kCPU,
+      command_line_settings.max_cpu_in_bytes, build_settings.max_cpu_in_bytes,
+      SbSystemGetTotalCPUMemory());
 
   EnsureValuePositive(cpu_setting.get());
   return cpu_setting.Pass();
@@ -275,9 +268,9 @@ int64_t GenerateTargetMemoryBytes(
 }  // namespace
 
 AutoMem::AutoMem(const math::Size& ui_resolution,
-                 const CommandLine& command_line,
-                 const BuildSettings& build_settings) {
-  ConstructSettings(ui_resolution, command_line, build_settings);
+                 const AutoMemSettings& command_line_settings,
+                 const AutoMemSettings& build_settings) {
+  ConstructSettings(ui_resolution, command_line_settings, build_settings);
 
   const int64_t target_cpu_memory =
       GenerateTargetMemoryBytes(max_cpu_bytes_->value(),
@@ -329,6 +322,10 @@ const IntSetting* AutoMem::software_surface_cache_size_in_bytes() const {
   return software_surface_cache_size_in_bytes_.get();
 }
 
+const IntSetting* AutoMem::offscreen_target_cache_size_in_bytes() const {
+  return offscreen_target_cache_size_in_bytes_.get();
+}
+
 const IntSetting* AutoMem::max_cpu_bytes() const {
   return max_cpu_bytes_.get();
 }
@@ -356,6 +353,7 @@ std::vector<MemorySetting*> AutoMem::AllMemorySettingsMutable() {
   all_settings.push_back(javascript_gc_threshold_in_bytes_.get());
   all_settings.push_back(misc_cobalt_cpu_size_in_bytes_.get());
   all_settings.push_back(misc_cobalt_gpu_size_in_bytes_.get());
+  all_settings.push_back(offscreen_target_cache_size_in_bytes_.get());
   all_settings.push_back(remote_typeface_cache_size_in_bytes_.get());
   all_settings.push_back(skia_atlas_texture_dimensions_.get());
   all_settings.push_back(skia_cache_size_in_bytes_.get());
@@ -419,30 +417,25 @@ int64_t AutoMem::SumAllMemoryOfType(
   return SumMemoryConsumption(memory_type, AllMemorySettings());
 }
 
-void AutoMem::ConstructSettings(
-    const math::Size& ui_resolution,
-    const CommandLine& command_line,
-    const BuildSettings& build_settings) {
-  max_cpu_bytes_ = CreateCpuSetting(command_line, build_settings);
-  max_gpu_bytes_ = CreateGpuSetting(command_line, build_settings);
+void AutoMem::ConstructSettings(const math::Size& ui_resolution,
+                                const AutoMemSettings& command_line_settings,
+                                const AutoMemSettings& build_settings) {
+  max_cpu_bytes_ = CreateCpuSetting(command_line_settings, build_settings);
+  max_gpu_bytes_ = CreateGpuSetting(command_line_settings, build_settings);
 
   reduced_cpu_bytes_ = CreateSystemMemorySetting(
-      switches::kReduceCpuMemoryBy,
-      MemorySetting::kCPU,
-      command_line,
-      build_settings.reduce_cpu_memory_by,
-      -1);
+      switches::kReduceCpuMemoryBy, MemorySetting::kCPU,
+      command_line_settings.reduce_cpu_memory_by,
+      build_settings.reduce_cpu_memory_by, -1);
   if (reduced_cpu_bytes_->value() == -1) {
     // This effectively disables the value from being used in the constrainer.
     reduced_cpu_bytes_->set_value(MemorySetting::kUnset, 0);
   }
 
   reduced_gpu_bytes_ = CreateSystemMemorySetting(
-      switches::kReduceGpuMemoryBy,
-      MemorySetting::kGPU,
-      command_line,
-      build_settings.reduce_gpu_memory_by,
-      -1);
+      switches::kReduceGpuMemoryBy, MemorySetting::kGPU,
+      command_line_settings.reduce_gpu_memory_by,
+      build_settings.reduce_gpu_memory_by, -1);
   if (reduced_cpu_bytes_->value() == -1) {
     // This effectively disables the value from being used in the constrainer.
     reduced_gpu_bytes_->set_value(MemorySetting::kUnset, 0);
@@ -451,7 +444,7 @@ void AutoMem::ConstructSettings(
   // Set the ImageCache
   image_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kImageCacheSizeInBytes,
-      command_line,
+      command_line_settings.cobalt_image_cache_size_in_bytes,
       build_settings.cobalt_image_cache_size_in_bytes,
       CalculateImageCacheSize(ui_resolution));
   EnsureValuePositive(image_cache_size_in_bytes_.get());
@@ -465,10 +458,9 @@ void AutoMem::ConstructSettings(
   // Set javascript gc threshold
   JavaScriptGcThresholdSetting* js_setting = new JavaScriptGcThresholdSetting;
   SetMemorySetting<IntSetting, int64_t>(
-      command_line,
+      command_line_settings.javascript_garbage_collection_threshold_in_bytes,
       build_settings.javascript_garbage_collection_threshold_in_bytes,
-      kDefaultJsGarbageCollectionThresholdSize,
-      js_setting);
+      kDefaultJsGarbageCollectionThresholdSize, js_setting);
   EnsureValuePositive(js_setting);
   js_setting->PostInit();
   javascript_gc_threshold_in_bytes_.reset(js_setting);
@@ -489,15 +481,15 @@ void AutoMem::ConstructSettings(
   // Set remote_type_face_cache size.
   remote_typeface_cache_size_in_bytes_ =
       CreateMemorySetting<IntSetting, int64_t>(
-        switches::kRemoteTypefaceCacheSizeInBytes,
-        command_line,
-        build_settings.remote_typeface_cache_capacity_in_bytes,
-        kDefaultRemoteTypeFaceCacheSize);
+          switches::kRemoteTypefaceCacheSizeInBytes,
+          command_line_settings.remote_typeface_cache_capacity_in_bytes,
+          build_settings.remote_typeface_cache_capacity_in_bytes,
+          kDefaultRemoteTypeFaceCacheSize);
   EnsureValuePositive(remote_typeface_cache_size_in_bytes_.get());
 
   // Skia atlas texture dimensions.
   skia_atlas_texture_dimensions_.reset(new SkiaGlyphAtlasTextureSetting());
-  SetMemorySetting(command_line,
+  SetMemorySetting(command_line_settings.skia_texture_atlas_dimensions,
                    build_settings.skia_texture_atlas_dimensions,
                    CalculateSkiaGlyphAtlasTextureSize(ui_resolution),
                    skia_atlas_texture_dimensions_.get());
@@ -517,7 +509,7 @@ void AutoMem::ConstructSettings(
   // Set skia_cache_size_in_bytes
   skia_cache_size_in_bytes_ = CreateMemorySetting<IntSetting, int64_t>(
       switches::kSkiaCacheSizeInBytes,
-      command_line,
+      command_line_settings.skia_cache_size_in_bytes,
       build_settings.skia_cache_size_in_bytes,
       CalculateSkiaCacheSize(ui_resolution));
   // Not available for blitter platforms.
@@ -533,7 +525,7 @@ void AutoMem::ConstructSettings(
   software_surface_cache_size_in_bytes_ =
       CreateMemorySetting<IntSetting, int64_t>(
           switches::kSoftwareSurfaceCacheSizeInBytes,
-          command_line,
+          command_line_settings.software_surface_cache_size_in_bytes,
           build_settings.software_surface_cache_size_in_bytes,
           CalculateSoftwareSurfaceCacheSizeInBytes(ui_resolution));
   // Blitter only feature.
@@ -542,6 +534,24 @@ void AutoMem::ConstructSettings(
         MemorySetting::kNotApplicable);
   }
   EnsureValuePositive(software_surface_cache_size_in_bytes_.get());
+
+  // Set offscreen_target_cache_size_in_bytes (relevant to the direct-gles
+  // rasterizer).
+  offscreen_target_cache_size_in_bytes_ =
+      CreateMemorySetting<IntSetting, int64_t>(
+          switches::kOffscreenTargetCacheSizeInBytes,
+          command_line_settings.offscreen_target_cache_size_in_bytes,
+          build_settings.offscreen_target_cache_size_in_bytes,
+          CalculateOffscreenTargetCacheSizeInBytes(ui_resolution));
+  offscreen_target_cache_size_in_bytes_->set_memory_scaling_function(
+      MakeLinearMemoryScaler(0.25, 1.0));
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  offscreen_target_cache_size_in_bytes_->set_memory_type(MemorySetting::kGPU);
+#else
+  offscreen_target_cache_size_in_bytes_->set_memory_type(
+      MemorySetting::kNotApplicable);
+#endif
+  EnsureValuePositive(offscreen_target_cache_size_in_bytes_.get());
 
   // Final stage: Check that all constraining functions are monotonically
   // increasing.

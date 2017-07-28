@@ -71,7 +71,7 @@ class Window::RelayLoadEvent : public DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
-Window::Window(int width, int height,
+Window::Window(int width, int height, float device_pixel_ratio,
                base::ApplicationState initial_application_state,
                cssom::CSSParser* css_parser, Parser* dom_parser,
                loader::FetcherFactory* fetcher_factory,
@@ -101,13 +101,16 @@ Window::Window(int width, int height,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const base::Closure& window_close_callback,
                const base::Closure& window_minimize_callback,
-               system_window::SystemWindow* system_window,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
-               float video_playback_rate_multiplier)
+               float video_playback_rate_multiplier, ClockType clock_type)
     : width_(width),
       height_(height),
+      device_pixel_ratio_(device_pixel_ratio),
+#if defined(ENABLE_TEST_RUNNER)
+      test_runner_(new TestRunner()),
+#endif  // ENABLE_TEST_RUNNER
       html_element_context_(new HTMLElementContext(
           fetcher_factory, css_parser, dom_parser, can_play_type_handler,
           web_media_player_factory, script_runner, script_value_factory,
@@ -115,7 +118,11 @@ Window::Window(int width, int height,
           image_cache, reduced_image_cache_capacity_manager,
           remote_typeface_cache, mesh_cache, dom_stat_tracker, language,
           initial_application_state, video_playback_rate_multiplier)),
-      performance_(new Performance(new base::SystemMonotonicClock())),
+      performance_(new Performance(
+#if defined(ENABLE_TEST_RUNNER)
+          clock_type == kClockTypeTestRunner ? test_runner_->GetClock() :
+#endif
+                                             new base::SystemMonotonicClock())),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
@@ -148,25 +155,12 @@ Window::Window(int width, int height,
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
-      window_minimize_callback_(window_minimize_callback),
-      system_window_(system_window) {
-#if defined(ENABLE_TEST_RUNNER)
-  test_runner_ = new TestRunner();
-#endif  // ENABLE_TEST_RUNNER
+      window_minimize_callback_(window_minimize_callback) {
+#if !defined(ENABLE_TEST_RUNNER)
+  UNREFERENCED_PARAMETER(clock_type);
+#endif
   document_->AddObserver(relay_on_load_event_.get());
   html_element_context_->page_visibility_state()->AddObserver(this);
-
-  if (system_window_) {
-    SbWindow sb_window = system_window_->GetSbWindow();
-    SbWindowSize size;
-    if (SbWindowGetSize(sb_window, &size)) {
-      device_pixel_ratio_ = size.video_pixel_ratio;
-    } else {
-      device_pixel_ratio_ = 1.0f;
-    }
-  } else {
-      device_pixel_ratio_ = 1.0f;
-  }
 
   // Document load start is deferred from this constructor so that we can be
   // guaranteed that this Window object is fully constructed before document
@@ -199,6 +193,7 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 
 // https://www.w3.org/TR/html5/browsers.html#dom-window-close
 void Window::Close() {
+  LOG(INFO) << __func__;
   if (!window_close_callback_.is_null()) {
     window_close_callback_.Run();
   }
@@ -216,7 +211,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
     const scoped_refptr<Element>& elt) {
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   if (html_element) {
-    document_->UpdateComputedStyles();
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
     return html_element->css_computed_style_declaration();
   }
   return NULL;
@@ -235,7 +230,7 @@ scoped_refptr<cssom::CSSStyleDeclaration> Window::GetComputedStyle(
   scoped_refptr<HTMLElement> html_element = elt->AsHTMLElement();
   scoped_refptr<cssom::CSSComputedStyleDeclaration> obj;
   if (html_element) {
-    document_->UpdateComputedStyles();
+    document_->UpdateComputedStyleOnElementAndAncestor(html_element);
 
     // 2. Let obj be elt.
     obj = html_element->css_computed_style_declaration();

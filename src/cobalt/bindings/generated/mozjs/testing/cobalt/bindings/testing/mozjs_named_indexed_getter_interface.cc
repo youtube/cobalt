@@ -505,7 +505,6 @@ JSBool fcn_indexedGetter(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -576,7 +575,6 @@ JSBool fcn_indexedSetter(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -653,7 +651,6 @@ JSBool fcn_namedGetter(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -724,7 +721,6 @@ JSBool fcn_namedSetter(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {
@@ -801,7 +797,6 @@ JSBool fcn_operationOnBaseClass(
   // 'this' should be an object.
   JS::RootedObject object(context);
   if (JS_TypeOfValue(context, this_value) != JSTYPE_OBJECT) {
-    NOTREACHED();
     return false;
   }
   if (!JS_ValueToObject(context, this_value, object.address())) {

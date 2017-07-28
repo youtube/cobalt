@@ -115,6 +115,9 @@ const char kWebDriverListenIp[] = "webdriver_listen_ip";
 // Enables memory tracking by installing the memory tracker on startup.
 const char kMemoryTracker[] = "memory_tracker";
 
+// Enables/disables animations on animated images (e.g. animated WebP).
+const char kDisableImageAnimations[] = "disable_image_animations";
+
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 // If toggled, framerate statistics will be printed to stdout after each
@@ -167,11 +170,31 @@ const char kSkiaCacheSizeInBytes[] = "skia_cache_size_in_bytes";
 const char kSoftwareSurfaceCacheSizeInBytes[] =
     "software_surface_cache_size_in_bytes";
 
+// Setting this switch defines the splash screen URL that Cobalt will
+// use in absence of a web cache. The referenced url should be a
+// content file (for example file:///foobar.html) or an embedded file
+// (for example h5vcc-embedded://foobar.html) and all files referenced
+// must be content or embedded files as well. If "none" is passed
+// (case-insensitive), no splash screen will be constructed. If no
+// value is set, the URL in gyp_configuration.gypi or base.gypi will
+// be used.
+const char kFallbackSplashScreenURL[] = "fallback_splash_screen_url";
+
 // Determines the capacity of the surface cache.  The surface cache tracks which
 // render tree nodes are being re-used across frames and stores the nodes that
 // are most CPU-expensive to render into surfaces.  While it depends on the
 // platform, this setting may affect GPU memory usage.
 const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
+
+// Determines the amount of GPU memory the offscreen target atlases will
+// use. This is specific to the direct-GLES rasterizer and serves a similar
+// purpose as the surface_cache_size_in_bytes, but caches any render tree
+// nodes which require skia for rendering. Two atlases will be allocated
+// from this memory or multiple atlases of the frame size if the limit
+// allows. It is recommended that enough memory be reserved for two RGBA
+// atlases about a quarter of the frame size.
+const char kOffscreenTargetCacheSizeInBytes[] =
+    "offscreen_target_cache_size_in_bytes";
 
 // Specifies the viewport size: width ['x' height]
 const char kViewport[] = "viewport";

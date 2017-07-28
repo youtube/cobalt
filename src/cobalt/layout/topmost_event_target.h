@@ -15,6 +15,7 @@
 #ifndef COBALT_LAYOUT_TOPMOST_EVENT_TARGET_H_
 #define COBALT_LAYOUT_TOPMOST_EVENT_TARGET_H_
 
+#include "base/memory/weak_ptr.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/window.h"
@@ -28,12 +29,11 @@ namespace layout {
 
 class TopmostEventTarget {
  public:
-  explicit TopmostEventTarget() {}
+  TopmostEventTarget() {}
 
-  void MaybeSendPointerEvents(const scoped_refptr<dom::Event>& event,
-                              const scoped_refptr<dom::Window>& window);
+  void MaybeSendPointerEvents(const scoped_refptr<dom::Event>& event);
 
-  scoped_refptr<dom::HTMLElement> previous_html_element_;
+  base::WeakPtr<dom::HTMLElement> previous_html_element_weak_;
   scoped_refptr<dom::HTMLElement> html_element_;
   scoped_refptr<Box> box_;
   Box::RenderSequence render_sequence_;

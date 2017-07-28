@@ -6,9 +6,10 @@
  * found in the LICENSE file.
  */
 
-
-
 #include "GrDrawTarget.h"
+
+#include <cstddef>
+
 #include "GrContext.h"
 #include "GrDrawTargetCaps.h"
 #include "GrPath.h"
@@ -84,8 +85,10 @@ void GrDrawTarget::DrawInfo::adjustStartIndex(int indexOffset) {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEBUG_INVAL_BUFFER 0xdeadcafe
-#define DEBUG_INVAL_START_IDX -1
+namespace {
+  const std::size_t DEBUG_INVAL_BUFFER = 0xdeadcafe;
+  const std::ptrdiff_t DEBUG_INVAL_START_IDX = -1;
+}
 
 GrDrawTarget::GrDrawTarget(GrContext* context)
     : fClip(NULL)

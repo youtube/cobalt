@@ -35,6 +35,53 @@ namespace media {
 namespace sandbox {
 namespace {
 
+// Allows args to be pushed into a stack. This allows passing variables to
+// functions that take in the int, char** args format.
+struct Args {
+  Args(int argc, char** argv) {
+    for (int i = 0; i < argc; ++i) {
+      PushBack(argv[i]);
+    }
+  }
+
+  ~Args() {
+    while (size()) {
+      PopBack();
+    }
+  }
+
+  char** get_argv() {
+    if (buffs_.empty()) {
+      return NULL;
+    } else {
+      return &buffs_[0];
+    }
+  }
+
+  char* get(int i) {
+    return buffs_[i];
+  }
+
+  int size() const {
+    return static_cast<int>(buffs_.size());
+  }
+
+  void PushBack(const char* in) {
+    char* string_cp = new char[strlen(in) + 1];
+    strcpy(string_cp, in);
+    buffs_.push_back(string_cp);
+  }
+
+  void PopBack() {
+    if (!buffs_.empty()) {
+      delete buffs_.back();
+      buffs_.pop_back();
+    }
+  }
+
+  std::vector<char*> buffs_;
+};
+
 using render_tree::Image;
 #if !defined(COBALT_MEDIA_SOURCE_2016)
 using ::media::VideoFrame;
@@ -67,16 +114,28 @@ scoped_refptr<Image> FrameCB(WebMediaPlayerHelper* player_helper,
 }
 
 int SandboxMain(int argc, char** argv) {
-  if (argc != 2 && argc != 3) {
-    LOG(ERROR) << "Usage: " << argv[0] << " [--null_audio_streamer] <url|path>";
-    return 1;
+  Args args(argc, argv);
+
+  // 2nd argument is supposed to be the url. If this doesn't exist then
+  // a default url pointing to the resource is used instead.
+  if (args.size() < 2) {
+    LOG(INFO) << "Warning: " << argv[0]
+              << " had no url, defaulting to hard-coded path.";
+
+    const char kHardcodedMp4Url[] =
+        "https://storage.googleapis.com/yt-cobalt-media-element-demo/"
+        "progressive.mp4";
+    args.PushBack(kHardcodedMp4Url);
   }
+
   MediaSandbox media_sandbox(
-      argc, argv,
+      args.size(), args.get_argv(),
       FilePath(FILE_PATH_LITERAL("web_media_player_sandbox_trace.json")));
 
+  const char* mp4_hard_coded_url = args.get(1);
+
   // Note that we can't access PathService until MediaSandbox is initialized.
-  GURL video_url = ResolveUrl(argv[argc - 1]);
+  GURL video_url = ResolveUrl(mp4_hard_coded_url);
 
   if (!video_url.is_valid()) {
     LOG(ERROR) << " Invalid URL: " << video_url;

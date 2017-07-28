@@ -240,8 +240,7 @@ void PlayerWorker::DoSetBounds(Bounds bounds) {
     UpdatePlayerState(kSbPlayerStateError);
   }
 }
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
+#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
 void PlayerWorker::DoSetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());

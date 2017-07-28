@@ -17,6 +17,8 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_TEXTURE_DIMENSIONS_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_TEXTURE_DIMENSIONS_H_
 
+#include <iosfwd>
+
 #include "starboard/types.h"
 
 namespace cobalt {
@@ -42,6 +44,10 @@ class TextureDimensions {
     return !(*this == other);
   }
 
+  // Defining an "autoset" TextureDimensions as one where either component is
+  // negative.
+  bool IsAutoset() const { return width_ < 0 || height_ < 0; }
+
   int width() const { return width_; }
   int height() const { return height_; }
   int bytes_per_pixel() const { return bytes_per_pixel_; }
@@ -62,6 +68,13 @@ class TextureDimensions {
   int height_;
   int bytes_per_pixel_;
 };
+
+inline std::ostream& operator<<(std::ostream& stream,
+                                const TextureDimensions& dimensions) {
+  stream << dimensions.width() << "x" << dimensions.height() << "x"
+         << dimensions.bytes_per_pixel();
+  return stream;
+}
 
 }  // namespace memory_settings
 }  // namespace browser

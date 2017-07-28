@@ -43,6 +43,12 @@
     'sb_enable_lib%': '<(sb_enable_lib)',
     'cobalt_enable_lib': '<(sb_enable_lib)',
 
+    # Directory path to static contents.
+    'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
+
+    # Directory path to static contents' data.
+    'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
+
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user
     # chooses to back out of the application).
@@ -146,12 +152,19 @@
     # Defines what kind of rasterizer will be used.  This can be adjusted to
     # force a stub graphics implementation or software graphics implementation.
     # It can be one of the following options:
-    #   'hardware' -- As much hardware acceleration of graphics commands as
-    #                 possible. Required for 360 rendering.
-    #   'software' -- Perform most rasterization using the CPU and only interact
-    #                 with the GPU to send the final image to the output window.
-    #   'stub'     -- Stub graphics rasterization.  A rasterizer object will
-    #                 still be available and valid, but it will do nothing.
+    #   'direct-gles' -- Uses a light wrapper over OpenGL ES to handle most
+    #                    draw elements. This will fall back to the skia hardware
+    #                    rasterizer for some render tree node types, but is
+    #                    generally faster on the CPU and GPU. This can handle
+    #                    360 rendering.
+    #   'hardware'    -- As much hardware acceleration of graphics commands as
+    #                    possible. This uses skia to wrap OpenGL ES commands.
+    #                    Required for 360 rendering.
+    #   'software'    -- Perform most rasterization using the CPU and only
+    #                    interact with the GPU to send the final image to the
+    #                    output window.
+    #   'stub'        -- Stub graphics rasterization.  A rasterizer object will
+    #                    still be available and valid, but it will do nothing.
     'rasterizer_type%': 'hardware',
 
     # If set to 1, will enable support for rendering only the regions of the
@@ -188,8 +201,6 @@
     # native code may require an additional packaging step (ex. Android).
     'gtest_target_type%': 'executable',
     'final_executable_type%': 'executable',
-    'posix_emulation_target_type%': 'static_library',
-    'webkit_target_type%': 'static_library',
 
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
@@ -202,6 +213,9 @@
 
     # Set to 1 to enable H5vccCrashLog.
     'enable_crash_log%': 0,
+
+    # Set to 1 to enable H5vccSSO (Single Sign On).
+    'enable_sso%': 0,
 
     # Set to 1 to compile with SPDY support.
     'enable_spdy%': 0,
@@ -248,6 +262,12 @@
     # Temporary indicator for Tizen - should eventually move to feature defines.
     'tizen_os%': 0,
 
+    # URL of default build time splash screen:
+    # TODO: Point this to cobalt_splash_screen.html and override it in
+    # ports' gyp_configuration.gypi (coordinate transition with
+    # partners).
+    'fallback_splash_screen_url%': 'h5vcc-embedded://splash_screen.html',
+
     # Cache parameters
 
     # The following set of parameters define how much memory is reserved for
@@ -282,6 +302,15 @@
     # which render tree nodes are being re-used across frames and stores the
     # nodes that are most CPU-expensive to render into surfaces.
     'surface_cache_size_in_bytes%': 0,
+
+    # Determines the amount of GPU memory the offscreen target atlases will
+    # use. This is specific to the direct-GLES rasterizer and serves a similar
+    # purpose as the surface_cache_size_in_bytes, but caches any render tree
+    # nodes which require skia for rendering. Two atlases will be allocated
+    # from this memory or multiple atlases of the frame size if the limit
+    # allows. It is recommended that enough memory be reserved for two RGBA
+    # atlases about a quarter of the frame size.
+    'offscreen_target_cache_size_in_bytes%': -1,
 
     # Determines the capacity of the image cache, which manages image surfaces
     # downloaded from a web page.  While it depends on the platform, often (and
@@ -420,17 +449,6 @@
     # implementation is a no-op.
     'cobalt_enable_jit%': 0,
 
-    # Customize variables used by Chromium's build/common.gypi.
-
-    # Disable a check that looks for an official google api key.
-    'use_official_google_api_keys': 0,
-    # Prevents common.gypi from running a bash script which is not required
-    # to compile Cobalt.
-    'clang_use_chrome_plugins': 0,
-    # Disables treat warnings as errors.
-    'werror': '',
-    # Cobalt doesn't currently support tcmalloc.
-    'linux_use_tcmalloc': 0,
     # The event polling mechanism available on this platform to support libevent.
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
@@ -566,16 +584,6 @@
               '-fPIC',
             ],
           }],
-        ],
-      }],
-      ['posix_emulation_target_type == "shared_library"', {
-        'defines': [
-          '__LB_BASE_SHARED__=1',
-        ],
-      }],
-      ['webkit_target_type == "shared_library"', {
-        'defines': [
-          'COBALT_WEBKIT_SHARED=1',
         ],
       }],
       ['OS == "lb_shell"', {

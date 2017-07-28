@@ -60,6 +60,16 @@ class MouseEvent : public UIEventWithKeyState {
   int32_t client_x() const { return client_x_; }
   int32_t client_y() const { return client_y_; }
 
+  // Web API: CSSOM View Module: Extensions to the MouseEvent Interface
+  // (partial interface)
+  //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-mouseevent-interface
+  float page_x() const;
+  float page_y() const;
+  float x() const { return static_cast<float>(client_x_); }
+  float y() const { return static_cast<float>(client_y_); }
+  float offset_x();
+  float offset_y() const;
+
   int16_t button() const { return button_; }
   uint16_t buttons() const { return buttons_; }
 
@@ -70,6 +80,11 @@ class MouseEvent : public UIEventWithKeyState {
   const scoped_refptr<EventTarget>& related_target() const {
     return related_target_;
   }
+
+  // Web API: UIEvent
+  // This contains a value equal to the value stored in button+1.
+  //   https://w3c.github.io/uievents/#dom-uievent-which
+  uint32 which() const OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(MouseEvent);
 

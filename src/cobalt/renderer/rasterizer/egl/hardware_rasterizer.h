@@ -42,14 +42,15 @@ class HardwareRasterizer : public Rasterizer {
   // the number of bytes that can be consumed by the scratch surface cache,
   // a facility that allows temporary surfaces to be reused within the
   // rasterization of a single frame/submission.
-  // If |surface_cache_size| is non-zero, the rasterizer will set itself up with
-  // a surface cache such that expensive render tree nodes seen multiple times
-  // will get saved to offscreen surfaces.
+  // The value of |offscreen_target_cache_size_in_bytes| sets an upper limit on
+  // how much GPU memory is used to save the results of render tree nodes to
+  // improve performance. This should be non-zero, otherwise performance
+  // degrades drastically.
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
                               int skia_atlas_width, int skia_atlas_height,
                               int skia_cache_size_in_bytes,
                               int scratch_surface_cache_size_in_bytes,
-                              int surface_cache_size_in_bytes,
+                              int offscreen_target_cache_size_in_bytes,
                               bool purge_skia_font_caches_on_destruction);
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -57,6 +58,8 @@ class HardwareRasterizer : public Rasterizer {
               const Options& options) OVERRIDE;
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+
+  void MakeCurrent() OVERRIDE;
 
  private:
   class Impl;

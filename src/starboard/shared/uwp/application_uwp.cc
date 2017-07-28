@@ -14,8 +14,11 @@
 
 #include "starboard/shared/uwp/application_uwp.h"
 
-#include <windows.h>
 #include <WinSock2.h>
+#include <mfapi.h>
+#include <ppltasks.h>
+#include <windows.h>
+#include <D3D11.h>
 
 #include <memory>
 #include <string>
@@ -25,17 +28,25 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
+#include "starboard/system.h"
 
+namespace sbwin32 = starboard::shared::win32;
+
+using Microsoft::WRL::ComPtr;
 using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::uwp::GetArgvZero;
+using starboard::shared::win32::stringToPlatformString;
 using starboard::shared::win32::wchar_tToUTF8;
+using starboard::shared::starboard::player::VideoFrame;
 using Windows::ApplicationModel::Activation::ActivationKind;
+using Windows::ApplicationModel::Activation::DialReceiverActivatedEventArgs;
 using Windows::ApplicationModel::Activation::IActivatedEventArgs;
 using Windows::ApplicationModel::Activation::IProtocolActivatedEventArgs;
 using Windows::ApplicationModel::Core::CoreApplication;
@@ -44,24 +55,29 @@ using Windows::ApplicationModel::Core::IFrameworkView;
 using Windows::ApplicationModel::Core::IFrameworkViewSource;
 using Windows::ApplicationModel::SuspendingEventArgs;
 using Windows::Foundation::EventHandler;
+using Windows::Foundation::IAsyncOperation;
 using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
-using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::Threading::ThreadPoolTimer;
-using Windows::UI::Core::CoreDispatcherPriority;
+using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::UserAuthenticationStatus;
+using Windows::UI::Core::CoreDispatcherPriority;
 using Windows::UI::Core::CoreProcessEventsOption;
 using Windows::UI::Core::CoreWindow;
 using Windows::UI::Core::DispatchedHandler;
 using Windows::UI::Core::KeyEventArgs;
-
-namespace sbwin32 = starboard::shared::win32;
+using Windows::UI::Popups::IUICommand;
+using Windows::UI::Popups::MessageDialog;
+using Windows::UI::Popups::UICommand;
+using Windows::UI::Popups::UICommandInvokedHandler;
 
 namespace {
 
 const int kWinSockVersionMajor = 2;
 const int kWinSockVersionMinor = 2;
+
+const char kYouTubeTVurl[] = "--url=https://www.youtube.com/tv/?";
 
 int main_return_value = 0;
 
@@ -116,7 +132,78 @@ std::unique_ptr<Application::Event> MakeDeepLinkEvent(
                              Application::DeleteArrayDestructor<const char*>));
 }
 
+// Returns if |full_string| ends with |substring|.
+bool ends_with(const std::string& full_string, const std::string& substring) {
+  if (substring.length() > full_string.length()) {
+    return false;
+  }
+  return std::equal(substring.rbegin(), substring.rend(), full_string.rbegin());
+}
+
 }  // namespace
+
+// Note that this is a "struct" and not a "class" because
+// that's how it's defined in starboard/system.h
+struct SbSystemPlatformErrorPrivate {
+  SbSystemPlatformErrorPrivate(const SbSystemPlatformErrorPrivate&) = delete;
+  SbSystemPlatformErrorPrivate& operator=(
+      const SbSystemPlatformErrorPrivate&) = delete;
+
+  SbSystemPlatformErrorPrivate(
+      SbSystemPlatformErrorType type,
+      SbSystemPlatformErrorCallback callback,
+      void* user_data)
+      : callback_(callback), user_data_(user_data) {
+    SB_DCHECK(type == kSbSystemPlatformErrorTypeConnectionError);
+
+    ApplicationUwp* app = ApplicationUwp::Get();
+    app->RunInMainThreadAsync([this, callback, user_data, app]() {
+      MessageDialog^ dialog = ref new MessageDialog(
+          app->GetString("UNABLE_TO_CONTACT_YOUTUBE_1",
+              "Sorry, could not connect to YouTube."));
+      dialog->Commands->Append(
+          MakeUICommand(
+              "OFFLINE_MESSAGE_TRY_AGAIN", "Try again",
+              kSbSystemPlatformErrorResponsePositive));
+      dialog->Commands->Append(
+          MakeUICommand(
+              "EXIT_BUTTON", "Exit",
+              kSbSystemPlatformErrorResponseCancel));
+      dialog->DefaultCommandIndex = 0;
+      dialog->CancelCommandIndex = 1;
+      IAsyncOperation<IUICommand^>^ operation = dialog->ShowAsync();
+      dialog_operation_ = operation;
+      concurrency::create_task(operation).then([this](IUICommand^ command) {
+        delete this;
+      });
+    });
+  }
+
+  UICommand^ MakeUICommand(
+      const char* id,
+      const char* fallback,
+      SbSystemPlatformErrorResponse response) {
+    ApplicationUwp* app = ApplicationUwp::Get();
+    Platform::String^ label = app->GetString(id, fallback);
+
+    return ref new UICommand(label,
+      ref new UICommandInvokedHandler(
+        [this, response](IUICommand^ command) {
+          callback_(response, user_data_);
+        }));
+  }
+
+  void Clear() {
+    ApplicationUwp::Get()->RunInMainThreadAsync([this]() {
+      dialog_operation_->Cancel();
+    });
+  }
+
+ private:
+  SbSystemPlatformErrorCallback callback_;
+  void* user_data_;
+  Platform::Agile<IAsyncOperation<IUICommand^>> dialog_operation_;
+};
 
 ref class App sealed : public IFrameworkView {
  public:
@@ -143,8 +230,6 @@ ref class App sealed : public IFrameworkView {
   }
   virtual void Load(Platform::String^ entryPoint) {}
   virtual void Run() {
-    args_.push_back(GetArgvZero());
-    argv_.push_back(args_.begin()->c_str());
     main_return_value = application_.Run(
         static_cast<int>(argv_.size()), const_cast<char**>(argv_.data()));
   }
@@ -180,6 +265,8 @@ ref class App sealed : public IFrameworkView {
 
   void OnActivated(
       CoreApplicationView^ applicationView, IActivatedEventArgs^ args) {
+    bool command_line_set = false;
+
     // Please see application lifecyle description:
     // https://docs.microsoft.com/en-us/windows/uwp/launch-resume/app-lifecycle
     // Note that this document was written for Xaml apps not core apps,
@@ -195,7 +282,9 @@ ref class App sealed : public IFrameworkView {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
       // The starboard: scheme provides commandline arguments, but that's
       // only allowed during a process's first activation.
-      if (!previously_activated_ && uri->SchemeName->Equals("starboard")) {
+      std::string scheme = sbwin32::platformStringToString(uri->SchemeName);
+
+      if (!previously_activated_ && ends_with(scheme, "-starboard")) {
         std::string uri_string = wchar_tToUTF8(uri->RawUri->Data());
         // args_ is a vector of std::string, but argv_ is a vector of
         // char* into args_ so as to compose a char**.
@@ -205,7 +294,8 @@ ref class App sealed : public IFrameworkView {
         }
 
         ApplicationUwp::Get()->SetCommandLine(
-          static_cast<int>(argv_.size()), argv_.data());
+            static_cast<int>(argv_.size()), argv_.data());
+        command_line_set = true;
       }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
       if (uri->SchemeName->Equals("youtube") ||
@@ -221,20 +311,40 @@ ref class App sealed : public IFrameworkView {
           ApplicationUwp::Get()->SetStartLink(uri_string.c_str());
         }
       }
+    } else if (args->Kind == ActivationKind::DialReceiver) {
+      if (!previously_activated_) {
+        DialReceiverActivatedEventArgs ^ dial_args =
+            dynamic_cast<DialReceiverActivatedEventArgs ^>(args);
+        SB_CHECK(dial_args);
+        Platform::String ^ arguments = dial_args->Arguments;
+        std::string activation_args =
+            kYouTubeTVurl + sbwin32::platformStringToString(arguments);
+        SB_DLOG(INFO) << "Dial Activation url: " << activation_args;
+        args_.push_back(activation_args);
+        argv_.push_back(args_.back().c_str());
+        ApplicationUwp::Get()->SetCommandLine(static_cast<int>(argv_.size()),
+          argv_.data());
+        command_line_set = true;
+      }
     }
     previous_activation_kind_ = args->Kind;
 
     if (!previously_activated_) {
+      if (!command_line_set) {
+        args_.push_back(GetArgvZero());
+        argv_.push_back(args_.begin()->c_str());
+        ApplicationUwp::Get()->SetCommandLine(
+            static_cast<int>(argv_.size()), argv_.data());
+      }
       CoreWindow::GetForCurrentThread()->Activate();
       // Call DispatchStart async so the UWP system thinks we're activated.
       // Some tools seem to want the application to be activated before
       // interacting with them, some things are disallowed during activation
       // (such as exiting), and DispatchStart (for example) runs
       // automated tests synchronously.
-      CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
-          CoreDispatcherPriority::Normal, ref new DispatchedHandler([this]() {
-            ApplicationUwp::Get()->DispatchStart();
-          }));
+      ApplicationUwp::Get()->RunInMainThreadAsync([this]() {
+        ApplicationUwp::Get()->DispatchStart();
+      });
     }
     previously_activated_ = true;
   }
@@ -275,7 +385,8 @@ std::string GetArgvZero() {
   return arg;
 }
 
-ApplicationUwp::ApplicationUwp() : window_(kSbWindowInvalid) {}
+ApplicationUwp::ApplicationUwp()
+    : window_(kSbWindowInvalid), localized_strings_(SbSystemGetLocaleId()) {}
 
 ApplicationUwp::~ApplicationUwp() {}
 
@@ -324,14 +435,12 @@ bool ApplicationUwp::DispatchNextEvent() {
 }
 
 void ApplicationUwp::Inject(Application::Event* event) {
-  CoreWindow::GetForCurrentThread()->Dispatcher->RunAsync(
-    CoreDispatcherPriority::Normal,
-    ref new DispatchedHandler([this, event]() {
-      bool result = DispatchAndDelete(event);
-      if (!result) {
-        CoreApplication::Exit();
-      }
-    }));
+  RunInMainThreadAsync([this, event]() {
+    bool result = DispatchAndDelete(event);
+    if (!result) {
+      CoreApplication::Exit();
+    }
+  });
 }
 
 void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
@@ -350,16 +459,14 @@ void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
   ScopedLock lock(mutex_);
   ThreadPoolTimer^ timer = ThreadPoolTimer::CreateTimer(
     ref new TimerElapsedHandler([this, timed_event](ThreadPoolTimer^ timer) {
-      core_window_->Dispatcher->RunAsync(
-        CoreDispatcherPriority::Normal,
-        ref new DispatchedHandler([this, timed_event]() {
-          timed_event->callback(timed_event->context);
-          ScopedLock lock(mutex_);
-          auto it = timer_event_map_.find(timed_event->id);
-          if (it != timer_event_map_.end()) {
-            timer_event_map_.erase(it);
-          }
-        }));
+      RunInMainThreadAsync([this, timed_event]() {
+        timed_event->callback(timed_event->context);
+        ScopedLock lock(mutex_);
+        auto it = timer_event_map_.find(timed_event->id);
+        if (it != timer_event_map_.end()) {
+          timer_event_map_.erase(it);
+        }
+      });
     }), timespan);
   timer_event_map_.emplace(timed_event->id, timer);
 }
@@ -382,6 +489,47 @@ Application::TimedEvent* ApplicationUwp::GetNextDueTimedEvent() {
 SbTimeMonotonic ApplicationUwp::GetNextTimedEventTargetTime() {
   SB_NOTIMPLEMENTED();
   return 0;
+}
+SbSystemPlatformError ApplicationUwp::OnSbSystemRaisePlatformError(
+    SbSystemPlatformErrorType type,
+    SbSystemPlatformErrorCallback callback,
+    void* user_data) {
+  return new SbSystemPlatformErrorPrivate(type, callback, user_data);
+}
+
+void ApplicationUwp::OnSbSystemClearPlatformError(
+    SbSystemPlatformError handle) {
+  if (handle == kSbSystemPlatformErrorInvalid) {
+    return;
+  }
+  static_cast<SbSystemPlatformErrorPrivate*>(handle)->Clear();
+}
+
+Platform::String^ ApplicationUwp::GetString(
+    const char* id, const char* fallback) const {
+  return stringToPlatformString(localized_strings_.GetString(id, fallback));
+}
+
+void ApplicationUwp::AcceptFrame(SbPlayer player,
+                                 const scoped_refptr<VideoFrame>& frame,
+                                 int x,
+                                 int y,
+                                 int width,
+                                 int height) {
+  SB_UNREFERENCED_PARAMETER(player);
+  SB_UNREFERENCED_PARAMETER(frame);
+  SB_UNREFERENCED_PARAMETER(x);
+  SB_UNREFERENCED_PARAMETER(y);
+  SB_UNREFERENCED_PARAMETER(width);
+  SB_UNREFERENCED_PARAMETER(height);
+
+  if (frame->IsEndOfStream()) {
+    // TODO: Implement.
+  } else {
+    ID3D11Texture2D* dx_texture =
+        static_cast<ID3D11Texture2D*>(frame->native_texture());
+    SB_UNREFERENCED_PARAMETER(dx_texture);
+  }
 }
 
 }  // namespace uwp

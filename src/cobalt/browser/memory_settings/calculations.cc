@@ -18,7 +18,6 @@
 
 #include <algorithm>
 
-#include "cobalt/browser/memory_settings/build_settings.h"
 #include "cobalt/browser/memory_settings/constants.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/math/size.h"
@@ -27,6 +26,26 @@ namespace cobalt {
 namespace browser {
 namespace memory_settings {
 namespace {
+
+int32_t NextPowerOf2(int32_t num) {
+  // Return the smallest power of 2 that is greater than or equal to num.
+  // This flips on all bits <= num, then num+1 will be the next power of 2.
+  --num;
+  num |= num >> 1;
+  num |= num >> 2;
+  num |= num >> 4;
+  num |= num >> 8;
+  num |= num >> 16;
+  return num + 1;
+}
+
+int32_t NearestPowerOf2(int32_t num) {
+  int32_t nearest = NextPowerOf2(num);
+  if (static_cast<float>(nearest) / num > 1.5f) {
+    nearest /= 2;
+  }
+  return nearest;
+}
 
 double DisplayScaleTo1080p(const math::Size& dimensions) {
   static const double kNumReferencePixels = 1920. * 1080.;
@@ -135,6 +154,17 @@ int64_t CalculateSoftwareSurfaceCacheSizeInBytes(
       static_cast<int64_t>(remap.Map(ui_resolution.GetArea()));
 
   return surface_cache_size_in_bytes;
+}
+
+int64_t CalculateOffscreenTargetCacheSizeInBytes(
+    const math::Size& ui_resolution) {
+  // The offscreen target cache size should be at least half the ui_resolution
+  // rounded to the nearest power of 2.
+  int width = NearestPowerOf2(ui_resolution.width());
+  int height = NearestPowerOf2(ui_resolution.height());
+
+  // The surface cache uses RGBA format so requires 4 bytes per pixel.
+  return (width * height / 2) * 4;
 }
 
 int64_t CalculateSkiaCacheSize(const math::Size& ui_resolution) {

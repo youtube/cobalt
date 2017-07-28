@@ -292,6 +292,13 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>()) {
     skia::HardwareFrontendImage* hardware_image =
         base::polymorphic_downcast<skia::HardwareFrontendImage*>(skia_image);
+    if (hardware_image->alternate_rgba_format()) {
+      // We don't yet handle alternative formats that piggyback on a GL_RGBA
+      // texture.  This comes up, for example, with UYVY (YUV 422) textures.
+      FallbackRasterize(image_node);
+      return;
+    }
+
     if (clamp_texcoords || !is_opaque) {
       draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
           data.destination_rect, kOpaqueWhite,
@@ -409,10 +416,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   const render_tree::RectShadowNode::Builder& data = shadow_node->data();
-  if (data.rounded_corners) {
-    FallbackRasterize(shadow_node);
-    return;
-  }
+  base::optional<render_tree::RoundedCorners> spread_corners =
+      data.rounded_corners;
 
   scoped_ptr<DrawObject> draw;
   render_tree::ColorRGBA shadow_color(
@@ -424,54 +429,39 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   math::RectF spread_rect(data.rect);
   spread_rect.Offset(data.shadow.offset);
   if (data.inset) {
-    // data.rect is outermost.
-    // spread_rect is in the middle.
-    // blur_rect is innermost.
-    spread_rect.Inset(data.spread, data.spread);
-    spread_rect.Intersect(data.rect);
-    if (spread_rect.IsEmpty()) {
-      // Spread covers the whole data.rect.
-      spread_rect.set_origin(data.rect.CenterPoint());
-      spread_rect.set_size(math::SizeF());
+    if (spread_corners) {
+      spread_corners = spread_corners->Inset(
+          data.spread, data.spread, data.spread, data.spread);
     }
+    spread_rect.Inset(data.spread, data.spread);
     if (!spread_rect.IsEmpty() && data.shadow.blur_sigma > 0.0f) {
-      math::RectF blur_rect(spread_rect);
-      math::Vector2dF blur_extent(data.shadow.BlurExtent());
-      blur_rect.Inset(blur_extent.x(), blur_extent.y());
-      blur_rect.Intersect(spread_rect);
-      if (blur_rect.IsEmpty()) {
-        // Blur covers all of spread.
-        blur_rect.set_origin(spread_rect.CenterPoint());
-        blur_rect.set_size(math::SizeF());
-      }
       draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
-          blur_rect, data.rect, spread_rect, shadow_color,
-          data.shadow.blur_sigma, data.inset));
+          data.rect, data.rounded_corners, spread_rect, spread_corners,
+          shadow_color, data.shadow.blur_sigma, data.inset));
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          spread_rect, data.rect, shadow_color, data.rect));
+          spread_rect, spread_corners, data.rect, data.rounded_corners,
+          shadow_color));
     }
   } else {
-    // blur_rect is outermost.
-    // spread_rect is in the middle (barring negative |spread| values).
-    // data.rect is innermost (though it may not overlap due to offset).
+    if (spread_corners) {
+      spread_corners = spread_corners->Inset(
+          -data.spread, -data.spread, -data.spread, -data.spread);
+    }
     spread_rect.Outset(data.spread, data.spread);
     if (spread_rect.IsEmpty()) {
       // Negative spread shenanigans! Nothing to draw.
       return;
     }
-    math::RectF blur_rect(spread_rect);
     if (data.shadow.blur_sigma > 0.0f) {
-      math::Vector2dF blur_extent(data.shadow.BlurExtent());
-      blur_rect.Outset(blur_extent.x(), blur_extent.y());
       draw.reset(new DrawRectShadowBlur(graphics_state_, draw_state_,
-          data.rect, blur_rect, spread_rect, shadow_color,
-          data.shadow.blur_sigma, data.inset));
+          data.rect, data.rounded_corners, spread_rect, spread_corners,
+          shadow_color, data.shadow.blur_sigma, data.inset));
     } else {
       draw.reset(new DrawRectShadowSpread(graphics_state_, draw_state_,
-          data.rect, spread_rect, shadow_color, spread_rect));
+          data.rect, data.rounded_corners, spread_rect, spread_corners,
+          shadow_color));
     }
-    node_bounds.Union(blur_rect);
   }
 
   // Transparency is used to skip pixels that are not shadowed.
@@ -586,7 +576,13 @@ void RenderTreeNodeVisitor::FallbackRasterize(
 
   // Setup draw for the contents as needed.
   if (!content_is_cached) {
+    // Cache the results when drawn with 100% opacity, then draw the cached
+    // results at the desired opacity. This avoids having to generate different
+    // caches under varying opacity filters.
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity = 1.0f;
     FallbackRasterize(node, target_info, content_rect);
+    draw_state_.opacity = old_opacity;
   }
 
   // Sub-pixel offsets are passed to the fallback rasterizer to preserve
@@ -649,7 +645,8 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   render_target_is_offscreen_ = old_render_target_is_offscreen;
 }
 
-// Add draw objects to render |node| to an offscreen render target.
+// Add draw objects to render |node| to an offscreen render target at
+//   100% opacity.
 // |out_texture| and |out_texcoord_transform| describe the texture subregion
 //   that will contain the result of rendering |node|. If not enough memory
 //   is available for the offscreen target, then |out_texture| will be null.
@@ -678,6 +675,12 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   *out_texcoord_transform = GetTexcoordTransform(target_info);
 
   if (!content_is_cached) {
+    // Cache the results at 100% opacity. The caller is responsible for
+    // drawing the cached results at the desired opacity. This avoids having
+    // to generate different caches under varying opacity filters.
+    float old_opacity = draw_state_.opacity;
+    draw_state_.opacity = 1.0f;
+
     // Try to use the native rasterizer to handle the offscreen rendering.
     // However, because offscreen targets are actually regions of a texture
     // atlas, some drivers may not properly handle reading and writing to
@@ -710,7 +713,6 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
                               target_info.region.y() - out_content_rect->y()) *
         draw_state_.transform;
     draw_state_.scissor = RoundRectFToInt(target_info.region);
-    draw_state_.opacity = 1.0f;
     fallback_render_target_ = target_info.skia_canvas;
     render_target_ = target_info.framebuffer;
     render_target_is_offscreen_ = true;
@@ -733,6 +735,8 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
       draw_object_manager_->RemoveDraws(last_valid_draw_id);
       FallbackRasterize(node, target_info, *out_content_rect);
     }
+
+    draw_state_.opacity = old_opacity;
   }
 }
 

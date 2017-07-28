@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cobalt/base/token.h"
+#include "cobalt/dom/html_element.h"
 
 namespace cobalt {
 namespace dom {
@@ -103,6 +104,80 @@ void MouseEvent::InitMouseEvent(
   buttons_ = 0;
   related_target_ = related_target;
 }
+
+float MouseEvent::page_x() const {
+  // Algorithm for pageX
+  //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-pagex
+
+  // In Cobalt all steps are equivalent to returning clientX.
+  return static_cast<float>(client_x());
+}
+
+float MouseEvent::page_y() const {
+  // Algorithm for pageY
+  //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-pagey
+
+  // In Cobalt all steps are equivalent to returning clientY.
+  return static_cast<float>(client_y());
+}
+
+float MouseEvent::offset_x() {
+  // Algorithm for offsetX
+  //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-offsetx
+
+  // If the event's dispatch flag is set,
+  if (IsBeingDispatched()) {
+    // return the x-coordinate of the position where the event occurred relative
+    // to the origin of the padding edge of the target node, ignoring the
+    // transforms that apply to the element and its ancestors and terminate
+    // these steps.
+    float target_node_padding_edge = 0.0f;
+
+    Node* node = base::polymorphic_downcast<Node*>(target().get());
+    if (node && node->IsElement()) {
+      scoped_refptr<HTMLElement> html_element =
+          node->AsElement()->AsHTMLElement();
+      if (html_element && html_element->layout_boxes()) {
+        target_node_padding_edge =
+            html_element->layout_boxes()->GetPaddingEdgeLeft();
+      }
+    }
+    return client_x() - target_node_padding_edge;
+  }
+
+  // Return the value of the event's pageX attribute.
+  return page_x();
+}
+
+float MouseEvent::offset_y() const {
+  // Algorithm for offsetY
+  //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-offsety
+
+  // If the event's dispatch flag is set,
+  if (IsBeingDispatched()) {
+    // return the y-coordinate of the position where the event occurred relative
+    // to the origin of the padding edge of the target node, ignoring the
+    // transforms that apply to the element and its ancestors, and terminate
+    // these steps.
+    float target_node_padding_edge = 0.0f;
+
+    Node* node = base::polymorphic_downcast<Node*>(target().get());
+    if (node && node->IsElement()) {
+      scoped_refptr<HTMLElement> html_element =
+          node->AsElement()->AsHTMLElement();
+      if (html_element && html_element->layout_boxes()) {
+        target_node_padding_edge =
+            html_element->layout_boxes()->GetPaddingEdgeTop();
+      }
+    }
+    return client_y() - target_node_padding_edge;
+  }
+
+  // Return the value of the event's pageY attribute.
+  return page_y();
+}
+
+uint32 MouseEvent::which() const { return button_ + 1; }
 
 }  // namespace dom
 }  // namespace cobalt

@@ -16,10 +16,7 @@
 
 #include "cobalt/browser/memory_settings/memory_settings.h"
 
-#include <algorithm>
-#include <sstream>
 #include <string>
-#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/browser/memory_settings/test_common.h"
@@ -28,90 +25,23 @@
 namespace cobalt {
 namespace browser {
 namespace memory_settings {
-namespace {
-int64_t TestIntSettingParse(const std::string& value) {
-  IntSetting int_setting("dummy");
-  EXPECT_TRUE(int_setting.TryParseValue(MemorySetting::kCmdLine, value));
-  return int_setting.value();
-}
-}  // namespace
 
-TEST(IntSetting, ParseFromString) {
+TEST(MemorySettingsTest, IntSetting) {
   scoped_ptr<IntSetting> int_setting(new IntSetting("dummy"));
   EXPECT_EQ(std::string("dummy"), int_setting->name());
-  ASSERT_TRUE(int_setting->TryParseValue(MemorySetting::kCmdLine, "123"));
+  int_setting->set_value(MemorySetting::kCmdLine, 123);
   EXPECT_EQ(123, int_setting->value());
   EXPECT_EQ(MemorySetting::kCmdLine, int_setting->source_type());
   EXPECT_EQ(std::string("123"), int_setting->ValueToString());
 }
 
-// Tests the expectation that numerous string variations (whole numbers vs
-// fractions vs units) parse correctly.
-TEST(IntSetting, ParseFromStrings) {
-  // Bytes.
-  EXPECT_EQ(1, TestIntSettingParse("1"));
-  EXPECT_EQ(1, TestIntSettingParse("1B"));
-  EXPECT_EQ(1, TestIntSettingParse("1b"));
-  EXPECT_EQ(1, TestIntSettingParse("1B"));
-  EXPECT_EQ(1, TestIntSettingParse("1b"));
-
-  // Kilobytes and fractional amounts.
-  EXPECT_EQ(1024, TestIntSettingParse("1KB"));
-  EXPECT_EQ(1024, TestIntSettingParse("1Kb"));
-  EXPECT_EQ(1024, TestIntSettingParse("1kB"));
-  EXPECT_EQ(1024, TestIntSettingParse("1kb"));
-
-  EXPECT_EQ(512, TestIntSettingParse(".5kb"));
-  EXPECT_EQ(512, TestIntSettingParse("0.5kb"));
-  EXPECT_EQ(1536, TestIntSettingParse("1.5kb"));
-  EXPECT_EQ(1536, TestIntSettingParse("1.50kb"));
-
-  // Megabytes and fractional amounts.
-  EXPECT_EQ(1024*1024, TestIntSettingParse("1MB"));
-  EXPECT_EQ(1024*1024, TestIntSettingParse("1Mb"));
-  EXPECT_EQ(1024*1024, TestIntSettingParse("1mB"));
-  EXPECT_EQ(1024*1024, TestIntSettingParse("1mb"));
-
-  EXPECT_EQ(512*1024, TestIntSettingParse(".5mb"));
-  EXPECT_EQ(512*1024, TestIntSettingParse("0.5mb"));
-  EXPECT_EQ(1536*1024, TestIntSettingParse("1.5mb"));
-  EXPECT_EQ(1536*1024, TestIntSettingParse("1.50mb"));
-
-  // Gigabytes and fractional amounts.
-  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1GB"));
-  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1Gb"));
-  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1gB"));
-  EXPECT_EQ(1024*1024*1024, TestIntSettingParse("1gb"));
-
-  EXPECT_EQ(512*1024*1024, TestIntSettingParse(".5gb"));
-  EXPECT_EQ(1536*1024*1024, TestIntSettingParse("1.50gb"));
-}
-
-TEST(DimensionSetting, ParseFromString) {
+TEST(MemorySettingsTest, DimensionSetting) {
   scoped_ptr<DimensionSetting> rect_setting(new TestDimensionSetting("dummy"));
-  ASSERT_TRUE(
-      rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234x5678"));
+  rect_setting->set_value(MemorySetting::kCmdLine,
+                          TextureDimensions(1234, 5678, 2));
   EXPECT_EQ(TextureDimensions(1234, 5678, 2), rect_setting->value());
   EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
   EXPECT_EQ(std::string("1234x5678x2"), rect_setting->ValueToString());
-}
-
-TEST(DimensionSetting, ParseFromStringCaseInsensitive) {
-  scoped_ptr<DimensionSetting> rect_setting(new TestDimensionSetting("dummy"));
-  ASSERT_TRUE(
-      rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234X5678"));
-  EXPECT_EQ(TextureDimensions(1234, 5678, 2), rect_setting->value());
-  EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
-  EXPECT_EQ(std::string("1234x5678x2"), rect_setting->ValueToString());
-}
-
-TEST(DimensionSetting, ParseFromStringWithBytesPerPixel) {
-  scoped_ptr<DimensionSetting> rect_setting(new TestDimensionSetting("dummy"));
-  ASSERT_TRUE(
-      rect_setting->TryParseValue(MemorySetting::kCmdLine, "1234x5678x12"));
-  EXPECT_EQ(TextureDimensions(1234, 5678, 12), rect_setting->value());
-  EXPECT_EQ(MemorySetting::kCmdLine, rect_setting->source_type());
-  EXPECT_EQ(std::string("1234x5678x12"), rect_setting->ValueToString());
 }
 
 }  // namespace memory_settings

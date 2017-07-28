@@ -20,18 +20,13 @@
 namespace cobalt {
 namespace browser {
 
-// Static
-const char SplashScreen::Options::kDefaultSplashScreenURL[] =
-    "h5vcc-embedded://splash_screen.html";
-
 SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
                            const WebModule::OnRenderTreeProducedCallback&
                                render_tree_produced_callback,
                            network::NetworkModule* network_module,
                            const math::Size& window_dimensions,
                            render_tree::ResourceProvider* resource_provider,
-                           float layout_refresh_rate,
-                           const SplashScreen::Options& options)
+                           float layout_refresh_rate, const GURL& url)
     : render_tree_produced_callback_(render_tree_produced_callback),
       is_ready_(true, false) {
   WebModule::Options web_module_options;
@@ -45,13 +40,13 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
       base::kThreadPriority_High;
 
   web_module_.reset(new WebModule(
-      options.url, initial_application_state,
+      url, initial_application_state,
       base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
       base::Bind(&SplashScreen::OnError, base::Unretained(this)),
       base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
       base::Closure(),  // window_minimize_callback
-      &stub_media_module_, network_module, window_dimensions, resource_provider,
-      stub_media_module_.system_window(), layout_refresh_rate,
+      &stub_media_module_, network_module, window_dimensions,
+      1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
       web_module_options));
 }
 

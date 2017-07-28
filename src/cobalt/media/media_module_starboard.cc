@@ -28,6 +28,7 @@
 #include "media/base/message_loop_factory.h"
 #include "media/player/web_media_player_impl.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "nb/memory_scope.h"
 #include "starboard/media.h"
 #include "starboard/window.h"
 
@@ -46,11 +47,9 @@ typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
 class MediaModuleStarboard : public MediaModule {
  public:
   MediaModuleStarboard(system_window::SystemWindow* system_window,
-                       const math::Size& output_size,
                        render_tree::ResourceProvider* resource_provider,
                        const Options& options)
-      : MediaModule(output_size),
-        options_(options),
+      : options_(options),
         system_window_(system_window),
         media_platform_(resource_provider) {}
 
@@ -71,6 +70,7 @@ class MediaModuleStarboard : public MediaModule {
   }
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) OVERRIDE {
+    TRACK_MEMORY_SCOPE("Media");
 #if defined(COBALT_MEDIA_SOURCE_2016)
     SbWindow window = kSbWindowInvalid;
     if (system_window_) {
@@ -117,10 +117,11 @@ class MediaModuleStarboard : public MediaModule {
 }  // namespace
 
 scoped_ptr<MediaModule> MediaModule::Create(
-    system_window::SystemWindow* system_window, const math::Size& output_size,
+    system_window::SystemWindow* system_window,
     render_tree::ResourceProvider* resource_provider, const Options& options) {
-  return make_scoped_ptr<MediaModule>(new MediaModuleStarboard(
-      system_window, output_size, resource_provider, options));
+  TRACK_MEMORY_SCOPE("Media");
+  return make_scoped_ptr<MediaModule>(
+      new MediaModuleStarboard(system_window, resource_provider, options));
 }
 
 }  // namespace media

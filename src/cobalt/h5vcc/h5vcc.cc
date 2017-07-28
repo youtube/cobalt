@@ -14,6 +14,8 @@
 
 #include "cobalt/h5vcc/h5vcc.h"
 
+#include "cobalt/sso/sso_interface.h"
+
 namespace cobalt {
 namespace h5vcc {
 
@@ -28,8 +30,11 @@ H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
   runtime_ =
       new H5vccRuntime(settings.event_dispatcher, settings.initial_deep_link);
   settings_ = new H5vccSettings(settings.media_module);
+#if defined(COBALT_ENABLE_SSO)
+  sso_ = new H5vccSso();
+#endif
   storage_ = new H5vccStorage(settings.network_module);
-  system_ = new H5vccSystem(settings.media_module);
+  system_ = new H5vccSystem();
   trace_event_ = new H5vccTraceEvent();
 }
 

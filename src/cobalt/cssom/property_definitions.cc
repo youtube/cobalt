@@ -290,7 +290,7 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
                         KeywordValue::GetCurrentColor());
 
-  //   https://www.w3.org/TR/css3-background/#border-style
+  // https://www.w3.org/TR/css3-background/#border-style
   SetPropertyDefinition(kBorderTopStyleProperty, "border-top-style",
                         kInheritedNo, kAnimatableNo,
                         kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
@@ -500,11 +500,30 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
                         kImpactsBoxCrossReferencesYes, new NumberValue(1.0f));
 
+  // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-color
+  SetPropertyDefinition(
+      kOutlineColorProperty, "outline-color", kInheritedNo, kAnimatableYes,
+      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+      kImpactsBoxCrossReferencesNo, KeywordValue::GetCurrentColor());
+
+  // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-style
+  SetPropertyDefinition(kOutlineStyleProperty, "outline-style", kInheritedNo,
+                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetNone());
+
+  // https://www.w3.org/TR/CSS21/ui.html#propdef-outline-width
+  SetPropertyDefinition(kOutlineWidthProperty, "outline-width", kInheritedNo,
+                        kAnimatableYes, kImpactsChildDeclaredStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
+                        kImpactsBoxCrossReferencesNo,
+                        new LengthValue(3, kPixelsUnit));
+
   // https://www.w3.org/TR/css-overflow-3/#overflow-properties
   SetPropertyDefinition(kOverflowProperty, "overflow", kInheritedNo,
                         kAnimatableNo, kImpactsChildDeclaredStyleNo,
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
-                        kImpactsBoxCrossReferencesNo,
+                        kImpactsBoxCrossReferencesYes,
                         KeywordValue::GetVisible());
 
   // https://www.w3.org/TR/css-text-3/#overflow-wrap
@@ -541,6 +560,17 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxGenerationNo, kImpactsBoxSizesYes,
                         kImpactsBoxCrossReferencesNo,
                         new LengthValue(0, kPixelsUnit));
+
+  // While only defined in the SVG spec, the pointer-events property has been
+  // proposed an commonly implemented to also apply to HTML elements for
+  // values of 'none' (element can not be indicated by a pointer) and 'auto'
+  // (element can be indicated by a pointer if the element has 'visibility' set
+  // to 'visible').
+  //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
+  SetPropertyDefinition(kPointerEventsProperty, "pointer-events", kInheritedYes,
+                        kAnimatableNo, kImpactsChildDeclaredStyleNo,
+                        kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
+                        kImpactsBoxCrossReferencesNo, KeywordValue::GetAuto());
 
   // https://www.w3.org/TR/css3-positioning/#position-property
   SetPropertyDefinition(kPositionProperty, "position", kInheritedNo,
@@ -804,6 +834,14 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   SetShorthandPropertyDefinition(kMarginProperty, "margin",
                                  margin_longhand_properties);
 
+  //   https://www.w3.org/TR/CSS21/ui.html#propdef-outline
+  LonghandPropertySet outline_longhand_properties;
+  outline_longhand_properties.insert(kOutlineColorProperty);
+  outline_longhand_properties.insert(kOutlineStyleProperty);
+  outline_longhand_properties.insert(kOutlineWidthProperty);
+  SetShorthandPropertyDefinition(kOutlineProperty, "outline",
+                                 outline_longhand_properties);
+
   //   https://www.w3.org/TR/CSS21/box.html#propdef-padding
   LonghandPropertySet padding_longhand_properties;
   padding_longhand_properties.insert(kPaddingBottomProperty);
@@ -1034,6 +1072,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kOpacityProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOutlineProperty))) {
+        return kOutlineProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPaddingProperty))) {
         return kPaddingProperty;
       }
@@ -1200,6 +1242,18 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
         return kMarginBottomProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOutlineColorProperty))) {
+        return kOutlineColorProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOutlineStyleProperty))) {
+        return kOutlineStyleProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kOutlineWidthProperty))) {
+        return kOutlineWidthProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kOverflowWrapProperty))) {
         return kOverflowWrapProperty;
       }
@@ -1221,6 +1275,10 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kPaddingBottomProperty))) {
         return kPaddingBottomProperty;
+      }
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kPointerEventsProperty))) {
+        return kPointerEventsProperty;
       }
       if (LowerCaseEqualsASCII(property_name,
                                GetPropertyName(kTextTransformProperty))) {
@@ -1391,5 +1449,7 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
   }
 }  // NOLINT(readability/fn_size)
 
+// NOLINTNEXTLINE(readability/fn_size)
 }  // namespace cssom
+// NOLINTNEXTLINE(readability/fn_size)
 }  // namespace cobalt

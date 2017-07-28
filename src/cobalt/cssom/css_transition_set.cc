@@ -257,6 +257,8 @@ const Transition* TransitionSet::GetTransitionForProperty(
   return transitions_.GetTransitionForProperty(property);
 }
 
+void TransitionSet::Clear() { transitions_.Clear(); }
+
 TransitionSet::TransitionMap::TransitionMap(EventHandler* event_handler)
     : event_handler_(event_handler) {}
 
@@ -304,6 +306,16 @@ void TransitionSet::TransitionMap::RemoveTransitionForProperty(
   }
 
   transitions_.erase(found);
+}
+
+void TransitionSet::TransitionMap::Clear() {
+  if (event_handler_ != NULL) {
+    for (auto& transition : transitions_) {
+      event_handler_->OnTransitionRemoved(transition.second);
+    }
+  }
+
+  transitions_.clear();
 }
 
 namespace {

@@ -14,7 +14,10 @@
 
 #include "cobalt/xhr/xhr_modify_headers.h"
 
-#include <base/logging.h>
+#include "base/logging.h"
+#include "base/synchronization/waitable_event.h"
+
+#include "starboard/mutex.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/shared/win32/wchar_utils.h"
@@ -27,6 +30,9 @@ using Windows::Security::Authentication::Web::Core::WebTokenRequestResult;
 using Windows::Security::Authentication::Web::Core::WebTokenRequestStatus;
 using Windows::Security::Credentials::WebAccountProvider;
 using Windows::System::UserAuthenticationStatus;
+using Windows::UI::Core::CoreWindow;
+using Windows::UI::Core::CoreDispatcherPriority;
+using Windows::UI::Core::DispatchedHandler;
 
 namespace sbwin32 = starboard::shared::win32;
 
@@ -91,6 +97,28 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+WebTokenRequestResult^ RequestToken(WebTokenRequest^ request) {
+  using starboard::shared::uwp::WaitForResult;
+  IAsyncOperation<WebTokenRequestResult ^> ^ request_operation = nullptr;
+  base::WaitableEvent request_operation_set(false, false);
+  // Ensure WebAuthenticationCoreManager::RequestTokenAsync is called on the
+  // UI thread, since documentation states that "This method cannot be called
+  // from background threads", per
+  // https://docs.microsoft.com/en-us/uwp/api/windows.security.authentication.web.core.webauthenticationcoremanager
+  Windows::ApplicationModel::Core::CoreApplication::MainView->CoreWindow
+      ->Dispatcher->RunAsync(
+          CoreDispatcherPriority::Normal,
+          ref new DispatchedHandler(
+              [&request, &request_operation_set, &request_operation] {
+                request_operation =
+                    WebAuthenticationCoreManager::RequestTokenAsync(request);
+                request_operation_set.Signal();
+              }));
+  request_operation_set.Wait();
+  WebTokenRequestResult^ result = WaitForResult(request_operation);
+  return result;
+}
+
 bool PopulateToken(const std::string& relying_party, std::string* out) {
   using starboard::shared::uwp::WaitForResult;
   DCHECK(out);
@@ -108,8 +136,7 @@ bool PopulateToken(const std::string& relying_party, std::string* out) {
       WebAuthenticationCoreManager::GetTokenSilentlyAsync(request));
   if (token_result->ResponseStatus ==
       WebTokenRequestStatus::UserInteractionRequired) {
-    token_result =
-        WaitForResult(WebAuthenticationCoreManager::RequestTokenAsync(request));
+    token_result = RequestToken(request);
   }
 
   if (token_result->ResponseStatus == WebTokenRequestStatus::Success) {
@@ -135,6 +162,7 @@ bool PopulateToken(const std::string& relying_party, std::string* out) {
 
   return false;
 }
+
 }  // namespace
 
 namespace cobalt {

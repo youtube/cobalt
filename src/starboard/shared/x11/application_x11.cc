@@ -19,6 +19,7 @@
 #include <unistd.h>
 #define XK_3270  // for XK_3270_BackTab
 #include <X11/keysym.h>
+#include <X11/Xatom.h>
 #include <X11/XF86keysym.h>
 #include <X11/XKBlib.h>
 #include <X11/Xlib.h>
@@ -27,6 +28,7 @@
 #include <algorithm>
 #include <iomanip>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/event.h"
 #include "starboard/input.h"
 #include "starboard/key.h"
@@ -714,7 +716,8 @@ ApplicationX11::ApplicationX11()
       composite_event_id_(kSbEventIdInvalid),
       frame_read_index_(0),
       frame_written_(false),
-      display_(NULL) {
+      display_(NULL),
+      paste_buffer_key_release_pending_(false) {
   SbAudioSinkPrivate::Initialize();
 }
 
@@ -848,6 +851,11 @@ ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
 
   XEvent x_event;
 
+  shared::starboard::Application::Event* pending_event = GetPendingEvent();
+  if (pending_event) {
+    return pending_event;
+  }
+
   if (XNextEventTimed(display_, &x_event, time)) {
     return XEventToEvent(&x_event);
   } else {
@@ -909,6 +917,198 @@ void ApplicationX11::StopX() {
   wm_delete_atom_ = None;
 }
 
+shared::starboard::Application::Event* ApplicationX11::GetPendingEvent() {
+  typedef struct {
+    SbKey key;
+    unsigned int modifiers;
+  } KeyModifierData;
+
+  static const KeyModifierData ASCIIKeyModifierMap[] = {
+      // 0x00 ... 0x0F
+      /* .0 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .1 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .2 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .3 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .4 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .5 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .6 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .7 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .8 */ {kSbKeyBackspace, kSbKeyModifiersNone},
+      /* .9 */ {kSbKeyTab, kSbKeyModifiersNone},
+      /* .A */ {kSbKeyBacktab, kSbKeyModifiersNone},
+      /* .B */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .C */ {kSbKeyClear, kSbKeyModifiersNone},
+      /* .D */ {kSbKeyReturn, kSbKeyModifiersNone},
+      /* .E */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .F */ {kSbKeyUnknown, kSbKeyModifiersNone},
+
+      // 0x10 ... 0x1F
+      /* .0 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .1 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .2 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .3 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .4 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .5 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .6 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .7 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .8 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .9 */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .A */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .B */ {kSbKeyEscape, kSbKeyModifiersNone},
+      /* .C */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .D */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .E */ {kSbKeyUnknown, kSbKeyModifiersNone},
+      /* .F */ {kSbKeyUnknown, kSbKeyModifiersNone},
+
+      // 0x20 ... 0x2F
+      /* .0 */ {kSbKeySpace, kSbKeyModifiersNone},
+      /* .1 */ {kSbKey1, kSbKeyModifiersShift},
+      /* .2 */ {kSbKeyOem7, kSbKeyModifiersShift},
+      /* .3 */ {kSbKey3, kSbKeyModifiersShift},
+      /* .4 */ {kSbKey4, kSbKeyModifiersShift},
+      /* .5 */ {kSbKey5, kSbKeyModifiersShift},
+      /* .6 */ {kSbKey7, kSbKeyModifiersShift},
+      /* .7 */ {kSbKeyOem7, kSbKeyModifiersNone},
+      /* .8 */ {kSbKey9, kSbKeyModifiersShift},
+      /* .9 */ {kSbKey0, kSbKeyModifiersShift},
+      /* .A */ {kSbKey8, kSbKeyModifiersShift},
+      /* .B */ {kSbKeyOemPlus, kSbKeyModifiersShift},
+      /* .C */ {kSbKeyOemComma, kSbKeyModifiersNone},
+      /* .D */ {kSbKeyOemMinus, kSbKeyModifiersNone},
+      /* .E */ {kSbKeyOemPeriod, kSbKeyModifiersNone},
+      /* .F */ {kSbKeyOem2, kSbKeyModifiersNone},
+
+      // 0x30 ... 0x3F
+      /* .0 */ {kSbKey0, kSbKeyModifiersNone},
+      /* .1 */ {kSbKey1, kSbKeyModifiersNone},
+      /* .2 */ {kSbKey2, kSbKeyModifiersNone},
+      /* .3 */ {kSbKey3, kSbKeyModifiersNone},
+      /* .4 */ {kSbKey4, kSbKeyModifiersNone},
+      /* .5 */ {kSbKey5, kSbKeyModifiersNone},
+      /* .6 */ {kSbKey6, kSbKeyModifiersNone},
+      /* .7 */ {kSbKey7, kSbKeyModifiersNone},
+      /* .8 */ {kSbKey8, kSbKeyModifiersNone},
+      /* .9 */ {kSbKey9, kSbKeyModifiersNone},
+      /* .A */ {kSbKeyOem1, kSbKeyModifiersShift},
+      /* .B */ {kSbKeyOem1, kSbKeyModifiersNone},
+      /* .C */ {kSbKeyOemComma, kSbKeyModifiersShift},
+      /* .D */ {kSbKeyOemPlus, kSbKeyModifiersNone},
+      /* .E */ {kSbKeyOemPeriod, kSbKeyModifiersShift},
+      /* .F */ {kSbKeyOem2, kSbKeyModifiersShift},
+
+      // 0x40 ... 0x4F
+      /* .0 */ {kSbKey2, kSbKeyModifiersShift},
+      /* .1 */ {kSbKeyA, kSbKeyModifiersShift},
+      /* .2 */ {kSbKeyB, kSbKeyModifiersShift},
+      /* .3 */ {kSbKeyC, kSbKeyModifiersShift},
+      /* .4 */ {kSbKeyD, kSbKeyModifiersShift},
+      /* .5 */ {kSbKeyE, kSbKeyModifiersShift},
+      /* .6 */ {kSbKeyF, kSbKeyModifiersShift},
+      /* .7 */ {kSbKeyG, kSbKeyModifiersShift},
+      /* .8 */ {kSbKeyH, kSbKeyModifiersShift},
+      /* .9 */ {kSbKeyI, kSbKeyModifiersShift},
+      /* .A */ {kSbKeyJ, kSbKeyModifiersShift},
+      /* .B */ {kSbKeyK, kSbKeyModifiersShift},
+      /* .C */ {kSbKeyL, kSbKeyModifiersShift},
+      /* .D */ {kSbKeyM, kSbKeyModifiersShift},
+      /* .E */ {kSbKeyN, kSbKeyModifiersShift},
+      /* .F */ {kSbKeyO, kSbKeyModifiersShift},
+
+      // 0x50 ... 0x5F
+      /* .0 */ {kSbKeyP, kSbKeyModifiersShift},
+      /* .1 */ {kSbKeyQ, kSbKeyModifiersShift},
+      /* .2 */ {kSbKeyR, kSbKeyModifiersShift},
+      /* .3 */ {kSbKeyS, kSbKeyModifiersShift},
+      /* .4 */ {kSbKeyT, kSbKeyModifiersShift},
+      /* .5 */ {kSbKeyU, kSbKeyModifiersShift},
+      /* .6 */ {kSbKeyV, kSbKeyModifiersShift},
+      /* .7 */ {kSbKeyW, kSbKeyModifiersShift},
+      /* .8 */ {kSbKeyX, kSbKeyModifiersShift},
+      /* .9 */ {kSbKeyY, kSbKeyModifiersShift},
+      /* .A */ {kSbKeyZ, kSbKeyModifiersShift},
+      /* .B */ {kSbKeyOem4, kSbKeyModifiersNone},
+      /* .C */ {kSbKeyOem5, kSbKeyModifiersNone},
+      /* .D */ {kSbKeyOem6, kSbKeyModifiersNone},
+      /* .E */ {kSbKey6, kSbKeyModifiersShift},
+      /* .F */ {kSbKeyOemMinus, kSbKeyModifiersShift},
+
+      // 0x60 ... 0x6F
+      /* .0 */ {kSbKeyOem3, kSbKeyModifiersNone},
+      /* .1 */ {kSbKeyA, kSbKeyModifiersNone},
+      /* .2 */ {kSbKeyB, kSbKeyModifiersNone},
+      /* .3 */ {kSbKeyC, kSbKeyModifiersNone},
+      /* .4 */ {kSbKeyD, kSbKeyModifiersNone},
+      /* .5 */ {kSbKeyE, kSbKeyModifiersNone},
+      /* .6 */ {kSbKeyF, kSbKeyModifiersNone},
+      /* .7 */ {kSbKeyG, kSbKeyModifiersNone},
+      /* .8 */ {kSbKeyH, kSbKeyModifiersNone},
+      /* .9 */ {kSbKeyI, kSbKeyModifiersNone},
+      /* .A */ {kSbKeyJ, kSbKeyModifiersNone},
+      /* .B */ {kSbKeyK, kSbKeyModifiersNone},
+      /* .C */ {kSbKeyL, kSbKeyModifiersNone},
+      /* .D */ {kSbKeyM, kSbKeyModifiersNone},
+      /* .E */ {kSbKeyN, kSbKeyModifiersNone},
+      /* .F */ {kSbKeyO, kSbKeyModifiersNone},
+
+      // 0x70 ... 0x7F
+      /* .0 */ {kSbKeyP, kSbKeyModifiersNone},
+      /* .1 */ {kSbKeyQ, kSbKeyModifiersNone},
+      /* .2 */ {kSbKeyR, kSbKeyModifiersNone},
+      /* .3 */ {kSbKeyS, kSbKeyModifiersNone},
+      /* .4 */ {kSbKeyT, kSbKeyModifiersNone},
+      /* .5 */ {kSbKeyU, kSbKeyModifiersNone},
+      /* .6 */ {kSbKeyV, kSbKeyModifiersNone},
+      /* .7 */ {kSbKeyW, kSbKeyModifiersNone},
+      /* .8 */ {kSbKeyX, kSbKeyModifiersNone},
+      /* .9 */ {kSbKeyY, kSbKeyModifiersNone},
+      /* .A */ {kSbKeyZ, kSbKeyModifiersNone},
+      /* .B */ {kSbKeyOem4, kSbKeyModifiersShift},
+      /* .C */ {kSbKeyOem5, kSbKeyModifiersShift},
+      /* .D */ {kSbKeyOem6, kSbKeyModifiersShift},
+      /* .E */ {kSbKeyOem3, kSbKeyModifiersShift},
+      /* .F */ {kSbKeyUnknown, kSbKeyModifiersNone},
+  };
+
+  KeyModifierData key_modifiers;
+  unsigned char character;
+  while (!paste_buffer_pending_characters_.empty()) {
+    character = paste_buffer_pending_characters_.front();
+    if (character < SB_ARRAY_SIZE(ASCIIKeyModifierMap)) {
+      key_modifiers = ASCIIKeyModifierMap[character];
+      if (key_modifiers.key != kSbKeyUnknown) {
+        break;
+      }
+    }
+    paste_buffer_pending_characters_.pop();
+  }
+
+  if (paste_buffer_pending_characters_.empty()) {
+    return NULL;
+  }
+
+  if (paste_buffer_key_release_pending_) {
+    paste_buffer_pending_characters_.pop();
+  }
+
+  scoped_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
+  data->window = windows_[0];
+  SB_DCHECK(SbWindowIsValid(data->window));
+  data->type = paste_buffer_key_release_pending_ ? kSbInputEventTypeUnpress
+                                                 : kSbInputEventTypePress;
+  data->device_type = kSbInputDeviceTypeKeyboard;
+  data->device_id = kKeyboardDeviceId;
+  data->key = key_modifiers.key;
+  data->key_location = kSbKeyLocationUnspecified;
+  data->key_modifiers = key_modifiers.modifiers;
+  data->position.x = 0;
+  data->position.y = 0;
+
+  paste_buffer_key_release_pending_ = !paste_buffer_key_release_pending_;
+  return new Event(kSbEventTypeInput, data.release(),
+                   &DeleteDestructor<SbInputData>);
+}
+
 shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     XEvent* x_event) {
   switch (x_event->type) {
@@ -933,39 +1133,65 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case KeyRelease: {
       // User pressed key.
       XKeyEvent* x_key_event = reinterpret_cast<XKeyEvent*>(x_event);
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+
+      SbKey key = XKeyEventToSbKey(x_key_event);
+      unsigned int key_modifiers =
+          XEventStateToSbKeyModifiers(x_key_event->state);
+
+      bool is_press_event = KeyPress == x_event->type;
+      bool is_paste_keypress = is_press_event &&
+                               (key_modifiers & kSbKeyModifiersCtrl) &&
+                               key == kSbKeyV;
+      is_paste_keypress |= is_press_event &&
+                           (key_modifiers & kSbKeyModifiersShift) &&
+                           key == kSbKeyInsert;
+      if (is_paste_keypress) {
+        // Handle Ctrl-V or Shift-Insert as paste.
+        const Atom xtarget = XInternAtom(x_key_event->display, "TEXT", 0);
+        // Request the paste buffer, which will be sent as a separate
+        // SelectionNotify XEvent.
+        XConvertSelection(x_key_event->display, XA_PRIMARY, xtarget, XA_PRIMARY,
+                          x_key_event->window, CurrentTime);
+        return NULL;
+      }
+
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_key_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
-      data->type = (x_event->type == KeyPress ? kSbInputEventTypePress
-                                              : kSbInputEventTypeUnpress);
+      data->type = x_event->type == KeyPress ? kSbInputEventTypePress
+                                             : kSbInputEventTypeUnpress;
       data->device_type = kSbInputDeviceTypeKeyboard;
       data->device_id = kKeyboardDeviceId;
-      data->key = XKeyEventToSbKey(x_key_event);
+      data->key = key;
+      data->key_modifiers = key_modifiers;
       data->key_location = XKeyEventToSbKeyLocation(x_key_event);
-      data->key_modifiers = XEventStateToSbKeyModifiers(x_key_event->state);
       data->position.x = x_key_event->x;
       data->position.y = x_key_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case ButtonPress:
     case ButtonRelease: {
       XButtonEvent* x_button_event = reinterpret_cast<XButtonEvent*>(x_event);
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+      bool is_press_event = ButtonPress == x_event->type;
+      bool is_wheel_event = XButtonEventIsWheelEvent(x_button_event);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+      if (is_wheel_event && !is_press_event) {
+        // unpress events from the wheel are discarded.
+        return NULL;
+      }
+#endif
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_button_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
       data->key = XButtonEventToSbKey(x_button_event);
-      bool is_press_event = ButtonPress == x_event->type;
       data->type =
           is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
       data->device_type = kSbInputDeviceTypeMouse;
-      if (XButtonEventIsWheelEvent(x_button_event)) {
+      if (is_wheel_event) {
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
-        if (!is_press_event) {
-          // unpress events from the wheel are discarded.
-          return NULL;
-        }
         data->pressure = NAN;
         data->size = {NAN, NAN};
         data->tilt = {NAN, NAN};
@@ -981,12 +1207,13 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key_modifiers = XEventStateToSbKeyModifiers(x_button_event->state);
       data->position.x = x_button_event->x;
       data->position.y = x_button_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case MotionNotify: {
       XMotionEvent* x_motion_event = reinterpret_cast<XMotionEvent*>(x_event);
-      SbInputData* data = new SbInputData();
-      SbMemorySet(data, 0, sizeof(*data));
+      scoped_ptr<SbInputData> data(new SbInputData());
+      SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
@@ -1000,7 +1227,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       data->key_modifiers = XEventStateToSbKeyModifiers(x_motion_event->state);
       data->position.x = x_motion_event->x;
       data->position.y = x_motion_event->y;
-      return new Event(kSbEventTypeInput, data, &DeleteDestructor<SbInputData>);
+      return new Event(kSbEventTypeInput, data.release(),
+                       &DeleteDestructor<SbInputData>);
     }
     case FocusIn: {
       Unpause(NULL, NULL);
@@ -1013,6 +1241,31 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
     case ConfigureNotify: {
       // Ignore window size, position, border, and stacking order events.
       return NULL;
+    }
+    case SelectionNotify: {
+      XSelectionEvent* x_selection_event =
+          reinterpret_cast<XSelectionEvent*>(x_event);
+
+      unsigned long nitems = 0;       // NOLINT(runtime/int)
+      unsigned long bytes_after = 0;  // NOLINT(runtime/int)
+      int format = 0;
+      unsigned char* property = NULL;
+      Atom type = XA_PRIMARY;
+
+      if (XGetWindowProperty(x_selection_event->display,
+                             x_selection_event->requestor, XA_PRIMARY, 0, 4096,
+                             False, AnyPropertyType, &type, &format, &nitems,
+                             &bytes_after, &property)) {
+        return NULL;
+      }
+
+      if (property && nitems) {
+        for (unsigned char* ptr = property; *ptr; ++ptr) {
+          paste_buffer_pending_characters_.push(*ptr);
+        }
+      }
+      XFree(property);
+      break;
     }
     default: {
       SB_DLOG(INFO) << "Unrecognized event type = " << x_event->type;

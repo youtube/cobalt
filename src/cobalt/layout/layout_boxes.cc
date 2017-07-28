@@ -14,6 +14,7 @@
 
 #include "cobalt/layout/layout_boxes.h"
 
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
@@ -74,9 +75,10 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
   return dom_rect_list;
 }
 
-bool LayoutBoxes::IsInlineLevel() const {
+bool LayoutBoxes::IsInline() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetLevel() == Box::kInlineLevel;
+  return boxes_.front()->computed_style()->display() ==
+         cssom::KeywordValue::GetInline();
 }
 
 float LayoutBoxes::GetBorderEdgeLeft() const {

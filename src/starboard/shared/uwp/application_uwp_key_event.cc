@@ -28,6 +28,9 @@ using Windows::System::VirtualKey;
 namespace {
 
 SbKey VirtualKeyToSbKey(VirtualKey key) {
+// Disable warning for Invalid valid values from switch of enum.
+#pragma warning(push)
+#pragma warning(disable : 4063)
   switch (key) {
     case VirtualKey::None:
     case VirtualKey::NavigationView:
@@ -155,6 +158,23 @@ SbKey VirtualKeyToSbKey(VirtualKey key) {
     case VirtualKey::F22: return kSbKeyF22;
     case VirtualKey::F23: return kSbKeyF23;
     case VirtualKey::F24: return kSbKeyF24;
+    // SbKeys were originally modeled after the windows virtual key mappings [1].
+    // UWP VirtualKey uses a very similar mapping, but the UWP enum does not
+    // contain all of the Virtual-Key Codes.
+    // [1] https://msdn.microsoft.com/en-us/library/windows/desktop/dd375731%28v=vs.85%29.aspx
+    case 0xBA: return kSbKeyOem1;  // Used for ";:" key with US keyboards.
+    case 0xBB: return kSbKeyOemPlus;
+    case 0xBC: return kSbKeyOemComma;
+    case 0xBD: return kSbKeyOemMinus;
+    case 0xBE: return kSbKeyOemPeriod;
+    case 0xBF: return kSbKeyOem2;  // Used for "/?" key with US keyboards.
+    case 0xC0: return kSbKeyOem3;  // Used for "~" with US keyboards.
+    case 0xDB: return kSbKeyOem4;  // Used for "[{" with US keyboards.
+    case 0xDC: return kSbKeyOem5;  // Used for "\|" with US keyboards.
+    case 0xDD: return kSbKeyOem6;  // Used for "]}" with US keyboards.
+    case 0xDE: return kSbKeyOem7;  // Used for quotes with US keyboards.
+    case 0xDF: return kSbKeyOem8;  // Used for misc. chars with US keyboards.
+    case 0xE2: return kSbKeyOem102;  // Used for "/" or angle bracket keys.
     case VirtualKey::NumberKeyLock: return kSbKeyNumlock;
     case VirtualKey::Scroll: return kSbKeyScroll;
     case VirtualKey::LeftShift: return kSbKeyLshift;
@@ -212,17 +232,13 @@ SbKey VirtualKeyToSbKey(VirtualKey key) {
     default:
       return kSbKeyUnknown;
   }
+#pragma warning(pop)  // Warning 4093 (Invalid valid values from switch of enum)
 }
 
 // Returns true if a given VirtualKey is currently being held down.
 bool IsDown(CoreWindow^ sender, VirtualKey key) {
-  switch (sender->GetKeyState(key)) {
-    case CoreVirtualKeyStates::Down:
-    case CoreVirtualKeyStates::Locked:
-      return true;
-    default:
-      return false;
-  }
+  return ((sender->GetKeyState(key) & CoreVirtualKeyStates::Down) ==
+          CoreVirtualKeyStates::Down);
 }
 
 }  // namespace

@@ -33,6 +33,8 @@ class Rasterizer : public rasterizer::Rasterizer {
 
   render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
 
+  void MakeCurrent() OVERRIDE {}
+
  private:
   render_tree::ResourceProviderStub resource_provider_stub_;
 };

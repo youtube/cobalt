@@ -22,13 +22,13 @@ namespace cobalt {
 namespace css_parser {
 
 // This helps parsing and verifying syntax of border shorthand property values.
-struct BorderShorthand {
-  BorderShorthand() : error(false) {}
+struct BorderOrOutlineShorthand {
+  BorderOrOutlineShorthand() : error(false) {}
 
   bool error;
-  scoped_refptr<cssom::PropertyValue> border_color;
-  scoped_refptr<cssom::PropertyValue> border_style;
-  scoped_refptr<cssom::PropertyValue> border_width;
+  scoped_refptr<cssom::PropertyValue> color;
+  scoped_refptr<cssom::PropertyValue> style;
+  scoped_refptr<cssom::PropertyValue> width;
 };
 
 // This helps parsing and verifying syntax of border color/style/width shorthand

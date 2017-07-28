@@ -100,7 +100,7 @@
       'type': 'none',
       'copies': [
         {
-          'destination': '<(static_contents_output_data_dir)/webdriver',
+          'destination': '<(sb_static_contents_output_data_dir)/webdriver',
           'conditions': [
             ['enable_webdriver==1', {
               'files': ['content/webdriver-init.js'],

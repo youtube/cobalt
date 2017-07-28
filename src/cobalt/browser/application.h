@@ -22,8 +22,6 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/event_dispatcher.h"
 #include "cobalt/browser/browser_module.h"
-#include "cobalt/browser/memory_settings/auto_mem.h"
-#include "cobalt/browser/memory_settings/checker.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/system_window/system_window.h"
 
@@ -46,10 +44,12 @@ class Application {
  public:
   virtual ~Application();
 
+  // Start from a preloaded state.
+  void Start();
   void Quit();
 
  protected:
-  explicit Application(const base::Closure& quit_closure);
+  Application(const base::Closure& quit_closure, bool should_preload);
 
   MessageLoop* message_loop() { return message_loop_; }
 
@@ -74,11 +74,6 @@ class Application {
 
   // A conduit for system events.
   base::EventDispatcher event_dispatcher_;
-
-  // The main system window for our application.
-  // This routes event callbacks, and provides a native window handle
-  // on desktop systems.
-  scoped_ptr<system_window::SystemWindow> system_window_;
 
   // Account manager.
   scoped_ptr<account::AccountManager> account_manager_;
@@ -110,6 +105,7 @@ class Application {
  private:
   enum AppStatus {
     kUninitializedAppStatus,
+    kPreloadingAppStatus,
     kRunningAppStatus,
     kPausedAppStatus,
     kSuspendedAppStatus,
@@ -151,8 +147,6 @@ class Application {
 
   void UpdatePeriodicStats();
 
-  math::Size InitSystemWindow(CommandLine* command_line);
-
   static ssize_t available_memory_;
   static int64 lifetime_in_ms_;
 
@@ -171,20 +165,17 @@ class Application {
   base::Timer stats_update_timer_;
 
   scoped_ptr<memory_tracker::Tool> memory_tracker_tool_;
-
-  // Memory configuration tool.
-  scoped_ptr<memory_settings::AutoMem> auto_mem_;
-
-  // Fires memory warning once when memory exceeds specified max cpu/gpu
-  // memory.
-  memory_settings::Checker memory_settings_checker_;
 };
 
-// Factory method for creating an application.  It should be implemented
-// per-platform to allow for platform-specific customization.  The passed
-// in |quit_closure| can be called internally by the application to signal that
-// it would like to quit.
+// Factory method for creating a started application. The passed in
+// |quit_closure| can be called internally by the application to signal that it
+// would like to quit.
 scoped_ptr<Application> CreateApplication(const base::Closure& quit_closure);
+
+// Factory method for creating a preloading application. The passed in
+// |quit_closure| can be called internally by the application to signal that it
+// would like to quit.
+scoped_ptr<Application> PreloadApplication(const base::Closure& quit_closure);
 
 }  // namespace browser
 }  // namespace cobalt

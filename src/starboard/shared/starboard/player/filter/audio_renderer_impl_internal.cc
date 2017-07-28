@@ -88,9 +88,6 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
 
   frame_buffers_[0] = &frame_buffer_[0];
 
-// TODO: The audio sink on Android is currently broken on certain devices, which
-// causes all of playback to hang.  Log it for now, so we can tell when it
-// happens, but this should be removed once the sink is fixed.
 #if defined(NDEBUG)
   const bool kLogFramesConsumed = false;
 #else
@@ -299,8 +296,8 @@ void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
   *is_playing = !paused_.load() && !seeking_.load();
 
   if (*is_playing) {
-    *frames_in_buffer =
-        frames_sent_to_sink_.load() - frames_consumed_by_sink_.load();
+    *frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
+                                         frames_consumed_by_sink_.load());
     *offset_in_frames = frames_consumed_by_sink_.load() % kMaxCachedFrames;
   } else {
     *frames_in_buffer = *offset_in_frames = 0;
@@ -415,8 +412,8 @@ void AudioRendererImpl::ProcessAudioData() {
     // There are still audio data not appended so schedule a callback later.
     SbTimeMonotonic delay = 0;
     if (kMaxCachedFrames - frames_in_buffer < kMaxCachedFrames / 4) {
-      int frames_to_delay =
-          kMaxCachedFrames / 4 - (kMaxCachedFrames - frames_in_buffer);
+      int frames_to_delay = static_cast<int>(
+          kMaxCachedFrames / 4 - (kMaxCachedFrames - frames_in_buffer));
       delay = frames_to_delay * kSbTimeSecond / decoder_->GetSamplesPerSecond();
     }
     process_audio_data_scheduled_ = true;
@@ -427,8 +424,8 @@ void AudioRendererImpl::ProcessAudioData() {
 bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   SB_DCHECK(BelongsToCurrentThread());
 
-  int frames_in_buffer =
-      frames_sent_to_sink_.load() - frames_consumed_by_sink_.load();
+  int frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
+                                          frames_consumed_by_sink_.load());
 
   if (kMaxCachedFrames - frames_in_buffer < kFrameAppendUnit) {
     return false;
@@ -438,7 +435,8 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
 
   // When |playback_rate_| is 0, try to fill the buffer with playback rate as 1.
   // Otherwise the preroll will never finish.
-  float playback_rate_to_fill = playback_rate_ == 0.f ? 1.f : playback_rate_;
+  float playback_rate_to_fill =
+      playback_rate_ == 0.0 ? 1.f : static_cast<float>(playback_rate_);
   scoped_refptr<DecodedAudio> decoded_audio =
       time_stretcher_.Read(kFrameAppendUnit, playback_rate_to_fill);
   SB_DCHECK(decoded_audio);

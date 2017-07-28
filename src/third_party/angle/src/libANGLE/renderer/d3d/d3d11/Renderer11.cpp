@@ -6,6 +6,7 @@
 
 // Renderer11.cpp: Implements a back-end specific class for the D3D11 renderer.
 
+#include <D3D11_4.h>
 #include "libANGLE/renderer/d3d/d3d11/Renderer11.h"
 
 #include <EGL/eglext.h>
@@ -784,6 +785,11 @@ egl::Error Renderer11::initializeD3DDevice()
         mDevice->GetImmediateContext(&mDeviceContext);
         mRenderer11DeviceCaps.featureLevel = mDevice->GetFeatureLevel();
     }
+    ID3D11Multithread* multithread =
+        d3d11::DynamicCastComObject<ID3D11Multithread>(mDeviceContext);
+    ASSERT(multithread != nullptr);
+    multithread->SetMultithreadProtected(true);
+    SafeRelease(multithread);
 
     d3d11::SetDebugName(mDeviceContext, "DeviceContext");
 
@@ -1295,6 +1301,7 @@ egl::Error Renderer11::getD3DTextureInfo(const egl::Config *configuration,
         case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
         case DXGI_FORMAT_R16G16B16A16_FLOAT:
         case DXGI_FORMAT_R32G32B32A32_FLOAT:
+        case DXGI_FORMAT_NV12:
             break;
 
         default:
@@ -4029,6 +4036,11 @@ TextureStorage *Renderer11::createTextureStorage2D(SwapChainD3D *swapChain)
 {
     SwapChain11 *swapChain11 = GetAs<SwapChain11>(swapChain);
     return new TextureStorage11_2D(this, swapChain11);
+}
+
+TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture, bool bindChroma)
+{
+    return new TextureStorage11_2D(this, texture, bindChroma);
 }
 
 TextureStorage *Renderer11::createTextureStorageEGLImage(EGLImageD3D *eglImage,

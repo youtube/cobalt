@@ -18,6 +18,12 @@
 #include <EGL/eglext.h>
 #include <algorithm>
 
+// {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
+static const GUID kCobaltNv12BindChroma = {
+  0x3c3a43ab, 0xc69b, 0x46c9,
+  { 0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d }
+};
+
 namespace rx
 {
 
@@ -42,7 +48,9 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
       mHeight(static_cast<EGLint>(attribs.get(EGL_HEIGHT, 0))),
       mSwapInterval(1),
       mShareHandle(0),
-      mD3DTexture(nullptr)
+      mD3DTexture(nullptr),
+      mBuftype(buftype),
+      mBindChroma(false)
 {
     if (window != nullptr && !mFixedSize)
     {
@@ -57,12 +65,19 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
             break;
 
         case EGL_D3D_TEXTURE_ANGLE:
+        {
             mD3DTexture = static_cast<IUnknown *>(clientBuffer);
             ASSERT(mD3DTexture != nullptr);
             mD3DTexture->AddRef();
             mRenderer->getD3DTextureInfo(state.config, mD3DTexture, &mWidth, &mHeight,
                                          &mRenderTargetFormat);
+
+            UINT out;
+            HRESULT hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
+                GetPrivateData(kCobaltNv12BindChroma, &out, nullptr);
+            mBindChroma = (SUCCEEDED(hr)) && (out != 0);
             break;
+        }
 
         default:
             break;
@@ -88,6 +103,18 @@ egl::Error SurfaceD3D::initialize(const DisplayImpl *displayImpl)
         if (!mNativeWindow->initialize())
         {
             return egl::Error(EGL_BAD_SURFACE);
+        }
+    }
+
+    if (mBuftype == EGL_D3D_TEXTURE_ANGLE)
+    {
+        ID3D11Texture2D* d3Texture = static_cast<ID3D11Texture2D*>(mD3DTexture);
+
+        D3D11_TEXTURE2D_DESC texture_desc;
+        d3Texture->GetDesc(&texture_desc);
+        if ((texture_desc.BindFlags & D3D11_BIND_RENDER_TARGET) == 0)
+        {
+            return egl::Error(EGL_SUCCESS);
         }
     }
 

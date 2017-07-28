@@ -45,8 +45,9 @@ class AnonymousBlockBox : public BlockContainerBox {
 
   bool HasTrailingLineBreak() const OVERRIDE;
 
-  void RenderAndAnimateContent(render_tree::CompositionNode::Builder*
-                                   border_node_builder) const OVERRIDE;
+  void RenderAndAnimateContent(
+      render_tree::CompositionNode::Builder* border_node_builder,
+      ContainerBox* stacking_context) const OVERRIDE;
 
   // From |ContainerBox|.
 

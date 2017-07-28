@@ -21,6 +21,9 @@
 #include <windows.h>
 
 #include <iostream>
+#include <string>
+
+#include "starboard/log.h"
 
 namespace starboard {
 namespace shared {
@@ -41,6 +44,13 @@ std::ostream& operator<<(std::ostream& os, const Win32ErrorCode& error_code);
 // Checks for system errors and logs a human-readable error if GetLastError()
 // returns an error code. Noops on non-debug builds.
 void DebugLogWinError();
+
+std::string HResultToString(HRESULT hr);
+
+inline void CheckResult(HRESULT hr) {
+  SB_DCHECK(SUCCEEDED(hr)) << "HRESULT was " << std::hex << hr
+      << " which translates to\n---> \"" << HResultToString(hr) << "\"";
+}
 
 }  // namespace win32
 }  // namespace shared

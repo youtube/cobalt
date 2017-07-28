@@ -327,6 +327,7 @@ void PNGImageDecoder::RowAvailableCallback(png_bytep row_buffer,
         FillRow<false, 2, 1, 0, 3>(width, pixel_data, pixel);
       }
     } break;
+    case render_tree::kPixelFormatUYVY:
     case render_tree::kPixelFormatY8:
     case render_tree::kPixelFormatU8:
     case render_tree::kPixelFormatV8:

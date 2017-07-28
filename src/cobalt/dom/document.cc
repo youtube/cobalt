@@ -29,6 +29,7 @@
 #include "cobalt/cssom/css_rule_list.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/css_style_sheet.h"
+#include "cobalt/cssom/keyword_value.h"
 #include "cobalt/dom/benchmark_stat_names.h"
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/csp_delegate.h"
@@ -615,9 +616,9 @@ void Document::UpdateComputedStyles() {
     if (root) {
       DCHECK_EQ(this, root->parent_node());
       // First update the computed style for root element.
-      root->UpdateComputedStyle(initial_computed_style_declaration_,
-                                initial_computed_style_data_,
-                                style_change_event_time);
+      root->UpdateComputedStyle(
+          initial_computed_style_declaration_, initial_computed_style_data_,
+          style_change_event_time, HTMLElement::kAncestorsAreDisplayed);
 
       // Then update the computed styles for the other elements.
       root->UpdateComputedStyleRecursively(
@@ -669,6 +670,8 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
   // Update computed styles on the ancestors and the element.
   HTMLElement* previous_element = NULL;
   bool ancestors_were_valid = true;
+  HTMLElement::AncestorsAreDisplayed ancestors_are_displayed =
+      HTMLElement::kAncestorsAreDisplayed;
   scoped_refptr<const cssom::CSSComputedStyleData> root_element_computed_style;
   for (std::vector<HTMLElement*>::reverse_iterator it = ancestors.rbegin();
        it != ancestors.rend(); ++it) {
@@ -684,14 +687,20 @@ bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
                            : initial_computed_style_declaration_,
           root_element_computed_style ? root_element_computed_style
                                       : initial_computed_style_data_,
-          style_change_event_time);
+          style_change_event_time, ancestors_are_displayed);
     }
     if (!root_element_computed_style) {
       DCHECK_EQ(this, current_element->parent_node());
       root_element_computed_style = current_element->computed_style();
     }
+    if (ancestors_are_displayed == HTMLElement::kAncestorsAreDisplayed &&
+        current_element->computed_style()->display() ==
+            cssom::KeywordValue::GetNone()) {
+      ancestors_are_displayed = HTMLElement::kAncestorsAreNotDisplayed;
+    }
     previous_element = current_element;
-    ancestors_were_valid = is_valid;
+    ancestors_were_valid =
+        is_valid && current_element->descendant_computed_styles_valid();
   }
 
   return true;

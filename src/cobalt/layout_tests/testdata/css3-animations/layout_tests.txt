@@ -1,0 +1,6 @@
+3-animations-during-display-none-waits
+3-animations-during-display-none-waits-from-ancestor
+3-animations-reset-on-display-change-not-computed-style-update
+3-animations-restart-after-display-none
+3-animations-restart-after-display-none-from-ancestor
+3-simple-animation

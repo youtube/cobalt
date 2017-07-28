@@ -71,6 +71,15 @@ class RendererModule {
     // nodes that are most CPU-expensive to render into surfaces.
     int surface_cache_size_in_bytes;
 
+    // Determines the amount of GPU memory the offscreen target atlases will
+    // use. This is specific to the direct-GLES rasterizer and serves a similar
+    // purpose as the surface_cache_size_in_bytes, but caches any render tree
+    // nodes which require skia for rendering. Two atlases will be allocated
+    // from this memory or multiple atlases of the frame size if the limit
+    // allows. It is recommended that enough memory be reserved for two RGBA
+    // atlases about a quarter of the frame size.
+    int offscreen_target_cache_size_in_bytes;
+
     // If this flag is set to true, the pipeline will not re-submit a render
     // tree if it has not changed from the previous submission.  This can save
     // CPU time so long as there's no problem with the fact that the display
@@ -115,6 +124,8 @@ class RendererModule {
 
     return pipeline_->GetResourceProvider();
   }
+
+  math::Size render_target_size() { return render_target()->GetSize(); }
 
  private:
   system_window::SystemWindow* system_window_;

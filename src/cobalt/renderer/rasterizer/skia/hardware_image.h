@@ -33,6 +33,14 @@ namespace renderer {
 namespace rasterizer {
 namespace skia {
 
+// We use GL RGBA formats to indicate that a texture has 4 channels, but those
+// 4 channels may not always strictly mean red, green, blue and alpha.  This
+// enum is used to specify what format they are so that potentially different
+// shaders can be selected.
+enum AlternateRgbaFormat {
+  AlternateRgbaFormat_UYVY,
+};
+
 typedef base::Callback<void(const scoped_refptr<render_tree::Node>& render_tree,
                             const scoped_refptr<backend::RenderTarget>&
                                 render_target)> SubmitOffscreenCallback;
@@ -93,12 +101,13 @@ class HardwareFrontendImage : public SinglePlaneImage {
                         backend::GraphicsContextEGL* cobalt_context,
                         GrContext* gr_context,
                         MessageLoop* rasterizer_message_loop);
-  HardwareFrontendImage(scoped_ptr<backend::TextureEGL> texture,
-                        render_tree::AlphaFormat alpha_format,
-                        backend::GraphicsContextEGL* cobalt_context,
-                        GrContext* gr_context,
-                        scoped_ptr<math::Rect> content_region,
-                        MessageLoop* rasterizer_message_loop);
+  HardwareFrontendImage(
+      scoped_ptr<backend::TextureEGL> texture,
+      render_tree::AlphaFormat alpha_format,
+      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
+      scoped_ptr<math::Rect> content_region,
+      MessageLoop* rasterizer_message_loop,
+      base::optional<AlternateRgbaFormat> alternate_rgba_format);
   HardwareFrontendImage(
       const scoped_refptr<render_tree::Node>& root,
       const SubmitOffscreenCallback& submit_offscreen_callback,
@@ -127,24 +136,15 @@ class HardwareFrontendImage : public SinglePlaneImage {
 
   bool IsOpaque() const OVERRIDE { return is_opaque_; }
 
+  base::optional<AlternateRgbaFormat> alternate_rgba_format() {
+    return alternate_rgba_format_;
+  }
+
  private:
   ~HardwareFrontendImage() OVERRIDE;
 
-  // The following Initialize functions will construct |backend_image_|, but
-  // only if |backend_image_| is ever needed by the rasterizer thread.
-  void InitializeBackendImageFromImageData(
-      scoped_ptr<HardwareImageData> image_data,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromRawImageData(
-      const scoped_refptr<backend::ConstRawTextureMemoryEGL>&
-          raw_texture_memory,
-      intptr_t offset, const render_tree::ImageDataDescriptor& descriptor,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
-  void InitializeBackendImageFromTexture(GrContext* gr_context);
-  void InitializeBackendImageFromRenderTree(
-      const scoped_refptr<render_tree::Node>& root,
-      const SubmitOffscreenCallback& submit_offscreen_callback,
-      backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context);
+  // Helper function to be called from the constructor.
+  void InitializeBackend();
 
   // Track if we have any alpha or not, which can enable optimizations in the
   // case that alpha is not present.
@@ -154,6 +154,12 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // origin) that indicates where in this image the valid content is contained.
   // Usually this is only set from platform-specific SbDecodeTargets.
   scoped_ptr<math::Rect> content_region_;
+
+  // In some cases where HardwareFrontendImage wraps a RGBA texture, the texture
+  // actually contains pixel data in a non-RGBA format, like UYVY for example.
+  // In this case, we track that in this member.  If this value is null, then
+  // we are dealing with a normal RGBA texture.
+  const base::optional<AlternateRgbaFormat> alternate_rgba_format_;
 
   // We shadow the image dimensions so they can be quickly looked up from just
   // the frontend image object.

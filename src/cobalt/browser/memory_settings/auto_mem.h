@@ -17,14 +17,13 @@
 #ifndef COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 #define COBALT_BROWSER_MEMORY_SETTINGS_AUTO_MEM_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
 #include "base/command_line.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
-#include "cobalt/browser/memory_settings/build_settings.h"
+#include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_settings/memory_settings.h"
 #include "cobalt/math/size.h"
 #include "testing/gtest/include/gtest/gtest_prod.h"
@@ -39,8 +38,8 @@ namespace memory_settings {
 class AutoMem {
  public:
   explicit AutoMem(const math::Size& ui_resolution,
-                   const CommandLine& command_line,
-                   const BuildSettings& build_settings);
+                   const AutoMemSettings& command_line_settings,
+                   const AutoMemSettings& build_settings);
   ~AutoMem();
 
   const IntSetting* image_cache_size_in_bytes() const;
@@ -53,6 +52,7 @@ class AutoMem {
   const DimensionSetting* skia_atlas_texture_dimensions() const;
   const IntSetting* skia_cache_size_in_bytes() const;
   const IntSetting* software_surface_cache_size_in_bytes() const;
+  const IntSetting* offscreen_target_cache_size_in_bytes() const;
 
   // max_cpu/gpu_bytes represents the maximum amount of memory that should
   // be consumed by the engine. These values can be set by the command line
@@ -71,8 +71,8 @@ class AutoMem {
 
  private:
   void ConstructSettings(const math::Size& ui_resolution,
-                         const CommandLine& command_line,
-                         const BuildSettings& build_settings);
+                         const AutoMemSettings& command_line_settings,
+                         const AutoMemSettings& build_settings);
 
   // AllMemorySettings - does not include cpu & gpu max memory.
   std::vector<const MemorySetting*> AllMemorySettings() const;
@@ -87,6 +87,7 @@ class AutoMem {
   scoped_ptr<DimensionSetting> skia_atlas_texture_dimensions_;
   scoped_ptr<IntSetting> skia_cache_size_in_bytes_;
   scoped_ptr<IntSetting> software_surface_cache_size_in_bytes_;
+  scoped_ptr<IntSetting> offscreen_target_cache_size_in_bytes_;
 
   // These settings are used for constraining the memory and are NOT included
   // in AllMemorySettings().

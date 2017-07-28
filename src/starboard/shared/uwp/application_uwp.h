@@ -25,6 +25,7 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
+#include "starboard/shared/starboard/localized_strings.h"
 #include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
@@ -81,6 +82,23 @@ class ApplicationUwp : public shared::starboard::Application {
     shared::starboard::Application::SetStartLink(link);
   }
 
+  SbSystemPlatformError OnSbSystemRaisePlatformError(
+     SbSystemPlatformErrorType type,
+     SbSystemPlatformErrorCallback callback,
+     void* user_data);
+
+  void OnSbSystemClearPlatformError(SbSystemPlatformError handle);
+
+  // Schedules a lambda to run on the main thread and returns immediately.
+  template<typename T>
+  void RunInMainThreadAsync(const T& lambda) {
+    core_window_->Dispatcher->RunAsync(
+      CoreDispatcherPriority::Normal,
+      ref new DispatchedHandler(lambda));
+  }
+
+  Platform::String^ GetString(const char* id, const char* fallback) const;
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() SB_OVERRIDE { return false; }
@@ -93,9 +111,18 @@ class ApplicationUwp : public shared::starboard::Application {
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
   SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
 
+  void AcceptFrame(SbPlayer player,
+                   const scoped_refptr<VideoFrame>& frame,
+                   int x,
+                   int y,
+                   int width,
+                   int height) SB_OVERRIDE;
+
   // The single open window, if any.
   SbWindow window_;
   Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
+
+  shared::starboard::LocalizedStrings localized_strings_;
 
   Mutex mutex_;
   // Locked by mutex_

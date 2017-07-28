@@ -6,8 +6,9 @@
  * found in the LICENSE file.
  */
 
-
 #include "GrGpu.h"
+
+#include <cstddef>
 
 #include "GrBufferAllocPool.h"
 #include "GrContext.h"
@@ -24,8 +25,10 @@ static const int INDEX_POOL_IB_COUNT = 4;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#define DEBUG_INVAL_BUFFER    0xdeadcafe
-#define DEBUG_INVAL_START_IDX -1
+namespace {
+  const std::size_t DEBUG_INVAL_BUFFER = 0xdeadcafe;
+  const std::ptrdiff_t DEBUG_INVAL_START_IDX = -1;
+}
 
 GrGpu::GrGpu(GrContext* context)
     : GrDrawTarget(context)

@@ -26,12 +26,12 @@
           'little_endian%': 1,
 
           # A directory with loose data files.should be used instead of a
-	  # single .dat file
+          # single .dat file
           'use_icu_dat_file%': 0,
         },
 
         'conditions': [
-          ['target_arch in ["ps3", "wiiu", "x360"]', {
+          ['target_arch in ["ps3"]', {
             'little_endian%': 0,
           }],
         ],
@@ -47,7 +47,7 @@
 
   'copies': [
     {
-      'destination': '<(static_contents_output_data_dir)/',
+      'destination': '<(sb_static_contents_output_data_dir)/',
       'files': [ '<(inputs_icu)' ],
     },
   ],

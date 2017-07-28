@@ -14,6 +14,27 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
+    'stub_media_player': [
+      '<(DEPTH)/starboard/shared/stub/player_create.cc',
+      '<(DEPTH)/starboard/shared/stub/player_destroy.cc',
+      '<(DEPTH)/starboard/shared/stub/player_get_current_frame.cc',
+      '<(DEPTH)/starboard/shared/stub/player_get_info.cc',
+      '<(DEPTH)/starboard/shared/stub/player_output_mode_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/player_seek.cc',
+      '<(DEPTH)/starboard/shared/stub/player_set_bounds.cc',
+      '<(DEPTH)/starboard/shared/stub/player_set_pause.cc',
+      '<(DEPTH)/starboard/shared/stub/player_set_playback_rate.cc',
+      '<(DEPTH)/starboard/shared/stub/player_set_volume.cc',
+      '<(DEPTH)/starboard/shared/stub/player_write_end_of_stream.cc',
+      '<(DEPTH)/starboard/shared/stub/player_write_sample.cc',
+      '<(DEPTH)/starboard/shared/stub/media_can_play_mime_and_key_system.cc',
+      '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
+      '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_audio_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_video_supported.cc',
+    ],
   },
   'targets': [
     {
@@ -108,8 +129,6 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
-        '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
         '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
         '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
         '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
@@ -118,13 +137,6 @@
         '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/media_can_play_mime_and_key_system.cc',
-        '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
-        '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
-        '<(DEPTH)/starboard/shared/stub/media_is_audio_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
-        '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/media_is_video_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_close.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_create.cc',
@@ -133,26 +145,12 @@
         '<(DEPTH)/starboard/shared/stub/microphone_is_sample_rate_supported.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_open.cc',
         '<(DEPTH)/starboard/shared/stub/microphone_read.cc',
-        '<(DEPTH)/starboard/shared/stub/player_create.cc',
-        '<(DEPTH)/starboard/shared/stub/player_destroy.cc',
-        '<(DEPTH)/starboard/shared/stub/player_get_current_frame.cc',
-        '<(DEPTH)/starboard/shared/stub/player_get_info.cc',
-        '<(DEPTH)/starboard/shared/stub/player_output_mode_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/player_seek.cc',
-        '<(DEPTH)/starboard/shared/stub/player_set_bounds.cc',
-        '<(DEPTH)/starboard/shared/stub/player_set_pause.cc',
-        '<(DEPTH)/starboard/shared/stub/player_set_playback_rate.cc',
-        '<(DEPTH)/starboard/shared/stub/player_set_volume.cc',
-        '<(DEPTH)/starboard/shared/stub/player_write_end_of_stream.cc',
-        '<(DEPTH)/starboard/shared/stub/player_write_sample.cc',
-        '<(DEPTH)/starboard/shared/stub/system_clear_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_stack.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_has_capability.cc',
         '<(DEPTH)/starboard/shared/stub/system_hide_splash_screen.cc',
         '<(DEPTH)/starboard/shared/stub/system_is_debugger_attached.cc',
-        '<(DEPTH)/starboard/shared/stub/system_raise_platform_error.cc',
         '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/win32/audio_sink.cc',
@@ -307,6 +305,23 @@
         # VS2017 always defines this for UWP apps
         '__WRL_NO_DEFAULT_LIB__',
       ],
+      'dependencies': [
+        'convert_i18n_data'
+      ]
     },
+    {
+      'target_name': 'convert_i18n_data',
+      'type': 'none',
+      'actions': [
+        {
+          'action_name': 'convert_i18n_data',
+          'variables': {
+            'input_files':
+              '<!(find <(DEPTH)/cobalt/content/i18n/platform/xb1/*.xlb)',
+          },
+          'includes': [ '../../build/convert_i18n_data.gypi' ],
+        },
+      ],
+    }
   ],
 }

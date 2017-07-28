@@ -17,9 +17,9 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/accessibility_settings_changed_event.h"
+#include "cobalt/base/application_event.h"
 #include "cobalt/base/deep_link_event.h"
 #include "cobalt/network/network_event.h"
-#include "cobalt/system_window/application_event.h"
 #include "cobalt/system_window/input_event.h"
 
 namespace cobalt {
@@ -58,20 +58,11 @@ void EventHandler::DispatchEvent(const SbEvent* starboard_event) const {
   // Create a Cobalt event from the Starboard event, if recognized.
   switch (starboard_event->type) {
     case kSbEventTypePause:
-      DispatchEventInternal(new system_window::ApplicationEvent(
-          system_window::ApplicationEvent::kPause));
-      break;
     case kSbEventTypeUnpause:
-      DispatchEventInternal(new system_window::ApplicationEvent(
-          system_window::ApplicationEvent::kUnpause));
-      break;
     case kSbEventTypeSuspend:
-      DispatchEventInternal(new system_window::ApplicationEvent(
-          system_window::ApplicationEvent::kSuspend));
-      break;
     case kSbEventTypeResume:
-      DispatchEventInternal(new system_window::ApplicationEvent(
-          system_window::ApplicationEvent::kResume));
+    case kSbEventTypeStart:
+      DispatchEventInternal(new base::ApplicationEvent(starboard_event->type));
       break;
     case kSbEventTypeNetworkConnect:
       DispatchEventInternal(

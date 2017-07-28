@@ -520,6 +520,10 @@ void Node::OnRemovedFromDocument() {
   }
 }
 
+void Node::MarkDisplayNoneOnNodeAndDescendants() {
+  MarkDisplayNoneOnDescendants();
+}
+
 void Node::PurgeCachedBackgroundImagesOfNodeAndDescendants() {
   PurgeCachedBackgroundImagesOfDescendants();
 }
@@ -534,6 +538,14 @@ void Node::InvalidateLayoutBoxesOfNodeAndAncestors() {
 
 void Node::InvalidateLayoutBoxesOfNodeAndDescendants() {
   InvalidateLayoutBoxesOfDescendants();
+}
+
+void Node::MarkDisplayNoneOnDescendants() {
+  Node* child = first_child_;
+  while (child) {
+    child->MarkDisplayNoneOnNodeAndDescendants();
+    child = child->next_sibling_;
+  }
 }
 
 void Node::PurgeCachedBackgroundImagesOfDescendants() {

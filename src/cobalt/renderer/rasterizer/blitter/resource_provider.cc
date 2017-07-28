@@ -47,6 +47,10 @@ ResourceProvider::ResourceProvider(
 }
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
+  if (pixel_format == render_tree::kPixelFormatUYVY) {
+    return false;
+  }
+
   return SbBlitterIsPixelFormatSupportedByPixelData(
       device_, RenderTreePixelFormatToBlitter(pixel_format));
 }

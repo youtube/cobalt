@@ -15,11 +15,10 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_SPREAD_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_SPREAD_H_
 
-#include <vector>
-
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
+#include "egl/generated_shader_impl.h"
 
 namespace cobalt {
 namespace renderer {
@@ -37,11 +36,10 @@ namespace egl {
 //   |   |   +---------------------+   |   |
 //   |   |                             |   |
 //   |   +-----------------------------+   |
-//   | (include scissor)                   |
+//   |                                     |
 //   +-------------------------------------+
 
-// Handles drawing the solid "spread" portion of a box shadow. The
-// |include_scissor| specifies which pixels can be touched.
+// Handles drawing the solid "spread" portion of a box shadow.
 class DrawRectShadowSpread : public DrawObject {
  public:
   // Fill the area between |inner_rect| and |outer_rect| with the specified
@@ -49,9 +47,10 @@ class DrawRectShadowSpread : public DrawObject {
   DrawRectShadowSpread(GraphicsState* graphics_state,
                        const BaseState& base_state,
                        const math::RectF& inner_rect,
+                       const OptionalRoundedCorners& inner_corners,
                        const math::RectF& outer_rect,
-                       const render_tree::ColorRGBA& color,
-                       const math::RectF& include_scissor);
+                       const OptionalRoundedCorners& outer_corners,
+                       const render_tree::ColorRGBA& color);
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
@@ -59,21 +58,31 @@ class DrawRectShadowSpread : public DrawObject {
       ShaderProgramManager* program_manager) OVERRIDE;
   base::TypeId GetTypeId() const OVERRIDE;
 
- private:
+ protected:
+  typedef ShaderVertexColorOffset CommonVertexShader;
+
   struct VertexAttributes {
     float position[2];
     float offset[2];
     uint32_t color;
   };
 
+  DrawRectShadowSpread(GraphicsState* graphics_state,
+                       const BaseState& base_state);
+  void SetupShader(const CommonVertexShader& shader,
+                   GraphicsState* graphics_state);
   void SetVertex(VertexAttributes* vertex, float x, float y);
 
   math::RectF inner_rect_;
   math::RectF outer_rect_;
-  math::RectF include_scissor_;
+  OptionalRoundedCorners inner_corners_;
+  OptionalRoundedCorners outer_corners_;
+  math::PointF offset_center_;
+  float offset_scale_;
   uint32_t color_;
 
   uint8_t* vertex_buffer_;
+  int vertex_count_;
 };
 
 }  // namespace egl

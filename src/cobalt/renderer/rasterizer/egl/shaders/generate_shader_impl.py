@@ -73,10 +73,18 @@ def GetShaderClassName(filename):
 def GetDataDefinitionStringForFile(filename):
   """Returns a string containing C++ array definition for file contents."""
   with open(filename, 'rb') as f:
-    # Read the file contents; remove carriage return (apitrace doesn't handle
-    # shader sources with that character very well); and add a null terminator
-    # at the end.
-    file_contents = f.read().replace('\r', '') + '\0'
+    # Read the file contents.
+    file_contents = f.read()
+
+    # Strip comments and blank lines.
+    file_contents = re.sub(r'/\*.*?\*/', '', file_contents, flags=re.DOTALL)
+    file_contents = re.sub(r'(\s)*//.*', '', file_contents)
+    file_contents = re.sub('(^|\\n)(\\s)*\\n', '\\1', file_contents)
+
+    # Remove any carriage returns (apitrace doesn't handle shader sources with
+    # that character very well), and add a null terminator at the end.
+    file_contents = file_contents.replace('\r', '') + '\0'
+
     def GetChunk(contents, chunk_size):
       # Yield successive |chunk_size|-sized chunks from |contents|.
       for i in xrange(0, len(contents), chunk_size):
@@ -182,6 +190,14 @@ def GetShaderInputs(filename):
   return attributes, uniforms, samplers
 
 
+def ParseUniformName(name):
+  """Parse a uniform name into the base string and array count (if array)."""
+  temp = re.match(r'(\w+)(?:\[(\d+)\])?', name)
+  base = temp.group(1)
+  count = temp.group(2)
+  return base, count
+
+
 def GetAttributeMethods(attributes):
   """Return a string representing C++ methods for the given attributes."""
   methods = ''
@@ -194,7 +210,11 @@ def GetUniformMethods(uniforms):
   """Return a string representing C++ methods for the given uniforms."""
   methods = ''
   for name in uniforms:
-    methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(name)
+    base, count = ParseUniformName(name)
+    methods += '\nGLuint {0}() const {{ return {0}_; }}'.format(base)
+    if count:
+      methods += ('\nstatic constexpr GLsizei {0}_count() {{ return {1}; }}'
+                  .format(base, count))
   return methods
 
 
@@ -219,7 +239,8 @@ def GetInitializePostLink(uniforms):
   """Returns a string representing C++ statements to process during postlink."""
   statements = ''
   for name in uniforms:
-    statements += '\n{0}_ = GetUniformLocation(program, "{0}");'.format(name)
+    base, unused_count = ParseUniformName(name)
+    statements += '\n{0}_ = GetUniformLocation(program, "{0}");'.format(base)
   return statements
 
 
@@ -236,7 +257,8 @@ def GetVariables(variable_names):
   """Returns a string representing C++ member variable declarations."""
   variables = ''
   for name in variable_names:
-    variables += '\nGLuint {0}_;'.format(name)
+    base, unused_count = ParseUniformName(name)
+    variables += '\nGLuint {0}_;'.format(base)
   return variables
 
 

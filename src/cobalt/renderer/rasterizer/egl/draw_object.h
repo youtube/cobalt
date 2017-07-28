@@ -15,10 +15,14 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_H_
 
+#include <GLES2/gl2.h>
+
+#include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/render_tree/color_rgba.h"
+#include "cobalt/render_tree/rounded_corners.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
@@ -30,6 +34,8 @@ namespace egl {
 // Base type to rasterize various objects via GL commands.
 class DrawObject {
  public:
+  typedef base::optional<render_tree::RoundedCorners> OptionalRoundedCorners;
+
   // Structure containing the common attributes for all DrawObjects.
   struct BaseState {
     BaseState();
@@ -70,6 +76,13 @@ class DrawObject {
   static uint32_t GetGLRGBA(const render_tree::ColorRGBA& color) {
     return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
   }
+
+  // Set shader uniforms for a rounded rect. Specify a non-zero inset if
+  // the rect will be used with anti-aliasing (e.g. 0.5 inset for a 1-pixel
+  // anti-aliasing border).
+  static void SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
+      const math::RectF& rect, const render_tree::RoundedCorners& corners,
+      float inset);
 
   BaseState base_state_;
 };

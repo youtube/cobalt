@@ -106,8 +106,6 @@ GLenum GetComponentType(DXGI_FORMAT dxgiFormat)
             break;
         case DXGI_FORMAT_NV11:
             break;
-        case DXGI_FORMAT_NV12:
-            break;
         case DXGI_FORMAT_P010:
             break;
         case DXGI_FORMAT_P016:
@@ -210,6 +208,7 @@ GLenum GetComponentType(DXGI_FORMAT dxgiFormat)
             break;
         case DXGI_FORMAT_R8G8B8A8_UINT:
             return GL_UNSIGNED_INT;
+        case DXGI_FORMAT_NV12:
         case DXGI_FORMAT_R8G8B8A8_UNORM:
             return GL_UNSIGNED_NORMALIZED;
         case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
@@ -355,8 +354,6 @@ const Format &GetFormat(DXGI_FORMAT dxgiFormat)
             break;
         case DXGI_FORMAT_NV11:
             break;
-        case DXGI_FORMAT_NV12:
-            break;
         case DXGI_FORMAT_P010:
             break;
         case DXGI_FORMAT_P016:
@@ -459,6 +456,7 @@ const Format &GetFormat(DXGI_FORMAT dxgiFormat)
             break;
         case DXGI_FORMAT_R8G8B8A8_UINT:
             return Format::Get(Format::ID::R8G8B8A8_UINT);
+        case DXGI_FORMAT_NV12:
         case DXGI_FORMAT_R8G8B8A8_UNORM:
             return Format::Get(Format::ID::R8G8B8A8_UNORM);
         case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:

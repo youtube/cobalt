@@ -33,6 +33,8 @@ namespace {
 void CHECK_HRESULT_OK(HRESULT hr) {
   SB_DCHECK(SUCCEEDED(hr)) << std::hex << hr;
 }
+
+const int kMaxBuffersSubmittedPerLoop = 2;
 }
 
 namespace starboard {
@@ -162,6 +164,7 @@ void XAudioAudioSink::AudioThreadFunc() {
 
   int submitted_frames = 0;
   uint64_t samples_played = 0;
+  int queued_buffers = 0;
   for (;;) {
     {
       ScopedLock lock(mutex_);
@@ -188,13 +191,17 @@ void XAudioAudioSink::AudioThreadFunc() {
     int unsubmitted_frames = frames_in_buffer - submitted_frames;
     int unsubmitted_start =
         (offset_in_frames + submitted_frames) % frame_buffers_size_in_frames_;
-    if (unsubmitted_frames == 0) {
+    if (unsubmitted_frames == 0 ||
+        queued_buffers +
+            kMaxBuffersSubmittedPerLoop > XAUDIO2_MAX_QUEUED_BUFFERS) {
       // submit nothing
     } else if (unsubmitted_start + unsubmitted_frames <=
                frame_buffers_size_in_frames_) {
       SubmitSourceBuffer(unsubmitted_start, unsubmitted_frames);
     } else {
       int count_tail_frames = frame_buffers_size_in_frames_ - unsubmitted_start;
+      // Note since we can submit up to two source buffers at a time,
+      // kMaxBuffersSubmittedPerLoop = 2.
       SubmitSourceBuffer(unsubmitted_start, count_tail_frames);
       SubmitSourceBuffer(0, unsubmitted_frames - count_tail_frames);
     }
@@ -213,6 +220,7 @@ void XAudioAudioSink::AudioThreadFunc() {
     consume_frame_func_(consumed_frames_int, context_);
     submitted_frames -= consumed_frames_int;
     samples_played = voice_state.SamplesPlayed;
+    queued_buffers = voice_state.BuffersQueued;
   }
 }
 
@@ -265,13 +273,13 @@ SbAudioSink XAudioAudioSinkType::Create(
   WAVEFORMATEX wfx;
 
   wfx.wFormatTag = SampleTypeToFormatTag(audio_sample_type);
-  wfx.nChannels = channels;
+  wfx.nChannels = static_cast<WORD>(channels);
   wfx.nSamplesPerSec = sampling_frequency_hz;
   wfx.nAvgBytesPerSec = channels *
                         SampleTypeToBitsPerSample(audio_sample_type) *
                         sampling_frequency_hz / 8;
   wfx.wBitsPerSample = SampleTypeToBitsPerSample(audio_sample_type);
-  wfx.nBlockAlign = (channels * wfx.wBitsPerSample) / 8;
+  wfx.nBlockAlign = static_cast<WORD>((channels * wfx.wBitsPerSample) / 8);
   wfx.cbSize = 0;
 
   return new XAudioAudioSink(
