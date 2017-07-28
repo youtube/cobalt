@@ -14,17 +14,15 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontStyleSet_cobalt.h"
 
-#include <ft2build.h>
-#include FT_FREETYPE_H
-
 #include <cmath>
 #include <limits>
 
+#include "SkOSFile.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
 #include "base/memory/ref_counted.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
-#include "SkOSFile.h"
 
 namespace {
 
@@ -69,22 +67,6 @@ int MatchScore(const SkFontStyle& pattern, const SkFontStyle& candidate) {
 }
 
 }  // namespace
-
-// These functions are used by FreeType during FT_Open_Face.
-extern "C" {
-
-static unsigned long sk_cobalt_ft_stream_io(FT_Stream ftStream,
-                                            unsigned long offset,
-                                            unsigned char* buffer,
-                                            unsigned long count) {
-  SkStreamAsset* stream =
-      static_cast<SkStreamAsset*>(ftStream->descriptor.pointer);
-  stream->seek(offset);
-  return stream->read(buffer, count);
-}
-
-static void sk_cobalt_ft_stream_close(FT_Stream) {}
-}
 
 SkFontStyleSet_Cobalt::SkFontStyleSet_Cobalt(
     const FontFamilyInfo& family_info, const char* base_path,
@@ -319,73 +301,19 @@ bool SkFontStyleSet_Cobalt::GenerateStyleFaceInfo(
     return true;
   }
 
-  TRACE_EVENT0("cobalt::renderer", "GenerateStyleFaceInfo()");
+  // Providing a pointer to the character map will cause it to be generated
+  // during ScanFont. Only provide it if it hasn't already been generated.
+  font_character_map::CharacterMap* character_map =
+      !is_character_map_generated_ ? &character_map_ : NULL;
 
-  FT_Library freetype_lib;
-  if (FT_Init_FreeType(&freetype_lib) != 0) {
+  if (!sk_freetype_cobalt::ScanFont(
+          stream, style->face_index, &style->face_name, &style->face_style,
+          &style->face_is_fixed_pitch, character_map)) {
     return false;
   }
 
-  FT_StreamRec streamRec;
-  memset(&streamRec, 0, sizeof(streamRec));
-  streamRec.size = stream->getLength();
-  streamRec.descriptor.pointer = stream;
-  streamRec.read = sk_cobalt_ft_stream_io;
-  streamRec.close = sk_cobalt_ft_stream_close;
-
-  FT_Open_Args args;
-  memset(&args, 0, sizeof(args));
-  args.flags = FT_OPEN_STREAM;
-  args.stream = &streamRec;
-
-  FT_Face face;
-  FT_Error err = FT_Open_Face(freetype_lib, &args, style->face_index, &face);
-  if (err) {
-    FT_Done_FreeType(freetype_lib);
-    return false;
-  }
-
-  int face_style = SkTypeface::kNormal;
-  if (face->style_flags & FT_STYLE_FLAG_BOLD) {
-    face_style |= SkTypeface::kBold;
-  }
-  if (face->style_flags & FT_STYLE_FLAG_ITALIC) {
-    face_style |= SkTypeface::kItalic;
-  }
-
-  style->face_name.set(face->family_name);
-  style->face_style = static_cast<SkTypeface::Style>(face_style);
-  style->face_is_fixed_pitch = FT_IS_FIXED_WIDTH(face);
   style->is_face_info_generated = true;
-
-  // Map out this family's characters if they haven't been generated yet.
-  if (!is_character_map_generated_) {
-    FT_UInt glyph_index;
-
-    int last_page = -1;
-    font_character_map::PageCharacters* page_characters = NULL;
-
-    SkUnichar code_point = FT_Get_First_Char(face, &glyph_index);
-    while (glyph_index) {
-      int page = font_character_map::GetPage(code_point);
-      if (page != last_page) {
-        page_characters = &character_map_[page];
-        last_page = page;
-      }
-      page_characters->set(
-          font_character_map::GetPageCharacterIndex(code_point));
-
-      code_point = FT_Get_Next_Char(face, code_point, &glyph_index);
-    }
-
-    is_character_map_generated_ = true;
-  }
-
-  // release this font.
-  FT_Done_Face(face);
-
-  // shut down FreeType.
-  FT_Done_FreeType(freetype_lib);
+  is_character_map_generated_ = true;
   return true;
 }
 
