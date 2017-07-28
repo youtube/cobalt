@@ -34,6 +34,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rrect_color.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
 
@@ -398,7 +399,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   // offscreen target, then use a single shader to render those.
   const bool border_supported = !data.border;
 
-  if (data.rounded_corners) {
+  if (data.rounded_corners && brush &&
+      brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
     FallbackRasterize(rect_node);
   } else if (!brush_supported) {
     FallbackRasterize(rect_node);
@@ -406,7 +408,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     FallbackRasterize(rect_node);
   } else {
     DCHECK(!data.border);
-    const math::RectF& content_rect(data.rect);
 
     // Handle drawing the content.
     if (brush) {
@@ -416,26 +417,33 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             base::polymorphic_downcast<const render_tree::SolidColorBrush*>
                 (brush.get());
         const render_tree::ColorRGBA& brush_color(solid_brush->color());
-        render_tree::ColorRGBA content_color(
+        render_tree::ColorRGBA color(
             brush_color.r() * brush_color.a(),
             brush_color.g() * brush_color.a(),
             brush_color.b() * brush_color.a(),
             brush_color.a());
-        scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-            draw_state_, content_rect, content_color));
-        if (draw_state_.opacity * content_color.a() == 1.0f) {
-          AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
-        } else {
+        if (data.rounded_corners) {
+          scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
+              draw_state_, data.rect, *data.rounded_corners, color));
+          // Transparency is used for anti-aliasing.
           AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+        } else {
+          scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+              draw_state_, data.rect, color));
+          if (draw_state_.opacity * color.a() == 1.0f) {
+            AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
+          } else {
+            AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+          }
         }
       } else {
         const render_tree::LinearGradientBrush* linear_brush =
             base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
                 (brush.get());
         scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
-            draw_state_, content_rect, *linear_brush));
+            draw_state_, data.rect, *linear_brush));
         // The draw may use transparent pixels to ensure only pixels in the
-        // content_rect are modified.
+        // specified area are modified.
         AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
       }
     }
