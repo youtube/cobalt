@@ -180,7 +180,7 @@ MeshDecoderSink::DecodeMeshProjectionFromBoxContents(
     render_tree::ResourceProvider* resource_provider, uint8_t version,
     uint32_t flags, const uint8* data, size_t data_size) {
   MeshDecoderSink::MeshCollectionList mesh_collection_list;
-  uint32 crc = -1;
+  uint32 crc = kuint32max;
 
   if (!DecodeBoxContents(resource_provider, version, flags, data, data_size,
                          &mesh_collection_list, &crc)) {

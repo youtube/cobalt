@@ -145,8 +145,9 @@ void WebDriverDispatcher::RegisterCommand(
   CommandMapping* mapping = GetMappingForPath(tokenized_path, kMatchExact);
   if (!mapping) {
     // No commands registered for this path yet, so create a new CommandMapping.
+    int tokenized_path_size = static_cast<int>(tokenized_path.size());
     CommandMappingLookup::iterator it = command_lookup_.insert(
-        std::make_pair(tokenized_path.size(), CommandMapping(tokenized_path)));
+        std::make_pair(tokenized_path_size, CommandMapping(tokenized_path)));
     mapping = &it->second;
   }
 

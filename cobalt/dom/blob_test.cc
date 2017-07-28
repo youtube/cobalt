@@ -38,7 +38,7 @@ TEST(BlobTest, Constructors) {
   scoped_refptr<DataView> data_view =
       new DataView(array_buffer, &exception_state);
   data_view->SetInt16(0, static_cast<int16>(0x0607), &exception_state);
-  data_view->SetInt16(3, static_cast<int16>(0xABCD), &exception_state);
+  data_view->SetInt16(3, static_cast<int16>(0x7BCD), &exception_state);
   scoped_refptr<Blob> blob_with_buffer = new Blob(NULL, array_buffer);
 
   ASSERT_EQ(5, blob_with_buffer->size());
@@ -47,7 +47,7 @@ TEST(BlobTest, Constructors) {
   EXPECT_EQ(0x6, blob_with_buffer->data()[0]);
   EXPECT_EQ(0x7, blob_with_buffer->data()[1]);
   EXPECT_EQ(0, blob_with_buffer->data()[2]);
-  EXPECT_EQ(0xAB, blob_with_buffer->data()[3]);
+  EXPECT_EQ(0x7B, blob_with_buffer->data()[3]);
   EXPECT_EQ(0xCD, blob_with_buffer->data()[4]);
 
   scoped_refptr<DataView> data_view_mid_3 =
@@ -63,7 +63,7 @@ TEST(BlobTest, Constructors) {
   EXPECT_EQ(0x6, blob_with_parts->data()[0]);
   EXPECT_EQ(0x7, blob_with_parts->data()[5]);
   EXPECT_EQ(0, blob_with_parts->data()[6]);
-  EXPECT_EQ(0xAB, blob_with_parts->data()[11]);
+  EXPECT_EQ(0x7B, blob_with_parts->data()[11]);
   EXPECT_EQ(0xCD, blob_with_parts->data()[12]);
 }
 
