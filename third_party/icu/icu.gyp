@@ -105,7 +105,7 @@
       'source/common',
       'source/i18n',
     ],
-    'msvs_disabled_warnings': [4005, 4068, 4355, 4996, 4267],
+    'msvs_disabled_warnings': [4005, 4068, 4244, 4355, 4996, 4267],
   },
   'conditions': [
     ['use_system_icu==0 or want_separate_host_toolset==1', {
