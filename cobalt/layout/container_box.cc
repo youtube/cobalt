@@ -83,14 +83,14 @@ Boxes::const_iterator ContainerBox::InsertSplitSiblingOfDirectChild(
   update_size_results_valid_ = false;
 
   // Check to see if the split sibling is positioned, which means that it
-  // needs to invalidate its cross references.
-  // NOTE: Only block level and atomic inline-level elements are transformable.
-  // As these are not splittable, the split sibling does not need to be checked
-  // for being transformed.
-  // https://www.w3.org/TR/css-transforms-1/#transformable-element
-  DCHECK(!split_sibling->IsTransformable());
-  if (split_sibling->IsPositioned() || split_sibling->IsStackingContext()) {
+  // needs to invalidate its containing block's cross references.
+  bool is_positioned = split_sibling->IsPositioned();
+  if (is_positioned) {
     split_sibling->GetContainingBlock()->are_cross_references_valid_ = false;
+  }
+  // Check to see if the split sibling is a stacking context child, which means
+  // that it needs to invalidate its stacking context's cross references.
+  if (is_positioned || split_sibling->IsStackingContext()) {
     split_sibling->GetStackingContext()->are_cross_references_valid_ = false;
   }
 
@@ -153,6 +153,23 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
       DCHECK(negative_z_index_stacking_context_children_.empty());
       GetStackingContext()->are_cross_references_valid_ = false;
     }
+  } else if (computed_style()->overflow().get() ==
+                 cssom::KeywordValue::GetHidden() &&
+             !IsStackingContext()) {
+    // If this container box hides overflow and isn't a stacking context, then
+    // the nearest ancestor that is a stacking context needs to be invalidated.
+    // The reason for this is that the ancestor stacking context may have
+    // stacking context children that include this container as an overflow
+    // hidden containing block.
+    // NOTE: GetStackingContext() can't simply be called, because that will
+    // incorrectly return the parent, regardless of whether or not it is a
+    // stacking context, in the case where the containing block is not
+    // positioned.
+    ContainerBox* stacking_context_ancestor = parent();
+    while (!stacking_context_ancestor->IsStackingContext()) {
+      stacking_context_ancestor = stacking_context_ancestor->parent();
+    }
+    stacking_context_ancestor->are_cross_references_valid_ = false;
   }
 
   // Invalidate the render tree nodes now that the children have changed.
