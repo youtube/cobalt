@@ -186,6 +186,11 @@ bool staticget_staticAttribute(
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   if (!exception_state.is_exception_set()) {
@@ -203,6 +208,11 @@ bool staticset_staticAttribute(
   JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   MozjsExceptionState exception_state(context);
