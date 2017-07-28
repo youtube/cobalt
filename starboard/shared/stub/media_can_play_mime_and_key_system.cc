@@ -16,5 +16,7 @@
 
 SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
                                                   const char* key_system) {
+  SB_UNREFERENCED_PARAMETER(mime);
+  SB_UNREFERENCED_PARAMETER(key_system);
   return kSbMediaSupportTypeNotSupported;
 }

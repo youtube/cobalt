@@ -224,7 +224,7 @@
         'MinimalRebuild': 'false',
 
         # Treat warnings as errors.
-        'WarnAsError': 'false',
+        'WarnAsError': 'true',
 
         # Enable some warnings, even those that are disabled by default.
         # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
@@ -234,7 +234,6 @@
           '/errorReport:none', # Don't send error reports to MS.
           '/permissive-', # Visual C++ conformance mode.
           '/FS', # Force sync PDB updates for parallel compile.
-          '/w14389', # Turn on warnings for signed/unsigned mismatch.
         ],
       },
       'VCLinkerTool': {
@@ -267,13 +266,18 @@
       # Triggers in many legitimate cases, like branching on a constant declared
       # in type traits.
       4127,
+      # 4244 (Level 2) - Implicit conversion from float to int
+      # 4244 (Level 3) - Implicit conversion from int to something smaller
+      # than int.
+      # 4244 (Level 4) - Implicit conversion of types, which may result in
+      # data loss.
+      4244,
       # Class has virtual functions, but destructor is not virtual.
       # Far less useful than in GCC because doesn't take into account the fact
       # that destructor is not public.
       4265,
-      # no function prototype given: converting '()' to '(void)'.
-      # We do not care.
-      4255,
+      # Inconsistent DLL linkage
+      4273,
       # cast truncates constant value.
       # We do not care.
       4310,
