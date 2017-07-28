@@ -30,7 +30,7 @@ SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         void* /*context*/
 #if SB_API_VERSION >= 4
                         ,
-                        SbPlayerOutputMode output_mode,
+                        SbPlayerOutputMode /*output_mode*/,
                         SbDecodeTargetGraphicsContextProvider* /*provider*/
 #elif SB_API_VERSION >= 3
                         ,
