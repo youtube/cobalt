@@ -57,6 +57,8 @@
         'draw_rect_shadow_blur.cc',
         'draw_rect_texture.h',
         'draw_rect_texture.cc',
+        'draw_rrect_color.h',
+        'draw_rrect_color.cc',
         'graphics_state.h',
         'graphics_state.cc',
         'hardware_rasterizer.cc',
