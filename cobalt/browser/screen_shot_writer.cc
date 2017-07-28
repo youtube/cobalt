@@ -41,8 +41,8 @@ scoped_array<uint8> WriteRGBAPixelsToPNG(scoped_array<uint8> pixel_data,
 
   // No conversion needed here, simply write out the pixels as is.
   return EncodeRGBAToBuffer(static_cast<uint8_t*>(bitmap.pixelRef()->pixels()),
-                            bitmap.width(), bitmap.height(), bitmap.rowBytes(),
-                            out_num_bytes);
+                            bitmap.width(), bitmap.height(),
+                            static_cast<int>(bitmap.rowBytes()), out_num_bytes);
 }
 }  // namespace
 
@@ -107,8 +107,9 @@ void ScreenShotWriter::EncodingComplete(const FilePath& output_path,
                                         size_t num_bytes) {
   DCHECK_EQ(MessageLoop::current(), screenshot_thread_.message_loop());
   // Blocking write to output_path.
-  int bytes_written = file_util::WriteFile(
-      output_path, reinterpret_cast<char*>(png_data.get()), num_bytes);
+  int bytes_written =
+      file_util::WriteFile(output_path, reinterpret_cast<char*>(png_data.get()),
+                           static_cast<int>(num_bytes));
   DLOG_IF(ERROR, bytes_written != num_bytes) << "Error writing PNG to file.";
 
   // Notify the caller that the screenshot is complete.

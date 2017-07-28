@@ -108,7 +108,6 @@ TEST_F(WebSocketTest, GoodOrigin) {
 }
 
 TEST_F(WebSocketTest, TestInitialReadyState) {
-  scoped_ptr<FakeSettings> settings_;
   scoped_refptr<WebSocket> ws(
       new WebSocket(settings(), "ws://example.com", &exception_state_, false));
   EXPECT_EQ(ws->ready_state(), WebSocket::kConnecting);

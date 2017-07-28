@@ -106,18 +106,16 @@ class FontStub : public Font {
                       Internal::kRobotoXHeightSizeMultiplier * font_size),
         glyph_bounds_(
             0,
-            -std::max(
-                static_cast<int>(
-                    Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
-                    font_size),
-                1),
+            std::max(
+                Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
+                    font_size,
+                1.0f),
             Internal::kDefaultCharacterRobotoGlyphWidthSizeMultiplier *
                 font_size,
             std::max(
-                static_cast<int>(
-                    Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
-                    font_size),
-                1)) {}
+                Internal::kDefaultCharacterRobotoGlyphHeightSizeMultiplier *
+                    font_size,
+                1.0f)) {}
 
   TypefaceId GetTypefaceId() const OVERRIDE { return typeface_->GetId(); }
 
