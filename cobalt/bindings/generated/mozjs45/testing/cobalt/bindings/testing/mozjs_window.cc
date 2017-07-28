@@ -385,6 +385,11 @@ const JSClass interface_object_class_definition = {
 bool get_windowProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsWindow::PrototypeClass(context);
@@ -428,6 +433,11 @@ bool set_windowProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -475,6 +485,11 @@ bool set_windowProperty(
 bool get_window(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsWindow::PrototypeClass(context);
@@ -518,6 +533,11 @@ bool get_window(
 bool get_onEvent(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsWindow::PrototypeClass(context);
@@ -561,6 +581,11 @@ bool set_onEvent(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =

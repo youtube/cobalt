@@ -184,6 +184,11 @@ const JSClass interface_object_class_definition = {
 bool get_callbackAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsCallbackFunctionInterface::PrototypeClass(context);
@@ -227,6 +232,11 @@ bool set_callbackAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -274,6 +284,11 @@ bool set_callbackAttribute(
 bool get_nullableCallbackAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsCallbackFunctionInterface::PrototypeClass(context);
@@ -317,6 +332,11 @@ bool set_nullableCallbackAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =

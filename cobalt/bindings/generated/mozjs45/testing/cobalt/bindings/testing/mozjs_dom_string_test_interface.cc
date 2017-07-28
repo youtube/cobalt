@@ -180,6 +180,11 @@ const JSClass interface_object_class_definition = {
 bool get_property(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -223,6 +228,11 @@ bool set_property(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -270,6 +280,11 @@ bool set_property(
 bool get_readOnlyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -313,6 +328,11 @@ bool get_readOnlyProperty(
 bool get_readOnlyTokenProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -356,6 +376,11 @@ bool get_readOnlyTokenProperty(
 bool get_nullIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -399,6 +424,11 @@ bool set_nullIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -446,6 +476,11 @@ bool set_nullIsEmptyProperty(
 bool get_undefinedIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -489,6 +524,11 @@ bool set_undefinedIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -536,6 +576,11 @@ bool set_undefinedIsEmptyProperty(
 bool get_nullableUndefinedIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDOMStringTestInterface::PrototypeClass(context);
@@ -579,6 +624,11 @@ bool set_nullableUndefinedIsEmptyProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
