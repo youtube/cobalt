@@ -325,7 +325,10 @@
         },
       ],
       'msvs_disabled_warnings': [
-        4800,  # forcing value to bool 'true' or 'false' (performance warning)
+        # forcing value to bool 'true' or 'false' (performance warning)
+        4800,
+        # Destructor is explicitly deleted.
+        4624,
       ],
     },
     {
