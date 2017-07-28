@@ -192,11 +192,7 @@ TEST(MimeUtilTest, ParseCodecString) {
 TEST(MimeUtilTest, TestIsMimeType) {
   std::string nonAscii("application/nonutf8");
   EXPECT_TRUE(IsMimeType(nonAscii));
-#if defined(OS_WIN)
-  nonAscii.append(WideToUTF8(std::wstring(L"\u2603")));
-#else
-  nonAscii.append("\u2603");  // unicode snowman
-#endif
+  nonAscii.append(u8"\u2603");  // unicode snowman
   EXPECT_FALSE(IsMimeType(nonAscii));
 
   EXPECT_TRUE(IsMimeType("application/mime"));

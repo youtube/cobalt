@@ -1110,7 +1110,7 @@ TEST_F(FilePathTest, ReferencesParent) {
 TEST_F(FilePathTest, FromUTF8Unsafe_And_AsUTF8Unsafe) {
   const struct UTF8TestData cases[] = {
     { FPL("foo.txt"), "foo.txt" },
-#if !defined(__LB_SHELL__)
+#if !defined(STARBOARD)
     // "aeo" with accents. Use http://0xcc.net/jsescape/ to decode them.
     { FPL("\u00E0\u00E8\u00F2.txt"), "\xC3\xA0\xC3\xA8\xC3\xB2.txt" },
     // Full-width "ABC".

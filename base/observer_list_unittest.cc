@@ -122,7 +122,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
     //LOG(ERROR) << "Loop 0x" << std::hex << loop_ << " done. " <<
     //    count_observes_ << ", " << count_addtask_;
     delete loop_;
-    loop_ = reinterpret_cast<MessageLoop*>(0xdeadbeef);
+    loop_ = reinterpret_cast<MessageLoop*>(static_cast<size_t>(0xdeadbeef));
     delete this;
   }
 

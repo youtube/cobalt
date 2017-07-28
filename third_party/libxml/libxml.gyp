@@ -240,6 +240,20 @@
               'src/include',
             ],
           },
+          'msvs_disabled_warnings': [
+            # Disable unimportant 'unused variable' warning.
+            # signed/unsigned comparison.
+            4018,
+            # TODO(jschuh): http://crbug.com/167187 size_t -> int
+            4267,
+            # TODO(brucedawson): http://crbug.com/554200 fix C4311 warnings
+            # C4311 is a VS 2015 64-bit warning for pointer truncation
+            4311,
+            # Conversion from long (possibly 32-bit) to void*
+            4312,
+            # Uninitialized local variable used.
+            4700
+          ],
           'conditions': [
             ['OS=="starboard" or OS=="lb_shell"', {
               'dependencies!': [
@@ -260,21 +274,10 @@
             # in chrome. On linux, this is picked up by transitivity from
             # pkg-config output from build/linux/system.gyp.
             ['OS=="mac" or OS=="android"', {'defines': ['_REENTRANT']}],
-            ['OS=="win"', {
+            ['target_arch=="win"', {
               'product_name': 'libxml2',
-              # Disable unimportant 'unused variable' warning.
-              # TODO(jschuh): http://crbug.com/167187 size_t -> int
-              # TODO(brucedawson): http://crbug.com/554200 fix C4311 warnings
-              # C4311 is a VS 2015 64-bit warning for pointer truncation
-              'msvs_disabled_warnings': [ 4018, 4267, 4311, ],
             }, {  # else: OS!="win"
               'product_name': 'xml2',
-            }],
-            ['actual_target_arch=="win"', {
-              # For Cobalt on Windows
-              # 4018 - signed/unsigned comparison.
-              # 4700 - uninitialized local variable used.
-              'msvs_disabled_warnings': [ 4018, 4700 ],
             }],
             ['clang == 1', {
               'cflags': [
