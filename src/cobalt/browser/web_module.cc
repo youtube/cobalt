@@ -20,6 +20,7 @@
 #include "base/command_line.h"
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
+#include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
@@ -604,7 +605,7 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
 
   web_module_stat_tracker_->OnEndInjectEvent(
       window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsNewRenderTreePending());
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
@@ -662,7 +663,7 @@ void WebModule::Impl::OnRanAnimationFrameCallbacks() {
   // Notify the stat tracker that the animation frame callbacks have finished.
   // This may end the current event being tracked.
   web_module_stat_tracker_->OnRanAnimationFrameCallbacks(
-      layout_manager_->IsNewRenderTreePending());
+      layout_manager_->IsRenderTreePending());
 }
 
 void WebModule::Impl::OnRenderTreeProduced(
@@ -1188,7 +1189,7 @@ void WebModule::Impl::HandlePointerEvents() {
       }
       topmost_event_target_->MaybeSendPointerEvents(event);
     }
-  } while (event && !layout_manager_->IsNewRenderTreePending());
+  } while (event && !layout_manager_->IsRenderTreePending());
 }
 
 }  // namespace browser

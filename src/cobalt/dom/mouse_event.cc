@@ -110,7 +110,7 @@ float MouseEvent::page_x() const {
   //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-pagex
 
   // In Cobalt all steps are equivalent to returning clientX.
-  return client_x();
+  return static_cast<float>(client_x());
 }
 
 float MouseEvent::page_y() const {
@@ -118,7 +118,7 @@ float MouseEvent::page_y() const {
   //  https://www.w3.org/TR/2013/WD-cssom-view-20131217/#dom-mouseevent-pagey
 
   // In Cobalt all steps are equivalent to returning clientY.
-  return client_y();
+  return static_cast<float>(client_y());
 }
 
 float MouseEvent::offset_x() {

@@ -64,11 +64,12 @@ void TopmostEventTarget::ConsiderElement(
   if (!html_element) return;
   math::Vector2dF element_coordinate(coordinate);
   if (html_element->CanbeDesignatedByPointerIfDisplayed()) {
-    dom::LayoutBoxes* boxes = html_element->layout_boxes();
-    if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
+    dom::LayoutBoxes* dom_layout_boxes = html_element->layout_boxes();
+    if (dom_layout_boxes &&
+        dom_layout_boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
       DCHECK(html_element->computed_style());
       LayoutBoxes* layout_boxes =
-          base::polymorphic_downcast<LayoutBoxes*>(boxes);
+          base::polymorphic_downcast<LayoutBoxes*>(dom_layout_boxes);
       const Boxes& boxes = layout_boxes->boxes();
       if (!boxes.empty()) {
         const Box* box = boxes.front();
@@ -124,7 +125,8 @@ void TopmostEventTarget::MaybeSendPointerEvents(
   DCHECK(!html_element_);
   scoped_refptr<dom::Window> view = mouse_event->view();
 
-  math::Vector2dF coordinate(mouse_event->client_x(), mouse_event->client_y());
+  math::Vector2dF coordinate(static_cast<float>(mouse_event->client_x()),
+                             static_cast<float>(mouse_event->client_y()));
   FindTopmostEventTarget(view->document(), coordinate);
 
   if (html_element_) {
@@ -152,9 +154,9 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       if (has_compatibility_mouse_event) {
         dom::MouseEventInit mouse_event_init;
         mouse_event_init.set_screen_x(pointer_event->screen_x());
-        mouse_event_init.set_screen_y(pointer_event->screen_x());
+        mouse_event_init.set_screen_y(pointer_event->screen_y());
         mouse_event_init.set_client_x(pointer_event->screen_x());
-        mouse_event_init.set_client_y(pointer_event->screen_x());
+        mouse_event_init.set_client_y(pointer_event->screen_y());
         mouse_event_init.set_button(pointer_event->button());
         mouse_event_init.set_buttons(pointer_event->buttons());
         html_element_->DispatchEvent(
@@ -167,22 +169,19 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       }
     }
 
+    scoped_refptr<dom::HTMLElement> previous_html_element(
+        previous_html_element_weak_);
+
     // Send enter/leave/over/out (status change) events when needed.
-    if (previous_html_element_ != html_element_) {
+    if (previous_html_element != html_element_) {
       // Store the data for the status change event(s).
       dom::PointerEventInit event_init;
-      event_init.set_related_target(previous_html_element_);
-      const dom::MouseEvent* const pointer_event =
-          base::polymorphic_downcast<const dom::PointerEvent* const>(
-              event.get());
-      event_init.set_screen_x(pointer_event->screen_x());
-      event_init.set_screen_y(pointer_event->screen_x());
-      event_init.set_client_x(pointer_event->screen_x());
-      event_init.set_client_y(pointer_event->screen_x());
+      event_init.set_related_target(previous_html_element);
+      event_init.set_screen_x(mouse_event->screen_x());
+      event_init.set_screen_y(mouse_event->screen_y());
+      event_init.set_client_x(mouse_event->screen_x());
+      event_init.set_client_y(mouse_event->screen_y());
       if (event->GetWrappableType() == base::GetTypeId<dom::PointerEvent>()) {
-        const dom::PointerEvent* const pointer_event =
-            base::polymorphic_downcast<const dom::PointerEvent* const>(
-                event.get());
         event_init.set_pointer_id(pointer_event->pointer_id());
         event_init.set_width(pointer_event->width());
         event_init.set_height(pointer_event->height());
@@ -197,15 +196,15 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       // nearest common ancestor between the previous and current element.
       scoped_refptr<dom::Element> nearest_common_ancestor;
 
-      if (previous_html_element_) {
-        previous_html_element_->DispatchEvent(new dom::PointerEvent(
+      if (previous_html_element) {
+        previous_html_element->DispatchEvent(new dom::PointerEvent(
             base::Tokens::pointerout(), view, event_init));
-        previous_html_element_->DispatchEvent(
+        previous_html_element->DispatchEvent(
             new dom::MouseEvent(base::Tokens::mouseout(), view, event_init));
 
         // Find the nearest common ancestor, if there is any.
         dom::Document* previous_document =
-            previous_html_element_->node_document();
+            previous_html_element->node_document();
         if (previous_document) {
           if (html_element_ &&
               previous_document == html_element_->node_document()) {
@@ -221,7 +220,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
             }
           }
 
-          for (scoped_refptr<dom::Element> element = previous_html_element_;
+          for (scoped_refptr<dom::Element> element = previous_html_element;
                element != nearest_common_ancestor;
                element = element->parent_element()) {
             element->DispatchEvent(new dom::PointerEvent(
@@ -260,7 +259,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
           document->SetIndicatedElement(html_element_);
         }
       }
-      previous_html_element_ = html_element_;
+      previous_html_element_weak_ = base::AsWeakPtr(html_element_.get());
     }
   }
   html_element_ = NULL;
