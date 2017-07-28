@@ -14,14 +14,15 @@
 
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontMgr_cobalt.h"
 
-#include "base/debug/trace_event.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
-#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 #include "SkData.h"
 #include "SkGraphics.h"
 #include "SkStream.h"
 #include "SkString.h"
 #include "SkTSearch.h"
+#include "base/debug/trace_event.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFontConfigParser_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkFreeType_cobalt.h"
+#include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 
 SkFontMgr_Cobalt::SkFontMgr_Cobalt(
     const char* cobalt_font_config_directory,
@@ -236,8 +237,8 @@ SkTypeface* SkFontMgr_Cobalt::onCreateFromStream(SkStreamAsset* stream,
   bool is_fixed_pitch;
   SkTypeface::Style style;
   SkString name;
-  if (!SkTypeface_FreeType::ScanFont(stream, face_index, &name, &style,
-                                     &is_fixed_pitch)) {
+  if (!sk_freetype_cobalt::ScanFont(stream, face_index, &name, &style,
+                                    &is_fixed_pitch)) {
     return NULL;
   }
   return SkNEW_ARGS(SkTypeface_CobaltStream,
