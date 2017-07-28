@@ -67,8 +67,7 @@ HardwareResourceProvider::HardwareResourceProvider(
   decode_target_graphics_context_provider_.gles_context_runner =
       &HardwareResourceProvider::GraphicsContextRunner;
   decode_target_graphics_context_provider_.gles_context_runner_context = this;
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 }
 
 HardwareResourceProvider::~HardwareResourceProvider() {
@@ -347,8 +346,7 @@ void HardwareResourceProvider::GraphicsContextRunner(
   }
 }
 
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 
 scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
     size_t size_in_bytes, size_t alignment) {

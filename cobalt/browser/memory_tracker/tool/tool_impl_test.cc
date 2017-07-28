@@ -73,7 +73,7 @@ TEST(MemoryTrackerToolTest, AllocationSizeBinner) {
 
   // Expect data.
   found = (csv_string.find("2,1") != std::string::npos);
-  SbMemoryFree(dummy_memory);
+  SbMemoryDeallocate(dummy_memory);
 }
 
 // Tests the expectation that AllocationSizeBinner will correctly bin
