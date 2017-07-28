@@ -60,6 +60,10 @@
           'export_dependent_settings': [
             '../zlib/zlib.gyp:zlib',
           ],
+          'msvs_disabled_warnings': [
+            # Level 1 (but documentation says 3) - incompatible type conversion.
+            4133,
+          ],
           'conditions': [
             ['OS!="win"', {'product_name': 'png'}],
             ['OS=="win"', {

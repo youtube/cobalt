@@ -36,8 +36,9 @@ TEST(StringNumberConversionsTest, IntegralToString) {
 #define DEFINE_INTEGRAL_TO_STRING_TEST(Name, CppType)                         \
   {                                                                           \
     static const CppType kValuesToTest[] = {                                  \
-        0, static_cast<CppType>(-1), 42, std::numeric_limits<CppType>::min(), \
-        std::numeric_limits<CppType>::max()};                                 \
+        0, 1, 42,                                                             \
+        static_cast<CppType>(std::numeric_limits<CppType>::min()),            \
+        static_cast<CppType>(std::numeric_limits<CppType>::max())};           \
     for (size_t i = 0; i < ARRAYSIZE_UNSAFE(kValuesToTest); ++i) {            \
       CppType value = static_cast<CppType>(kValuesToTest[i]);                 \
       std::ostringstream oss;                                                 \
@@ -112,7 +113,7 @@ TEST(StringNumberConversionsTest, StringToIntegralFailure) {
       {"blah42", 0},                                                         \
       {"42blah", 42},                                                        \
       {"blah42blah", 0},                                                     \
-      {"-73.15", -73},                                                       \
+      {"-73.15", static_cast<CppType>(-73)},                                                       \
       {"+98.6", 98},                                                         \
       {"--123", 0},                                                          \
       {"++123", 0},                                                          \
@@ -206,14 +207,14 @@ TEST(StringNumberConversionsTest, HexStringToInt) {
     {"7fffffff", INT_MAX, true},
     {"80000000", INT_MIN, true},
     {"ffffffff", -1, true},
-    {"DeadBeef", 0xdeadbeef, true},
+    {"DeadBeef", static_cast<int>(0xdeadbeef), true},
     {"0x42", 66, true},
     {"-0x42", -66, true},
     {"+0x42", 66, true},
     {"0x7fffffff", INT_MAX, true},
     {"0x80000000", INT_MIN, true},
     {"0xffffffff", -1, true},
-    {"0XDeadBeef", 0xdeadbeef, true},
+    {"0XDeadBeef", static_cast<int>(0xdeadbeef), true},
     {"0x0f", 15, true},
     {"0f", 15, true},
     {" 45", 0x45, false},
