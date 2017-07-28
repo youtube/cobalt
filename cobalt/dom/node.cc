@@ -885,14 +885,14 @@ void Node::ReplaceAll(const scoped_refptr<Node>& node) {
       GatherInclusiveAncestorsObservers();
   if (!observers->empty()) {
     MutationReporter mutation_reporter(this, observers.Pass());
-    scoped_refptr<dom::NodeList> added_nodes = new dom::NodeList();
+    scoped_refptr<dom::NodeList> new_added_nodes = new dom::NodeList();
     if (node) {
-      added_nodes->AppendNode(node);
+      new_added_nodes->AppendNode(node);
     }
-    if (added_nodes->length() > 0 || removed_nodes->length() > 0) {
-      mutation_reporter.ReportChildListMutation(
-          added_nodes, removed_nodes, NULL /* previous_sibling */,
-          NULL /* next_sibling */);
+    if (new_added_nodes->length() > 0 || removed_nodes->length() > 0) {
+      mutation_reporter.ReportChildListMutation(new_added_nodes, removed_nodes,
+                                                NULL /* previous_sibling */,
+                                                NULL /* next_sibling */);
     }
   }
 }

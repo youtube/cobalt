@@ -328,7 +328,7 @@ TYPED_TEST(LargeIntegerTypeBindingsTest, ReturnValueRange) {
   if (TypeParam::min_value() < 0) {
     expected_result = StringPrintf("-%" PRIu64 "", kRangeBound);
     EXPECT_CALL(this->test_mock(), MockReturnValueOperation())
-        .WillOnce(Return(-kRangeBound));
+        .WillOnce(Return(-static_cast<int64_t>(kRangeBound)));
     EXPECT_TRUE(this->EvaluateScript(script, &result));
     EXPECT_STREQ(expected_result.c_str(), result.c_str());
   }
