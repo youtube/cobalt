@@ -450,6 +450,42 @@ TEST_F(DerivedGetterSetterBindingsTest, NamedSetterDoesNotShadowProperties) {
   EXPECT_STREQ("true", result.c_str());
 }
 
+TEST_F(DerivedGetterSetterBindingsTest,
+       GetterCanHandleAllJavaScriptValueTypes) {
+  const char* script = R"EOF(
+      const getter = Object.getOwnPropertyDescriptor(
+          ArbitraryInterface.prototype, "arbitraryProperty").get;
+      [null, undefined, false, 0, "", {}, Symbol("")]
+        .map(value => {
+          try { getter.call(value); }
+          catch (ex) { return ex.toString().startsWith("TypeError"); }
+          return false;
+        })
+        .every(result => result);
+  )EOF";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
+TEST_F(DerivedGetterSetterBindingsTest,
+       SetterCanHandleAllJavaScriptValueTypes) {
+  const char* script = R"EOF(
+      const setter = Object.getOwnPropertyDescriptor(
+          ArbitraryInterface.prototype, "arbitraryProperty").set;
+      [null, undefined, false, 0, "", {}, Symbol("")]
+        .map(value => {
+          try { setter.call(value); }
+          catch (ex) { return ex.toString().startsWith("TypeError"); }
+          return false;
+        })
+        .every(result => result);
+  )EOF";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
