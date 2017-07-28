@@ -124,6 +124,11 @@ bool get_INTEGER_CONSTANT(
   COMPILE_ASSERT(ConstantsInterface::kIntegerConstant == 5,
                  ValueForConstantsInterface_kIntegerConstantDoesNotMatchIDL);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
@@ -140,6 +145,11 @@ bool get_DOUBLE_CONSTANT(
       "The value for ConstantsInterface::kDoubleConstant does not match "
       "the value in the interface definition.";
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
