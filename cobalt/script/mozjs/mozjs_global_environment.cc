@@ -268,15 +268,21 @@ bool MozjsGlobalEnvironment::EvaluateScriptInternal(
   size_t length = script.size();
   jschar* inflated_buffer =
       js::InflateUTF8String(context_, script.c_str(), &length);
-  bool success = false;
-  if (inflated_buffer) {
-    success = JS_EvaluateUCScript(context_, global_object, inflated_buffer,
-                                  length, location.file_path.c_str(),
-                                  location.line_number, out_result.address());
-    js_free(inflated_buffer);
-  } else {
+
+  if (!inflated_buffer) {
     DLOG(ERROR) << "Malformed UTF-8 script.";
+    return false;
   }
+
+  JS::CompileOptions options(context_);
+  options.setFileAndLine(location.file_path.c_str(), location.line_number);
+  bool success = JS_EvaluateUCScript(
+      context_, global_object, inflated_buffer, length,
+      location.file_path.c_str(), location.line_number, out_result.address());
+  if (!success && context_->isExceptionPending()) {
+    JS_ReportPendingException(context_);
+  }
+  js_free(inflated_buffer);
 
   return success;
 }
