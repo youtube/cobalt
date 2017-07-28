@@ -25,6 +25,7 @@
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_blur.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_blur_rrects.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_include.glsl',
+      '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_rrect.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/fragment_color_texcoord.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/vertex_texcoord.glsl',
       '<(DEPTH)/cobalt/renderer/rasterizer/egl/shaders/vertex_color.glsl',
