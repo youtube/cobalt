@@ -31,6 +31,8 @@
     'src/ports/SkFontStyleSet_cobalt.h',
     'src/ports/SkFontUtil_cobalt.cc',
     'src/ports/SkFontUtil_cobalt.h',
+    'src/ports/SkFreeType_cobalt.cc',
+    'src/ports/SkFreeType_cobalt.h',
     'src/ports/SkOSFile_cobalt.cc',
     'src/ports/SkStream_cobalt.cc',
     'src/ports/SkStream_cobalt.h',
