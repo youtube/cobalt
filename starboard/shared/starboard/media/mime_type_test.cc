@@ -198,8 +198,8 @@ TEST(MimeTypeTest, GetParamIntValueWithIndex) {
 
 TEST(MimeTypeTest, GetParamFloatValueWithIndex) {
   MimeType mime_type("video/mp4; name0=123; name1=123.4");
-  EXPECT_FLOAT_EQ(123., mime_type.GetParamFloatValue(0));
-  EXPECT_FLOAT_EQ(123.4, mime_type.GetParamFloatValue(1));
+  EXPECT_FLOAT_EQ(123.f, mime_type.GetParamFloatValue(0));
+  EXPECT_FLOAT_EQ(123.4f, mime_type.GetParamFloatValue(1));
 }
 
 TEST(MimeTypeTest, GetParamStringValueWithIndex) {
