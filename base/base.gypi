@@ -329,9 +329,6 @@
         'include_dirs': [
           '<(DEPTH)',
         ],
-        'msvs_disabled_warnings': [
-          4018,
-        ],
       }],
     ],
   },

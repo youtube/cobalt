@@ -48,6 +48,7 @@
 
 #include <google/protobuf/stubs/stl_util.h>
 
+#if !defined(STARBOARD)
 #ifdef _WIN32
 // MSVC has only _snprintf, not snprintf.
 //
@@ -60,7 +61,8 @@
 // occurs with some input values, not all.  In any case, _snprintf does the
 // right thing, so we use it.
 #define snprintf _snprintf
-#endif
+#endif  // _WIN32
+#endif  // !defined(STARBOARD)
 
 namespace google {
 namespace protobuf {
