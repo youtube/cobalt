@@ -26,6 +26,13 @@ namespace player {
 
 namespace {
 
+// 8 ms is enough to ensure that DoWritePendingSamples() is called twice for
+// every frame in HFR.
+// TODO: Reduce this as there should be enough frames caches in the renderers.
+//       Also this should be configurable for platforms with very limited video
+//       backlogs.
+const SbTimeMonotonic kWritePendingSampleDelay = 8 * kSbTimeMillisecond;
+
 struct ThreadParam {
   explicit ThreadParam(PlayerWorker* player_worker)
       : condition_variable(mutex), player_worker(player_worker) {}
@@ -190,7 +197,8 @@ void PlayerWorker::DoWriteSample(InputBuffer input_buffer) {
     if (!write_pending_sample_closure_.is_valid()) {
       write_pending_sample_closure_ =
           Bind(&PlayerWorker::DoWritePendingSamples, this);
-      job_queue_->Schedule(write_pending_sample_closure_);
+      job_queue_->Schedule(write_pending_sample_closure_,
+                           kWritePendingSampleDelay);
     }
   }
 }
