@@ -12,11 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
-#define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
+#ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RRECT_COLOR_TEXTURE_H_
+#define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RRECT_COLOR_TEXTURE_H_
 
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
 
@@ -25,14 +26,16 @@ namespace renderer {
 namespace rasterizer {
 namespace egl {
 
-// Handles drawing a textured rectangle.
-class DrawRectTexture : public DrawObject {
+// Handles drawing a textured rounded rectangle modulated by a given color.
+class DrawRRectColorTexture : public DrawObject {
  public:
-  DrawRectTexture(GraphicsState* graphics_state,
-                  const BaseState& base_state,
-                  const math::RectF& rect,
-                  const backend::TextureEGL* texture,
-                  const math::Matrix3F& texcoord_transform);
+  DrawRRectColorTexture(GraphicsState* graphics_state,
+                        const BaseState& base_state,
+                        const math::RectF& rect,
+                        const render_tree::ColorRGBA& color,
+                        const backend::TextureEGL* texture,
+                        const math::Matrix3F& texcoord_transform,
+                        bool clamp_texcoords);
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
@@ -43,9 +46,12 @@ class DrawRectTexture : public DrawObject {
  private:
   math::Matrix3F texcoord_transform_;
   math::RectF rect_;
+  render_tree::ColorRGBA color_;
   const backend::TextureEGL* texture_;
 
   uint8_t* vertex_buffer_;
+  float texcoord_clamp_[4];   // texcoord clamping (min u, min v, max u, max v)
+  bool clamp_texcoords_;
   bool tile_texture_;
 };
 
@@ -54,4 +60,4 @@ class DrawRectTexture : public DrawObject {
 }  // namespace renderer
 }  // namespace cobalt
 
-#endif  // COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
+#endif  // COBALT_RENDERER_RASTERIZER_EGL_DRAW_RRECT_COLOR_TEXTURE_H_
