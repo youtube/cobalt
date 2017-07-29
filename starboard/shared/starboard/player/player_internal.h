@@ -39,8 +39,8 @@ struct SbPlayerPrivate
 
   void Seek(SbMediaTime seek_to_pts, int ticket);
   void WriteSample(SbMediaType sample_type,
-                   const void** sample_buffers,
-                   int* sample_buffer_sizes,
+                   const void* const* sample_buffers,
+                   const int* sample_buffer_sizes,
                    int number_of_sample_buffers,
                    SbMediaTime sample_pts,
                    const SbMediaVideoSampleInfo* video_sample_info,
