@@ -161,6 +161,14 @@
              'EnableCOMDATFolding' : '2',  # OPT:ICF
            },
          },
+         'msvs_disabled_warnings': [
+           # Unreferenced argument.
+           # Often variables are only referenced in DCHECKs.
+           4100,
+           # Unreferenced variable.
+           # Often variables are only referenced in DCHECKs.
+           4189,
+         ],
        },
        'msvs_gold': {
          'inherit_from': ['gold_base', 'msvs_base'],
@@ -177,6 +185,14 @@
              'EnableCOMDATFolding' : '2',  # OPT:ICF
            },
          },
+         'msvs_disabled_warnings': [
+           # Unreferenced argument.
+           # Often variables are only referenced in DCHECKs.
+           4100,
+           # Unreferenced variable.
+           # Often variables are only referenced in DCHECKs.
+           4189,
+         ],
        },
     },
     'defines': [
