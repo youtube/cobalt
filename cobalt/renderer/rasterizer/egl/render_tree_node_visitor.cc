@@ -35,6 +35,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rrect_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
 
@@ -70,6 +71,42 @@ math::Matrix3F GetTexcoordTransform(
       target.region.width() * scale_x, 0, target.region.x() * scale_x,
       0, target.region.height() * scale_y, 1.0f + target.region.y() * scale_y,
       0, 0, 1);
+}
+
+bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
+  skia::Image* skia_image = base::polymorphic_downcast<skia::Image*>(
+      image_node->data().source.get());
+  if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>() &&
+      skia_image->CanRenderInSkia()) {
+    return true;
+  }
+  return false;
+}
+
+bool RoundedViewportSupportedForSource(render_tree::Node* source) {
+  base::TypeId source_type = source->GetTypeId();
+  if (source_type == base::GetTypeId<render_tree::ImageNode>()) {
+    render_tree::ImageNode* image_node =
+        base::polymorphic_downcast<render_tree::ImageNode*>(source);
+    return ImageNodeSupportedNatively(image_node);
+  } else if (source_type == base::GetTypeId<render_tree::CompositionNode>()) {
+    // If this is a composition of valid sources, then rendering with a rounded
+    // viewport is also supported.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+
+    for (Children::const_iterator iter = children.begin();
+         iter != children.end(); ++iter) {
+      if (!RoundedViewportSupportedForSource(iter->get())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
 }
 
 // Return the error value of a given offscreen taget cache entry.
@@ -133,12 +170,14 @@ void RenderTreeNodeVisitor::Visit(
   math::Matrix3F old_transform = draw_state_.transform;
   draw_state_.transform = draw_state_.transform *
       math::TranslateMatrix(data.offset().x(), data.offset().y());
+  draw_state_.rounded_scissor_rect.Offset(-data.offset());
   const render_tree::CompositionNode::Children& children =
       data.children();
   for (render_tree::CompositionNode::Children::const_iterator iter =
        children.begin(); iter != children.end(); ++iter) {
     (*iter)->Accept(this);
   }
+  draw_state_.rounded_scissor_rect.Offset(data.offset());
   draw_state_.transform = old_transform;
 }
 
@@ -164,16 +203,30 @@ void RenderTreeNodeVisitor::Visit(
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   const render_tree::FilterNode::Builder& data = filter_node->data();
 
-  // If this is only a viewport filter w/o rounded edges, and the current
-  // transform matrix keeps the filter as an orthogonal rect, then collapse
-  // the node.
+  // Handle viewport-only filter.
   if (data.viewport_filter &&
-      !data.viewport_filter->has_rounded_corners() &&
       !data.opacity_filter &&
       !data.blur_filter &&
       !data.map_to_mesh_filter) {
     const math::Matrix3F& transform = draw_state_.transform;
-    if (IsOnlyScaleAndTranslate(transform)) {
+    if (data.viewport_filter->has_rounded_corners()) {
+      // Certain source nodes have an optimized path for rendering inside
+      // rounded viewports.
+      if (RoundedViewportSupportedForSource(data.source)) {
+        DCHECK(!draw_state_.rounded_scissor_corners);
+        draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
+        draw_state_.rounded_scissor_corners =
+            data.viewport_filter->rounded_corners();
+        draw_state_.rounded_scissor_corners->Normalize(
+            draw_state_.rounded_scissor_rect);
+        data.source->Accept(this);
+        draw_state_.rounded_scissor_corners = base::nullopt;
+        return;
+      }
+    } else if (IsOnlyScaleAndTranslate(transform)) {
+      // Orthogonal viewport filters without rounded corners can be collapsed
+      // into the world-space scissor.
+
       // Transform local viewport to world viewport.
       const math::RectF& filter_viewport = data.viewport_filter->viewport();
       math::RectF transformed_viewport(
@@ -288,6 +341,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     return;
   }
 
+  if (!ImageNodeSupportedNatively(image_node)) {
+    FallbackRasterize(image_node);
+    return;
+  }
+
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
   bool clamp_texcoords = false;
@@ -333,7 +391,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
       return;
     }
 
-    if (clamp_texcoords || !is_opaque) {
+    if (draw_state_.rounded_scissor_corners) {
+      // Transparency is used to anti-alias the rounded rect.
+      is_opaque = false;
+      draw.reset(new DrawRRectColorTexture(graphics_state_, draw_state_,
+          data.destination_rect, kOpaqueWhite,
+          hardware_image->GetTextureEGL(), texcoord_transform,
+          clamp_texcoords));
+    } else if (clamp_texcoords || !is_opaque) {
       draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
           data.destination_rect, kOpaqueWhite,
           hardware_image->GetTextureEGL(), texcoord_transform,

@@ -59,6 +59,8 @@
         'draw_rect_texture.cc',
         'draw_rrect_color.h',
         'draw_rrect_color.cc',
+        'draw_rrect_color_texture.h',
+        'draw_rrect_color_texture.cc',
         'graphics_state.h',
         'graphics_state.cc',
         'hardware_rasterizer.cc',
