@@ -1890,6 +1890,18 @@ TEST_F(PixelTest, LargeEllipticalViewportOverImage) {
       new ImageNode(image)));
 }
 
+TEST_F(PixelTest, EllipticalViewportOverCompositionOfImages) {
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
+
+  CompositionNode::Builder builder(Vector2dF(25, 50));
+  builder.AddChild(new ImageNode(image, RectF(0, 0, 75, 50)));
+  builder.AddChild(new ImageNode(image, RectF(75, 50, 75, 50)));
+  TestTree(new FilterNode(
+      ViewportFilter(RectF(25, 50, 150, 100), RoundedCorners(75, 50)),
+      new CompositionNode(builder.Pass())));
+}
+
 TEST_F(PixelTest, EllipticalViewportOverWrappingImage) {
   scoped_refptr<Image> image =
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());

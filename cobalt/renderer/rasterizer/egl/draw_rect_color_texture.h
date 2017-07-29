@@ -15,7 +15,6 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_COLOR_TEXTURE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_COLOR_TEXTURE_H_
 
-#include "base/callback.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
@@ -49,8 +48,6 @@ class DrawRectColorTexture : public DrawObject {
   math::RectF rect_;
   uint32_t color_;
   const backend::TextureEGL* texture_;
-  base::Closure draw_offscreen_;
-  base::Closure draw_onscreen_;
 
   uint8_t* vertex_buffer_;
   float texcoord_clamp_[4];   // texcoord clamping (min u, min v, max u, max v)
