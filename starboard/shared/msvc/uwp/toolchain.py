@@ -14,9 +14,9 @@ sys.path.append(os.path.join(_COBALT_SRC, 'starboard', 'tools'))
 
 import gyp.MSVSVersion  # pylint: disable=g-import-not-at-top
 # This tool_chain is starboard/build/toolchain.py
-from starboard.tools.toolchain import CompilerSettings
-from starboard.tools.toolchain import PrecompiledHeader
-from starboard.tools.toolchain import Toolchain
+from starboard.tools.toolchain_deprecated import CompilerSettings
+from starboard.tools.toolchain_deprecated import PrecompiledHeader
+from starboard.tools.toolchain_deprecated import Toolchain
 
 def _LanguageMatchesForPch(source_ext, pch_source_ext):
   c_exts = ('.c',)
