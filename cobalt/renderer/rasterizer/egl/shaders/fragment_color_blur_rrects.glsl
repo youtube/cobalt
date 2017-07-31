@@ -41,40 +41,7 @@ uniform vec2 u_sigma_tweak;
 varying vec2 v_offset;
 varying vec4 v_color;
 
-// Return 0 if the current point is inside the rounded rect, or scale towards 1
-// as it goes outside a 1-pixel anti-aliasing border.
-float GetRRectScale(vec4 rect, mat4 corners) {
-  vec4 select_corner = vec4(
-      step(v_offset.x, corners[0].x) * step(v_offset.y, corners[0].y),
-      step(corners[1].x, v_offset.x) * step(v_offset.y, corners[1].y),
-      step(v_offset.x, corners[2].x) * step(corners[2].y, v_offset.y),
-      step(corners[3].x, v_offset.x) * step(corners[3].y, v_offset.y));
-  if (dot(select_corner, vec4(1.0)) > 0.5) {
-    // Estimate the amount of anti-aliasing that should be used by comparing
-    // x^2 / a^2 + y^2 / b^2 for the ellipse and ellipse + 1 pixel.
-    vec4 corner = corners * select_corner;
-    vec2 pixel_offset = v_offset - corner.xy;
-
-    if (corner.z * corner.w < 0.1) {
-      // This is a square corner.
-      return min(length(pixel_offset), 1.0);
-    }
-
-    vec2 offset_min = pixel_offset / corner.zw;
-    vec2 offset_max = pixel_offset / (corner.zw + vec2(1.0));
-    float result_min = dot(offset_min, offset_min);
-    float result_max = dot(offset_max, offset_max);
-
-    // Return 1.0 if outside, or interpolate if in the border, or 0 if inside.
-    return (result_max >= 1.0) ? 1.0 :
-        max(result_min - 1.0, 0.0) / (result_min - result_max);
-  }
-
-  return clamp(rect.x - v_offset.x, 0.0, 1.0) +
-         clamp(v_offset.x - rect.z, 0.0, 1.0) +
-         clamp(rect.y - v_offset.y, 0.0, 1.0) +
-         clamp(v_offset.y - rect.w, 0.0, 1.0);
-}
+#include "function_is_outside_rrect.inc"
 
 // Calculate the distance from a point in the first quadrant to an ellipse
 // centered at the origin.
@@ -161,8 +128,9 @@ vec2 GetBlurPosition(vec4 rect, mat4 corners) {
 }
 
 void main() {
-  float scissor_scale = GetRRectScale(u_scissor_rect, u_scissor_corners) *
-                        u_scale_add.x + u_scale_add.y;
+  float scissor_scale =
+      IsOutsideRRect(v_offset, u_scissor_rect, u_scissor_corners) *
+      u_scale_add.x + u_scale_add.y;
 
   vec2 pos = GetBlurPosition(u_spread_rect, u_spread_corners) *
              u_sigma_scale + u_sigma_tweak;
