@@ -12,6 +12,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#####################################################################
+# If you modify this file, PLEASE REMEMBER TO UPDATE
+# //cobalt/build/config/base.gni or //starboard/build/config/base.gni
+# AS WELL
+#####################################################################
+
 # This file should be included in all .gyp files used by Cobalt. Normally,
 # this should be done automatically by gyp_cobalt.
 {
