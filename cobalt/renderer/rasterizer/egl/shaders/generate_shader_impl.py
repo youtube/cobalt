@@ -70,42 +70,57 @@ def GetShaderClassName(filename):
   return 'Shader' + class_name
 
 
-def GetDataDefinitionStringForFile(filename):
-  """Returns a string containing C++ array definition for file contents."""
-  with open(filename, 'rb') as f:
-    # Read the file contents.
-    file_contents = f.read()
+def ReadShaderFile(filename):
+  """Parse the given shader file. Handle #include and strip comments."""
+  path_dir = os.path.dirname(filename)
 
-    # Strip comments and blank lines.
+  def HandleInclude(line):
+    # Handle #include directive if the given line specifies it.
+    if line.startswith('#include "') and line.endswith('"'):
+      include_filename = line[10:-1]
+      return ReadShaderFile(os.path.join(path_dir, include_filename))
+    else:
+      return line
+
+  with open(filename, 'rb') as f:
+    # Read the file and strip comments.
+    file_contents = f.read()
     file_contents = re.sub(r'/\*.*?\*/', '', file_contents, flags=re.DOTALL)
     file_contents = re.sub(r'(\s)*//.*', '', file_contents)
-    file_contents = re.sub('(^|\\n)(\\s)*\\n', '\\1', file_contents)
 
-    # Remove any carriage returns (apitrace doesn't handle shader sources with
-    # that character very well), and add a null terminator at the end.
-    file_contents = file_contents.replace('\r', '') + '\0'
+    # Parse #include directives. This must be done after stripping comments as
+    # it's possible to have multi-line comments that encompass #includes.
+    lines = [HandleInclude(x) for x in file_contents.splitlines()]
 
-    def GetChunk(contents, chunk_size):
-      # Yield successive |chunk_size|-sized chunks from |contents|.
-      for i in xrange(0, len(contents), chunk_size):
-        yield contents[i:i + chunk_size]
+    # Join non-empty lines.
+    return '\n'.join(filter(None, lines))
 
-    # Break up the data into chunk sizes such that the produced output lines
-    # representing the data in the .h file are less than 80 characters long.
-    length_of_output_byte_string = 6
-    max_characters_per_line = 80
-    chunk_size = max_characters_per_line / length_of_output_byte_string
 
-    # Convert each byte to ASCII hexadecimal form and output that to the C++
-    # header file, line-by-line.
-    data_definition_string = '{\n'
-    for output_line_data in GetChunk(file_contents, chunk_size):
-      data_definition_string += (
-          '  ' +
-          ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) +
-          '\n')
-    data_definition_string += '};\n'
-    return data_definition_string
+def GetDataDefinitionStringForFile(filename):
+  """Returns a string containing C++ array definition for file contents."""
+  file_contents = ReadShaderFile(filename) + '\0'
+
+  def GetChunk(contents, chunk_size):
+    # Yield successive |chunk_size|-sized chunks from |contents|.
+    for i in xrange(0, len(contents), chunk_size):
+      yield contents[i:i + chunk_size]
+
+  # Break up the data into chunk sizes such that the produced output lines
+  # representing the data in the .h file are less than 80 characters long.
+  length_of_output_byte_string = 6
+  max_characters_per_line = 80
+  chunk_size = max_characters_per_line / length_of_output_byte_string
+
+  # Convert each byte to ASCII hexadecimal form and output that to the C++
+  # header file, line-by-line.
+  data_definition_string = '{\n'
+  for output_line_data in GetChunk(file_contents, chunk_size):
+    data_definition_string += (
+        '  ' +
+        ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) +
+        '\n')
+  data_definition_string += '};\n'
+  return data_definition_string
 
 
 def GetShaderSourceDefinitions(files):
@@ -352,9 +367,11 @@ def GenerateHeaderFile(output_filename, all_shaders):
 def main(output_header_filename, output_source_filename, shader_files_file):
   all_shader_files = []
   with open(shader_files_file, 'r') as input_file:
-    shader_files = input_file.readlines()
+    shader_files = input_file.read().splitlines()
     for filename in shader_files:
-      all_shader_files.append(filename.strip())
+      # Ignore *.inc files. These are include files and not shader files.
+      if not filename.lower().endswith('.inc'):
+        all_shader_files.append(filename)
 
   GenerateSourceFile(output_source_filename, output_header_filename,
                      all_shader_files)
