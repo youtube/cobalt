@@ -136,7 +136,9 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
-    total_buffer_size_ += buffer->data_size();
+    if (!buffer->end_of_stream()) {
+      total_buffer_size_ += buffer->data_size();
+    }
   }
 }
 
