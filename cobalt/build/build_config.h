@@ -15,6 +15,14 @@
 #ifndef COBALT_BUILD_BUILD_CONFIG_H_
 #define COBALT_BUILD_BUILD_CONFIG_H_
 
+#if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
+#error cobalt_media_buffer_initial_capacity has to be greater than or equal to 0
+#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY < 0
+
+#if COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
+#error cobalt_media_buffer_allocation_unit has to be greater than or equal to 0
+#endif  // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT < 0
+
 #if COBALT_MEDIA_BUFFER_ALIGNMENT < 0
 #error "cobalt_media_buffer_alignment has to be greater than or equal to 0."
 #endif  // COBALT_MEDIA_BUFFER_ALIGNMENT < 0
