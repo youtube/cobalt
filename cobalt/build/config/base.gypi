@@ -472,6 +472,16 @@
     # value is "file" the media stack will still allocate memory to cache the
     # the buffers in use.
     'cobalt_media_buffer_storage_type%': 'memory',
+    # When either |cobalt_media_buffer_initial_capacity| or
+    # |cobalt_media_buffer_allocation_unit| isn't zero, media buffers will be
+    # allocated using a memory pool.  Set the following variable to 1 to
+    # allocate the media buffer pool memory on demand and return all memory to
+    # the system when there is no media buffer allocated.  Setting the following
+    # value to 0 results in that Cobalt will allocate
+    # |cobalt_media_buffer_initial_capacity| bytes for media buffer on startup
+    # and will not release any media buffer memory back to the system even if
+    # there is no media buffers allocated.
+    'cobalt_media_buffer_pool_allocate_on_demand%': 1,
     # The amount of memory that will be used to store media buffers allocated
     # during system startup.  To allocate a large chunk at startup helps with
     # reducing fragmentation and can avoid failures to allocate incrementally.
@@ -539,6 +549,7 @@
     },
     'defines': [
       'COBALT',
+      'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
       'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
       'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
       'COBALT_MEDIA_BUFFER_ALIGNMENT=<(cobalt_media_buffer_alignment)',
