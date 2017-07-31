@@ -16,14 +16,19 @@
 #define COBALT_DOM_EME_MEDIA_KEY_SESSION_H_
 
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/dom/buffer_source.h"
+#include "cobalt/dom/eme/media_key_status.h"
+#include "cobalt/dom/eme/media_key_status_map.h"
+#include "cobalt/dom/event_queue.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/media/base/drm_system.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
+#include "starboard/drm.h"
 
 namespace cobalt {
 namespace dom {
@@ -47,6 +52,9 @@ class MediaKeySession : public EventTarget {
   // Web IDL: MediaKeySession.
   std::string session_id() const;
   const VoidPromiseValue* closed() const;
+  const scoped_refptr<MediaKeyStatusMap>& key_statuses() const;
+  const EventListenerScriptValue* onkeystatuseschange() const;
+  void set_onkeystatuseschange(const EventListenerScriptValue& event_listener);
   const EventListenerScriptValue* onmessage() const;
   void set_onmessage(const EventListenerScriptValue& event_listener);
   scoped_ptr<VoidPromiseValue> GenerateRequest(
@@ -66,7 +74,12 @@ class MediaKeySession : public EventTarget {
       VoidPromiseValue::Reference* promise_reference);
   void OnSessionUpdated(VoidPromiseValue::Reference* promise_reference);
   void OnSessionDidNotUpdate(VoidPromiseValue::Reference* promise_reference);
+  void OnSessionUpdateKeyStatuses(
+      const std::vector<std::string>& key_ids,
+      const std::vector<SbDrmKeyStatus>& key_statuses);
   void OnClosed();
+
+  EventQueue event_queue_;
 
   // Although it doesn't make much sense, it's possible to call session methods
   // when |MediaKeys| are destroyed. This behavior is underspecified but is
@@ -77,6 +90,7 @@ class MediaKeySession : public EventTarget {
   script::ScriptValueFactory* const script_value_factory_;
   bool uninitialized_;
   bool callable_;
+  scoped_refptr<MediaKeyStatusMap> key_status_map_;
 
   // TODO: Remove |closed_callback_| and change call sites to use closed()
   //       promise instead, once Cobalt switches to native SpiderMonkey
