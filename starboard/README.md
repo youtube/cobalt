@@ -5,6 +5,15 @@ all the platform-specific functionality that Cobalt actually uses, and nothing
 that it does not.
 
 
+## GN Migration Notice
+
+Cobalt and Starboard are currently migrating from the GYP build system to the GN
+build system. This readme contains instructions for both systems. As of now, GN
+is not ready for general use for Cobalt/Starboard. If you are not a core Cobalt
+developer, you should probably ignore the sections titled "GN Instructions" for
+now.
+
+
 ## Interesting Source Locations
 
 All source locations are specified relative to `src/starboard/` (this directory).
@@ -21,17 +30,6 @@ All source locations are specified relative to `src/starboard/` (this directory)
   * `shared/` - The home of all code that can be shared between Starboard
     implementations. Subdirectories delimit code that can be shared between
     platforms that share some facet of their OS API.
-
-
-## Building with Starboard
-
-Follow the Cobalt instructions, except when invoking gyp:
-
-    $ cobalt/build/gyp_cobalt -C debug linux-x64x11
-
-and when invoking ninja:
-
-    $ ninja -C out/linux-x64x11_debug cobalt
 
 
 ## Quick Guide to Starting a Port
@@ -113,6 +111,31 @@ In the BobCo's BobBox example, we would see something like:
 
 And so on.
 
+#### GN Instructions
+
+Each `<binary-variant>/` directory must have at least `configuration_public.h`,
+`atomic_public.h`, `thread_types_public.h`, `BUILD.gn`, `configuration.gni`,
+and `buildconfig.gni`.
+
+In the BobCo's BobBox example, we would see a directory tree like:
+
+  * `src/third_party/starboard/bobbox/`
+      * `shared/`
+      * `mipseb/`
+          * `buildconfig.gni`
+          * `configuration.gni`
+          * `atomic_public.h`
+          * `BUILD.gn`
+          * `configuration_public.h`
+          * `thread_types_public.h`
+      * `mipsel/`
+          * `buildconfig.gni`
+          * `configuration.gni`
+          * `atomic_public.h`
+          * `BUILD.gn`
+          * `configuration_public.h`
+          * `thread_types_public.h`
+
 
 ### III. Base Your Port on a Reference Port
 
@@ -160,6 +183,26 @@ files, and then calculate a port name based on the directories between
 `src/third_party/starboard/bobbox/mipseb/gyp_configuration.py`, it would choose
 the platform configuration name `bobbox-mipseb`.)
 
+#### GN Instructions
+
+Update `<binary-variant>/BUILD.gn` to point at all the source files that you
+want to build as your new Starboard implementation. The `//` expression in GN
+refers to the `src/` directory of your source tree. Otherwise, files are assumed
+to be relative to the directory the `BUILD.gn` or `.gni` file is in. The
+`BUILD.gn` file contains absolute paths, so the paths will still be valid if you
+copy it to a new directory. You can then incrementally replace files with new
+implementations as necessary.
+
+In order to use a new platform configuration in a build, you need to ensure that
+you have a `BUILD.gn`, `configuration.gni`, and `buildconfig.gni` in their
+own directory for each binary variant, plus the header files
+`configuration_public.h`, `atomic_public.h`, and `thread_types_public.h`. The GN
+build will scan your directories for these files, and then calculate a port name
+based on the directories between `src/third_party/starboard` and your
+`configuration.gni` files. (e.g. for
+`src/third_party/starboard/bobbox/mipseb/configuration.gni`, it would choose the
+platform configuration name `bobbox-mipseb`.)
+
 
 ### IV. A New Port, Step-by-Step
 
@@ -179,7 +222,7 @@ the platform configuration name `bobbox-mipseb`.)
          toolchain analogs for the toolchain for your platform.
   1. In `gyp_configuration.gypi`
       1. Update the names of the configurations and the default_configuration to
-         be `<platform-configuation>_<build-type>` for your platform
+         be `<platform-configuration>_<build-type>` for your platform
          configuration name, where `<build-type>` is one of `debug`, `devel`,
          `qa`, `gold`.
       1. Update your platform variables.
@@ -208,6 +251,46 @@ the platform configuration name `bobbox-mipseb`.)
 You should now be able to run gyp with your new port. From your `src/` directory:
 
     $ cobalt/build/gyp_cobalt -C debug bobbox-mipseb
+    $ ninja -C out/bobbox-mipseb_debug nplb
+
+This will attempt to build the "No Platform Left Behind" test suite with your
+new Starboard implementation, and you are ready to start porting!
+
+#### GN Instructions
+
+Follow the above list, except:
+
+  1. Ignore the steps about `gyp_configuration.py` and `gyp_configuration.gypi`.
+  1. Update `BUILD.gn` instead of `starboard_platform.gyp`.
+  1. Also in `BUILD.gn`:
+      1. Update your toolchain command-line flags and libraries, for all
+         configurations as well as for each individual configuration.
+      1. Implement generic compiler configs such as `sb_pedantic_warnings`
+         and `rtti`.
+      1. If you're not using a predefined toolchain, define one.
+  1. In `buildconfig.gni`:
+      1. If your platform is Linux-based, set `target_os_ = "linux"`.
+      1. Set `target_cpu_` to your target architecture (e.g. `arm`, `ppc`,
+         `x64`, `x86`, `mips`).
+      1. Set the target and host toolchains. If you defined a target
+         toolchain in `BUILD.gn`, you'll want to set it to that.
+  1. In `configuration.gni`, set platform-specific defaults for any
+     variables that should be overriden for your Starboard platform.  You
+     can find a list of such variables at `//cobalt/build/config/base.gni`
+     and `//starboard/build/config/base.gni`.
+
+
+You should now be able to run GN with your new port. From your `src/` directory:
+
+    $ gn args out/bobbox-mipseb_debug
+
+An editor will open up. Type into the editor:
+
+    cobalt_config = "debug"
+    target_platform = "bobbox-mipseb"
+
+Save and close the editor. Then run
+
     $ ninja -C out/bobbox-mipseb_debug nplb
 
 This will attempt to build the "No Platform Left Behind" test suite with your
