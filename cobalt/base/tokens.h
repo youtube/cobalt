@@ -64,6 +64,7 @@ namespace base {
     MacroOpWithNameOnly(hashchange)                                  \
     MacroOpWithNameOnly(keydown)                                     \
     MacroOpWithNameOnly(keypress)                                    \
+    MacroOpWithNameOnly(keystatuseschange)                           \
     MacroOpWithNameOnly(keyup)                                       \
     MacroOpWithNameOnly(load)                                        \
     MacroOpWithNameOnly(loadeddata)                                  \
