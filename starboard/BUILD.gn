@@ -21,7 +21,7 @@ group("all") {
     # "//starboard/client_porting/poem:all",
     # "//starboard/examples:all",
     # "//starboard/nplb/blitter_pixel_tests:all",
-    # "//starboard/nplb:all",
+    "//starboard/nplb:all",
     ":starboard",
   ]
 
