@@ -27,7 +27,6 @@
         'gtest/include/gtest/internal/gtest-string.h',
         'gtest/include/gtest/internal/gtest-tuple.h',
         'gtest/include/gtest/internal/gtest-type-util.h',
-        'gtest/src/gtest-all.cc',
         'gtest/src/gtest-death-test.cc',
         'gtest/src/gtest-filepath.cc',
         'gtest/src/gtest-internal-inl.h',
@@ -39,9 +38,6 @@
         'multiprocess_func_list.cc',
         'multiprocess_func_list.h',
         'platform_test.h',
-      ],
-      'sources!': [
-        'gtest/src/gtest-all.cc',  # Not needed by our build.
       ],
       'include_dirs': [
         'gtest',
