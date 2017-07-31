@@ -2,6 +2,12 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+#####################################################################
+# If you modify this file, PLEASE REMEMBER TO UPDATE
+# //cobalt/build/config/base.gni or //starboard/build/config/base.gni
+# AS WELL
+#####################################################################
+
 # IMPORTANT:
 # Please don't directly include this file if you are building via gyp_cobalt,
 # since gyp_cobalt is automatically forcing its inclusion.
