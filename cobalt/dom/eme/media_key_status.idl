@@ -12,24 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_BUFFER_SOURCE_H_
-#define COBALT_DOM_BUFFER_SOURCE_H_
+// https://www.w3.org/TR/encrypted-media/#idl-def-mediakeystatus
 
-#include "cobalt/script/union_type.h"
-
-namespace cobalt {
-namespace dom {
-
-class ArrayBuffer;
-class ArrayBufferView;
-
-typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
-                           scoped_refptr<ArrayBuffer> > BufferSource;
-
-void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
-                      int* buffer_size);
-
-}  // namespace dom
-}  // namespace cobalt
-
-#endif  // COBALT_DOM_BUFFER_SOURCE_H_
+enum MediaKeyStatus {
+  "usable",
+  "expired",
+  "released",
+  "output-restricted",
+  "output-downscaled",
+  "status-pending",
+  "internal-error"
+};

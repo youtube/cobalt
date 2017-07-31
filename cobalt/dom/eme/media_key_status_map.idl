@@ -12,24 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_DOM_BUFFER_SOURCE_H_
-#define COBALT_DOM_BUFFER_SOURCE_H_
+// https://www.w3.org/TR/encrypted-media/#mediakeystatusmap-interface
 
-#include "cobalt/script/union_type.h"
+[Conditional=COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE]
+interface MediaKeyStatusMap {
+  iterable<BufferSource, MediaKeyStatus>;
+  readonly attribute unsigned long size;
+  boolean has(BufferSource keyId);
+  any get(BufferSource keyId);
+  void forEach(ForEachCallback callback);
+};
 
-namespace cobalt {
-namespace dom {
-
-class ArrayBuffer;
-class ArrayBufferView;
-
-typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
-                           scoped_refptr<ArrayBuffer> > BufferSource;
-
-void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
-                      int* buffer_size);
-
-}  // namespace dom
-}  // namespace cobalt
-
-#endif  // COBALT_DOM_BUFFER_SOURCE_H_
+callback ForEachCallback = void (DOMString status, BufferSource key, MediaKeyStatusMap map);
