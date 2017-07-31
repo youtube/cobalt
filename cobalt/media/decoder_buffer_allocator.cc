@@ -40,79 +40,118 @@ bool IsLargeAllocation(std::size_t size) {
 }  // namespace
 
 DecoderBufferAllocator::DecoderBufferAllocator() {
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+#if COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
+  DLOG(INFO) << "Allocated media buffer pool on demand.";
+#else   // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
   TRACK_MEMORY_SCOPE("Media");
 
-  if (COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 ||
-      COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0) {
-    reuse_allcator_.set(starboard::make_scoped_ptr(new ReuseAllcator(
-        &fallback_allocator_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
-        COBALT_MEDIA_BUFFER_ALLOCATION_UNIT)));
-  }
+  reuse_allcator_.reset(new ReuseAllcator(&fallback_allocator_,
+                                          COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
+                                          COBALT_MEDIA_BUFFER_ALLOCATION_UNIT));
+  DLOG(INFO) << "Allocated " << COBALT_MEDIA_BUFFER_INITIAL_CAPACITY
+             << " bytes for media buffer pool as its initial buffer.";
+#endif  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
+#else   // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  DLOG(INFO) << "Allocated media buffer memory using SbMemory* functions.";
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
 DecoderBufferAllocator::~DecoderBufferAllocator() {
-  if (reuse_allcator_.is_valid()) {
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  TRACK_MEMORY_SCOPE("Media");
+
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  if (reuse_allcator_) {
     DCHECK_EQ(reuse_allcator_->GetAllocated(), 0);
+    reuse_allcator_.reset();
   }
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
 DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
     size_t size, size_t alignment, intptr_t context) {
   TRACK_MEMORY_SCOPE("Media");
 
-  if (reuse_allcator_.is_valid()) {
-    if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
-      void* p = reuse_allcator_->Allocate(size, alignment);
-      LOG_IF(INFO, kEnableAllocationLog)
-          << "======== Media Allocation Log " << p << " " << size << " "
-          << alignment << " " << context;
-      UpdateAllocationRecord();
-      return Allocations(p, size);
-    }
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  starboard::ScopedLock scoped_lock(mutex_);
 
-    std::size_t allocated_size = size;
+  if (!reuse_allcator_) {
+    reuse_allcator_.reset(new ReuseAllcator(
+        &fallback_allocator_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
+        COBALT_MEDIA_BUFFER_ALLOCATION_UNIT));
+    DLOG(INFO) << "Returned " << COBALT_MEDIA_BUFFER_INITIAL_CAPACITY
+               << " bytes from media buffer pool to system.";
+  }
+
+  if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
+    void* p = reuse_allcator_->Allocate(size, alignment);
+    LOG_IF(INFO, kEnableAllocationLog)
+        << "======== Media Allocation Log " << p << " " << size << " "
+        << alignment << " " << context;
+    UpdateAllocationRecord();
+    return Allocations(p, size);
+  }
+
+  std::size_t allocated_size = size;
+  void* p =
+      reuse_allcator_->AllocateBestBlock(alignment, context, &allocated_size);
+  DCHECK_LE(allocated_size, size);
+  if (allocated_size == size) {
+    UpdateAllocationRecord();
+    return Allocations(p, size);
+  }
+
+  std::vector<void*> buffers = {p};
+  std::vector<int> buffer_sizes = {static_cast<int>(allocated_size)};
+  size -= allocated_size;
+
+  while (size > 0) {
+    allocated_size = size;
     void* p =
         reuse_allcator_->AllocateBestBlock(alignment, context, &allocated_size);
     DCHECK_LE(allocated_size, size);
-    if (allocated_size == size) {
-      UpdateAllocationRecord();
-      return Allocations(p, size);
-    }
+    buffers.push_back(p);
+    buffer_sizes.push_back(allocated_size);
 
-    std::vector<void*> buffers = {p};
-    std::vector<int> buffer_sizes = {static_cast<int>(allocated_size)};
     size -= allocated_size;
-
-    while (size > 0) {
-      allocated_size = size;
-      void* p = reuse_allcator_->AllocateBestBlock(alignment, context,
-                                                   &allocated_size);
-      DCHECK_LE(allocated_size, size);
-      buffers.push_back(p);
-      buffer_sizes.push_back(allocated_size);
-
-      size -= allocated_size;
-    }
-    UpdateAllocationRecord(buffers.size());
-    return Allocations(static_cast<int>(buffers.size()), buffers.data(),
-                       buffer_sizes.data());
   }
-
+  UpdateAllocationRecord(buffers.size());
+  return Allocations(static_cast<int>(buffers.size()), buffers.data(),
+                     buffer_sizes.data());
+#else   // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   return Allocations(SbMemoryAllocateAligned(alignment, size), size);
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
 void DecoderBufferAllocator::Free(Allocations allocations) {
+  TRACK_MEMORY_SCOPE("Media");
+
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  starboard::ScopedLock scoped_lock(mutex_);
+
+  DCHECK(reuse_allcator_);
+
   if (kEnableAllocationLog) {
     DCHECK_EQ(allocations.number_of_buffers(), 1);
     LOG(INFO) << "======== Media Allocation Log " << allocations.buffers()[0];
   }
   for (int i = 0; i < allocations.number_of_buffers(); ++i) {
-    if (reuse_allcator_.is_valid()) {
-      reuse_allcator_->Free(allocations.buffers()[i]);
-    } else {
-      SbMemoryDeallocateAligned(allocations.buffers()[i]);
-    }
+    reuse_allcator_->Free(allocations.buffers()[i]);
   }
+#if COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
+  if (reuse_allcator_->GetAllocated() == 0) {
+    DLOG(INFO) << "Freed " << reuse_allcator_->GetCapacity()
+               << " bytes of media buffer pool `on demand`.";
+    reuse_allcator_.reset();
+  }
+#endif  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
+#else   // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  for (int i = 0; i < allocations.number_of_buffers(); ++i) {
+    SbMemoryDeallocateAligned(allocations.buffers()[i]);
+  }
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
 DecoderBufferAllocator::ReuseAllcator::ReuseAllcator(

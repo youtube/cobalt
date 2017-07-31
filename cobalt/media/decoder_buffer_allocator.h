@@ -19,10 +19,17 @@
 #include "cobalt/media/base/decoder_buffer.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
-#include "starboard/common/locked_ptr.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/mutex.h"
 
 namespace cobalt {
 namespace media {
+
+#if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 || \
+    COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0
+#define COBALT_MEDIA_BUFFER_USING_MEMORY_POOL 1
+#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY == 0 &&
+        // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT == 0
 
 class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
@@ -34,6 +41,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
   void Free(Allocations allocations) OVERRIDE;
 
  private:
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   class ReuseAllcator : public nb::BidirectionalFitReuseAllocator {
    public:
     ReuseAllcator(Allocator* fallback_allocator, std::size_t initial_capacity,
@@ -47,8 +55,10 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
 
   void UpdateAllocationRecord(std::size_t blocks = 1) const;
 
+  starboard::Mutex mutex_;
   nb::StarboardMemoryAllocator fallback_allocator_;
-  starboard::LockedPtr<ReuseAllcator> reuse_allcator_;
+  starboard::scoped_ptr<ReuseAllcator> reuse_allcator_;
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 };
 
 }  // namespace media
