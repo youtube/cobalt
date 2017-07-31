@@ -129,6 +129,7 @@
         '<(DEPTH)/testing/gtest.gyp:gtest',
         'loader',
         'loader_copy_test_data',
+        '<@(cobalt_platform_dependencies)',
       ],
     },
 
