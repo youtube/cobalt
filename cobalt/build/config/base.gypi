@@ -255,11 +255,9 @@
     # Temporary indicator for Tizen - should eventually move to feature defines.
     'tizen_os%': 0,
 
-    # URL of default build time splash screen:
-    # TODO: Point this to cobalt_splash_screen.html and override it in
-    # ports' gyp_configuration.gypi (coordinate transition with
-    # partners).
-    'fallback_splash_screen_url%': 'h5vcc-embedded://splash_screen.html',
+    # The URL of default build time splash screen - see
+    #   cobalt/doc/splash_screen.md for information about this.
+    'fallback_splash_screen_url%': 'h5vcc-embedded://youtube_splash_screen.html',
 
     # Cache parameters
 

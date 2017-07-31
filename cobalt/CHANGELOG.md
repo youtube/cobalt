@@ -3,6 +3,13 @@
 This document records all notable changes made to Cobalt since the last release.
 
 ## Version 11
+ - **Splash Screen Customization**
+
+   The Cobalt splash screen is customizable. Documents may use a link element
+   with attribute rel="splashscreen" to reference the splash screen which will
+   be cached if local cache is implemented on the platform. Additionally
+   fallbacks may be specified via command line parmeter or gypi variable.
+   For more information, see [doc/splash_screen.md](doc/splash_screen.md).
 
  - **Introduce C\+\+11**
 
