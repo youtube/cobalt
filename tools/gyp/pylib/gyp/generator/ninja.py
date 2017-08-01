@@ -408,11 +408,17 @@ class NinjaWriter:
     assert targets == filter(None, targets), targets
     if len(targets) == 0:
       return None
-    if len(targets) > 1:
-      stamp = self.GypPathToUniqueOutput(name + '.stamp')
-      targets = self.ninja.build(stamp, 'stamp', targets)
-      self.ninja.newline()
-    return targets[0]
+    if len(targets) == 1:
+      return targets[0]
+
+    stamp = self.GypPathToUniqueOutput(name + '.stamp')
+    try:
+      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+    except NotImplementedError:
+      # Fall back to the legacy toolchain.
+      self.ninja.build(stamp, 'stamp', targets)
+    self.ninja.newline()
+    return stamp
 
   def WriteSpec(self, spec, config_name, generator_flags):
     """The main entry point for NinjaWriter: write the build rules for a spec.
@@ -520,7 +526,8 @@ class NinjaWriter:
           self.GypPathToNinja(f) for f in sources if f.endswith(self.obj_ext)
       ]
 
-    if self.flavor in microsoft_flavors and self.target.type == 'static_library':
+    if (self.flavor in microsoft_flavors and
+        self.target.type == 'static_library'):
       self.target.component_objs = link_deps
 
     # Write out a link step, if needed.
@@ -755,17 +762,21 @@ class NinjaWriter:
     # Renormalize with the separator character of the os on which ninja will run
     dst = self.path_module.normpath(dst)
 
-    output = self.ninja.build(dst, 'copy', src, order_only=prebuild)
-    if self.is_mac_bundle:
-      # gyp has mac_bundle_resources to copy things into a bundle's
-      # Resources folder, but there's no built-in way to copy files to other
-      # places in the bundle. Hence, some targets use copies for this. Check
-      # if this file is copied into the current bundle, and if so add it to
-      # the bundle depends so that dependent targets get rebuilt if the copy
-      # input changes.
-      if dst.startswith(self.xcode_settings.GetBundleContentsFolderPath()):
-        mac_bundle_depends.append(dst)
-    return output
+    try:
+      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+    except NotImplementedError:
+      # Fall back to the legacy toolchain.
+      self.ninja.build(dst, 'copy', src, order_only=prebuild)
+      if self.is_mac_bundle:
+        # gyp has mac_bundle_resources to copy things into a bundle's
+        # Resources folder, but there's no built-in way to copy files to other
+        # places in the bundle. Hence, some targets use copies for this. Check
+        # if this file is copied into the current bundle, and if so add it to
+        # the bundle depends so that dependent targets get rebuilt if the copy
+        # input changes.
+        if dst.startswith(self.xcode_settings.GetBundleContentsFolderPath()):
+          mac_bundle_depends.append(dst)
+    return [dst]
 
   def WriteCopies(self, copies, prebuild, mac_bundle_depends):
     outputs = []
@@ -847,157 +858,166 @@ class NinjaWriter:
   def WriteSources(self, config_name, config, sources, predepends,
                    precompiled_header, spec):
     """Write build rules to compile all of |sources|."""
-    if self.toolset == 'host':
-      self.ninja.variable('ar', '$ar_host')
-      self.ninja.variable('cc', '$cc_host')
-      self.ninja.variable('cxx', '$cxx_host')
-      self.ninja.variable('ld', '$ld_host')
 
-    extra_defines = []
-    if self.flavor == 'mac':
-      cflags = self.xcode_settings.GetCflags(config_name)
-      cflags_c = self.xcode_settings.GetCflagsC(config_name)
-      cflags_cc = self.xcode_settings.GetCflagsCC(config_name)
-      cflags_objc = ['$cflags_c'] + \
-                    self.xcode_settings.GetCflagsObjC(config_name)
-      cflags_objcc = ['$cflags_cc'] + \
-                     self.xcode_settings.GetCflagsObjCC(config_name)
-    elif GetToolchainOrNone(self.flavor):
-      cflags = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetCflags(config_name)
-      cflags_c = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetCflagsC(config_name)
-      cflags_cc = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetCflagsCC(config_name)
-      extra_defines = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetDefines(config_name)
-      obj = 'obj'
-      if self.toolset != 'target':
-        obj += '.' + self.toolset
-      pdbpath = os.path.normpath(
-          os.path.join(obj, self.base_dir, self.name + '.pdb'))
-      self.WriteVariableList('pdbname', [pdbpath])
-      self.WriteVariableList('pchprefix', [self.name])
-    else:
-      cflags = config.get('cflags', [])
-      cflags_c = config.get('cflags_c', [])
-      cflags_cc = config.get('cflags_cc', [])
+    try:
+      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+    except NotImplementedError:
+      # Fall back to the legacy toolchain.
 
-    cflags_host = config.get('cflags_host', cflags)
-    cflags_c_host = config.get('cflags_c_host', cflags_c)
-    cflags_cc_host = config.get('cflags_cc_host', cflags_cc)
+      if self.toolset == 'host':
+        self.ninja.variable('ar', '$ar_host')
+        self.ninja.variable('cc', '$cc_host')
+        self.ninja.variable('cxx', '$cxx_host')
+        self.ninja.variable('ld', '$ld_host')
 
-    defines = config.get('defines', []) + extra_defines
-    if GetToolchainOrNone(self.flavor):
-      self.WriteVariableList('defines', [
-          GetToolchainOrNone(self.flavor).Define(d) for d in defines
-      ])
-    else:
-      self.WriteVariableList('defines',
-                             [Define(d, self.flavor) for d in defines])
-    if GetToolchainOrNone(self.flavor):
-      self.WriteVariableList('rcflags', [
-          QuoteShellArgument(self.ExpandSpecial(f), self.flavor)
-          for f in GetToolchainOrNone(self.flavor).GetCompilerSettings()
-          .GetRcFlags(config_name, self.GypPathToNinja)
-      ])
-
-    include_dirs = config.get('include_dirs', [])
-    include_dirs += config.get('include_dirs_' + self.toolset, [])
-
-    if GetToolchainOrNone(self.flavor):
-      include_dirs = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().ProcessIncludeDirs(
-              include_dirs, config_name)
-      self.WriteVariableList('includes', [
-          '/I' + GetToolchainOrNone(self.flavor).QuoteForRspFile(
-              self.GypPathToNinja(i)) for i in include_dirs
-      ])
-    else:
-      self.WriteVariableList('includes', [
-          QuoteShellArgument('-I' + self.GypPathToNinja(i), self.flavor)
-          for i in include_dirs
-      ])
-
-    pch_commands = precompiled_header.GetPchBuildCommands()
-    if self.flavor == 'mac':
-      self.WriteVariableList('cflags_pch_c',
-                             [precompiled_header.GetInclude('c')])
-      self.WriteVariableList('cflags_pch_cc',
-                             [precompiled_header.GetInclude('cc')])
-      self.WriteVariableList('cflags_pch_objc',
-                             [precompiled_header.GetInclude('m')])
-      self.WriteVariableList('cflags_pch_objcc',
-                             [precompiled_header.GetInclude('mm')])
-
-    self.WriteVariableList('cflags', map(self.ExpandSpecial, cflags))
-    self.WriteVariableList('cflags_c', map(self.ExpandSpecial, cflags_c))
-    self.WriteVariableList('cflags_cc', map(self.ExpandSpecial, cflags_cc))
-
-    self.WriteVariableList('cflags_host', map(self.ExpandSpecial, cflags_host))
-    self.WriteVariableList('cflags_c_host',
-                           map(self.ExpandSpecial, cflags_c_host))
-    self.WriteVariableList('cflags_cc_host',
-                           map(self.ExpandSpecial, cflags_cc_host))
-
-    if self.flavor == 'mac':
-      self.WriteVariableList('cflags_objc', map(self.ExpandSpecial,
-                                                cflags_objc))
-      self.WriteVariableList('cflags_objcc',
-                             map(self.ExpandSpecial, cflags_objcc))
-    self.ninja.newline()
-    outputs = []
-    for source in sources:
-      filename, ext = os.path.splitext(source)
-      ext = ext[1:]
-      obj_ext = self.obj_ext
-      if ext in ('cc', 'cpp', 'cxx'):
-        command = 'cxx'
-      elif ext == 'c' or (ext == 'S' and self.flavor != 'win'):
-        command = 'cc'
-      elif ext == 's' and self.flavor != 'win':  # Doesn't generate .o.d files.
-        command = 'cc_s'
-      elif (self.flavor == 'win' and ext == 'asm' and GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetArch(config_name) == 'x86' and
-            not GetToolchainOrNone(
-                self.flavor).GetCompilerSettings().HasExplicitAsmRules(spec)):
-        # Asm files only get auto assembled for x86 (not x64).
-        command = 'asm'
-        # Add the _asm suffix as msvs is capable of handling .cc and
-        # .asm files of the same name without collision.
-        obj_ext = '_asm.obj'
-      elif self.flavor == 'mac' and ext == 'm':
-        command = 'objc'
-      elif self.flavor == 'mac' and ext == 'mm':
-        command = 'objcxx'
-      elif self.flavor in microsoft_flavors and ext == 'rc':
-        # TODO: Starboardize this.
-        command = 'rc'
-        obj_ext = '.res'
+      extra_defines = []
+      if self.flavor == 'mac':
+        cflags = self.xcode_settings.GetCflags(config_name)
+        cflags_c = self.xcode_settings.GetCflagsC(config_name)
+        cflags_cc = self.xcode_settings.GetCflagsCC(config_name)
+        cflags_objc = ['$cflags_c'] + \
+                      self.xcode_settings.GetCflagsObjC(config_name)
+        cflags_objcc = ['$cflags_cc'] + \
+                       self.xcode_settings.GetCflagsObjCC(config_name)
+      elif GetToolchainOrNone(self.flavor):
+        cflags = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetCflags(config_name)
+        cflags_c = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetCflagsC(config_name)
+        cflags_cc = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetCflagsCC(config_name)
+        extra_defines = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetDefines(config_name)
+        obj = 'obj'
+        if self.toolset != 'target':
+          obj += '.' + self.toolset
+        pdbpath = os.path.normpath(
+            os.path.join(obj, self.base_dir, self.name + '.pdb'))
+        self.WriteVariableList('pdbname', [pdbpath])
+        self.WriteVariableList('pchprefix', [self.name])
       else:
-        # Ignore unhandled extensions.
-        continue
-      if self.toolset != 'target':
-        command += '_' + self.toolset
+        cflags = config.get('cflags', [])
+        cflags_c = config.get('cflags_c', [])
+        cflags_cc = config.get('cflags_cc', [])
 
-      input = self.GypPathToNinja(source)
-      output = self.GypPathToUniqueOutput(filename + obj_ext)
-      implicit = precompiled_header.GetObjDependencies([input], [output])
-      variables = []
+      cflags_host = config.get('cflags_host', cflags)
+      cflags_c_host = config.get('cflags_c_host', cflags_c)
+      cflags_cc_host = config.get('cflags_cc_host', cflags_cc)
+
+      defines = config.get('defines', []) + extra_defines
       if GetToolchainOrNone(self.flavor):
-        variables, output, implicit = precompiled_header.GetFlagsModifications(
-            input, output, implicit, command, cflags_c, cflags_cc,
-            self.ExpandSpecial)
-      self.ninja.build(
-          output,
-          command,
-          input,
-          implicit=[gch for _, _, gch in implicit],
-          order_only=predepends,
-          variables=variables)
-      outputs.append(output)
+        self.WriteVariableList('defines', [
+            GetToolchainOrNone(self.flavor).Define(d) for d in defines
+        ])
+      else:
+        self.WriteVariableList('defines',
+                               [Define(d, self.flavor) for d in defines])
+      if GetToolchainOrNone(self.flavor):
+        self.WriteVariableList('rcflags', [
+            QuoteShellArgument(self.ExpandSpecial(f), self.flavor)
+            for f in GetToolchainOrNone(self.flavor).GetCompilerSettings()
+            .GetRcFlags(config_name, self.GypPathToNinja)
+        ])
 
-    self.WritePchTargets(pch_commands)
+      include_dirs = config.get('include_dirs', [])
+      include_dirs += config.get('include_dirs_' + self.toolset, [])
+
+      if GetToolchainOrNone(self.flavor):
+        include_dirs = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().ProcessIncludeDirs(
+                include_dirs, config_name)
+        self.WriteVariableList('includes', [
+            '/I' + GetToolchainOrNone(self.flavor).QuoteForRspFile(
+                self.GypPathToNinja(i)) for i in include_dirs
+        ])
+      else:
+        self.WriteVariableList('includes', [
+            QuoteShellArgument('-I' + self.GypPathToNinja(i), self.flavor)
+            for i in include_dirs
+        ])
+
+      pch_commands = precompiled_header.GetPchBuildCommands()
+      if self.flavor == 'mac':
+        self.WriteVariableList('cflags_pch_c',
+                               [precompiled_header.GetInclude('c')])
+        self.WriteVariableList('cflags_pch_cc',
+                               [precompiled_header.GetInclude('cc')])
+        self.WriteVariableList('cflags_pch_objc',
+                               [precompiled_header.GetInclude('m')])
+        self.WriteVariableList('cflags_pch_objcc',
+                               [precompiled_header.GetInclude('mm')])
+
+      self.WriteVariableList('cflags', map(self.ExpandSpecial, cflags))
+      self.WriteVariableList('cflags_c', map(self.ExpandSpecial, cflags_c))
+      self.WriteVariableList('cflags_cc', map(self.ExpandSpecial, cflags_cc))
+
+      self.WriteVariableList('cflags_host', map(self.ExpandSpecial,
+                                                cflags_host))
+      self.WriteVariableList('cflags_c_host',
+                             map(self.ExpandSpecial, cflags_c_host))
+      self.WriteVariableList('cflags_cc_host',
+                             map(self.ExpandSpecial, cflags_cc_host))
+
+      if self.flavor == 'mac':
+        self.WriteVariableList('cflags_objc',
+                               map(self.ExpandSpecial, cflags_objc))
+        self.WriteVariableList('cflags_objcc',
+                               map(self.ExpandSpecial, cflags_objcc))
+      self.ninja.newline()
+
+      outputs = []
+      for source in sources:
+        filename, ext = os.path.splitext(source)
+        ext = ext[1:]
+        obj_ext = self.obj_ext
+        if ext in ('cc', 'cpp', 'cxx'):
+          command = 'cxx'
+        elif ext == 'c' or (ext == 'S' and self.flavor != 'win'):
+          command = 'cc'
+        elif ext == 's' and self.flavor != 'win':  # Doesn't generate .o.d files.
+          command = 'cc_s'
+        elif (self.flavor == 'win' and ext == 'asm' and GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetArch(config_name) == 'x86' and
+              not GetToolchainOrNone(
+                  self.flavor).GetCompilerSettings().HasExplicitAsmRules(spec)):
+          # Asm files only get auto assembled for x86 (not x64).
+          command = 'asm'
+          # Add the _asm suffix as msvs is capable of handling .cc and
+          # .asm files of the same name without collision.
+          obj_ext = '_asm.obj'
+        elif self.flavor == 'mac' and ext == 'm':
+          command = 'objc'
+        elif self.flavor == 'mac' and ext == 'mm':
+          command = 'objcxx'
+        elif self.flavor in microsoft_flavors and ext == 'rc':
+          # TODO: Starboardize this.
+          command = 'rc'
+          obj_ext = '.res'
+        else:
+          # Ignore unhandled extensions.
+          continue
+        if self.toolset != 'target':
+          command += '_' + self.toolset
+
+        input = self.GypPathToNinja(source)
+        output = self.GypPathToUniqueOutput(filename + obj_ext)
+        implicit = precompiled_header.GetObjDependencies([input], [output])
+        variables = []
+        if GetToolchainOrNone(self.flavor):
+          (variables, output,
+           implicit) = precompiled_header.GetFlagsModifications(
+               input, output, implicit, command, cflags_c, cflags_cc,
+               self.ExpandSpecial)
+        self.ninja.build(
+            output,
+            command,
+            input,
+            implicit=[gch for _, _, gch in implicit],
+            order_only=predepends,
+            variables=variables)
+        outputs.append(output)
+
+      self.WritePchTargets(pch_commands)
 
     self.ninja.newline()
     return outputs
@@ -1027,180 +1047,192 @@ class NinjaWriter:
   def WriteLink(self, spec, config_name, config, link_deps):
     """Write out a link step. Fills out target.binary. """
 
-    command = {
-        'executable': 'link',
-        'loadable_module': 'solink_module',
-        'shared_library': 'solink',
-    }[spec['type']]
+    try:
+      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+    except NotImplementedError:
+      # Fall back to the legacy toolchain.
 
-    implicit_deps = set()
-    order_only_deps = set()
-    solibs = set()
+      command = {
+          'executable': 'link',
+          'loadable_module': 'solink_module',
+          'shared_library': 'solink',
+      }[spec['type']]
 
-    if 'dependencies' in spec:
-      # Two kinds of dependencies:
-      # - Linkable dependencies (like a .a or a .so): add them to the link line.
-      # - Non-linkable dependencies (like a rule that generates a file
-      #   and writes a stamp file): add them to implicit_deps or order_only_deps
-      extra_link_deps = []
-      for dep in spec['dependencies']:
-        target = self.target_outputs.get(dep)
-        if not target:
-          continue
-        linkable = target.Linkable()
-        # TODO: Starboardize.
-        if linkable:
-          if (self.flavor in microsoft_flavors and target.component_objs and
-              GetToolchainOrNone(self.flavor).GetCompilerSettings()
-              .IsUseLibraryDependencyInputs(config_name)):
-            extra_link_deps.extend(target.component_objs)
-          elif (self.flavor in (microsoft_flavors + ['ps3']) and
-                target.import_lib):
-            extra_link_deps.append(target.import_lib)
-          elif target.UsesToc(self.flavor):
-            solibs.add(target.binary)
-            implicit_deps.add(target.binary + '.TOC')
-          else:
-            extra_link_deps.append(target.binary)
+      implicit_deps = set()
+      order_only_deps = set()
+      solibs = set()
 
-        final_output = target.FinalOutput()
-        if not linkable or final_output != target.binary:
-          order_only_deps.add(final_output)
+      if 'dependencies' in spec:
+        # Two kinds of dependencies:
+        # - Linkable dependencies (like a .a or a .so): add them to the link
+        #   line.
+        # - Non-linkable dependencies (like a rule that generates a file
+        #   and writes a stamp file): add them to implicit_deps or
+        #   order_only_deps
+        extra_link_deps = []
+        for dep in spec['dependencies']:
+          target = self.target_outputs.get(dep)
+          if not target:
+            continue
+          linkable = target.Linkable()
+          # TODO: Starboardize.
+          if linkable:
+            if (self.flavor in microsoft_flavors and target.component_objs and
+                GetToolchainOrNone(self.flavor).GetCompilerSettings()
+                .IsUseLibraryDependencyInputs(config_name)):
+              extra_link_deps.extend(target.component_objs)
+            elif (self.flavor in (microsoft_flavors + ['ps3']) and
+                  target.import_lib):
+              extra_link_deps.append(target.import_lib)
+            elif target.UsesToc(self.flavor):
+              solibs.add(target.binary)
+              implicit_deps.add(target.binary + '.TOC')
+            else:
+              extra_link_deps.append(target.binary)
 
-      # dedup the extra link deps while preserving order
-      seen = set()
-      extra_link_deps = [
-          x for x in extra_link_deps if x not in seen and not seen.add(x)
-      ]
+          final_output = target.FinalOutput()
+          if not linkable or final_output != target.binary:
+            order_only_deps.add(final_output)
 
-      link_deps.extend(extra_link_deps)
+        # dedup the extra link deps while preserving order
+        seen = set()
+        extra_link_deps = [
+            x for x in extra_link_deps if x not in seen and not seen.add(x)
+        ]
 
-    extra_bindings = []
-    if self.is_mac_bundle:
-      output = self.ComputeMacBundleBinaryOutput()
-    else:
-      output = self.ComputeOutput(spec)
-      extra_bindings.append(('postbuilds', self.GetPostbuildCommand(
-          spec, output, output)))
+        link_deps.extend(extra_link_deps)
 
-    if self.flavor == 'mac':
-      ldflags = self.xcode_settings.GetLdflags(
-          config_name,
-          self.ExpandSpecial(generator_default_variables['PRODUCT_DIR']),
-          self.GypPathToNinja)
-    elif GetToolchainOrNone(self.flavor):
-      libflags = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetLibFlags(
-              config_name, self.GypPathToNinja)
-      self.WriteVariableList(
-          'libflags', gyp.common.uniquer(map(self.ExpandSpecial, libflags)))
-      is_executable = spec['type'] == 'executable'
-      manifest_name = self.GypPathToUniqueOutput(
-          self.ComputeOutputFileName(spec))
-      ldflags, manifest_files = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().GetLdFlags(config_name, **{
-              'gyp_path_to_ninja': self.GypPathToNinja,
-              'expand_special': self.ExpandSpecial,
-              'manifest_name': manifest_name,
-              'is_executable': is_executable
-          })
-      self.WriteVariableList('manifests', manifest_files)
-    else:
-      ldflags = config.get('ldflags', [])
-      ldflags_host = config.get('ldflags_host', ldflags)
-
-    self.WriteVariableList('ldflags',
-                           gyp.common.uniquer(map(self.ExpandSpecial, ldflags)))
-    if ('ldflags_host' in locals()):
-      self.WriteVariableList(
-          'ldflags_host',
-          gyp.common.uniquer(map(self.ExpandSpecial, ldflags_host)))
-
-    if self.toolset == 'host':
-      libs = spec.get('libraries_host', [])
-      libs.extend(config.get('libraries_host', []))
-    else:
-      libs = spec.get('libraries', [])
-      libs.extend(config.get('libraries', []))
-
-    libraries = gyp.common.uniquer(map(self.ExpandSpecial, libs))
-
-    if self.flavor == 'mac':
-      libraries = self.xcode_settings.AdjustLibraries(libraries)
-    elif GetToolchainOrNone(self.flavor):
-      libraries = GetToolchainOrNone(
-          self.flavor).GetCompilerSettings().ProcessLibraries(libraries)
-    self.WriteVariableList('libs', libraries)
-
-    self.target.binary = output
-
-    if command in ('solink', 'solink_module'):
-      extra_bindings.append(('soname', os.path.split(output)[1]))
-      extra_bindings.append(('lib',
-                             gyp.common.EncodePOSIXShellArgument(output)))
-      # TODO: Starboardize.
-      if self.flavor in microsoft_flavors:
-        extra_bindings.append(('dll', output))
-        if '/NOENTRY' not in ldflags:
-          self.target.import_lib = output + '.lib'
-          extra_bindings.append(('implibflag',
-                                 '/IMPLIB:%s' % self.target.import_lib))
-          output = [output, self.target.import_lib]
-      elif self.flavor in ['ps3']:
-        # Tell Ninja we'll be generating a .sprx and a stub library.
-        # Bind the variable '$prx' to our output binary so we can
-        # refer to it in the linker rules.
-        prx_output = output
-        prx_output_base, prx_output_ext = os.path.splitext(prx_output)
-        assert prx_output_ext == '.sprx'
-
-        extra_bindings.append(('prx', output))
-        # TODO: Figure out how to suppress the "removal" warning
-        # generated from the prx generator when we remove a function.
-        # For now, we'll just delete the 'verlog.txt' file before linking.
-        # Bind it here so we can refer to it as $verlog in the PS3 solink rule.
-        verlog = output.replace(prx_output_ext, '_verlog.txt')
-        extra_bindings.append(('verlog', verlog))
-        self.target.import_lib = output.replace(prx_output_ext, '_stub.a')
-        output = [prx_output, self.target.import_lib]
-
-        # For PRXs, we need to convert any c++ exports into C. This is done
-        # with an "export pickup" step that runs over the object files
-        # and produces a new .c file. That .c file should be compiled and linked
-        # into the PRX.
-        gen_files_dir = os.path.join(
-            self.ExpandSpecial(
-                generator_default_variables['SHARED_INTERMEDIATE_DIR']), 'prx')
-
-        export_pickup_output = os.path.join(
-            gen_files_dir, os.path.basename(prx_output_base) + '.prx_export.c')
-        prx_export_obj_file = export_pickup_output[:-2] + '.o'
-        self.ninja.build(
-            export_pickup_output,
-            'prx_export_pickup',
-            link_deps,
-            implicit=list(implicit_deps),
-            order_only=list(order_only_deps))
-
-        self.ninja.build(prx_export_obj_file, 'cc', export_pickup_output)
-        link_deps.append(prx_export_obj_file)
-
+      extra_bindings = []
+      if self.is_mac_bundle:
+        output = self.ComputeMacBundleBinaryOutput()
       else:
-        output = [output, output + '.TOC']
+        output = self.ComputeOutput(spec)
+        extra_bindings.append(('postbuilds', self.GetPostbuildCommand(
+            spec, output, output)))
 
-    if len(solibs):
-      extra_bindings.append(('solibs', gyp.common.EncodePOSIXShellList(solibs)))
+      if self.flavor == 'mac':
+        ldflags = self.xcode_settings.GetLdflags(
+            config_name,
+            self.ExpandSpecial(generator_default_variables['PRODUCT_DIR']),
+            self.GypPathToNinja)
+      elif GetToolchainOrNone(self.flavor):
+        libflags = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetLibFlags(
+                config_name, self.GypPathToNinja)
+        self.WriteVariableList(
+            'libflags', gyp.common.uniquer(map(self.ExpandSpecial, libflags)))
+        is_executable = spec['type'] == 'executable'
+        manifest_name = self.GypPathToUniqueOutput(
+            self.ComputeOutputFileName(spec))
+        ldflags, manifest_files = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().GetLdFlags(
+                config_name, **{
+                    'gyp_path_to_ninja': self.GypPathToNinja,
+                    'expand_special': self.ExpandSpecial,
+                    'manifest_name': manifest_name,
+                    'is_executable': is_executable
+                })
+        self.WriteVariableList('manifests', manifest_files)
+      else:
+        ldflags = config.get('ldflags', [])
+        ldflags_host = config.get('ldflags_host', ldflags)
 
-    if self.toolset != 'target':
-      command += '_' + self.toolset
+      self.WriteVariableList(
+          'ldflags', gyp.common.uniquer(map(self.ExpandSpecial, ldflags)))
+      if ('ldflags_host' in locals()):
+        self.WriteVariableList(
+            'ldflags_host',
+            gyp.common.uniquer(map(self.ExpandSpecial, ldflags_host)))
 
-    self.ninja.build(
-        output,
-        command,
-        link_deps,
-        implicit=list(implicit_deps),
-        order_only=list(order_only_deps),
-        variables=extra_bindings)
+      if self.toolset == 'host':
+        libs = spec.get('libraries_host', [])
+        libs.extend(config.get('libraries_host', []))
+      else:
+        libs = spec.get('libraries', [])
+        libs.extend(config.get('libraries', []))
+
+      libraries = gyp.common.uniquer(map(self.ExpandSpecial, libs))
+
+      if self.flavor == 'mac':
+        libraries = self.xcode_settings.AdjustLibraries(libraries)
+      elif GetToolchainOrNone(self.flavor):
+        libraries = GetToolchainOrNone(
+            self.flavor).GetCompilerSettings().ProcessLibraries(libraries)
+      self.WriteVariableList('libs', libraries)
+
+      self.target.binary = output
+
+      if command in ('solink', 'solink_module'):
+        extra_bindings.append(('soname', os.path.split(output)[1]))
+        extra_bindings.append(('lib',
+                               gyp.common.EncodePOSIXShellArgument(output)))
+        # TODO: Starboardize.
+        if self.flavor in microsoft_flavors:
+          extra_bindings.append(('dll', output))
+          if '/NOENTRY' not in ldflags:
+            self.target.import_lib = output + '.lib'
+            extra_bindings.append(('implibflag',
+                                   '/IMPLIB:%s' % self.target.import_lib))
+            output = [output, self.target.import_lib]
+        elif self.flavor in ['ps3']:
+          # Tell Ninja we'll be generating a .sprx and a stub library.
+          # Bind the variable '$prx' to our output binary so we can
+          # refer to it in the linker rules.
+          prx_output = output
+          prx_output_base, prx_output_ext = os.path.splitext(prx_output)
+          assert prx_output_ext == '.sprx'
+
+          extra_bindings.append(('prx', output))
+          # TODO: Figure out how to suppress the "removal" warning
+          # generated from the prx generator when we remove a function.
+          # For now, we'll just delete the 'verlog.txt' file before linking.
+          # Bind it here so we can refer to it as $verlog in the PS3 solink
+          # rule.
+          verlog = output.replace(prx_output_ext, '_verlog.txt')
+          extra_bindings.append(('verlog', verlog))
+          self.target.import_lib = output.replace(prx_output_ext, '_stub.a')
+          output = [prx_output, self.target.import_lib]
+
+          # For PRXs, we need to convert any c++ exports into C. This is done
+          # with an "export pickup" step that runs over the object files
+          # and produces a new .c file. That .c file should be compiled and
+          # linked into the PRX.
+          gen_files_dir = os.path.join(
+              self.ExpandSpecial(
+                  generator_default_variables['SHARED_INTERMEDIATE_DIR']),
+              'prx')
+
+          export_pickup_output = os.path.join(
+              gen_files_dir,
+              os.path.basename(prx_output_base) + '.prx_export.c')
+          prx_export_obj_file = export_pickup_output[:-2] + '.o'
+          self.ninja.build(
+              export_pickup_output,
+              'prx_export_pickup',
+              link_deps,
+              implicit=list(implicit_deps),
+              order_only=list(order_only_deps))
+
+          self.ninja.build(prx_export_obj_file, 'cc', export_pickup_output)
+          link_deps.append(prx_export_obj_file)
+
+        else:
+          output = [output, output + '.TOC']
+
+      if len(solibs):
+        extra_bindings.append(('solibs',
+                               gyp.common.EncodePOSIXShellList(solibs)))
+
+      if self.toolset != 'target':
+        command += '_' + self.toolset
+
+      self.ninja.build(
+          output,
+          command,
+          link_deps,
+          implicit=list(implicit_deps),
+          order_only=list(order_only_deps),
+          variables=extra_bindings)
 
   def WriteTarget(self, spec, config_name, config, link_deps, compile_deps):
     if spec['type'] == 'none':
@@ -1209,34 +1241,40 @@ class NinjaWriter:
       self.target.binary = compile_deps
     elif spec['type'] == 'static_library':
       self.target.binary = self.ComputeOutput(spec)
-      variables = []
-      if GetToolchainOrNone(self.flavor):
-        libflags = GetToolchainOrNone(
-            self.flavor).GetCompilerSettings().GetLibFlags(
-                config_name, self.GypPathToNinja)
-        # TODO: Starboardize libflags vs libtool_flags.
-        variables.append(('libflags', ' '.join(libflags)))
-      postbuild = self.GetPostbuildCommand(spec, self.target.binary,
-                                           self.target.binary)
-      if postbuild:
-        variables.append(('postbuilds', postbuild))
-      if self.xcode_settings:
-        variables.append(('libtool_flags',
-                          self.xcode_settings.GetLibtoolflags(config_name)))
-      # TODO: Starboardize.
-      if (self.flavor not in (['mac'] + microsoft_flavors) and
-          not self.is_standalone_static_library):
-        command = 'alink_thin'
-      else:
-        command = 'alink'
-      if self.toolset != 'target':
-        command += '_' + self.toolset
-      self.ninja.build(
-          self.target.binary,
-          command,
-          link_deps,
-          order_only=compile_deps,
-          variables=variables)
+
+      try:
+        raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+      except NotImplementedError:
+        # Fall back to the legacy toolchain.
+
+        variables = []
+        if GetToolchainOrNone(self.flavor):
+          libflags = GetToolchainOrNone(
+              self.flavor).GetCompilerSettings().GetLibFlags(
+                  config_name, self.GypPathToNinja)
+          # TODO: Starboardize libflags vs libtool_flags.
+          variables.append(('libflags', ' '.join(libflags)))
+        postbuild = self.GetPostbuildCommand(spec, self.target.binary,
+                                             self.target.binary)
+        if postbuild:
+          variables.append(('postbuilds', postbuild))
+        if self.xcode_settings:
+          variables.append(('libtool_flags',
+                            self.xcode_settings.GetLibtoolflags(config_name)))
+        # TODO: Starboardize.
+        if (self.flavor not in (['mac'] + microsoft_flavors) and
+            not self.is_standalone_static_library):
+          command = 'alink_thin'
+        else:
+          command = 'alink'
+        if self.toolset != 'target':
+          command += '_' + self.toolset
+        self.ninja.build(
+            self.target.binary,
+            command,
+            link_deps,
+            order_only=compile_deps,
+            variables=variables)
     else:
       self.WriteLink(spec, config_name, config, link_deps)
     return self.target.binary
@@ -1687,579 +1725,591 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
       OpenOutput(os.path.join(toplevel_build, 'build.ninja')), width=120)
   case_sensitive_filesystem = True
 
-  # Put build-time support tools in out/{config_name}.
-  gyp.common.CopyTool(flavor, toplevel_build)
-
-  # Grab make settings for CC/CXX.
-  # The rules are
-  # - The priority from low to high is gcc/g++, the 'make_global_settings' in
-  #   gyp, the environment variable.
-  # - If there is no 'make_global_settings' for CC.host/CXX.host or
-  #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
-  #   to cc/cxx.
-  if (flavor in sony_flavors and is_windows):
-    cc = 'cl.exe'
-    cxx = 'cl.exe'
-    ld = 'link.exe'
-    gyp.msvs_emulation.GenerateEnvironmentFiles(toplevel_build, generator_flags,
-                                                OpenOutput)
-    ld_host = '$ld'
-  elif GetToolchainOrNone(flavor):
-    # TODO: starboardize.
-    cc = 'cl.exe'
-    cxx = 'cl.exe'
-    ld = 'link.exe'
-    GetToolchainOrNone(flavor).GenerateEnvironmentFiles(
-        toplevel_build, generator_flags, OpenOutput)
-    ld_host = '$ld'
-  else:
-    cc = 'gcc'
-    cxx = 'g++'
-    ld = '$cxx'
-    ld_host = '$cxx_host'
-
-  cc_host = None
-  cxx_host = None
-  cc_host_global_setting = None
-  cxx_host_global_setting = None
-
   build_file, _, _ = gyp.common.ParseQualifiedTarget(target_list[0])
   make_global_settings = data[build_file].get('make_global_settings', [])
-  build_to_root = InvertRelativePath(build_dir)
-  for key, value in make_global_settings:
-    if key == 'CC':
-      cc = os.path.join(build_to_root, value)
-    if key == 'CXX':
-      cxx = os.path.join(build_to_root, value)
-    if key == 'LD':
-      ld = os.path.join(build_to_root, value)
-    if key == 'CC.host':
-      cc_host = os.path.join(build_to_root, value)
-      cc_host_global_setting = value
-    if key == 'CXX.host':
-      cxx_host = os.path.join(build_to_root, value)
-      cxx_host_global_setting = value
-    if key == 'LD.host':
-      ld_host = os.path.join(build_to_root, value)
 
-  flock = 'flock'
-  if flavor == 'mac':
-    flock = './gyp-mac-tool flock'
-  cc = GetEnvironFallback(['CC_target', 'CC'], cc)
-  master_ninja.variable('cc', cc)
-  cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
-  master_ninja.variable('cxx', cxx)
-  ld = GetEnvironFallback(['LD_target', 'LD'], ld)
-  rc = GetEnvironFallback(['RC'], 'rc.exe')
+  try:
+    raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+  except NotImplementedError:
+    # Fall back to the legacy toolchain.
 
-  if not cc_host:
-    cc_host = cc
-  if not cxx_host:
-    cxx_host = cxx
+    # Put build-time support tools in out/{config_name}.
+    gyp.common.CopyTool(flavor, toplevel_build)
 
-  # gyp-win-tool wrappers have a winpython only flock implementation.
-  if sys.platform == 'cygwin':
-    python_exec = '$python'
-  else:
-    python_exec = sys.executable
+    # Grab make settings for CC/CXX.
+    # The rules are
+    # - The priority from low to high is gcc/g++, the 'make_global_settings' in
+    #   gyp, the environment variable.
+    # - If there is no 'make_global_settings' for CC.host/CXX.host or
+    #   'CC_host'/'CXX_host' enviroment variable, cc_host/cxx_host should be set
+    #   to cc/cxx.
+    if (flavor in sony_flavors and is_windows):
+      cc = 'cl.exe'
+      cxx = 'cl.exe'
+      ld = 'link.exe'
+      gyp.msvs_emulation.GenerateEnvironmentFiles(toplevel_build,
+                                                  generator_flags, OpenOutput)
+      ld_host = '$ld'
+    elif GetToolchainOrNone(flavor):
+      # TODO: starboardize.
+      cc = 'cl.exe'
+      cxx = 'cl.exe'
+      ld = 'link.exe'
+      GetToolchainOrNone(flavor).GenerateEnvironmentFiles(
+          toplevel_build, generator_flags, OpenOutput)
+      ld_host = '$ld'
+    else:
+      cc = 'gcc'
+      cxx = 'g++'
+      ld = '$cxx'
+      ld_host = '$cxx_host'
 
-  ar_flags = ''
-  if flavor in microsoft_flavors:
-    master_ninja.variable('ld', ld)
-    master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    master_ninja.variable('rc', rc)
-    master_ninja.variable('asm', 'ml.exe')
-    master_ninja.variable('mt', 'mt.exe')
-    master_ninja.variable('use_dep_database', '1')
-  elif flavor in sony_flavors:
-    # Require LD to be set.
-    master_ninja.variable('ld', os.environ.get('LD'))
-    master_ninja.variable('ar', os.environ.get('AR', 'ar'))
-    if flavor in ['ps3']:
-      master_ninja.variable('prx_export_pickup',
-                            os.environ['PRX_EXPORT_PICKUP'])
-    ar_flags = os.environ.get('ARFLAGS', 'rcs')
-    master_ninja.variable('arFlags', ar_flags)
-    # On the PS3, when we use ps3snarl.exe with a response file, we cannot
-    # pass it flags (like 'rcs'), so ARFLAGS is likely set to '' for this
-    # platform.  In that case, do not append the thin archive 'T' flag
-    # to the flags string.
-    # Likewise for PS4, but using orbis-snarl.exe
-    thin_flag_to_add = ''
-    if len(ar_flags) >= 1 and ar_flags.find('T') == -1:
-      thin_flag_to_add = 'T'
-    master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
+    cc_host = None
+    cxx_host = None
+    cc_host_global_setting = None
+    cxx_host_global_setting = None
 
-  else:
-    master_ninja.variable('ld', ld)
-    master_ninja.variable('ar', GetEnvironFallback(['AR_target', 'AR'], 'ar'))
-    ar_flags = os.environ.get('ARFLAGS', 'rcs')
-    master_ninja.variable('arFlags', ar_flags)
-    thin_flag_to_add = ''
-    if ar_flags.find('T') == -1:
-      thin_flag_to_add = 'T'
-    master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
-  master_ninja.variable('ar_host', GetEnvironFallback(['AR_host'], 'ar'))
-  cc_host = GetEnvironFallback(['CC_host'], cc_host)
-  cxx_host = GetEnvironFallback(['CXX_host'], cxx_host)
-  ld_host = GetEnvironFallback(['LD_host'], ld_host)
-  arflags_host = GetEnvironFallback(['ARFLAGS_host'], ar_flags)
-  arthinflags_host = GetEnvironFallback(['ARTHINFLAGS_host'], arflags_host)
+    build_to_root = InvertRelativePath(build_dir)
+    for key, value in make_global_settings:
+      if key == 'CC':
+        cc = os.path.join(build_to_root, value)
+      if key == 'CXX':
+        cxx = os.path.join(build_to_root, value)
+      if key == 'LD':
+        ld = os.path.join(build_to_root, value)
+      if key == 'CC.host':
+        cc_host = os.path.join(build_to_root, value)
+        cc_host_global_setting = value
+      if key == 'CXX.host':
+        cxx_host = os.path.join(build_to_root, value)
+        cxx_host_global_setting = value
+      if key == 'LD.host':
+        ld_host = os.path.join(build_to_root, value)
 
-  # The environment variable could be used in 'make_global_settings', like
-  # ['CC.host', '$(CC)'] or ['CXX.host', '$(CXX)'], transform them here.
-  if '$(CC)' in cc_host and cc_host_global_setting:
-    cc_host = cc_host_global_setting.replace('$(CC)', cc)
-  if '$(CXX)' in cxx_host and cxx_host_global_setting:
-    cxx_host = cxx_host_global_setting.replace('$(CXX)', cxx)
-  master_ninja.variable('cc_host', cc_host)
-  master_ninja.variable('cxx_host', cxx_host)
-  master_ninja.variable('arFlags_host', arflags_host)
-  master_ninja.variable('arThinFlags_host', arthinflags_host)
-  master_ninja.variable('ld_host', ld_host)
+    flock = 'flock'
+    if flavor == 'mac':
+      flock = './gyp-mac-tool flock'
+    cc = GetEnvironFallback(['CC_target', 'CC'], cc)
+    master_ninja.variable('cc', cc)
+    cxx = GetEnvironFallback(['CXX_target', 'CXX'], cxx)
+    master_ninja.variable('cxx', cxx)
+    ld = GetEnvironFallback(['LD_target', 'LD'], ld)
+    rc = GetEnvironFallback(['RC'], 'rc.exe')
 
-  if sys.platform == 'cygwin':
-    python_path = cygpath.to_nt('/cygdrive/c/python_27_amd64/files/python.exe')
-  else:
-    python_path = 'python'
-  master_ninja.variable('python', python_path)
-  master_ninja.newline()
+    if not cc_host:
+      cc_host = cc
+    if not cxx_host:
+      cxx_host = cxx
 
-  master_ninja.pool('link_pool', depth=GetDefaultConcurrentLinks())
-  master_ninja.newline()
+    # gyp-win-tool wrappers have a winpython only flock implementation.
+    if sys.platform == 'cygwin':
+      python_exec = '$python'
+    else:
+      python_exec = sys.executable
 
-  if flavor not in microsoft_flavors:
-    if flavor in sony_flavors:
-      # uca := Unnamed Console A
-      dep_format = 'snc' if (flavor in ['ps3']) else 'uca'
+    ar_flags = ''
+    if flavor in microsoft_flavors:
+      master_ninja.variable('ld', ld)
+      master_ninja.variable('ar', os.environ.get('AR', 'ar'))
+      master_ninja.variable('rc', rc)
+      master_ninja.variable('asm', 'ml.exe')
+      master_ninja.variable('mt', 'mt.exe')
+      master_ninja.variable('use_dep_database', '1')
+    elif flavor in sony_flavors:
+      # Require LD to be set.
+      master_ninja.variable('ld', os.environ.get('LD'))
+      master_ninja.variable('ar', os.environ.get('AR', 'ar'))
+      if flavor in ['ps3']:
+        master_ninja.variable('prx_export_pickup',
+                              os.environ['PRX_EXPORT_PICKUP'])
+      ar_flags = os.environ.get('ARFLAGS', 'rcs')
+      master_ninja.variable('arFlags', ar_flags)
+      # On the PS3, when we use ps3snarl.exe with a response file, we cannot
+      # pass it flags (like 'rcs'), so ARFLAGS is likely set to '' for this
+      # platform.  In that case, do not append the thin archive 'T' flag
+      # to the flags string.
+      # Likewise for PS4, but using orbis-snarl.exe
+      thin_flag_to_add = ''
+      if len(ar_flags) >= 1 and ar_flags.find('T') == -1:
+        thin_flag_to_add = 'T'
+      master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
+
+    else:
+      master_ninja.variable('ld', ld)
+      master_ninja.variable('ar', GetEnvironFallback(['AR_target', 'AR'], 'ar'))
+      ar_flags = os.environ.get('ARFLAGS', 'rcs')
+      master_ninja.variable('arFlags', ar_flags)
+      thin_flag_to_add = ''
+      if ar_flags.find('T') == -1:
+        thin_flag_to_add = 'T'
+      master_ninja.variable('arThinFlags', ar_flags + thin_flag_to_add)
+    master_ninja.variable('ar_host', GetEnvironFallback(['AR_host'], 'ar'))
+    cc_host = GetEnvironFallback(['CC_host'], cc_host)
+    cxx_host = GetEnvironFallback(['CXX_host'], cxx_host)
+    ld_host = GetEnvironFallback(['LD_host'], ld_host)
+    arflags_host = GetEnvironFallback(['ARFLAGS_host'], ar_flags)
+    arthinflags_host = GetEnvironFallback(['ARTHINFLAGS_host'], arflags_host)
+
+    # The environment variable could be used in 'make_global_settings', like
+    # ['CC.host', '$(CC)'] or ['CXX.host', '$(CXX)'], transform them here.
+    if '$(CC)' in cc_host and cc_host_global_setting:
+      cc_host = cc_host_global_setting.replace('$(CC)', cc)
+    if '$(CXX)' in cxx_host and cxx_host_global_setting:
+      cxx_host = cxx_host_global_setting.replace('$(CXX)', cxx)
+    master_ninja.variable('cc_host', cc_host)
+    master_ninja.variable('cxx_host', cxx_host)
+    master_ninja.variable('arFlags_host', arflags_host)
+    master_ninja.variable('arThinFlags_host', arthinflags_host)
+    master_ninja.variable('ld_host', ld_host)
+
+    if sys.platform == 'cygwin':
+      python_path = cygpath.to_nt(
+          '/cygdrive/c/python_27_amd64/files/python.exe')
+    else:
+      python_path = 'python'
+    master_ninja.variable('python', python_path)
+    master_ninja.newline()
+
+    master_ninja.pool('link_pool', depth=GetDefaultConcurrentLinks())
+    master_ninja.newline()
+
+    if flavor not in microsoft_flavors:
+      if flavor in sony_flavors:
+        # uca := Unnamed Console A
+        dep_format = 'snc' if (flavor in ['ps3']) else 'uca'
+        master_ninja.rule(
+            'cc',
+            description='CC $out',
+            command=('$cc @$out.rsp'),
+            rspfile='$out.rsp',
+            rspfile_content=('-c $in -o $out '
+                             '-MMD $defines $includes $cflags $cflags_c '
+                             '$cflags_pch_c'),
+            depfile='$out_no_ext.d',
+            deps='gcc',
+            depformat=dep_format)
+        master_ninja.rule(
+            'cxx',
+            description='CXX $out',
+            command=('$cxx @$out.rsp'),
+            rspfile='$out.rsp',
+            rspfile_content=('-c $in -o $out '
+                             '-MMD $defines $includes $cflags $cflags_cc '
+                             '$cflags_pch_cc'),
+            depfile='$out_no_ext.d',
+            deps='gcc',
+            depformat=dep_format)
+      else:
+        master_ninja.rule(
+            'cc',
+            description='CC $out',
+            command=('$cc -MMD -MF $out.d $defines $includes $cflags $cflags_c '
+                     '$cflags_pch_c -c $in -o $out'),
+            deps='gcc',
+            depfile='$out.d')
+        master_ninja.rule(
+            'cc_s',
+            description='CC $out',
+            command=('$cc $defines $includes $cflags $cflags_c '
+                     '$cflags_pch_c -c $in -o $out'))
+        master_ninja.rule(
+            'cxx',
+            description='CXX $out',
+            command=(
+                '$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_cc '
+                '$cflags_pch_cc -c $in -o $out'),
+            deps='gcc',
+            depfile='$out.d')
+
+    else:
+      cc_command = ('$cc /nologo /showIncludes /FC '
+                    '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
+      cxx_command = ('$cxx /nologo /showIncludes /FC '
+                     '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
       master_ninja.rule(
           'cc',
           description='CC $out',
-          command=('$cc @$out.rsp'),
+          command=cc_command,
+          deps='msvc',
           rspfile='$out.rsp',
-          rspfile_content=('-c $in -o $out '
-                           '-MMD $defines $includes $cflags $cflags_c '
-                           '$cflags_pch_c'),
-          depfile='$out_no_ext.d',
-          deps='gcc',
-          depformat=dep_format)
+          rspfile_content='$defines $includes $cflags $cflags_c')
       master_ninja.rule(
           'cxx',
           description='CXX $out',
-          command=('$cxx @$out.rsp'),
+          command=cxx_command,
+          deps='msvc',
           rspfile='$out.rsp',
-          rspfile_content=('-c $in -o $out '
-                           '-MMD $defines $includes $cflags $cflags_cc '
-                           '$cflags_pch_cc'),
-          depfile='$out_no_ext.d',
-          deps='gcc',
-          depformat=dep_format)
+          rspfile_content='$defines $includes $cflags $cflags_cc')
+
+      master_ninja.rule(
+          'rc',
+          description='RC $in',
+          # Note: $in must be last otherwise rc.exe complains.
+          command=('%s gyp-win-tool rc-wrapper '
+                   '$arch $rc $defines $includes $rcflags /fo$out $in' %
+                   python_exec))
+      master_ninja.rule(
+          'asm',
+          description='ASM $in',
+          command=(
+              '%s gyp-win-tool asm-wrapper '
+              '$arch $asm $defines $includes /c /Fo $out $in' % python_exec))
+
+    if flavor not in (['mac'] + microsoft_flavors):
+      alink_command = 'rm -f $out && $ar $arFlags $out @$out.rsp'
+      # TODO: Use rcsT on Linux only.
+      alink_thin_command = 'rm -f $out && $ar $arThinFlags $out @$out.rsp'
+
+      ld_cmd = '$ld'
+
+      if flavor in sony_flavors and is_windows:
+        alink_command = 'cmd.exe /c ' + alink_command
+        alink_thin_command = 'cmd.exe /c ' + alink_thin_command
+        ld_cmd = '%s gyp-win-tool link-wrapper $arch $ld' % python_exec
+
+      master_ninja.rule(
+          'alink',
+          description='AR $out',
+          command=alink_command,
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline')
+      master_ninja.rule(
+          'alink_thin',
+          description='AR $out',
+          command=alink_thin_command,
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline')
+
+      if flavor in ['ps3']:
+        # TODO: Can we suppress the warnings from verlog.txt rather than
+        # rm'ing it?
+        ld_cmd = 'rm -f $verlog && ' + ld_cmd
+        if is_windows:
+          ld_cmd = 'cmd.exe /c ' + ld_cmd
+
+        prx_flags = '--oformat=fsprx --prx-with-runtime --zgenprx -zgenstub'
+        master_ninja.rule(
+            'solink',
+            description='LINK(PRX) $lib',
+            restat=True,
+            command=ld_cmd + ' @$prx.rsp',
+            rspfile='$prx.rsp',
+            rspfile_content='$ldflags %s -o $prx $in $libs' % prx_flags,
+            pool='link_pool')
+        master_ninja.rule(
+            'prx_export_pickup',
+            description='PRX-EXPORT-PICKUP $out',
+            command='$prx_export_pickup --output-src=$out $in')
+
+      else:  # Assume it is a Linux platform
+        # This allows targets that only need to depend on $lib's API to declare
+        # an order-only dependency on $lib.TOC and avoid relinking such
+        # downstream dependencies when $lib changes only in non-public ways.
+        # The resulting string leaves an uninterpolated %{suffix} which
+        # is used in the final substitution below.
+        mtime_preserving_solink_base = (
+            'if [ ! -e $lib -o ! -e ${lib}.TOC ]; then %(solink)s && '
+            '%(extract_toc)s > ${lib}.TOC; else %(solink)s && %(extract_toc)s '
+            '> ${lib}.tmp && if ! cmp -s ${lib}.tmp ${lib}.TOC; then mv '
+            '${lib}.tmp ${lib}.TOC ; fi; fi' % {
+                'solink': (
+                    ld_cmd +
+                    ' -shared $ldflags -o $lib -Wl,-soname=$soname %(suffix)s'),
+                'extract_toc': ('{ readelf -d ${lib} | grep SONAME ; '
+                                'nm -gD -f p ${lib} | cut -f1-2 -d\' \'; }')
+            })
+
+        master_ninja.rule(
+            'solink',
+            description='SOLINK $lib',
+            restat=True,
+            command=(mtime_preserving_solink_base % {
+                'suffix':
+                    '-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive '
+                    '$libs'
+            }))
+        master_ninja.rule(
+            'solink_module',
+            description='SOLINK(module) $lib',
+            restat=True,
+            command=(mtime_preserving_solink_base % {
+                'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'
+            }))
+
+      if flavor in sony_flavors:
+        # PS3 and PS4 linkers don't know about rpath.
+        rpath = ''
+      else:
+        rpath = r'-Wl,-rpath=\$$ORIGIN/lib'
+
+      master_ninja.rule(
+          'link',
+          description='LINK $out',
+          command=(ld_cmd + ' @$out.rsp'),
+          rspfile='$out.rsp',
+          rspfile_content=('$ldflags -o $out %s -Wl,--start-group $in $solibs '
+                           '-Wl,--end-group $libs' % rpath),
+          pool='link_pool')
+    elif flavor in microsoft_flavors:
+      master_ninja.rule(
+          'alink',
+          description='LIB $out',
+          command=(
+              '%s gyp-win-tool link-wrapper $arch '
+              '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline $libflags')
+      dlldesc = 'LINK(DLL) $dll'
+      dllcmd = ('%s gyp-win-tool link-wrapper $arch '
+                '$ld /nologo $implibflag /DLL /OUT:$dll '
+                '/PDB:$dll.pdb @$dll.rsp' % python_exec)
+      if not flavor in microsoft_flavors:
+        # XB1 doesn't need a manifest.
+        dllcmd += (
+            ' && %s gyp-win-tool manifest-wrapper $arch '
+            '$mt -nologo -manifest $manifests -out:$dll.manifest' % python_exec)
+      master_ninja.rule(
+          'solink',
+          description=dlldesc,
+          command=dllcmd,
+          rspfile='$dll.rsp',
+          rspfile_content='$libs $in_newline $ldflags',
+          restat=True)
+      master_ninja.rule(
+          'solink_module',
+          description=dlldesc,
+          command=dllcmd,
+          rspfile='$dll.rsp',
+          rspfile_content='$libs $in_newline $ldflags',
+          restat=True)
+      # Note that ldflags goes at the end so that it has the option of
+      # overriding default settings earlier in the command line.
+      if flavor == 'win':
+        link_command = ('%s gyp-win-tool link-wrapper $arch '
+                        '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp && '
+                        '%s gyp-win-tool manifest-wrapper $arch '
+                        '$mt -nologo -manifest $manifests -out:$out.manifest' %
+                        (python_exec, python_exec))
+      else:
+        assert flavor in microsoft_flavors
+        # XB1 doesn't need a manifest.
+        link_command = ('%s gyp-win-tool link-wrapper $arch '
+                        '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
+                        (python_exec))
+
+      master_ninja.rule(
+          'link',
+          description='LINK $out',
+          command=link_command,
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline $libs $ldflags',
+          pool='link_pool')
     else:
       master_ninja.rule(
-          'cc',
-          description='CC $out',
-          command=('$cc -MMD -MF $out.d $defines $includes $cflags $cflags_c '
-                   '$cflags_pch_c -c $in -o $out'),
-          deps='gcc',
+          'objc',
+          description='OBJC $out',
+          command=(
+              '$cc -MMD -MF $out.d $defines $includes $cflags $cflags_objc '
+              '$cflags_pch_objc -c $in -o $out'),
           depfile='$out.d')
       master_ninja.rule(
-          'cc_s',
-          description='CC $out',
-          command=('$cc $defines $includes $cflags $cflags_c '
-                   '$cflags_pch_c -c $in -o $out'))
-      master_ninja.rule(
-          'cxx',
-          description='CXX $out',
-          command=('$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_cc '
-                   '$cflags_pch_cc -c $in -o $out'),
-          deps='gcc',
+          'objcxx',
+          description='OBJCXX $out',
+          command=(
+              '$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_objcc '
+              '$cflags_pch_objcc -c $in -o $out'),
           depfile='$out.d')
-
-  else:
-    cc_command = ('$cc /nologo /showIncludes /FC '
-                  '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
-    cxx_command = ('$cxx /nologo /showIncludes /FC '
-                   '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
-    master_ninja.rule(
-        'cc',
-        description='CC $out',
-        command=cc_command,
-        deps='msvc',
-        rspfile='$out.rsp',
-        rspfile_content='$defines $includes $cflags $cflags_c')
-    master_ninja.rule(
-        'cxx',
-        description='CXX $out',
-        command=cxx_command,
-        deps='msvc',
-        rspfile='$out.rsp',
-        rspfile_content='$defines $includes $cflags $cflags_cc')
-
-    master_ninja.rule(
-        'rc',
-        description='RC $in',
-        # Note: $in must be last otherwise rc.exe complains.
-        command=(
-            '%s gyp-win-tool rc-wrapper '
-            '$arch $rc $defines $includes $rcflags /fo$out $in' % python_exec))
-    master_ninja.rule(
-        'asm',
-        description='ASM $in',
-        command=('%s gyp-win-tool asm-wrapper '
-                 '$arch $asm $defines $includes /c /Fo $out $in' % python_exec))
-
-  if flavor not in (['mac'] + microsoft_flavors):
-    alink_command = 'rm -f $out && $ar $arFlags $out @$out.rsp'
-    # TODO: Use rcsT on Linux only.
-    alink_thin_command = 'rm -f $out && $ar $arThinFlags $out @$out.rsp'
-
-    ld_cmd = '$ld'
-
-    if flavor in sony_flavors and is_windows:
-      alink_command = 'cmd.exe /c ' + alink_command
-      alink_thin_command = 'cmd.exe /c ' + alink_thin_command
-      ld_cmd = '%s gyp-win-tool link-wrapper $arch $ld' % python_exec
-
-    master_ninja.rule(
-        'alink',
-        description='AR $out',
-        command=alink_command,
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline')
-    master_ninja.rule(
-        'alink_thin',
-        description='AR $out',
-        command=alink_thin_command,
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline')
-
-    if flavor in ['ps3']:
-      # TODO: Can we suppress the warnings from verlog.txt rather than
-      # rm'ing it?
-      ld_cmd = 'rm -f $verlog && ' + ld_cmd
-      if is_windows:
-        ld_cmd = 'cmd.exe /c ' + ld_cmd
-
-      prx_flags = '--oformat=fsprx --prx-with-runtime --zgenprx -zgenstub'
       master_ninja.rule(
-          'solink',
-          description='LINK(PRX) $lib',
-          restat=True,
-          command=ld_cmd + ' @$prx.rsp',
-          rspfile='$prx.rsp',
-          rspfile_content='$ldflags %s -o $prx $in $libs' % prx_flags,
-          pool='link_pool')
-      master_ninja.rule(
-          'prx_export_pickup',
-          description='PRX-EXPORT-PICKUP $out',
-          command='$prx_export_pickup --output-src=$out $in')
+          'alink',
+          description='LIBTOOL-STATIC $out, POSTBUILDS',
+          command='rm -f $out && '
+          './gyp-mac-tool filter-libtool libtool $libtool_flags '
+          '-static -o $out $in'
+          '$postbuilds')
 
-    else:  # Assume it is a Linux platform
-      # This allows targets that only need to depend on $lib's API to declare an
-      # order-only dependency on $lib.TOC and avoid relinking such downstream
-      # dependencies when $lib changes only in non-public ways.
-      # The resulting string leaves an uninterpolated %{suffix} which
-      # is used in the final substitution below.
+      # Record the public interface of $lib in $lib.TOC. See the corresponding
+      # comment in the posix section above for details.
       mtime_preserving_solink_base = (
-          'if [ ! -e $lib -o ! -e ${lib}.TOC ]; then '
-          '%(solink)s && %(extract_toc)s > ${lib}.TOC; else '
+          'if [ ! -e $lib -o ! -e ${lib}.TOC ] || '
+          # Always force dependent targets to relink if this library
+          # reexports something. Handling this correctly would require
+          # recursive TOC dumping but this is rare in practice, so punt.
+          'otool -l $lib | grep -q LC_REEXPORT_DYLIB ; then '
+          '%(solink)s && %(extract_toc)s > ${lib}.TOC; '
+          'else '
           '%(solink)s && %(extract_toc)s > ${lib}.tmp && '
-          'if ! cmp -s ${lib}.tmp ${lib}.TOC; then mv ${lib}.tmp ${lib}.TOC ; '
-          'fi; fi' % {
-              'solink':
-                  (ld_cmd +
-                   ' -shared $ldflags -o $lib -Wl,-soname=$soname %(suffix)s'),
-              'extract_toc': ('{ readelf -d ${lib} | grep SONAME ; '
-                              'nm -gD -f p ${lib} | cut -f1-2 -d\' \'; }')
+          'if ! cmp -s ${lib}.tmp ${lib}.TOC; then '
+          'mv ${lib}.tmp ${lib}.TOC ; '
+          'fi; '
+          'fi' % {
+              'solink': '$ld -shared $ldflags -o $lib %(suffix)s',
+              'extract_toc':
+                  '{ otool -l $lib | grep LC_ID_DYLIB -A 5; '
+                  'nm -gP $lib | cut -f1-2 -d\' \' | grep -v U$$; true; }'
           })
 
+      # TODO(thakis): The solink_module rule is likely wrong. Xcode seems to
+      # pass -bundle -single_module here (for osmesa.so).
       master_ninja.rule(
           'solink',
-          description='SOLINK $lib',
+          description='SOLINK $lib, POSTBUILDS',
           restat=True,
           command=(mtime_preserving_solink_base % {
-              'suffix':
-                  '-Wl,--whole-archive $in $solibs -Wl,--no-whole-archive '
-                  '$libs'
+              'suffix': '$in $solibs $libs$postbuilds'
           }))
       master_ninja.rule(
           'solink_module',
-          description='SOLINK(module) $lib',
+          description='SOLINK(module) $lib, POSTBUILDS',
           restat=True,
           command=(mtime_preserving_solink_base % {
-              'suffix': '-Wl,--start-group $in $solibs -Wl,--end-group $libs'
+              'suffix': '$in $solibs $libs$postbuilds'
           }))
 
-    if flavor in sony_flavors:
-      # PS3 and PS4 linkers don't know about rpath.
-      rpath = ''
+      master_ninja.rule(
+          'link',
+          description='LINK $out, POSTBUILDS',
+          command=('$ld $ldflags -o $out '
+                   '$in $solibs $libs$postbuilds'),
+          pool='link_pool')
+      master_ninja.rule(
+          'infoplist',
+          description='INFOPLIST $out',
+          command=('$cc -E -P -Wno-trigraphs -x c $defines $in -o $out && '
+                   'plutil -convert xml1 $out $out'))
+      master_ninja.rule(
+          'mac_tool',
+          description='MACTOOL $mactool_cmd $in',
+          command='$env ./gyp-mac-tool $mactool_cmd $in $out')
+      master_ninja.rule(
+          'package_framework',
+          description='PACKAGE FRAMEWORK $out, POSTBUILDS',
+          command='./gyp-mac-tool package-framework $out $version$postbuilds '
+          '&& touch $out')
+    if flavor in microsoft_flavors:
+      master_ninja.rule(
+          'stamp',
+          description='STAMP $out',
+          command='%s gyp-win-tool stamp $out' % python_exec)
+      master_ninja.rule(
+          'copy',
+          description='COPY $in $out',
+          command='%s gyp-win-tool recursive-mirror $in $out' % python_exec)
+    elif sys.platform in ['cygwin', 'win32']:
+      master_ninja.rule(
+          'stamp',
+          description='STAMP $out',
+          command='$python gyp-win-tool stamp $out')
+      master_ninja.rule(
+          'copy',
+          description='COPY $in $out',
+          command='$python gyp-win-tool recursive-mirror $in $out')
     else:
-      rpath = r'-Wl,-rpath=\$$ORIGIN/lib'
+      master_ninja.rule(
+          'stamp', description='STAMP $out', command='${postbuilds}touch $out')
+      master_ninja.rule(
+          'copy',
+          description='COPY $in $out',
+          command='rm -rf $out && cp -af $in $out')
+    master_ninja.newline()
 
-    master_ninja.rule(
-        'link',
-        description='LINK $out',
-        command=(ld_cmd + ' @$out.rsp'),
-        rspfile='$out.rsp',
-        rspfile_content=('$ldflags -o $out %s -Wl,--start-group $in $solibs '
-                         '-Wl,--end-group $libs' % rpath),
-        pool='link_pool')
-  elif flavor in microsoft_flavors:
-    master_ninja.rule(
-        'alink',
-        description='LIB $out',
-        command=('%s gyp-win-tool link-wrapper $arch '
-                 '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline $libflags')
-    dlldesc = 'LINK(DLL) $dll'
-    dllcmd = ('%s gyp-win-tool link-wrapper $arch '
-              '$ld /nologo $implibflag /DLL /OUT:$dll '
-              '/PDB:$dll.pdb @$dll.rsp' % python_exec)
-    if not flavor in microsoft_flavors:
-      # XB1 doesn't need a manifest.
-      dllcmd += (
-          ' && %s gyp-win-tool manifest-wrapper $arch '
-          '$mt -nologo -manifest $manifests -out:$dll.manifest' % python_exec)
-    master_ninja.rule(
-        'solink',
-        description=dlldesc,
-        command=dllcmd,
-        rspfile='$dll.rsp',
-        rspfile_content='$libs $in_newline $ldflags',
-        restat=True)
-    master_ninja.rule(
-        'solink_module',
-        description=dlldesc,
-        command=dllcmd,
-        rspfile='$dll.rsp',
-        rspfile_content='$libs $in_newline $ldflags',
-        restat=True)
-    # Note that ldflags goes at the end so that it has the option of
-    # overriding default settings earlier in the command line.
-    if flavor == 'win':
-      link_command = ('%s gyp-win-tool link-wrapper $arch '
-                      '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp && '
-                      '%s gyp-win-tool manifest-wrapper $arch '
-                      '$mt -nologo -manifest $manifests -out:$out.manifest' %
-                      (python_exec, python_exec))
-    else:
-      assert flavor in microsoft_flavors
-      # XB1 doesn't need a manifest.
+    # Output host building rules
+    if is_windows:
+      cc_command = ('$cc /nologo /showIncludes /FC '
+                    '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
+      cxx_command = ('$cxx /nologo /showIncludes /FC '
+                     '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
+      master_ninja.rule(
+          'cc_host',
+          description='CC_HOST $out',
+          command=cc_command,
+          deps='msvc',
+          rspfile='$out.rsp',
+          rspfile_content='$defines $includes $cflags_host $cflags_c_host')
+      master_ninja.rule(
+          'cxx_host',
+          description='CXX_HOST $out',
+          command=cxx_command,
+          deps='msvc',
+          rspfile='$out.rsp',
+          rspfile_content='$defines $includes $cflags_host $cflags_cc_host')
+
+      master_ninja.rule(
+          'alink_host',
+          description='LIB_HOST $out',
+          command=(
+              '%s gyp-win-tool link-wrapper $arch '
+              '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline $libflags_host')
+
+      master_ninja.rule(
+          'alink_thin_host',
+          description='LIB_HOST $out',
+          command=(
+              '%s gyp-win-tool link-wrapper $arch '
+              '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline $libflags_host')
+
       link_command = ('%s gyp-win-tool link-wrapper $arch '
                       '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
                       (python_exec))
 
-    master_ninja.rule(
-        'link',
-        description='LINK $out',
-        command=link_command,
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline $libs $ldflags',
-        pool='link_pool')
-  else:
-    master_ninja.rule(
-        'objc',
-        description='OBJC $out',
-        command=('$cc -MMD -MF $out.d $defines $includes $cflags $cflags_objc '
-                 '$cflags_pch_objc -c $in -o $out'),
-        depfile='$out.d')
-    master_ninja.rule(
-        'objcxx',
-        description='OBJCXX $out',
-        command=(
-            '$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_objcc '
-            '$cflags_pch_objcc -c $in -o $out'),
-        depfile='$out.d')
-    master_ninja.rule(
-        'alink',
-        description='LIBTOOL-STATIC $out, POSTBUILDS',
-        command='rm -f $out && '
-        './gyp-mac-tool filter-libtool libtool $libtool_flags '
-        '-static -o $out $in'
-        '$postbuilds')
+      master_ninja.rule(
+          'link_host',
+          description='LINK_HOST $out',
+          command=link_command,
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline $libs $ldflags',
+          pool='link_pool')
+    else:
+      cc_command = 'bash -c "$cc_host @$out.rsp"'
+      cxx_command = 'bash -c "$cxx_host @$out.rsp"'
+      master_ninja.rule(
+          'cc_host',
+          description='CC_HOST $out',
+          command=cc_command,
+          rspfile='$out.rsp',
+          rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
+                           '$cflags_c_host $cflags_pch_c -c $in -o $out'),
+          depfile='$out.d')
+      master_ninja.rule(
+          'cxx_host',
+          description='CXX_HOST $out',
+          command=cxx_command,
+          rspfile='$out.rsp',
+          rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
+                           '$cflags_cc_host $cflags_pch_cc -c $in -o $out'),
+          depfile='$out.d')
 
-    # Record the public interface of $lib in $lib.TOC. See the corresponding
-    # comment in the posix section above for details.
-    mtime_preserving_solink_base = (
-        'if [ ! -e $lib -o ! -e ${lib}.TOC ] || '
-        # Always force dependent targets to relink if this library
-        # reexports something. Handling this correctly would require
-        # recursive TOC dumping but this is rare in practice, so punt.
-        'otool -l $lib | grep -q LC_REEXPORT_DYLIB ; then '
-        '%(solink)s && %(extract_toc)s > ${lib}.TOC; '
-        'else '
-        '%(solink)s && %(extract_toc)s > ${lib}.tmp && '
-        'if ! cmp -s ${lib}.tmp ${lib}.TOC; then '
-        'mv ${lib}.tmp ${lib}.TOC ; '
-        'fi; '
-        'fi' % {
-            'solink': '$ld -shared $ldflags -o $lib %(suffix)s',
-            'extract_toc':
-                '{ otool -l $lib | grep LC_ID_DYLIB -A 5; '
-                'nm -gP $lib | cut -f1-2 -d\' \' | grep -v U$$; true; }'
-        })
+      alink_command = 'rm -f $out && $ar_host $arFlags_host $out @$out.rsp'
+      alink_thin_command = ('rm -f $out && $ar_host $arThinFlags_host $out '
+                            '@$out.rsp')
 
-    # TODO(thakis): The solink_module rule is likely wrong. Xcode seems to pass
-    # -bundle -single_module here (for osmesa.so).
-    master_ninja.rule(
-        'solink',
-        description='SOLINK $lib, POSTBUILDS',
-        restat=True,
-        command=(mtime_preserving_solink_base % {
-            'suffix': '$in $solibs $libs$postbuilds'
-        }))
-    master_ninja.rule(
-        'solink_module',
-        description='SOLINK(module) $lib, POSTBUILDS',
-        restat=True,
-        command=(mtime_preserving_solink_base % {
-            'suffix': '$in $solibs $libs$postbuilds'
-        }))
-
-    master_ninja.rule(
-        'link',
-        description='LINK $out, POSTBUILDS',
-        command=('$ld $ldflags -o $out '
-                 '$in $solibs $libs$postbuilds'),
-        pool='link_pool')
-    master_ninja.rule(
-        'infoplist',
-        description='INFOPLIST $out',
-        command=('$cc -E -P -Wno-trigraphs -x c $defines $in -o $out && '
-                 'plutil -convert xml1 $out $out'))
-    master_ninja.rule(
-        'mac_tool',
-        description='MACTOOL $mactool_cmd $in',
-        command='$env ./gyp-mac-tool $mactool_cmd $in $out')
-    master_ninja.rule(
-        'package_framework',
-        description='PACKAGE FRAMEWORK $out, POSTBUILDS',
-        command='./gyp-mac-tool package-framework $out $version$postbuilds '
-        '&& touch $out')
-  if flavor in microsoft_flavors:
-    master_ninja.rule(
-        'stamp',
-        description='STAMP $out',
-        command='%s gyp-win-tool stamp $out' % python_exec)
-    master_ninja.rule(
-        'copy',
-        description='COPY $in $out',
-        command='%s gyp-win-tool recursive-mirror $in $out' % python_exec)
-  elif sys.platform in ['cygwin', 'win32']:
-    master_ninja.rule(
-        'stamp',
-        description='STAMP $out',
-        command='$python gyp-win-tool stamp $out')
-    master_ninja.rule(
-        'copy',
-        description='COPY $in $out',
-        command='$python gyp-win-tool recursive-mirror $in $out')
-  else:
-    master_ninja.rule(
-        'stamp', description='STAMP $out', command='${postbuilds}touch $out')
-    master_ninja.rule(
-        'copy',
-        description='COPY $in $out',
-        command='rm -rf $out && cp -af $in $out')
-  master_ninja.newline()
-
-  # Output host building rules
-  if is_windows:
-    cc_command = ('$cc /nologo /showIncludes /FC '
-                  '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
-    cxx_command = ('$cxx /nologo /showIncludes /FC '
-                   '@$out.rsp /c $in /Fo$out /Fd$pdbname ')
-    master_ninja.rule(
-        'cc_host',
-        description='CC_HOST $out',
-        command=cc_command,
-        deps='msvc',
-        rspfile='$out.rsp',
-        rspfile_content='$defines $includes $cflags_host $cflags_c_host')
-    master_ninja.rule(
-        'cxx_host',
-        description='CXX_HOST $out',
-        command=cxx_command,
-        deps='msvc',
-        rspfile='$out.rsp',
-        rspfile_content='$defines $includes $cflags_host $cflags_cc_host')
-
-    master_ninja.rule(
-        'alink_host',
-        description='LIB_HOST $out',
-        command=('%s gyp-win-tool link-wrapper $arch '
-                 '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline $libflags_host')
-
-    master_ninja.rule(
-        'alink_thin_host',
-        description='LIB_HOST $out',
-        command=('%s gyp-win-tool link-wrapper $arch '
-                 '$ar /nologo /ignore:4221 /OUT:$out @$out.rsp' % python_exec),
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline $libflags_host')
-
-    link_command = ('%s gyp-win-tool link-wrapper $arch '
-                    '$ld /nologo /OUT:$out /PDB:$out.pdb @$out.rsp' %
-                    (python_exec))
-
-    master_ninja.rule(
-        'link_host',
-        description='LINK_HOST $out',
-        command=link_command,
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline $libs $ldflags',
-        pool='link_pool')
-  else:
-    cc_command = 'bash -c "$cc_host @$out.rsp"'
-    cxx_command = 'bash -c "$cxx_host @$out.rsp"'
-    master_ninja.rule(
-        'cc_host',
-        description='CC_HOST $out',
-        command=cc_command,
-        rspfile='$out.rsp',
-        rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
-                         '$cflags_c_host $cflags_pch_c -c $in -o $out'),
-        depfile='$out.d')
-    master_ninja.rule(
-        'cxx_host',
-        description='CXX_HOST $out',
-        command=cxx_command,
-        rspfile='$out.rsp',
-        rspfile_content=('-MMD -MF $out.d $defines $includes $cflags_host '
-                         '$cflags_cc_host $cflags_pch_cc -c $in -o $out'),
-        depfile='$out.d')
-
-    alink_command = 'rm -f $out && $ar_host $arFlags_host $out @$out.rsp'
-    alink_thin_command = ('rm -f $out && $ar_host $arThinFlags_host $out '
-                          '@$out.rsp')
-
-    master_ninja.rule(
-        'alink_host',
-        description='AR_HOST $out',
-        command='bash -c "' + alink_command + '"',
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline')
-    master_ninja.rule(
-        'alink_thin_host',
-        description='AR_HOST $out',
-        command='bash -c "' + alink_thin_command + '"',
-        rspfile='$out.rsp',
-        rspfile_content='$in_newline')
-    beginlinkinlibs = ''
-    endlinkinlibs = ''
-    if is_linux:
-      beginlinkinlibs = '-Wl,--start-group'
-      endlinkinlibs = '-Wl,--end-group'
-    rpath = '-Wl,-rpath=\$$ORIGIN/lib'
-    master_ninja.rule(
-        'link_host',
-        description='LINK_HOST $out',
-        command=('bash -c "$ld_host $ldflags_host -o $out %s '
-                 '%s $in $solibs %s $libs"' % (rpath, beginlinkinlibs,
-                                               endlinkinlibs)))
+      master_ninja.rule(
+          'alink_host',
+          description='AR_HOST $out',
+          command='bash -c "' + alink_command + '"',
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline')
+      master_ninja.rule(
+          'alink_thin_host',
+          description='AR_HOST $out',
+          command='bash -c "' + alink_thin_command + '"',
+          rspfile='$out.rsp',
+          rspfile_content='$in_newline')
+      beginlinkinlibs = ''
+      endlinkinlibs = ''
+      if is_linux:
+        beginlinkinlibs = '-Wl,--start-group'
+        endlinkinlibs = '-Wl,--end-group'
+      rpath = '-Wl,-rpath=\$$ORIGIN/lib'
+      master_ninja.rule(
+          'link_host',
+          description='LINK_HOST $out',
+          command=('bash -c "$ld_host $ldflags_host -o $out %s '
+                   '%s $in $solibs %s $libs"' % (rpath, beginlinkinlibs,
+                                                 endlinkinlibs)))
 
   all_targets = set()
   for build_file in params['build_files']:
