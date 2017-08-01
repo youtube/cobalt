@@ -112,9 +112,6 @@ bool ImageDataDecoder::AllocateImageData(const math::Size& size,
   if (!image_data_) {
     DLOG(WARNING) << "Failed to allocate image data (" << size.width() << "x"
                   << size.height() << ").";
-    // We want to know in debug if we have problems allocating image data.
-    // It should never happen.
-    DCHECK(false);
   }
   return image_data_;
 }
