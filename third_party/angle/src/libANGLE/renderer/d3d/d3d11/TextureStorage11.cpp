@@ -28,6 +28,8 @@
 #include "libANGLE/renderer/d3d/EGLImageD3D.h"
 #include "libANGLE/renderer/d3d/TextureD3D.h"
 
+#include "starboard/log.h"
+
 namespace rx
 {
 
@@ -714,7 +716,8 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
       mSwizzleTexture(nullptr),
-      mBindChroma(false)
+      mBindChroma(false),
+      mArrayIndex(0)
 {
     mTexture->AddRef();
 
@@ -733,7 +736,10 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
     mHasKeyedMutex = (texDesc.MiscFlags & D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX) != 0;
 }
 
-TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture, bool bindChroma)
+TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
+                                         IUnknown *texture,
+                                         bool bindChroma,
+                                         UINT arrayIndex)
     : TextureStorage11(renderer,
                        0,
                        0,
@@ -743,7 +749,8 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(false),
       mSwizzleTexture(nullptr),
-      mBindChroma(bindChroma)
+      mBindChroma(bindChroma),
+      mArrayIndex(arrayIndex)
 {
     mTexture->AddRef();
 
@@ -1200,6 +1207,12 @@ gl::Error TextureStorage11_2D::createSRV(int baseLevel,
         d3Texture->GetDesc(&texture_desc);
         if (texture_desc.Format == DXGI_FORMAT_NV12)
         {
+            srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
+            srvDesc.Texture2DArray.MostDetailedMip = mTopLevel + baseLevel;
+            srvDesc.Texture2DArray.MipLevels       = mipLevels;
+            srvDesc.Texture2DArray.FirstArraySlice = mArrayIndex;
+            srvDesc.Texture2DArray.ArraySize       = 1;
+
             if (mBindChroma)
                 srvDesc.Format = DXGI_FORMAT_R8G8_UNORM;
             else

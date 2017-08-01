@@ -67,6 +67,11 @@ class SurfaceD3D : public SurfaceImpl
       return mBindChroma;
     }
 
+    UINT getArrayIndex() const
+    {
+      return mArrayIndex;
+    }
+
   protected:
     SurfaceD3D(const egl::SurfaceState &state,
                RendererD3D *renderer,
@@ -101,6 +106,7 @@ class SurfaceD3D : public SurfaceImpl
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
     EGLenum mBuftype;
+    UINT mArrayIndex;
     bool mBindChroma;
 };
 
