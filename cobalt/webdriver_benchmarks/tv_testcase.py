@@ -12,7 +12,7 @@ import time
 import unittest
 
 # This directory is a package
-sys.path.insert(0, os.path.abspath("."))
+sys.path.insert(0, os.path.abspath('.'))
 # pylint: disable=C6204,C6203
 import c_val_names
 import tv
@@ -27,8 +27,8 @@ except ImportError:
 # selenium imports
 # pylint: disable=C0103
 ActionChains = tv_testcase_util.import_selenium_module(
-    submodule="webdriver.common.action_chains").ActionChains
-keys = tv_testcase_util.import_selenium_module("webdriver.common.keys")
+    submodule='webdriver.common.action_chains').ActionChains
+keys = tv_testcase_util.import_selenium_module('webdriver.common.keys')
 
 WINDOWDRIVER_CREATED_TIMEOUT_SECONDS = 30
 WEBMODULE_LOADED_TIMEOUT_SECONDS = 30
@@ -38,6 +38,8 @@ HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
 SKIP_AD_TIMEOUT_SECONDS = 30
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
+
+MAX_SURVEY_SHELF_COUNT = 3
 
 _is_initialized = False
 
@@ -64,21 +66,25 @@ class TvTestCase(unittest.TestCase):
   class TitleCardHiddenTimeoutException(BaseException):
     """Exception thrown when title card did not disappear in time."""
 
+  class SurveyShelfLimitExceededException(BaseException):
+    """Exception thrown when too many surveys are encountered."""
+
   @classmethod
   def setUpClass(cls):
-    print("Running " + cls.__name__)
+    print('Running ' + cls.__name__)
 
   @classmethod
   def tearDownClass(cls):
-    print("Done " + cls.__name__)
+    print('Done ' + cls.__name__)
 
   def setUp(self):
+    self.survey_shelf_count = 0
     global _is_initialized
     if not _is_initialized:
       # Initialize the tests.
       query_params = query_param_constants.INIT_QUERY_PARAMS
       triggers_reload = query_param_constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
-      self.load_tv(query_params, triggers_reload)
+      self.load_tv(query_params=query_params, triggers_reload=triggers_reload)
       _is_initialized = True
 
   def get_webdriver(self):
@@ -86,6 +92,12 @@ class TvTestCase(unittest.TestCase):
 
   def get_default_url(self):
     return tv_testcase_runner.GetDefaultUrl()
+
+  def get_sample_size(self):
+    return tv_testcase_runner.GetSampleSize()
+
+  def are_videos_disabled(self):
+    return tv_testcase_runner.GetDisableVideos()
 
   def get_cval(self, cval_name):
     """Returns the Python object represented by a JSON cval string.
@@ -95,7 +107,7 @@ class TvTestCase(unittest.TestCase):
     Returns:
       Python object represented by the JSON cval string
     """
-    javascript_code = "return h5vcc.cVal.getValue('{}')".format(cval_name)
+    javascript_code = 'return h5vcc.cVal.getValue(\'{}\')'.format(cval_name)
     json_result = self.get_webdriver().execute_script(javascript_code)
     if json_result is None:
       return None
@@ -109,7 +121,7 @@ class TvTestCase(unittest.TestCase):
       Underlying WebDriver exceptions
     """
     self.clear_url_loaded_events()
-    self.get_webdriver().get("about:blank")
+    self.get_webdriver().get('about:blank')
     self.wait_for_url_loaded_events()
 
   def load_tv(self, query_params=None, triggers_reload=False):
@@ -121,26 +133,31 @@ class TvTestCase(unittest.TestCase):
     Raises:
       Underlying WebDriver exceptions
     """
-    self.get_webdriver().execute_script("h5vcc.storage.clearCookies()")
-    self.clear_url_loaded_events()
-    self.get_webdriver().get(
-        tv_testcase_util.generate_url(self.get_default_url(), query_params))
-    self.wait_for_url_loaded_events()
-    if triggers_reload:
+    load_url = True
+    while load_url:
+      self.get_webdriver().execute_script('h5vcc.storage.clearCookies()')
       self.clear_url_loaded_events()
+      self.get_webdriver().get(
+          tv_testcase_util.generate_url(self.get_default_url(), query_params))
       self.wait_for_url_loaded_events()
-    # Note that the internal tests use "expect_transition" which is
-    # a mechanism that sets a maximum timeout for a "@with_retries"
-    # decorator-driven success retry loop for subsequent webdriver requests.
-    #
-    # We'll skip that sophistication here.
+      # The reload will only trigger on the first URL load.
+      if triggers_reload:
+        self.clear_url_loaded_events()
+        self.wait_for_url_loaded_events()
+        triggers_reload = False
+      self.poll_until_found(tv.SHELF)
+      # Stop loading the url if there is no survey shelf.
+      if not self.check_for_survey_shelf():
+        load_url = False
+
     self.wait_for_processing_complete_after_focused_shelf()
 
-  def poll_until_found(self, css_selector):
+  def poll_until_found(self, css_selector, expected_num=None):
     """Polls until an element is found.
 
     Args:
       css_selector: A CSS selector
+      expected_num: The expected number of the selector type to be found.
     Raises:
       Underlying WebDriver exceptions
     """
@@ -148,7 +165,8 @@ class TvTestCase(unittest.TestCase):
     while ((not self.find_elements(css_selector)) and
            (time.time() - start_time < PAGE_LOAD_WAIT_SECONDS)):
       time.sleep(1)
-    self.assert_displayed(css_selector)
+    if expected_num:
+      self.find_elements(css_selector, expected_num)
 
   def unique_find(self, unique_selector):
     """Finds and returns a uniquely selected element.
@@ -336,6 +354,23 @@ class TvTestCase(unittest.TestCase):
       if time.time() - start_time > TITLE_CARD_HIDDEN_TIMEOUT_SECONDS:
         raise TvTestCase.TitleCardHiddenTimeoutException()
       time.sleep(1)
+
+  def check_for_survey_shelf(self):
+    """Check for a survey shelf in the DOM.
+
+    Raises:
+      SurveyShelfLimitExceededException: The limit for the number of surveys
+      during a test was exceeded.
+    Returns:
+      Whether or not a survey was found in the DOM.
+    """
+    if not self.find_elements(tv.SURVEY_SHELF):
+      return False
+    self.survey_shelf_count += 1
+    print('Encountered survey shelf! {} total.'.format(self.survey_shelf_count))
+    if self.survey_shelf_count > MAX_SURVEY_SHELF_COUNT:
+      raise TvTestCase.SurveyShelfFailureException()
+    return True
 
 
 def main():
