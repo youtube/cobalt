@@ -63,11 +63,6 @@ bool ShellAVCParser::Prepend(scoped_refptr<ShellAU> au,
       buffer->allocations().Write(0, video_prepend_, video_prepend_size_);
     }
   } else if (au->GetType() == DemuxerStream::AUDIO) {
-#if defined(COBALT_WIN)
-    // We use raw AAC instead of ADTS on these platforms.
-    DCHECK(audio_prepend_.empty());
-    return true;
-#endif
     if (audio_prepend_.size() < 6) {
       // valid ADTS header not available
       return false;
@@ -469,11 +464,6 @@ void ShellAVCParser::ParseAudioSpecificConfig(uint8 b0, uint8 b1) {
   audio_prepend_[3] &= 0xfc;
   audio_prepend_[4] = 0;
   audio_prepend_[5] &= 0x1f;
-
-#if defined(COBALT_WIN)
-  // We use raw AAC instead of ADTS on these platforms.
-  audio_prepend_.clear();
-#endif  // defined(COBALT_WIN)
 
   const bool kSbrInMimetype = false;
   audio_config_.Initialize(
