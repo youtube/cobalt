@@ -22,12 +22,14 @@ SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
     void* context,
     SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback) {
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
   if (SbStringCompareAll(key_system, "com.widevine") != 0 &&
       SbStringCompareAll(key_system, "com.widevine.alpha")) {
     SB_DLOG(WARNING) << "Invalid key system " << key_system;
     return kSbDrmSystemInvalid;
   }
   return new starboard::shared::widevine::SbDrmSystemWidevine(
-      context, update_request_callback, session_updated_callback);
+      context, update_request_callback, session_updated_callback,
+      key_statuses_changed_callback);
 }
