@@ -447,7 +447,7 @@
 
     # Use media source extension implementation that is conformed to the
     # Candidate Recommandation of July 5th 2016.
-    'cobalt_media_source_2016%': 0,
+    'cobalt_media_source_2016%': 1,
 
     # Note that the following media buffer related variables are only used when
     # |cobalt_media_source_2016| is set to 1.
