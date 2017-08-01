@@ -53,9 +53,6 @@
       # The system root for cross-compiles. Default: none.
       'sysroot%': '',
 
-      # Use libjpeg-turbo as the JPEG codec used by Chromium.
-      'use_libjpeg_turbo%': 1,
-
       # Use system libjpeg. Note that the system's libjepg will be used even if
       # use_libjpeg_turbo is set.
       'use_system_libjpeg%': 0,
@@ -120,16 +117,11 @@
     'tsan%': '<(tsan)',
     'clang_type_profiler%': '<(clang_type_profiler)',
     'order_profiling%': '<(order_profiling)',
-    'use_libjpeg_turbo%': '<(use_libjpeg_turbo)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
 
     # Use system protobuf instead of bundled one.
     'use_system_protobuf%': 0,
-
-    # Whether proprietary audio/video codecs are assumed to be included with
-    # this build (only meaningful if branding!=Chrome).
-    'proprietary_codecs%': 0,
 
     # TODO(sgk): eliminate this if possible.
     # It would be nicer to support this via a setting in 'target_defaults'
@@ -229,8 +221,6 @@
         # to specify the output directory for Ant in the Android build.
         'ant_build_out': '`cd <(PRODUCT_DIR) && pwd -P`',
 
-        'proprietary_codecs%': '<(proprietary_codecs)',
-
         # Disable Native Client.
         'disable_nacl%': 1,
 
@@ -244,13 +234,6 @@
         # Copy it out one scope.
         'android_build_type%': '<(android_build_type)',
       }],  # target_arch=="android"
-
-      ['use_system_libjpeg==1 or use_libjpeg_turbo==0', {
-        # Configuration for using the system libjeg is here.
-        'libjpeg_gyp_path': '../third_party/libjpeg/libjpeg.gyp',
-      }, {
-        'libjpeg_gyp_path': '../third_party/libjpeg_turbo/libjpeg.gyp',
-      }],
 
       ['asan==1 and OS!="win"', {
         'clang%': 1,
@@ -398,9 +381,6 @@
       }],
       ['profiling==1', {
         'defines': ['ENABLE_PROFILING=1'],
-      }],
-      ['proprietary_codecs==1', {
-        'defines': ['USE_PROPRIETARY_CODECS'],
       }],
       ['dcheck_always_on!=0', {
         'defines': ['DCHECK_ALWAYS_ON=1'],
