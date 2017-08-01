@@ -30,11 +30,11 @@ it must be specified via commandline parameters.
 
  1. If appropriate, create a new file borrowing the boilerplate from
     an existing simple file, such as
-    [browse_horizontal.py](performance/non_video/browse_horizontal.py).
+    [browse_horizontal.py](performance/browse_horizontal.py).
 
  2. Add the file name to the tests added within
     [performance.py](performance.py), causing it run when
-    [performance](performance.py) is run.
+    [performance.py](performance.py) is run.
 
  3. If this file contains internal names or details, consider adding it
     to the "EXCLUDE.FILES" list.
