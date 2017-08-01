@@ -163,8 +163,7 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       error_(false),
       sent_(false),
       stop_timeout_(false),
-      upload_complete_(false),
-      did_add_ref_(false) {
+      upload_complete_(false) {
   DCHECK(settings_);
   dom::GlobalStats::GetInstance()->Add(this);
   xhr_id_ = ++s_xhr_sequence_num_;
@@ -860,13 +859,9 @@ void XMLHttpRequest::UpdateProgress() {
 void XMLHttpRequest::PreventGarbageCollection() {
   settings_->global_environment()->PreventGarbageCollection(
       make_scoped_refptr(this));
-  DCHECK(!did_add_ref_);
-  did_add_ref_ = true;
 }
 
 void XMLHttpRequest::AllowGarbageCollection() {
-  DCHECK(did_add_ref_);
-
   bool is_active = (state_ == kOpened && sent_) || state_ == kHeadersReceived ||
                    state_ == kLoading;
   bool has_event_listeners =
@@ -880,7 +875,6 @@ void XMLHttpRequest::AllowGarbageCollection() {
 
   DCHECK_EQ((is_active && has_event_listeners), false);
 
-  did_add_ref_ = false;
   settings_->javascript_engine()->ReportExtraMemoryCost(
       response_body_.capacity());
   settings_->global_environment()->AllowGarbageCollection(

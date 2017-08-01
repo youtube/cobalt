@@ -272,9 +272,6 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool stop_timeout_;
   bool upload_complete_;
 
-  // For debugging our reference count manipulations.
-  bool did_add_ref_;
-
   static bool verbose_;
   // Unique ID for debugging.
   int xhr_id_;
