@@ -19,7 +19,6 @@
       '-lGLESv2',
       '-lX11',
       '-lXcomposite',
-      '-lXext',
       '-lXrender',
     ],
   },
