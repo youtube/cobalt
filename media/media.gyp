@@ -718,30 +718,6 @@
             'base/shell_cached_decoder_buffer.cc',
             'base/shell_cached_decoder_buffer.h',
           ],
-          'conditions': [
-            ['sb_media_platform == "starboard"', {
-              'sources': [
-                'audio/shell_audio_streamer_starboard.cc',
-                'base/decoder_buffer_cache.cc',
-                'base/decoder_buffer_cache.h',
-                'base/sbplayer_pipeline.cc',
-                'base/sbplayer_set_bounds_helper.cc',
-                'base/sbplayer_set_bounds_helper.h',
-                'base/starboard_player.cc',
-                'base/starboard_player.h',
-                'base/starboard_utils.cc',
-                'base/starboard_utils.h',
-                'crypto/starboard_decryptor.cc',
-                'crypto/starboard_decryptor.h',
-                'filters/shell_audio_renderer_starboard.cc',
-              ],
-              'sources/': [
-                ['exclude', '^base/pipeline_impl.cc'],
-                ['exclude', '^filters/shell_audio_renderer_impl.cc'],
-                ['exclude', '^filters/shell_video_renderer_impl.cc'],
-              ],
-            }],
-          ],
         }],  # OS == "starboard"
         ['OS == "ios"', {
           'includes': [
