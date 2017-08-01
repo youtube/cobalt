@@ -1,0 +1,47 @@
+{
+  # Variables which need to be renamed, and whose values need to be
+  # simultaneously changed
+  "rewrites": {
+  },
+
+  # Variables which only need to be renamed
+  "renames": {
+    "cobalt_fastbuild": "cobalt_use_fastbuild",
+    "cobalt_media_source_2016": "cobalt_use_media_source_2016",
+    "custom_media_session_client": "enable_custom_media_session_client",
+    "cobalt_version": "cobalt_build_id",
+    "in_app_dial": "enable_in_app_dial",
+    "sb_allows_memory_tracking": "sb_allow_memory_tracking",
+    "target_arch": "target_cpu",
+    "tizen_os": "is_tizen_os",
+  },
+
+  # List of variables which are actually booleans
+  # Note that we use the old names here!
+  "booleans": [
+    "abort_on_allocation_failure",
+    "cobalt_copy_debug_console",
+    "cobalt_copy_test_data",
+    "cobalt_enable_jit",
+    "cobalt_encrypted_media_extension_enable_key_statuses_update",
+    "cobalt_fastbuild",
+    "cobalt_media_source_2016",
+    "custom_media_session_client",
+    "enable_about_scheme",
+    "enable_account_manager",
+    "enable_crash_log",
+    "enable_fake_microphone",
+    "enable_file_scheme",
+    "enable_network_logging",
+    "enable_remote_debugging",
+    "enable_screenshot",
+    "enable_webdriver",
+    "enable_spdy",
+    "enable_xhr_header_filtering",
+    "in_app_dial",
+    "render_dirty_region_only",
+    "sb_allows_memory_tracking",
+    "sb_enable_lib",
+    "tizen_os",
+  ]
+}

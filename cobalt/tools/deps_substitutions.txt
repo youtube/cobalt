@@ -1,0 +1,3 @@
+<(DEPTH)/starboard/examples/blitter/blitter.gyp:starboard_blitter_example	//starboard/examples/blitter
+<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example	//starboard/examples/glclear
+<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example	//starboard/examples/window
