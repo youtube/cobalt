@@ -4038,9 +4038,11 @@ TextureStorage *Renderer11::createTextureStorage2D(SwapChainD3D *swapChain)
     return new TextureStorage11_2D(this, swapChain11);
 }
 
-TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture, bool bindChroma)
+TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture,
+                                                   bool bindChroma,
+                                                   UINT arrayIndex)
 {
-    return new TextureStorage11_2D(this, texture, bindChroma);
+    return new TextureStorage11_2D(this, texture, bindChroma, arrayIndex);
 }
 
 TextureStorage *Renderer11::createTextureStorageEGLImage(EGLImageD3D *eglImage,

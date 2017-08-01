@@ -5,6 +5,7 @@
 //
 
 // SurfaceD3D.cpp: D3D implementation of an EGL surface
+#include <Mfobjects.h>
 
 #include "libANGLE/renderer/d3d/SurfaceD3D.h"
 
@@ -18,10 +19,35 @@
 #include <EGL/eglext.h>
 #include <algorithm>
 
+// A key for ID3D11DeviceChild. The value should be a bool.
+// When set and true, indicates that the NV12 texture passed
+// in eglCreatePbufferFromClientBuffer EGL_D3D_TEXTURE_ANGLE should
+// draw it's chroma component when a ShaderResourceView is created for it.
+// If absent or false, the luma component is drawn.
+//
+// The value is fetched from ID3D11DeviceChild and stored before
+// eglCreatePbufferFromClientBuffer returns.
+//
 // {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
 static const GUID kCobaltNv12BindChroma = {
   0x3c3a43ab, 0xc69b, 0x46c9,
   { 0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d }
+};
+
+// A key for ID3D11DeviceChild. The value should be an IMFDXGIBuffer*.
+// When used with an NV12 texture passed in eglCreatePbufferFromClientBuffer
+// EGL_D3D_TEXTURE_ANGLE, this interface is asked for the appropriate
+// texture in a texture array to use via GetSubresourceIndex.
+// This is appropriate for use with IMFTransform video decoders that
+// return IMFDXGIBuffer's that have texture array resources.
+//
+// The value is fetched from ID3D11DeviceChild and stored before
+// eglCreatePbufferFromClientBuffer returns.
+//
+// C62BF18D-B5EE-46B1-9C31-F61BD8AE3B0D
+static const GUID kCobaltDxgiBuffer = {
+  0Xc62bf18d, 0Xb5ee, 0X46b1,
+  {0X9c, 0X31, 0Xf6, 0X1b, 0Xd8, 0Xae, 0X3b, 0X0d }
 };
 
 namespace rx
@@ -50,6 +76,7 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
       mShareHandle(0),
       mD3DTexture(nullptr),
       mBuftype(buftype),
+      mArrayIndex(0),
       mBindChroma(false)
 {
     if (window != nullptr && !mFixedSize)
@@ -76,6 +103,16 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
             HRESULT hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
                 GetPrivateData(kCobaltNv12BindChroma, &out, nullptr);
             mBindChroma = (SUCCEEDED(hr)) && (out != 0);
+
+            // kCobaltDxgiBuffer
+            IMFDXGIBuffer* dxgi_buffer = nullptr;
+            out = sizeof(dxgi_buffer);
+            hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
+                GetPrivateData(kCobaltDxgiBuffer, &out, &dxgi_buffer);
+            ASSERT(SUCCEEDED(hr));
+            if (dxgi_buffer != nullptr) {
+              dxgi_buffer->GetSubresourceIndex(&mArrayIndex);
+            }
             break;
         }
 

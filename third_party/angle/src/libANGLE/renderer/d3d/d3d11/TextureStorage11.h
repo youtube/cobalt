@@ -154,7 +154,10 @@ class TextureStorage11_2D : public TextureStorage11
 {
   public:
     TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swapchain);
-    TextureStorage11_2D(Renderer11 *renderer, IUnknown *texture, bool bindChroma);
+    TextureStorage11_2D(Renderer11 *renderer,
+                        IUnknown *texture,
+                        bool bindChroma,
+                        unsigned int arrayIndex);
     TextureStorage11_2D(Renderer11 *renderer, GLenum internalformat, bool renderTarget, GLsizei width, GLsizei height, int levels, bool hintLevelZeroOnly = false);
     ~TextureStorage11_2D() override;
 
@@ -209,6 +212,7 @@ class TextureStorage11_2D : public TextureStorage11
 
     Image11 *mAssociatedImages[gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS];
     bool mBindChroma;
+    UINT mArrayIndex;
 };
 
 class TextureStorage11_External : public TextureStorage11
