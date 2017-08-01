@@ -54,6 +54,7 @@ HardwareResourceProvider::HardwareResourceProvider(
       submit_offscreen_callback_(submit_offscreen_callback),
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
+      max_texture_size_(gr_context->getMaxTextureSize()),
       self_message_loop_(MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
@@ -108,6 +109,10 @@ scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
                "HardwareResourceProvider::AllocateImageData()");
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
+
+  if (size.width() > max_texture_size_ || size.height() > max_texture_size_) {
+    return scoped_ptr<ImageData>(nullptr);
+  }
 
   return scoped_ptr<ImageData>(new HardwareImageData(
       cobalt_context_->system_egl()->AllocateTextureData(
