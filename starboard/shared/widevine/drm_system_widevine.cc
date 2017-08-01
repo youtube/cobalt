@@ -15,9 +15,12 @@
 #include "starboard/shared/widevine/drm_system_widevine.h"
 
 #include <map>
+#include <set>
+#include <string>
 #include <vector>
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/string.h"
 #include "starboard/time.h"
 
@@ -81,10 +84,18 @@ const char kWidevineKeySystem[] = "com.widevine.alpha";
 SbDrmSystemWidevine::SbDrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback)
+    SbDrmSessionUpdatedFunc session_updated_callback
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+    ,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+    )
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+      key_statuses_changed_callback_(key_statuses_changed_callback),
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 #if SB_API_VERSION >= 4
       ticket_(kSbDrmTicketInvalid),
       ticket_thread_id_(SbThreadGetId()),
@@ -174,6 +185,28 @@ void SbDrmSystemWidevine::UpdateSession(
                             ticket,
 #endif  // SB_API_VERSION >= 4
                             session_id, session_id_size, succeeded);
+
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if ENABLE_KEY_STATUSES_CALLBACK
+  std::set<std::string> key_ids =
+      cdm_->GetKeys(reinterpret_cast<const char*>(session_id), session_id_size);
+
+  std::vector<SbDrmKeyId> sb_key_ids;
+  for (auto& key_id : key_ids) {
+    SbDrmKeyId sb_key_id;
+    SB_DCHECK(key_id.size() <= sizeof(sb_key_id.identifier));
+    SbMemoryCopy(sb_key_id.identifier, key_id.c_str(), key_id.size());
+    sb_key_id.identifier_size = key_id.size();
+    sb_key_ids.push_back(sb_key_id);
+  }
+  std::vector<SbDrmKeyStatus> sb_key_statuses(key_ids.size(),
+                                              kSbDrmKeyStatusUsable);
+
+  key_statuses_changed_callback_(this, context_, session_id, session_id_size,
+                                 sb_key_ids.size(), sb_key_ids.data(),
+                                 sb_key_statuses.data());
+#endif  // ENABLE_KEY_STATUSES_CALLBACK
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 }
 
 void SbDrmSystemWidevine::CloseSession(const void* session_id,
@@ -292,10 +325,30 @@ void SbDrmSystemWidevine::SendKeyError(const char* web_session_id,
                                        int32_t web_session_id_length,
                                        cdm::MediaKeyError error_code,
                                        uint32_t system_code) {
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if ENABLE_KEY_STATUSES_CALLBACK
   // CDM may call this method in response to |GenerateKeyRequest| and |AddKey|,
   // as well as spontaneously.
   //
-  // TODO: Handle spontaneous errors, such as license expiration.
+  std::set<std::string> key_ids =
+      cdm_->GetKeys(web_session_id, web_session_id_length);
+
+  std::vector<SbDrmKeyId> sb_key_ids;
+  for (auto& key_id : key_ids) {
+    SbDrmKeyId sb_key_id;
+    SB_DCHECK(key_id.size() < sizeof(sb_key_id.identifier));
+    SbMemoryCopy(sb_key_id.identifier, key_id.c_str(), key_id.size());
+    sb_key_id.identifier_size = key_id.size();
+    sb_key_ids.push_back(sb_key_id);
+  }
+  std::vector<SbDrmKeyStatus> sb_key_statuses(key_ids.size(),
+                                              kSbDrmKeyStatusExpired);
+
+  key_statuses_changed_callback_(this, context_, web_session_id,
+                                 web_session_id_length, sb_key_ids.size(),
+                                 sb_key_ids.data(), sb_key_statuses.data());
+#endif  // ENABLE_KEY_STATUSES_CALLBACK
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 }
 
 namespace {

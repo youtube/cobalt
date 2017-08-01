@@ -59,6 +59,10 @@ availability.
 ### Interface change to SbPlayerWriteSample()
 `const` is added to `sample_buffers` and `sample_buffer_sizes` parameters.
 
+### Support key status change
+Add `key_statuses_changed_callback` parameter to `SbDrmCreateSystem()` to
+support MediaKeySession::keyStatuses and MediaKeySession::onkeystatuseschange.
+
 ## Version 5
 
 ### Add Speech Recognizer API
