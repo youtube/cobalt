@@ -122,7 +122,6 @@
       '-lEGL',
       '-lGLESv2',
       '-lpthread',
-      '-lpulse',
       '-lrt',
       '-lopenmaxil',
       '-lbcm_host',
