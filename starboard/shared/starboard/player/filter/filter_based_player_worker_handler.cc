@@ -160,8 +160,10 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
   return true;
 }
 
-bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
-                                                 bool* written) {
+bool FilterBasedPlayerWorkerHandler::WriteSample(
+    const scoped_refptr<InputBuffer>& input_buffer,
+    bool* written) {
+  SB_DCHECK(input_buffer);
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   SB_DCHECK(written != NULL);
 
@@ -171,7 +173,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
 
   *written = true;
 
-  if (input_buffer.sample_type() == kSbMediaTypeAudio) {
+  if (input_buffer->sample_type() == kSbMediaTypeAudio) {
     if (audio_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write audio sample after EOS is reached";
     } else {
@@ -180,11 +182,11 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
         return true;
       }
 
-      if (input_buffer.drm_info()) {
+      if (input_buffer->drm_info()) {
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(&input_buffer) == SbDrmSystemPrivate::kRetry) {
+        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
         }
@@ -192,7 +194,7 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
       audio_renderer_->WriteSample(input_buffer);
     }
   } else {
-    SB_DCHECK(input_buffer.sample_type() == kSbMediaTypeVideo);
+    SB_DCHECK(input_buffer->sample_type() == kSbMediaTypeVideo);
     if (video_renderer_->IsEndOfStreamWritten()) {
       SB_LOG(WARNING) << "Try to write video sample after EOS is reached";
     } else {
@@ -200,11 +202,11 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(InputBuffer input_buffer,
         *written = false;
         return true;
       }
-      if (input_buffer.drm_info()) {
+      if (input_buffer->drm_info()) {
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(&input_buffer) == SbDrmSystemPrivate::kRetry) {
+        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
         }

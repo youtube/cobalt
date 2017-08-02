@@ -14,6 +14,8 @@
 
 #include <queue>
 
+#include "starboard/common/ref_counted.h"
+#include "starboard/log.h"
 #include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
@@ -50,8 +52,10 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     output_cb_ = output_cb;
   }
 
-  void Decode(const InputBuffer& input_buffer,
+  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const Closure& consumed_cb) SB_OVERRIDE {
+    SB_DCHECK(input_buffer);
+
     // Values to represent what kind of dummy audio to fill the decoded audio
     // we produce with.
     enum FillType {
@@ -61,8 +65,8 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     // Can be set locally to fill with different types.
     const FillType fill_type = kSilence;
 
-    if (last_input_buffer_.is_valid()) {
-      SbMediaTime diff = input_buffer.pts() - last_input_buffer_.pts();
+    if (last_input_buffer_) {
+      SbMediaTime diff = input_buffer->pts() - last_input_buffer_->pts();
       SB_DCHECK(diff >= 0);
       size_t sample_size =
           GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
@@ -72,7 +76,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
       decoded_audios_.push(new DecodedAudio(audio_header_.number_of_channels,
                                             GetSampleType(), GetStorageType(),
-                                            input_buffer.pts(), size));
+                                            input_buffer->pts(), size));
 
       if (fill_type == kSilence) {
         SbMemorySet(decoded_audios_.back()->buffer(), 0, size);
@@ -96,17 +100,17 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
-    if (last_input_buffer_.is_valid()) {
+    if (last_input_buffer_) {
       // There won't be a next pts, so just guess that the decoded size is
       // 4 times the encoded size.
-      size_t fake_size = 4 * last_input_buffer_.size();
+      size_t fake_size = 4 * last_input_buffer_->size();
       size_t sample_size =
           GetSampleType() == kSbMediaAudioSampleTypeInt16 ? 2 : 4;
       fake_size += fake_size % (sample_size * audio_header_.number_of_channels);
 
       decoded_audios_.push(new DecodedAudio(
           audio_header_.number_of_channels, GetSampleType(), GetStorageType(),
-          last_input_buffer_.pts(), fake_size));
+          last_input_buffer_->pts(), fake_size));
       Schedule(output_cb_);
     }
     decoded_audios_.push(new DecodedAudio());
@@ -128,7 +132,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
       decoded_audios_.pop();
     }
     stream_ended_ = false;
-    last_input_buffer_ = InputBuffer();
+    last_input_buffer_ = NULL;
 
     CancelPendingJobs();
   }
@@ -148,16 +152,18 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   SbMediaAudioHeader audio_header_;
   bool stream_ended_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  InputBuffer last_input_buffer_;
+  scoped_refptr<InputBuffer> last_input_buffer_;
 };
 
 class StubVideoDecoder : public HostedVideoDecoder {
  public:
   StubVideoDecoder() : host_(NULL) {}
-  void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE {
+  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
+      SB_OVERRIDE {
+    SB_DCHECK(input_buffer);
     SB_DCHECK(host_ != NULL);
     host_->OnDecoderStatusUpdate(
-        kNeedMoreInput, VideoFrame::CreateEmptyFrame(input_buffer.pts()));
+        kNeedMoreInput, VideoFrame::CreateEmptyFrame(input_buffer->pts()));
   }
   void WriteEndOfStream() SB_OVERRIDE {
     SB_DCHECK(host_ != NULL);

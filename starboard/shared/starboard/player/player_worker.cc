@@ -147,8 +147,8 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
     job_queue_->Remove(write_pending_sample_closure_);
     write_pending_sample_closure_.reset();
   }
-  pending_audio_buffer_.reset();
-  pending_video_buffer_.reset();
+  pending_audio_buffer_ = NULL;
+  pending_video_buffer_ = NULL;
 
   if (!handler_->Seek(seek_to_pts, ticket)) {
     UpdatePlayerState(kSbPlayerStateError);
@@ -162,8 +162,10 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
 }
 
-void PlayerWorker::DoWriteSample(InputBuffer input_buffer) {
+void PlayerWorker::DoWriteSample(
+    const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  SB_DCHECK(input_buffer);
 
   if (player_state_ == kSbPlayerStateInitialized ||
       player_state_ == kSbPlayerStateEndOfStream ||
@@ -174,10 +176,10 @@ void PlayerWorker::DoWriteSample(InputBuffer input_buffer) {
     return;
   }
 
-  if (input_buffer.sample_type() == kSbMediaTypeAudio) {
-    SB_DCHECK(!pending_audio_buffer_.is_valid());
+  if (input_buffer->sample_type() == kSbMediaTypeAudio) {
+    SB_DCHECK(!pending_audio_buffer_);
   } else {
-    SB_DCHECK(!pending_video_buffer_.is_valid());
+    SB_DCHECK(!pending_video_buffer_);
   }
   bool written;
   bool result = handler_->WriteSample(input_buffer, &written);
@@ -186,10 +188,10 @@ void PlayerWorker::DoWriteSample(InputBuffer input_buffer) {
     return;
   }
   if (written) {
-    UpdateDecoderState(input_buffer.sample_type(),
+    UpdateDecoderState(input_buffer->sample_type(),
                        kSbPlayerDecoderStateNeedsData);
   } else {
-    if (input_buffer.sample_type() == kSbMediaTypeAudio) {
+    if (input_buffer->sample_type() == kSbMediaTypeAudio) {
       pending_audio_buffer_ = input_buffer;
     } else {
       pending_video_buffer_ = input_buffer;
@@ -208,10 +210,10 @@ void PlayerWorker::DoWritePendingSamples() {
   SB_DCHECK(write_pending_sample_closure_.is_valid());
   write_pending_sample_closure_.reset();
 
-  if (pending_audio_buffer_.is_valid()) {
+  if (pending_audio_buffer_) {
     DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
   }
-  if (pending_video_buffer_.is_valid()) {
+  if (pending_video_buffer_) {
     DoWriteSample(common::ResetAndReturn(&pending_video_buffer_));
   }
 }
@@ -231,9 +233,9 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 
   if (sample_type == kSbMediaTypeAudio) {
-    SB_DCHECK(!pending_audio_buffer_.is_valid());
+    SB_DCHECK(!pending_audio_buffer_);
   } else {
-    SB_DCHECK(!pending_video_buffer_.is_valid());
+    SB_DCHECK(!pending_video_buffer_);
   }
 
   if (!handler_->WriteEndOfStream(sample_type)) {

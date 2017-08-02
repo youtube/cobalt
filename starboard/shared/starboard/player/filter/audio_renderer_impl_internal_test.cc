@@ -71,11 +71,11 @@ class AudioRendererImplTest : public ::testing::Test {
                               GetDefaultAudioHeader()));
   }
 
-  void WriteSample(InputBuffer input_buffer) {
-    ASSERT_TRUE(input_buffer.is_valid());
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
+    ASSERT_TRUE(input_buffer != NULL);
     ASSERT_FALSE(consumed_cb_.is_valid());
 
-    buffers_in_decoder_.insert(input_buffer.data());
+    buffers_in_decoder_.insert(input_buffer->data());
     EXPECT_CALL(*audio_decoder_, Decode(input_buffer, _))
         .WillOnce(SaveArg<1>(&consumed_cb_));
     audio_renderer_->WriteSample(input_buffer);
@@ -111,11 +111,11 @@ class AudioRendererImplTest : public ::testing::Test {
     job_queue_.RunUntilIdle();
   }
 
-  InputBuffer CreateInputBuffer(SbMediaTime pts) {
+  scoped_refptr<InputBuffer> CreateInputBuffer(SbMediaTime pts) {
     const int kInputBufferSize = 4;
-    return InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
-                       SbMemoryAllocate(kInputBufferSize), kInputBufferSize,
-                       pts, NULL, NULL);
+    return new InputBuffer(kSbMediaTypeAudio, DeallocateSampleCB, NULL, this,
+                           SbMemoryAllocate(kInputBufferSize), kInputBufferSize,
+                           pts, NULL, NULL);
   }
 
   scoped_refptr<DecodedAudio> CreateDecodedAudio(SbMediaTime pts, int frames) {

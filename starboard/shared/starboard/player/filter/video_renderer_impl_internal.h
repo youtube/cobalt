@@ -17,7 +17,7 @@
 
 #include <list>
 
-#include "starboard/common/scoped_ptr.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
@@ -44,7 +44,7 @@ class VideoRendererImpl : public VideoRenderer,
 
   int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
 
-  void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
 
   void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
