@@ -43,6 +43,13 @@
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
       ],
+      'conditions': [
+        ['custom_media_session_client==0', {
+          'sources': [
+            '<(DEPTH)/starboard/shared/media_session/stub_playback_state.cc',
+           ],
+        }],
+      ]
     },
   ],
 }
