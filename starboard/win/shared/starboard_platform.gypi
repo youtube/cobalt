@@ -306,8 +306,8 @@
         '__WRL_NO_DEFAULT_LIB__',
       ],
       'dependencies': [
-        'convert_i18n_data'
-      ]
+        'convert_i18n_data',
+      ],
     },
     {
       'target_name': 'convert_i18n_data',
