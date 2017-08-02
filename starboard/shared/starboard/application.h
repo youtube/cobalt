@@ -155,6 +155,7 @@ class Application {
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.
+  int Run(int argc, char** argv, const char* link_data);
   int Run(int argc, char** argv);
 
   // Retrieves the CommandLine for the application.
@@ -201,6 +202,12 @@ class Application {
   // possible. Will transition through PAUSED and SUSPENDED to STOPPED as
   // appropriate for the current state. May be called from an external thread.
   void Stop(int error_level);
+
+  // Injects a link event to the application with the given |link_data|, which
+  // must be a null-terminated string. Makes a copy of |link_data|, so it only
+  // has to live over the lifetime of the call to Link. May be called from an
+  // external thread.
+  void Link(const char* link_data);
 
   // Schedules an event into the event queue.  May be called from an external
   // thread.
@@ -356,6 +363,9 @@ class Application {
   // Creates an initial event type of either Start or Preload with the original
   // command line and deep link.
   Event* CreateInitialEvent(SbEventType type);
+
+  // Internal workhorse of the main run loop.
+  int RunLoop();
 
   // The single application instance.
   static Application* g_instance;
