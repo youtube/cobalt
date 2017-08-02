@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "cobalt/script/stack_frame.h"
+#include "nb/rewindable_vector.h"
 #include "third_party/mozjs-45/js/public/UbiNode.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
@@ -29,7 +30,20 @@ std::string GetExceptionString(JSContext* context);
 
 std::string GetExceptionString(JSContext* context, JS::HandleValue exception);
 
-std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames);
+// Retrieves the current stack frame. Values are stored in the output vector.
+// RewindableVector<> will be unconditionally rewound and after this call will
+// contain the number of frames retrieved. The output size will be less than
+// or equal to max_frames.
+void GetStackTrace(JSContext* context, size_t max_frames,
+                   nb::RewindableVector<StackFrame>* output);
+
+// The same as |GetStackTrace|, only using internal SpiderMonkey APIs instead.
+// This may be required if attempting to obtain a call stack while SpiderMonkey
+// is deep inside its internals, such as during an allocation.  If you decide to
+// call this, make sure you know what you're doing.
+void GetStackTraceUsingInternalApi(JSContext* context, size_t max_frames,
+                                   nb::RewindableVector<StackFrame>* output);
+
 }  // namespace util
 }  // namespace mozjs
 }  // namespace script

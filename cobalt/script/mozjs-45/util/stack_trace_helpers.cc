@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
+#include "cobalt/script/mozjs-45/util/stack_trace_helpers.h"
 
 #include <algorithm>
 #include <sstream>
@@ -20,19 +20,20 @@
 
 #include "base/logging.h"
 #include "base/stringprintf.h"
-#include "cobalt/script/mozjs/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/util/exception_helpers.h"
 #include "cobalt/script/stack_frame.h"
 #include "nb/thread_local_object.h"
 #include "starboard/memory.h"
 #include "starboard/once.h"
 #include "starboard/string.h"
 #include "starboard/types.h"
-#include "third_party/mozjs/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
 namespace mozjs {
 namespace util {
+
 namespace {
 
 typedef nb::ThreadLocalObject<MozjsStackTraceGenerator>
@@ -47,26 +48,19 @@ void ToStringAppend(const StackFrame& sf, std::string* out) {
                       sf.function_name.c_str());
 }
 
-}  // namespace.
+}  // namespace
 
 void SetThreadLocalJSContext(JSContext* context) {
   static_cast<MozjsStackTraceGenerator*>(
       ::cobalt::script::util::GetThreadLocalStackTraceGenerator())
-      ->set_js_context(context);
+      ->set_context(context);
 }
 
 JSContext* GetThreadLocalJSContext() {
   return static_cast<MozjsStackTraceGenerator*>(
              ::cobalt::script::util::GetThreadLocalStackTraceGenerator())
-      ->js_context();
+      ->context();
 }
-
-//////////////////////////////////// IMPL /////////////////////////////////////
-
-MozjsStackTraceGenerator::MozjsStackTraceGenerator() : js_context_(NULL) {}
-MozjsStackTraceGenerator::~MozjsStackTraceGenerator() {}
-
-bool MozjsStackTraceGenerator::Valid() { return js_context_ != NULL; }
 
 bool MozjsStackTraceGenerator::GenerateStackTrace(
     int depth, nb::RewindableVector<StackFrame>* out) {
@@ -75,7 +69,7 @@ bool MozjsStackTraceGenerator::GenerateStackTrace(
   if (!Valid()) {
     return false;
   }
-  GetStackTrace(js_context_, depth, out);
+  GetStackTraceUsingInternalApi(context_, depth, out);
   return !out->empty();
 }
 
@@ -131,17 +125,12 @@ bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
   return true;
 }
 
-JSContext* MozjsStackTraceGenerator::js_context() { return js_context_; }
-
-void MozjsStackTraceGenerator::set_js_context(JSContext* js_ctx) {
-  js_context_ = js_ctx;
-}
-
 }  // namespace util
 }  // namespace mozjs
 
 namespace util {
 
+// Declared in abstract cobalt script.
 StackTraceGenerator* GetThreadLocalStackTraceGenerator() {
   return mozjs::util::s_thread_local_js_stack_tracer_singelton()->GetOrCreate();
 }
