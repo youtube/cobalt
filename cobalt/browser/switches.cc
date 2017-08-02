@@ -102,7 +102,8 @@ extern const char kVideoContainerSizeOverride[] =
 extern const char kVideoDecoderStub[] = "video_decoder_stub";
 
 // Enable text-to-speech functionality, for platforms that implement the speech
-// synthesis API.
+// synthesis API. If the platform doesn't have speech synthesis, TTSLogger will
+// be used instead.
 const char kUseTTS[] = "use_tts";
 
 // Port that the WebDriver server should be listening on.
