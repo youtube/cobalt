@@ -59,6 +59,7 @@
         'types.h',
         'user.h',
         'window.h',
+        '<(DEPTH)/starboard/shared/media_session/playback_state.h',
         # Include private headers, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "*.h")',
       ],
