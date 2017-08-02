@@ -30,7 +30,6 @@
 #include "cobalt/dom/csp_delegate_type.h"
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/event_target.h"
-#include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -77,6 +76,7 @@ class Document;
 class Element;
 class Event;
 class History;
+class HTMLElementContext;
 class LocalStorageDatabase;
 class Location;
 class MediaSource;
@@ -286,21 +286,6 @@ class Window : public EventTarget,
   // Sets the function to call to trigger a synchronous layout.
   void SetSynchronousLayoutCallback(
       const base::Closure& synchronous_layout_callback);
-
-  void SetSize(int width, int height, float device_pixel_ratio);
-
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    html_element_context_->set_can_play_type_handler(can_play_type_handler);
-  }
-
-  void set_web_media_player_factory(
-      media::WebMediaPlayerFactory* web_media_player_factory) {
-    html_element_context_->set_web_media_player_factory(
-        web_media_player_factory);
-  }
 
   // Sets the current application state, forwarding on to the
   // PageVisibilityState associated with it and its document, causing

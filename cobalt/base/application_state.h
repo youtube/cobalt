@@ -17,8 +17,6 @@
 #ifndef COBALT_BASE_APPLICATION_STATE_H_
 #define COBALT_BASE_APPLICATION_STATE_H_
 
-#include "base/logging.h"
-
 namespace base {
 
 // Application states that Cobalt can be in, as derived from Starboard lifecycle
@@ -50,25 +48,6 @@ enum ApplicationState {
   // until resumption.
   kApplicationStateSuspended,
 };
-
-// Returns a human-readable string for the given |state|.
-static inline const char *GetApplicationStateString(ApplicationState state) {
-  switch (state) {
-    case kApplicationStatePaused:
-      return "kApplicationStatePaused";
-    case kApplicationStatePreloading:
-      return "kApplicationStatePreloading";
-    case kApplicationStateStarted:
-      return "kApplicationStateStarted";
-    case kApplicationStateStopped:
-      return "kApplicationStateStopped";
-    case kApplicationStateSuspended:
-      return "kApplicationStateSuspended";
-  }
-
-  NOTREACHED() << "state = " << state;
-  return "INVALID_APPLICATION_STATE";
-}
 
 }  // namespace base
 

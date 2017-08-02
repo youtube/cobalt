@@ -101,9 +101,6 @@ class DOMSettings : public script::EnvironmentSettings {
   }
   network::NetworkModule* network_module() const { return network_module_; }
   media::MediaModule* media_module() const { return media_module_; }
-  void set_media_module(media::MediaModule* media_module) {
-    media_module_ = media_module;
-  }
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
@@ -115,10 +112,6 @@ class DOMSettings : public script::EnvironmentSettings {
   }
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
-  }
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    can_play_type_handler_ = can_play_type_handler;
   }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;

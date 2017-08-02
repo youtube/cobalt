@@ -63,12 +63,7 @@ class DebugConsole : public LifecycleObserver {
   // Returns the currently set debug console visibility mode.
   int GetMode();
 
-  void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
-    web_module_->SetSize(window_dimensions, video_pixel_ratio);
-  }
-
   // LifecycleObserver implementation.
-  void Prestart() OVERRIDE { web_module_->Prestart(); }
   void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE {
     web_module_->Start(resource_provider);
   }

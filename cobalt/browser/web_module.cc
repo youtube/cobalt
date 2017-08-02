@@ -152,11 +152,6 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
   void SetSize(math::Size window_dimensions, float video_pixel_ratio);
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
-  void SetImageCacheCapacity(int64_t bytes);
-  void SetRemoteTypefaceCacheCapacity(int64_t bytes);
-  void SetJavascriptGcThreshold(int64_t bytes);
 
   // Sets the application state, asserts preconditions to transition to that
   // state, and dispatches any precipitate web events.
@@ -165,10 +160,7 @@ class WebModule::Impl {
   // Suspension of the WebModule is a two-part process since a message loop
   // gap is needed in order to give a chance to handle loader callbacks
   // that were initiated from a loader thread.
-  //
-  // If |update_application_state| is false, then SetApplicationState will not
-  // be called, and no state transition events will be generated.
-  void SuspendLoaders(bool update_application_state);
+  void SuspendLoaders();
   void FinishSuspend();
 
   // See LifecycleObserver. These functions do not implement the interface, but
@@ -220,9 +212,6 @@ class WebModule::Impl {
 
   // Handle queued pointer events. Called by LayoutManager on_layout callback.
   void HandlePointerEvents();
-
-  // Initializes the ResourceProvider and dependent resources.
-  void SetResourceProvider(render_tree::ResourceProvider* resource_provider);
 
   // Thread checker ensures all calls to the WebModule are made from the same
   // thread that it is created in.
@@ -466,6 +455,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
   media_session_client_ = media_session::MediaSessionClient::Create();
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
@@ -771,57 +761,20 @@ void WebModule::Impl::InjectCustomWindowAttributes(
   }
 }
 
-void WebModule::Impl::SetImageCacheCapacity(int64_t bytes) {
-  image_cache_->SetCapacity(static_cast<uint32>(bytes));
-}
-
-void WebModule::Impl::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
-  remote_typeface_cache_->SetCapacity(static_cast<uint32>(bytes));
-}
-
-void WebModule::Impl::SetJavascriptGcThreshold(int64_t bytes) {
-  javascript_engine_->SetGcThreshold(bytes);
-}
-
-void WebModule::Impl::SetSize(math::Size window_dimensions,
-                              float video_pixel_ratio) {
-  window_->SetSize(window_dimensions.width(), window_dimensions.height(),
-                   video_pixel_ratio);
-}
-
-void WebModule::Impl::SetCamera3D(
-    const scoped_refptr<input::Camera3D>& camera_3d) {
-  window_->SetCamera3D(camera_3d);
-}
-
-void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
-  window_->set_can_play_type_handler(media_module);
-  window_->set_web_media_player_factory(media_module);
-  environment_settings_->set_media_module(media_module);
-  environment_settings_->set_can_play_type_handler(media_module);
+void WebModule::Impl::SetSize(math::Size /*window_dimensions*/,
+                              float /*video_pixel_ratio*/) {
+  NOTIMPLEMENTED();
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
   window_->SetApplicationState(state);
 }
 
-void WebModule::Impl::SetResourceProvider(
-    render_tree::ResourceProvider* resource_provider) {
-  resource_provider_ = resource_provider;
-  if (resource_provider_) {
-    loader_factory_->Resume(resource_provider_);
-
-    // Permit render trees to be generated again.  Layout will have been
-    // invalidated with the call to Suspend(), so the layout manager's first
-    // task will be to perform a full re-layout.
-    layout_manager_->Resume();
-  }
-}
-
 void WebModule::Impl::Start(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Start()");
-  SetResourceProvider(resource_provider);
   SetApplicationState(base::kApplicationStateStarted);
+  // TODO: Initialize resource provider here rather than constructor.
+  DCHECK(resource_provider == resource_provider_);
 }
 
 void WebModule::Impl::Pause() {
@@ -834,12 +787,10 @@ void WebModule::Impl::Unpause() {
   SetApplicationState(base::kApplicationStateStarted);
 }
 
-void WebModule::Impl::SuspendLoaders(bool update_application_state) {
+void WebModule::Impl::SuspendLoaders() {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::SuspendLoaders()");
 
-  if (update_application_state) {
-    SetApplicationState(base::kApplicationStateSuspended);
-  }
+  SetApplicationState(base::kApplicationStateSuspended);
 
   // Purge the resource caches before running any suspend logic. This will force
   // any pending callbacks that the caches are batching to run.
@@ -889,7 +840,18 @@ void WebModule::Impl::FinishSuspend() {
 
 void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   TRACE_EVENT0("cobalt::browser", "WebModule::Impl::Resume()");
-  SetResourceProvider(resource_provider);
+  DCHECK(resource_provider);
+  DCHECK(!resource_provider_);
+
+  resource_provider_ = resource_provider;
+
+  loader_factory_->Resume(resource_provider_);
+
+  // Permit render trees to be generated again.  Layout will have been
+  // invalidated with the call to Suspend(), so the layout manager's first task
+  // will be to perform a full re-layout.
+  layout_manager_->Resume();
+
   SetApplicationState(base::kApplicationStatePaused);
 }
 
@@ -1148,55 +1110,6 @@ void WebModule::SetSize(const math::Size& window_dimensions,
                  window_dimensions, video_pixel_ratio));
 }
 
-void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetCamera3D,
-                            base::Unretained(impl_.get()), camera_3d));
-}
-
-void WebModule::SetMediaModule(media::MediaModule* media_module) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetMediaModule,
-                            base::Unretained(impl_.get()), media_module));
-}
-
-void WebModule::SetImageCacheCapacity(int64_t bytes) {
-  message_loop()->PostTask(FROM_HERE,
-                           base::Bind(&WebModule::Impl::SetImageCacheCapacity,
-                                      base::Unretained(impl_.get()), bytes));
-}
-
-void WebModule::SetRemoteTypefaceCacheCapacity(int64_t bytes) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetRemoteTypefaceCacheCapacity,
-                            base::Unretained(impl_.get()), bytes));
-}
-
-void WebModule::SetJavascriptGcThreshold(int64_t bytes) {
-  message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetJavascriptGcThreshold,
-                            base::Unretained(impl_.get()), bytes));
-}
-
-void WebModule::Prestart() {
-  // Must only be called by a thread external from the WebModule thread.
-  DCHECK_NE(MessageLoop::current(), message_loop());
-
-  // We must block here so that we don't queue the finish until after
-  // SuspendLoaders has run to completion, and therefore has already queued any
-  // precipitate tasks.
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SuspendLoaders,
-                            base::Unretained(impl_.get()),
-                            false /*update_application_state*/));
-
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
-  message_loop()->PostBlockingTask(FROM_HERE,
-                                   base::Bind(&WebModule::Impl::FinishSuspend,
-                                              base::Unretained(impl_.get())));
-}
-
 void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
@@ -1204,8 +1117,9 @@ void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::Start,
-                            base::Unretained(impl_.get()), resource_provider));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::Start, base::Unretained(impl_.get()),
+                 base::Unretained(resource_provider)));
 }
 
 void WebModule::Pause() {
@@ -1237,10 +1151,9 @@ void WebModule::Suspend() {
   // We must block here so that we don't queue the finish until after
   // SuspendLoaders has run to completion, and therefore has already queued any
   // precipitate tasks.
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SuspendLoaders,
-                            base::Unretained(impl_.get()),
-                            true /*update_application_state*/));
+  message_loop()->PostBlockingTask(FROM_HERE,
+                                   base::Bind(&WebModule::Impl::SuspendLoaders,
+                                              base::Unretained(impl_.get())));
 
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.

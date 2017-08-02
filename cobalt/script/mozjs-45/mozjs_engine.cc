@@ -235,10 +235,6 @@ bool MozjsEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
   return true;
 }
 
-void MozjsEngine::SetGcThreshold(int64_t bytes) {
-  runtime_->gc.setMaxMallocBytes(static_cast<size_t>(bytes));
-}
-
 void MozjsEngine::TimerGarbageCollect() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::TimerGarbageCollect()");
   CollectGarbage();

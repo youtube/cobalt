@@ -24,9 +24,6 @@ namespace browser {
 // A pure virtual interface for observers of the application lifecycle.
 class LifecycleObserver {
  public:
-  // Sent before sending Start when transitioning from Preloading to Started.
-  virtual void Prestart() = 0;
-
   // Start running visibly with the given graphics ResourceProvider, loading if
   // necessary. This represents a transition from Preloading to Started, so it
   // only makes sense if the object is in the Preloading state.

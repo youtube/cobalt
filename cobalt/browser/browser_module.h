@@ -43,8 +43,6 @@
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/network/network_module.h"
-#include "cobalt/render_tree/resource_provider.h"
-#include "cobalt/render_tree/resource_provider_stub.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/storage/storage_manager.h"
 #include "cobalt/system_window/system_window.h"
@@ -270,25 +268,12 @@ class BrowserModule {
   // Initializes the system window, and all components that require it.
   void InitializeSystemWindow();
 
-  // Updates all components that have already been created with information
-  // resulting from the creation of the system window.
-  void UpdateFromSystemWindow();
-
-  // Does all the steps for either a Suspend or the first half of a Start.
-  void SuspendInternal(bool is_start);
-
-  // Does all the steps for either a Resume or the second half of a Start.
-  void StartOrResumeInternal(bool is_start);
-
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While preloading, this returns the requested
   // viewport size. If there was no requested viewport size, it returns a
   // default viewport size of 1280x720 (720p). Once a system window is created,
   // it returns the confirmed size of the window.
   math::Size GetViewportSize();
-
-  // Applies the current AutoMem settings to all applicable submodules.
-  void ApplyAutoMemSettings();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -340,10 +325,6 @@ class BrowserModule {
   // Sets up everything to do with graphics, from backend objects like the
   // display and graphics context to the rasterizer and rendering pipeline.
   scoped_ptr<renderer::RendererModule> renderer_module_;
-
-  // A stub implementation of ResourceProvider that can be used until a real
-  // ResourceProvider is created. Only valid in the Preloading state.
-  base::optional<render_tree::ResourceProviderStub> resource_provider_stub_;
 
   // Optional memory allocator used by ArrayBuffer.
   scoped_ptr<dom::ArrayBuffer::Allocator> array_buffer_allocator_;

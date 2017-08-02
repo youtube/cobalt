@@ -40,7 +40,6 @@ class MozjsEngine : public JavaScriptEngine {
   void CollectGarbage() OVERRIDE;
   void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
   bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) OVERRIDE;
-  void SetGcThreshold(int64_t bytes) OVERRIDE;
 
  private:
   void TimerGarbageCollect();

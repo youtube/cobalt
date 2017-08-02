@@ -50,7 +50,6 @@ class ImageDataStub : public ImageData {
     return descriptor_;
   }
 
-  void ReleaseMemory() { memory_.reset(); }
   uint8* GetMemory() OVERRIDE { return memory_.get(); }
 
  private:
@@ -182,9 +181,6 @@ class MeshStub : public render_tree::Mesh {
 // Return the stub versions defined above for each resource.
 class ResourceProviderStub : public ResourceProvider {
  public:
-  ResourceProviderStub() : release_image_data_(false) {}
-  explicit ResourceProviderStub(bool release_image_data)
-      : release_image_data_(release_image_data) {}
   ~ResourceProviderStub() OVERRIDE {}
 
   void Finish() OVERRIDE {}
@@ -209,9 +205,6 @@ class ResourceProviderStub : public ResourceProvider {
   scoped_refptr<Image> CreateImage(scoped_ptr<ImageData> source_data) OVERRIDE {
     scoped_ptr<ImageDataStub> skia_source_data(
         base::polymorphic_downcast<ImageDataStub*>(source_data.release()));
-    if (release_image_data_) {
-      skia_source_data->ReleaseMemory();
-    }
     return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
   }
 
@@ -338,8 +331,6 @@ class ResourceProviderStub : public ResourceProvider {
     UNREFERENCED_PARAMETER(root);
     return scoped_refptr<Image>(NULL);
   }
-
-  bool release_image_data_;
 };
 
 }  // namespace render_tree

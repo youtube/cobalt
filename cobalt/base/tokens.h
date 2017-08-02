@@ -99,7 +99,6 @@ namespace base {
     MacroOpWithNameOnly(removals)                                    \
     MacroOpWithNameOnly(removesourcebuffer)                          \
     MacroOpWithNameOnly(removetrack)                                 \
-    MacroOpWithNameOnly(resize)                                      \
     MacroOpWithNameOnly(result)                                      \
     MacroOpWithNameOnly(resume)                                      \
     MacroOpWithNameOnly(securitypolicyviolation)                     \

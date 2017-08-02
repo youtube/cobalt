@@ -20,23 +20,20 @@
     {
       'target_name': 'cobalt',
       'type': '<(final_executable_type)',
-      'dependencies': [
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
-      ],
       'conditions': [
         ['cobalt_enable_lib == 1', {
-          'sources': ['lib/main.cc',],
-          'all_dependent_settings': {
-            'target_conditions': [
-              ['_type=="executable" and _toolset=="target"', {
-                'sources': [
-                  'lib/imported/main_stub.cc',
-                ],
-              }],
-            ],
-          },
+            'sources': ['lib/main.cc',],
+            'all_dependent_settings': {
+              'target_conditions': [
+                ['_type=="executable" and _toolset=="target"', {
+                  'sources': [
+                    'lib/imported/main_stub.cc',
+                  ],
+                }],
+              ],
+            },
         }, {
-          'sources': ['main.cc',],
+            'sources': ['main.cc',],
         }],
         ['OS=="lb_shell"', {
           'dependencies': [
@@ -81,7 +78,18 @@
       ],
       'dependencies': [
         'cobalt',
-        '<(DEPTH)/cobalt/browser/browser.gyp:browser',
+      ],
+      'conditions': [
+        ['OS=="lb_shell"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/<(actual_target_arch)/platform_browser.gyp:platform_browser',
+          ],
+        }],
+        ['OS=="starboard"', {
+          'dependencies': [
+            '<(DEPTH)/cobalt/browser/starboard/platform_browser.gyp:platform_browser',
+          ],
+        }],
       ],
     },
     {

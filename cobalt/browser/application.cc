@@ -29,7 +29,6 @@
 #include "base/string_util.h"
 #include "base/time.h"
 #include "build/build_config.h"
-#include "cobalt/base/accessibility_settings_changed_event.h"
 #include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
@@ -48,10 +47,16 @@
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 #include "cobalt/storage/savegame_fake.h"
 #endif
-#include "cobalt/system_window/input_event.h"
 #include "cobalt/trace_event/scoped_trace_to_file.h"
 #include "googleurl/src/gurl.h"
+#if defined(__LB_SHELL__)
+#if !defined(__LB_SHELL__FOR_RELEASE__)
+#include "lbshell/src/lb_memory_manager.h"
+#endif  // defined(__LB_SHELL__FOR_RELEASE__)
+#include "lbshell/src/lb_memory_pages.h"
+#endif  // defined(__LB_SHELL__)
 #include "starboard/configuration.h"
+#include "starboard/log.h"
 
 namespace cobalt {
 namespace browser {
@@ -601,6 +606,11 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnNetworkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(network::NetworkEvent::TypeId(),
                                      network_event_callback_);
+  application_event_callback_ =
+      base::Bind(&Application::OnApplicationEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::ApplicationEvent::TypeId(),
+                                     application_event_callback_);
+
   deep_link_event_callback_ =
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
@@ -656,6 +666,8 @@ Application::~Application() {
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
                                         network_event_callback_);
+  event_dispatcher_.RemoveEventCallback(base::ApplicationEvent::TypeId(),
+                                        application_event_callback_);
   event_dispatcher_.RemoveEventCallback(
       base::DeepLinkEvent::TypeId(), deep_link_event_callback_);
 
@@ -674,7 +686,9 @@ void Application::Start() {
     return;
   }
 
-  OnApplicationEvent(kSbEventTypeStart);
+  event_dispatcher_.DispatchEvent(make_scoped_ptr<base::Event>(
+      new base::ApplicationEvent(kSbEventTypeStart)));
+  app_status_ = kRunningAppStatus;
 }
 
 void Application::Quit() {
@@ -690,47 +704,6 @@ void Application::Quit() {
   }
 
   app_status_ = kQuitAppStatus;
-}
-
-void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
-  DCHECK(starboard_event);
-
-  // Forward input events to |SystemWindow|.
-  if (starboard_event->type == kSbEventTypeInput) {
-    system_window::HandleInputEvent(starboard_event);
-    return;
-  }
-
-  // Create a Cobalt event from the Starboard event, if recognized.
-  switch (starboard_event->type) {
-    case kSbEventTypePause:
-    case kSbEventTypeUnpause:
-    case kSbEventTypeSuspend:
-    case kSbEventTypeResume:
-      OnApplicationEvent(starboard_event->type);
-      break;
-    case kSbEventTypeNetworkConnect:
-      DispatchEventInternal(
-          new network::NetworkEvent(network::NetworkEvent::kConnection));
-      break;
-    case kSbEventTypeNetworkDisconnect:
-      DispatchEventInternal(
-          new network::NetworkEvent(network::NetworkEvent::kDisconnection));
-      break;
-    case kSbEventTypeLink: {
-      const char* link = static_cast<const char*>(starboard_event->data);
-      DispatchEventInternal(new base::DeepLinkEvent(link));
-      break;
-    }
-#if SB_API_VERSION >= 4
-    case kSbEventTypeAccessiblitySettingsChanged:
-      DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
-      break;
-#endif  // SB_API_VERSION >= 4
-    default:
-      DLOG(WARNING) << "Unhandled Starboard event of type: "
-                    << starboard_event->type;
-  }
 }
 
 void Application::OnNetworkEvent(const base::Event* event) {
@@ -754,53 +727,37 @@ void Application::OnNetworkEvent(const base::Event* event) {
   }
 }
 
-void Application::OnApplicationEvent(SbEventType event_type) {
+void Application::OnApplicationEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnApplicationEvent()");
   DCHECK(application_event_thread_checker_.CalledOnValidThread());
-  switch (event_type) {
-    case kSbEventTypeStop:
-      DLOG(INFO) << "Got quit event.";
-      app_status_ = kWillQuitAppStatus;
-      Quit();
-      DLOG(INFO) << "Finished quitting.";
-      break;
-    case kSbEventTypeStart:
-      DLOG(INFO) << "Got start event.";
-      app_status_ = kRunningAppStatus;
-      browser_module_->Start();
-      DLOG(INFO) << "Finished starting.";
-      break;
-    case kSbEventTypePause:
-      DLOG(INFO) << "Got pause event.";
-      app_status_ = kPausedAppStatus;
-      ++app_pause_count_;
-      browser_module_->Pause();
-      DLOG(INFO) << "Finished pausing.";
-      break;
-    case kSbEventTypeUnpause:
-      DLOG(INFO) << "Got unpause event.";
-      app_status_ = kRunningAppStatus;
-      ++app_unpause_count_;
-      browser_module_->Unpause();
-      DLOG(INFO) << "Finished unpausing.";
-      break;
-    case kSbEventTypeSuspend:
-      DLOG(INFO) << "Got suspend event.";
-      app_status_ = kSuspendedAppStatus;
-      ++app_suspend_count_;
-      browser_module_->Suspend();
-      DLOG(INFO) << "Finished suspending.";
-      break;
-    case kSbEventTypeResume:
-      DLOG(INFO) << "Got resume event.";
-      app_status_ = kPausedAppStatus;
-      ++app_resume_count_;
-      browser_module_->Resume();
-      DLOG(INFO) << "Finished resuming.";
-      break;
-    default:
-      NOTREACHED() << "Unexpected event type: " << event_type;
-      return;
+  const base::ApplicationEvent* app_event =
+      base::polymorphic_downcast<const base::ApplicationEvent*>(event);
+  if (app_event->type() == kSbEventTypeStop) {
+    DLOG(INFO) << "Got quit event.";
+    app_status_ = kWillQuitAppStatus;
+    Quit();
+  } else if (app_event->type() == kSbEventTypePause) {
+    DLOG(INFO) << "Got pause event.";
+    app_status_ = kPausedAppStatus;
+    ++app_pause_count_;
+    browser_module_->Pause();
+  } else if (app_event->type() == kSbEventTypeUnpause) {
+    DLOG(INFO) << "Got unpause event.";
+    app_status_ = kRunningAppStatus;
+    ++app_unpause_count_;
+    browser_module_->Unpause();
+  } else if (app_event->type() == kSbEventTypeSuspend) {
+    DLOG(INFO) << "Got suspend event.";
+    app_status_ = kSuspendedAppStatus;
+    ++app_suspend_count_;
+    browser_module_->Suspend();
+    DLOG(INFO) << "Finished suspending.";
+  } else if (app_event->type() == kSbEventTypeResume) {
+    DLOG(INFO) << "Got resume event.";
+    app_status_ = kPausedAppStatus;
+    ++app_resume_count_;
+    browser_module_->Resume();
+    DLOG(INFO) << "Finished resuming.";
   }
 }
 
@@ -918,10 +875,6 @@ void Application::UpdatePeriodicStats() {
       script::JavaScriptEngine::UpdateMemoryStatsAndReturnReserved();
 
   browser_module_->CheckMemory(used_cpu_memory, used_gpu_memory);
-}
-
-void Application::DispatchEventInternal(base::Event* event) {
-  event_dispatcher_.DispatchEvent(make_scoped_ptr<base::Event>(event));
 }
 
 }  // namespace browser

@@ -42,8 +42,6 @@ interface GlobalEventHandlers {
   attribute EventHandler onplay;
   attribute EventHandler onplaying;
 
-  attribute EventHandler onresize;
-
   // Extensions for the Pointer Events recommendation.
   //  https://www.w3.org/TR/2015/REC-pointerevents-20150224/#extensions-to-the-globaleventhandlers-interface
   attribute EventHandler onpointerdown;

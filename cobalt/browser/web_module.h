@@ -239,14 +239,7 @@ class WebModule : public LifecycleObserver {
   // not different from the current parameters.
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio);
 
-  void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
-  void SetImageCacheCapacity(int64_t bytes);
-  void SetRemoteTypefaceCacheCapacity(int64_t bytes);
-  void SetJavascriptGcThreshold(int64_t bytes);
-
   // LifecycleObserver implementation
-  void Prestart() OVERRIDE;
   void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE;
   void Pause() OVERRIDE;
   void Unpause() OVERRIDE;

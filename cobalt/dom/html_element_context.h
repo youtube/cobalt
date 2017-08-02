@@ -77,16 +77,8 @@ class HTMLElementContext {
   media::CanPlayTypeHandler* can_play_type_handler() {
     return can_play_type_handler_;
   }
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    can_play_type_handler_ = can_play_type_handler;
-  }
   media::WebMediaPlayerFactory* web_media_player_factory() {
     return web_media_player_factory_;
-  }
-  void set_web_media_player_factory(
-      media::WebMediaPlayerFactory* web_media_player_factory) {
-    web_media_player_factory_ = web_media_player_factory;
   }
 
   script::ScriptRunner* script_runner() const { return script_runner_; }
@@ -143,7 +135,7 @@ class HTMLElementContext {
   cssom::CSSParser* const css_parser_;
   Parser* const dom_parser_;
   media::CanPlayTypeHandler* can_play_type_handler_;
-  media::WebMediaPlayerFactory* web_media_player_factory_;
+  media::WebMediaPlayerFactory* const web_media_player_factory_;
   script::ScriptRunner* const script_runner_;
   script::ScriptValueFactory* const script_value_factory_;
   MediaSourceRegistry* const media_source_registry_;

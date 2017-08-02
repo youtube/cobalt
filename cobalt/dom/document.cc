@@ -740,11 +740,6 @@ void Document::SetPartialLayout(const std::string& mode_string) {
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
 void Document::SetViewport(const math::Size& viewport_size) {
-  if (viewport_size_ && viewport_size_->width() == viewport_size.width() &&
-      viewport_size_->height() == viewport_size.height()) {
-    return;
-  }
-
   viewport_size_ = viewport_size;
   initial_computed_style_data_ = CreateInitialComputedStyle(*viewport_size_);
   initial_computed_style_declaration_->SetData(initial_computed_style_data_);
@@ -756,8 +751,6 @@ void Document::SetViewport(const math::Size& viewport_size) {
   if (current_html) {
     current_html->InvalidateComputedStylesOfNodeAndDescendants();
   }
-
-  RecordMutation();
 }
 
 Document::~Document() {
