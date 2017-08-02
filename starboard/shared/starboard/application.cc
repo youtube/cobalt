@@ -14,6 +14,8 @@
 
 #include "starboard/shared/starboard/application.h"
 
+#include <string>
+
 #include "starboard/atomic.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
@@ -31,6 +33,7 @@ namespace starboard {
 namespace {
 
 const char kPreloadSwitch[] = "preload";
+const char kLinkSwitch[] = "link";
 
 // Dispatches an event of |type| with |data| to the system event handler,
 // calling |destructor| on |data| when finished dispatching. Does all
@@ -76,24 +79,27 @@ Application::~Application() {
   SbMemoryDeallocate(start_link_);
 }
 
+int Application::Run(int argc, char** argv, const char* link_data) {
+  Initialize();
+  command_line_.reset(new CommandLine(argc, argv));
+  if (link_data) {
+    SetStartLink(link_data);
+  }
+
+  return RunLoop();
+}
+
 int Application::Run(int argc, char** argv) {
   Initialize();
   command_line_.reset(new CommandLine(argc, argv));
-  if (IsPreloadImmediate()) {
-    DispatchPreload();
-  } else if (IsStartImmediate()) {
-    DispatchStart();
-  }
-
-  for (;;) {
-    if (!DispatchNextEvent()) {
-      break;
+  if (command_line_->HasSwitch(kLinkSwitch)) {
+    std::string value = command_line_->GetSwitchValue(kLinkSwitch);
+    if (!value.empty()) {
+      SetStartLink(value.c_str());
     }
   }
 
-  CallTeardownCallbacks();
-  Teardown();
-  return error_level_;
+  return RunLoop();
 }
 
 CommandLine* Application::GetCommandLine() {
@@ -120,6 +126,12 @@ void Application::Stop(int error_level) {
   Event* event = new Event(kSbEventTypeStop, NULL, NULL);
   event->error_level = error_level;
   Inject(event);
+}
+
+void Application::Link(const char *link_data) {
+  SB_DCHECK(link_data) << "You must call Link with link_data.";
+  Inject(new Event(kSbEventTypeLink, SbStringDuplicate(link_data),
+                   SbMemoryDeallocate));
 }
 
 SbEventId Application::Schedule(SbEventCallback callback,
@@ -334,6 +346,25 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
   start_data->argument_count = command_line_->GetOriginalArgc();
   start_data->link = start_link_;
   return new Event(type, start_data, &DeleteDestructor<SbEventStartData>);
+}
+
+int Application::RunLoop() {
+  SB_DCHECK(command_line_);
+  if (IsPreloadImmediate()) {
+    DispatchPreload();
+  } else if (IsStartImmediate()) {
+    DispatchStart();
+  }
+
+  for (;;) {
+    if (!DispatchNextEvent()) {
+      break;
+    }
+  }
+
+  CallTeardownCallbacks();
+  Teardown();
+  return error_level_;
 }
 
 }  // namespace starboard
