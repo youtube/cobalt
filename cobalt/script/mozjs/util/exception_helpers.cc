@@ -49,6 +49,7 @@ std::string GetExceptionString(JSContext* context,
 
 void GetStackTrace(JSContext* context, size_t max_frames,
                    nb::RewindableVector<StackFrame>* output) {
+  DCHECK(output);
   output->rewindAll();
   JSAutoRequest auto_request(context);
   JS::StackDescription* stack_description =

@@ -34,6 +34,7 @@
         'source_provider.h',
         'stack_frame.cc',
         'stack_frame.h',
+        'util/stack_trace_helpers.h',
         'wrappable.h',
       ],
       'dependencies': [
