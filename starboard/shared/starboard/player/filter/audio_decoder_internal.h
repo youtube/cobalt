@@ -15,8 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 
-#include <vector>
-
+#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/closure.h"
@@ -52,7 +51,7 @@ class AudioDecoder {
   // |consumed_cb|.
   // Note that |consumed_cb| is always called asynchronously on the calling job
   // queue.
-  virtual void Decode(const InputBuffer& input_buffer,
+  virtual void Decode(const scoped_refptr<InputBuffer>& input_buffer,
                       const Closure& consumed_cb) = 0;
 
   // Notice the object that there is no more input data unless Reset() is

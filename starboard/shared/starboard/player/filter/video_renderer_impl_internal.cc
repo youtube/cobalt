@@ -34,11 +34,13 @@ VideoRendererImpl::VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder)
   decoder_->SetHost(this);
 }
 
-void VideoRendererImpl::WriteSample(const InputBuffer& input_buffer) {
+void VideoRendererImpl::WriteSample(
+    const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_DCHECK(input_buffer);
 
   if (end_of_stream_written_) {
-    SB_LOG(ERROR) << "Appending video sample at " << input_buffer.pts()
+    SB_LOG(ERROR) << "Appending video sample at " << input_buffer->pts()
                   << " after EOS reached.";
     return;
   }

@@ -60,7 +60,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
             GetPlayerStateCB get_player_state_cb,
             UpdatePlayerStateCB update_player_state_cb) SB_OVERRIDE;
   bool Seek(SbMediaTime seek_to_pts, int ticket) SB_OVERRIDE;
-  bool WriteSample(InputBuffer input_buffer, bool* written) SB_OVERRIDE;
+  bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
+                   bool* written) SB_OVERRIDE;
   bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
   bool SetPause(bool pause) SB_OVERRIDE;
 #if SB_API_VERSION >= 4

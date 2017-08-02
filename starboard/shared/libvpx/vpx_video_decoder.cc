@@ -49,7 +49,9 @@ void VideoDecoder::SetHost(Host* host) {
   host_ = host;
 }
 
-void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
+void VideoDecoder::WriteInputBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  SB_DCHECK(input_buffer);
   SB_DCHECK(queue_.Poll().type == kInvalid);
   SB_DCHECK(host_ != NULL);
 
@@ -171,8 +173,10 @@ void VideoDecoder::TeardownCodec() {
   }
 }
 
-void VideoDecoder::DecodeOneBuffer(const InputBuffer& input_buffer) {
-  const SbMediaVideoSampleInfo* sample_info = input_buffer.video_sample_info();
+void VideoDecoder::DecodeOneBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  SB_DCHECK(input_buffer);
+  const SbMediaVideoSampleInfo* sample_info = input_buffer->video_sample_info();
   SB_DCHECK(sample_info);
   if (!context_ || sample_info->frame_width != current_frame_width_ ||
       sample_info->frame_height != current_frame_height_) {
@@ -184,9 +188,9 @@ void VideoDecoder::DecodeOneBuffer(const InputBuffer& input_buffer) {
 
   SB_DCHECK(context_);
 
-  SbMediaTime pts = input_buffer.pts();
-  vpx_codec_err_t status = vpx_codec_decode(context_.get(), input_buffer.data(),
-                                            input_buffer.size(), &pts, 0);
+  SbMediaTime pts = input_buffer->pts();
+  vpx_codec_err_t status = vpx_codec_decode(
+      context_.get(), input_buffer->data(), input_buffer->size(), &pts, 0);
   if (status != VPX_CODEC_OK) {
     SB_DLOG(ERROR) << "vpx_codec_decode() failed, status=" << status;
     ReportError();

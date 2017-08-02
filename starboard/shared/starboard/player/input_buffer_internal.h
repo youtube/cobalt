@@ -15,6 +15,9 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
+#include <vector>
+
+#include "starboard/common/ref_counted.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
@@ -25,14 +28,9 @@ namespace shared {
 namespace starboard {
 namespace player {
 
-// This class encapsulate a media buffer.  It holds a reference-counted object
-// internally to ensure that the object of this class can be copied while the
-// underlying resources allocated is properly managed.
-// Note that pass this class as const reference doesn't guarantee that the
-// content of the internal buffer won't be changed.
-class InputBuffer {
+// This class encapsulate a media buffer.
+class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
  public:
-  InputBuffer();
   InputBuffer(SbMediaType sample_type,
               SbPlayerDeallocateSampleFunc deallocate_sample_func,
               SbPlayer player,
@@ -52,29 +50,43 @@ class InputBuffer {
               SbMediaTime sample_pts,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
-  InputBuffer(const InputBuffer& that);
   ~InputBuffer();
 
-  InputBuffer& operator=(const InputBuffer& that);
-
-  bool is_valid() const { return buffer_ != NULL; }
-  void reset();
-
-  SbMediaType sample_type() const;
-  const uint8_t* data() const;
-  int size() const;
-  SbMediaTime pts() const;
-  const SbMediaVideoSampleInfo* video_sample_info() const;
-  const SbDrmSampleInfo* drm_info() const;
+  SbMediaType sample_type() const { return sample_type_; }
+  const uint8_t* data() const { return data_; }
+  int size() const { return size_; }
+  SbMediaTime pts() const { return pts_; }
+  const SbMediaVideoSampleInfo* video_sample_info() const {
+    return has_video_sample_info_ ? &video_sample_info_ : NULL;
+  }
+  const SbDrmSampleInfo* drm_info() const {
+    return has_drm_info_ ? &drm_info_ : NULL;
+  }
   void SetDecryptedContent(const void* buffer, int size);
 
  private:
-  class ReferenceCountedBuffer;
+  void TryToAssignVideoSampleInfo(
+      const SbMediaVideoSampleInfo* video_sample_info);
+  void TryToAssignDrmSampleInfo(const SbDrmSampleInfo* sample_drm_info);
+  void DeallocateSampleBuffer(const void* buffer);
 
-  ReferenceCountedBuffer* buffer_;
+  SbMediaType sample_type_;
+  SbPlayerDeallocateSampleFunc deallocate_sample_func_;
+  SbPlayer player_;
+  void* context_;
+  const uint8_t* data_;
+  int size_;
+  SbMediaTime pts_;
+  bool has_video_sample_info_;
+  SbMediaColorMetadata color_metadata_;
+  SbMediaVideoSampleInfo video_sample_info_;
+  bool has_drm_info_;
+  SbDrmSampleInfo drm_info_;
+  std::vector<uint8_t> flattened_data_;
+  std::vector<SbDrmSubSampleMapping> subsamples_;
+
+  SB_DISALLOW_COPY_AND_ASSIGN(InputBuffer);
 };
-
-bool operator==(const InputBuffer& lhs, const InputBuffer& rhs);
 
 }  // namespace player
 }  // namespace starboard

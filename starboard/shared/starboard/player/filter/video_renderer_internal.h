@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_RENDERER_INTERNAL_H_
 
-#include "starboard/common/scoped_ptr.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
@@ -36,7 +36,7 @@ class VideoRenderer {
   virtual ~VideoRenderer() {}
 
   virtual int GetDroppedFrames() const = 0;
-  virtual void WriteSample(const InputBuffer& input_buffer) = 0;
+  virtual void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) = 0;
   virtual void WriteEndOfStream() = 0;
   virtual void Seek(SbMediaTime seek_to_pts) = 0;
   virtual scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time) = 0;

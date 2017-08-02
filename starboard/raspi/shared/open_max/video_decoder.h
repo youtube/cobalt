@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
@@ -46,7 +47,8 @@ class VideoDecoder
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
-  void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
+      SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
@@ -56,11 +58,11 @@ class VideoDecoder
     explicit Event(const Type type) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer);
     }
-    explicit Event(const InputBuffer& input_buffer)
+    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
 
     Type type;
-    InputBuffer input_buffer;
+    scoped_refptr<InputBuffer> input_buffer;
   };
 
   bool TryToDeliverOneFrame();
