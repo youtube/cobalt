@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_PLAYER_WORKER_H_
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -75,7 +76,8 @@ class PlayerWorker {
                       GetPlayerStateCB get_player_state_cb,
                       UpdatePlayerStateCB update_player_state_cb) = 0;
     virtual bool Seek(SbMediaTime seek_to_pts, int ticket) = 0;
-    virtual bool WriteSample(InputBuffer input_buffer, bool* written) = 0;
+    virtual bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
+                             bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual bool SetPause(bool pause) = 0;
 #if SB_API_VERSION >= 4
@@ -106,7 +108,7 @@ class PlayerWorker {
         Bind(&PlayerWorker::DoSeek, this, seek_to_pts, ticket));
   }
 
-  void WriteSample(InputBuffer input_buffer) {
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {
     job_queue_->Schedule(
         Bind(&PlayerWorker::DoWriteSample, this, input_buffer));
   }
@@ -165,7 +167,7 @@ class PlayerWorker {
   void RunLoop();
   void DoInit();
   void DoSeek(SbMediaTime seek_to_pts, int ticket);
-  void DoWriteSample(InputBuffer input_buffer);
+  void DoWriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
 #if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
@@ -192,8 +194,8 @@ class PlayerWorker {
   int ticket_;
 
   SbPlayerState player_state_;
-  InputBuffer pending_audio_buffer_;
-  InputBuffer pending_video_buffer_;
+  scoped_refptr<InputBuffer> pending_audio_buffer_;
+  scoped_refptr<InputBuffer> pending_video_buffer_;
   Closure write_pending_sample_closure_;
 };
 
