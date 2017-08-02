@@ -32,7 +32,7 @@ TEST_F(StackTraceTest, GetStackTrace) {
   // 11).
   std::string script =
       "function bar() {\n"
-      "return getStackTrace();\n"
+      "  return getStackTrace();\n"
       "}\n"
       "function foo(depth) {\n"
       "  if  (depth <= 0) {\n"

@@ -20,7 +20,12 @@
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "third_party/mozjs-45/js/public/UbiNode.h"
+#include "third_party/mozjs-45/js/src/builtin/ModuleObject.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/jscntxt.h"
+#include "third_party/mozjs-45/js/src/jscntxtinlines.h"
+#include "third_party/mozjs-45/js/src/jsfriendapi.h"
+#include "third_party/mozjs-45/js/src/jsprf.h"
 
 namespace cobalt {
 namespace script {
@@ -45,15 +50,18 @@ std::string GetExceptionString(JSContext* context, JS::HandleValue exception) {
   return exception_string;
 }
 
-std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
+void GetStackTrace(JSContext* context, size_t max_frames,
+                   nb::RewindableVector<StackFrame>* output) {
+  DCHECK(output);
+  output->rewindAll();
+
   JS::RootedObject stack(context);
-  std::vector<StackFrame> stack_frames;
   if (!js::GetContextCompartment(context)) {
     LOG(WARNING) << "Tried to get stack trace without access to compartment.";
-    return stack_frames;
+    return;
   }
   if (!JS::CaptureCurrentStack(context, &stack, max_frames)) {
-    return stack_frames;
+    return;
   }
 
   while (stack != NULL) {
@@ -87,11 +95,44 @@ std::vector<StackFrame> GetStackTrace(JSContext* context, int max_frames) {
                   &sf.source_url);
     }
 
-    stack_frames.push_back(sf);
+    output->push_back(sf);
     JS::GetSavedFrameParent(context, stack, &stack);
   }
+}
 
-  return stack_frames;
+void GetStackTraceUsingInternalApi(JSContext* context, size_t max_frames,
+                                   nb::RewindableVector<StackFrame>* output) {
+  DCHECK(output);
+  output->rewindAll();
+
+  int frames_captured = 0;
+  for (js::AllFramesIter it(context);
+       !it.done() && (max_frames == 0 || frames_captured < max_frames);
+       ++it, ++frames_captured) {
+    const char* filename = JS_GetScriptFilename(it.script());
+    unsigned column = 0;
+    unsigned line = js::PCToLineNumber(it.script(), it.pc(), &column);
+
+    StackFrame sf;
+    sf.source_url = filename;
+    sf.line_number = line;
+    sf.column_number = column;
+    if (it.isFunctionFrame()) {
+      JSFunction* function = it.callee(context);
+      if (function->displayAtom()) {
+        auto* atom = function->displayAtom();
+        JS::AutoCheckCannotGC nogc;
+        auto* chars = atom->latin1Chars(nogc);
+        sf.function_name = std::string(chars, chars + atom->length());
+      } else {
+        sf.function_name = "(anonymous function)";
+      }
+    } else {
+      sf.function_name = "global code";
+    }
+
+    output->push_back(sf);
+  }
 }
 
 }  // namespace util

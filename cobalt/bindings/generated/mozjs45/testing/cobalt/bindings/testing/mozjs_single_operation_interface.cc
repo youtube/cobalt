@@ -28,6 +28,7 @@
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_interface.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/util/stack_trace_helpers.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jscntxt.h"
 
@@ -68,6 +69,7 @@ base::optional<int32_t > MozjsSingleOperationInterface::HandleCallback(
   base::optional<int32_t > cobalt_return_value;
   JSAutoRequest auto_request(context_);
   JS::AutoSaveExceptionState auto_save_exception_state(context_);
+  ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
 
   // This could be set to NULL if it was garbage collected.
   JS::RootedObject implementing_object(context_, implementing_object_.GetObject());

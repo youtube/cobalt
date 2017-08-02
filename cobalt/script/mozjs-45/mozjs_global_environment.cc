@@ -28,6 +28,7 @@
 #include "cobalt/script/mozjs-45/proxy_handler.h"
 #include "cobalt/script/mozjs-45/referenced_object_map.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/util/stack_trace_helpers.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/public/Initialization.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
@@ -282,7 +283,9 @@ void MozjsGlobalEnvironment::EvaluateEmbeddedScript(
 
 std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  return util::GetStackTrace(context_, max_frames);
+  nb::RewindableVector<StackFrame> stack_frames;
+  util::GetStackTrace(context_, max_frames, &stack_frames);
+  return stack_frames.InternalData();
 }
 
 void MozjsGlobalEnvironment::PreventGarbageCollection(

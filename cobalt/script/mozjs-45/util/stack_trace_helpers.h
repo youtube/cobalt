@@ -12,25 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_SCRIPT_MOZJS_UTIL_STACK_TRACE_HELPERS_H_
-#define COBALT_SCRIPT_MOZJS_UTIL_STACK_TRACE_HELPERS_H_
+#ifndef COBALT_SCRIPT_MOZJS_45_UTIL_STACK_TRACE_HELPERS_H_
+#define COBALT_SCRIPT_MOZJS_45_UTIL_STACK_TRACE_HELPERS_H_
 
 #include <string>
 #include <vector>
 
+#include "base/compiler_specific.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/stack_frame.h"
 #include "cobalt/script/util/stack_trace_helpers.h"
 #include "nb/rewindable_vector.h"
-
-struct JSContext;
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 #if defined(STARBOARD_ALLOWS_MEMORY_TRACKING)
-#define ENABLE_JS_STACK_TRACE_IN_SCOPE(JS_CTX)                             \
+#define ENABLE_JS_STACK_TRACE_IN_SCOPE(context)                            \
   ::cobalt::script::mozjs::util::StackTraceScope stack_trace_scope_object( \
-      JS_CTX)
+      context)
 #else
-#define ENABLE_JS_STACK_TRACE_IN_SCOPE(JS_CTX)
+#define ENABLE_JS_STACK_TRACE_IN_SCOPE(context)
 #endif
 
 namespace cobalt {
@@ -48,7 +48,7 @@ namespace util {
 //  void InvokeOtherFunctions() {
 //    ...
 //    std::string stack_trace_str;
-//    if (GetThreadLocalMozjsStackTraceGenerator()->GenerateStackTraceString(
+//    if (GetThreadLocalStackTraceGenerator()->GenerateStackTraceString(
 //          2, &stack_trace_str)) {
 //      // Prints the stack trace from javascript.
 //      SbLogRaw(stack_trace_str.c_str());
@@ -57,37 +57,38 @@ namespace util {
 class MozjsStackTraceGenerator
     : public ::cobalt::script::util::StackTraceGenerator {
  public:
-  MozjsStackTraceGenerator();
-  virtual ~MozjsStackTraceGenerator();
+  MozjsStackTraceGenerator() : context_(NULL) {}
 
-  // Returns |true| if the current MozjsStackTraceGenerator can generate
-  // information about the stack.
-  bool Valid();
+  // Returns |true| if the current StackTraceGenerator can generate information
+  // about the stack.
+  bool Valid() OVERRIDE { return context_ != NULL; }
 
   // Generates stack traces in the raw form. Returns true if any stack
   // frames were generated. False otherwise. Output vector will be
   // unconditionally rewound to being empty.
-  bool GenerateStackTrace(int depth, nb::RewindableVector<StackFrame>* out);
+  bool GenerateStackTrace(int depth,
+                          nb::RewindableVector<StackFrame>* out) OVERRIDE;
 
   // Returns true if any stack traces were written. The output vector will be
   // re-wound to being empty.
   // The first position is the most immediate stack frame.
   bool GenerateStackTraceLines(int depth,
-                               nb::RewindableVector<std::string>* out);
+                               nb::RewindableVector<std::string>* out) OVERRIDE;
 
   // Prints stack trace. Returns true on success.
-  bool GenerateStackTraceString(int depth, std::string* out);
+  bool GenerateStackTraceString(int depth, std::string* out) OVERRIDE;
 
-  bool GenerateStackTraceString(int depth, char* buff, size_t buff_size);
+  bool GenerateStackTraceString(int depth, char* buff,
+                                size_t buff_size) OVERRIDE;
 
   // Gets the internal data structure used to generate stack traces.
-  JSContext* js_context();
+  JSContext* context() { return context_; }
 
   // Internal only, do not set.
-  void set_js_context(JSContext* js_ctx);
+  void set_context(JSContext* context) { context_ = context; }
 
  private:
-  JSContext* js_context_;
+  JSContext* context_;
 
   // Recycles memory so that stack tracing is efficient.
   struct Scratch {
@@ -119,4 +120,4 @@ struct StackTraceScope {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // COBALT_SCRIPT_MOZJS_UTIL_STACK_TRACE_HELPERS_H_
+#endif  // COBALT_SCRIPT_MOZJS_45_UTIL_STACK_TRACE_HELPERS_H_
