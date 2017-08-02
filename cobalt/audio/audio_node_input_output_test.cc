@@ -71,7 +71,7 @@ void FillAudioBusFromOneSource(
   scoped_refptr<AudioBuffer> buffer(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames),
                       static_cast<int32>(num_of_src_channel), src_data.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
@@ -663,7 +663,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBuffer> buffer_1(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_1),
                       static_cast<int32>(num_of_src_channel), src_data_1.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source_1->set_buffer(buffer_1);
 
   size_t num_of_frames_2 = 50;
@@ -681,7 +681,7 @@ TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   scoped_refptr<AudioBuffer> buffer_2(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_2),
                       static_cast<int32>(num_of_src_channel), src_data_2.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
