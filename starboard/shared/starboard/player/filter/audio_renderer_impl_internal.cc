@@ -115,12 +115,14 @@ AudioRendererImpl::~AudioRendererImpl() {
   }
 }
 
-void AudioRendererImpl::WriteSample(const InputBuffer& input_buffer) {
+void AudioRendererImpl::WriteSample(
+    const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(input_buffer);
   SB_DCHECK(can_accept_more_data_);
 
   if (eos_state_.load() >= kEOSWrittenToDecoder) {
-    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer.pts()
+    SB_LOG(ERROR) << "Appending audio sample at " << input_buffer->pts()
                   << " after EOS reached.";
     return;
   }

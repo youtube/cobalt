@@ -106,9 +106,10 @@ void AudioDecoder::Initialize(const Closure& output_cb) {
   output_cb_ = output_cb;
 }
 
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
+void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
                           const Closure& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_.is_valid());
 
   if (stream_ended_) {
@@ -123,7 +124,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
     SB_DCHECK(SbThreadIsValid(decoder_thread_));
   }
 
-  VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer.pts();
+  VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer->pts();
   event_queue_.PushBack(Event(input_buffer));
 
   ScopedLock lock(decoded_audios_mutex_);
@@ -276,10 +277,10 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     data = audio_header_.audio_specific_config;
     size = audio_header_.audio_specific_config_size;
   } else if (event.type == Event::kWriteInputBuffer) {
-    const InputBuffer& input_buffer = event.input_buffer;
-    data = input_buffer.data();
-    size = input_buffer.size();
-    VERBOSE_MEDIA_LOG() << "T2: pts " << input_buffer.pts();
+    const scoped_refptr<InputBuffer>& input_buffer = event.input_buffer;
+    data = input_buffer->data();
+    size = input_buffer->size();
+    VERBOSE_MEDIA_LOG() << "T2: pts " << input_buffer->pts();
   } else if (event.type == Event::kWriteEndOfStream) {
     data = NULL;
     size = 0;
@@ -314,11 +315,11 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
-    jlong pts_us = ConvertSbMediaTimeToMicroseconds(event.input_buffer.pts());
-    if (drm_system_ && event.input_buffer.drm_info()) {
+    jlong pts_us = ConvertSbMediaTimeToMicroseconds(event.input_buffer->pts());
+    if (drm_system_ && event.input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
-          dequeue_input_result.index, kNoOffset, *event.input_buffer.drm_info(),
-          pts_us);
+          dequeue_input_result.index, kNoOffset,
+          *event.input_buffer->drm_info(), pts_us);
 
       if (status == MEDIA_CODEC_NO_KEY) {
         SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "

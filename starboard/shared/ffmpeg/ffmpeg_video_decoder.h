@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_FFMPEG_FFMPEG_VIDEO_DECODER_H_
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/queue.h"
@@ -41,7 +42,8 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
-  void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
+      SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
 
@@ -58,13 +60,13 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   struct Event {
     EventType type;
     // |input_buffer| is only used when |type| is kWriteInputBuffer.
-    InputBuffer input_buffer;
+    scoped_refptr<InputBuffer> input_buffer;
 
     explicit Event(EventType type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer);
     }
 
-    explicit Event(InputBuffer input_buffer)
+    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 

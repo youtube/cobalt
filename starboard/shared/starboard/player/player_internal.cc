@@ -81,10 +81,10 @@ void SbPlayerPrivate::WriteSample(
   if (sample_type == kSbMediaTypeVideo) {
     ++total_video_frames_;
   }
-  InputBuffer input_buffer(sample_type, sample_deallocate_func_, this, context_,
-                           sample_buffers, sample_buffer_sizes,
-                           number_of_sample_buffers, sample_pts,
-                           video_sample_info, sample_drm_info);
+  starboard::scoped_refptr<InputBuffer> input_buffer = new InputBuffer(
+      sample_type, sample_deallocate_func_, this, context_, sample_buffers,
+      sample_buffer_sizes, number_of_sample_buffers, sample_pts,
+      video_sample_info, sample_drm_info);
   worker_->WriteSample(input_buffer);
 }
 

@@ -52,7 +52,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
                     const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
-  void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
 
   void Play() SB_OVERRIDE;

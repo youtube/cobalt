@@ -23,6 +23,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/atomic.h"
+#include "starboard/common/ref_counted.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -45,7 +46,7 @@ class AudioDecoder
   ~AudioDecoder() SB_OVERRIDE;
 
   void Initialize(const Closure& output_cb) SB_OVERRIDE;
-  void Decode(const InputBuffer& input_buffer,
+  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const Closure& consumed_cb) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
@@ -76,11 +77,11 @@ class AudioDecoder
     explicit Event(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer);
     }
-    explicit Event(const InputBuffer& input_buffer)
+    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
 
     Type type;
-    InputBuffer input_buffer;
+    scoped_refptr<InputBuffer> input_buffer;
   };
 
   // The maximum amount of work that can exist in the union of |EventQueue|,
