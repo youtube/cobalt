@@ -117,6 +117,23 @@ inline Closure Bind(void (C::*func)(Param), C* obj, Param param) {
   return Closure(new FunctorImpl(func, obj, param));
 }
 
+template <typename C, typename Param>
+inline Closure Bind(void (C::*func)(const Param&), C* obj, const Param& param) {
+  class FunctorImpl : public Closure::Functor {
+   public:
+    FunctorImpl(void (C::*func)(const Param&), C* obj, const Param& param)
+        : func_(func), obj_(obj), param_(param) {}
+
+    void Run() SB_OVERRIDE { ((*obj_).*func_)(param_); }
+
+   private:
+    void (C::*func_)(const Param&);
+    C* obj_;
+    Param param_;
+  };
+  return Closure(new FunctorImpl(func, obj, param));
+}
+
 template <typename C, typename Param1, typename Param2>
 inline Closure Bind(void (C::*func)(Param1, Param2),
                     C* obj,

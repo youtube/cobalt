@@ -70,9 +70,10 @@ void AudioDecoder::Initialize(const Closure& output_cb) {
   output_cb_ = output_cb;
 }
 
-void AudioDecoder::Decode(const InputBuffer& input_buffer,
+void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
                           const Closure& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
+  SB_DCHECK(input_buffer);
   SB_DCHECK(output_cb_.is_valid());
   SB_CHECK(codec_context_ != NULL);
 
@@ -85,17 +86,17 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
 
   AVPacket packet;
   av_init_packet(&packet);
-  packet.data = const_cast<uint8_t*>(input_buffer.data());
-  packet.size = input_buffer.size();
+  packet.data = const_cast<uint8_t*>(input_buffer->data());
+  packet.size = input_buffer->size();
 
   avcodec_get_frame_defaults(av_frame_);
   int frame_decoded = 0;
   int result =
       avcodec_decode_audio4(codec_context_, av_frame_, &frame_decoded, &packet);
-  if (result != input_buffer.size() || frame_decoded != 1) {
+  if (result != input_buffer->size() || frame_decoded != 1) {
     // TODO: Consider fill it with silence.
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
-                     << " with input buffer size: " << input_buffer.size()
+                     << " with input buffer size: " << input_buffer->size()
                      << " and frame decoded: " << frame_decoded;
     return;
   }
@@ -108,7 +109,7 @@ void AudioDecoder::Decode(const InputBuffer& input_buffer,
   if (decoded_audio_size > 0) {
     scoped_refptr<DecodedAudio> decoded_audio = new DecodedAudio(
         codec_context_->channels, GetSampleType(), GetStorageType(),
-        input_buffer.pts(),
+        input_buffer->pts(),
         codec_context_->channels * av_frame_->nb_samples *
             starboard::media::GetBytesPerSample(GetSampleType()));
     if (GetStorageType() == kSbMediaAudioFrameStorageTypeInterleaved) {

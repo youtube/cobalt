@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
@@ -37,7 +38,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
   ~AudioDecoder() SB_OVERRIDE;
 
   void Initialize(const Closure& output_cb) SB_OVERRIDE;
-  void Decode(const InputBuffer& input_buffer,
+  void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const Closure& consumed_cb) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
