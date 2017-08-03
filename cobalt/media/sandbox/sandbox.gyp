@@ -62,6 +62,7 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<@(cobalt_platform_dependencies)',
       ],
     },
 
@@ -100,6 +101,7 @@
         '<(DEPTH)/cobalt/system_window/system_window.gyp:system_window',
         '<(DEPTH)/cobalt/trace_event/trace_event.gyp:trace_event',
         '<(DEPTH)/googleurl/googleurl.gyp:googleurl',
+        '<@(cobalt_platform_dependencies)',
       ],
     },
 
