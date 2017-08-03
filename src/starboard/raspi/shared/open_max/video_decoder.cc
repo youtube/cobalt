@@ -67,7 +67,9 @@ void VideoDecoder::SetHost(Host* host) {
   SB_DCHECK(SbThreadIsValid(thread_));
 }
 
-void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
+void VideoDecoder::WriteInputBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  SB_DCHECK(input_buffer);
   SB_DCHECK(host_ != NULL);
 
   queue_.Put(new Event(input_buffer));
@@ -133,7 +135,7 @@ void VideoDecoder::RunLoop() {
 
   component.Start();
 
-  InputBuffer current_buffer;
+  scoped_refptr<InputBuffer> current_buffer;
   int offset = 0;
 
   for (;;) {
@@ -158,13 +160,13 @@ void VideoDecoder::RunLoop() {
       filled_buffers_.push(buffer);
     }
 
-    if (current_buffer.is_valid()) {
-      int size = static_cast<int>(current_buffer.size());
+    if (current_buffer) {
+      int size = static_cast<int>(current_buffer->size());
       while (offset < size) {
         int written = component.WriteData(
-            current_buffer.data() + offset, size - offset,
+            current_buffer->data() + offset, size - offset,
             OpenMaxComponent::kDataNonEOS,
-            current_buffer.pts() * kSbTimeSecond / kSbMediaTimeSecond);
+            current_buffer->pts() * kSbTimeSecond / kSbMediaTimeSecond);
         SB_DCHECK(written >= 0);
         offset += written;
         if (written == 0) {
@@ -172,7 +174,7 @@ void VideoDecoder::RunLoop() {
         }
       }
       if (offset == size) {
-        current_buffer = InputBuffer();
+        current_buffer = NULL;
         offset = 0;
       } else {
         SbThreadSleep(kSbTimeMillisecond);

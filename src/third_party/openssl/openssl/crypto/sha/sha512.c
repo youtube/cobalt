@@ -357,7 +357,7 @@ static const SHA_LONG64 K512[80] = {
                                 : "=r"(ret)             \
                                 : "r"(a),"K"(n)); ret;  })
 #    endif
-#   elif defined(_MSC_VER)
+#   elif defined(_MSC_VER) && !defined(STARBOARD)
 #    if defined(_WIN64)         /* applies to both IA-64 and AMD64 */
 #     pragma intrinsic(_rotr64)
 #     define ROTR(a,n)    _rotr64((a),n)

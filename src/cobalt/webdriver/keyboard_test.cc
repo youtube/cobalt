@@ -174,7 +174,7 @@ TEST_F(KeyboardTest, ShiftedCharacter) {
 
 TEST_F(KeyboardTest, Modifier) {
   // \uE00A is the Alt-key modifier.
-  std::string keys = "\uE00A";
+  std::string keys = u8"\uE00A";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   ASSERT_EQ(events_.size(), 1);
@@ -189,7 +189,7 @@ TEST_F(KeyboardTest, Modifier) {
 TEST_F(KeyboardTest, ModifiersAreKept) {
   // \uE00A is the Alt-key modifier.
   // \uE008 is the Shift-key modifier.
-  std::string keys = "\uE00A\uE008";
+  std::string keys = u8"\uE00A\uE008";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   ASSERT_EQ(events_.size(), 2);
@@ -205,7 +205,7 @@ TEST_F(KeyboardTest, ModifiersAreKept) {
 TEST_F(KeyboardTest, ModifiersAreReleased) {
   // \uE00A is the Alt-key modifier.
   // \uE008 is the Shift-key modifier.
-  std::string keys = "\uE00A\uE008";
+  std::string keys = u8"\uE00A\uE008";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kReleaseModifiers, &events_);
 
   ASSERT_EQ(events_.size(), 4);
@@ -223,7 +223,7 @@ TEST_F(KeyboardTest, ModifiersAreReleased) {
 
 TEST_F(KeyboardTest, SpecialCharacter) {
   // \uE012 is the Left-arrow key.
-  std::string keys = "\uE012";
+  std::string keys = u8"\uE012";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   ASSERT_EQ(events_.size(), 2);
@@ -236,7 +236,7 @@ TEST_F(KeyboardTest, SpecialCharacter) {
 
 TEST_F(KeyboardTest, ModifierIsSticky) {
   // \uE00A is the Alt-key modifier. Corresponds to the kMenu key code.
-  std::string keys = "\uE00AaB";
+  std::string keys = u8"\uE00AaB";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   // keydown(alt)
@@ -264,7 +264,7 @@ TEST_F(KeyboardTest, ModifierIsSticky) {
 
 TEST_F(KeyboardTest, ToggleModifier) {
   // \uE008 is the Shift-key modifier.
-  std::string keys = "\uE008a\uE008a";
+  std::string keys = u8"\uE008a\uE008a";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   // keydown(shift)
@@ -289,7 +289,7 @@ TEST_F(KeyboardTest, ToggleModifier) {
 }
 
 TEST_F(KeyboardTest, NullClearsModifiers) {
-  std::string keys = "\uE008\uE00A\uE000a";
+  std::string keys = u8"\uE008\uE00A\uE000a";
   Keyboard::TranslateToKeyEvents(keys, Keyboard::kKeepModifiers, &events_);
 
   // keydown(shift)

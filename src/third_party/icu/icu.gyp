@@ -10,16 +10,7 @@
     'use_system_icu%': 0,
     'icu_use_data_file_flag%': 0,
     'want_separate_host_toolset%': 0,
-    'conditions': [
-      # On Windows MSVS's library archive tool won't create an empty
-      # library given zero object input. Therefore we set target type as
-      # none. On other platforms use static_library.
-      ['actual_target_arch=="win"', {
-        'icudata_target_type': 'none',
-      }, {
-        'icudata_target_type': 'static_library',
-      }],
-    ],
+    'icudata_target_type': 'static_library',
   },
   'target_defaults': {
     'direct_dependent_settings': {
@@ -105,7 +96,7 @@
       'source/common',
       'source/i18n',
     ],
-    'msvs_disabled_warnings': [4005, 4068, 4355, 4996, 4267],
+    'msvs_disabled_warnings': [4005, 4068, 4244, 4355, 4996, 4267],
   },
   'conditions': [
     ['use_system_icu==0 or want_separate_host_toolset==1', {
@@ -301,18 +292,11 @@
                     '-fno-builtin-sin',
                 ],
             }],
-            ['OS=="lb_shell" or OS=="starboard"', {
+            ['OS=="starboard"', {
               'defines': [
                 'U_HAVE_NL_LANGINFO_CODESET=0',
                 'U_HAVE_NL_LANGINFO=0'
               ],
-            }],
-            ['OS=="lb_shell"', {
-              'dependencies': [
-                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-              ],
-            }],
-            ['OS=="starboard"', {
               'dependencies': [
                 '<(DEPTH)/starboard/starboard.gyp:starboard',
                ],
@@ -453,11 +437,6 @@
               ],
               'cflags_cc!': [
                 '-frtti',
-              ],
-            }],
-            ['OS=="lb_shell"', {
-              'dependencies': [
-                '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
               ],
             }],
             ['OS=="starboard"', {

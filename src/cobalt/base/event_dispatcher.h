@@ -40,11 +40,11 @@ class EventDispatcher {
   void DispatchEvent(scoped_ptr<Event> event) const;
 
   // Register a callback to be notified about Events of the given type.
-  // May be called from any thread.
+  // May be called from any thread, but not from a dispatched event.
   void AddEventCallback(TypeId type, const EventCallback& cb);
 
   // De-register the given callback from subsequent notifications.
-  // May be called from any thread.
+  // May be called from any thread, but not from a dispatched event.
   void RemoveEventCallback(TypeId type, const EventCallback& cb);
 
  private:

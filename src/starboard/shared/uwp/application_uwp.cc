@@ -83,7 +83,7 @@ int main_return_value = 0;
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
-// Parses a starboard: URI scheme by splitting args at ';' boundries.
+// Parses a starboard: URI scheme by splitting args at ';' boundaries.
 std::vector<std::string> ParseStarboardUri(const std::string& uri) {
   std::vector<std::string> result;
   result.push_back(GetArgvZero());
@@ -210,8 +210,7 @@ ref class App sealed : public IFrameworkView {
   App() : previously_activated_(false) {}
 
   // IFrameworkView methods.
-  virtual void Initialize(
-      CoreApplicationView^ applicationView) {
+  virtual void Initialize(CoreApplicationView^ applicationView) {
     SbAudioSinkPrivate::Initialize();
     CoreApplication::Suspending +=
         ref new EventHandler<SuspendingEventArgs^>(this, &App::OnSuspending);
@@ -313,10 +312,10 @@ ref class App sealed : public IFrameworkView {
       }
     } else if (args->Kind == ActivationKind::DialReceiver) {
       if (!previously_activated_) {
-        DialReceiverActivatedEventArgs ^ dial_args =
-            dynamic_cast<DialReceiverActivatedEventArgs ^>(args);
+        DialReceiverActivatedEventArgs^ dial_args =
+            dynamic_cast<DialReceiverActivatedEventArgs^>(args);
         SB_CHECK(dial_args);
-        Platform::String ^ arguments = dial_args->Arguments;
+        Platform::String^ arguments = dial_args->Arguments;
         std::string activation_args =
             kYouTubeTVurl + sbwin32::platformStringToString(arguments);
         SB_DLOG(INFO) << "Dial Activation url: " << activation_args;
@@ -558,11 +557,15 @@ int main(Platform::Array<Platform::String^>^ args) {
   SB_CHECK(LOBYTE(wsaData.wVersion) == kWinSockVersionMajor &&
            HIBYTE(wsaData.wVersion) == kWinSockVersionMinor);
 
+  HRESULT hr = MFStartup(MF_VERSION);
+  SB_DCHECK(SUCCEEDED(hr));
+
   starboard::shared::win32::RegisterMainThread();
 
   auto direct3DApplicationSource = ref new Direct3DApplicationSource();
   CoreApplication::Run(direct3DApplicationSource);
 
+  MFShutdown();
   WSACleanup();
 
   return main_return_value;

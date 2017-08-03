@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,4 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/linux/x64x11/thread_types_public.h"
+#include "starboard/log.h"
+
+#include "starboard/shared/media_session/playback_state.h"
+
+namespace starboard {
+namespace shared {
+namespace media_session {
+
+void UpdateActiveSessionPlatformPlaybackState(PlaybackState state) {
+  SB_UNREFERENCED_PARAMETER(state);
+  SB_NOTIMPLEMENTED();
+}
+
+}  // namespace media_session
+}  // namespace shared
+}  // namespace starboard

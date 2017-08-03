@@ -125,7 +125,9 @@ void VideoDecoder::SetHost(Host* host) {
   host_ = host;
 }
 
-void VideoDecoder::WriteInputBuffer(const InputBuffer& input_buffer) {
+void VideoDecoder::WriteInputBuffer(
+    const scoped_refptr<InputBuffer>& input_buffer) {
+  SB_DCHECK(input_buffer);
   SB_DCHECK(queue_.Poll().type == kInvalid);
   SB_DCHECK(host_ != NULL);
 
@@ -194,9 +196,9 @@ void VideoDecoder::DecoderThreadFunc() {
       // Send |input_buffer| to ffmpeg and try to decode one frame.
       AVPacket packet;
       av_init_packet(&packet);
-      packet.data = const_cast<uint8_t*>(event.input_buffer.data());
-      packet.size = event.input_buffer.size();
-      packet.pts = event.input_buffer.pts();
+      packet.data = const_cast<uint8_t*>(event.input_buffer->data());
+      packet.size = event.input_buffer->size();
+      packet.pts = event.input_buffer->pts();
       codec_context_->reordered_opaque = packet.pts;
 
       DecodePacket(&packet);

@@ -27,14 +27,10 @@
       'dependencies': [
         '../zlib/zlib.gyp:zlib',
       ],
-      'conditions': [
-        # Disable windows ots warnings:
-        #   4334: '<<' : result of 32-bit shift implicitly converted to 64
-        #       bits (was 64-bit shift intended?)
-        ['actual_target_arch=="win"', {
-          'msvs_disabled_warnings': [ 4334 ],
-        }],
-      ],
+      # Disable windows ots warnings:
+      #   4334: '<<' : result of 32-bit shift implicitly converted to 64
+      #       bits (was 64-bit shift intended?)
+      'msvs_disabled_warnings': [ 4334 ],
     },
   ],
 }

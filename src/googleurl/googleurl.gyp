@@ -67,11 +67,6 @@
             ],
           },
         }],
-        ['OS=="lb_shell"', {
-          'dependencies': [
-            '<(lbshell_root)/build/projects/posix_emulation.gyp:posix_emulation',
-          ],
-        }],
         ['OS=="starboard"', {
           'dependencies': [
             '<(DEPTH)/starboard/starboard.gyp:starboard',

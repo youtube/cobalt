@@ -62,7 +62,18 @@
           'FT_CONFIG_OPTIONS_H="ftoption.h"',
         ],
       },
-      'msvs_disabled_warnings': [4146],
+      'msvs_disabled_warnings': [
+        # Level 1 - Formal parameter 'number' is different from declaration.
+        4028,
+        # Level 1 - Incompatible types conversion.
+        4133,
+        # Level 2 - Unary minus operator applied to unsigned type; result is
+        # still unsigned.
+        4146,
+        # Level 1 - Conversion from 'type1' to 'type2' of a greater size.
+        # Typically when 32-bit value is assigned to a 64-bit pointer value.
+        4312,
+      ],
     },
   ], # targets
 }

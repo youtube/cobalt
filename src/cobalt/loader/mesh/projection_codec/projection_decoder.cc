@@ -625,7 +625,7 @@ void ProjectionDecoder::DecodeMeshData() {
     int v_index = 0;
     int bits_per_vertex_index =
         static_cast<int>(ceil(log2(static_cast<double>(num_verts * 2))));
-    for (uint32_t i = 0; i < num_indices; ++i) {
+    for (uint32_t j = 0; j < num_indices; ++j) {
       v_index += ZigZagDecode32(GetBits(bits_per_vertex_index));
 
       // Check that this vertex index is in range before sending it off.

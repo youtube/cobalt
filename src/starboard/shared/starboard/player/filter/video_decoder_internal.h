@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -35,7 +36,8 @@ class VideoDecoder {
   virtual ~VideoDecoder() {}
 
   // Send encoded video frame stored in |input_buffer| to decode.
-  virtual void WriteInputBuffer(const InputBuffer& input_buffer) = 0;
+  virtual void WriteInputBuffer(
+      const scoped_refptr<InputBuffer>& input_buffer) = 0;
   // Note that there won't be more input data unless Reset() is called.
   // OnDecoderStatusUpdate will still be called on Host during flushing until
   // the |frame| is an EOS frame.

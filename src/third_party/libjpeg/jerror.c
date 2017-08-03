@@ -34,7 +34,7 @@
 #include "starboard/system.h"
 #define sprintf SbStringFormatUnsafeF
 // Applications should not leave the standard error handler registered.
-#define exit(x) SbSystemBreakIntoDebugger
+#define exit(x) SbSystemBreakIntoDebugger(x)
 #endif
 
 #ifndef EXIT_FAILURE		/* define exit() codes if not provided */

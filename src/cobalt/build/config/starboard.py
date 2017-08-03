@@ -31,11 +31,25 @@ class PlatformConfigStarboard(PlatformConfigBase):
     return True
 
   def GetEnvironmentVariables(self):
-    raise NotImplementedError
+    return {}
 
   def GetToolchain(self):
     """Returns the instance of the toolchain implementation class."""
     return None
+
+  def GetTargetToolchain(self):
+    """Returns a list of target tools."""
+    # TODO: If this method throws |NotImplementedError|, GYP will fall back to
+    #       the legacy toolchain. Once all platforms are migrated to the
+    #       abstract toolchain, this method should be made |@abstractmethod|.
+    raise NotImplementedError()
+
+  def GetHostToolchain(self):
+    """Returns a list of host tools."""
+    # TODO: If this method throws |NotImplementedError|, GYP will fall back to
+    #       the legacy toolchain. Once all platforms are migrated to the
+    #       abstract toolchain, this method should be made |@abstractmethod|.
+    raise NotImplementedError()
 
   def GetVariables(self, config, use_clang=0):
     use_asan = 0

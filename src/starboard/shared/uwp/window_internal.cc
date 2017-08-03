@@ -25,9 +25,7 @@ using Windows::UI::Core::CoreWindow;
 // 1080 video, but perhaps 4k UI where applicable.
 SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /*options*/)
     : width(1920),
-      height(1080),
-      output_width(1920),
-      output_height(1080) {
+      height(1080) {
   egl_native_window_ = reinterpret_cast<EGLNativeWindowType>(
       starboard::shared::uwp::ApplicationUwp::Get()->GetCoreWindow().Get());
 }

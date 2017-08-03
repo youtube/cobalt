@@ -39,6 +39,8 @@ class AudioDestinationNodeMock : public AudioNode,
  public:
   explicit AudioDestinationNodeMock(AudioContext* context)
       : AudioNode(context) {
+    AudioLock::AutoLock lock(audio_lock());
+
     AddInput(new AudioNodeInput(this));
   }
 
@@ -51,6 +53,8 @@ class AudioDestinationNodeMock : public AudioNode,
 
   // From AudioDevice::RenderCallback.
   void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) OVERRIDE {
+    AudioLock::AutoLock lock(audio_lock());
+
     // Destination node only has one input.
     Input(0)->FillAudioBus(audio_bus, silence);
   }
@@ -61,15 +65,17 @@ void FillAudioBusFromOneSource(
     scoped_array<uint8> src_data,
     const AudioNodeChannelInterpretation& interpretation,
     ShellAudioBus* audio_bus, bool* silence) {
-  scoped_refptr<AudioBufferSourceNode> source(new AudioBufferSourceNode(NULL));
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+  scoped_refptr<AudioBufferSourceNode> source(
+      audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames),
                       static_cast<int32>(num_of_src_channel), src_data.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source->set_buffer(buffer);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
-      new AudioDestinationNodeMock(NULL));
+      new AudioDestinationNodeMock(audio_context.get()));
   destination->set_channel_interpretation(interpretation);
   source->Connect(destination, 0, 0, NULL);
   source->Start(0, 0, NULL);
@@ -77,7 +83,12 @@ void FillAudioBusFromOneSource(
   destination->FillAudioBus(audio_bus, silence);
 }
 
-TEST(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
+class AudioNodeInputOutputTest : public ::testing::Test {
+ protected:
+  MessageLoop message_loop_;
+};
+
+TEST_F(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -119,7 +130,7 @@ TEST(AudioNodeInputOutputTest, StereoToStereoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -161,7 +172,7 @@ TEST(AudioNodeInputOutputTest, StereoToStereoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 1;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -197,7 +208,7 @@ TEST(AudioNodeInputOutputTest, MonoToStereoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 1;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -233,7 +244,7 @@ TEST(AudioNodeInputOutputTest, MonoToStereoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -275,7 +286,7 @@ TEST(AudioNodeInputOutputTest, QuadToStereoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 25;
@@ -317,7 +328,7 @@ TEST(AudioNodeInputOutputTest, QuadToStereoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 10;
@@ -359,7 +370,7 @@ TEST(AudioNodeInputOutputTest, FivePointOneToStereoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 2;
   size_t num_of_frames = 10;
@@ -401,7 +412,7 @@ TEST(AudioNodeInputOutputTest, FivePointOneToStereoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
@@ -439,7 +450,7 @@ TEST(AudioNodeInputOutputTest, StereoToMonoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
@@ -477,7 +488,7 @@ TEST(AudioNodeInputOutputTest, StereoToMonoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
@@ -515,7 +526,7 @@ TEST(AudioNodeInputOutputTest, QuadToMonoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 4;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 25;
@@ -553,7 +564,7 @@ TEST(AudioNodeInputOutputTest, QuadToMonoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 10;
@@ -591,7 +602,7 @@ TEST(AudioNodeInputOutputTest, FivePointOneToMonoSpeakersLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
   size_t num_of_src_channel = 6;
   size_t num_of_dest_channel = 1;
   size_t num_of_frames = 10;
@@ -629,7 +640,9 @@ TEST(AudioNodeInputOutputTest, FivePointOneToMonoDiscreteLayoutTest) {
   }
 }
 
-TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
+TEST_F(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
+  scoped_refptr<AudioContext> audio_context(new AudioContext());
+
   size_t num_of_src_channel = 2;
   size_t num_of_dest_channel = 2;
   AudioNodeChannelInterpretation interpretation =
@@ -646,11 +659,11 @@ TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   uint8* src_buffer_1 = src_data_1.get();
   memcpy(src_buffer_1, src_data_in_float_1, 200 * sizeof(uint8));
   scoped_refptr<AudioBufferSourceNode> source_1(
-      new AudioBufferSourceNode(NULL));
+      audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_1(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_1),
                       static_cast<int32>(num_of_src_channel), src_data_1.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source_1->set_buffer(buffer_1);
 
   size_t num_of_frames_2 = 50;
@@ -664,15 +677,15 @@ TEST(AudioNodeInputOutputTest, MultipleInputNodesLayoutTest) {
   uint8* src_buffer_2 = src_data_2.get();
   memcpy(src_buffer_2, src_data_in_float_2, 400 * sizeof(uint8));
   scoped_refptr<AudioBufferSourceNode> source_2(
-      new AudioBufferSourceNode(NULL));
+      audio_context->CreateBufferSource());
   scoped_refptr<AudioBuffer> buffer_2(
       new AudioBuffer(NULL, 44100, static_cast<int32>(num_of_frames_2),
                       static_cast<int32>(num_of_src_channel), src_data_2.Pass(),
-                      GetPreferredOutputSampleType()));
+                      kSampleTypeFloat32));
   source_2->set_buffer(buffer_2);
 
   scoped_refptr<AudioDestinationNodeMock> destination(
-      new AudioDestinationNodeMock(NULL));
+      new AudioDestinationNodeMock(audio_context.get()));
   destination->set_channel_interpretation(interpretation);
   source_1->Connect(destination, 0, 0, NULL);
   source_2->Connect(destination, 0, 0, NULL);

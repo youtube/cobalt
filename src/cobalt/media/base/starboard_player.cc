@@ -161,9 +161,13 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
     return;
   }
 
-  DecodingBuffers::iterator iter = decoding_buffers_.find(buffer->data());
+  const auto& allocations = buffer->allocations();
+  DCHECK_GT(allocations.number_of_buffers(), 0);
+
+  DecodingBuffers::iterator iter =
+      decoding_buffers_.find(allocations.buffers()[0]);
   if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[buffer->data()] = std::make_pair(buffer, 1);
+    decoding_buffers_[allocations.buffers()[0]] = std::make_pair(buffer, 1);
   } else {
     ++iter->second.second;
   }
@@ -178,30 +182,25 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   video_info.frame_width = frame_width_;
   video_info.frame_height = frame_height_;
 
-#if SB_API_VERSION >= 4
   SbMediaColorMetadata sb_media_color_metadata =
       MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
   video_info.color_metadata = &sb_media_color_metadata;
-#endif
+
   if (is_encrypted) {
     FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
   }
 
-#if SB_API_VERSION >= 4
-  const void* sample_buffers[] = {buffer->data()};
-  int sample_buffer_sizes[] = {buffer->data_size()};
   SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
-                      sample_buffers, sample_buffer_sizes, 1,
+#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+                      allocations.buffers(), allocations.buffer_sizes(),
+#else   // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+                      const_cast<const void**>(allocations.buffers()),
+                      const_cast<int*>(allocations.buffer_sizes()),
+#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+                      allocations.number_of_buffers(),
                       TimeDeltaToSbMediaTime(buffer->timestamp()),
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
-#else   // SB_API_VERSION >= 4
-  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
-                      buffer->data(), buffer->data_size(),
-                      TimeDeltaToSbMediaTime(buffer->timestamp()),
-                      type == DemuxerStream::VIDEO ? &video_info : NULL,
-                      drm_info.subsample_count > 0 ? &drm_info : NULL);
-#endif  // SB_API_VERSION >= 4
 }
 
 void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
@@ -503,9 +502,11 @@ SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
 void StarboardPlayer::ClearDecoderBufferCache() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  base::TimeDelta media_time;
-  GetInfo(NULL, NULL, &media_time);
-  decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
+  if (state_ != kResuming) {
+    base::TimeDelta media_time;
+    GetInfo(NULL, NULL, &media_time);
+    decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
+  }
 
   message_loop_->PostDelayedTask(
       FROM_HERE,

@@ -83,7 +83,7 @@ class GetElementTextTest : public ::testing::Test {
 }  // namespace
 
 TEST_F(GetElementTextTest, ZeroSpaceWidthIsRemoved) {
-  AppendText("a\u200bb\u200ec\u200fd");
+  AppendText(u8"a\u200bb\u200ec\u200fd");
   EXPECT_STREQ("abcd", algorithms::GetElementText(div_.get()).c_str());
 }
 
@@ -94,7 +94,7 @@ TEST_F(GetElementTextTest, NewLinesAreConvertedToSpaces) {
 
 TEST_F(GetElementTextTest, NoWrapStyle) {
   div_->style()->set_white_space("nowrap", NULL);
-  AppendText("a\n\nb\nc\td\u2028e\u2029f\xa0g");
+  AppendText(u8"a\n\nb\nc\td\u2028e\u2029f\xa0g");
   EXPECT_STREQ("a b c d e f g", algorithms::GetElementText(div_.get()).c_str());
 }
 

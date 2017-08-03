@@ -38,7 +38,8 @@ ShellDemuxerStream::ShellDemuxerStream(ShellDemuxer* demuxer, Type type)
     : demuxer_(demuxer),
       type_(type),
       last_buffer_timestamp_(kNoTimestamp),
-      stopped_(false) {
+      stopped_(false),
+      total_buffer_size_(0) {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::ShellDemuxerStream()");
   DCHECK(demuxer_);
 }
@@ -68,6 +69,7 @@ void ShellDemuxerStream::Read(const ReadCB& read_cb) {
       TRACE_EVENT0("media_stack", "ShellDemuxerStream::Read() EOS sent.");
     } else {
       // Do not pop EOS buffers, so that subsequent read requests also get EOS
+      total_buffer_size_ -= buffer->data_size();
       buffer_queue_.pop_front();
     }
     read_cb.Run(
@@ -134,6 +136,9 @@ void ShellDemuxerStream::EnqueueBuffer(scoped_refptr<DecoderBuffer> buffer) {
   } else {
     // save the buffer for next read request
     buffer_queue_.push_back(buffer);
+    if (!buffer->end_of_stream()) {
+      total_buffer_size_ += buffer->data_size();
+    }
   }
 }
 
@@ -142,12 +147,18 @@ base::TimeDelta ShellDemuxerStream::GetLastBufferTimestamp() const {
   return last_buffer_timestamp_;
 }
 
+size_t ShellDemuxerStream::GetTotalBufferSize() const {
+  base::AutoLock auto_lock(lock_);
+  return total_buffer_size_;
+}
+
 void ShellDemuxerStream::FlushBuffers() {
   TRACE_EVENT0("media_stack", "ShellDemuxerStream::FlushBuffers()");
   base::AutoLock auto_lock(lock_);
   // TODO: Investigate if the following warning is valid.
   DLOG_IF(WARNING, !read_queue_.empty()) << "Read requests should be empty";
   buffer_queue_.clear();
+  total_buffer_size_ = 0;
   last_buffer_timestamp_ = kNoTimestamp;
 }
 
@@ -156,6 +167,7 @@ void ShellDemuxerStream::Stop() {
   DCHECK(demuxer_->MessageLoopBelongsToCurrentThread());
   base::AutoLock auto_lock(lock_);
   buffer_queue_.clear();
+  total_buffer_size_ = 0;
   last_buffer_timestamp_ = kNoTimestamp;
   // fulfill any pending callbacks with EOS buffers set to end timestamp
   for (ReadQueue::iterator it = read_queue_.begin(); it != read_queue_.end();
@@ -345,8 +357,19 @@ void ShellDemuxer::AllocateBuffer() {
   DCHECK(requested_au_);
 
   if (requested_au_ && !stopped_) {
-    // Note that this relies on "new DecoderBuffer" returns NULL if it is unable
-    // to allocate any DecoderBuffer.
+    size_t total_buffer_size = audio_demuxer_stream_->GetTotalBufferSize() +
+                               video_demuxer_stream_->GetTotalBufferSize();
+    if (total_buffer_size >= COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET) {
+      // Retry after 100 milliseconds.
+      const base::TimeDelta kDelay = base::TimeDelta::FromMilliseconds(100);
+      blocking_thread_.message_loop()->PostDelayedTask(
+          FROM_HERE,
+          base::Bind(&ShellDemuxer::AllocateBuffer, base::Unretained(this)),
+          kDelay);
+      return;
+    }
+    // Note that "new DecoderBuffer" may return NULL if it is unable to allocate
+    // any DecoderBuffer.
     scoped_refptr<DecoderBuffer> decoder_buffer(
         DecoderBuffer::Create(buffer_allocator_, requested_au_->GetType(),
                               requested_au_->GetMaxSize()));

@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_LINUX_X64X11_CLANG_3_3_CONFIGURATION_PUBLIC_H_
-#define STARBOARD_LINUX_X64X11_CLANG_3_3_CONFIGURATION_PUBLIC_H_
+#ifndef STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
+#define STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_
 
-#include "starboard/linux/x64x11/configuration_public.h"
+namespace starboard {
+namespace shared {
+namespace media_session {
 
-// Indicates that there is no support for alignment at greater than 16 bytes for
-// items on the stack.
-#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
+enum PlaybackState { kPlaying = 0, kPaused = 1, kNone = 2 };
 
-#endif  // STARBOARD_LINUX_X64X11_CLANG_3_3_CONFIGURATION_PUBLIC_H_
+void UpdateActiveSessionPlatformPlaybackState(PlaybackState state);
+
+}  // namespace media_session
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_MEDIA_SESSION_PLAYBACK_STATE_H_

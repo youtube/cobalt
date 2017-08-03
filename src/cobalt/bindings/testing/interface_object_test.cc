@@ -109,6 +109,22 @@ TEST_F(NoInterfaceObjectTest, NoInterfaceObjectGlobalProperty) {
   EXPECT_STREQ("false", result.c_str());
 }
 
+TEST_F(InterfaceObjectTest, FunctionCanHandleAllJavaScriptValueTypes) {
+  const char* script = R"EOF(
+      const f = ArbitraryInterface.prototype.ArbitraryFunction;
+      [null, undefined, false, 0, "", {}, Symbol("")]
+        .map(value => {
+          try { f.call(value); }
+          catch (ex) { return ex.toString().startsWith("TypeError"); }
+          return false;
+        })
+        .every(result => result);
+  )EOF";
+  std::string result;
+  EXPECT_TRUE(EvaluateScript(script, &result));
+  EXPECT_STREQ("true", result.c_str());
+}
+
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt

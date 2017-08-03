@@ -17,23 +17,48 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/media/base/decoder_buffer.h"
-#include "nb/memory_pool.h"
-#include "starboard/common/locked_ptr.h"
+#include "nb/bidirectional_fit_reuse_allocator.h"
+#include "nb/starboard_memory_allocator.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/mutex.h"
 
 namespace cobalt {
 namespace media {
+
+#if COBALT_MEDIA_BUFFER_INITIAL_CAPACITY > 0 || \
+    COBALT_MEDIA_BUFFER_ALLOCATION_UNIT > 0
+#define COBALT_MEDIA_BUFFER_USING_MEMORY_POOL 1
+#endif  // COBALT_MEDIA_BUFFER_INITIAL_CAPACITY == 0 &&
+        // COBALT_MEDIA_BUFFER_ALLOCATION_UNIT == 0
 
 class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   DecoderBufferAllocator();
   ~DecoderBufferAllocator() OVERRIDE;
 
-  void* Allocate(Type type, size_t size, size_t alignment) OVERRIDE;
-  void Free(Type type, void* ptr) OVERRIDE;
+  Allocations Allocate(size_t size, size_t alignment,
+                       intptr_t context) OVERRIDE;
+  void Free(Allocations allocations) OVERRIDE;
 
  private:
-  void* memory_block_;
-  starboard::LockedPtr<nb::FirstFitMemoryPool> memory_pool_;
+#if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
+  class ReuseAllcator : public nb::BidirectionalFitReuseAllocator {
+   public:
+    ReuseAllcator(Allocator* fallback_allocator, std::size_t initial_capacity,
+                  std::size_t allocation_increment);
+
+    FreeBlockSet::iterator FindBestFreeBlock(
+        std::size_t size, std::size_t alignment, intptr_t context,
+        FreeBlockSet::iterator begin, FreeBlockSet::iterator end,
+        bool* allocate_from_front) SB_OVERRIDE;
+  };
+
+  void UpdateAllocationRecord(std::size_t blocks = 1) const;
+
+  starboard::Mutex mutex_;
+  nb::StarboardMemoryAllocator fallback_allocator_;
+  starboard::scoped_ptr<ReuseAllcator> reuse_allcator_;
+#endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 };
 
 }  // namespace media

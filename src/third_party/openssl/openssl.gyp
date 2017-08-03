@@ -569,6 +569,10 @@
         'openssl/crypto/x509v3/v3_utl.c',
         'openssl/crypto/x509v3/v3err.c',
       ],
+      'msvs_disabled_warnings': [
+        # Level 1 - Pointer trunction warning.
+        4311,
+      ],
       'conditions': [
         ['os_posix==1 and OS!="android" and OS!="lb_shell"', {
           'defines': [

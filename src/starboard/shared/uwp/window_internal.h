@@ -25,16 +25,6 @@ struct SbWindowPrivate {
   explicit SbWindowPrivate(const SbWindowOptions* options);
   ~SbWindowPrivate();
 
-  // Wait for the next video out vblank event.
-  void WaitForVBlank();
-
-  // Get the process time of the latest video out vblank event.
-  SbTime GetVBlankProcessTime();
-
-  // Get the video out refresh rate with the provided pointer. Return value
-  // indicates success.
-  bool GetRefreshRate(uint64_t* refresh_rate);
-
   EGLNativeWindowType egl_native_window() const { return egl_native_window_; }
 
   // The width of this window.
@@ -43,25 +33,8 @@ struct SbWindowPrivate {
   // The height of this window.
   int height;
 
-  // The actual output resolution width.
-  int output_width;
-
-  // The actual output resolution height.
-  int output_height;
-
  private:
   EGLNativeWindowType egl_native_window_;
-
-  // Open and Initialize the video output port.
-  void SetupVideo();
-
-  // Close the video output port.
-  void ShutdownVideo();
-
-  // TODO: Ensure this gets called when the output resolution may have changed,
-  // such as when resuming after suspend.
-  // Retrieve the width and height from the video output resolution.
-  void RefreshOutputResolution();
 };
 
 #endif  // STARBOARD_SHARED_UWP_WINDOW_INTERNAL_H_

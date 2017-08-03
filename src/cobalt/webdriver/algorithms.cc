@@ -41,25 +41,19 @@ namespace {
 // Note that non-breaking space is at the beginning to simplify definition of
 // kWhitespaceCharsExcludingNonBreakingSpace below.
 const char kWhitespaceChars[] =
-    "\u00a0 "
-    "\f\n\r\t\v\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
-    "\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
+    u8"\u00a0 "
+    u8"\f\n\r\t\v\u1680\u180e\u2000\u2001\u2002\u2003\u2004\u2005\u2006"
+    u8"\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff";
 const char* kWhitespaceCharsExcludingNonBreakingSpace = kWhitespaceChars + 1;
 
 // Defined in https://www.w3.org/TR/webdriver/#text.horizontal
-const char kHorizontalWhitespaceChars[] = " \f\t\v\u2028\u2029";
+const char kHorizontalWhitespaceChars[] = u8" \f\t\v\u2028\u2029";
 
 // Defined in step 2.1 of the getElementText() algorithm in
 // https://www.w3.org/TR/webdriver/#getelementtext
-const char kZeroWidthSpacesAndFeeds[] = "\f\v\u200b\u200e\u200f";
+const char kZeroWidthSpacesAndFeeds[] = u8"\f\v\u200b\u200e\u200f";
 
 const char kNonBreakingSpace = '\xa0';
-
-bool IsWhitespace(char c) {
-  DCHECK_NE(c, '\0');
-  // strchr matches the nul-character, which is not a whitespace character.
-  return strchr(kWhitespaceChars, c) != NULL;
-}
 
 bool IsHorizontalWhitespace(char c) {
   DCHECK_NE(c, '\0');

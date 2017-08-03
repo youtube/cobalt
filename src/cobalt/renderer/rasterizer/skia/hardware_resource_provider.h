@@ -145,6 +145,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   const bool purge_skia_font_caches_on_destruction_;
 
   TextShaper text_shaper_;
+  int max_texture_size_;
 
 #if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
   static void GraphicsContextRunner(
@@ -154,8 +155,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

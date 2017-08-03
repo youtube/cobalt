@@ -17,14 +17,15 @@
 #ifndef NB_MEMORY_TRACKER_IMPL_H_
 #define NB_MEMORY_TRACKER_IMPL_H_
 
-#include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/analytics/memory_tracker.h"
+#include "nb/analytics/memory_tracker_helpers.h"
+#include "nb/concurrent_ptr.h"
 #include "nb/memory_scope.h"
 #include "nb/scoped_ptr.h"
 #include "nb/thread_local_object.h"
 #include "starboard/configuration.h"
-#include "starboard/memory_reporter.h"
 #include "starboard/memory.h"
+#include "starboard/memory_reporter.h"
 #include "starboard/mutex.h"
 #include "starboard/time.h"
 
@@ -172,7 +173,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   AtomicStringAllocationGroupMap alloc_group_map_;
 
   atomic_int64_t total_bytes_allocated_;
-  MemoryTrackerDebugCallback* debug_callback_;
+  ConcurrentPtr<MemoryTrackerDebugCallback> debug_callback_;
 
   // THREAD LOCAL SECTION.
   ThreadLocalBoolean memory_deletion_enabled_tls_;

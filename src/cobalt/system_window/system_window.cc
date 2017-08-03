@@ -180,7 +180,8 @@ void OnDialogClose(SbSystemPlatformErrorResponse response, void* user_data) {
 
 void SystemWindow::ShowDialog(
     const SystemWindow::DialogOptions& options) {
-  SbSystemPlatformErrorType error_type;
+  SbSystemPlatformErrorType error_type =
+      kSbSystemPlatformErrorTypeConnectionError;
   switch (options.message_code) {
     case kDialogConnectionError:
       error_type = kSbSystemPlatformErrorTypeConnectionError;

@@ -336,6 +336,11 @@ bool get_{{constant.idl_name}}(
       "the value in the interface definition.";
 {% endif %}
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   MozjsExceptionState exception_state(context);
   JS::RootedValue result_value(context);
@@ -416,8 +421,12 @@ const JSClass interface_object_class_definition = {
 {% if attribute.is_constructor_attribute %}
 bool get_{{attribute.idl_name}}(
     JSContext* context, unsigned argc, JS::Value* vp) {
-
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   JS::RootedObject global_object(
     context, JS_GetGlobalForObject(context, object));
@@ -438,6 +447,11 @@ bool get_{{attribute.idl_name}}(
     JSContext* context, unsigned argc, JS::Value* vp) {
 {% endif %}
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 {% if not attribute.is_static %}
 {{ check_if_object_implements_interface() }}
@@ -463,6 +477,11 @@ bool set_{{attribute.idl_name}}(
 {% endif %}
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
 {% if attribute.is_static %}

@@ -21,7 +21,15 @@
       'target_name': 'cobalt_platform',
       'type': 'static_library',
       'sources': [
+        'xb1_media_session_client.cc',
+        'xb1_media_session_client.h',
+        'xb1_media_session_updates.cc',
+        'xb1_media_session_button_press.cc',
+        'xb1_media_session_button_press.h',
         'xhr_modify_headers.cc',
+      ],
+      'dependencies': [
+        '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
       ],
       'msvs_settings': {
         'VCCLCompilerTool': {

@@ -54,6 +54,7 @@ HardwareResourceProvider::HardwareResourceProvider(
       submit_offscreen_callback_(submit_offscreen_callback),
       purge_skia_font_caches_on_destruction_(
           purge_skia_font_caches_on_destruction),
+      max_texture_size_(gr_context->getMaxTextureSize()),
       self_message_loop_(MessageLoop::current()) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
@@ -67,8 +68,7 @@ HardwareResourceProvider::HardwareResourceProvider(
   decode_target_graphics_context_provider_.gles_context_runner =
       &HardwareResourceProvider::GraphicsContextRunner;
   decode_target_graphics_context_provider_.gles_context_runner_context = this;
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 }
 
 HardwareResourceProvider::~HardwareResourceProvider() {
@@ -109,6 +109,10 @@ scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
                "HardwareResourceProvider::AllocateImageData()");
   DCHECK(PixelFormatSupported(pixel_format));
   DCHECK(AlphaFormatSupported(alpha_format));
+
+  if (size.width() > max_texture_size_ || size.height() > max_texture_size_) {
+    return scoped_ptr<ImageData>(nullptr);
+  }
 
   return scoped_ptr<ImageData>(new HardwareImageData(
       cobalt_context_->system_egl()->AllocateTextureData(
@@ -347,8 +351,7 @@ void HardwareResourceProvider::GraphicsContextRunner(
   }
 }
 
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
 
 scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
     size_t size_in_bytes, size_t alignment) {

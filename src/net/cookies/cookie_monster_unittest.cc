@@ -1725,11 +1725,11 @@ TEST_F(CookieMonsterTest, MAYBE_GarbageCollectionTriggers) {
   // time and size of store to make sure we only get rid of cookies when
   // we really should.
   const struct TestCase {
-    int num_cookies;
-    int num_old_cookies;
-    int expected_initial_cookies;
+    size_t num_cookies;
+    size_t num_old_cookies;
+    size_t expected_initial_cookies;
     // Indexed by ExpiryAndKeyScheme
-    int expected_cookies_after_set;
+    size_t expected_cookies_after_set;
   } test_cases[] = {
     {
       // A whole lot of recent cookies; gc shouldn't happen.
@@ -1766,12 +1766,12 @@ TEST_F(CookieMonsterTest, MAYBE_GarbageCollectionTriggers) {
             test_case->num_cookies, test_case->num_old_cookies,
             CookieMonster::kSafeFromGlobalPurgeDays * 2));
     EXPECT_EQ(test_case->expected_initial_cookies,
-              static_cast<int>(GetAllCookies(cm).size()))
+              GetAllCookies(cm).size())
         << "For test case " << ci;
     // Will trigger GC
     SetCookie(cm, GURL("http://newdomain.com"), "b=2");
     EXPECT_EQ(test_case->expected_cookies_after_set,
-              static_cast<int>((GetAllCookies(cm).size())))
+              (GetAllCookies(cm).size()))
         << "For test case " << ci;
   }
 }

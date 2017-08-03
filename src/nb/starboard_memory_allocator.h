@@ -38,7 +38,7 @@ class StarboardMemoryAllocator : public Allocator {
                              std::size_t alignment) SB_OVERRIDE {
     return Allocate(*size, alignment);
   }
-  void Free(void* memory) SB_OVERRIDE { SbMemoryDeallocate(memory); }
+  void Free(void* memory) SB_OVERRIDE { SbMemoryDeallocateAligned(memory); }
   std::size_t GetCapacity() const SB_OVERRIDE {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;

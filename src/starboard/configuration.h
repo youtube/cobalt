@@ -76,6 +76,8 @@
   SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_COLOR_KEYCODES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_LOW_MEMORY_EVENT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -546,20 +548,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-
-#if COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET <= 0
-#error "cobalt_media_buffer_non_video_budget has to be greater than 0."
-#endif  // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET < 0
-
-#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P <= 0
-#error "cobalt_media_buffer_video_budget_1080p has to be greater than 0."
-#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P < 0
-
-#if COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K < COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
-#error cobalt_media_buffer_video_budget_4k has to be greater than or equal to \
-           cobalt_media_buffer_video_budget_1080p.
-#endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
-        //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
 
 #endif  // SB_API_VERSION >= 4
 

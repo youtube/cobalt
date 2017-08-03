@@ -42,10 +42,16 @@
     'msvs_disabled_warnings': [
       # Level 2, Typename first seen as 'type1', but then seen as 'type2'.
       4099,
+      # Level 1 - Conversion from 'type1' to 'type2' of a greater size.
+      # Typically when 32-bit value is assigned to a 64-bit pointer value.
+      4312,
       # Level 2, Possible loss of data due to type conversion.
       4244,
       # Level 3, Possible loss of data due to type conversion from size_t.
       4267,
+      # Level 1, No suitable definition provided for explicit template
+      # instantiation request.
+      4661,
     ],
     # Unfortunately, there is code that generate warnings in the headers.
     'direct_dependent_settings': {

@@ -135,11 +135,6 @@
     'cobalt_version%': 0,
     # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
     'host_os%': 'win',
-    # The "real" target_arch that is used to select the correct delegate source.
-    # TODO: Investigate why adding % will break the build on platforms
-    # other than Windows
-    # TODO: Remove after starboard.
-    'actual_target_arch': '<(target_arch)',
 
     # The target platform id as a string, like 'ps3', 'ps4', etc..
     'sb_target_platform': '',
@@ -228,9 +223,6 @@
 
     # Used by cobalt/media/media.gyp to pick a proper media platform.
     'sb_media_platform%': 'starboard',
-
-    # Needed for backwards compatibility with lbshell code.
-    'lbshell_root%': '<(DEPTH)/lbshell',
 
     # The relative path from src/ to the directory containing the
     # starboard_platform.gyp file.  It is currently set to
@@ -436,7 +428,6 @@
 
     'platform_libraries%': [],
 
-
     # The only currently-supported Javascript engine is 'mozjs-45'.
     # TODO: Figure out how to massage gyp the right way to make this work
     # as expected, rather than requiring it to be set for each platform.
@@ -456,7 +447,7 @@
 
     # Use media source extension implementation that is conformed to the
     # Candidate Recommandation of July 5th 2016.
-    'cobalt_media_source_2016%': 0,
+    'cobalt_media_source_2016%': 1,
 
     # Note that the following media buffer related variables are only used when
     # |cobalt_media_source_2016| is set to 1.
@@ -469,18 +460,43 @@
     # value is "file" the media stack will still allocate memory to cache the
     # the buffers in use.
     'cobalt_media_buffer_storage_type%': 'memory',
+    # When either |cobalt_media_buffer_initial_capacity| or
+    # |cobalt_media_buffer_allocation_unit| isn't zero, media buffers will be
+    # allocated using a memory pool.  Set the following variable to 1 to
+    # allocate the media buffer pool memory on demand and return all memory to
+    # the system when there is no media buffer allocated.  Setting the following
+    # value to 0 results in that Cobalt will allocate
+    # |cobalt_media_buffer_initial_capacity| bytes for media buffer on startup
+    # and will not release any media buffer memory back to the system even if
+    # there is no media buffers allocated.
+    'cobalt_media_buffer_pool_allocate_on_demand%': 1,
     # The amount of memory that will be used to store media buffers allocated
     # during system startup.  To allocate a large chunk at startup helps with
-    # reducing frafmentation and can avoid failures to allocate incrementally.
+    # reducing fragmentation and can avoid failures to allocate incrementally.
     # This can be set to 0.
-    'cobalt_media_buffer_initial_capacity%': 0 * 1024 * 1024,
+    'cobalt_media_buffer_initial_capacity%': 21 * 1024 * 1024,
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
     # This can be set to 0, in which case the media stack will allocate extra
     # memory on demand.  When |cobalt_media_buffer_initial_capacity| and this
     # value are both set to 0, the media stack will allocate individual buffers
     # directly using SbMemory functions.
-    'cobalt_media_buffer_allocation_unit%': 0 * 1024 * 1024,
+    'cobalt_media_buffer_allocation_unit%': 1 * 1024 * 1024,
+
+    # The media buffer will be allocated using the following alignment.  Set
+    # this to a larger value may increase the memory consumption of media
+    # buffers.
+    'cobalt_media_buffer_alignment%': 0,
+    # Extra bytes allocated at the end of a media buffer to ensure that the
+    # buffer can be use optimally by specific instructions like SIMD.  Set to 0
+    # to remove any padding.
+    'cobalt_media_buffer_padding%': 0,
+
+    # The memory used when playing mp4 videos that is not in DASH format.  The
+    # resolution of such videos shouldn't go beyond 1080p.  Its value should be
+    # less than the sum of 'cobalt_media_buffer_non_video_budget' and
+    # 'cobalt_media_buffer_video_budget_1080p' but not less than 8 MB.
+    'cobalt_media_buffer_progressive_budget%': 12 * 1024 * 1024,
 
     # Specifies the maximum amount of memory used by audio or text buffers of
     # media source before triggering a garbage collection.  A large value will
@@ -521,11 +537,15 @@
     },
     'defines': [
       'COBALT',
+      'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
+      'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
+      'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
+      'COBALT_MEDIA_BUFFER_ALIGNMENT=<(cobalt_media_buffer_alignment)',
+      'COBALT_MEDIA_BUFFER_PADDING=<(cobalt_media_buffer_padding)',
+      'COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET=<(cobalt_media_buffer_progressive_budget)',
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
-      'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
-      'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],

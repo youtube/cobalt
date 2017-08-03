@@ -15,6 +15,7 @@
 #include "SkFloatingPoint.h"
 #include "SkFontHost.h"
 #include "SkFontHost_FreeType_common.h"
+#include "SkFontStyle.h"
 #include "SkGlyph.h"
 #include "SkMask.h"
 #include "SkMaskGamma.h"
@@ -26,6 +27,7 @@
 #include "SkString.h"
 #include "SkTemplates.h"
 #include "SkThread.h"
+#include "SkTSearch.h"
 
 #if defined(STARBOARD)
 #include "starboard/log.h"
@@ -1703,8 +1705,56 @@ size_t SkTypeface_FreeType::onGetTableData(SkFontTableTag tag, size_t offset,
         return false;
     }
 
-    int tempStyle = SkTypeface::kNormal;
+    int weight = SkFontStyle::kNormal_Weight;
     if (face->style_flags & FT_STYLE_FLAG_BOLD) {
+        weight = SkFontStyle::kBold_Weight;
+    }
+
+    PS_FontInfoRec psFontInfo;
+    TT_OS2* os2 = static_cast<TT_OS2*>(FT_Get_Sfnt_Table(face, ft_sfnt_os2));
+    if (os2 && os2->version != 0xffff) {
+        weight = os2->usWeightClass;
+    } else if (0 == FT_Get_PS_Font_Info(face, &psFontInfo) && psFontInfo.weight) {
+        static const struct {
+            char const * const name;
+            int const weight;
+        } commonWeights [] = {
+            // There are probably more common names, but these are known to exist.
+            { "all", SkFontStyle::kNormal_Weight }, // Multiple Masters usually default to normal.
+            { "black", SkFontStyle::kBlack_Weight },
+            { "bold", SkFontStyle::kBold_Weight },
+            { "book", (SkFontStyle::kNormal_Weight + SkFontStyle::kLight_Weight)/2 },
+            { "demi", SkFontStyle::kSemiBold_Weight },
+            { "demibold", SkFontStyle::kSemiBold_Weight },
+            { "extra", SkFontStyle::kExtraBold_Weight },
+            { "extrabold", SkFontStyle::kExtraBold_Weight },
+            { "extralight", SkFontStyle::kExtraLight_Weight },
+            { "hairline", SkFontStyle::kThin_Weight },
+            { "heavy", SkFontStyle::kBlack_Weight },
+            { "light", SkFontStyle::kLight_Weight },
+            { "medium", SkFontStyle::kMedium_Weight },
+            { "normal", SkFontStyle::kNormal_Weight },
+            { "plain", SkFontStyle::kNormal_Weight },
+            { "regular", SkFontStyle::kNormal_Weight },
+            { "roman", SkFontStyle::kNormal_Weight },
+            { "semibold", SkFontStyle::kSemiBold_Weight },
+            { "standard", SkFontStyle::kNormal_Weight },
+            { "thin", SkFontStyle::kThin_Weight },
+            { "ultra", SkFontStyle::kExtraBold_Weight },
+            { "ultrabold", SkFontStyle::kExtraBold_Weight },
+            { "ultralight", SkFontStyle::kExtraLight_Weight },
+        };
+        int const index = SkStrLCSearch(&commonWeights[0].name, SK_ARRAY_COUNT(commonWeights),
+                                        psFontInfo.weight, sizeof(commonWeights[0]));
+        if (index >= 0) {
+            weight = commonWeights[index].weight;
+        } else {
+            SkDEBUGF(("Do not know weight for: %s (%s) \n", face->family_name, psFontInfo.weight));
+        }
+    }
+
+    int tempStyle = SkTypeface::kNormal;
+    if (weight > 500) {
         tempStyle |= SkTypeface::kBold;
     }
     if (face->style_flags & FT_STYLE_FLAG_ITALIC) {
