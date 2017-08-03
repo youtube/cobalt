@@ -67,8 +67,13 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
     }
 
     size_t decoded_size = DecodeChunkInternal(input_bytes, input_size);
-    size_t undecoded_size = input_size - decoded_size;
+    if (decoded_size == 0 && offset < size) {
+      LOG(ERROR) << "Unable to make progress decoding image.";
+      state_ = kError;
+      return;
+    }
 
+    size_t undecoded_size = input_size - decoded_size;
     if (undecoded_size == 0) {
       // Remove all elements from the data_buffer.
       data_buffer_.clear();
