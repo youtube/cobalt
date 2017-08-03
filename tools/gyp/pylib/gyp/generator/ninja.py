@@ -83,7 +83,7 @@ generator_supports_multiple_toolsets = (os.environ.get('GYP_CROSSCOMPILE') or
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'win-console', 'win-lib', 'xb1', 'xb1-future']
+microsoft_flavors = ['win', 'win-win32', 'win-console', 'win-lib', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
