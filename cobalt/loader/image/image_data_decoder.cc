@@ -23,8 +23,8 @@ namespace loader {
 namespace image {
 
 namespace {
-// The capacity of data buffer.
-uint32 kMaxBufferSizeBytes = 32 * 1024L;
+// Sanity check max size of data buffer.
+uint32 kMaxBufferSizeBytes = 4 * 1024 * 1024L;
 }  // namespace
 
 ImageDataDecoder::ImageDataDecoder(
@@ -36,7 +36,6 @@ ImageDataDecoder::ImageDataDecoder(
 void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
   TRACE_EVENT0("cobalt::loader::image_decoder",
                "ImageDataDecoder::DecodeChunk");
-
   size_t offset = 0;
   while (offset < size) {
     if (state_ == kError) {
@@ -48,11 +47,12 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
     size_t input_size;
 
     if (data_buffer_.empty()) {
-      // Nothing in the data_buffer, so no data append needs to be performed.
+      // Nothing in |data_buffer_|, so no data append needs to be performed.
       input_bytes = data + offset;
       input_size = size - offset;
       offset += input_size;
     } else {
+      DCHECK_GE(kMaxBufferSizeBytes, data_buffer_.size());
       size_t fill_buffer_size =
           std::min(kMaxBufferSizeBytes - data_buffer_.size(), size - offset);
 
@@ -78,12 +78,19 @@ void ImageDataDecoder::DecodeChunk(const uint8* data, size_t size) {
       // Remove all elements from the data_buffer.
       data_buffer_.clear();
     } else {
-      data_buffer_.reserve(kMaxBufferSizeBytes);
       if (data_buffer_.empty()) {
-        // data_buffer is empty, so assign the undecoded data to it.
+        if (undecoded_size > kMaxBufferSizeBytes) {
+          LOG(ERROR) << "Max buffer size too small: " << undecoded_size
+                     << "bytes required!";
+          state_ = kError;
+          return;
+        }
+
+        // |data_buffer_| is empty, so assign the undecoded data to it.
+        data_buffer_.reserve(undecoded_size);
         data_buffer_.assign(data + offset - undecoded_size, data + offset);
       } else if (decoded_size != 0) {
-        // data_buffer is not empty, so erase the decoded data from it.
+        // |data_buffer_| is not empty, so erase the decoded data from it.
         data_buffer_.erase(
             data_buffer_.begin(),
             data_buffer_.begin() + static_cast<ptrdiff_t>(decoded_size));
