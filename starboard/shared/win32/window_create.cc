@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "starboard/window.h"
 
-#include <string>
+#include "starboard/shared/win32/application_win32.h"
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+using ::starboard::shared::win32::ApplicationWin32;
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+SbWindow SbWindowCreate(const SbWindowOptions* options) {
+  return ApplicationWin32::Get()->CreateWindowForWin32(options);
 }

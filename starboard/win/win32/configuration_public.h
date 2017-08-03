@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+// Other source files should never include this header directly, but should
+// include the generic "starboard/configuration.h" instead.
 
-#include <string>
+#ifndef STARBOARD_WIN_WIN32_CONFIGURATION_PUBLIC_H_
+#define STARBOARD_WIN_WIN32_CONFIGURATION_PUBLIC_H_
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/win/shared/configuration_public.h"
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+#endif  // STARBOARD_WIN_WIN32_CONFIGURATION_PUBLIC_H_

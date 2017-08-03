@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#ifndef STARBOARD_SHARED_WIN32_STARBOARD_MAIN_H_
+#define STARBOARD_SHARED_WIN32_STARBOARD_MAIN_H_
 
-#include <string>
+#include "starboard/export.h"
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+extern "C" SB_EXPORT_PLATFORM int StarboardMain(int argc, char** argv);
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+#endif  // STARBOARD_SHARED_WIN32_STARBOARD_MAIN_H_

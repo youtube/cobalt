@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "starboard/shared/win32/application_win32.h"
+#include "starboard/window.h"
 
-#include <string>
+using ::starboard::shared::win32::ApplicationWin32;
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
-
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+bool SbWindowDestroy(SbWindow window) {
+  return ApplicationWin32::Get()->DestroyWindow(window);
 }

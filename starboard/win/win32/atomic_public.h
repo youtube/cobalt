@@ -12,13 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#ifndef STARBOARD_WIN_WIN32_ATOMIC_PUBLIC_H_
+#define STARBOARD_WIN_WIN32_ATOMIC_PUBLIC_H_
 
-#include <string>
+#include "starboard/shared/win32/atomic_public.h"
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
-
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+#endif  // STARBOARD_WIN_WIN32_ATOMIC_PUBLIC_H_

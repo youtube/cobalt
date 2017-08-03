@@ -12,13 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "starboard/shared/win32/window_internal.h"
 
-#include <string>
+// TODO: Make sure the width and height here behave well given that we want
+// 1080 video, but perhaps 4k UI where applicable.
+SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options,
+                                 HWND window_handle)
+    : width(options->size.width),
+      height(options->size.height),
+      window_handle_(window_handle) {}
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
-
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+SbWindowPrivate::~SbWindowPrivate() {}

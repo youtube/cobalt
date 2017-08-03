@@ -12,13 +12,22 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+// This file provides a simple API for exposing Starboard as a
+// library to another app.
 
-#include <string>
+#ifndef STARBOARD_SHARED_LIB_EXPORTED_STARBOARD_MAIN_H_
+#define STARBOARD_SHARED_LIB_EXPORTED_STARBOARD_MAIN_H_
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/export.h"
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+SB_EXPORT_PLATFORM int StarboardMain(int argc, char** argv);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
+
+#endif  // STARBOARD_SHARED_LIB_EXPORTED_STARBOARD_MAIN_H_

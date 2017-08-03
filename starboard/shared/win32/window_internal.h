@@ -12,13 +12,32 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#ifndef STARBOARD_SHARED_WIN32_WINDOW_INTERNAL_H_
+#define STARBOARD_SHARED_WIN32_WINDOW_INTERNAL_H_
 
-#include <string>
+#include <EGL/egl.h>
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+// Windows headers.
+#include <windows.h>
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
-}
+#include "starboard/atomic.h"
+#include "starboard/time.h"
+#include "starboard/window.h"
+
+struct SbWindowPrivate {
+  SbWindowPrivate(const SbWindowOptions* options, HWND window_handle);
+  ~SbWindowPrivate();
+
+  HWND GetWindowHandle() { return window_handle_; }
+
+  // The width of this window.
+  int width;
+
+  // The height of this window.
+  int height;
+
+ private:
+  HWND window_handle_;
+};
+
+#endif  // STARBOARD_SHARED_WIN32_WINDOW_INTERNAL_H_

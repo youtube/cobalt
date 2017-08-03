@@ -127,6 +127,7 @@ bool CreateAndGetTempPath(char* out_path, int path_size) {
   }
   return true;
 }
+
 }  // namespace
 
 // Note: This function is only minimally implemented to allow tests to run.
@@ -144,6 +145,12 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       return GetExecutablePath(out_path, path_size);
     case kSbSystemPathTempDirectory:
       return CreateAndGetTempPath(out_path, path_size);
+    case kSbSystemPathSourceDirectory:
+      return SbSystemGetPath(kSbSystemPathTempDirectory, out_path, path_size);
+    case kSbSystemPathFontConfigurationDirectory:
+      return false;
+    case kSbSystemPathFontDirectory:
+      return false;
     // TODO: implement all the other cases.
     default:
       SB_NOTIMPLEMENTED();

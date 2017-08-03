@@ -12,13 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include "starboard/memory.h"
+#include "starboard/window.h"
 
-#include <string>
-
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
-
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+void SbWindowSetDefaultOptions(SbWindowOptions* options) {
+  SbMemorySet(options, 0, sizeof(*options));
+  options->size.width = 1920;
+  options->size.height = 1080;
+  options->name = "YouTube";
 }

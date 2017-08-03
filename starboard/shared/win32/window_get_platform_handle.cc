@@ -12,13 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
+#include <EGL/egl.h>
 
-#include <string>
+#include "starboard/shared/win32/window_internal.h"
+#include "starboard/window.h"
 
-#include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+void* SbWindowGetPlatformHandle(SbWindow window) {
+  if (!SbWindowIsValid(window)) {
+    return NULL;
+  }
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+  return reinterpret_cast<EGLNativeWindowType>(window->GetWindowHandle());
 }

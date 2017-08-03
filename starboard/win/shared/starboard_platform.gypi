@@ -35,11 +35,29 @@
       '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
       '<(DEPTH)/starboard/shared/stub/media_is_video_supported.cc',
     ],
+    # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
+    'uwp_incompatible_win32': [
+      '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
+      '<(DEPTH)/starboard/shared/win32/application_win32.cc',
+      '<(DEPTH)/starboard/shared/win32/dialog.cc',
+      '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
+      '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/system_get_property.cc',
+      '<(DEPTH)/starboard/shared/win32/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/window_create.cc',
+      '<(DEPTH)/starboard/shared/win32/window_destroy.cc',
+      '<(DEPTH)/starboard/shared/win32/window_get_platform_handle.cc',
+      '<(DEPTH)/starboard/shared/win32/window_get_size.cc',
+      '<(DEPTH)/starboard/shared/win32/window_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/window_intsdfdsfernal.h',
+      '<(DEPTH)/starboard/shared/win32/window_set_default_options.cc',
+    ],
   },
   'targets': [
     {
       'target_name': 'starboard_platform',
       'type': 'static_library',
+      'hard_dependency': 1,
       'msvs_settings': {
         'VCCLCompilerTool': {
           'AdditionalIncludeDirectories': [
@@ -49,8 +67,6 @@
             '<(DEPTH)/third_party/angle/include/KHR',
           ],
           'AdditionalOptions': [
-            '/ZW',           # Windows Runtime
-            '/ZW:nostdlib',  # Windows Runtime, no default #using
             '/EHsx',         # C++ exceptions (required with /ZW)
             '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
@@ -291,19 +307,15 @@
         '<(DEPTH)/starboard/shared/win32/time_zone_get_name.cc',
         '<(DEPTH)/starboard/shared/win32/time_utils.h',
         '<(DEPTH)/starboard/shared/win32/wchar_utils.h',
-        'configuration_public.h',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
         '<@(starboard_platform_dependent_files)',
+
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-        # VS2017 always defines this for UWP apps
-        'WINAPI_FAMILY=WINAPI_FAMILY_APP',
-        # VS2017 always defines this for UWP apps
-        '__WRL_NO_DEFAULT_LIB__',
       ],
       'dependencies': [
         'convert_i18n_data',

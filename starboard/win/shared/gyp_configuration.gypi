@@ -40,6 +40,46 @@
 
   'target_defaults': {
     'configurations': {
+      'winrt_base': {
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '/ZW',           # Windows Runtime
+              '/ZW:nostdlib',  # Windows Runtime, no default #using
+            ]
+          }
+        },
+        'defines': [
+          # VS2017 always defines this for UWP apps
+           'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+          # VS2017 always defines this for UWP apps
+           '__WRL_NO_DEFAULT_LIB__',
+        ]
+      }, # winrt_base
+      'win32_base': {
+          'abstract': 1,
+          'msvs_settings': {
+            'VCLinkerTool': {
+              'SubSystem': 1, # Build a console application by default.
+              'AdditionalDependencies': [
+                'shell32.lib',
+                'winmm.lib',
+                'gdi32.lib',
+                'dbghelp.lib',
+                'user32.lib',
+                'shlwapi.lib'
+              ],
+            }
+          },
+          'msvs_target_platform': 'x64',
+          'defines': [
+            '_WIN32',
+            'WIN32',
+            'WINDOWS',
+            '_UNICODE',
+            'UNICODE',
+          ],
+      }, # win32_base
       'msvs_base': {
         'abstract': 1,
         'msvs_configuration_attributes': {
@@ -208,13 +248,13 @@
       '_HAS_EXCEPTIONS=0',
       '__STDC_FORMAT_MACROS', # so that we get PRI*
       # Enable GNU extensions to get prototypes like ffsl.
-      #'_GNU_SOURCE=1',
+      '_GNU_SOURCE=1',
       'WIN32_LEAN_AND_MEAN',
       # By defining this, M_PI will get #defined.
       '_USE_MATH_DEFINES',
       # min and max collide with std::min and std::max
       'NOMINMAX',
-      # Conform with C99 spec.
+       # Conform with C99 spec.
       '_CRT_STDIO_ISO_WIDE_SPECIFIERS',
     ],
     'msvs_settings': {

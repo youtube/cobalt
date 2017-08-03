@@ -12,13 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/system.h"
-
-#include <string>
-
 #include "starboard/log.h"
-#include "starboard/shared/win32/wchar_utils.h"
+#include "starboard/shared/win32/window_internal.h"
+#include "starboard/window.h"
 
-SbSystemDeviceType SbSystemGetDeviceType() {
-  return kSbSystemDeviceTypeDesktopPC;
+bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
+  if (!SbWindowIsValid(window)) {
+    SB_LOG(ERROR) << __FUNCTION__ << ": Invalid window.";
+    return false;
+  }
+
+  size->width = window->width;
+  size->height = window->height;
+  // The video resolution is the same as the graphics resolution.
+  size->video_pixel_ratio = 1.0f;
+  return true;
 }
