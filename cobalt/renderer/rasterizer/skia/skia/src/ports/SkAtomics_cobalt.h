@@ -18,14 +18,6 @@
 #include "base/atomicops.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/atomic_type_conversions.h"
 
-#if defined(STARBOARD)
-/* Don't undefine MemoryBarrier */
-#elif defined(ARCH_CPU_64_BITS) || defined(__LB_XB360__)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence.
-#undef MemoryBarrier
-#endif
-
 static inline int32_t sk_atomic_inc(int32_t* addr) {
   return base::subtle::Barrier_AtomicIncrement(addr, 1) - 1;
 }
@@ -52,10 +44,10 @@ static inline bool sk_atomic_cas(int32_t* addr, int32_t before, int32_t after) {
   // to, and after a value has been read.  E.g. we don't want previous
   // instructions to be moved after this instruction and we don't want after
   // instructions to be moved before this one.
-  base::subtle::MemoryBarrier();
+  SbAtomicMemoryBarrier();
   bool did_swap =
       base::subtle::NoBarrier_CompareAndSwap(addr, before, after) == before;
-  base::subtle::MemoryBarrier();
+  SbAtomicMemoryBarrier();
 
   return did_swap;
 }
@@ -63,13 +55,13 @@ static inline bool sk_atomic_cas(int32_t* addr, int32_t before, int32_t after) {
 static inline void* sk_atomic_cas(void** addr, void* before, void* after) {
   typedef AtomicTraits<void*>::atomic_type AtomicType;
 
-  base::subtle::MemoryBarrier();
+  SbAtomicMemoryBarrier();
   void* previous_value =
       reinterpret_cast<void*>(base::subtle::NoBarrier_CompareAndSwap(
           reinterpret_cast<AtomicType*>(addr),
           reinterpret_cast<AtomicType>(before),
           reinterpret_cast<AtomicType>(after)));
-  base::subtle::MemoryBarrier();
+  SbAtomicMemoryBarrier();
 
   return previous_value;
 }

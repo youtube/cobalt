@@ -18,14 +18,6 @@
 #include "base/atomicops.h"
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/atomic_type_conversions.h"
 
-#if defined(STARBOARD)
-/* Don't undefine MemoryBarrier */
-#elif defined(ARCH_CPU_64_BITS) || defined(__LB_XB360__) || defined(__LB_XB1__)
-// windows.h #defines this (only on x64). This causes problems because the
-// public API also uses MemoryBarrier at the public name for this fence.
-#undef MemoryBarrier
-#endif
-
 template <typename T, bool compatible_with_atomics>
 class SkAcquireReleaseWithAtomicCompatibility {};
 
@@ -36,12 +28,12 @@ class SkAcquireReleaseWithAtomicCompatibility<T, false> {
   // barriers.
   static T DoAcquireLoad(T* ptr) {
     bool ret = *ptr;
-    base::subtle::MemoryBarrier();
+    SbAtomicMemoryBarrier();
     return ret;
   }
 
   static void DoReleaseStore(T* ptr, T val) {
-    base::subtle::MemoryBarrier();
+    SbAtomicMemoryBarrier();
     *ptr = val;
   }
 };
