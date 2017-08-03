@@ -56,6 +56,9 @@ Adds a new event type -- `kSbEventTypeLowMemory` -- to allow a platform to
 signal that the application may soon be terminated due to low memory
 availability.
 
+### Interface change to SbPlayerWriteSample()
+`const` is added to `sample_buffers` and `sample_buffer_sizes` parameters.
+
 ## Version 5
 
 ### Add Speech Recognizer API

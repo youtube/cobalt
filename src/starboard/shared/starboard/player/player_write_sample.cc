@@ -21,8 +21,13 @@
 
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
+#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+                         const void* const* sample_buffers,
+                         const int* sample_buffer_sizes,
+#else   // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
                          const void** sample_buffers,
                          int* sample_buffer_sizes,
+#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
                          int number_of_sample_buffers,
                          SbMediaTime sample_pts,
                          const SbMediaVideoSampleInfo* video_sample_info,
@@ -32,9 +37,9 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  if (number_of_sample_buffers != 1) {
+  if (number_of_sample_buffers < 1) {
     SB_DLOG(WARNING) << "SbPlayerWriteSample() doesn't support"
-                     << " |number_of_sample_buffers| other than one.";
+                     << " |number_of_sample_buffers| less than one.";
     return;
   }
 
@@ -48,8 +53,9 @@ void SbPlayerWriteSample(SbPlayer player,
     return;
   }
 
-  player->WriteSample(sample_type, sample_buffers[0], sample_buffer_sizes[0],
-                      sample_pts, video_sample_info, sample_drm_info);
+  player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
+                      number_of_sample_buffers, sample_pts, video_sample_info,
+                      sample_drm_info);
 }
 
 #else  // SB_API_VERSION >= 4

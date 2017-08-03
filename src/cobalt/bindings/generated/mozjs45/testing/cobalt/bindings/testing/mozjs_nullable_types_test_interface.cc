@@ -184,6 +184,11 @@ const JSClass interface_object_class_definition = {
 bool get_nullableBooleanProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsNullableTypesTestInterface::PrototypeClass(context);
@@ -227,6 +232,11 @@ bool set_nullableBooleanProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -274,6 +284,11 @@ bool set_nullableBooleanProperty(
 bool get_nullableNumericProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsNullableTypesTestInterface::PrototypeClass(context);
@@ -317,6 +332,11 @@ bool set_nullableNumericProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -364,6 +384,11 @@ bool set_nullableNumericProperty(
 bool get_nullableStringProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsNullableTypesTestInterface::PrototypeClass(context);
@@ -407,6 +432,11 @@ bool set_nullableStringProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -454,6 +484,11 @@ bool set_nullableStringProperty(
 bool get_nullableObjectProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsNullableTypesTestInterface::PrototypeClass(context);
@@ -497,6 +532,11 @@ bool set_nullableObjectProperty(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =

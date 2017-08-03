@@ -185,6 +185,11 @@ const JSClass interface_object_class_definition = {
 bool get_derivedAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsDerivedInterface::PrototypeClass(context);

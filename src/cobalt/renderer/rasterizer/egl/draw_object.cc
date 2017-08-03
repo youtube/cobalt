@@ -34,6 +34,8 @@ DrawObject::BaseState::BaseState()
 DrawObject::BaseState::BaseState(const BaseState& other)
     : transform(other.transform),
       scissor(other.scissor),
+      rounded_scissor_rect(other.rounded_scissor_rect),
+      rounded_scissor_corners(other.rounded_scissor_corners),
       opacity(other.opacity) {}
 
 DrawObject::DrawObject(const BaseState& base_state)
@@ -71,6 +73,30 @@ void DrawObject::SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
     inset_rect.x(), inset_rect.y(), inset_rect.right(), inset_rect.bottom(),
   };
   GL_CALL(glUniform4fv(rect_uniform, 1, rect_data));
+
+  // Tweak corners that are square-ish so they have values that play
+  // nicely with the shader. Interpolating x^2 / a^2 + y^2 / b^2 does not
+  // work well when |a| or |b| are very small.
+  if (inset_corners.top_left.horizontal <= 0.5f ||
+      inset_corners.top_left.vertical <= 0.5f) {
+    inset_corners.top_left.horizontal = 0.0f;
+    inset_corners.top_left.vertical = 0.0f;
+  }
+  if (inset_corners.top_right.horizontal <= 0.5f ||
+      inset_corners.top_right.vertical <= 0.5f) {
+    inset_corners.top_right.horizontal = 0.0f;
+    inset_corners.top_right.vertical = 0.0f;
+  }
+  if (inset_corners.bottom_left.horizontal <= 0.5f ||
+      inset_corners.bottom_left.vertical <= 0.5f) {
+    inset_corners.bottom_left.horizontal = 0.0f;
+    inset_corners.bottom_left.vertical = 0.0f;
+  }
+  if (inset_corners.bottom_right.horizontal <= 0.5f ||
+      inset_corners.bottom_right.vertical <= 0.5f) {
+    inset_corners.bottom_right.horizontal = 0.0f;
+    inset_corners.bottom_right.vertical = 0.0f;
+  }
 
   // The corners data is a mat4 with each vector representing a corner
   // (ordered top left, top right, bottom left, bottom right). Each corner

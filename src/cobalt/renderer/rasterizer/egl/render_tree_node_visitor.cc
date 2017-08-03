@@ -34,6 +34,8 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rrect_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rrect_color_texture.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/image.h"
 
@@ -71,6 +73,75 @@ math::Matrix3F GetTexcoordTransform(
       0, 0, 1);
 }
 
+bool ImageNodeSupportedNatively(render_tree::ImageNode* image_node) {
+  skia::Image* skia_image = base::polymorphic_downcast<skia::Image*>(
+      image_node->data().source.get());
+  if (skia_image->GetTypeId() == base::GetTypeId<skia::SinglePlaneImage>() &&
+      skia_image->CanRenderInSkia()) {
+    return true;
+  }
+  return false;
+}
+
+bool RoundedViewportSupportedForSource(render_tree::Node* source) {
+  base::TypeId source_type = source->GetTypeId();
+  if (source_type == base::GetTypeId<render_tree::ImageNode>()) {
+    render_tree::ImageNode* image_node =
+        base::polymorphic_downcast<render_tree::ImageNode*>(source);
+    return ImageNodeSupportedNatively(image_node);
+  } else if (source_type == base::GetTypeId<render_tree::CompositionNode>()) {
+    // If this is a composition of valid sources, then rendering with a rounded
+    // viewport is also supported.
+    render_tree::CompositionNode* composition_node =
+        base::polymorphic_downcast<render_tree::CompositionNode*>(source);
+    typedef render_tree::CompositionNode::Children Children;
+    const Children& children = composition_node->data().children();
+
+    for (Children::const_iterator iter = children.begin();
+         iter != children.end(); ++iter) {
+      if (!RoundedViewportSupportedForSource(iter->get())) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  return false;
+}
+
+// Return the error value of a given offscreen taget cache entry.
+// |desired_bounds| specifies the world-space bounds to which an offscreen
+//   target will be rendered.
+// |cached_bounds| specifies the world-space bounds used when the offscreen
+//   target was generated.
+// Lower return values indicate better fits. Only cache entries with an error
+//   less than 1 will be considered suitable.
+float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
+                                   const math::RectF& cached_bounds) {
+  // The cached contents must be within 0.5 pixels of the desired size to avoid
+  // scaling artifacts.
+  if (std::abs(desired_bounds.width() - cached_bounds.width()) >= 0.5f ||
+      std::abs(desired_bounds.height() - cached_bounds.height()) >= 0.5f) {
+    return 1.0f;
+  }
+
+  // The cached contents' sub-pixel offset must be within 0.5 pixels to ensure
+  // appropriate positioning.
+  math::PointF desired_offset(
+      desired_bounds.x() - std::floor(desired_bounds.x()),
+      desired_bounds.y() - std::floor(desired_bounds.y()));
+  math::PointF cached_offset(
+      cached_bounds.x() - std::floor(cached_bounds.x()),
+      cached_bounds.y() - std::floor(cached_bounds.y()));
+  float error_x = std::abs(desired_offset.x() - cached_offset.x());
+  float error_y = std::abs(desired_offset.y() - cached_offset.y());
+  if (error_x >= 0.5f || error_y >= 0.5f) {
+    return 1.0f;
+  }
+
+  return error_x + error_y;
+}
+
 }  // namespace
 
 RenderTreeNodeVisitor::RenderTreeNodeVisitor(GraphicsState* graphics_state,
@@ -99,12 +170,14 @@ void RenderTreeNodeVisitor::Visit(
   math::Matrix3F old_transform = draw_state_.transform;
   draw_state_.transform = draw_state_.transform *
       math::TranslateMatrix(data.offset().x(), data.offset().y());
+  draw_state_.rounded_scissor_rect.Offset(-data.offset());
   const render_tree::CompositionNode::Children& children =
       data.children();
   for (render_tree::CompositionNode::Children::const_iterator iter =
        children.begin(); iter != children.end(); ++iter) {
     (*iter)->Accept(this);
   }
+  draw_state_.rounded_scissor_rect.Offset(data.offset());
   draw_state_.transform = old_transform;
 }
 
@@ -130,16 +203,30 @@ void RenderTreeNodeVisitor::Visit(
 void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
   const render_tree::FilterNode::Builder& data = filter_node->data();
 
-  // If this is only a viewport filter w/o rounded edges, and the current
-  // transform matrix keeps the filter as an orthogonal rect, then collapse
-  // the node.
+  // Handle viewport-only filter.
   if (data.viewport_filter &&
-      !data.viewport_filter->has_rounded_corners() &&
       !data.opacity_filter &&
       !data.blur_filter &&
       !data.map_to_mesh_filter) {
     const math::Matrix3F& transform = draw_state_.transform;
-    if (IsOnlyScaleAndTranslate(transform)) {
+    if (data.viewport_filter->has_rounded_corners()) {
+      // Certain source nodes have an optimized path for rendering inside
+      // rounded viewports.
+      if (RoundedViewportSupportedForSource(data.source)) {
+        DCHECK(!draw_state_.rounded_scissor_corners);
+        draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
+        draw_state_.rounded_scissor_corners =
+            data.viewport_filter->rounded_corners();
+        draw_state_.rounded_scissor_corners->Normalize(
+            draw_state_.rounded_scissor_rect);
+        data.source->Accept(this);
+        draw_state_.rounded_scissor_corners = base::nullopt;
+        return;
+      }
+    } else if (IsOnlyScaleAndTranslate(transform)) {
+      // Orthogonal viewport filters without rounded corners can be collapsed
+      // into the world-space scissor.
+
       // Transform local viewport to world viewport.
       const math::RectF& filter_viewport = data.viewport_filter->viewport();
       math::RectF transformed_viewport(
@@ -254,6 +341,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     return;
   }
 
+  if (!ImageNodeSupportedNatively(image_node)) {
+    FallbackRasterize(image_node);
+    return;
+  }
+
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
   bool clamp_texcoords = false;
@@ -299,7 +391,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
       return;
     }
 
-    if (clamp_texcoords || !is_opaque) {
+    if (draw_state_.rounded_scissor_corners) {
+      // Transparency is used to anti-alias the rounded rect.
+      is_opaque = false;
+      draw.reset(new DrawRRectColorTexture(graphics_state_, draw_state_,
+          data.destination_rect, kOpaqueWhite,
+          hardware_image->GetTextureEGL(), texcoord_transform,
+          clamp_texcoords));
+    } else if (clamp_texcoords || !is_opaque) {
       draw.reset(new DrawRectColorTexture(graphics_state_, draw_state_,
           data.destination_rect, kOpaqueWhite,
           hardware_image->GetTextureEGL(), texcoord_transform,
@@ -365,7 +464,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   // offscreen target, then use a single shader to render those.
   const bool border_supported = !data.border;
 
-  if (data.rounded_corners) {
+  if (data.rounded_corners && brush &&
+      brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
     FallbackRasterize(rect_node);
   } else if (!brush_supported) {
     FallbackRasterize(rect_node);
@@ -373,7 +473,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     FallbackRasterize(rect_node);
   } else {
     DCHECK(!data.border);
-    const math::RectF& content_rect(data.rect);
 
     // Handle drawing the content.
     if (brush) {
@@ -383,26 +482,33 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             base::polymorphic_downcast<const render_tree::SolidColorBrush*>
                 (brush.get());
         const render_tree::ColorRGBA& brush_color(solid_brush->color());
-        render_tree::ColorRGBA content_color(
+        render_tree::ColorRGBA color(
             brush_color.r() * brush_color.a(),
             brush_color.g() * brush_color.a(),
             brush_color.b() * brush_color.a(),
             brush_color.a());
-        scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-            draw_state_, content_rect, content_color));
-        if (draw_state_.opacity * content_color.a() == 1.0f) {
-          AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
-        } else {
+        if (data.rounded_corners) {
+          scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
+              draw_state_, data.rect, *data.rounded_corners, color));
+          // Transparency is used for anti-aliasing.
           AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+        } else {
+          scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+              draw_state_, data.rect, color));
+          if (draw_state_.opacity * color.a() == 1.0f) {
+            AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
+          } else {
+            AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+          }
         }
       } else {
         const render_tree::LinearGradientBrush* linear_brush =
             base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
                 (brush.get());
         scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
-            draw_state_, content_rect, *linear_brush));
+            draw_state_, data.rect, *linear_brush));
         // The draw may use transparent pixels to ensure only pixels in the
-        // content_rect are modified.
+        // specified area are modified.
         AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
       }
     }
@@ -490,7 +596,7 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
     math::RectF* out_content_rect) {
   // Default to telling the caller that nothing should be rendered.
   *out_content_cached = true;
-  out_content_rect->SetRect(0, 0, 0, 0);
+  out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
 
   if (!allow_offscreen_targets_) {
     failed_offscreen_target_request_ = true;
@@ -506,47 +612,36 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   // Request a slightly larger render target than the calculated bounds. The
   // rasterizer may use an extra pixel along the edge of anti-aliased objects.
   const float kBorderWidth = 1.0f;
-
-  // The render target cache keys off the render_tree Node and target size.
-  // Since the size is rounded, it is possible to be a fraction of a pixel
-  // off. However, this in turn allows for a cache hit for "close-enough"
-  // renderings. To minimize offset errors, use the nearest full pixel offset.
-  const float kFractionPad = 1.0f;
-  float offset_x = std::floor(mapped_bounds.x() + 0.5f);
-  float offset_y = std::floor(mapped_bounds.y() + 0.5f);
   math::PointF content_offset(
-      offset_x - kBorderWidth - kFractionPad,
-      offset_y - kBorderWidth - kFractionPad);
+      std::floor(mapped_bounds.x() - kBorderWidth),
+      std::floor(mapped_bounds.y() - kBorderWidth));
   math::SizeF content_size(
-      std::ceil(mapped_bounds.width() + 2.0f * kBorderWidth + kFractionPad),
-      std::ceil(mapped_bounds.height() + 2.0f * kBorderWidth + kFractionPad));
+      std::ceil(mapped_bounds.right() + kBorderWidth - content_offset.x()),
+      std::ceil(mapped_bounds.bottom() + kBorderWidth - content_offset.y()));
+
+  // Get a suitable cache of the render tree node if one exists, or allocate
+  // a new offscreen target if possible. The OffscreenTargetErrorFunction will
+  // determine whether any caches are fit for use.
   *out_content_cached = offscreen_target_manager_->GetCachedOffscreenTarget(
-      node, content_size, out_target_info);
+      node, base::Bind(&OffscreenTargetErrorFunction, mapped_bounds),
+      out_target_info);
   if (!(*out_content_cached)) {
     offscreen_target_manager_->AllocateOffscreenTarget(node,
-        content_size, out_target_info);
+        content_size, mapped_bounds, out_target_info);
   }
 
-  // If no offscreen target was available, then set the content_rect as if
-  // rendering will occur on the current render target.
+  // If no offscreen target could be allocated, then the render tree node will
+  // be rendered directly onto the main framebuffer. Use the current scissor
+  // to minimize what has to be drawn.
   if (out_target_info->framebuffer == nullptr) {
-    mapped_bounds.Outset(kBorderWidth, kBorderWidth);
-    mapped_bounds.Intersect(draw_state_.scissor);
-    if (mapped_bounds.IsEmpty()) {
+    math::RectF content_bounds(content_offset, content_size);
+    content_bounds.Intersect(draw_state_.scissor);
+    if (content_bounds.IsEmpty()) {
       return;
     }
-    float left = std::floor(mapped_bounds.x());
-    float right = std::ceil(mapped_bounds.right());
-    float top = std::floor(mapped_bounds.y());
-    float bottom = std::ceil(mapped_bounds.bottom());
-    content_offset.SetPoint(left, top);
-    content_size.SetSize(right - left, bottom - top);
-  } else {
-    DCHECK_LE(content_size.width(), out_target_info->region.width());
-    DCHECK_LE(content_size.height(), out_target_info->region.height());
+    content_offset = content_bounds.origin();
+    content_size = content_bounds.size();
   }
-
-  out_target_info->region.set_size(content_size);
 
   out_content_rect->set_origin(content_offset);
   out_content_rect->set_size(content_size);

@@ -122,8 +122,6 @@ void LoaderFactory::Suspend() {
 void LoaderFactory::Resume(render_tree::ResourceProvider* resource_provider) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(resource_provider);
-  DCHECK(!resource_provider_);
-  DCHECK(is_suspended_);
 
   is_suspended_ = false;
   resource_provider_ = resource_provider;

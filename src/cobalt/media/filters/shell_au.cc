@@ -14,6 +14,8 @@
 
 #include "cobalt/media/filters/shell_au.h"
 
+#include <algorithm>
+
 #include "cobalt/media/base/decoder_buffer.h"
 #include "cobalt/media/base/endian_util.h"
 #include "cobalt/media/base/timestamp_constants.h"
@@ -30,6 +32,38 @@ bool ReadBytes(uint64 offset, size_t size, uint8* buffer,
     DLOG(ERROR) << "unable to download AU";
     return false;
   }
+  return true;
+}
+
+bool ReadBytes(uint64 offset, size_t size, DecoderBuffer* decoder_buffer,
+               uint64 decoder_buffer_offset, ShellDataSourceReader* reader) {
+  size_t buffer_index = 0;
+  auto& allocations = decoder_buffer->allocations();
+  while (size > 0) {
+    if (buffer_index >= allocations.number_of_buffers()) {
+      NOTREACHED();
+      return false;
+    }
+    size_t buffer_size = allocations.buffer_sizes()[buffer_index];
+    if (buffer_size <= decoder_buffer_offset) {
+      decoder_buffer_offset -= buffer_size;
+    } else {
+      size_t bytes_to_read = std::min(
+          size, buffer_size - static_cast<size_t>(decoder_buffer_offset));
+      uint8_t* destination =
+          static_cast<uint8_t*>(allocations.buffers()[buffer_index]);
+      if (reader->BlockingRead(offset, bytes_to_read,
+                               destination + decoder_buffer_offset) !=
+          bytes_to_read) {
+        DLOG(ERROR) << "unable to download AU";
+        return false;
+      }
+      decoder_buffer_offset = 0;
+      size -= bytes_to_read;
+    }
+    ++buffer_index;
+  }
+
   return true;
 }
 
@@ -114,9 +148,7 @@ ShellAudioAU::ShellAudioAU(uint64 offset, size_t size, size_t prepend_size,
 
 bool ShellAudioAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
   DCHECK_LE(size_ + prepend_size_, buffer->data_size());
-  if (!ReadBytes(offset_, size_, buffer->writable_data() + prepend_size_,
-                 reader))
-    return false;
+  if (!ReadBytes(offset_, size_, buffer, prepend_size_, reader)) return false;
 
   if (!parser_->Prepend(this, buffer)) {
     DLOG(ERROR) << "prepend fail";
@@ -183,20 +215,21 @@ ShellVideoAU::ShellVideoAU(uint64 offset, size_t size, size_t prepend_size,
 bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
   size_t au_left = size_;                      // bytes left in the AU
   uint64 au_offset = offset_;                  // offset to read in the reader
-  size_t buf_left = buffer->allocated_size();  // bytes left in the buffer
+  size_t buf_left = buffer->data_size();       // bytes left in the buffer
   // The current write position in the buffer
-  uint8* buf = buffer->writable_data() + prepend_size_;
+  int64_t decoder_buffer_offset = prepend_size_;
 
   // The NALU is stored as [size][data][size][data].... We are going to
   // transform it into [start code][data][start code][data]....
   // The length of size is indicated by length_of_nalu_size_
-  while (au_left >= length_of_nalu_size_ && buf_left >= kAnnexBStartCode) {
+  while (au_left >= length_of_nalu_size_ && buf_left >= kAnnexBStartCodeSize) {
     uint8 size_buf[4];
     uint32 nal_size;
 
     // Store [start code]
-    endian_util::store_uint32_big_endian(kAnnexBStartCode, buf);
-    buf += kAnnexBStartCodeSize;
+    buffer->allocations().Write(decoder_buffer_offset, kAnnexBStartCode,
+                                kAnnexBStartCodeSize);
+    decoder_buffer_offset += kAnnexBStartCodeSize;
     buf_left -= kAnnexBStartCodeSize;
 
     // Read [size]
@@ -218,9 +251,12 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
     if (au_left < nal_size || buf_left < nal_size) break;
 
     // Read the [data] from reader into buf
-    if (!ReadBytes(au_offset, nal_size, buf, reader)) return false;
+    if (!ReadBytes(au_offset, nal_size, buffer, decoder_buffer_offset,
+                   reader)) {
+      return false;
+    }
 
-    buf += nal_size;
+    decoder_buffer_offset += nal_size;
     au_offset += nal_size;
     au_left -= nal_size;
     buf_left -= nal_size;
@@ -231,7 +267,7 @@ bool ShellVideoAU::Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) {
     return false;
   }
 
-  size_ = buf - buffer->writable_data();
+  size_ = decoder_buffer_offset;
   buffer->shrink_to(size_);
 
   if (!parser_->Prepend(this, buffer)) {

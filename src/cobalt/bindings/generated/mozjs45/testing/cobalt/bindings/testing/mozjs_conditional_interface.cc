@@ -183,6 +183,11 @@ const JSClass interface_object_class_definition = {
 bool get_enabledAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsConditionalInterface::PrototypeClass(context);
@@ -226,6 +231,11 @@ bool set_enabledAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =
@@ -275,6 +285,11 @@ bool set_enabledAttribute(
 bool get_disabledAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
   const JSClass* proto_class =
       MozjsConditionalInterface::PrototypeClass(context);
@@ -318,6 +333,11 @@ bool set_disabledAttribute(
     JSContext* context, unsigned argc, JS::Value* vp) {
 
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
+  if (!args.thisv().isObject()) {
+    MozjsExceptionState exception(context);
+    exception.SetSimpleException(script::kTypeError, "Invalid this.");
+    return false;
+  }
   JS::RootedObject object(context, &args.thisv().toObject());
 
   const JSClass* proto_class =

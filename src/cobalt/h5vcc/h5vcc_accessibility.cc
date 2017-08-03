@@ -28,8 +28,8 @@ namespace cobalt {
 namespace h5vcc {
 
 namespace {
-#if SB_HAS(SPEECH_SYNTHESIS)
-bool IsTextToSpeechEnabled() {
+
+bool ShouldForceTextToSpeech() {
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   // Check for a command-line override to enable TTS.
   CommandLine* command_line = CommandLine::ForCurrentProcess();
@@ -37,6 +37,11 @@ bool IsTextToSpeechEnabled() {
     return true;
   }
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  return false;
+}
+
+#if SB_HAS(SPEECH_SYNTHESIS)
+bool IsTextToSpeechEnabled() {
 #if SB_API_VERSION >= 4
   // Check if the tts feature is enabled in Starboard.
   SbAccessibilityTextToSpeechSettings tts_settings = {0};
@@ -49,6 +54,7 @@ bool IsTextToSpeechEnabled() {
   return false;
 }
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
+
 }  // namespace
 
 H5vccAccessibility::H5vccAccessibility(
@@ -61,17 +67,22 @@ H5vccAccessibility::H5vccAccessibility(
       base::AccessibilitySettingsChangedEvent::TypeId(),
       base::Bind(&H5vccAccessibility::OnApplicationEvent,
                  base::Unretained(this)));
+  if (ShouldForceTextToSpeech()) {
 #if SB_HAS(SPEECH_SYNTHESIS)
-  if (IsTextToSpeechEnabled()) {
+    // Create a StarboardTTSEngine if the platform has speech synthesis.
+    tts_engine_.reset(new accessibility::StarboardTTSEngine());
+#else
+    tts_engine_.reset(new accessibility::TTSLogger());
+#endif
+  }
+
+#if SB_HAS(SPEECH_SYNTHESIS)
+  if (!tts_engine_ && IsTextToSpeechEnabled()) {
     // Create a StarboardTTSEngine if TTS is enabled.
     tts_engine_.reset(new accessibility::StarboardTTSEngine());
   }
-#endif  // SB_HAS(SPEECH_SYNTHESIS)
-#if !defined(COBALT_BUILD_TYPE_GOLD)
-  if (!tts_engine_) {
-    tts_engine_.reset(new accessibility::TTSLogger());
-  }
-#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#endif
+
   if (tts_engine_) {
     screen_reader_.reset(new accessibility::ScreenReader(
         window->document(), tts_engine_.get(), mutation_observer_task_manager));

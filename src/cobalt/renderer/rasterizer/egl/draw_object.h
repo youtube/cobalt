@@ -43,6 +43,12 @@ class DrawObject {
 
     math::Matrix3F transform;
     math::Rect scissor;
+
+    // |rounded_scissor_rect| is only relevant when |rounded_scissor_corners|
+    // exists.
+    math::RectF rounded_scissor_rect;
+    OptionalRoundedCorners rounded_scissor_corners;
+
     float opacity;
   };
 

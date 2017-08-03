@@ -49,7 +49,9 @@ This document records all notable changes made to Cobalt since the last release.
 
    Cobalt now supports the page visibility API, and will signal visibility and
    focus changes to the web app as the process transitions between Starboard
-   lifecycle states.
+   lifecycle states. See the
+   new [Application Lifecycle Integration](doc/lifecycle.md) document for more
+   details.
 
  - **Opus Support**
 
@@ -82,3 +84,9 @@ This document records all notable changes made to Cobalt since the last release.
    Decode targets with the format `kSbDecodeTargetFormat1PlaneUYVY` will now
    be rendered by Cobalt.  This will allow decoders that produce YUV 422 UYVY
    video frames to now efficiently support 360 video.
+
+ - **Preload Support**
+
+   Support for preloading an application with no graphics resources. See the
+   new [Application Lifecycle Integration](doc/lifecycle.md) guide for more
+   details.

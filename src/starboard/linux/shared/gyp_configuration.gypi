@@ -35,7 +35,6 @@
       '-lavresample',
       '-lavutil',
       '-lpthread',
-      '-lpulse',
       '-lrt',
     ],
 

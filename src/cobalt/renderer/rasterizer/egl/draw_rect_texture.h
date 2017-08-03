@@ -15,7 +15,6 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_TEXTURE_H_
 
-#include "base/callback.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/renderer/backend/egl/texture.h"

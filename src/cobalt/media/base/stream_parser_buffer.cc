@@ -12,32 +12,6 @@
 namespace cobalt {
 namespace media {
 
-static scoped_refptr<StreamParserBuffer> CopyBuffer(
-    const StreamParserBuffer& buffer) {
-  if (buffer.end_of_stream()) return StreamParserBuffer::CreateEOSBuffer();
-
-  scoped_refptr<StreamParserBuffer> copied_buffer =
-      StreamParserBuffer::CopyFrom(
-          buffer.allocator(), buffer.data(), buffer.data_size(),
-          buffer.side_data(), buffer.side_data_size(), buffer.is_key_frame(),
-          buffer.type(), buffer.track_id());
-  copied_buffer->SetDecodeTimestamp(buffer.GetDecodeTimestamp());
-  copied_buffer->SetConfigId(buffer.GetConfigId());
-  copied_buffer->set_timestamp(buffer.timestamp());
-  copied_buffer->set_duration(buffer.duration());
-  copied_buffer->set_is_duration_estimated(buffer.is_duration_estimated());
-  copied_buffer->set_discard_padding(buffer.discard_padding());
-  copied_buffer->set_splice_timestamp(buffer.splice_timestamp());
-  const DecryptConfig* decrypt_config = buffer.decrypt_config();
-  if (decrypt_config) {
-    copied_buffer->set_decrypt_config(scoped_ptr<DecryptConfig>(
-        new DecryptConfig(decrypt_config->key_id(), decrypt_config->iv(),
-                          decrypt_config->subsamples())));
-  }
-
-  return copied_buffer;
-}
-
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
   return make_scoped_refptr(new StreamParserBuffer);
 }
@@ -46,16 +20,7 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
     Type type, TrackId track_id) {
   return make_scoped_refptr(new StreamParserBuffer(
-      allocator, data, data_size, NULL, 0, is_key_frame, type, track_id));
-}
-
-scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
-    Allocator* allocator, const uint8_t* data, int data_size,
-    const uint8_t* side_data, int side_data_size, bool is_key_frame, Type type,
-    TrackId track_id) {
-  return make_scoped_refptr(
-      new StreamParserBuffer(allocator, data, data_size, side_data,
-                             side_data_size, is_key_frame, type, track_id));
+      allocator, data, data_size, is_key_frame, type, track_id));
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -77,11 +42,9 @@ StreamParserBuffer::StreamParserBuffer()
 
 StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
                                        const uint8_t* data, int data_size,
-                                       const uint8_t* side_data,
-                                       int side_data_size, bool is_key_frame,
-                                       Type type, TrackId track_id)
-    : DecoderBuffer(allocator, type, data, data_size, side_data,
-                    side_data_size),
+                                       bool is_key_frame, Type type,
+                                       TrackId track_id)
+    : DecoderBuffer(allocator, type, data, data_size),
       decode_timestamp_(kNoDecodeTimestamp()),
       config_id_(kInvalidConfigId),
       track_id_(track_id),
@@ -92,6 +55,23 @@ StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
   if (data) {
     set_duration(kNoTimestamp);
   }
+
+  if (is_key_frame) set_is_key_frame(true);
+}
+
+StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
+                                       Allocator::Allocations allocations,
+                                       bool is_key_frame, Type type,
+                                       TrackId track_id)
+    : DecoderBuffer(allocator, type, allocations),
+      decode_timestamp_(kNoDecodeTimestamp()),
+      config_id_(kInvalidConfigId),
+      track_id_(track_id),
+      is_duration_estimated_(false) {
+  // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
+  // duration to force clients to set them? Today they end up being zero which
+  // is both a common and valid value and could lead to bugs.
+  set_duration(kNoTimestamp);
 
   if (is_key_frame) set_is_key_frame(true);
 }
@@ -126,7 +106,7 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
   DCHECK(!is_duration_estimated_);
 
   // Make a copy of this first, before making any changes.
-  scoped_refptr<StreamParserBuffer> overlapping_buffer = CopyBuffer(*this);
+  scoped_refptr<StreamParserBuffer> overlapping_buffer = Clone();
   overlapping_buffer->set_splice_timestamp(kNoTimestamp);
 
   const scoped_refptr<StreamParserBuffer>& first_splice_buffer =
@@ -135,9 +115,8 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
   // Ensure the given buffers are actually before the splice point.
   DCHECK(first_splice_buffer->timestamp() <= overlapping_buffer->timestamp());
 
-  // TODO(dalecurtis): We should also clear |data| and |side_data|, but since
-  // that implies EOS care must be taken to ensure there are no clients relying
-  // on that behavior.
+  // TODO(dalecurtis): We should also clear |data|, but since that implies EOS
+  // care must be taken to ensure there are no clients relying on that behavior.
 
   // Move over any preroll from this buffer.
   if (preroll_buffer_.get()) {
@@ -172,7 +151,7 @@ void StreamParserBuffer::ConvertToSpliceBuffer(
     DCHECK(!buffer->preroll_buffer().get());
     DCHECK(buffer->splice_buffers().empty());
     DCHECK(!buffer->is_duration_estimated());
-    splice_buffers_.push_back(CopyBuffer(*buffer.get()));
+    splice_buffers_.push_back(buffer->Clone());
     splice_buffers_.back()->set_splice_timestamp(splice_timestamp());
   }
 
@@ -204,6 +183,30 @@ void StreamParserBuffer::SetPrerollBuffer(
 void StreamParserBuffer::set_timestamp(base::TimeDelta timestamp) {
   DecoderBuffer::set_timestamp(timestamp);
   if (preroll_buffer_.get()) preroll_buffer_->set_timestamp(timestamp);
+}
+
+scoped_refptr<StreamParserBuffer> StreamParserBuffer::Clone() const {
+  if (end_of_stream()) {
+    return StreamParserBuffer::CreateEOSBuffer();
+  }
+
+  scoped_refptr<StreamParserBuffer> clone = new StreamParserBuffer(
+      allocator(), allocations(), is_key_frame(), type(), track_id());
+  clone->SetDecodeTimestamp(GetDecodeTimestamp());
+  clone->SetConfigId(GetConfigId());
+  clone->set_timestamp(timestamp());
+  clone->set_duration(duration());
+  clone->set_is_duration_estimated(is_duration_estimated());
+  clone->set_discard_padding(discard_padding());
+  clone->set_splice_timestamp(splice_timestamp());
+  const DecryptConfig* decrypt_config = this->decrypt_config();
+  if (decrypt_config) {
+    clone->set_decrypt_config(scoped_ptr<DecryptConfig>(
+        new DecryptConfig(decrypt_config->key_id(), decrypt_config->iv(),
+                          decrypt_config->subsamples())));
+  }
+
+  return clone;
 }
 
 }  // namespace media

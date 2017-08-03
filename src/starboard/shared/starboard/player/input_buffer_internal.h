@@ -42,6 +42,16 @@ class InputBuffer {
               SbMediaTime sample_pts,
               const SbMediaVideoSampleInfo* video_sample_info,
               const SbDrmSampleInfo* sample_drm_info);
+  InputBuffer(SbMediaType sample_type,
+              SbPlayerDeallocateSampleFunc deallocate_sample_func,
+              SbPlayer player,
+              void* context,
+              const void* const* sample_buffers,
+              const int* sample_buffer_sizes,
+              int number_of_sample_buffers,
+              SbMediaTime sample_pts,
+              const SbMediaVideoSampleInfo* video_sample_info,
+              const SbDrmSampleInfo* sample_drm_info);
   InputBuffer(const InputBuffer& that);
   ~InputBuffer();
 
