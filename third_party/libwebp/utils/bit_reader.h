@@ -16,6 +16,7 @@
 #define WEBP_UTILS_BIT_READER_H_
 
 #if defined(STARBOARD)
+#include "starboard/byte_swap.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #else
@@ -165,7 +166,9 @@ static WEBP_INLINE void VP8LoadNewBytes(VP8BitReader* const br) {
 #if !defined(__BIG_ENDIAN__)
 #if (BITS > 32)
 // gcc 4.3 has builtin functions for swap32/swap64
-#if defined(__GNUC__) && \
+#if defined(STARBOARD)
+    bits = SbByteSwapU64(in_bits);
+#elif defined(__GNUC__) && \
            (__GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 3))
     bits = (bit_t)__builtin_bswap64(in_bits);
 #elif defined(_MSC_VER)
@@ -183,7 +186,9 @@ static WEBP_INLINE void VP8LoadNewBytes(VP8BitReader* const br) {
 #endif
     bits >>= 64 - BITS;
 #elif (BITS >= 24)
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(STARBOARD)
+    bits = SbByteSwapU32(in_bits);
+#elif defined(__i386__) || defined(__x86_64__)
     __asm__ volatile("bswap %k0" : "=r"(in_bits) : "0"(in_bits));
     bits = (bit_t)in_bits;   // 24b/32b -> 32b/64b zero-extension
 #elif defined(_MSC_VER)
