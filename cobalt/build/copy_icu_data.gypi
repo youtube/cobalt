@@ -39,15 +39,21 @@
         'little_endian%': '<(little_endian)',
         'use_icu_dat_file%': '<(use_icu_dat_file)',
       },
+      'little_endian%': '<(little_endian)',
     },
 
-    #'inputs_icu%': [ '<(inputs_icu)' ],
-    'inputs_icu%': [ '<(static_contents_source_dir)/icu/' ],
+    'conditions': [
+      ['little_endian==1', {
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt56l' ],
+      }, {
+        'inputs_icu%': [ '<(static_contents_source_dir)/icu/icudt56b' ],
+      }],
+    ],
   },
 
   'copies': [
     {
-      'destination': '<(static_contents_output_data_dir)/',
+      'destination': '<(static_contents_output_data_dir)/icu/',
       'files': [ '<(inputs_icu)' ],
     },
   ],
