@@ -13,6 +13,9 @@
 # limitations under the License.
 """Starboard Linux shared platform configuration for gyp_cobalt."""
 
+import imp
+import os
+
 import config.starboard
 import gyp_utils
 
@@ -51,3 +54,10 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
+
+  def GetLauncher(self):
+    """Gets the module used to launch applications on this platform."""
+    module_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), 'launcher.py'))
+    launcher_module = imp.load_source('launcher', module_path)
+    return launcher_module
