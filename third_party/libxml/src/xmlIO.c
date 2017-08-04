@@ -41,8 +41,8 @@
 #include <lzma.h>
 #endif
 
-#if (defined(WIN32) || defined(HAVE_WIN32)) && !defined(__LB_XB1__) &&  \
-    !defined(__LB_XB360__)
+#if (!defined(STARBOARD) && (defined(WIN32) || defined(HAVE_WIN32)) && !defined(__LB_XB1__) &&  \
+    !defined(__LB_XB360__))
 #define HAVE_WIN32
 #include <windows.h>
 #endif
