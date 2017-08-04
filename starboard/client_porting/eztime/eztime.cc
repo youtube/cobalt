@@ -115,8 +115,17 @@ bool EzTimeValueExplode(const EzTimeValue* SB_RESTRICT value,
   SB_DCHECK(value);
   SB_DCHECK(out_exploded);
   UErrorCode status = U_ZERO_ERROR;
+
+  // Always query the time using a gregorian calendar.  This is
+  // implied in opengroup documentation for tm struct, even though it is not
+  // specified.  E.g. in gmtime's documentation, it states that UTC time is
+  // used, and in tm struct's documentation it is specified that year should
+  // be an offset from 1900.
+
+  // See:
+  // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
   UCalendar* calendar = ucal_open(GetTimeZoneId(timezone), -1,
-                                  uloc_getDefault(), UCAL_DEFAULT, &status);
+                                  uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
     return false;
   }
@@ -157,8 +166,17 @@ EzTimeValue EzTimeValueImplode(EzTimeExploded* SB_RESTRICT exploded,
                                EzTimeZone timezone) {
   SB_DCHECK(exploded);
   UErrorCode status = U_ZERO_ERROR;
+
+  // Always query the time using a gregorian calendar.  This is
+  // implied in opengroup documentation for tm struct, even though it is not
+  // specified.  E.g. in gmtime's documentation, it states that UTC time is
+  // used, and in tm struct's documentation it is specified that year should
+  // be an offset from 1900.
+
+  // See:
+  // http://pubs.opengroup.org/onlinepubs/009695399/functions/gmtime.html
   UCalendar* calendar = ucal_open(GetTimeZoneId(timezone), -1,
-                                  uloc_getDefault(), UCAL_DEFAULT, &status);
+                                  uloc_getDefault(), UCAL_GREGORIAN, &status);
   if (!calendar) {
     EzTimeValue zero_time = {};
     return zero_time;
