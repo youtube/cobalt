@@ -62,7 +62,7 @@ class NodeCollection : public HTMLCollection {
   void MaybeRefreshCollection() const;
 
   // Base node that was used to generate the collection.
-  const scoped_refptr<const Node> base_;
+  const base::WeakPtr<const Node> base_;
   // Predicate callback.
   const Predicate predicate_;
   // Generation of the base node that was used to create the cache.
@@ -74,14 +74,19 @@ class NodeCollection : public HTMLCollection {
 template <typename NodeIterator>
 NodeCollection<NodeIterator>::NodeCollection(
     const scoped_refptr<const Node>& base, const Predicate& predicate)
-    : base_(base),
+    : base_(base::AsWeakPtr(const_cast<Node*>(base.get()))),
       predicate_(predicate),
       base_node_generation_(Node::kInvalidNodeGeneration) {}
 
 template <typename NodeIterator>
 void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
-  if (base_node_generation_ != base_->node_generation()) {
-    NodeIterator iterator(base_);
+  scoped_refptr<const Node> base(base_);
+  if (!base) {
+    return;
+  }
+
+  if (base_node_generation_ != base->node_generation()) {
+    NodeIterator iterator(base);
 
     cached_collection_.clear();
     Node* child = iterator.First();
@@ -91,7 +96,7 @@ void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
       }
       child = iterator.Next();
     }
-    base_node_generation_ = base_->node_generation();
+    base_node_generation_ = base->node_generation();
   }
 }
 
