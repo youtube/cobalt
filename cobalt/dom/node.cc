@@ -340,8 +340,11 @@ scoped_refptr<Node> Node::RemoveChild(const scoped_refptr<Node>& node) {
   return PreRemove(node);
 }
 
-scoped_refptr<HTMLCollection> Node::children() const {
-  return HTMLCollection::CreateWithChildElements(this);
+scoped_refptr<HTMLCollection> Node::children() {
+  if (!children_collection_) {
+    children_collection_ = HTMLCollection::CreateWithChildElements(this);
+  }
+  return children_collection_;
 }
 
 Element* Node::first_element_child() const {
