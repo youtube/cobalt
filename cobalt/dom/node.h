@@ -157,7 +157,7 @@ class Node : public EventTarget {
   // objects that can have children.
   //   https://www.w3.org/TR/dom/#parentnode
   //
-  scoped_refptr<HTMLCollection> children() const;
+  scoped_refptr<HTMLCollection> children();
   Element* first_element_child() const;
   Element* last_element_child() const;
   unsigned int child_element_count() const;
@@ -314,6 +314,8 @@ class Node : public EventTarget {
   scoped_refptr<Node> next_sibling_;
 
   RegisteredObserverList registered_observers_;
+
+  scoped_refptr<HTMLCollection> children_collection_;
 
   DISALLOW_COPY_AND_ASSIGN(Node);
 };
