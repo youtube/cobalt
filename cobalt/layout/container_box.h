@@ -182,13 +182,6 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
   // child has gone through the in-flow layout.
   //    https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
-  void UpdateRectOfFixedPositionedChildBox(
-      Box* child_box, const LayoutParams& child_layout_params);
-
-  // Updates the sizes of the absolutely positioned child box.
-  // This is meant to be called by UpdateRectOfPositionedChildBoxes(), after the
-  // child has gone through the in-flow layout.
-  //    https://www.w3.org/TR/CSS21/visuren.html#absolute-positioning
   void UpdateRectOfAbsolutelyPositionedChildBox(
       Box* child_box, const LayoutParams& child_layout_params);
 
