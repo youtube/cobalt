@@ -288,9 +288,8 @@ Vector2dLayoutUnit GetOffsetFromContainingBlockToParent(Box* child_box) {
        ancestor_box = ancestor_box->parent()) {
     DCHECK(ancestor_box)
         << "Unable to find containing block while traversing parents.";
-    // We should not determine a used position through a transform, as
-    // rectangles may not remain rectangles past it, and thus obtaining
-    // a position may be misleading.
+    // It is not possible for the containing block to be more distant than an
+    // ancestor that is transformed.
     DCHECK(!ancestor_box->IsTransformed());
 
     relative_position += ancestor_box->GetContentBoxOffsetFromMarginBox();
@@ -343,8 +342,8 @@ void ContainerBox::UpdateRectOfPositionedChildBoxes(
       UpdateRectOfAbsolutelyPositionedChildBox(child_box,
                                                absolute_child_layout_params);
     } else if (child_box_position == cssom::KeywordValue::GetFixed()) {
-      UpdateRectOfFixedPositionedChildBox(child_box,
-                                          relative_child_layout_params);
+      UpdateRectOfAbsolutelyPositionedChildBox(child_box,
+                                               relative_child_layout_params);
     } else {
       DCHECK(child_box_position == cssom::KeywordValue::GetRelative());
       UpdateOffsetOfRelativelyPositionedChildBox(child_box,
@@ -422,17 +421,6 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
   child_box->set_top(child_box->top() + offset.y());
 }
 
-void ContainerBox::UpdateRectOfFixedPositionedChildBox(
-    Box* child_box, const LayoutParams& child_layout_params) {
-  Vector2dLayoutUnit offset_from_containing_block_to_parent =
-      GetOffsetFromContainingBlockToParent(child_box);
-  child_box->SetStaticPositionLeftFromContainingBlockToParent(
-      offset_from_containing_block_to_parent.x());
-  child_box->SetStaticPositionTopFromContainingBlockToParent(
-      offset_from_containing_block_to_parent.y());
-  child_box->UpdateSize(child_layout_params);
-}
-
 void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
   Vector2dLayoutUnit offset_from_containing_block_to_parent =
@@ -440,6 +428,10 @@ void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
   // The containing block is formed by the padding box instead of the content
   // box, as described in
   // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+  // NOTE: While not explicitly stated in the spec, which specifies that
+  // the containing block of a 'fixed' position element must always be the
+  // viewport, all major browsers use the padding box of a transformed ancestor
+  // as the containing block for 'fixed' position elements.
   offset_from_containing_block_to_parent += GetContentBoxOffsetFromPaddingBox();
   child_box->SetStaticPositionLeftFromContainingBlockToParent(
       offset_from_containing_block_to_parent.x());
@@ -531,11 +523,14 @@ void RenderAndAnimateStackingContextChildrenCoordinator::RenderAndAnimateChild(
       GetOffsetFromChildContainerToContainingBlock(
           child_containing_block, child_info.containing_block_relationship) +
       child_container_offset_from_parent_node_;
-  if (child_info.box->computed_style()->position() ==
-      cssom::KeywordValue::GetAbsolute()) {
+  if (child_info.box->IsAbsolutelyPositioned()) {
     // The containing block is formed by the padding box instead of the content
     // box, as described in
     // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+    // NOTE: While not explicitly stated in the spec, which specifies that
+    // the containing block of a 'fixed' position element must always be the
+    // viewport, all major browsers use the padding box of a transformed
+    // ancestor as the containing block for 'fixed' position elements.
     position_offset -=
         child_containing_block->GetContentBoxOffsetFromPaddingBox();
   }
@@ -619,72 +614,66 @@ Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
         const Box* containing_block,
         const Box::RelationshipToBox
             containing_block_relationship_to_child_container) const {
+  if (containing_block_relationship_to_child_container == Box::kIsBox) {
+    DCHECK_EQ(child_container_, containing_block);
+    return Vector2dLayoutUnit();
+  }
+
   Vector2dLayoutUnit relative_position;
-  if (containing_block_relationship_to_child_container != Box::kIsBox) {
-    const Box* current_box =
-        containing_block_relationship_to_child_container == Box::kIsBoxAncestor
-            ? child_container_
-            : containing_block;
-    const Box* end_box =
-        containing_block_relationship_to_child_container == Box::kIsBoxAncestor
-            ? containing_block
-            : child_container_;
+  const Box* current_box =
+      containing_block_relationship_to_child_container == Box::kIsBoxAncestor
+          ? child_container_
+          : containing_block;
+  const Box* end_box =
+      containing_block_relationship_to_child_container == Box::kIsBoxAncestor
+          ? containing_block
+          : child_container_;
 
-    while (current_box != end_box) {
-#if !defined(NDEBUG)
-      // We should not determine a used position through a transform, as
-      // rectangles may not remain rectangles past it, and thus obtaining a
-      // position may be misleading.
-      if (current_box->IsTransformed()) {
-        DLOG(WARNING) << "Containing block offset calculations that include "
-                         "transforms may not be positioned correctly.";
-      }
-#endif
+  // Walk up the containing blocks from |current_box| to |end_box| adding the
+  // offsets from each box to its containing block.
+  // NOTE: |end_box| can be skipped during this walk both when |end_box| is not
+  // positioned and when a fixed position box is encountered during the walk. In
+  // this case, the walk will end when a box is found that either does not have
+  // a parent (meaning that it's the root box) or is transformed (it is
+  // impossible for |end_box| to be a more distant ancestor than a transformed
+  // box).
+  while (current_box != end_box && current_box->parent() &&
+         !current_box->IsTransformed()) {
+    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
+    relative_position += current_box->margin_box_offset_from_containing_block();
 
-      relative_position += current_box->GetContentBoxOffsetFromMarginBox();
-      relative_position +=
-          current_box->margin_box_offset_from_containing_block();
-
-      const Box* next_box = current_box->GetContainingBlock();
-      if (!next_box) {
-        break;
-      }
-
-      if (current_box->computed_style()->position() ==
-          cssom::KeywordValue::GetAbsolute()) {
-        relative_position -= next_box->GetContentBoxOffsetFromPaddingBox();
-      }
-      current_box = next_box;
+    const Box* next_box = current_box->GetContainingBlock();
+    if (current_box->IsAbsolutelyPositioned()) {
+      relative_position -= next_box->GetContentBoxOffsetFromPaddingBox();
     }
+    current_box = next_box;
+  }
 
-    // If |current_box| does not equal |end_box|, then |end_box| was skipped
-    // during the walk up the tree. Initiate a second walk up the tree from the
-    // end box to the root (which is where the first walk ended).
-    // The end box can be skipped during the initial walk both when the end box
-    // is not positioned and also when a fixed position box is encountered
-    // during the walk. Subtract the offsets during this walk to remove the
-    // extra offsets added after passing the end box during the first walk.
-    std::swap(current_box, end_box);
-    while (current_box != end_box) {
-      relative_position -= current_box->GetContentBoxOffsetFromMarginBox();
-      relative_position -=
-          current_box->margin_box_offset_from_containing_block();
+  // If |current_box| does not equal |end_box|, then |end_box| was skipped
+  // during the walk up the tree. Initiate a second walk up the tree from the
+  // end box to the box where the first walk ended, subtracting the offsets
+  // during this walk to remove the extra offsets added after passing |end_box|
+  // during the first walk.
+  std::swap(current_box, end_box);
+  while (current_box != end_box) {
+    DCHECK(current_box->parent());
+    DCHECK(!current_box->IsTransformed());
 
-      const Box* next_box = current_box->GetContainingBlock();
-      if (current_box->computed_style()->position() ==
-          cssom::KeywordValue::GetAbsolute()) {
-        relative_position += next_box->GetContentBoxOffsetFromPaddingBox();
-      }
-      current_box = next_box;
+    relative_position -= current_box->GetContentBoxOffsetFromMarginBox();
+    relative_position -= current_box->margin_box_offset_from_containing_block();
+
+    const Box* next_box = current_box->GetContainingBlock();
+    if (current_box->IsAbsolutelyPositioned()) {
+      relative_position += next_box->GetContentBoxOffsetFromPaddingBox();
     }
+    current_box = next_box;
+  }
 
-    // If the containing block is an ancestor of the child container, then
-    // reverse the relative position now. The earlier calculations were for the
-    // containing block being a descendant of the child container.
-    if (containing_block_relationship_to_child_container ==
-        Box::kIsBoxAncestor) {
-      relative_position = -relative_position;
-    }
+  // If the containing block is an ancestor of the child container, then
+  // reverse the relative position now. The earlier calculations were for the
+  // containing block being a descendant of the child container.
+  if (containing_block_relationship_to_child_container == Box::kIsBoxAncestor) {
+    relative_position = -relative_position;
   }
 
   return relative_position;
