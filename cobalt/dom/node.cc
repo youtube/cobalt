@@ -491,7 +491,10 @@ Node::~Node() {
   while (node) {
     node->parent_ = NULL;
     node->next_sibling_ = NULL;
-    node = node->previous_sibling_;
+
+    Node* previous_sibling = node->previous_sibling_;
+    node->previous_sibling_ = NULL;
+    node = previous_sibling;
   }
   --(node_count_log.Get().count);
   GlobalStats::GetInstance()->Remove(this);
