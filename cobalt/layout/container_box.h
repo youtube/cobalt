@@ -172,6 +172,9 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
       const ContainingBlocksWithOverflowHidden&
           containing_blocks_with_overflow_hidden_to_apply);
 
+  // Returns whether or not the container has any stacking context children.
+  bool HasStackingContextChildren() const;
+
   // Updates used values of left/top/right/bottom given the child_box's
   // 'position' property is set to 'relative'.
   //    https://www.w3.org/TR/CSS21/visuren.html#relative-positioning
