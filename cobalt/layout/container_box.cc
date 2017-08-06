@@ -135,41 +135,34 @@ void ContainerBox::MoveDirectChildrenToSplitSibling(
   // Invalidate the size now that the children have changed.
   update_size_results_valid_ = false;
 
-  // Children are only being removed from this container. As a result, the cross
-  // references only need to be invalidated if there is a non-empty cross
-  // reference list that can potentially lose an element.
+  // Handle invalidating cross references. Children are only being removed from
+  // this container, so cross references only need to be invalidated if there is
+  // a non-empty cross reference list that can potentially be impacted.
+
+  // If there are any positioned boxes, then they need to be re-generated.
   if (!positioned_child_boxes_.empty()) {
     are_cross_references_valid_ = false;
   }
-  if (!negative_z_index_stacking_context_children_.empty() ||
-      !non_negative_z_index_stacking_context_children_.empty()) {
-    // If this box is a stacking context, then any stacking context children
-    // were added directly by it; otherwise, the stacking context children were
-    // added by the containing stacking context (only a stacking context can
-    // cause stacking context children to be added).
-    if (IsStackingContext()) {
-      are_cross_references_valid_ = false;
-    } else {
-      DCHECK(negative_z_index_stacking_context_children_.empty());
-      GetStackingContext()->are_cross_references_valid_ = false;
+
+  // There are two cases where the stacking context's cross references can be
+  // impacted by children moving from one container to another. With both cases,
+  // stacking context children must exist or there is nothing to update.
+  //   1. Stacking context children are potentially moving from this child
+  //      container to the split sibling child container.
+  //   2. Stacking context children contained within this overflow hidden
+  //      container are potentially moving to the split sibling overflow hidden
+  //      container.
+  if (HasStackingContextChildren() ||
+      computed_style()->overflow() == cssom::KeywordValue::GetHidden()) {
+    // Walk up the tree until the nearest stacking context is found. If this box
+    // is a stacking context, then it will be used.
+    ContainerBox* nearest_stacking_context = this;
+    while (!nearest_stacking_context->IsStackingContext()) {
+      nearest_stacking_context = nearest_stacking_context->parent();
     }
-  } else if (computed_style()->overflow().get() ==
-                 cssom::KeywordValue::GetHidden() &&
-             !IsStackingContext()) {
-    // If this container box hides overflow and isn't a stacking context, then
-    // the nearest ancestor that is a stacking context needs to be invalidated.
-    // The reason for this is that the ancestor stacking context may have
-    // stacking context children that include this container as an overflow
-    // hidden containing block.
-    // NOTE: GetStackingContext() can't simply be called, because that will
-    // incorrectly return the parent, regardless of whether or not it is a
-    // stacking context, in the case where the containing block is not
-    // positioned.
-    ContainerBox* stacking_context_ancestor = parent();
-    while (!stacking_context_ancestor->IsStackingContext()) {
-      stacking_context_ancestor = stacking_context_ancestor->parent();
+    if (nearest_stacking_context->HasStackingContextChildren()) {
+      nearest_stacking_context->are_cross_references_valid_ = false;
     }
-    stacking_context_ancestor->are_cross_references_valid_ = false;
   }
 
   // Invalidate the render tree nodes now that the children have changed.
@@ -276,6 +269,11 @@ void ContainerBox::AddStackingContextChild(
   stacking_context_children.insert(StackingContextChildInfo(
       child_box, child_z_index, containing_block_relationship,
       overflow_hidden_to_apply));
+}
+
+bool ContainerBox::HasStackingContextChildren() const {
+  return !negative_z_index_stacking_context_children_.empty() ||
+         !non_negative_z_index_stacking_context_children_.empty();
 }
 
 namespace {
@@ -578,7 +576,7 @@ void RenderAndAnimateStackingContextChildrenCoordinator::
   OverflowHiddenInfo& overflow_hidden_info = overflow_hidden_stack_.back();
 
   ContainerBox* containing_block = overflow_hidden_info.containing_block;
-  DCHECK_EQ(containing_block->computed_style()->overflow().get(),
+  DCHECK_EQ(containing_block->computed_style()->overflow(),
             cssom::KeywordValue::GetHidden());
 
   // Determine the offset from the child container to this containing block's
@@ -777,7 +775,7 @@ void ContainerBox::UpdateCrossReferencesOfContainerBox(
     bool has_absolute_position =
         computed_style()->position() == cssom::KeywordValue::GetAbsolute();
     bool has_overflow_hidden =
-        computed_style()->overflow().get() == cssom::KeywordValue::GetHidden();
+        computed_style()->overflow() == cssom::KeywordValue::GetHidden();
 
     stacking_context_container_box_stack->push_back(
         StackingContextContainerBoxInfo(
