@@ -53,6 +53,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
                                  );  // NOLINT(whitespace/parens)
 
  private:
+  bool IsPunchoutMode() const;
   bool Init(PlayerWorker* player_worker,
             JobQueue* job_queue,
             SbPlayer player,
