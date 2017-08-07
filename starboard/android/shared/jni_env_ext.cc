@@ -29,9 +29,8 @@ ANativeActivity* native_activity_ = NULL;
 jobject activity_class_loader_ = NULL;
 
 void Destroy(void* value) {
-  if (value) {
-    native_activity_->vm->DetachCurrentThread();
-  }
+  // OnThreadShutdown() must be called on each thread before it is destroyed.
+  SB_DCHECK(value == NULL);
 }
 
 }  // namespace
@@ -51,6 +50,17 @@ void JniEnvExt::Initialize(ANativeActivity* native_activity) {
                             "getClassLoader", "()Ljava/lang/ClassLoader;");
   env->AbortOnException();
   activity_class_loader_ = env->ConvertLocalRefToGlobalRef(loader);
+}
+
+// static
+void JniEnvExt::OnThreadShutdown() {
+  // We must call DetachCurrentThread() before exiting, if we have ever
+  // previously called AttachCurrentThread() on it.
+  //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
+  if (SbThreadGetLocalValue(tls_key_)) {
+    native_activity_->vm->DetachCurrentThread();
+    SbThreadSetLocalValue(tls_key_, NULL);
+  }
 }
 
 JniEnvExt* JniEnvExt::Get() {
