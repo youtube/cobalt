@@ -87,6 +87,14 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
   bounds_ = PlayerWorker::Bounds();
 }
 
+bool FilterBasedPlayerWorkerHandler::IsPunchoutMode() const {
+#if SB_API_VERSION >= 4
+  return (output_mode_ == kSbPlayerOutputModePunchOut);
+#else
+  return true;
+#endif  // SB_API_VERSION >= 4
+}
+
 bool FilterBasedPlayerWorkerHandler::Init(
     PlayerWorker* player_worker,
     JobQueue* job_queue,
@@ -320,10 +328,7 @@ void FilterBasedPlayerWorkerHandler::Update() {
     player_worker_->UpdateDroppedVideoFrames(
         video_renderer_->GetDroppedFrames());
 
-#if SB_API_VERSION >= 4
-    if (output_mode_ == kSbPlayerOutputModePunchOut)
-#endif  // SB_API_VERSION >= 4
-    {
+   if (IsPunchoutMode()) {
       shared::starboard::Application::Get()->HandleFrame(
           player_, frame, bounds_.x, bounds_.y, bounds_.width, bounds_.height);
     }
@@ -350,10 +355,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   }
   video_renderer.reset();
 
-#if SB_API_VERSION >= 4
-  if (output_mode_ == kSbPlayerOutputModePunchOut)
-#endif  // SB_API_VERSION >= 4
-  {
+  if (IsPunchoutMode()) {
     // Clear the video frame as we terminate.
     shared::starboard::Application::Get()->HandleFrame(
         player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0);
