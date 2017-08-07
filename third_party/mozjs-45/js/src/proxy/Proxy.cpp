@@ -443,6 +443,7 @@ Proxy::getBuiltinClass(JSContext* cx, HandleObject proxy, ESClassValue* classVal
 bool
 Proxy::isArray(JSContext* cx, HandleObject proxy, JS::IsArrayAnswer* answer)
 {
+    JS_CHECK_RECURSION(cx, return false);
     return proxy->as<ProxyObject>().handler()->isArray(cx, proxy, answer);
 }
 
