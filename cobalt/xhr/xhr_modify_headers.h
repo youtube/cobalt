@@ -15,12 +15,14 @@
 #ifndef COBALT_XHR_XHR_MODIFY_HEADERS_H_
 #define COBALT_XHR_XHR_MODIFY_HEADERS_H_
 
-#include <net/http/http_request_headers.h>
+#include "googleurl/src/gurl.h"
+#include "net/http/http_request_headers.h"
 
 namespace cobalt {
 namespace xhr {
 
-void CobaltXhrModifyHeader(net::HttpRequestHeaders* headers);
+void CobaltXhrModifyHeader(const GURL& request_url,
+                           net::HttpRequestHeaders* headers);
 
 }  // namespace xhr
 }  // namespace cobalt
