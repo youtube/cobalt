@@ -323,6 +323,32 @@ struct CompileAssert {};
 #endif  // SB_NORETURN
 #endif  // SB_API_VERSION >= 4
 
+// Specifies the alignment for a class, struct, union, enum, class/struct field,
+// or stack variable.
+#if !defined(SB_ALIGNAS)
+#if SB_IS(COMPILER_GCC)
+#define SB_ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_ALIGNAS(byte_alignment) __declspec(align(byte_alignment))
+#else
+// Fallback to the C++11 form.
+#define SB_ALIGNAS(byte_alignment) alignas(byte_alignment)
+#endif
+#endif  // !defined(SB_ALIGNAS)
+
+// Returns the alignment reqiured for any instance of the type indicated by
+// |type|.
+#if !defined(SB_ALIGNOF)
+#if SB_IS(COMPILER_GCC)
+#define SB_ALIGNOF(type) __alignof__(type)
+#elif SB_IS(COMPILER_MSVC)
+#define SB_ALIGNOF(type) (sizeof(type) - sizeof(type) + __alignof(type))
+#else
+// Fallback to the C++11 form.
+#define SB_ALIGNOF(type) alignof(type)
+#endif
+#endif  // !defined(SB_ALIGNOF)
+
 // --- Configuration Audits --------------------------------------------------
 
 #if !defined(SB_API_VERSION)
