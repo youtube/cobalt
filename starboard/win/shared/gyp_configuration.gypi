@@ -362,6 +362,11 @@
       # Cannot be used because Microsoft uses _ASSERTE(("message", 0)) trick
       # in malloc.h which is included pretty much everywhere.
       4548,
+      # Use of noexcept in targets compiled without /EHsc triggers a warning
+      # "termination on exception is not guaranteed" which we consider benign
+      # because we don't expect exceptions to cross the boundary of modules
+      # compiled with /EHsc.
+      4577,
       # Copy constructor could not be generated because a base class copy
       # constructor is inaccessible.
       # This is an expected consequence of using DISALLOW_COPY_AND_ASSIGN().
