@@ -110,12 +110,12 @@ XAudioAudioSink::XAudioAudioSink(
       wfx_(wfx),
       destroying_(false),
       playback_rate_(1.0) {
-  // TODO: Check MaxFrequencyRadio
+  // TODO: Check MaxFrequencyRatio
   CHECK_HRESULT_OK(
       type_->x_audio2_->CreateSourceVoice(&source_voice_, &wfx, 0,
-                                          /*MaxFrequencyRadio = */ 1.0));
+                                          /*MaxFrequencyRatio = */ 1.0));
 
-  CHECK_HRESULT_OK(source_voice_->Start(0));
+  CHECK_HRESULT_OK(source_voice_->Stop(0));
 
   audio_out_thread_ =
       SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
@@ -165,6 +165,7 @@ void XAudioAudioSink::AudioThreadFunc() {
   int submitted_frames = 0;
   uint64_t samples_played = 0;
   int queued_buffers = 0;
+  bool was_playing = false;  // The player starts out playing by default.
   for (;;) {
     {
       ScopedLock lock(mutex_);
@@ -181,6 +182,15 @@ void XAudioAudioSink::AudioThreadFunc() {
     }
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
+
+    if (is_playing != was_playing) {
+      if (is_playing) {
+        source_voice_->Start(0);
+      } else {
+        source_voice_->Stop(0);
+      }
+    }
+    was_playing = is_playing;
 
     // TODO: make sure that frames_in_buffer is large enough
     // that it exceeds the voice state pool interval
