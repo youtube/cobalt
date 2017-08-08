@@ -15,6 +15,7 @@
 #ifndef STARBOARD_NPLB_SOCKET_HELPERS_H_
 #define STARBOARD_NPLB_SOCKET_HELPERS_H_
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
 #include "starboard/time.h"
@@ -46,20 +47,32 @@ SbSocketAddress GetUnspecifiedAddress(SbSocketAddressType address_type,
 
 // Creates a TCP/IP server socket (sets Reuse Address option).
 SbSocket CreateServerTcpSocket(SbSocketAddressType address_type);
+scoped_ptr<Socket> CreateServerTcpSocketWrapped(
+    SbSocketAddressType address_type);
 
 // Creates a TCP/IP socket bound to all interfaces on the given port.
 SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port);
+scoped_ptr<Socket> CreateBoundTcpSocketWrapped(SbSocketAddressType address_type,
+                                               int port);
 
 // Creates a TCP/IP socket listening on all interfaces on the given port.
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port);
+scoped_ptr<Socket> CreateListeningTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port);
 
 // Tries to accept a new connection from the given listening socket by checking,
 // yielding, and retrying for up to timeout. Returns kSbSocketInvalid if no
 // socket has been accepted in the given time.
 SbSocket AcceptBySpinning(SbSocket listen_socket, SbTime timeout);
+scoped_ptr<Socket> AcceptBySpinning(Socket* listen_socket, SbTime timeout);
 
 // Writes the given data to socket, spinning until success or error.
 bool WriteBySpinning(SbSocket socket,
+                     const char* data,
+                     int data_size,
+                     SbTime timeout);
+bool WriteBySpinning(Socket* socket,
                      const char* data,
                      int data_size,
                      SbTime timeout);
@@ -69,8 +82,25 @@ bool ReadBySpinning(SbSocket socket,
                     char* out_data,
                     int data_size,
                     SbTime timeout);
+bool ReadBySpinning(Socket* socket,
+                    char* out_data,
+                    int data_size,
+                    SbTime timeout);
 
-typedef struct ConnectedTrio {
+// Transfers data between the two connected local sockets, spinning until |size|
+// has been transfered, or an error occurs.
+int Transfer(SbSocket receive_socket,
+             char* out_data,
+             SbSocket send_socket,
+             const char* send_data,
+             int size);
+int Transfer(Socket* receive_socket,
+             char* out_data,
+             Socket* send_socket,
+             const char* send_data,
+             int size);
+
+struct ConnectedTrio {
   ConnectedTrio()
       : listen_socket(kSbSocketInvalid),
         client_socket(kSbSocketInvalid),
@@ -84,7 +114,20 @@ typedef struct ConnectedTrio {
   SbSocket listen_socket;
   SbSocket client_socket;
   SbSocket server_socket;
-} ConnectedTrio;
+};
+
+struct ConnectedTrioWrapped {
+  ConnectedTrioWrapped() {}
+  ConnectedTrioWrapped(scoped_ptr<Socket> listen_socket,
+                       scoped_ptr<Socket> client_socket,
+                       scoped_ptr<Socket> server_socket)
+      : listen_socket(listen_socket.Pass()),
+        client_socket(client_socket.Pass()),
+        server_socket(server_socket.Pass()) {}
+  scoped_ptr<Socket> listen_socket;
+  scoped_ptr<Socket> client_socket;
+  scoped_ptr<Socket> server_socket;
+};
 
 // Creates and returns 3 TCP/IP sockets, a connected client and server, and a
 // listener on the given port. If anything fails, adds a failure and returns
@@ -93,6 +136,11 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
                                SbSocketAddressType client_address_type,
                                int port,
                                SbTime timeout);
+scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
+    SbSocketAddressType server_address_type,
+    SbSocketAddressType client_address_type,
+    int port,
+    SbTime timeout);
 
 // Waits on the given waiter, and returns the elapsed time.
 SbTimeMonotonic TimedWait(SbSocketWaiter waiter);
