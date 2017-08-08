@@ -24,6 +24,7 @@
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
         'accessibility_get_setting_test.cc',
+        'align_test.cc',
         'atomic_test.cc',
         'audio_sink_create_test.cc',
         'audio_sink_destroy_test.cc',
@@ -146,6 +147,7 @@
         'mutex_create_test.cc',
         'mutex_destroy_test.cc',
         'once_test.cc',
+        'optional_test.cc',
         'player_create_test.cc',
         'random_helpers.cc',
         'rwlock_test.cc',
@@ -184,6 +186,7 @@
         'speech_recognizer_start_test.cc',
         'speech_recognizer_stop_test.cc',
         'speech_synthesis_basic_test.cc',
+        'state_machine_test.cc',
         'storage_close_record_test.cc',
         'storage_delete_record_test.cc',
         'storage_get_record_size_test.cc',
