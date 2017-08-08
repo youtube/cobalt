@@ -257,6 +257,14 @@ SbMediaSupportType CanPlayMimeAndKeySystem(const MimeType& mime_type,
       }
     }
 
+    std::string cryptoblockformat =
+        mime_type.GetParamStringValue("cryptoblockformat", "");
+    if (!cryptoblockformat.empty()) {
+      if (mime_type.subtype() != "webm" || cryptoblockformat != "subsample") {
+        return kSbMediaSupportTypeNotSupported;
+      }
+    }
+
     int width = 0;
     int height = 0;
     int fps = 0;
