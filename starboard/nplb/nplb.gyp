@@ -176,6 +176,7 @@
         'socket_waiter_wait_test.cc',
         'socket_waiter_wait_timed_test.cc',
         'socket_waiter_wake_up_test.cc',
+        'socket_wrapper_test.cc',
         'speech_recognizer_cancel_test.cc',
         'speech_recognizer_create_test.cc',
         'speech_recognizer_destroy_test.cc',
