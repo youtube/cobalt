@@ -125,8 +125,7 @@ float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
     return 1.0f;
   }
 
-  // The cached contents' sub-pixel offset must be within 0.5 pixels to ensure
-  // appropriate positioning.
+  // Use the cached contents' sub-pixel offset as the error rating.
   math::PointF desired_offset(
       desired_bounds.x() - std::floor(desired_bounds.x()),
       desired_bounds.y() - std::floor(desired_bounds.y()));
@@ -135,11 +134,9 @@ float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
       cached_bounds.y() - std::floor(cached_bounds.y()));
   float error_x = std::abs(desired_offset.x() - cached_offset.x());
   float error_y = std::abs(desired_offset.y() - cached_offset.y());
-  if (error_x >= 0.5f || error_y >= 0.5f) {
-    return 1.0f;
-  }
 
-  return error_x + error_y;
+  // Any sub-pixel offset is okay. Return something less than 1.
+  return (error_x + error_y) * 0.49f;
 }
 
 }  // namespace
@@ -628,6 +625,9 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   if (!(*out_content_cached)) {
     offscreen_target_manager_->AllocateOffscreenTarget(node,
         content_size, mapped_bounds, out_target_info);
+  } else {
+    // Maintain the size of the cached contents to avoid scaling artifacts.
+    content_size = out_target_info->region.size();
   }
 
   // If no offscreen target could be allocated, then the render tree node will
