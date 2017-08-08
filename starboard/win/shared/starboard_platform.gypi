@@ -14,6 +14,7 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
+    'winrt%': 1,
     'stub_media_player': [
       '<(DEPTH)/starboard/shared/stub/player_create.cc',
       '<(DEPTH)/starboard/shared/stub/player_destroy.cc',
@@ -69,8 +70,6 @@
             '<(DEPTH)/third_party/angle/include/KHR',
           ],
           'AdditionalOptions': [
-            '/ZW',           # Windows Runtime
-            '/ZW:nostdlib',  # Windows Runtime, no default #using
             '/EHsx',         # C++ exceptions (required with /ZW)
             '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
@@ -78,6 +77,24 @@
           ]
         }
       },
+      'conditions': [
+        ['winrt==1', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '/ZW',           # Windows Runtime
+                '/ZW:nostdlib',  # Windows Runtime, no default #using
+              ],
+            },
+          },
+          'defines': [
+            # VS2017 always defines this for UWP apps
+            'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+            # VS2017 always defines this for UWP apps
+            '__WRL_NO_DEFAULT_LIB__',
+          ]
+        }]
+      ],
       'sources': [
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -318,10 +335,6 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-        # VS2017 always defines this for UWP apps
-         'WINAPI_FAMILY=WINAPI_FAMILY_APP',
-        # VS2017 always defines this for UWP apps
-         '__WRL_NO_DEFAULT_LIB__',
       ],
       'dependencies': [
         'convert_i18n_data',
