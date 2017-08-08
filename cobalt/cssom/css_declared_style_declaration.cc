@@ -105,6 +105,18 @@ base::optional<std::string> CSSDeclaredStyleDeclaration::Item(
 
 std::string CSSDeclaredStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
+  if (key > kMaxLonghandPropertyKey) {
+    // Shorthand properties are never directly stored as declared properties,
+    // but are expanded into their longhand property components during parsing.
+    // TODO: Implement serialization of css values, see
+    // https://www.w3.org/TR/cssom-1/#serializing-css-values
+    DCHECK_LE(key, kMaxEveryPropertyKey);
+    NOTIMPLEMENTED();
+    DLOG(WARNING) << "Unsupported property query for \"" << GetPropertyName(key)
+                  << "\": Returning of property value strings is not "
+                     "supported for shorthand properties.";
+    return std::string();
+  }
   return (data_ && key != kNoneProperty) ? data_->GetPropertyValueString(key)
                                          : std::string();
 }
