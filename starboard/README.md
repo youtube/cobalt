@@ -5,12 +5,6 @@ all the platform-specific functionality that Cobalt actually uses, and nothing
 that it does not.
 
 
-## Current State
-
-Desktop Linux Cobalt is fully implemented on top of Starboard, and version 1 of
-the Starboard API is mostly locked down.
-
-
 ## Interesting Source Locations
 
 All source locations are specified relative to `src/starboard/` (this directory).
@@ -19,11 +13,9 @@ All source locations are specified relative to `src/starboard/` (this directory)
     the public headers that Starboard defines.
   * `examples/` - Example code demonstrating various aspects of Starboard API
     usage.
-  * `linux/` - The home of the Linux Starboard implementation. This contains a
+  * `stub/` - The home of the Stub Starboard implementation. This contains a
     `starboard_platform.gyp` file that defines a library with all the source
-    files needed to provide a complete Starboard Linux implementation. Source
-    files that are specific to Linux are in this directory, whereas shared
-    implementations are pulled from the shared directory.
+    files needed to provide a complete linkable Starboard implementation.
   * `nplb/` - "No Platform Left Behind," Starboard's platform verification test
     suite.
   * `shared/` - The home of all code that can be shared between Starboard
