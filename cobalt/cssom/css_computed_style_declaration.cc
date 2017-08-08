@@ -20,12 +20,10 @@
 namespace cobalt {
 namespace cssom {
 // This returns the result of serializing a CSS declaration block.
-// The current implementation does not handle shorthands.
 //   https://www.w3.org/TR/cssom/#serialize-a-css-declaration-block
 std::string CSSComputedStyleDeclaration::css_text(
     script::ExceptionState* /*exception_state*/) const {
-  // TODO: This should enumerate all supported properties, not just
-  // the declared ones.
+  // The current implementation does not handle shorthands.
   NOTIMPLEMENTED();
   return data_ ? data_->SerializeCSSDeclarationBlock() : std::string();
 }
@@ -57,6 +55,18 @@ base::optional<std::string> CSSComputedStyleDeclaration::Item(
 std::string CSSComputedStyleDeclaration::GetDeclaredPropertyValueStringByKey(
     const PropertyKey key) const {
   if (!data_ || key == kNoneProperty) {
+    return std::string();
+  }
+  if (key > kMaxLonghandPropertyKey) {
+    // Shorthand properties are never directly stored as computed style
+    // properties.
+    // TODO: Implement serialization of css values, see
+    // https://www.w3.org/TR/cssom-1/#serializing-css-values
+    DCHECK_LE(key, kMaxEveryPropertyKey);
+    NOTIMPLEMENTED();
+    DLOG(WARNING) << "Unsupported property query for \"" << GetPropertyName(key)
+                  << "\": Returning of property value strings is not "
+                     "supported for shorthand properties.";
     return std::string();
   }
   const scoped_refptr<PropertyValue>& property_value =
