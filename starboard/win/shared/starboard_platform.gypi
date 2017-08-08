@@ -40,8 +40,10 @@
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
       '<(DEPTH)/starboard/shared/win32/application_win32.cc',
       '<(DEPTH)/starboard/shared/win32/dialog.cc',
+      '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
       '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
       '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',
       '<(DEPTH)/starboard/shared/win32/system_get_property.cc',
       '<(DEPTH)/starboard/shared/win32/system_raise_platform_error.cc',
       '<(DEPTH)/starboard/shared/win32/window_create.cc',
@@ -67,6 +69,8 @@
             '<(DEPTH)/third_party/angle/include/KHR',
           ],
           'AdditionalOptions': [
+            '/ZW',           # Windows Runtime
+            '/ZW:nostdlib',  # Windows Runtime, no default #using
             '/EHsx',         # C++ exceptions (required with /ZW)
             '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
@@ -208,7 +212,6 @@
         '<(DEPTH)/starboard/shared/win32/file_seek.cc',
         '<(DEPTH)/starboard/shared/win32/file_truncate.cc',
         '<(DEPTH)/starboard/shared/win32/file_write.cc',
-        '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
         '<(DEPTH)/starboard/shared/win32/log.cc',
         '<(DEPTH)/starboard/shared/win32/log_flush.cc',
         '<(DEPTH)/starboard/shared/win32/log_format.cc',
@@ -252,7 +255,6 @@
         '<(DEPTH)/starboard/shared/win32/socket_resolve.cc',
         '<(DEPTH)/starboard/shared/win32/socket_send_to.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_connection_type.cc',
-        '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_error_string.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_number_of_processors.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_total_cpu_memory.cc',
@@ -316,6 +318,10 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
+        # VS2017 always defines this for UWP apps
+         'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+        # VS2017 always defines this for UWP apps
+         '__WRL_NO_DEFAULT_LIB__',
       ],
       'dependencies': [
         'convert_i18n_data',
