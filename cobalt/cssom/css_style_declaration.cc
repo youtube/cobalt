@@ -25,8 +25,7 @@ namespace cssom {
 
 std::string CSSStyleDeclaration::animation(
     script::ExceptionState* /*exception_state*/) const {
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kAnimationProperty);
 }
 
 void CSSStyleDeclaration::set_animation(
@@ -120,11 +119,7 @@ void CSSStyleDeclaration::set_animation_timing_function(
 
 std::string CSSStyleDeclaration::background(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other background properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBackgroundProperty);
 }
 
 void CSSStyleDeclaration::set_background(
@@ -194,11 +189,7 @@ void CSSStyleDeclaration::set_background_size(
 
 std::string CSSStyleDeclaration::border(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderProperty);
 }
 
 void CSSStyleDeclaration::set_border(const std::string& border,
@@ -208,11 +199,7 @@ void CSSStyleDeclaration::set_border(const std::string& border,
 
 std::string CSSStyleDeclaration::border_bottom(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border bottom properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderBottomProperty);
 }
 
 void CSSStyleDeclaration::set_border_bottom(
@@ -223,11 +210,7 @@ void CSSStyleDeclaration::set_border_bottom(
 
 std::string CSSStyleDeclaration::border_left(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border left properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderLeftProperty);
 }
 
 void CSSStyleDeclaration::set_border_left(
@@ -238,11 +221,7 @@ void CSSStyleDeclaration::set_border_left(
 
 std::string CSSStyleDeclaration::border_right(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border right properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderRightProperty);
 }
 
 void CSSStyleDeclaration::set_border_right(
@@ -253,11 +232,7 @@ void CSSStyleDeclaration::set_border_right(
 
 std::string CSSStyleDeclaration::border_top(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border top properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderTopProperty);
 }
 
 void CSSStyleDeclaration::set_border_top(
@@ -267,11 +242,7 @@ void CSSStyleDeclaration::set_border_top(
 
 std::string CSSStyleDeclaration::border_color(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border color properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderColorProperty);
 }
 
 void CSSStyleDeclaration::set_border_color(
@@ -330,11 +301,7 @@ void CSSStyleDeclaration::set_border_left_color(
 
 std::string CSSStyleDeclaration::border_style(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border style properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderStyleProperty);
 }
 
 void CSSStyleDeclaration::set_border_style(
@@ -393,11 +360,7 @@ void CSSStyleDeclaration::set_border_left_style(
 
 std::string CSSStyleDeclaration::border_width(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other border width properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kBorderWidthProperty);
 }
 
 void CSSStyleDeclaration::set_border_width(
@@ -527,8 +490,7 @@ void CSSStyleDeclaration::set_filter(const std::string& filter,
 
 std::string CSSStyleDeclaration::font(
     script::ExceptionState* /*exception_state*/) const {
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kFontProperty);
 }
 
 void CSSStyleDeclaration::set_font(const std::string& font,
@@ -611,11 +573,7 @@ void CSSStyleDeclaration::set_line_height(
 
 std::string CSSStyleDeclaration::margin(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other margin properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kMarginProperty);
 }
 
 void CSSStyleDeclaration::set_margin(const std::string& margin,
@@ -782,11 +740,7 @@ void CSSStyleDeclaration::set_overflow_wrap(
 
 std::string CSSStyleDeclaration::padding(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other padding properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kPaddingProperty);
 }
 
 void CSSStyleDeclaration::set_padding(const std::string& padding,
@@ -1000,11 +954,7 @@ void CSSStyleDeclaration::set_transform_origin(
 
 std::string CSSStyleDeclaration::transition(
     script::ExceptionState* /*exception_state*/) const {
-  // In order to implement this properly we must either save the incoming string
-  // values when they are being set, or combine the results of getting the
-  // styles from all the other transition properties.
-  NOTIMPLEMENTED();
-  return "";
+  return GetDeclaredPropertyValueStringByKey(kTransitionProperty);
 }
 
 void CSSStyleDeclaration::set_transition(
@@ -1129,19 +1079,7 @@ scoped_refptr<CSSRule> CSSStyleDeclaration::parent_rule() const { return NULL; }
 
 std::string CSSStyleDeclaration::GetPropertyValue(
     const std::string& property_name) {
-  PropertyKey key = GetPropertyKey(property_name);
-  if (key > kMaxLonghandPropertyKey) {
-    // Shorthand properties are never directly stored as declared properties,
-    // but are expanded into their longhand property components during parsing.
-    // TODO: Implement serialization of css values, see
-    // https://www.w3.org/TR/cssom-1/#serializing-css-values
-    DCHECK_LE(key, kMaxEveryPropertyKey);
-    DLOG(WARNING) << "Unsupported property query for \"" << property_name
-                  << "\": Returning of property value strings is only "
-                     "supported for longhand properties.";
-    return std::string();
-  }
-  return GetDeclaredPropertyValueStringByKey(key);
+  return GetDeclaredPropertyValueStringByKey(GetPropertyKey(property_name));
 }
 
 void CSSStyleDeclaration::SetPropertyValueStringByKey(
