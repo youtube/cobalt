@@ -429,6 +429,98 @@ SB_EXPORT void SbSocketFreeResolution(SbSocketResolution* resolution);
 #endif
 
 #ifdef __cplusplus
+// An inline C++ wrapper to SbSocket.
+class Socket {
+ public:
+  Socket(SbSocketAddressType address_type, SbSocketProtocol protocol)
+      : socket_(SbSocketCreate(address_type, protocol)) {}
+  explicit Socket(SbSocketAddressType address_type)
+      : socket_(SbSocketCreate(address_type, kSbSocketProtocolTcp)) {}
+  explicit Socket(SbSocketProtocol protocol)
+      : socket_(SbSocketCreate(kSbSocketAddressTypeIpv4, protocol)) {}
+  Socket()
+      : socket_(
+            SbSocketCreate(kSbSocketAddressTypeIpv4, kSbSocketProtocolTcp)) {}
+  ~Socket() { SbSocketDestroy(socket_); }
+  bool IsValid() { return SbSocketIsValid(socket_); }
+
+  SbSocketError Connect(const SbSocketAddress* address) {
+    return SbSocketConnect(socket_, address);
+  }
+  SbSocketError Bind(const SbSocketAddress* local_address) {
+    return SbSocketBind(socket_, local_address);
+  }
+  SbSocketError Listen() { return SbSocketListen(socket_); }
+  Socket* Accept() {
+    SbSocket accepted_socket = SbSocketAccept(socket_);
+    if (SbSocketIsValid(accepted_socket)) {
+      return new Socket(accepted_socket);
+    }
+
+    return NULL;
+  }
+
+  bool IsConnected() { return SbSocketIsConnected(socket_); }
+  bool IsConnectedAndIdle() { return SbSocketIsConnectedAndIdle(socket_); }
+
+  bool IsPending() { return GetLastError() == kSbSocketPending; }
+  SbSocketError GetLastError() { return SbSocketGetLastError(socket_); }
+  void ClearLastError() { SbSocketClearLastError(socket_); }
+
+  int ReceiveFrom(char* out_data, int data_size, SbSocketAddress* out_source) {
+    return SbSocketReceiveFrom(socket_, out_data, data_size, out_source);
+  }
+
+  int SendTo(const char* data,
+             int data_size,
+             const SbSocketAddress* destination) {
+    return SbSocketSendTo(socket_, data, data_size, destination);
+  }
+
+  bool GetLocalAddress(SbSocketAddress* out_address) {
+    return SbSocketGetLocalAddress(socket_, out_address);
+  }
+
+  bool SetBroadcast(bool value) { return SbSocketSetBroadcast(socket_, value); }
+
+  bool SetReuseAddress(bool value) {
+    return SbSocketSetReuseAddress(socket_, value);
+  }
+
+  bool SetReceiveBufferSize(int32_t size) {
+    return SbSocketSetReceiveBufferSize(socket_, size);
+  }
+
+  bool SetSendBufferSize(int32_t size) {
+    return SbSocketSetSendBufferSize(socket_, size);
+  }
+
+  bool SetTcpKeepAlive(bool value, SbTime period) {
+    return SbSocketSetTcpKeepAlive(socket_, value, period);
+  }
+
+  bool SetTcpNoDelay(bool value) {
+    return SbSocketSetTcpNoDelay(socket_, value);
+  }
+
+  bool SetTcpWindowScaling(bool value) {
+    return SbSocketSetTcpWindowScaling(socket_, value);
+  }
+
+  bool JoinMulticastGroup(const SbSocketAddress* address) {
+    return SbSocketJoinMulticastGroup(socket_, address);
+  }
+
+  SbSocket socket() { return socket_; }
+
+ private:
+  explicit Socket(SbSocket socket) : socket_(socket) {}
+
+  SbSocket socket_;
+};
+#endif
+
+#ifdef __cplusplus
 // Let SbSocketAddresses be output to log streams.
 inline std::ostream& operator<<(std::ostream& os,
                                 const SbSocketAddress& address) {
