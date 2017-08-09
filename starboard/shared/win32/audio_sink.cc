@@ -193,7 +193,7 @@ void XAudioAudioSink::AudioThreadFunc() {
     }
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
-    if (playback_rate_ == 0.0) {
+    if (is_playback_rate_zero) {
       is_playing = false;
     }
 
