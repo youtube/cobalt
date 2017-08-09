@@ -70,7 +70,7 @@ namespace starboard {
 //
 // See the unittests for this class for a contrived example state machine
 // implementation.
-class SB_EXPORT StateMachineBase {
+class StateMachineBase {
  public:
   // --- Nested Types and Constants ---
 
@@ -349,7 +349,7 @@ class SB_EXPORT StateMachineBase {
 // and behavioral contracts of the equivalently named method in
 // StateMachineBase.
 template <typename StateEnum, typename EventEnum>
-class SB_EXPORT StateMachine {
+class StateMachine {
  public:
   // --- Nested Types and Constants ---
 

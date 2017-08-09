@@ -13,6 +13,9 @@
 # limitations under the License.
 
 {
+  'variables': {
+    'enable_d3d11_feature_level_11%': 0,
+  },
   'targets': [
     {
       'target_name': 'egl_and_gles_implementation',
@@ -27,6 +30,18 @@
           '<(DEPTH)/third_party/angle/include',
         ],
       },
+      'conditions': [
+        # ANGLE supports GLES3 on Windows only if DirectX11 feauture level 11 is
+        # supported.
+        ['target_os=="win" and enable_d3d11_feature_level_11==1', {
+          'direct_dependent_settings': {
+            'defines': [
+              'GLES3_SUPPORTED',
+              'GL_GLEXT_PROTOTYPES',
+            ],
+          },
+        }]
+      ]
     },
   ],
 }
