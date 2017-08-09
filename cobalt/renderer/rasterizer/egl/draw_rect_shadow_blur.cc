@@ -28,59 +28,55 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
+const float kSqrt2 = 1.414213562f;
+const float kSqrtPi = 1.772453851f;
+
 // The blur kernel extends for a limited number of sigmas.
 const float kBlurExtentInSigmas = 3.0f;
 
-// The gaussian integral formula used to calculate blur intensity reaches 0
-// intensity at a distance of 1.5. To express pixels in terms of input for
-// this function, a distance of kBlurExtentInSigmas * |blur_sigma| should equal
-// kBlurDistance.
-const float kBlurDistance = 1.5f;
+// The error function is used to calculate the gaussian blur. Inputs for
+// the error function should be scaled by 1 / (sqrt(2) * sigma). Alternatively,
+// it can be viewed as kBlurDistance is the input value at which the blur
+// intensity is effectively 0.
+const float kBlurDistance = kBlurExtentInSigmas / kSqrt2;
 
-void SetSigmaTweak(GLint sigma_tweak_uniform, const math::RectF& spread_rect,
-      const DrawObject::OptionalRoundedCorners& spread_corners,
-      float blur_sigma) {
-  const float kBlurExtentInPixels = kBlurExtentInSigmas * blur_sigma;
+void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
+    math::RectF rect, render_tree::RoundedCorners corners, float sigma) {
+  // Ensure a minimum radius for each corner to avoid division by zero.
+  const float kMinSize = 0.01f;
 
-  // If the blur kernel is larger than the spread rect, then adjust the input
-  // values to the blur calculations to better match the reference output.
-  const float kTweakScale = 0.15f;
-  float sigma_tweak[2] = {
-    std::max(kBlurExtentInPixels - spread_rect.width(), 0.0f) *
-        kTweakScale / blur_sigma,
-    std::max(kBlurExtentInPixels - spread_rect.height(), 0.0f) *
-        kTweakScale / blur_sigma,
-  };
+  corners.Normalize(rect);
+  corners = corners.Inset(-kMinSize, -kMinSize, -kMinSize, -kMinSize);
+  rect.Outset(kMinSize, kMinSize);
 
-  if (spread_corners) {
-    // The shader for blur with rounded rects does not fully factor in
-    // proximity to rounded corners. For example, given a 15-pixel wide
-    // spread rect with two neighboring rounded corners with radius 7,
-    // the center pixels would not include the nearby corners in the
-    // calculation of distance to the edge -- it would always be 7.
-    float corner_gap[2] = {
-      std::min(spread_rect.width() - spread_corners->top_left.horizontal
-                                   - spread_corners->top_right.horizontal,
-               spread_rect.width() - spread_corners->bottom_left.horizontal
-                                   - spread_corners->bottom_right.horizontal),
-      std::min(spread_rect.height() - spread_corners->top_left.vertical
-                                    - spread_corners->bottom_left.vertical,
-               spread_rect.height() - spread_corners->top_right.vertical
-                                    - spread_corners->bottom_right.vertical),
-    };
+  // Specify the blur extent size and the (min.y, max.y) for the rect.
+  const float kBlurExtentInPixels = kBlurExtentInSigmas * sigma;
+  GL_CALL(glUniform3f(shader.u_blur_extent(),
+                      kBlurExtentInPixels, rect.y(), rect.bottom()));
 
-    // This tweak is limited because each edge can have different-sized
-    // gaps between corners. However, the shader is already pretty large,
-    // so this tweak will do for now. The situation is only noticeable with
-    // relatively large blur sigmas.
-    const float kCornerTweakScale = 0.03f;
-    sigma_tweak[0] += std::max(kBlurExtentInPixels - corner_gap[0], 0.0f) *
-        kCornerTweakScale / blur_sigma;
-    sigma_tweak[1] += std::max(kBlurExtentInPixels - corner_gap[1], 0.0f) *
-        kCornerTweakScale / blur_sigma;
-  }
-
-  GL_CALL(glUniform2fv(sigma_tweak_uniform, 1, sigma_tweak));
+  // Set the "start" and "scale" values so that (pos - start) * scale is in the
+  // first quadrant and normalized. Then specify "radius" so that normalized *
+  // radius + start specifies a point on the respective corner.
+  GL_CALL(glUniform4f(shader.u_spread_start_x(),
+                      rect.x() + corners.top_left.horizontal,
+                      rect.right() - corners.top_right.horizontal,
+                      rect.x() + corners.bottom_left.horizontal,
+                      rect.right() - corners.bottom_right.horizontal));
+  GL_CALL(glUniform4f(shader.u_spread_start_y(),
+                      rect.y() + corners.top_left.vertical,
+                      rect.y() + corners.top_right.vertical,
+                      rect.bottom() - corners.bottom_left.vertical,
+                      rect.bottom() - corners.bottom_right.vertical));
+  GL_CALL(glUniform4f(shader.u_spread_scale_y(),
+                      -1.0f / corners.top_left.vertical,
+                      -1.0f / corners.top_right.vertical,
+                      1.0f / corners.bottom_left.vertical,
+                      1.0f / corners.bottom_right.vertical));
+  GL_CALL(glUniform4f(shader.u_spread_radius_x(),
+                      -corners.top_left.horizontal,
+                      corners.top_right.horizontal,
+                      -corners.bottom_left.horizontal,
+                      corners.bottom_right.horizontal));
 }
 }  // namespace
 
@@ -152,8 +148,11 @@ void DrawRectShadowBlur::ExecuteRasterize(
     float sigma_scale = kBlurDistance / (kBlurExtentInSigmas * blur_sigma_);
     GL_CALL(glUniform2f(program->GetFragmentShader().u_sigma_scale(),
                         sigma_scale, sigma_scale));
-    SetSigmaTweak(program->GetFragmentShader().u_sigma_tweak(),
-                  spread_rect_, spread_corners_, blur_sigma_);
+
+    // Pre-calculate the scale values to calculate the normalized gaussian.
+    GL_CALL(glUniform2f(program->GetFragmentShader().u_gaussian_scale(),
+                        -1.0f / (2.0f * blur_sigma_ * blur_sigma_),
+                        1.0f / (kSqrt2 * kSqrtPi * blur_sigma_)));
     if (is_inset_) {
       // Set the outer rect to be an inclusive scissor, and invert the shadow.
       SetRRectUniforms(program->GetFragmentShader().u_scissor_rect(),
@@ -169,18 +168,14 @@ void DrawRectShadowBlur::ExecuteRasterize(
       GL_CALL(glUniform2f(program->GetFragmentShader().u_scale_add(),
                           1.0f, 0.0f));
     }
-    SetRRectUniforms(program->GetFragmentShader().u_spread_rect(),
-                     program->GetFragmentShader().u_spread_corners(),
-                     spread_rect_, *spread_corners_, 0.0f);
+    SetBlurRRectUniforms(program->GetFragmentShader(),
+                         spread_rect_, *spread_corners_, blur_sigma_);
   } else {
     ShaderProgram<CommonVertexShader,
                   ShaderFragmentColorBlur>* program;
     program_manager->GetProgram(&program);
     graphics_state->UseProgram(program->GetHandle());
     SetupShader(program->GetVertexShader(), graphics_state);
-
-    SetSigmaTweak(program->GetFragmentShader().u_sigma_tweak(),
-                  spread_rect_, spread_corners_, blur_sigma_);
     if (is_inset_) {
       // Invert the shadow.
       GL_CALL(glUniform2f(program->GetFragmentShader().u_scale_add(),
@@ -190,9 +185,11 @@ void DrawRectShadowBlur::ExecuteRasterize(
       GL_CALL(glUniform2f(program->GetFragmentShader().u_scale_add(),
                           1.0f, 0.0f));
     }
-    GL_CALL(glUniform2f(program->GetFragmentShader().u_blur_radius(),
-                        spread_rect_.width() * 0.5f * offset_scale_,
-                        spread_rect_.height() * 0.5f * offset_scale_));
+    GL_CALL(glUniform4f(program->GetFragmentShader().u_blur_rect(),
+        (spread_rect_.x() - offset_center_.x()) * offset_scale_,
+        (spread_rect_.y() - offset_center_.y()) * offset_scale_,
+        (spread_rect_.right() - offset_center_.x()) * offset_scale_,
+        (spread_rect_.bottom() - offset_center_.y()) * offset_scale_));
   }
 
   GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, vertex_count_));
