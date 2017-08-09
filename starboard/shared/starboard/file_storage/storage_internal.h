@@ -18,6 +18,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_FILE_STORAGE_STORAGE_INTERNAL_H_
 
+#include <string>
+
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/storage.h"
@@ -27,6 +29,9 @@
 struct SbStorageRecordPrivate {
   SbUser user;
   SbFile file;
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+  std::string name;
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
 };
 
 namespace starboard {
@@ -34,6 +39,7 @@ namespace shared {
 namespace starboard {
 // Gets the path to the storage file for the given user.
 static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
+                                               const char* name,
                                                char* out_path,
                                                int path_size) {
   bool success = SbUserGetProperty(user, kSbUserPropertyHomeDirectory, out_path,
@@ -42,7 +48,12 @@ static SB_C_INLINE bool GetUserStorageFilePath(SbUser user,
     return false;
   }
 
-  SbStringConcat(out_path, "/.starboard.storage", path_size);
+  SbStringConcat(out_path, "/.starboard", path_size);
+  if (name && SbStringGetLength(name) > 0) {
+    SbStringConcat(out_path, ".", path_size);
+    SbStringConcat(out_path, name, path_size);
+  }
+  SbStringConcat(out_path, ".storage", path_size);
   return true;
 }
 }  // namespace starboard

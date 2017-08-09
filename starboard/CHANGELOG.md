@@ -8,12 +8,18 @@ version previous to it.
 
 ## Version 6
 
-### Introduce pointer (mouse) input support.
+### Named `SbStorageRecord`s
+
+This extends the `SbStorage` interface with the ability to open named
+`SbStorageRecord`s. Calling `SbStorageOpenRecord` and `SbStorageDeleteRecord`
+with a `NULL` `name` parameter provides access to the old "default" record.
+
+### Introduce pointer (mouse) input support
 
 This extends the `SbInput` interface with some enum values and data members to
 allow mouse, wheel, and more generic pointer input.
 
-### Flexible audio specific config.
+### Flexible audio specific config
 
 `SbMediaAudioHeader::audio_specific_config` will be a pointer instead of an
 array.
@@ -26,7 +32,7 @@ time zone.
 Changes `SbTimeZoneGetName()` to be more flexible in what it is allowed to
 return.
 
-### SbDecodeTargetNumberOfPlanesForFormat
+### `SbDecodeTargetNumberOfPlanesForFormat`
 
 Adds the convenience inline function, SbDecodeTargetNumberOfPlanesForFormat() to
 `starboard/decode_target.h`.
@@ -40,7 +46,7 @@ to utilize it.
 
 Removes `SbSystemPlatformErrorType` values specific to user status.
 
-### SbDecodeTarget support for the UYVY (i.e. YUV 422) format
+### `SbDecodeTarget` support for the UYVY (i.e. YUV 422) format
 
 Add support for UYVY decode targets (e.g. YUV 422) via the
 `kSbDecodeTargetFormat1PlaneUYVY` enum.
@@ -50,13 +56,13 @@ Add support for UYVY decode targets (e.g. YUV 422) via the
 This adds SbKey codes for the colored keys found on most contemporary TV
 remotes.
 
-### kSbEventTypeLowMemory
+### `kSbEventTypeLowMemory`
 
 Adds a new event type -- `kSbEventTypeLowMemory` -- to allow a platform to
 signal that the application may soon be terminated due to low memory
 availability.
 
-### Interface change to SbPlayerWriteSample()
+### Interface change to `SbPlayerWriteSample()`
 `const` is added to `sample_buffers` and `sample_buffer_sizes` parameters.
 
 ### Support key status change

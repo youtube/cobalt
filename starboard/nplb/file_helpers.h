@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_NBLP_FILE_HELPERS_H_
-#define STARBOARD_NBLP_FILE_HELPERS_H_
+#ifndef STARBOARD_NPLB_FILE_HELPERS_H_
+#define STARBOARD_NPLB_FILE_HELPERS_H_
 
 #include <string>
 
@@ -44,7 +44,7 @@ class ScopedRandomFile {
   }
 
   // Will create a file |length| bytes long.
-  ScopedRandomFile(int length) : size_(length) {
+  explicit ScopedRandomFile(int length) : size_(length) {
     filename_ = MakeRandomFile(size_);
   }
 
@@ -52,17 +52,21 @@ class ScopedRandomFile {
   // filename.  |create| is whether to create the file or not.
   ScopedRandomFile(int length, Create create) : size_(length) {
     filename_ =
-        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
+        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilePath());
   }
 
   // Will either create a file of |kDefaultLength| bytes long, or will just
   // generate a filename.  |create| is whether to create the file or not.
-  ScopedRandomFile(Create create) : size_(kDefaultLength) {
+  explicit ScopedRandomFile(Create create) : size_(kDefaultLength) {
     filename_ =
-        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilename());
+        (create == kCreate ? MakeRandomFile(size_) : MakeRandomFilePath());
   }
 
   ~ScopedRandomFile() { SbFileDelete(filename_.c_str()); }
+
+  // Creates and returns a random filename (no path), but does not create the
+  // file.
+  static std::string MakeRandomFilename();
 
   // Returns the filename generated for this file.
   const std::string& filename() const { return filename_; }
@@ -83,8 +87,8 @@ class ScopedRandomFile {
   // the new file.
   static std::string MakeRandomFile(int length);
 
-  // Creates and returns a random filename, but does not create the file.
-  static std::string MakeRandomFilename();
+  // Creates and returns a path to a random file, but does not create the file.
+  static std::string MakeRandomFilePath();
 
   std::string filename_;
   int size_;
@@ -93,4 +97,4 @@ class ScopedRandomFile {
 }  // namespace nplb
 }  // namespace starboard
 
-#endif
+#endif  // STARBOARD_NPLB_FILE_HELPERS_H_

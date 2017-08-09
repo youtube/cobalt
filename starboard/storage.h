@@ -51,12 +51,33 @@ static SB_C_INLINE bool SbStorageIsValidRecord(SbStorageRecord record) {
   return record != kSbStorageInvalidRecord;
 }
 
-// Opens and returns a SbStorageRecord for |user|, blocking I/O on the calling
-// thread until it returns. If |user| is not a valid |SbUser|, the function
-// returns |kSbStorageInvalidRecord|.
+#if SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+
+// Opens and returns the default SbStorageRecord for |user|, blocking I/O on the
+// calling thread until the open is completed. If |user| is not a valid
+// |SbUser|, the function returns |kSbStorageInvalidRecord|. Will return an
+// |SbStorageRecord| of size zero if the record does not yet exist. Opening an
+// already-open |SbStorageRecord| has undefined behavior.
 //
-// |user|: The user for which the storage record is opened.
+// |user|: The user for which the storage record will be opened.
 SB_EXPORT SbStorageRecord SbStorageOpenRecord(SbUser user);
+
+#else  // SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+
+// Opens and returns the SbStorageRecord for |user| named |name|, blocking I/O
+// on the calling thread until the open is completed. If |user| is not a valid
+// |SbUser|, the function returns |kSbStorageInvalidRecord|. Will return an
+// |SbStorageRecord| of size zero if the record does not yet exist. Opening an
+// already-open |SbStorageRecord| has undefined behavior.
+//
+// If |name| is NULL, opens the default storage record for the user, like what
+// would have been saved with the previous version of SbStorageOpenRecord.
+//
+// |user|: The user for which the storage record will be opened.
+// |name|: The filesystem-safe name of the record to open.
+SB_EXPORT SbStorageRecord SbStorageOpenRecord(SbUser user, const char* name);
+
+#endif  // SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
 
 // Closes |record|, synchronously ensuring that all written data is flushed.
 // This function performs blocking I/O on the calling thread.
@@ -91,9 +112,15 @@ SB_EXPORT int64_t SbStorageReadRecord(SbStorageRecord record,
 
 // Replaces the data in |record| with |data_size| bytes from |data|. This
 // function always deletes any previous data in that record. The return value
-// indicates whether the write succeeded. This function makes a best-effort
-// to read the entire record, and it performs performs blocking I/O on the
-// calling thread until the entire record is read or an error is encountered.
+// indicates whether the write succeeded. This function makes a best-effort to
+// write the entire record, and it may perform blocking I/O on the calling
+// thread until the entire record is written or an error is encountered.
+//
+// While |SbStorageWriteRecord()| may defer the persistence,
+// |SbStorageReadRecord()| is expected to work as expected immediately
+// afterwards, even without a call to |SbStorageCloseRecord()|. The data should
+// be persisted after a short time, even if there is an unexpected process
+// termination before |SbStorageCloseRecord()| is called.
 //
 // |record|: The record to be written to.
 // |data|: The data to write to the record.
@@ -104,21 +131,43 @@ SB_EXPORT bool SbStorageWriteRecord(SbStorageRecord record,
                                     const char* data,
                                     int64_t data_size);
 
-// Deletes the |SbStorageRecord| for the specified user. The return value
+#if SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+
+// Deletes the default |SbStorageRecord| for the |user|. The return value
 // indicates whether the record existed and was successfully deleted. If the
 // record did not exist or could not be deleted, the function returns |false|.
 //
 // This function must not be called while the user's storage record is open.
 // This function performs blocking I/O on the calling thread.
 //
-// |user|: The user for whom the record is deleted.
+// |user|: The user for whom the record will be deleted.
 SB_EXPORT bool SbStorageDeleteRecord(SbUser user);
+
+#else  // SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+
+// Deletes the |SbStorageRecord| for |user| named |name|. The return value
+// indicates whether the record existed and was successfully deleted. If the
+// record did not exist or could not be deleted, the function returns |false|.
+//
+// If |name| is NULL, deletes the default storage record for the user, like what
+// would have been deleted with the previous version of SbStorageDeleteRecord.
+//
+// This function must not be called while the user's storage record is open.
+// This function performs blocking I/O on the calling thread.
+//
+// |user|: The user for whom the record will be deleted.
+// |name|: The filesystem-safe name of the record to open.
+SB_EXPORT bool SbStorageDeleteRecord(SbUser user, const char* name);
+
+#endif  // SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
 
 #ifdef __cplusplus
 }  // extern "C"
 #endif
 
 #ifdef __cplusplus
+#include <string>
+
 namespace starboard {
 
 // Inline scoped wrapper for SbStorageRecord.
@@ -126,17 +175,27 @@ class StorageRecord {
  public:
   StorageRecord()
       : user_(SbUserGetCurrent()), record_(kSbStorageInvalidRecord) {
-    if (SbUserIsValid(user_)) {
-      record_ = SbStorageOpenRecord(user_);
-    }
+    Initialize();
   }
 
   explicit StorageRecord(SbUser user)
       : user_(user), record_(kSbStorageInvalidRecord) {
-    if (SbUserIsValid(user_)) {
-      record_ = SbStorageOpenRecord(user_);
-    }
+    Initialize();
   }
+
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+  explicit StorageRecord(const char* name)
+      : user_(SbUserGetCurrent()),
+        name_(name),
+        record_(kSbStorageInvalidRecord) {
+    Initialize();
+  }
+
+  StorageRecord(SbUser user, const char* name)
+      : user_(user), name_(name), record_(kSbStorageInvalidRecord) {
+    Initialize();
+  }
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
 
   ~StorageRecord() { Close(); }
   bool IsValid() { return SbStorageIsValidRecord(record_); }
@@ -160,11 +219,36 @@ class StorageRecord {
 
   bool Delete() {
     Close();
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+    if (!name_.empty()) {
+      return SbStorageDeleteRecord(user_, name_.c_str());
+    } else {
+      return SbStorageDeleteRecord(user_, NULL);
+    }
+#else   // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
     return SbStorageDeleteRecord(user_);
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
   }
 
  private:
+  void Initialize() {
+    if (SbUserIsValid(user_)) {
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+      if (!name_.empty()) {
+        record_ = SbStorageOpenRecord(user_, name_.c_str());
+      } else {
+        record_ = SbStorageOpenRecord(user_, NULL);
+      }
+#else   // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+      record_ = SbStorageOpenRecord(user_);
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+    }
+  }
+
   SbUser user_;
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+  std::string name_;
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
   SbStorageRecord record_;
 };
 
