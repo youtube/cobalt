@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/nplb/file_helpers.h"
 #include "starboard/nplb/storage_helpers.h"
 #include "starboard/storage.h"
 #include "starboard/user.h"
@@ -22,19 +23,26 @@ namespace nplb {
 namespace {
 
 TEST(SbStorageReadRecordTest, SunnyDay) {
+  int64_t pattern = 0;
   ClearStorageRecord();
 
   SbStorageRecord record = OpenStorageRecord();
-  WriteStorageRecord(record, kStorageSize);
+  WriteStorageRecord(record, kStorageSize, pattern);
   ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
-                      kStorageSize2);
+                      kStorageSize2, pattern);
+  pattern = 6;
+  // Write different data and check again.
+  WriteStorageRecord(record, kStorageSize, pattern);
+  ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern);
   EXPECT_TRUE(SbStorageCloseRecord(record));
 
   // Now we'll open again and make sure it is the same.
   record = OpenStorageRecord();
   ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
-                      kStorageSize2);
+                      kStorageSize2, pattern);
   EXPECT_TRUE(SbStorageCloseRecord(record));
+  ClearStorageRecord();
 }
 
 TEST(SbStorageReadRecordTest, SunnyDaySmallBuffer) {
@@ -46,12 +54,118 @@ TEST(SbStorageReadRecordTest, SunnyDaySmallBuffer) {
   EXPECT_TRUE(SbStorageCloseRecord(record));
 }
 
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+TEST(SbStorageReadRecordTest, SunnyDayNamed) {
+  int64_t pattern = 0;
+  std::string name = ScopedRandomFile::MakeRandomFilename();
+  ClearStorageRecord(name.c_str());
+
+  SbStorageRecord record = OpenStorageRecord(name.c_str());
+  WriteStorageRecord(record, kStorageSize, pattern);
+  ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern);
+  // Write different data and check again.
+  pattern = 6;
+  WriteStorageRecord(record, kStorageSize, pattern);
+  ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern);
+  EXPECT_TRUE(SbStorageCloseRecord(record));
+
+  // Now we'll open again and make sure it is the same.
+  record = OpenStorageRecord(name.c_str());
+  ReadAndCheckStorage(record, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern);
+  EXPECT_TRUE(SbStorageCloseRecord(record));
+
+  ClearStorageRecord(name.c_str());
+}
+
+TEST(SbStorageReadRecordTest, SunnyDayNamed2) {
+  int64_t pattern1 = 2;
+  int64_t pattern2 = 8;
+  std::string name1 = ScopedRandomFile::MakeRandomFilename();
+  std::string name2 = ScopedRandomFile::MakeRandomFilename();
+  ClearStorageRecord(name1.c_str());
+  ClearStorageRecord(name2.c_str());
+
+  SbStorageRecord record1 = OpenStorageRecord(name1.c_str());
+  SbStorageRecord record2 = OpenStorageRecord(name2.c_str());
+  WriteStorageRecord(record1, kStorageSize, pattern1);
+  WriteStorageRecord(record2, kStorageSize, pattern2);
+  ReadAndCheckStorage(record1, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern1);
+  ReadAndCheckStorage(record2, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern2);
+  EXPECT_TRUE(SbStorageCloseRecord(record1));
+  EXPECT_TRUE(SbStorageCloseRecord(record2));
+
+  // Now we'll open again and make sure they are the same.
+  record1 = OpenStorageRecord(name1.c_str());
+  record2 = OpenStorageRecord(name2.c_str());
+  ReadAndCheckStorage(record1, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern1);
+  ReadAndCheckStorage(record2, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern2);
+  EXPECT_TRUE(SbStorageCloseRecord(record1));
+  EXPECT_TRUE(SbStorageCloseRecord(record2));
+
+  ClearStorageRecord(name1.c_str());
+  ClearStorageRecord(name2.c_str());
+}
+
+TEST(SbStorageReadRecordTest, SunnyDayNamed3) {
+  int64_t pattern1 = 3;
+  int64_t pattern2 = 5;
+  int64_t pattern3 = 7;
+  std::string name1 = ScopedRandomFile::MakeRandomFilename();
+  std::string name2 = ScopedRandomFile::MakeRandomFilename();
+  ClearStorageRecord(name1.c_str());
+  ClearStorageRecord(name2.c_str());
+  ClearStorageRecord();
+
+  SbStorageRecord record1 = OpenStorageRecord(name1.c_str());
+  SbStorageRecord record2 = OpenStorageRecord(name2.c_str());
+  SbStorageRecord record3 = OpenStorageRecord();
+  WriteStorageRecord(record1, kStorageSize, pattern1);
+  WriteStorageRecord(record2, kStorageSize, pattern2);
+  WriteStorageRecord(record3, kStorageSize, pattern3);
+  ReadAndCheckStorage(record1, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern1);
+  ReadAndCheckStorage(record2, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern2);
+  ReadAndCheckStorage(record3, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern3);
+  EXPECT_TRUE(SbStorageCloseRecord(record1));
+  EXPECT_TRUE(SbStorageCloseRecord(record2));
+  EXPECT_TRUE(SbStorageCloseRecord(record3));
+
+  // Now we'll open again and make sure they are the same.
+  record1 = OpenStorageRecord(name1.c_str());
+  record2 = OpenStorageRecord(name2.c_str());
+  record3 = OpenStorageRecord();
+  ReadAndCheckStorage(record1, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern1);
+  ReadAndCheckStorage(record2, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern2);
+  ReadAndCheckStorage(record3, kStorageOffset, kStorageSize, kStorageSize2,
+                      kStorageSize2, pattern3);
+  EXPECT_TRUE(SbStorageCloseRecord(record1));
+  EXPECT_TRUE(SbStorageCloseRecord(record2));
+  EXPECT_TRUE(SbStorageCloseRecord(record3));
+
+  ClearStorageRecord(name1.c_str());
+  ClearStorageRecord(name2.c_str());
+  ClearStorageRecord();
+}
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+
 TEST(SbStorageReadRecordTest, SunnyDayNonexistant) {
   ClearStorageRecord();
 
   SbStorageRecord record = OpenStorageRecord();
   ReadAndCheckStorage(record, kStorageOffset, 0, 0, kStorageSize);
   EXPECT_TRUE(SbStorageCloseRecord(record));
+  ClearStorageRecord();
 }
 
 TEST(SbStorageReadRecordTest, RainyDayInvalidRecord) {
