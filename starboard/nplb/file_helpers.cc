@@ -41,6 +41,13 @@ std::string GetTempDir() {
 }
 
 // static
+std::string ScopedRandomFile::MakeRandomFilename() {
+  std::ostringstream filename_stream;
+  filename_stream << "ScopedRandomFile.File_" << SbSystemGetRandomUInt64();
+  return filename_stream.str();
+}
+
+// static
 void ScopedRandomFile::ExpectPattern(int pattern_offset,
                                      void* buffer,
                                      int size,
@@ -53,22 +60,19 @@ void ScopedRandomFile::ExpectPattern(int pattern_offset,
 }
 
 // static
-std::string ScopedRandomFile::MakeRandomFilename() {
-  char path[kPathSize] = {0};
-  bool result = SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize);
-  EXPECT_TRUE(result);
-  if (!result) {
+std::string ScopedRandomFile::MakeRandomFilePath() {
+  std::ostringstream filename_stream;
+  filename_stream << GetTempDir();
+  if (!filename_stream.tellp()) {
     return "";
   }
 
-  std::ostringstream filename_stream;
-  filename_stream << path << SB_FILE_SEP_CHAR << "ScopedRandomFile.File_"
-                  << SbSystemGetRandomUInt64();
+  filename_stream << SB_FILE_SEP_CHAR << MakeRandomFilename();
   return filename_stream.str();
 }
 
 std::string ScopedRandomFile::MakeRandomFile(int length) {
-  std::string filename = MakeRandomFilename();
+  std::string filename = MakeRandomFilePath();
   if (filename.empty()) {
     return filename;
   }
