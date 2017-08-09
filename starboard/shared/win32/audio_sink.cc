@@ -19,6 +19,8 @@
 #include <xaudio2.h>
 
 #include <limits>
+#include <sstream>
+#include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
@@ -35,7 +37,14 @@ void CHECK_HRESULT_OK(HRESULT hr) {
 }
 
 const int kMaxBuffersSubmittedPerLoop = 2;
+
+std::string GenerateThreadName() {
+  static int s_count = 0;
+  std::stringstream ss;
+  ss << "AudioOut_" << s_count++;
+  return ss.str();
 }
+}  // namespace.
 
 namespace starboard {
 namespace shared {
@@ -117,9 +126,11 @@ XAudioAudioSink::XAudioAudioSink(
 
   CHECK_HRESULT_OK(source_voice_->Stop(0));
 
-  audio_out_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-                     "audio_out", &XAudioAudioSink::ThreadEntryPoint, this);
+  std::string thread_name = GenerateThreadName();
+
+  audio_out_thread_ = SbThreadCreate(
+      0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
+      thread_name.c_str(), &XAudioAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
 }
 
@@ -182,12 +193,15 @@ void XAudioAudioSink::AudioThreadFunc() {
     }
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
+    if (playback_rate_ == 0.0) {
+      is_playing = false;
+    }
 
     if (is_playing != was_playing) {
       if (is_playing) {
-        source_voice_->Start(0);
+        CHECK_HRESULT_OK(source_voice_->Start(0));
       } else {
-        source_voice_->Stop(0);
+        CHECK_HRESULT_OK(source_voice_->Stop(0));
       }
     }
     was_playing = is_playing;
