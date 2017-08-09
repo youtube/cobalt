@@ -135,7 +135,6 @@ class TvTestCase(unittest.TestCase):
     """
     load_url = True
     while load_url:
-      self.get_webdriver().execute_script('h5vcc.storage.clearCookies()')
       self.clear_url_loaded_events()
       self.get_webdriver().get(
           tv_testcase_util.generate_url(self.get_default_url(), query_params))
