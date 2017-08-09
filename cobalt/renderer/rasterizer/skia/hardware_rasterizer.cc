@@ -696,8 +696,6 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
 
-  gr_context_->resetContext();
-
   // Create a canvas from the render target.
   GrBackendRenderTargetDesc skia_desc =
       CobaltRenderTargetToSkiaBackendRenderTargetDesc(render_target.get());
