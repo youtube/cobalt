@@ -120,6 +120,8 @@ afterEvaluate {
         def arch = COBALT_ARCH_MAP[abi]
         def cobaltContentDir = "${getProductDir(configType, arch)}/content/data"
         android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
+        // Add the static files in the assets directory.
+        android.sourceSets.getByName(buildType).assets.srcDir 'assets'
     }
 }
 
