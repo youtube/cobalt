@@ -77,8 +77,15 @@ def _GetLauncherForPlatform(platform_path):
 
   # Necessary because gyp_configuration modules use relative imports.
   # "cobalt/build" needs to be in sys.path to keep the imports working
-  sys.path.append(os.path.join(os.path.dirname(__file__), os.pardir,
-                               os.pardir, "cobalt", "build"))
+  sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                               os.pardir, os.pardir,
+                                               "cobalt", "build")))
+
+  # Necessary because the gyp_configuration for linux-x64x11 imports
+  # directly from "starboard/".  All of this import logic will eventually be
+  # moved to a configuration system.
+  sys.path.append(os.path.abspath(os.path.join(
+      os.path.dirname(__file__), os.pardir, os.pardir)))
 
   module_path = os.path.abspath(os.path.join(platform_path,
                                              "gyp_configuration.py"))
