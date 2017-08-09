@@ -20,8 +20,27 @@ precision mediump float;
 // represents (start.xy, radius.xy).
 uniform vec4 u_scissor_rect;
 uniform mat4 u_scissor_corners;
-uniform vec4 u_spread_rect;
-uniform mat4 u_spread_corners;
+
+// The rounded spread rect is represented in a way to optimize calculation of
+// the extents. Each element of a vec4 represents a corner's value -- order
+// is top left, top right, bottom left, bottom right. Extents for each corner
+// can be calculated as:
+//   extents_x = start_x + radius_x * sqrt(1 - scaled_y^2) where
+//   scaled_y = clamp((pos.yyyy - start_y) * scale_y, 0.0, 1.0)
+// To simplify handling left vs right and top vs bottom corners, the sign of
+// scale_y and radius_x handles negation as needed.
+uniform vec4 u_spread_start_x;
+uniform vec4 u_spread_start_y;
+uniform vec4 u_spread_scale_y;
+uniform vec4 u_spread_radius_x;
+
+// The blur extent specifies (3 * sigma, min_rect_y, max_rect_y). This is used
+// to clamp the interval over which integration should be evaluated.
+uniform vec3 u_blur_extent;
+
+// The gaussian scale uniform is used to simplify calculation of the gaussian
+// function at a particular point.
+uniform vec2 u_gaussian_scale;
 
 // The scale_add uniform is used to switch the shader between generating
 // outset shadows and inset shadows. It impacts the shadow gradient and
@@ -34,139 +53,81 @@ uniform vec2 u_scale_add;
 // translate pixel distances into sigma distances.
 uniform vec2 u_sigma_scale;
 
-// Adjust the sigma input value to tweak the blur output so that it better
-// matches the reference. This is usually only needed for very large sigmas.
-uniform vec2 u_sigma_tweak;
-
 varying vec2 v_offset;
 varying vec4 v_color;
 
 #include "function_is_outside_rrect.inc"
+#include "function_gaussian_integral.inc"
 
-// Calculate the distance from a point in the first quadrant to an ellipse
-// centered at the origin.
-//
-// http://iquilezles.org/www/articles/ellipsedist/ellipsedist.htm
-float GetEllipseDistance(vec2 p, vec2 ab) {
-  if (abs(ab.x - ab.y) < 0.5) {
-    return length(p) - ab.x;
-  }
+vec2 GetXExtents(float y) {
+  // Use x^2 / a^2 + y^2 / b^2 = 1 to solve for the x value of each rounded
+  // corner at the given y.
+  vec4 scaled = clamp((y - u_spread_start_y) * u_spread_scale_y, 0.0, 1.0);
+  vec4 root = sqrt(1.0 - scaled * scaled);
+  vec4 extent = u_spread_start_x + u_spread_radius_x * root;
 
-  if (p.x > p.y) {
-    p = p.yx;
-    ab = ab.yx;
-  }
-
-  float lr = 1.0 / (ab.y * ab.y - ab.x * ab.x);
-  float m = ab.x * p.x * lr;
-  float m2 = m * m;
-  float n = ab.y * p.y * lr;
-  float n2 = n * n;
-  float c = (m2 + n2 - 1.0) * 0.333333333;
-  float c3 = c * c * c;
-  float q = c3 + m2 * n2 * 2.0;
-  float d = c3 + m2 * n2;
-  float g = m + m * n2;
-
-  float co;
-
-  if (d < 0.0) {
-    float p = acos(q / c3) * 0.333333333;
-    float s = cos(p);
-    float t = sin(p) * 1.732050808;
-    float rx = sqrt(-c * (s + t + 2.0) + m2);
-    float ry = sqrt(-c * (s - t + 2.0) + m2);
-    co = (ry + sign(lr) * rx + abs(g) / (rx * ry) - m) * 0.5;
-  } else {
-    float h = 2.0 * m * n * sqrt(d);
-    float s = sign(q + h) * pow(abs(q + h), 0.333333333);
-    float u = sign(q - h) * pow(abs(q - h), 0.333333333);
-    float rx = -s - u - c * 4.0 + 2.0 * m2;
-    float ry = (s - u) * 1.732050808;
-    float rm = sqrt(rx * rx + ry * ry);
-    float p = ry / sqrt(rm - rx);
-    co = (p + 2.0 * g / rm - m) * 0.5;
-  }
-
-  float si = sqrt(1.0 - co * co);
-  vec2 closest = vec2(ab.x * co, ab.y * si);
-  return length(closest - p) * sign(p.y - closest.y);
+  // If the y value was before a corner started, then the calculated extent
+  // would equal the unrounded rectangle's extents (since negative values were
+  // clamped to 0 in the above calculation). So smaller extents (i.e. extents
+  // closer to the rectangle center), represent the relevant corners' extents.
+  return vec2(max(extent.x, extent.z), min(extent.y, extent.w));
 }
 
-// Get the x and y distances from the nearest edges of the rounded rect.
-vec2 GetBlurPosition(vec4 rect, mat4 corners) {
-  vec2 pos = max(rect.xy - v_offset, v_offset - rect.zw);
+float GetXBlur(float x, float y) {
+  // Get the integral over the interval occupied by the rectangle.
+  vec2 pos = (GetXExtents(y) - x) * u_sigma_scale;
+  return GaussianIntegral(pos);
+}
 
-  vec4 select_corner = vec4(
-      step(v_offset.x, corners[0].x) * step(v_offset.y, corners[0].y),
-      step(corners[1].x, v_offset.x) * step(v_offset.y, corners[1].y),
-      step(v_offset.x, corners[2].x) * step(corners[2].y, v_offset.y),
-      step(corners[3].x, v_offset.x) * step(corners[3].y, v_offset.y));
-  if (dot(select_corner, vec4(1.0)) > 0.5) {
-    // Use distance from the closest point on the ellipse as the position
-    // for blur calculations.
-    vec4 corner = corners * select_corner;
-    float dist = GetEllipseDistance(abs(v_offset - corner.xy), corner.zw);
+vec3 GetGaussian(vec3 offset) {
+  // Evaluate the gaussian at the given offsets.
+  return exp(offset * offset * u_gaussian_scale.x);
+}
 
-    // Since the transition from non-corner to corner positions happens along
-    // the ellipse's x or y axis, either pos.x = -corner.z or pos.y = -corner.w
-    // when the transition happens. Keep one ordinate at a minimum so that
-    // distance from the ellipse smoothly changes blur intensity.
-    //
-    // The return vec2 is used as blur = gi(x) * gi(y) where gi = the guassian
-    // integral function. Swapping x and y has no impact on the final blur, so
-    // distance can be substituted for one ordinate as long as the other takes
-    // the right value. E.g. when pos = (-corner.z, 0), the point is on the top
-    // center of the ellipse, so dist = 0. When pos = (0, -corner.w), dist = 0.
-    // When pos = (-corner.z, -corner.w), the point is at the center of the
-    // ellipse, and dist = max(-corner.z, -corner.w). So dist can be used as
-    // long as the other ordinate is min(pos.x, pos.y).
-    return vec2(dist, min(min(pos.x, pos.y), max(-corner.z, -corner.w)));
-  }
+float GetBlur(vec2 pos) {
+  // Approximate the 2D gaussian filter using numerical integration. Sample
+  // points between the y extents of the rectangle.
+  float low = clamp(pos.y - u_blur_extent.x, u_blur_extent.y, u_blur_extent.z);
+  float high = clamp(pos.y + u_blur_extent.x, u_blur_extent.y, u_blur_extent.z);
 
-  return pos;
+  // Use the Gauss–Legendre quadrature with 6 points to numerically integrate.
+  // Using fewer samples will show artifacts with elliptical corners that are
+  // likely to be used.
+  const vec3 kStepScale1 = vec3(-0.932470, -0.661209, -0.238619);
+  const vec3 kStepScale2 = vec3( 0.932470,  0.661209,  0.238619);
+  const vec3 kWeight = vec3(0.171324, 0.360762, 0.467914);
+
+  float half_size = (high - low) * 0.5;
+  float middle = (high + low) * 0.5;
+  vec3 weight = half_size * kWeight;
+  vec3 pos1 = middle + half_size * kStepScale1;
+  vec3 pos2 = middle + half_size * kStepScale2;
+  vec3 offset1 = pos1 - pos.yyy;
+  vec3 offset2 = pos2 - pos.yyy;
+
+  // The integral along the x-axis is computed. The integral along the y-axis
+  // is roughly approximated. To get the 2D filter, multiply the two integrals.
+  // Visual artifacts appear when the computed integrals along the x-axis
+  // change rapidly between samples (e.g. elliptical corners that are much
+  // wider than they are tall).
+  vec3 xblur1 = vec3(GetXBlur(pos.x, pos1.x),
+                     GetXBlur(pos.x, pos1.y),
+                     GetXBlur(pos.x, pos1.z));
+  vec3 xblur2 = vec3(GetXBlur(pos.x, pos2.x),
+                     GetXBlur(pos.x, pos2.y),
+                     GetXBlur(pos.x, pos2.z));
+  vec3 yblur1 = GetGaussian(offset1) * weight;
+  vec3 yblur2 = GetGaussian(offset2) * weight;
+
+  // Since each yblur value should be scaled by u_gaussian_scale.y, save some
+  // cycles and multiply the sum by it.
+  return (dot(xblur1, yblur1) + dot(xblur2, yblur2)) * u_gaussian_scale.y;
 }
 
 void main() {
   float scissor_scale =
       IsOutsideRRect(v_offset, u_scissor_rect, u_scissor_corners) *
       u_scale_add.x + u_scale_add.y;
-
-  vec2 pos = GetBlurPosition(u_spread_rect, u_spread_corners) *
-             u_sigma_scale + u_sigma_tweak;
-  vec2 pos2 = pos * pos;
-  vec2 pos3 = pos2 * pos;
-  vec4 posx = vec4(1.0, pos.x, pos2.x, pos3.x);
-  vec4 posy = vec4(1.0, pos.y, pos2.y, pos3.y);
-
-  // Approximation of the gaussian integral from [x, +inf).
-  // http://stereopsis.com/shadowrect/
-  const vec4 klower = vec4(0.4375, -1.125, -0.75, -0.1666666);
-  const vec4 kmiddle = vec4(0.5, -0.75, 0.0, 0.3333333);
-  const vec4 kupper = vec4(0.5625, -1.125, 0.75, -0.1666666);
-
-  float gaussx = 0.0;
-  if (pos.x < -1.5) {
-    gaussx = 1.0;
-  } else if (pos.x < -0.5) {
-    gaussx = dot(posx, klower);
-  } else if (pos.x < 0.5) {
-    gaussx = dot(posx, kmiddle);
-  } else if (pos.x < 1.5) {
-    gaussx = dot(posx, kupper);
-  }
-
-  float gaussy = 0.0;
-  if (pos.y < -1.5) {
-    gaussy = 1.0;
-  } else if (pos.y < -0.5) {
-    gaussy = dot(posy, klower);
-  } else if (pos.y < 0.5) {
-    gaussy = dot(posy, kmiddle);
-  } else if (pos.y < 1.5) {
-    gaussy = dot(posy, kupper);
-  }
-
-  float alpha_scale = gaussx * gaussy * u_scale_add.x + u_scale_add.y;
-  gl_FragColor = v_color * (alpha_scale * scissor_scale);
+  float blur_scale = GetBlur(v_offset) * u_scale_add.x + u_scale_add.y;
+  gl_FragColor = v_color * (blur_scale * scissor_scale);
 }
