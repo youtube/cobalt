@@ -145,11 +145,11 @@ class TvTestCase(unittest.TestCase):
         self.wait_for_url_loaded_events()
         triggers_reload = False
       self.poll_until_found(tv.SHELF)
+      self.wait_for_processing_complete()
       # Stop loading the url if there is no survey shelf.
       if not self.check_for_survey_shelf():
         load_url = False
-
-    self.wait_for_processing_complete_after_focused_shelf()
+    self.assert_displayed(tv.FOCUSED_SHELF_TITLE)
 
   def poll_until_found(self, css_selector, expected_num=None):
     """Polls until an element is found.
