@@ -52,6 +52,7 @@ KeyboardEvent::KeyboardEvent(base::Token type,
 
 KeyboardEvent::KeyboardEvent(UninitializedFlag uninitialized_flag)
     : UIEventWithKeyState(uninitialized_flag),
+      key_location_(kDomKeyLocationStandard),
       key_code_(0),
       char_code_(0),
       repeat_(false) {}
