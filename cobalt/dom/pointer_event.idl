@@ -12,7 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2015/REC-pointerevents-20150224/
+// https://www.w3.org/TR/2015/REC-pointerevents-20150224/#pointerevent-interface
 
-[Constructor(DOMString type)]
-interface PointerEvent : MouseEvent {};
+[Constructor(DOMString type, optional PointerEventInit eventInitDict)]
+interface PointerEvent : MouseEvent {
+    readonly    attribute long      pointerId;
+    readonly    attribute double    width;
+    readonly    attribute double    height;
+    readonly    attribute float     pressure;
+    readonly    attribute long      tiltX;
+    readonly    attribute long      tiltY;
+    readonly    attribute DOMString pointerType;
+    readonly    attribute boolean   isPrimary;
+};
