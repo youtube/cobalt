@@ -320,9 +320,16 @@ void HardwareFrontendImage::InitializeBackendImageFromRenderTree(
     backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context) {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
 
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      cobalt_context);
+
   scoped_refptr<backend::FramebufferRenderTargetEGL> render_target(
       new backend::FramebufferRenderTargetEGL(cobalt_context, size_));
 
+  // The above call to FramebufferRenderTargetEGL() may have dirtied graphics
+  // state, so tell Skia to reset its context.
+  gr_context->resetContext(kRenderTarget_GrGLBackendState |
+                            kTextureBinding_GrGLBackendState);
   submit_offscreen_callback.Run(root, render_target);
 
   scoped_ptr<backend::TextureEGL> texture(
@@ -330,6 +337,11 @@ void HardwareFrontendImage::InitializeBackendImageFromRenderTree(
 
   backend_image_.reset(new HardwareBackendImage(texture.Pass()));
   backend_image_->CommonInitialize(gr_context);
+
+  // Tell Skia that the graphics state is unknown because we issued custom
+  // GL commands above.
+  gr_context->resetContext(kRenderTarget_GrGLBackendState |
+                            kTextureBinding_GrGLBackendState);
 }
 
 HardwareMultiPlaneImage::HardwareMultiPlaneImage(

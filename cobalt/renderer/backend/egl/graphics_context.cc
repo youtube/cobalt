@@ -274,8 +274,13 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
     // with eglMakeCurrent to avoid polluting the previous EGLSurface target.
     DCHECK_NE(surface->GetPlatformHandle(), 0);
 
-    egl_surface = null_surface_->GetSurface();
-    EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    // Since we don't care about what surface is backing the default
+    // framebuffer, don't change draw surfaces unless we simply don't have one
+    // already.
+    if (!IsCurrent()) {
+      egl_surface = null_surface_->GetSurface();
+      EGL_CALL(eglMakeCurrent(display_, egl_surface, egl_surface, context_));
+    }
     GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, surface->GetPlatformHandle()));
   }
 
@@ -289,7 +294,12 @@ void GraphicsContextEGL::MakeCurrentWithSurface(RenderTargetEGL* surface) {
 }
 
 void GraphicsContextEGL::MakeCurrent() {
-  MakeCurrentWithSurface(null_surface_);
+  // Some GL drivers do *not* handle switching contexts in the middle of a
+  // frame very well, so with this change we avoid making a new surface
+  // current if we don't actually care about what surface is current.
+  if (!IsCurrent()) {
+    MakeCurrentWithSurface(null_surface_);
+  }
 }
 
 void GraphicsContextEGL::ReleaseCurrentContext() {
