@@ -368,7 +368,7 @@ class TvTestCase(unittest.TestCase):
     self.survey_shelf_count += 1
     print('Encountered survey shelf! {} total.'.format(self.survey_shelf_count))
     if self.survey_shelf_count > MAX_SURVEY_SHELF_COUNT:
-      raise TvTestCase.SurveyShelfFailureException()
+      raise TvTestCase.SurveyShelfLimitExceededException()
     return True
 
 
