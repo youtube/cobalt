@@ -14,7 +14,6 @@
 {
   'includes': [
     '../shared/starboard_platform.gypi',
-    '../../shared/uwp/starboard_platform.gypi'
   ],
   'variables': {
     'starboard_platform_dependent_files': [
@@ -22,6 +21,21 @@
       'configuration_public.h',
       'thread_types_public.h',
       '../shared/system_get_path.cc',
+      '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
+      '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
+      '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
+      '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
+      '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
+      '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
+      '<@(uwp_incompatible_win32)',
+      '<@(stub_media_player)'
     ],
-  }
+  },
 }
