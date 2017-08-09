@@ -116,6 +116,9 @@ class GraphicsContextEGL : public GraphicsContext {
 
   void Blit(GLuint texture, int x, int y, int width, int height);
 
+  // Returns if this graphics context is current on the calling thread or not.
+  bool IsCurrent() const { return is_current_; }
+
  private:
   // Performs a test to determine if the pixel data returned by glReadPixels
   // needs to be vertically flipped or not.  This test is expensive, so it
