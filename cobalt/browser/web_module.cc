@@ -88,6 +88,21 @@ const char kPartialLayoutCommandLongHelp[] =
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
+base::Callback<bool(const std::string&)> SplashScreenCacheCallback(
+    const GURL& initial_url, SplashScreenCache* splash_screen_cache) {
+  base::Callback<bool(const std::string&)> splash_screen_cache_callback =
+      base::Callback<bool(const std::string&)>();
+  base::optional<std::string> key =
+      SplashScreenCache::GetKeyForStartUrl(initial_url);
+  if (splash_screen_cache && key) {
+    splash_screen_cache_callback =
+        base::Bind(base::Bind(&SplashScreenCache::CacheSplashScreen,
+                              base::Unretained(splash_screen_cache)),
+                   *key);
+  }
+  return splash_screen_cache_callback;
+}
+
 }  // namespace
 
 // Private WebModule implementation. Each WebModule owns a single instance of
@@ -478,6 +493,11 @@ WebModule::Impl::Impl(const ConstructionData& data)
   media_source_registry_.reset(new dom::MediaSource::Registry);
 
   media_session_client_ = media_session::MediaSessionClient::Create();
+
+  base::Callback<bool(const std::string&)> splash_screen_cache_callback =
+      SplashScreenCacheCallback(data.initial_url,
+                                data.options.splash_screen_cache);
+
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),
       data.video_pixel_ratio, data.initial_application_state, css_parser_.get(),
@@ -508,12 +528,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 #else
       dom::Window::kClockTypeSystemTime,
 #endif
-      data.options.splash_screen_cache
-          ? base::Bind(
-                base::Bind(&SplashScreenCache::CacheSplashScreen,
-                           base::Unretained(data.options.splash_screen_cache)),
-                *SplashScreenCache::GetKeyForStartUrl(data.initial_url))
-          : base::Callback<bool(const std::string&)>());
+      splash_screen_cache_callback);
   DCHECK(window_);
 
   window_weak_ = base::AsWeakPtr(window_.get());
