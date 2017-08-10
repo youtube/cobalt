@@ -78,10 +78,6 @@
                   'include_dirs': [ 'starboard/ps4' ],
                   }
                 ],
-                [ 'target_os == "cell"', {
-                  'include_dirs': [ 'starboard/ps3' ],
-                  },
-                ],
               ],
             }],
             # libevent has platform-specific implementation files.  Since its
