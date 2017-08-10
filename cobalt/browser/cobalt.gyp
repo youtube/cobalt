@@ -25,18 +25,14 @@
       ],
       'conditions': [
         ['cobalt_enable_lib == 1', {
-          'sources': ['lib/main.cc',],
-          'all_dependent_settings': {
-            'target_conditions': [
-              ['_type=="executable" and _toolset=="target"', {
-                'sources': [
-                  'lib/imported/main_stub.cc',
-                ],
-              }],
-            ],
-          },
+          'sources': [
+            'lib/cobalt.def',
+            'lib/main.cc',
+          ],
         }, {
-          'sources': ['main.cc',],
+          'sources': [
+            'main.cc',
+          ],
         }],
         ['cobalt_copy_test_data == 1', {
           'dependencies': [
