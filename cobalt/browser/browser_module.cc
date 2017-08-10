@@ -197,10 +197,9 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
-      storage_manager_(
-          scoped_ptr<StorageUpgradeHandler>(new StorageUpgradeHandler(url))
-              .PassAs<storage::StorageManager::UpgradeHandler>(),
-          options_.storage_manager_options),
+      storage_manager_(make_scoped_ptr(new StorageUpgradeHandler(url))
+                           .PassAs<storage::StorageManager::UpgradeHandler>(),
+                       options_.storage_manager_options),
 #if defined(OS_STARBOARD)
       is_rendered_(false),
 #endif  // OS_STARBOARD
