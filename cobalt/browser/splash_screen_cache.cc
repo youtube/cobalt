@@ -16,11 +16,11 @@
 
 #include <string>
 
-#include "base/base64.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/string_util.h"
 #include "base/synchronization/lock.h"
+#include "cobalt/base/get_application_key.h"
 #include "starboard/directory.h"
 #include "starboard/file.h"
 #include "starboard/string.h"
@@ -113,15 +113,10 @@ int SplashScreenCache::ReadCachedSplashScreen(
 // static
 base::optional<std::string> SplashScreenCache::GetKeyForStartUrl(
     const GURL& url) {
-  std::string encoded_url = "";
-  if (!url.is_valid()) {
+  base::optional<std::string> encoded_url = base::GetApplicationKey(url);
+  if (!encoded_url) {
     return base::nullopt;
   }
-  base::Base64Encode(base::StringPiece(url.host() + url.path()), &encoded_url);
-
-  // Make web-safe.
-  ReplaceChars(encoded_url, "/", "_", &encoded_url);
-  ReplaceChars(encoded_url, "+", "-", &encoded_url);
 
   char path[SB_FILE_MAX_PATH] = {0};
   bool has_cache_dir =
@@ -137,7 +132,7 @@ base::optional<std::string> SplashScreenCache::GetKeyForStartUrl(
     return base::nullopt;
   }
   subpath += "splash_screen";
-  subcomponent = SB_FILE_SEP_STRING + encoded_url;
+  subcomponent = SB_FILE_SEP_STRING + *encoded_url;
   if (SbStringConcat(path, subcomponent.c_str(), SB_FILE_MAX_PATH) >=
       SB_FILE_MAX_PATH) {
     return base::nullopt;
