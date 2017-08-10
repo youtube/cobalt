@@ -60,7 +60,7 @@
         '<(DEPTH)/cobalt/render_tree/render_tree.gyp:*',
         '<(DEPTH)/cobalt/renderer/renderer.gyp:*',
         '<(DEPTH)/cobalt/renderer/sandbox/sandbox.gyp:*',
-        '<(DEPTH)/cobalt/samples/samples.gyp:*',
+        '<(DEPTH)/cobalt/samples/simple_example/simple_example.gyp:*',
         '<(DEPTH)/cobalt/script/script.gyp:*',
         '<(DEPTH)/cobalt/script/engine.gyp:all_engines',
         '<(DEPTH)/cobalt/speech/sandbox/sandbox.gyp:*',

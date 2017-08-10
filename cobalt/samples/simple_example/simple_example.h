@@ -12,19 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "cobalt/samples/simple_example.h"
+#ifndef COBALT_SAMPLES_SIMPLE_EXAMPLE_SIMPLE_EXAMPLE_H_
+#define COBALT_SAMPLES_SIMPLE_EXAMPLE_SIMPLE_EXAMPLE_H_
 
 namespace cobalt {
 namespace samples {
 
-SimpleExample::SimpleExample(int multiplier)
-    : multiplier_(multiplier) {}
+class SimpleExample {
+ public:
+  explicit SimpleExample(int multiplier);
+  virtual ~SimpleExample();
 
-SimpleExample::~SimpleExample() {}
+  // Performs a multiple and add operation and returns the result.
+  // result = multiplier_ * a + b
+  int MultiplyAdd(int a, int b) const;
 
-int SimpleExample::MultiplyAdd(int a, int b) const {
-  return multiplier_ * a + b;
-}
+  void set_multiplier(int multiplier) { multiplier_ = multiplier; }
+  int multiplier() const { return multiplier_; }
+
+ private:
+  int multiplier_;
+};
 
 }  // namespace samples
 }  // namespace cobalt
+
+#endif  // COBALT_SAMPLES_SIMPLE_EXAMPLE_SIMPLE_EXAMPLE_H_
