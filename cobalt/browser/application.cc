@@ -33,6 +33,7 @@
 #include "cobalt/base/application_event.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/deep_link_event.h"
+#include "cobalt/base/get_application_key.h"
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
@@ -496,6 +497,17 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         &storage::SavegameFake::Create;
   }
 #endif
+
+  base::optional<std::string> initial_key =
+      base::GetApplicationKey(initial_url);
+  options.storage_manager_options.savegame_options.id = initial_key;
+
+  base::optional<std::string> default_key =
+      base::GetApplicationKey(GURL(kDefaultURL));
+  if (initial_key == default_key) {
+    options.storage_manager_options.savegame_options.fallback_to_default_id =
+        true;
+  }
 
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
