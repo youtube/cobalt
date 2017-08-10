@@ -41,6 +41,8 @@
         'event.h',
         'event_dispatcher.cc',
         'event_dispatcher.h',
+        'get_application_key.cc',
+        'get_application_key.h',
         'init_cobalt.cc',
         'init_cobalt.h',
         'language.cc',
