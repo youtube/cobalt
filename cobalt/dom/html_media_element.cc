@@ -215,15 +215,15 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
       html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
                                                                    "");
   MLOG() << "(" << mime_type << ") => " << result;
-  DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ") -> "
-             << result;
+  LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ") -> "
+            << result;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   std::string result =
       html_element_context()->can_play_type_handler()->CanPlayType(mime_type,
                                                                    key_system);
   MLOG() << "(" << mime_type << ", " << key_system << ") => " << result;
-  DLOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
-             << key_system << ") -> " << result;
+  LOG(INFO) << "HTMLMediaElement::canPlayType(" << mime_type << ", "
+            << key_system << ") -> " << result;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   return result;
 }
