@@ -319,17 +319,17 @@ bool MediaSource::IsTypeSupported(script::EnvironmentSettings* settings,
   SbMediaSupportType support_type =
       SbMediaCanPlayMimeAndKeySystem(type.c_str(), "");
   if (support_type == kSbMediaSupportTypeNotSupported) {
-    DLOG(INFO) << "MediaSource::IsTypeSupported(" << type
-               << ") -> not supported/false";
+    LOG(INFO) << "MediaSource::IsTypeSupported(" << type
+              << ") -> not supported/false";
     return false;
   }
   if (support_type == kSbMediaSupportTypeMaybe) {
-    DLOG(INFO) << "MediaSource::IsTypeSupported(" << type << ") -> maybe/true";
+    LOG(INFO) << "MediaSource::IsTypeSupported(" << type << ") -> maybe/true";
     return true;
   }
   if (support_type == kSbMediaSupportTypeProbably) {
-    DLOG(INFO) << "MediaSource::IsTypeSupported(" << type
-               << ") -> probably/true";
+    LOG(INFO) << "MediaSource::IsTypeSupported(" << type
+              << ") -> probably/true";
     return true;
   }
   NOTREACHED();
