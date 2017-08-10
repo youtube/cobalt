@@ -27,8 +27,8 @@
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/rasterizer/common/find_node.h"
+#include "cobalt/renderer/rasterizer/lib/exported/graphics.h"
 #include "cobalt/renderer/rasterizer/lib/exported/video.h"
-#include "cobalt/renderer/rasterizer/lib/imported/graphics.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
@@ -50,19 +50,20 @@ namespace {
 
 const float kMaxRenderTargetSize = 15360.0f;
 
-// Matches the signatures of the callback setter functions in exported/video.h.
+// Matches the signatures of the callback setter functions in exported/video.h
+// and exported/graphics.h.
 template <typename Ret, typename... Args>
 using CallbackSetter = void(void*, Ret (*)(void*, Args...));
 
 template <typename T, T* t, const char* ErrorMessage>
-struct VideoUpdate;
+struct CallbackUpdate;
 
 // Defines useful base:: wrappers for callback setter functions.
 template <typename Ret, typename... Args, CallbackSetter<Ret, Args...>* Setter,
           const char* ErrorMessage>
-struct VideoUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
-  // Equivalent to the callback types defined in exported/video.h but with the
-  // context bound.
+struct CallbackUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
+  // Equivalent to the callback types defined in exported/video.h and
+  // exported/graphics.h but with the context bound.
   using Callback = base::Callback<Ret(Args...)>;
 
   static Ret DefaultImplementation(Args...) { LOG(WARNING) << ErrorMessage; }
@@ -86,21 +87,29 @@ struct VideoUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
 
 // Creates an instance for the above template for a given callback setter
 // function, with an error message.
-#define INSTANCE_VIDEO_UPDATE(instance_name, callback_setter)             \
-  const char kWarningMessageDidNotSet##instance_name[] = #callback_setter \
-      "was never called to set a callback, yet Cobalt is attempting to "  \
-      "call it.";                                                         \
-  using instance_name =                                                   \
-      VideoUpdate<decltype(callback_setter), &callback_setter,            \
-                  kWarningMessageDidNotSet##instance_name>;
+// We must use 'extern' in here as otherwise we get compiler error C2970 when
+// using MSVC for compilation.
+#define INSTANCE_CALLBACK_UPDATE(instance_name, callback_setter)  \
+  extern const char kWarningMessageDidNotSet##instance_name[] =   \
+      #callback_setter                                            \
+      "was never called to set a callback, yet Cobalt is "        \
+      "attempting to call it.";                                   \
+  using instance_name =                                           \
+      CallbackUpdate<decltype(callback_setter), &callback_setter, \
+                     kWarningMessageDidNotSet##instance_name>;
 
-INSTANCE_VIDEO_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
-INSTANCE_VIDEO_UPDATE(UpdateStereoMode, CbLibVideoSetOnUpdateStereoMode);
-INSTANCE_VIDEO_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
-INSTANCE_VIDEO_UPDATE(UpdateProjectionType,
-                      CbLibVideoSetOnUpdateProjectionType);
-
-#undef INSTANCE_VIDEO_UPDATE
+INSTANCE_CALLBACK_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
+INSTANCE_CALLBACK_UPDATE(UpdateStereoMode, CbLibVideoSetOnUpdateStereoMode);
+INSTANCE_CALLBACK_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
+INSTANCE_CALLBACK_UPDATE(UpdateProjectionType,
+                         CbLibVideoSetOnUpdateProjectionType);
+INSTANCE_CALLBACK_UPDATE(GraphicsContextCreated,
+                         CbLibGraphicsSetContextCreatedCallback);
+INSTANCE_CALLBACK_UPDATE(BeginRenderFrame,
+                         CbLibGraphicsSetBeginRenderFrameCallback);
+INSTANCE_CALLBACK_UPDATE(EndRenderFrame,
+                         CbLibGraphicsSetEndRenderFrameCallback);
+#undef INSTANCE_CALLBACK_UPDATE
 
 UpdateMeshes::LazyCallback g_update_meshes_callback = LAZY_INSTANCE_INITIALIZER;
 UpdateStereoMode::LazyCallback g_update_stereo_mode_callback =
@@ -108,6 +117,12 @@ UpdateStereoMode::LazyCallback g_update_stereo_mode_callback =
 UpdateRgbTextureId::LazyCallback g_update_rgb_texture_id_callback =
     LAZY_INSTANCE_INITIALIZER;
 UpdateProjectionType::LazyCallback g_update_projection_type_callback =
+    LAZY_INSTANCE_INITIALIZER;
+GraphicsContextCreated::LazyCallback g_graphics_context_created_callback =
+    LAZY_INSTANCE_INITIALIZER;
+BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
+    LAZY_INSTANCE_INITIALIZER;
+EndRenderFrame::LazyCallback g_end_render_frame_callback =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
@@ -187,7 +202,7 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
           main_offscreen_render_target_.get()))));
 
-  CbLibOnGraphicsContextCreated();
+  g_graphics_context_created_callback.Get().Run();
 }
 
 ExternalRasterizer::Impl::~Impl() {
@@ -302,9 +317,9 @@ void ExternalRasterizer::Impl::Submit(
   // TODO: Allow clients to specify arbitrary subtrees to render into
   // different textures?
   const intptr_t texture_handle = main_texture_->GetPlatformHandle();
-  CbLibRenderFrame(texture_handle);
-
+  g_begin_render_frame_callback.Get().Run(texture_handle);
   graphics_context_->SwapBuffers(render_target_egl);
+  g_end_render_frame_callback.Get().Run();
 }
 
 render_tree::ResourceProvider* ExternalRasterizer::Impl::GetResourceProvider() {
@@ -438,4 +453,25 @@ void CbLibVideoSetOnUpdateProjectionType(
   g_update_projection_type_callback.Get() =
       callback ? base::Bind(callback, context)
                : base::Bind(&UpdateProjectionType::DefaultImplementation);
+}
+
+void CbLibGraphicsSetContextCreatedCallback(
+    void* context, CbLibGraphicsContextCreatedCallback callback) {
+  g_graphics_context_created_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&GraphicsContextCreated::DefaultImplementation);
+}
+
+void CbLibGraphicsSetBeginRenderFrameCallback(
+    void* context, CbLibGraphicsBeginRenderFrameCallback callback) {
+  g_begin_render_frame_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&BeginRenderFrame::DefaultImplementation);
+}
+
+void CbLibGraphicsSetEndRenderFrameCallback(
+    void* context, CbLibGraphicsEndRenderFrameCallback callback) {
+  g_end_render_frame_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&EndRenderFrame::DefaultImplementation);
 }
