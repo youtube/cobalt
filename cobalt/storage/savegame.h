@@ -21,6 +21,7 @@
 #include "base/callback.h"
 #include "base/file_path.h"
 #include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
 #include "base/threading/thread_checker.h"
 #include "sql/connection.h"
 
@@ -39,12 +40,19 @@ class Savegame {
   typedef scoped_ptr<Savegame>(*Factory)(const Options& options);
 
   struct Options {
-    Options() : factory(&Create), delete_on_destruction(false) {}
+    Options()
+        : factory(&Create),
+          fallback_to_default_id(false),
+          delete_on_destruction(false) {}
     scoped_ptr<Savegame> CreateSavegame() { return factory(*this); }
 
     // Factory method for constructing a Savegame instance.
     // Defaults to Savegame::Create() but can be overriden for tests.
     Savegame::Factory factory;
+    // The unique savegame ID for this Savegame, if any.
+    base::optional<std::string> id;
+    // Whether to fallback to the default ID if data for this ID doesn't exist.
+    bool fallback_to_default_id;
     // File path the Savegame should read/write from, rather than its default.
     std::string path_override;
     // Delete the savegame file when the Savegame object goes out of scope.
