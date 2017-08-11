@@ -197,7 +197,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
   }
 
   void EnsureAudioDecoderCreated() SB_OVERRIDE {
-    if (impl_->decoder()) {
+    if (impl_->has_decoder()) {
       return;
     }
 
@@ -226,7 +226,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
 
   bool TryWrite(const InputBuffer& buff) SB_OVERRIDE {
     EnsureAudioDecoderCreated();
-    if (!impl_->decoder()) {
+    if (!impl_->has_decoder()) {
       return false;  // TODO: Signal an error.
     }
 
@@ -253,7 +253,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
-    if (impl_->decoder()) {
+    if (impl_->has_decoder()) {
       impl_->DrainDecoder();
       impl_->DeliverOutputOnAllTransforms();
     } else {
