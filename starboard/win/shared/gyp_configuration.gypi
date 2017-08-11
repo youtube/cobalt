@@ -24,6 +24,11 @@
 
     'cobalt_media_source_2016': 1,
 
+    # Platform-specific implementations to compile into cobalt.
+    'cobalt_platform_dependencies': [
+      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
+    ],
+
     'conditions': [
       ['cobalt_fastbuild==0', {
         'msvs_settings': {
