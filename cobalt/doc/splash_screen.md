@@ -93,8 +93,8 @@ otherwise.
 For convenience, we currently provide the following splash screens as embedded
 resources:
 
-  * `h5vcc-emebedded://black_splash_screen.html` - a black splash screen
-  * `h5vcc-emebedded://cobalt_splash_screen.html` - a splash screen showing the
+  * `h5vcc-embedded://black_splash_screen.html` - a black splash screen
+  * `h5vcc-embedded://cobalt_splash_screen.html` - a splash screen showing the
     Cobalt logo
-  * `h5vcc-emebedded://youtube_splash_screen.html` - a splash screen showing the
+  * `h5vcc-embedded://youtube_splash_screen.html` - a splash screen showing the
     YouTube logo
