@@ -135,6 +135,8 @@ Document::Document(HTMLElementContext* html_element_context,
           &CspDelegate::CanLoad, base::Unretained(csp_delegate_.get()),
           CspDelegate::kImage));
     }
+
+    ready_state_ = kDocumentReadyStateLoading;
   }
 
   // Sample the timeline upon initialization.
@@ -905,6 +907,15 @@ void Document::DispatchOnLoadEvent() {
     SampleTimelineTime();
     UpdateComputedStyles();
   }
+
+  // Adjust the document ready state to reflect the fact that the document has
+  // finished loading.  Performing this update and firing the readystatechange
+  // event before the load event matches Chromium's behavior.
+  ready_state_ = kDocumentReadyStateComplete;
+
+  // Dispatch the readystatechange event (before the load event), since we
+  // have changed the document ready state.
+  DispatchEvent(new Event(base::Tokens::readystatechange()));
 
   // Dispatch the document's onload event.
   DispatchEvent(new Event(base::Tokens::load()));
