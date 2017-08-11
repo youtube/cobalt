@@ -288,7 +288,6 @@
 
         'AdditionalOptions': [
           '/errorReport:none', # Don't send error reports to MS.
-          '/permissive-', # Visual C++ conformance mode.
           '/FS', # Force sync PDB updates for parallel compile.
         ],
       },
