@@ -20,6 +20,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "base/lazy_instance.h"
 #include "base/threading/thread_checker.h"
 #include "cobalt/math/clamp.h"
 #include "cobalt/render_tree/image.h"
@@ -49,20 +50,65 @@ namespace {
 
 const float kMaxRenderTargetSize = 15360.0f;
 
-ExternalRasterizer::Impl* g_external_rasterizer_impl_;
+// Matches the signatures of the callback setter functions in exported/video.h.
+template <typename Ret, typename... Args>
+using CallbackSetter = void(void*, Ret (*)(void*, Args...));
 
-void DefaultOnUpdateProjectionType(CbLibVideoProjectionType) {
-  LOG(DFATAL) << "CbLibVideoUpdateProjectionTypeCallback not set.";
-}
-void DefaultOnUpdateMeshes(CbLibVideoMesh, CbLibVideoMesh) {
-  LOG(DFATAL) << "CbLibVideoUpdateMeshesCallback not set.";
-}
-void DefaultOnUpdateStereoMode(CbLibVideoStereoMode) {
-  LOG(DFATAL) << "CbLibVideoStereoMode not set.";
-}
-void DefaultOnUpdateRgbTextureId(int) {
-  LOG(DFATAL) << "CbLibVideoUpdateRgbTextureIdCallback not set.";
-}
+template <typename T, T* t, const char* ErrorMessage>
+struct VideoUpdate;
+
+// Defines useful base:: wrappers for callback setter functions.
+template <typename Ret, typename... Args, CallbackSetter<Ret, Args...>* Setter,
+          const char* ErrorMessage>
+struct VideoUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
+  // Equivalent to the callback types defined in exported/video.h but with the
+  // context bound.
+  using Callback = base::Callback<Ret(Args...)>;
+
+  static Ret DefaultImplementation(Args...) { LOG(WARNING) << ErrorMessage; }
+
+  struct LazyTraits {
+    static const bool kRegisterOnExit = true;
+    static const bool kAllowedToAccessOnNonjoinableThread = false;
+
+    static Callback* New(void* instance) {
+      return new (instance) Callback(base::Bind(DefaultImplementation));
+    }
+    static void Delete(Callback* instance) {
+      return base::DefaultLazyInstanceTraits<Callback>::Delete(instance);
+    }
+  };
+
+  // This provides a default warning function for the callbacks and allows to
+  // set them even before the external rasterizer is created.
+  using LazyCallback = base::LazyInstance<Callback, LazyTraits>;
+};
+
+// Creates an instance for the above template for a given callback setter
+// function, with an error message.
+#define INSTANCE_VIDEO_UPDATE(instance_name, callback_setter)             \
+  const char kWarningMessageDidNotSet##instance_name[] = #callback_setter \
+      "was never called to set a callback, yet Cobalt is attempting to "  \
+      "call it.";                                                         \
+  using instance_name =                                                   \
+      VideoUpdate<decltype(callback_setter), &callback_setter,            \
+                  kWarningMessageDidNotSet##instance_name>;
+
+INSTANCE_VIDEO_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
+INSTANCE_VIDEO_UPDATE(UpdateStereoMode, CbLibVideoSetOnUpdateStereoMode);
+INSTANCE_VIDEO_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
+INSTANCE_VIDEO_UPDATE(UpdateProjectionType,
+                      CbLibVideoSetOnUpdateProjectionType);
+
+#undef INSTANCE_VIDEO_UPDATE
+
+UpdateMeshes::LazyCallback g_update_meshes_callback = LAZY_INSTANCE_INITIALIZER;
+UpdateStereoMode::LazyCallback g_update_stereo_mode_callback =
+    LAZY_INSTANCE_INITIALIZER;
+UpdateRgbTextureId::LazyCallback g_update_rgb_texture_id_callback =
+    LAZY_INSTANCE_INITIALIZER;
+UpdateProjectionType::LazyCallback g_update_projection_type_callback =
+    LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
 
@@ -85,31 +131,6 @@ class ExternalRasterizer::Impl {
   render_tree::ResourceProvider* GetResourceProvider();
 
   void MakeCurrent() { hardware_rasterizer_.MakeCurrent(); }
-
-  // Equivalent to the callback types defined in exported/video.h but with the
-  // context bound.
-  typedef base::Callback<void(CbLibVideoMesh, CbLibVideoMesh)>
-      UpdateMeshesCallback;
-  typedef base::Callback<void(CbLibVideoStereoMode)> UpdateStereoModeCallback;
-  typedef base::Callback<void(int)> UpdateRgbTextureIdCallback;
-  typedef base::Callback<void(CbLibVideoProjectionType projection_type)>
-      UpdateProjectionTypeCallback;
-
-  void SetUpdateMeshesCallback(UpdateMeshesCallback update_meshes) {
-    update_meshes_ = update_meshes;
-  }
-  void SetUpdateStereoModeCallback(
-      UpdateStereoModeCallback update_stereo_mode) {
-    update_stereo_mode_ = update_stereo_mode;
-  }
-  void SetUpdateRgbTextureIdCallback(
-      UpdateRgbTextureIdCallback update_rgb_texture_id) {
-    update_rgb_texture_id_ = update_rgb_texture_id;
-  }
-  void SetUpdateProjectionTypeCallback(
-      UpdateProjectionTypeCallback update_projection_type) {
-    update_projection_type_ = update_projection_type;
-  }
 
  private:
   void RenderOffscreenVideo(render_tree::FilterNode* map_to_mesh_filter_node);
@@ -136,11 +157,6 @@ class ExternalRasterizer::Impl {
   scoped_refptr<skia::HardwareMesh> right_eye_video_mesh_;
   render_tree::StereoMode video_stereo_mode_;
   int video_texture_rgb_;
-
-  UpdateMeshesCallback update_meshes_;
-  UpdateStereoModeCallback update_stereo_mode_;
-  UpdateRgbTextureIdCallback update_rgb_texture_id_;
-  UpdateProjectionTypeCallback update_projection_type_;
 };
 
 ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
@@ -171,20 +187,10 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
           main_offscreen_render_target_.get()))));
 
-  DCHECK(!g_external_rasterizer_impl_);
-  g_external_rasterizer_impl_ = this;
-
-  // Default parameter update callbacks.
-  update_projection_type_ = base::Bind(&DefaultOnUpdateProjectionType);
-  update_meshes_ = base::Bind(&DefaultOnUpdateMeshes);
-  update_stereo_mode_ = base::Bind(&DefaultOnUpdateStereoMode);
-  update_rgb_texture_id_ = base::Bind(&DefaultOnUpdateRgbTextureId);
-
   CbLibOnGraphicsContextCreated();
 }
 
 ExternalRasterizer::Impl::~Impl() {
-  g_external_rasterizer_impl_ = NULL;
   graphics_context_->MakeCurrent();
 }
 
@@ -225,12 +231,12 @@ void ExternalRasterizer::Impl::Submit(
 
     if (video_projection_type_ != new_projection_type) {
       video_projection_type_ = new_projection_type;
-      update_projection_type_.Run(video_projection_type_);
+      g_update_projection_type_callback.Get().Run(video_projection_type_);
     }
 
     if (filter->stereo_mode() != video_stereo_mode_) {
       video_stereo_mode_ = filter->stereo_mode();
-      update_stereo_mode_.Run(
+      g_update_stereo_mode_callback.Get().Run(
           static_cast<CbLibVideoStereoMode>(video_stereo_mode_));
     }
 
@@ -271,9 +277,9 @@ void ExternalRasterizer::Impl::Submit(
           right_mesh.draw_mode = static_cast<CbLibVideoMeshDrawMode>(
               right_eye_video_mesh_->GetDrawMode());
           right_mesh.vertices = right_eye_video_mesh_->GetVertices();
-          update_meshes_.Run(left_mesh, right_mesh);
+          g_update_meshes_callback.Get().Run(left_mesh, right_mesh);
         } else {
-          update_meshes_.Run(left_mesh, left_mesh);
+          g_update_meshes_callback.Get().Run(left_mesh, left_mesh);
         }
       }
     }
@@ -283,7 +289,7 @@ void ExternalRasterizer::Impl::Submit(
   } else {
     if (video_projection_type_ != kCbLibVideoProjectionTypeNone) {
       video_projection_type_ = kCbLibVideoProjectionTypeNone;
-      update_projection_type_.Run(video_projection_type_);
+      g_update_projection_type_callback.Get().Run(video_projection_type_);
     }
   }
 
@@ -368,7 +374,7 @@ void ExternalRasterizer::Impl::RenderOffscreenVideo(
     const intptr_t video_texture_handle = video_texture_->GetPlatformHandle();
     if (video_texture_rgb_ != video_texture_handle) {
       video_texture_rgb_ = video_texture_handle;
-      update_rgb_texture_id_.Run(video_texture_handle);
+      g_update_rgb_texture_id_callback.Get().Run(video_texture_handle);
     }
   }
 }
@@ -408,36 +414,28 @@ void ExternalRasterizer::MakeCurrent() {
 
 void CbLibVideoSetOnUpdateMeshes(void* context,
                                  CbLibVideoUpdateMeshesCallback callback) {
-  if (g_external_rasterizer_impl_) {
-    g_external_rasterizer_impl_->SetUpdateMeshesCallback(
-        callback ? base::Bind(callback, context)
-                 : base::Bind(&DefaultOnUpdateMeshes));
-  }
+  g_update_meshes_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateMeshes::DefaultImplementation);
 }
 
 void CbLibVideoSetOnUpdateStereoMode(
     void* context, CbLibVideoUpdateStereoModeCallback callback) {
-  if (g_external_rasterizer_impl_) {
-    g_external_rasterizer_impl_->SetUpdateStereoModeCallback(
-        callback ? base::Bind(callback, context)
-                 : base::Bind(&DefaultOnUpdateStereoMode));
-  }
+  g_update_stereo_mode_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateStereoMode::DefaultImplementation);
 }
 
 void CbLibVideoSetOnUpdateRgbTextureId(
     void* context, CbLibVideoUpdateRgbTextureIdCallback callback) {
-  if (g_external_rasterizer_impl_) {
-    g_external_rasterizer_impl_->SetUpdateRgbTextureIdCallback(
-        callback ? base::Bind(callback, context)
-                 : base::Bind(&DefaultOnUpdateRgbTextureId));
-  }
+  g_update_rgb_texture_id_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateRgbTextureId::DefaultImplementation);
 }
 
 void CbLibVideoSetOnUpdateProjectionType(
     void* context, CbLibVideoUpdateProjectionTypeCallback callback) {
-  if (g_external_rasterizer_impl_) {
-    g_external_rasterizer_impl_->SetUpdateProjectionTypeCallback(
-        callback ? base::Bind(callback, context)
-                 : base::Bind(&DefaultOnUpdateProjectionType));
-  }
+  g_update_projection_type_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateProjectionType::DefaultImplementation);
 }
