@@ -30,18 +30,6 @@
         'NO_HEAP_CHECK',
       ],
       'direct_dependent_settings': {
-        'configurations': {
-          'Common_Base': {
-            'msvs_settings': {
-              'VCLinkerTool': {
-                'IgnoreDefaultLibraryNames': ['libcmtd.lib', 'libcmt.lib'],
-                'AdditionalDependencies': [
-                  '<(SHARED_INTERMEDIATE_DIR)/allocator/libcmt.lib'
-                ],
-              },
-            },
-          },
-        },
         'conditions': [
           ['OS=="win"', {
             'defines': [
@@ -530,11 +518,6 @@
           'include_dirs': [
             '../../'
           ],
-          'configurations': {
-            'Common_Base': {
-              'msvs_target_platform': 'x64',
-            },
-          },
         },
       {
         'target_name': 'tcmalloc_unittest',
