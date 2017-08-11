@@ -103,18 +103,19 @@ class WinAudioFormat {
 };
 
 class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
-                                    public MediaBufferConsumerInterface {
+                                      public MediaBufferConsumerInterface {
  public:
   AbstractWin32AudioDecoderImpl(SbMediaAudioCodec codec,
-                              SbMediaAudioFrameStorageType audio_frame_fmt,
-                              SbMediaAudioSampleType sample_type,
-                              const SbMediaAudioHeader& audio_header)
+                                SbMediaAudioFrameStorageType audio_frame_fmt,
+                                SbMediaAudioSampleType sample_type,
+                                const SbMediaAudioHeader& audio_header,
+                                SbDrmSystem drm_system)
       : codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
         audio_header_(audio_header) {
     MediaBufferConsumerInterface* media_cb = this;
-    impl_.reset(new DecoderImpl("audio", media_cb));
+    impl_.reset(new DecoderImpl("audio", media_cb, drm_system));
     EnsureAudioDecoderCreated();
   }
 
@@ -211,7 +212,6 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     SB_DCHECK(decoder);
 
     impl_->set_decoder(decoder);
-    impl_->ActivateDecryptor(media_type);
 
     // TODO: MFWinAudioFormat_PCM?
     ComPtr<IMFMediaType> output_type =
@@ -236,17 +236,40 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     const int size = buff.size();
     const int64_t media_timestamp = buff.pts();
 
-    // These parameters are used for decryption. But these are not used right
-    // now and so remain empty.
     std::vector<uint8_t> key_id;
     std::vector<uint8_t> iv;
     std::vector<Subsample> subsamples;
 
+    const SbDrmSampleInfo* drm_info = buff.drm_info();
+
+    if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
+      key_id.assign(drm_info->identifier,
+                    drm_info->identifier + drm_info->identifier_size);
+      iv.assign(drm_info->initialization_vector,
+                drm_info->initialization_vector +
+                    drm_info->initialization_vector_size);
+      subsamples.reserve(drm_info->subsample_count);
+      for (int32_t i = 0; i < drm_info->subsample_count; ++i) {
+        Subsample subsample = {
+            static_cast<uint32_t>(
+                drm_info->subsample_mapping[i].clear_byte_count),
+            static_cast<uint32_t>(
+                drm_info->subsample_mapping[i].encrypted_byte_count)};
+        subsamples.push_back(subsample);
+      }
+    }
+
     const std::int64_t win32_time_stamp = ConvertToWin32Time(media_timestamp);
 
     // Adjust the offset for 7 bytes to remove the ADTS header.
-    const uint8_t* audio_start = static_cast<const uint8_t*>(data) + 7;
-    const int audio_size = size - 7;
+    const int kADTSHeaderSize = 7;
+    const uint8_t* audio_start =
+        static_cast<const uint8_t*>(data) + kADTSHeaderSize;
+    const int audio_size = size - kADTSHeaderSize;
+    if (!subsamples.empty()) {
+      SB_DCHECK(subsamples[0].clear_bytes == kADTSHeaderSize);
+      subsamples[0].clear_bytes = 0;
+    }
 
     const bool write_ok = impl_->TryWriteInputBuffer(
         audio_start, audio_size, win32_time_stamp, key_id, iv, subsamples);
@@ -284,10 +307,11 @@ scoped_ptr<AbstractWin32AudioDecoder> AbstractWin32AudioDecoder::Create(
     SbMediaAudioCodec code,
     SbMediaAudioFrameStorageType audio_frame_fmt,
     SbMediaAudioSampleType sample_type,
-    const SbMediaAudioHeader& audio_header) {
-  return scoped_ptr<AbstractWin32AudioDecoder>(new
-    AbstractWin32AudioDecoderImpl(code, audio_frame_fmt, sample_type,
-      audio_header));
+    const SbMediaAudioHeader& audio_header,
+    SbDrmSystem drm_system) {
+  return scoped_ptr<AbstractWin32AudioDecoder>(
+      new AbstractWin32AudioDecoderImpl(code, audio_frame_fmt, sample_type,
+                                        audio_header, drm_system));
 }
 
 }  // namespace win32

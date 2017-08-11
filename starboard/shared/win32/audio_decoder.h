@@ -18,6 +18,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -39,7 +40,8 @@ class AudioDecoder
       private AudioDecodedCallback {
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header);
+               const SbMediaAudioHeader& audio_header,
+               SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
@@ -63,6 +65,7 @@ class AudioDecoder
 
   SbMediaAudioCodec audio_codec_;
   SbMediaAudioHeader audio_header_;
+  SbDrmSystem drm_system_;
   SbMediaAudioSampleType sample_type_;
   bool stream_ended_;
 

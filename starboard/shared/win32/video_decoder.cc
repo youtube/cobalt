@@ -24,13 +24,18 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-VideoDecoder::VideoDecoder(const VideoParameters& params)
-    : video_codec_(params.video_codec),
+VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
+                           SbPlayerOutputMode output_mode,
+                           SbDecodeTargetGraphicsContextProvider*
+                               decode_target_graphics_context_provider,
+                           SbDrmSystem drm_system)
+    : video_codec_(video_codec),
+      drm_system_(drm_system),
       host_(NULL),
-      output_mode_(params.output_mode),
+      output_mode_(output_mode),
       decode_target_graphics_context_provider_(
-          params.decode_target_graphics_context_provider) {
-  impl_ = AbstractWin32VideoDecoder::Create(video_codec_);
+          decode_target_graphics_context_provider) {
+  impl_ = AbstractWin32VideoDecoder::Create(video_codec_, drm_system_);
   video_decoder_thread_.reset(new VideoDecoderThread(impl_.get(), this));
 }
 
@@ -73,7 +78,7 @@ void VideoDecoder::Reset() {
   SB_DCHECK(host_);
   video_decoder_thread_.reset(nullptr);
   impl_.reset(nullptr);
-  impl_ = AbstractWin32VideoDecoder::Create(video_codec_);
+  impl_ = AbstractWin32VideoDecoder::Create(video_codec_, drm_system_);
   video_decoder_thread_.reset(new VideoDecoderThread(impl_.get(), this));
 }
 

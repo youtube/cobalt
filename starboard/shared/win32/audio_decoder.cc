@@ -56,14 +56,17 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
 };
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header)
+                           const SbMediaAudioHeader& audio_header,
+                           SbDrmSystem drm_system)
     : audio_codec_(audio_codec),
       audio_header_(audio_header),
+      drm_system_(drm_system),
       sample_type_(kSbMediaAudioSampleTypeFloat32),
       stream_ended_(false) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_);
+      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   callback_scheduler_.reset(new CallbackScheduler());
 }
@@ -116,7 +119,8 @@ void AudioDecoder::Reset() {
   decoder_thread_.reset(nullptr);
   decoder_impl_.reset(nullptr);
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_);
+      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   decoded_data_.Clear();
   stream_ended_ = false;

@@ -18,6 +18,7 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
+#include "starboard/drm.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -38,7 +39,11 @@ class VideoDecoder
       private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private VideoDecodedCallback {
  public:
-  explicit VideoDecoder(const VideoParameters& params);
+  VideoDecoder(SbMediaVideoCodec video_codec,
+               SbPlayerOutputMode output_mode,
+               SbDecodeTargetGraphicsContextProvider*
+                   decode_target_graphics_context_provider,
+               SbDrmSystem drm_system);
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
@@ -53,22 +58,23 @@ class VideoDecoder
   void OnVideoDecoded(VideoFramePtr data) SB_OVERRIDE;
 
  private:
+  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
+  SbDrmSystem drm_system_;
   Host* host_;
 
   // Decode-to-texture related state.
-  SbPlayerOutputMode output_mode_;
-
-  SbDecodeTargetGraphicsContextProvider*
+  const SbPlayerOutputMode output_mode_;
+  SbDecodeTargetGraphicsContextProvider* const
       decode_target_graphics_context_provider_;
 
   scoped_ptr<AbstractWin32VideoDecoder> impl_;
   AtomicQueue<VideoFramePtr> decoded_data_;
-  ::starboard::Mutex mutex_;
+  Mutex mutex_;
   scoped_ptr<VideoDecoderThread> video_decoder_thread_;
-  ::starboard::shared::starboard::ThreadChecker thread_checker_;
 };
 
 }  // namespace win32

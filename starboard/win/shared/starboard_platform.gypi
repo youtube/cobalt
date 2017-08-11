@@ -17,6 +17,16 @@
     'winrt%': 1,
     'stub_media_player': [
     ],
+
+    'stub_drm_system': [
+      '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
+      '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
+      '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
+    ],
+
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
       '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
@@ -228,12 +238,6 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_set_authenticated_data.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_set_initialization_vector.cc',
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
-        '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
-        '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
         '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
