@@ -50,6 +50,9 @@
       # Force char to be signed.
       '-fsigned-char',
 
+      # To support large files
+      '-D_FILE_OFFSET_BITS=64',
+
       # Suppress some warnings that will be hard to fix.
       '-Wno-unused-local-typedefs',
       '-Wno-unused-result',
