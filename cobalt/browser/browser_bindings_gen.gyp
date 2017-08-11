@@ -218,6 +218,7 @@
         '../audio/audio_node_channel_interpretation.idl',
         '../dom/blob_property_bag.idl',
         '../dom/device_orientation_event_init.idl',
+        '../dom/document_ready_state.idl',
         '../dom/dom_parser_supported_type.idl',
         '../dom/event_init.idl',
         '../dom/event_modifier_init.idl',
