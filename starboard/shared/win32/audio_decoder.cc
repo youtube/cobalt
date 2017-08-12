@@ -110,6 +110,7 @@ void AudioDecoder::Reset() {
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   decoded_data_.Clear();
   stream_ended_ = false;
+  CancelPendingJobs();
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
