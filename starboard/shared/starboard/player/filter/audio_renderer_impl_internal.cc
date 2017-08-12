@@ -379,8 +379,11 @@ void AudioRendererImpl::ProcessAudioData() {
     scoped_refptr<DecodedAudio> resampled_audio;
     scoped_refptr<DecodedAudio> decoded_audio = decoder_->Read();
 
-    SB_DCHECK(decoded_audio);
     --pending_decoder_outputs_;
+    SB_DCHECK(decoded_audio);
+    if (!decoded_audio) {
+      continue;
+    }
 
     if (decoded_audio->is_end_of_stream()) {
       SB_DCHECK(eos_state_.load() == kEOSWrittenToDecoder) << eos_state_.load();
