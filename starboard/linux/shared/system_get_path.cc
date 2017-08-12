@@ -24,9 +24,27 @@
 #include "starboard/directory.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
+#include "starboard/user.h"
 
 namespace {
 const int kMaxPathSize = SB_FILE_MAX_PATH;
+
+// Gets the path to the cache directory, using the user's home directory.
+bool GetCacheDirectory(char* out_path, int path_size) {
+  char home_path[kMaxPathSize + 1];
+  if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
+                         home_path, kMaxPathSize)) {
+    return false;
+  }
+  int result =
+      SbStringFormatF(out_path, path_size, "%s/.cache/cobalt", home_path);
+  if (result < 0 || result >= path_size) {
+    out_path[0] = '\0';
+    return false;
+  }
+
+  return true;
+}
 
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
@@ -123,13 +141,9 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       }
       break;
     case kSbSystemPathCacheDirectory:
-      if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
+      if (!GetCacheDirectory(path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/cache", kPathSize) >= kPathSize) {
-        return false;
-      }
-
       SbDirectoryCreate(path);
       break;
     case kSbSystemPathDebugOutputDirectory:
