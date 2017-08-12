@@ -108,6 +108,8 @@ void AudioDecoder::Reset() {
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
       audio_codec_, GetStorageType(), GetSampleType(), audio_header_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
+  decoded_data_.Clear();
+  stream_ended_ = false;
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {

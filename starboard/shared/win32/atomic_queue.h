@@ -55,6 +55,12 @@ class AtomicQueue {
     return data_queue_.size();
   }
 
+  void Clear() {
+    ScopedLock lock(mutex_);
+    std::deque<Data> empty;
+    data_queue_.swap(empty);
+  }
+
  private:
   using Mutex = ::starboard::Mutex;
   using ScopedLock = ::starboard::ScopedLock;

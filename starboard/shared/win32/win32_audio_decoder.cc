@@ -256,6 +256,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     if (impl_->has_decoder()) {
       impl_->DrainDecoder();
       impl_->DeliverOutputOnAllTransforms();
+      output_queue_.PushBack(new DecodedAudio);
     } else {
       // Don't call DrainDecoder() if input data is never queued.
       // TODO: Send EOS.
