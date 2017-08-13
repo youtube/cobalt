@@ -15,7 +15,7 @@
 # TODO: change to //starboard eventually
 import("//cobalt/build/config/base.gni")
 
-source_set("common") {
+static_library("common") {
   sources = [
     "common.cc",
     "flat_map.h",
