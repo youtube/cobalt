@@ -84,3 +84,8 @@ delegated_config("optimizations") {
 delegated_config("rtti") {
   path = "//$starboard_path"
 }
+
+# Enables the exit-time-destructors warning.
+config("wexit_time_destructors") {
+  configs = [ "//$starboard_path:wexit_time_destructors" ]
+}

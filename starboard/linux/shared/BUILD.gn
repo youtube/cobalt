@@ -246,6 +246,13 @@ config("default_rtti") {
 }
 
 
+config("wexit_time_destructors") {
+  if (use_clang) {
+    configs =
+        [ "//starboard/build/toolchain/linux/config:wexit_time_destructors" ]
+  }
+}
+
 # =============================================================================
 # starboard_platform TARGET
 # =============================================================================
