@@ -79,6 +79,8 @@ into GN build args. Here is a list of correspondences:
 GYP            | GN                     | Defined in
 -------------- | ---------------------- | -----------------------------------------
 `LB_FASTBUILD` | `cobalt_use_fastbuild` | `//starboard/build/config/fastbuild.gni`
+`USE_ASAN`     | `use_asan`             | `//starboard/build/config/sanitizers.gni`
+`USE_TSAN`     | `use_tsan`             | `//starboard/build/config/sanitizers.gni`
 
 ## Feature Flags
 
