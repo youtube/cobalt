@@ -34,3 +34,9 @@ config("rtti") {
 config("no_rtti") {
   cflags_cc = [ "-fno-rtti" ]
 }
+
+
+# Enables -Wexit-time-destructors. Only usable for Clang.
+config("wexit_time_destructors") {
+  cflags = [ "-Wexit-time-destructors" ]
+}

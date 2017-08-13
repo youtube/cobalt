@@ -148,6 +148,11 @@ config("default_rtti") {
   }
 }
 
+
+config("wexit_time_destructors") {
+  configs = [ "//starboard/build/toolchain/linux/config:wexit_time_destructors" ]
+}
+
 # =============================================================================
 # starboard_platform TARGET
 # =============================================================================
