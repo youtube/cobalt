@@ -1,0 +1,76 @@
+# Copyright (c) 2012 The Chromium Authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# Modifications Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+import("//starboard/build/config/base.gni")
+
+# Starboard porters can set platform defaults for the following variable in
+# //$starboard_path/configuration.gni.
+
+# Use the system libevent instead of the bundled one.
+if (!defined(use_system_libevent)) {
+  use_system_libevent = false
+}
+
+if (!use_system_libevent) {
+  static_library("libevent") {
+    sources = [
+      "epoll.c",
+      "event.c",
+      "evutil.c",
+      "log.c",
+    ]
+
+    defines = [ "HAVE_CONFIG_H" ]
+
+    include_dirs = [ "starboard" ]
+
+    if (sb_libevent_method != "poll" && sb_libevent_method != "epoll") {
+      sources += [ "poll.c" ]
+    }
+
+    if (target_os == "linux") {
+      sources += [
+        "epoll_sub.c",
+      ]
+
+      include_dirs += [ "starboard/linux" ]
+    }
+
+    # TODO: Make this android specific, not a linux copy.
+    if (target_os == "android") {
+      sources += [
+        "epoll_sub.c",
+      ]
+
+      include_dirs += [ "starboard/linux" ]
+    }
+
+    if (target_os == "orbis") {
+      include_dirs += [ "starboard/ps4" ]
+    }
+  }
+} else {
+  config("libevent_config") {
+    defines = [ "USE_SYSTEM_LIBEVENT" ]
+  }
+
+  group("libevent") {
+    public_configs = [ ":libevent_config" ]
+  }
+}
