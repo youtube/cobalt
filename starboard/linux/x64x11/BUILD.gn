@@ -64,6 +64,10 @@ delegated_config("rtti") {
   path = "//starboard/linux/shared"
 }
 
+config("wexit_time_destructors") {
+  configs = [ "//starboard/linux/shared:wexit_time_destructors" ]
+}
+
 # =============================================================================
 # starboard_platform TARGET
 # =============================================================================
