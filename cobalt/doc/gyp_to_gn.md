@@ -208,6 +208,18 @@ GN:
     configs -= [ "//starboard/build/config:default_rtti" ]
     configs += [ "//starboard/build/config:no_rtti" ]
 
+### -Wexit-time-destructors
+
+GYP:
+
+    'enable_wexit_time_destructors': 1
+
+GN:
+
+    configs += [ "//starboard/build/config:wexit_time_destructors" ]
+
+There is no `//starboard/build/config:no_wexit_time_destructors` config.
+
 ### Implementation Details
 
 Each Starboard generic compiler config is implemented by referencing a
