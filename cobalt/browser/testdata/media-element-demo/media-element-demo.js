@@ -44,8 +44,12 @@ function downloadAndAppend(url, begin, end, source_buffer, callback) {
   xhr.open('GET', url, true);
   xhr.responseType = 'arraybuffer';
   xhr.addEventListener('load', function(e) {
-    source_buffer.append(new Uint8Array(e.target.response));
-    callback();
+    var onupdateend = function() {
+      source_buffer.removeEventListener('updateend', onupdateend);
+      callback();
+    };
+    source_buffer.addEventListener('updateend', onupdateend);
+    source_buffer.appendBuffer(new Uint8Array(e.target.response));
   });
   xhr.setRequestHeader('Range', ('bytes=' + begin +'-' + end));
   xhr.send();
