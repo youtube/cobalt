@@ -18,16 +18,10 @@ import os
 import sys
 
 # Import the shared Linux platform configuration.
-sys.path.append(
-    os.path.realpath(
-        os.path.join(
-            os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
-            'shared')))
-# pylint: disable=import-self,g-import-not-at-top
-import gyp_configuration as shared_configuration
+from starboard.linux.shared import gyp_configuration
 
 
-class PlatformConfig(shared_configuration.PlatformConfig):
+class PlatformConfig(gyp_configuration.PlatformConfig):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=True):
