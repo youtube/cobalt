@@ -64,6 +64,15 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// SbDecodeTargetInfoPlane's now can specify color plane information.
+// Previously: Planes of type kSbDecodeTargetFormat2PlaneYUVNV12
+// were assumed to have the luma mapped to the alpha channel (GL_ALPHA)
+// and the chroma mapped to blue and alpha (GL_LUMINANCE_ALPHA). However,
+// some graphics systems require that luma is on GL_RED_EXT and the chroma
+// is on GL_RG_EXT.
+
+#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 #define SB_POINTER_INPUT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
