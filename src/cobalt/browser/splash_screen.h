@@ -21,6 +21,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/lifecycle_observer.h"
+#include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
@@ -38,7 +39,10 @@ class SplashScreen : public LifecycleObserver {
                network::NetworkModule* network_module,
                const math::Size& window_dimensions,
                render_tree::ResourceProvider* resource_provider,
-               float layout_refresh_rate, const GURL& url);
+               float layout_refresh_rate,
+               const GURL& fallback_splash_screen_url,
+               const GURL& initial_main_web_module_url,
+               cobalt::browser::SplashScreenCache* splash_screen_cache);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {

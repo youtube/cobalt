@@ -79,6 +79,7 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
   seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
   seeking_ = true;
   end_of_stream_written_ = false;
+  need_more_input_ = true;
 
   frames_.clear();
 }

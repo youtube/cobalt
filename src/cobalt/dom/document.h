@@ -33,6 +33,7 @@
 #include "cobalt/cssom/selector_tree.h"
 #include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/csp_delegate_type.h"
+#include "cobalt/dom/document_ready_state.h"
 #include "cobalt/dom/document_timeline.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/html_element_context.h"
@@ -215,6 +216,11 @@ class Document : public Node,
   // https://www.w3.org/TR/html5/dom.html#dom-document-cookie
   void set_cookie(const std::string& cookie);
   std::string cookie() const;
+
+  // Returns the document's ready state, i.e. whether the document's 'load'
+  // event has fired yet or not.
+  // https://www.w3.org/TR/html5/dom.html#dom-document-readystate
+  DocumentReadyState ready_state() const { return ready_state_; }
 
   // Custom, not in any spec: Node.
   //
@@ -468,6 +474,10 @@ class Document : public Node,
   scoped_refptr<cssom::CSSComputedStyleDeclaration>
       initial_computed_style_declaration_;
   scoped_refptr<const cssom::CSSComputedStyleData> initial_computed_style_data_;
+
+  // The document's current ready state (e.g. has the 'load' event been fired
+  // yet)
+  DocumentReadyState ready_state_;
 
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;

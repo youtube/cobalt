@@ -25,6 +25,18 @@
 namespace cobalt {
 namespace dom {
 
+namespace {
+
+int ClampIndex(int index, int length) {
+  if (index < 0) {
+    index = length + index;
+  }
+  index = std::max(index, 0);
+  return std::min(index, length);
+}
+
+}  // namespace
+
 ArrayBuffer::Data::Data(script::EnvironmentSettings* settings, size_t size)
     : allocator_(NULL), cache_(NULL), offloaded_(false), data_(NULL), size_(0) {
   Initialize(settings, size);
@@ -216,26 +228,12 @@ scoped_refptr<ArrayBuffer> ArrayBuffer::Slice(
 
 void ArrayBuffer::ClampRange(int start, int end, int source_length,
                              int* clamped_start, int* clamped_end) {
-  // Clamp out of range start/end to valid indices.
-  if (start > source_length) {
-    start = source_length;
-  }
-  if (end > source_length) {
-    end = source_length;
-  }
-
-  // Wrap around negative indices.
-  if (start < 0) {
-    start = source_length + start;
-  }
-  if (end < 0) {
-    end = source_length + end;
-  }
+  start = ClampIndex(start, source_length);
+  end = ClampIndex(end, source_length);
 
   // Clamp the length of the new array to non-negative.
   if (end - start < 0) {
-    start = 0;
-    end = 0;
+    end = start;
   }
   *clamped_start = start;
   *clamped_end = end;

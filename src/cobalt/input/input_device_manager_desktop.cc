@@ -14,6 +14,7 @@
 
 #include "cobalt/input/input_device_manager_desktop.h"
 
+#include <cmath>
 #include <string>
 
 #include "cobalt/base/token.h"
@@ -155,6 +156,11 @@ void UpdateMouseEventInit(const system_window::InputEvent* input_event,
   mouse_event->set_client_y(static_cast<float>(input_event->position().y()));
 }
 
+// Returns the value or the default_value when value is NaN.
+float value_or(float value, float default_value) {
+  return std::isnan(value) ? default_value : value;
+}
+
 }  // namespace
 
 void InputDeviceManagerDesktop::HandleKeyboardEvent(
@@ -180,11 +186,14 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
 
   pointer_event.set_pointer_id(input_event->device_id());
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
-  pointer_event.set_width(input_event->size().x());
-  pointer_event.set_height(input_event->size().y());
-  pointer_event.set_pressure(input_event->pressure());
-  pointer_event.set_tilt_x(static_cast<float>(input_event->tilt().x()));
-  pointer_event.set_tilt_y(static_cast<float>(input_event->tilt().y()));
+  pointer_event.set_width(value_or(input_event->size().x(), 0.0f));
+  pointer_event.set_height(value_or(input_event->size().y(), 0.0f));
+  pointer_event.set_pressure(value_or(input_event->pressure(),
+                                      input_event->modifiers() ? 0.5f : 0.0f));
+  pointer_event.set_tilt_x(
+      value_or(static_cast<float>(input_event->tilt().x()), 0.0f));
+  pointer_event.set_tilt_y(
+      value_or(static_cast<float>(input_event->tilt().y()), 0.0f));
 #endif
   pointer_event.set_is_primary(true);
   pointer_event_callback_.Run(type, pointer_event);

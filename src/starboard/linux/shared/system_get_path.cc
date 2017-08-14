@@ -16,6 +16,7 @@
 
 #include <linux/limits.h>
 #include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #include <cstring>
@@ -23,8 +24,28 @@
 #include "starboard/directory.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
+#include "starboard/user.h"
 
 namespace {
+const int kMaxPathSize = SB_FILE_MAX_PATH;
+
+// Gets the path to the cache directory, using the user's home directory.
+bool GetCacheDirectory(char* out_path, int path_size) {
+  char home_path[kMaxPathSize + 1];
+  if (!SbUserGetProperty(SbUserGetCurrent(), kSbUserPropertyHomeDirectory,
+                         home_path, kMaxPathSize)) {
+    return false;
+  }
+  int result =
+      SbStringFormatF(out_path, path_size, "%s/.cache/cobalt", home_path);
+  if (result < 0 || result >= path_size) {
+    out_path[0] = '\0';
+    return false;
+  }
+
+  return true;
+}
+
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
 // status. The result being greater than |path_size| - 1 characters is a
@@ -34,8 +55,8 @@ bool GetExecutablePath(char* out_path, int path_size) {
     return false;
   }
 
-  char path[PATH_MAX + 1];
-  size_t bytes_read = readlink("/proc/self/exe", path, PATH_MAX);
+  char path[kMaxPathSize + 1];
+  size_t bytes_read = readlink("/proc/self/exe", path, kMaxPathSize);
   if (bytes_read < 1) {
     return false;
   }
@@ -68,6 +89,37 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   *last_slash = '\0';
   return true;
 }
+
+// Gets only the name portion of the current executable.
+bool GetExecutableName(char* out_path, int path_size) {
+  char path[kMaxPathSize] = {0};
+  if (!GetExecutablePath(path, kMaxPathSize)) {
+    return false;
+  }
+
+  const char* last_slash = SbStringFindLastCharacter(path, '/');
+  if (SbStringCopy(out_path, last_slash + 1, path_size) >= path_size) {
+    return false;
+  }
+  return true;
+}
+
+// Gets the path to a temporary directory that is unique to this process.
+bool GetTemporaryDirectory(char* out_path, int path_size) {
+  char binary_name[kMaxPathSize] = {0};
+  if (!GetExecutableName(binary_name, kMaxPathSize)) {
+    return false;
+  }
+
+  int result = SbStringFormatF(out_path, path_size, "/tmp/%s-%d", binary_name,
+                               static_cast<int>(getpid()));
+  if (result < 0 || result >= path_size) {
+    out_path[0] = '\0';
+    return false;
+  }
+
+  return true;
+}
 }  // namespace
 
 bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
@@ -89,13 +141,9 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       }
       break;
     case kSbSystemPathCacheDirectory:
-      if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {
+      if (!GetCacheDirectory(path, kPathSize)) {
         return false;
       }
-      if (SbStringConcat(path, "/cache", kPathSize) >= kPathSize) {
-        return false;
-      }
-
       SbDirectoryCreate(path);
       break;
     case kSbSystemPathDebugOutputDirectory:
@@ -118,7 +166,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       }
       break;
     case kSbSystemPathTempDirectory:
-      if (SbStringCopy(path, "/tmp/cobalt", kPathSize) >= kPathSize) {
+      if (!GetTemporaryDirectory(path, kPathSize)) {
         return false;
       }
 

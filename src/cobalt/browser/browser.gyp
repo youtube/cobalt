@@ -86,6 +86,8 @@
         'resource_provider_array_buffer_allocator.h',
         'splash_screen.cc',
         'splash_screen.h',
+        'splash_screen_cache.cc',
+        'splash_screen_cache.h',
         'storage_upgrade_handler.cc',
         'storage_upgrade_handler.h',
         'suspend_fuzzer.cc',

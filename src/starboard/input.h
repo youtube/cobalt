@@ -105,11 +105,11 @@ typedef enum SbInputEventType {
   // only relative movements are provided.
   kSbInputEventTypeMove,
 
-  // Key or button press activation. This could be a key on a keyboard, a
-  // button on a mouse or game controller, a push from a touch screen, or
-  // a gesture. An |Unpress| event is subsequently delivered when the
-  // |Press| event terminates, such as when the key/button/finger is raised.
-  // Injecting repeat presses is up to the client.
+  // Key or button press activation. This could be a key on a keyboard, a button
+  // on a mouse or game controller, a push from a touch screen, or a gesture. An
+  // |Unpress| event is subsequently delivered when the |Press| event
+  // terminates, such as when the key/button/finger is raised. Injecting repeat
+  // presses is up to the client.
   kSbInputEventTypePress,
 
 #if SB_API_VERSION < 5
@@ -165,41 +165,38 @@ typedef struct SbInputData {
   wchar_t character;
 
   // The location of the specified key, in cases where there are multiple
-  // instances of the button on the keyboard. For example, some keyboards
-  // have more than one "shift" key.
+  // instances of the button on the keyboard. For example, some keyboards have
+  // more than one "shift" key.
   SbKeyLocation key_location;
 
   // Key modifiers (e.g. |Ctrl|, |Shift|) held down during this input event.
   unsigned int key_modifiers;
 
-  // The (x, y) coordinates of the persistent cursor controlled by this
-  // device. The value is |0| if this data is not applicable.
+  // The (x, y) coordinates of the persistent cursor controlled by this device.
+  // The value is |0| if this data is not applicable.
   SbInputVector position;
 
-  // The relative motion vector of this input. The value is |0| if this data
-  // is not applicable.
+  // The relative motion vector of this input. The value is |0| if this data is
+  // not applicable.
   SbInputVector delta;
 
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
-  // The normalized pressure of the pointer input in the range of
-  // [0,1], where 0 and 1 represent the minimum and maximum pressure
-  // the hardware is capable of detecting, respectively. Use NaN for
-  // devices that do not report pressure. This value is only used for input
-  // events with device type mouse or touch screen.
+  // The normalized pressure of the pointer input in the range of [0,1], where 0
+  // and 1 represent the minimum and maximum pressure the hardware is capable of
+  // detecting, respectively. Use NaN for devices that do not report pressure.
+  // This value is used for input events with device type mouse or touch screen.
   float pressure;
 
-  // The (width, height) of the contact geometry of the pointer.
-  // This defines the limits of the values reported for the pointer
-  // coordinates in the 'position' field. If (NaN, NaN) is specified,
-  // the width and height of the window will be used. This value is only used
-  // for input events with device type mouse or touch screen.
+  // The (width, height) of the contact geometry of the pointer. This defines
+  // the size of the area under the pointer position. If (NaN, NaN) is
+  // specified, the value (0,0) will be used. This value is used for input
+  // events with device type mouse or touch screen.
   SbInputVector size;
 
-  // The (x, y) angle in degrees, in the range of [-90, 90] of the
-  // pointer, relative to the z axis. Positive values are for tilt
-  // to the right (x), and towards the user (y). Use (NaN, NaN) for
-  // devices that do not report tilt. This value is only used for input events
-  // with device type mouse or touch screen.
+  // The (x, y) angle in degrees, in the range of [-90, 90] of the pointer,
+  // relative to the z axis. Positive values are for tilt to the right (x), and
+  // towards the user (y). Use (NaN, NaN) for devices that do not report tilt.
+  // This value is used for input events with device type mouse or touch screen.
   SbInputVector tilt;
 #endif
 } SbInputData;

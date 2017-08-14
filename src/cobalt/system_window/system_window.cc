@@ -100,9 +100,21 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
   // uses.
   int key_code = static_cast<int>(data.key);
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  uint32 modifiers = data.key_modifiers;
+  if (((data.device_type == kSbInputDeviceTypeTouchPad) ||
+       (data.device_type == kSbInputDeviceTypeTouchScreen)) &&
+      ((type == InputEvent::kPointerDown) ||
+       (type == InputEvent::kPointerMove))) {
+    // For touch contact input, ensure that the device button state is also
+    // reported as pressed.
+    //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#button-states
+    key_code = kSbKeyMouse1;
+    modifiers |= InputEvent::kLeftButton;
+  }
+
   scoped_ptr<InputEvent> input_event(
-      new InputEvent(type, data.device_id, key_code, data.key_modifiers,
-                     is_repeat, math::PointF(data.position.x, data.position.y),
+      new InputEvent(type, data.device_id, key_code, modifiers, is_repeat,
+                     math::PointF(data.position.x, data.position.y),
                      math::PointF(data.delta.x, data.delta.y), data.pressure,
                      math::PointF(data.size.x, data.size.y),
                      math::PointF(data.tilt.x, data.tilt.y)));

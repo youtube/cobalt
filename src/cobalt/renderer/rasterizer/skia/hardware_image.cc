@@ -180,16 +180,27 @@ class HardwareFrontendImage::HardwareBackendImage {
       HardwareBackendImage* backend) {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::InitializeFromRenderTree()");
+    backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+        cobalt_context);
 
     scoped_refptr<backend::FramebufferRenderTargetEGL> render_target(
         new backend::FramebufferRenderTargetEGL(cobalt_context, size));
 
+    // The above call to FramebufferRenderTargetEGL() may have dirtied graphics
+    // state, so tell Skia to reset its context.
+    gr_context->resetContext(kRenderTarget_GrGLBackendState |
+                             kTextureBinding_GrGLBackendState);
     submit_offscreen_callback.Run(root, render_target);
 
     scoped_ptr<backend::TextureEGL> texture(
         new backend::TextureEGL(cobalt_context, render_target));
 
     InitializeFromTexture(texture.Pass(), gr_context, backend);
+
+    // Tell Skia that the graphics state is unknown because we issued custom
+    // GL commands above.
+    gr_context->resetContext(kRenderTarget_GrGLBackendState |
+                             kTextureBinding_GrGLBackendState);
   }
 
   // Initiate all texture initialization code here, which should be executed
