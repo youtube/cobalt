@@ -170,7 +170,8 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
 }
 #endif  // SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
 
-uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
+uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
+    const SbDecodeTargetInfoPlane* plane_info) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
 #if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
@@ -184,6 +185,27 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
     } break;
     case kSbDecodeTargetFormat2PlaneYUVNV12: {
       DCHECK_LT(plane, 2);
+#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
+      // If this DCHECK fires, please set gl_texture_format, introduced
+      // in Starboard SB_DECODE_TARGET_FORMAT_VERSION.
+      //
+      // You probably want to set it to GL_ALPHA on plane 0 (luma) and
+      // GL_LUMINANCE_ALPHA on plane 1 (chroma), which was the default before.
+      DCHECK_NE(plane_info->gl_texture_format, 0);
+      switch (plane_info->gl_texture_format) {
+        case GL_ALPHA:
+        case GL_LUMINANCE_ALPHA:
+        case GL_RED_EXT:
+        case GL_RG_EXT:
+          return plane_info->gl_texture_format;
+        default:
+          // gl_texture_format is either unassigned or assigned to
+          // an invalud value. Please see comment above for
+          // gl_texture_format change, introduced in Starboard 7.
+          CHECK(false);
+          return 0;
+      }
+#else  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
       switch (plane) {
         case 0:
           return GL_ALPHA;
@@ -193,6 +215,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane) {
           NOTREACHED();
           return GL_RGBA;
       }
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
     } break;
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
@@ -280,7 +303,7 @@ scoped_refptr<render_tree::Image>
           plane.content_region.bottom - plane.content_region.top));
     }
 
-    uint32_t gl_format = DecodeTargetFormatToGLFormat(info.format, i);
+    uint32_t gl_format = DecodeTargetFormatToGLFormat(info.format, i, &plane);
 
     scoped_ptr<backend::TextureEGL> texture(new backend::TextureEGL(
         cobalt_context_, gl_handle, math::Size(plane.width, plane.height),
