@@ -567,6 +567,10 @@ void URLFetcherCore::OnReceivedRedirect(URLRequest* request,
     stopped_on_redirect_ = true;
     url_ = new_url;
     response_code_ = request_->GetResponseCode();
+#if defined(COBALT)
+    // Cobalt needs header information for CORS check between redirects.
+    response_headers_ = request_->response_headers();
+#endif
     was_fetched_via_proxy_ = request_->was_fetched_via_proxy();
     request->Cancel();
     OnReadCompleted(request, 0);
@@ -810,6 +814,13 @@ void URLFetcherCore::StartURLRequest() {
     case URLFetcher::DELETE_REQUEST:
       request_->set_method("DELETE");
       break;
+
+#if defined(COBALT)
+    // Cobalt needs OPTIONS method to send CORS-Preflight requests.
+    case URLFetcher::OPTIONS:
+      request_->set_method("OPTIONS");
+      break;
+#endif
 
     default:
       NOTREACHED();
