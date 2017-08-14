@@ -26,6 +26,7 @@
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 #include "third_party/angle/include/GLES2/gl2.h"
+#include "third_party/angle/include/GLES2/gl2ext.h"
 
 using Microsoft::WRL::ComPtr;
 using starboard::shared::win32::VideoFramePtr;
@@ -136,6 +137,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   planeY->texture = gl_textures[0];
   planeY->gl_texture_target = GL_TEXTURE_2D;
+  planeY->gl_texture_format = GL_RED_EXT;
 
   // This tells ANGLE that the texture it creates should draw
   // the chroma channel on R8G8.
@@ -170,6 +172,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   planeUV->texture = gl_textures[1];
   planeUV->gl_texture_target = GL_TEXTURE_2D;
+  planeUV->gl_texture_format = GL_RG_EXT;
 
   hr = d3texture->SetPrivateData(kCobaltDxgiBuffer, 0, nullptr);
   SB_DCHECK(SUCCEEDED(hr));
