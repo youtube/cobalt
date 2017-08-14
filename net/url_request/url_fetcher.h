@@ -83,6 +83,10 @@ class NET_EXPORT URLFetcher {
     DELETE_REQUEST,   // DELETE is already taken on Windows.
                       // <winnt.h> defines a DELETE macro.
     PUT,
+#if defined(COBALT)
+    // Cobalt needs OPTIONS method to send CORS-Preflight requests.
+    OPTIONS,
+#endif
   };
 
   // Used by SetURLRequestUserData.  The callback should make a fresh
