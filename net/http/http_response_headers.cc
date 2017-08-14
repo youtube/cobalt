@@ -874,7 +874,8 @@ bool HttpResponseHeaders::IsRedirectResponseCode(int response_code) {
   return (response_code == 301 ||
           response_code == 302 ||
           response_code == 303 ||
-          response_code == 307);
+          response_code == 307 ||
+          response_code == 308);
 }
 
 // From RFC 2616 section 13.2.4:
