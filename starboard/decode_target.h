@@ -287,6 +287,16 @@ typedef struct SbDecodeTargetInfoPlane {
   // Typically this would be GL_TEXTURE_2D, but some platforms may require
   // that it be set to something else like GL_TEXTURE_EXTERNAL_OES.
   uint32_t gl_texture_target;
+
+#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
+  // For kSbDecodeTargetFormat2PlaneYUVNV12 planes: the format of the
+  // texture. Usually, for the luma plane, this is either GL_ALPHA or
+  // GL_RED_EXT. For the chroma plane, this is usually GL_LUMINANCE_ALPHA
+  // or GL_RG_EXT.
+  // Ignored for other plane types.
+  uint32_t gl_texture_format;
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_NV12_R_RG_API_VERSION
+
 #endif               // SB_HAS(BLITTER)
 
   // The width of the texture/surface for this particular plane.
