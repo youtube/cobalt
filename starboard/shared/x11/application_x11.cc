@@ -43,6 +43,9 @@
 namespace starboard {
 namespace shared {
 namespace x11 {
+
+using ::starboard::shared::dev_input::DevInput;
+
 namespace {
 
 enum {
@@ -647,28 +650,6 @@ SbInputVector XButtonEventToSbInputVectorDelta(XButtonEvent* event) {
 }
 #endif
 
-bool XNextEventTimed(Display* display, XEvent* out_event, SbTime duration) {
-  if (XPending(display) == 0) {
-    if (duration <= SbTime()) {
-      return false;
-    }
-
-    int fd = ConnectionNumber(display);
-    fd_set read_set;
-    FD_ZERO(&read_set);
-    FD_SET(fd, &read_set);
-    struct timeval tv;
-    SbTime clamped_duration = std::max(duration, SbTime());
-    ToTimevalDuration(clamped_duration, &tv);
-    if (select(fd + 1, &read_set, NULL, NULL, &tv) == 0) {
-      return false;
-    }
-  }
-
-  XNextEvent(display, out_event);
-  return true;
-}
-
 void XSendAtom(Window window, Atom atom) {
   // XLib is not thread-safe. Since we may be coming from another thread, we
   // have to open another connection to the display to inject the wake-up event.
@@ -732,6 +713,10 @@ SbWindow ApplicationX11::CreateWindow(const SbWindowOptions* options) {
 
   SbWindow window = new SbWindowPrivate(display_, options);
   windows_.push_back(window);
+  if (!dev_input_) {
+    // evdev input will be sent to the first created window only.
+    dev_input_.reset(DevInput::Create(window, ConnectionNumber(display_)));
+  }
   return window;
 }
 
@@ -745,6 +730,12 @@ bool ApplicationX11::DestroyWindow(SbWindow window) {
       std::find(windows_.begin(), windows_.end(), window);
   SB_DCHECK(iterator != windows_.end());
   windows_.erase(iterator);
+
+  if (windows_.empty()) {
+    SB_DCHECK(dev_input_);
+    dev_input_.reset();
+  }
+
   delete window;
   if (windows_.empty()) {
     StopX();
@@ -849,23 +840,29 @@ shared::starboard::Application::Event*
 ApplicationX11::WaitForSystemEventWithTimeout(SbTime time) {
   SB_DCHECK(display_);
 
-  XEvent x_event;
-
   shared::starboard::Application::Event* pending_event = GetPendingEvent();
   if (pending_event) {
     return pending_event;
   }
 
-  if (XNextEventTimed(display_, &x_event, time)) {
+  SB_DCHECK(dev_input_);
+  shared::starboard::Application::Event* evdev_event =
+      dev_input_->WaitForSystemEventWithTimeout(time);
+
+  if (!evdev_event && XPending(display_) != 0) {
+    XEvent x_event;
+    XNextEvent(display_, &x_event);
     return XEventToEvent(&x_event);
-  } else {
-    return NULL;
   }
+
+  return evdev_event;
 }
 
 void ApplicationX11::WakeSystemEventWait() {
   SB_DCHECK(!windows_.empty());
   XSendAtom((*windows_.begin())->window, wake_up_atom_);
+  SB_DCHECK(dev_input_);
+  dev_input_->WakeSystemEventWait();
 }
 
 bool ApplicationX11::EnsureX() {
@@ -879,7 +876,7 @@ bool ApplicationX11::EnsureX() {
   XSetErrorHandler(ErrorHandler);
   display_ = XOpenDisplay(NULL);
   if (!display_) {
-    const char *display_environment = getenv("DISPLAY");
+    const char* display_environment = getenv("DISPLAY");
     if (display_environment == NULL) {
       SB_LOG(ERROR) << "Unable to open display, DISPLAY not set.";
     } else {
