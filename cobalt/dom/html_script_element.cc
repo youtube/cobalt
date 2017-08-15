@@ -285,6 +285,12 @@ void HTMLScriptElement::Prepare() {
       std::deque<HTMLScriptElement*>* scripts_to_be_executed =
           document_->scripts_to_be_executed();
       scripts_to_be_executed->push_back(this);
+
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
+      document_->IncreaseLoadingCounter();
+
       loader_.reset(new loader::Loader(
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
@@ -294,11 +300,6 @@ void HTMLScriptElement::Prepare() {
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
                      base::Unretained(this))));
-
-      // Fetching an external script must delay the load event of the element's
-      // document until the task that is queued by the networking task source
-      // once the resource has been fetched (defined above) has been run.
-      document_->IncreaseLoadingCounter();
     } break;
     case 5: {
       // This is an asynchronous script. Prevent garbage collection until
@@ -306,6 +307,11 @@ void HTMLScriptElement::Prepare() {
       PreventGarbageCollection();
 
       // If the element has a src attribute.
+
+      // Fetching an external script must delay the load event of the element's
+      // document until the task that is queued by the networking task source
+      // once the resource has been fetched (defined above) has been run.
+      document_->IncreaseLoadingCounter();
 
       // The element must be added to the set of scripts that will execute as
       // soon as possible of the Document of the script element at the time the
@@ -319,11 +325,6 @@ void HTMLScriptElement::Prepare() {
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
                      base::Unretained(this))));
-
-      // Fetching an external script must delay the load event of the element's
-      // document until the task that is queued by the networking task source
-      // once the resource has been fetched (defined above) has been run.
-      document_->IncreaseLoadingCounter();
     } break;
     case 6: {
       // Otherwise.

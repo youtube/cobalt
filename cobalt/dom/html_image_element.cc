@@ -140,13 +140,13 @@ void HTMLImageElement::UpdateImageData() {
   // img element. Otherwise, queue a task to first fire a simple event named
   // error at the img element.
   PreventGarbageCollection();
+  node_document()->IncreaseLoadingCounter();
   cached_image_loaded_callback_handler_.reset(
       new loader::image::CachedImage::OnLoadedCallbackHandler(
           cached_image, base::Bind(&HTMLImageElement::OnLoadingSuccess,
                                    base::Unretained(this)),
           base::Bind(&HTMLImageElement::OnLoadingError,
                      base::Unretained(this))));
-  node_document()->IncreaseLoadingCounter();
 }
 
 void HTMLImageElement::OnLoadingSuccess() {
