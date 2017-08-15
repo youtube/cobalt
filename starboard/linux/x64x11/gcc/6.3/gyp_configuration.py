@@ -16,12 +16,12 @@
 import logging
 import os
 import subprocess
+import sys
 
-
-# pylint: disable=import-self,g-import-not-at-top
-import gyp_utils
 # Import the shared Linux platform configuration.
 from starboard.linux.shared import gyp_configuration
+# pylint: disable=import-self,g-import-not-at-top
+import gyp_utils
 
 
 class PlatformConfig(gyp_configuration.PlatformConfig):

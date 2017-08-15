@@ -16,19 +16,8 @@
 """Functionality to enumerate and represent starboard ports."""
 
 import importlib
-import os
-import sys
-
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.dirname(__file__))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
-
 import logging
+import os
 import re
 
 
@@ -72,37 +61,11 @@ def _GetPortName(root, directory):
   return re.sub(r'[^a-zA-Z0-9_]', r'-', directory[start:])
 
 
-def _GetAllPlatforms(port_root_paths):
-  """Retrieves information about all available Cobalt ports.
-
-  Args:
-    port_root_paths:  List of paths that will be crawled to find ports.
-
-  Returns:
-    Dict mapping each available port to its location in the filesystem.
-  """
-  platform_dict = {}
-  for path in port_root_paths:
-    for port in PlatformInfo.EnumeratePorts(path):
-      platform_dict[port.port_name] = port.path
-  return platform_dict
-
-
-def GetAllPorts():
-  """Gets all available starboard ports from the host app.
-
-  Returns:
-    Dictionary mapping port names to their path in the filesystem.
-  """
-  port_root_paths = environment.GetStarboardPortRoots()
-  return _GetAllPlatforms(port_root_paths)
-
-
 class PlatformInfo(object):
   """Information about a specific starboard port."""
 
   @classmethod
-  def EnumeratePorts(cls, root_path, exclusion_set=None):
+  def EnumeratePorts(cls, root_path, exclusion_set = None):
     """Generator that iterates over starboard ports found under |path|."""
     if not exclusion_set:
       exclusion_set = set()
