@@ -1018,7 +1018,7 @@ bool Display::isValidNativeDisplay(EGLNativeDisplayType display)
     {
         return true;
     }
-    return (WindowFromDC(display) != nullptr);
+    return (WindowFromDC(static_cast<HDC>(display)) != nullptr);
 #else
     return true;
 #endif

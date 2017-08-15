@@ -447,9 +447,14 @@ Renderer11::Renderer11(egl::Display *display)
         EGLint requestedMinorVersion = static_cast<EGLint>(
             attributes.get(EGL_PLATFORM_ANGLE_MAX_VERSION_MINOR_ANGLE, EGL_DONT_CARE));
 
-// Only allow feature level 10 on starboard.
+
 #if defined(STARBOARD)
+        // Only allow feature level 10 on starboard by default.
+#if defined(ENABLE_D3D11_FEATURE_LEVEL_11)
+        mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_11_0);
+#else
         mAvailableFeatureLevels.push_back(D3D_FEATURE_LEVEL_10_0);
+#endif // defined(ENABLE_D3D11_FEATURE_LEVEL_11)
 #else
         if (requestedMajorVersion == EGL_DONT_CARE || requestedMajorVersion >= 11)
         {
@@ -554,7 +559,7 @@ egl::Error Renderer11::initialize()
         // required.
         // The easiest way to check is to query for a IDXGIDevice2.
         bool requireDXGI1_2 = false;
-        HWND hwnd           = WindowFromDC(mDisplay->getNativeDisplayId());
+        HWND hwnd           = WindowFromDC(static_cast<HDC>(mDisplay->getNativeDisplayId()));
         if (hwnd)
         {
             DWORD currentProcessId = GetCurrentProcessId();
@@ -4038,9 +4043,11 @@ TextureStorage *Renderer11::createTextureStorage2D(SwapChainD3D *swapChain)
     return new TextureStorage11_2D(this, swapChain11);
 }
 
-TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture, bool bindChroma)
+TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture,
+                                                   bool bindChroma,
+                                                   UINT arrayIndex)
 {
-    return new TextureStorage11_2D(this, texture, bindChroma);
+    return new TextureStorage11_2D(this, texture, bindChroma, arrayIndex);
 }
 
 TextureStorage *Renderer11::createTextureStorageEGLImage(EGLImageD3D *eglImage,

@@ -19,7 +19,8 @@
     'generated_include_directory': '<(SHARED_INTERMEDIATE_DIR)/mozjs-45/include',
 
     'common_cflags': [
-      '-include <(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
+      '-include',
+      '<(DEPTH)/third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
       '-Wno-inline-new-delete',
       '-Wno-invalid-offsetof',
       '-Wno-unused-function',

@@ -263,7 +263,9 @@ class Renderer11 : public RendererD3D
     gl::Error generateMipmapUsingD3D(TextureStorage *storage,
                                      const gl::TextureState &textureState) override;
     TextureStorage *createTextureStorage2D(SwapChainD3D *swapChain) override;
-    TextureStorage *createTextureStorage2D(IUnknown *texture, bool bindChroma) override;
+    TextureStorage *createTextureStorage2D(IUnknown *texture,
+                                           bool bindChroma,
+                                           UINT arrayIndex) override;
     TextureStorage *createTextureStorageEGLImage(EGLImageD3D *eglImage,
                                                  RenderTargetD3D *renderTargetD3D) override;
     TextureStorage *createTextureStorageExternal(

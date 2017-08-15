@@ -81,6 +81,7 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
   seeking_to_pts_ = std::max<SbMediaTime>(seek_to_pts, 0);
   seeking_ = true;
   end_of_stream_written_ = false;
+  need_more_input_ = true;
 
   frames_.clear();
 }
@@ -158,7 +159,14 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
 }
+
 #endif  // SB_API_VERSION >= 4
+
+::starboard::scoped_refptr<VideoFrame>
+VideoRendererImpl::GetLastDisplayedFrame() {
+  ScopedLock lock(mutex_);
+  return last_displayed_frame_;
+}
 
 }  // namespace filter
 }  // namespace player

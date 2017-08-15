@@ -14,6 +14,7 @@
 
 #include "starboard/nplb/socket_helpers.h"
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/once.h"
 #include "starboard/socket.h"
 #include "starboard/socket_waiter.h"
@@ -125,6 +126,23 @@ SbSocket CreateServerTcpSocket(SbSocketAddressType address_type) {
   return server_socket;
 }
 
+scoped_ptr<Socket> CreateServerTcpSocketWrapped(
+    SbSocketAddressType address_type) {
+  scoped_ptr<Socket> server_socket =
+      make_scoped_ptr(new Socket(address_type, kSbSocketProtocolTcp));
+  if (!server_socket->IsValid()) {
+    ADD_FAILURE() << "SbSocketCreate failed";
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  if (!server_socket->SetReuseAddress(true)) {
+    ADD_FAILURE() << "SbSocketSetReuseAddress failed";
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  return server_socket.Pass();
+}
+
 SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
   SbSocket server_socket = CreateServerTcpSocket(address_type);
   if (!SbSocketIsValid(server_socket)) {
@@ -142,6 +160,23 @@ SbSocket CreateBoundTcpSocket(SbSocketAddressType address_type, int port) {
   return server_socket;
 }
 
+scoped_ptr<Socket> CreateBoundTcpSocketWrapped(SbSocketAddressType address_type,
+                                               int port) {
+  scoped_ptr<Socket> server_socket = CreateServerTcpSocketWrapped(address_type);
+  if (!server_socket) {
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  SbSocketAddress address = GetUnspecifiedAddress(address_type, port);
+  SbSocketError result = server_socket->Bind(&address);
+  if (result != kSbSocketOk) {
+    ADD_FAILURE() << "SbSocketBind to " << port << " failed: " << result;
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  return server_socket.Pass();
+}
+
 SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
   SbSocket server_socket = CreateBoundTcpSocket(address_type, port);
   if (!SbSocketIsValid(server_socket)) {
@@ -156,6 +191,24 @@ SbSocket CreateListeningTcpSocket(SbSocketAddressType address_type, int port) {
   }
 
   return server_socket;
+}
+
+scoped_ptr<Socket> CreateListeningTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port) {
+  scoped_ptr<Socket> server_socket =
+      CreateBoundTcpSocketWrapped(address_type, port);
+  if (!server_socket) {
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  SbSocketError result = server_socket->Listen();
+  if (result != kSbSocketOk) {
+    ADD_FAILURE() << "SbSocketListen failed: " << result;
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  return server_socket.Pass();
 }
 
 namespace {
@@ -179,6 +232,30 @@ SbSocket CreateConnectingTcpSocket(SbSocketAddressType address_type, int port) {
   }
 
   return client_socket;
+}
+
+scoped_ptr<Socket> CreateConnectingTcpSocketWrapped(
+    SbSocketAddressType address_type,
+    int port) {
+  scoped_ptr<Socket> client_socket =
+      make_scoped_ptr(new Socket(address_type, kSbSocketProtocolTcp));
+  if (!client_socket->IsValid()) {
+    ADD_FAILURE() << "SbSocketCreate failed";
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  // Connect to localhost:<port>.
+  SbSocketAddress address = GetLocalhostAddress(address_type, port);
+
+  // This connect will probably return pending, but we'll assume it will connect
+  // eventually.
+  SbSocketError result = client_socket->Connect(&address);
+  if (result != kSbSocketOk && result != kSbSocketPending) {
+    ADD_FAILURE() << "SbSocketConnect failed: " << result;
+    return scoped_ptr<Socket>().Pass();
+  }
+
+  return client_socket.Pass();
 }
 }  // namespace
 
@@ -205,6 +282,29 @@ SbSocket AcceptBySpinning(SbSocket server_socket, SbTime timeout) {
   return kSbSocketInvalid;
 }
 
+scoped_ptr<Socket> AcceptBySpinning(Socket* server_socket, SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  while (true) {
+    Socket* accepted_socket = server_socket->Accept();
+    if (accepted_socket && accepted_socket->IsValid()) {
+      return make_scoped_ptr(accepted_socket);
+    }
+
+    // If we didn't get a socket, it should be pending.
+    EXPECT_TRUE(server_socket->IsPending());
+
+    // Check if we have passed our timeout.
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      break;
+    }
+
+    // Just being polite.
+    SbThreadYield();
+  }
+
+  return scoped_ptr<Socket>().Pass();
+}
+
 bool WriteBySpinning(SbSocket socket,
                      const char* data,
                      int data_size,
@@ -219,6 +319,33 @@ bool WriteBySpinning(SbSocket socket,
     }
 
     if (SbSocketGetLastError(socket) != kSbSocketPending) {
+      return false;
+    }
+
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      return false;
+    }
+
+    SbThreadYield();
+  }
+
+  return true;
+}
+
+bool WriteBySpinning(Socket* socket,
+                     const char* data,
+                     int data_size,
+                     SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int total = 0;
+  while (total < data_size) {
+    int sent = socket->SendTo(data + total, data_size - total, NULL);
+    if (sent >= 0) {
+      total += sent;
+      continue;
+    }
+
+    if (!socket->IsPending()) {
       return false;
     }
 
@@ -260,6 +387,106 @@ bool ReadBySpinning(SbSocket socket,
   return true;
 }
 
+bool ReadBySpinning(Socket* socket,
+                    char* out_data,
+                    int data_size,
+                    SbTime timeout) {
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  int total = 0;
+  while (total < data_size) {
+    int received =
+        socket->ReceiveFrom(out_data + total, data_size - total, NULL);
+    if (received >= 0) {
+      total += received;
+      continue;
+    }
+
+    if (!socket->IsPending()) {
+      return false;
+    }
+
+    if (SbTimeGetMonotonicNow() - start >= timeout) {
+      return false;
+    }
+
+    SbThreadYield();
+  }
+
+  return true;
+}
+
+int Transfer(SbSocket receive_socket,
+             char* out_data,
+             SbSocket send_socket,
+             const char* send_data,
+             int size) {
+  int send_total = 0;
+  int receive_total = 0;
+  while (receive_total < size) {
+    if (send_total < size) {
+      int bytes_sent = SbSocketSendTo(send_socket, send_data + send_total,
+                                      size - send_total, NULL);
+      if (bytes_sent < 0) {
+        if (SbSocketGetLastError(send_socket) != kSbSocketPending) {
+          return -1;
+        }
+        bytes_sent = 0;
+      }
+
+      send_total += bytes_sent;
+    }
+
+    int bytes_received = SbSocketReceiveFrom(
+        receive_socket, out_data + receive_total, size - receive_total, NULL);
+    if (bytes_received < 0) {
+      if (SbSocketGetLastError(receive_socket) != kSbSocketPending) {
+        return -1;
+      }
+      bytes_received = 0;
+    }
+
+    receive_total += bytes_received;
+  }
+
+  return size;
+}
+
+int Transfer(Socket* receive_socket,
+             char* out_data,
+             Socket* send_socket,
+             const char* send_data,
+             int size) {
+  int send_total = 0;
+  int receive_total = 0;
+  while (receive_total < size) {
+    if (send_total < size) {
+      int bytes_sent =
+          send_socket->SendTo(send_data + send_total, size - send_total, NULL);
+      if (bytes_sent < 0) {
+        if (!send_socket->IsPending()) {
+          return -1;
+        }
+        bytes_sent = 0;
+      }
+
+      send_total += bytes_sent;
+    }
+
+    int bytes_received = receive_socket->ReceiveFrom(
+        out_data + receive_total, size - receive_total, NULL);
+    if (bytes_received < 0) {
+      if (!receive_socket->IsPending()) {
+        return -1;
+      }
+      bytes_received = 0;
+    }
+
+    receive_total += bytes_received;
+  }
+
+  return size;
+}
+
 ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
                                SbSocketAddressType client_address_type,
                                int port,
@@ -290,6 +517,40 @@ ConnectedTrio CreateAndConnect(SbSocketAddressType server_address_type,
   }
 
   return ConnectedTrio(listen_socket, client_socket, server_socket);
+}
+
+scoped_ptr<ConnectedTrioWrapped> CreateAndConnectWrapped(
+    SbSocketAddressType server_address_type,
+    SbSocketAddressType client_address_type,
+    int port,
+    SbTime timeout) {
+  // Verify the listening socket.
+  scoped_ptr<Socket> listen_socket =
+      CreateListeningTcpSocketWrapped(server_address_type, port);
+  if (!listen_socket || !listen_socket->IsValid()) {
+    ADD_FAILURE() << "Could not create listen socket.";
+    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+  }
+
+  // Verify the socket to connect to the listening socket.
+  scoped_ptr<Socket> client_socket =
+      CreateConnectingTcpSocketWrapped(client_address_type, port);
+  if (!client_socket || !client_socket->IsValid()) {
+    ADD_FAILURE() << "Could not create client socket.";
+    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+  }
+
+  // Spin until the accept happens (or we get impatient).
+  SbTimeMonotonic start = SbTimeGetMonotonicNow();
+  scoped_ptr<Socket> server_socket =
+      AcceptBySpinning(listen_socket.get(), timeout);
+  if (!server_socket || !server_socket->IsValid()) {
+    ADD_FAILURE() << "Failed to accept within " << timeout;
+    return scoped_ptr<ConnectedTrioWrapped>().Pass();
+  }
+
+  return make_scoped_ptr(new ConnectedTrioWrapped(
+      listen_socket.Pass(), client_socket.Pass(), server_socket.Pass()));
 }
 
 SbTimeMonotonic TimedWait(SbSocketWaiter waiter) {

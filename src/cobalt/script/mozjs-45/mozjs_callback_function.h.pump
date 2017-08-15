@@ -31,6 +31,7 @@ $var MAX_ARITY = 7
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 #include "cobalt/script/mozjs-45/convert_callback_return_value.h"
 #include "cobalt/script/mozjs-45/util/exception_helpers.h"
+#include "cobalt/script/mozjs-45/util/stack_trace_helpers.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
@@ -83,6 +84,7 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
       const OVERRIDE {
+    ENABLE_JS_STACK_TRACE_IN_SCOPE(context_);
     TRACK_MEMORY_SCOPE("Javascript");
     TRACE_EVENT0("cobalt::script::mozjs", "MozjsCallbackFunction::Run");
     CallbackResult<R> callback_result;

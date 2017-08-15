@@ -19,7 +19,6 @@
 
 #include "starboard/mutex.h"
 #include "starboard/shared/uwp/async_utils.h"
-#include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 using Windows::Security::Authentication::Web::Core::
@@ -163,12 +162,30 @@ bool PopulateToken(const std::string& relying_party, std::string* out) {
   return false;
 }
 
+void AppendUrlPath(const std::string& path, std::string* url_parameter) {
+  DCHECK(url_parameter);
+
+  if (path.empty()) {
+    return;
+  }
+
+  std::string& url(*url_parameter);
+
+  // if path starts with a '/' and url ends with a '/', remove trailing slash
+  // from url before appending the path
+  if (!url.empty() && *(url.rbegin()) == '/' && path[0] == '/') {
+    url.resize(url.size() - 1);
+  }
+  url.append(path);
+}
+
 }  // namespace
 
 namespace cobalt {
 namespace xhr {
 
-void CobaltXhrModifyHeader(net::HttpRequestHeaders* headers) {
+void CobaltXhrModifyHeader(const GURL& request_url,
+                           net::HttpRequestHeaders* headers) {
   DCHECK(headers);
 
   std::string relying_party;
@@ -178,6 +195,12 @@ void CobaltXhrModifyHeader(net::HttpRequestHeaders* headers) {
   if (!trigger_header_found) {
     return;
   }
+
+  if (request_url.has_path()) {
+    std::string request_url_path = request_url.path();
+    AppendUrlPath(request_url_path, &relying_party);
+  }
+
   std::string out_string;
   if (!PopulateToken(relying_party, &out_string)) {
     return;

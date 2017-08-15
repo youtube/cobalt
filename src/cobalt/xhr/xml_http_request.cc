@@ -325,7 +325,7 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   upload_complete_ = false;
 
 #if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
-  CobaltXhrModifyHeader(&request_headers_);
+  CobaltXhrModifyHeader(request_url_, &request_headers_);
 #endif
 
   std::string request_body_text;

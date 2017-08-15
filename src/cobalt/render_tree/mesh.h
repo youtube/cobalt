@@ -45,13 +45,15 @@ class Mesh : public base::RefCountedThreadSafe<Mesh> {
     Vertex(float x, float y, float z, float u, float v)
         : x(x), y(y), z(z), u(u), v(v) {}
   };
+  COMPILE_ASSERT(sizeof(Vertex) == sizeof(float) * 5,
+                 vertex_struct_size_exceeds_5_floats);
 
   // Defines how the mesh faces are constructed from the ordered list of
   // vertices.
   enum DrawMode {
-    kDrawModeTriangles,
-    kDrawModeTriangleStrip,
-    kDrawModeTriangleFan
+    kDrawModeTriangles = 0,
+    kDrawModeTriangleStrip = 1,
+    kDrawModeTriangleFan = 2
   };
 
   virtual uint32 GetEstimatedSizeInBytes() const = 0;

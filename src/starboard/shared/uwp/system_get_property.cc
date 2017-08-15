@@ -37,6 +37,37 @@ bool CopyStringAndTestIfSuccess(char* out_value,
   SbStringCopy(out_value, from_value, value_length);
   return true;
 }
+
+const std::size_t kOsVersionSize = 128;
+
+struct WindowsVersion {
+  uint16_t major_version;
+  uint16_t minor_version;
+  uint16_t build_version;
+  uint16_t revision;
+};
+
+bool GetWindowsVersion(WindowsVersion* version) {
+  SB_DCHECK(version);
+  AnalyticsVersionInfo^ version_info = AnalyticsInfo::VersionInfo;
+  std::string device_family_version =
+      starboard::shared::win32::platformStringToString(
+          version_info->DeviceFamilyVersion);
+  if (device_family_version.empty()) {
+    return false;
+  }
+  uint64_t version_info_all =
+      SbStringParseUInt64(device_family_version.c_str(), nullptr, 10);
+  if (version_info_all == 0) {
+    return false;
+  }
+  version->major_version = (version_info_all >> 48) & 0xFFFF;
+  version->minor_version = (version_info_all >> 32) & 0xFFFF;
+  version->build_version = (version_info_all >> 16) & 0xFFFF;
+  version->revision = version_info_all & 0xFFFF;
+  return true;
+}
+
 }  // namespace
 
 bool SbSystemGetProperty(SbSystemPropertyId property_id,
@@ -53,6 +84,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
     case kSbSystemPropertySpeechApiKey:
+    case kSbSystemPropertyUserAgentAuxField:
       return false;
     case kSbSystemPropertyBrandName: {
       EasClientDeviceInformation^ current_device_info =
@@ -66,19 +98,19 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
                                         brand_name.c_str());
     }
     case kSbSystemPropertyFirmwareVersion: {
-      EasClientDeviceInformation ^ current_device_info =
-          ref new EasClientDeviceInformation();
-      std::string firmware_version =
-          platformStringToString(current_device_info->SystemFirmwareVersion);
-      if (firmware_version.empty()) {
+      WindowsVersion version = {0};
+      if (!GetWindowsVersion(&version)) {
         return false;
       }
-      return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        firmware_version.c_str());
+      int return_value = SbStringFormatF(
+          out_value, value_length, "%u.%u.%u.%u", version.major_version,
+          version.minor_version, version.build_version, version.revision);
+      return ((return_value > 0) && (return_value < value_length));
     }
     case kSbSystemPropertyModelName: {
-      EasClientDeviceInformation ^ current_device_info =
+      EasClientDeviceInformation^ current_device_info =
           ref new EasClientDeviceInformation();
+      // TODO: Use SystemSku and map to friendly names instead.
       std::string product_name =
           platformStringToString(current_device_info->SystemProductName);
       product_name.erase(
@@ -99,17 +131,40 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length,
                                         friendly_name.c_str());
     }
-
     case kSbSystemPropertyPlatformName: {
+      EasClientDeviceInformation^ current_device_info =
+          ref new EasClientDeviceInformation();
+      std::string operating_system =
+          platformStringToString(current_device_info->OperatingSystem);
+
       AnalyticsVersionInfo^ version_info = AnalyticsInfo::VersionInfo;
-      std::string platform_str =
+      std::string os_name_and_version =
           starboard::shared::win32::platformStringToString(
-            version_info->DeviceFamily);
-      if (platform_str.empty()) {
+              current_device_info->OperatingSystem);
+      if (os_name_and_version.empty()) {
         return false;
       }
+
+      WindowsVersion os_version;
+      if (!GetWindowsVersion(&os_version)) {
+        return false;
+      }
+
+      os_name_and_version += " ";
+      char os_version_buffer[kOsVersionSize];
+      os_version_buffer[0] = '\0';
+
+      int return_value =
+          SbStringFormatF(os_version_buffer, value_length, "%u.%u",
+                          os_version.major_version, os_version.minor_version);
+      if ((return_value < 0) || (return_value >= value_length)) {
+        return false;
+      }
+
+      os_name_and_version.append(os_version_buffer);
+
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        platform_str.c_str());
+                                        os_name_and_version.c_str());
     }
     case kSbSystemPropertyPlatformUuid: {
       SB_NOTIMPLEMENTED();

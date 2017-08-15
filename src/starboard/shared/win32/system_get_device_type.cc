@@ -17,23 +17,8 @@
 #include <string>
 
 #include "starboard/log.h"
-#include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
-using Windows::System::Profile::AnalyticsInfo;
-using Windows::System::Profile::AnalyticsVersionInfo;
-
 SbSystemDeviceType SbSystemGetDeviceType() {
-  AnalyticsVersionInfo^ version_info = AnalyticsInfo::VersionInfo;
-  std::string family = starboard::shared::win32::platformStringToString(
-      version_info->DeviceFamily);
-
-  if (family.compare("Windows.Desktop") == 0) {
-    return kSbSystemDeviceTypeDesktopPC;
-  }
-  if (family.compare("Windows.Xbox") == 0) {
-    return kSbSystemDeviceTypeGameConsole;
-  }
-  SB_NOTREACHED();
-  return kSbSystemDeviceTypeUnknown;
+  return kSbSystemDeviceTypeDesktopPC;
 }

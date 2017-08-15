@@ -27,4 +27,5 @@ partial /*sealed*/ interface Document {
   readonly attribute Element? activeElement;
 
   [LenientThis] attribute EventHandler onreadystatechange;
+  readonly attribute DocumentReadyState readyState;
 };

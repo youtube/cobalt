@@ -19,6 +19,8 @@
       'type': 'static_library',
 
       'sources': [
+        'find_node.cc',
+        'find_node.h',
         'offscreen_render_coordinate_mapping.cc',
         'offscreen_render_coordinate_mapping.h',
         'scratch_surface_cache.cc',

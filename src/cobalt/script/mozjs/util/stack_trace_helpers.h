@@ -20,6 +20,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/stack_frame.h"
+#include "cobalt/script/util/stack_trace_helpers.h"
 #include "nb/rewindable_vector.h"
 
 struct JSContext;
@@ -47,19 +48,20 @@ namespace util {
 //  void InvokeOtherFunctions() {
 //    ...
 //    std::string stack_trace_str;
-//    if (GetThreadLocalStackTraceGenerator()->GenerateStackTraceString(
+//    if (GetThreadLocalMozjsStackTraceGenerator()->GenerateStackTraceString(
 //          2, &stack_trace_str)) {
 //      // Prints the stack trace from javascript.
 //      SbLogRaw(stack_trace_str.c_str());
 //    }
 //  }
-class StackTraceGenerator {
+class MozjsStackTraceGenerator
+    : public ::cobalt::script::util::StackTraceGenerator {
  public:
-  StackTraceGenerator();
-  virtual ~StackTraceGenerator();
+  MozjsStackTraceGenerator();
+  virtual ~MozjsStackTraceGenerator();
 
-  // Returns |true| if the current StackTraceGenerator can generate information
-  // about the stack.
+  // Returns |true| if the current MozjsStackTraceGenerator can generate
+  // information about the stack.
   bool Valid();
 
   // Generates stack traces in the raw form. Returns true if any stack
@@ -97,9 +99,6 @@ class StackTraceGenerator {
   // Checks that each instance can only be used within the same thread.
   base::ThreadChecker thread_checker_;
 };
-
-// Get's the thread local StackTraceGenerator.
-StackTraceGenerator* GetThreadLocalStackTraceGenerator();
 
 // This should only be accessed by a scoped object.
 void SetThreadLocalJSContext(JSContext* context);

@@ -77,7 +77,7 @@ namespace {
 const int kWinSockVersionMajor = 2;
 const int kWinSockVersionMinor = 2;
 
-const char kYouTubeTVurl[] = "--url=https://www.youtube.com/tv/?";
+const char kDialParamPrefix[] = "cobalt-dial:?";
 
 int main_return_value = 0;
 
@@ -300,22 +300,19 @@ ref class App sealed : public IFrameworkView {
       if (uri->SchemeName->Equals("youtube") ||
           uri->SchemeName->Equals("ms-xbl-07459769")) {
         std::string uri_string = sbwin32::platformStringToString(uri->RawUri);
-        if (previously_activated_) {
-          std::unique_ptr<Application::Event> event =
-            MakeDeepLinkEvent(uri_string);
-          SB_DCHECK(event);
-          ApplicationUwp::Get()->Inject(event.release());
-        } else {
-          SB_DCHECK(!uri_string.empty());
-          ApplicationUwp::Get()->SetStartLink(uri_string.c_str());
-        }
+        ProcessDeepLinkUri(&uri_string);
       }
     } else if (args->Kind == ActivationKind::DialReceiver) {
-      if (!previously_activated_) {
-        DialReceiverActivatedEventArgs^ dial_args =
-            dynamic_cast<DialReceiverActivatedEventArgs^>(args);
-        SB_CHECK(dial_args);
-        Platform::String^ arguments = dial_args->Arguments;
+      DialReceiverActivatedEventArgs^ dial_args =
+          dynamic_cast<DialReceiverActivatedEventArgs^>(args);
+      SB_CHECK(dial_args);
+      Platform::String^ arguments = dial_args->Arguments;
+      if (previously_activated_) {
+        std::string uri_string =
+          kDialParamPrefix + sbwin32::platformStringToString(arguments);
+        ProcessDeepLinkUri(&uri_string);
+      } else {
+        const char kYouTubeTVurl[] = "--url=https://www.youtube.com/tv/?";
         std::string activation_args =
             kYouTubeTVurl + sbwin32::platformStringToString(arguments);
         SB_DLOG(INFO) << "Dial Activation url: " << activation_args;
@@ -348,6 +345,19 @@ ref class App sealed : public IFrameworkView {
     previously_activated_ = true;
   }
  private:
+  void ProcessDeepLinkUri(std::string *uri_string) {
+    SB_DCHECK(uri_string);
+    if (previously_activated_) {
+      std::unique_ptr<Application::Event> event =
+        MakeDeepLinkEvent(*uri_string);
+      SB_DCHECK(event);
+      ApplicationUwp::Get()->Inject(event.release());
+    } else {
+      SB_DCHECK(!uri_string->empty());
+      ApplicationUwp::Get()->SetStartLink(uri_string->c_str());
+    }
+  }
+
   bool previously_activated_;
   // Only valid if previously_activated_ is true
   ActivationKind previous_activation_kind_;

@@ -14,32 +14,113 @@
 {
   'variables': {
     'sb_pedantic_warnings': 1,
+    'winrt%': 1,
     'stub_media_player': [
-      '<(DEPTH)/starboard/shared/stub/player_create.cc',
-      '<(DEPTH)/starboard/shared/stub/player_destroy.cc',
-      '<(DEPTH)/starboard/shared/stub/player_get_current_frame.cc',
-      '<(DEPTH)/starboard/shared/stub/player_get_info.cc',
-      '<(DEPTH)/starboard/shared/stub/player_output_mode_supported.cc',
-      '<(DEPTH)/starboard/shared/stub/player_seek.cc',
-      '<(DEPTH)/starboard/shared/stub/player_set_bounds.cc',
-      '<(DEPTH)/starboard/shared/stub/player_set_pause.cc',
-      '<(DEPTH)/starboard/shared/stub/player_set_playback_rate.cc',
-      '<(DEPTH)/starboard/shared/stub/player_set_volume.cc',
-      '<(DEPTH)/starboard/shared/stub/player_write_end_of_stream.cc',
-      '<(DEPTH)/starboard/shared/stub/player_write_sample.cc',
-      '<(DEPTH)/starboard/shared/stub/media_can_play_mime_and_key_system.cc',
-      '<(DEPTH)/starboard/shared/stub/media_get_audio_configuration.cc',
-      '<(DEPTH)/starboard/shared/stub/media_get_audio_output_count.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_audio_supported.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_output_protected.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_supported.cc',
-      '<(DEPTH)/starboard/shared/stub/media_is_video_supported.cc',
     ],
+    # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
+    'uwp_incompatible_win32': [
+      '<(DEPTH)/starboard/shared/win32/application_win32_key_event.cc',
+      '<(DEPTH)/starboard/shared/win32/application_win32.cc',
+      '<(DEPTH)/starboard/shared/win32/dialog.cc',
+      '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
+      '<(DEPTH)/starboard/shared/win32/starboard_main.cc',
+      '<(DEPTH)/starboard/shared/win32/system_clear_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',
+      '<(DEPTH)/starboard/shared/win32/system_get_property.cc',
+      '<(DEPTH)/starboard/shared/win32/system_raise_platform_error.cc',
+      '<(DEPTH)/starboard/shared/win32/window_create.cc',
+      '<(DEPTH)/starboard/shared/win32/window_destroy.cc',
+      '<(DEPTH)/starboard/shared/win32/window_get_platform_handle.cc',
+      '<(DEPTH)/starboard/shared/win32/window_get_size.cc',
+      '<(DEPTH)/starboard/shared/win32/window_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/window_intsdfdsfernal.h',
+      '<(DEPTH)/starboard/shared/win32/window_set_default_options.cc',
+    ],
+    'win32_media_player_files': [
+      '<(DEPTH)/starboard/shared/win32/atomic_queue.h',
+      '<(DEPTH)/starboard/shared/win32/audio_decoder.cc',
+      '<(DEPTH)/starboard/shared/win32/audio_decoder.h',
+      '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.cc',
+      '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.h',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
+      '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
+      '<(DEPTH)/starboard/shared/win32/dx_context_video_decoder.cc',
+      '<(DEPTH)/starboard/shared/win32/dx_context_video_decoder.h',
+      '<(DEPTH)/starboard/shared/win32/media_common.cc',
+      '<(DEPTH)/starboard/shared/win32/media_common.h',
+      '<(DEPTH)/starboard/shared/win32/media_foundation_utils.cc',
+      '<(DEPTH)/starboard/shared/win32/media_foundation_utils.h',
+      '<(DEPTH)/starboard/shared/win32/media_is_audio_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/media_is_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/media_is_video_supported.cc',
+      '<(DEPTH)/starboard/shared/win32/player_components_impl.cc',
+      '<(DEPTH)/starboard/shared/win32/simple_thread.cc',
+      '<(DEPTH)/starboard/shared/win32/simple_thread.h',
+      '<(DEPTH)/starboard/shared/win32/video_decoder.cc',
+      '<(DEPTH)/starboard/shared/win32/video_decoder.h',
+      '<(DEPTH)/starboard/shared/win32/video_decoder_thread.cc',
+      '<(DEPTH)/starboard/shared/win32/video_decoder_thread.h',
+      '<(DEPTH)/starboard/shared/win32/video_renderer.cc',
+      '<(DEPTH)/starboard/shared/win32/video_renderer.h',
+      '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',
+      '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.h',
+      '<(DEPTH)/starboard/shared/win32/win32_decoder_impl.cc',
+      '<(DEPTH)/starboard/shared/win32/win32_decoder_impl.h',
+      '<(DEPTH)/starboard/shared/win32/win32_video_decoder.cc',
+      '<(DEPTH)/starboard/shared/win32/win32_video_decoder.h',
+    ],
+    'win32_shared_media_player_files': [
+      '<(DEPTH)/starboard/shared/starboard/media/codec_util.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/codec_util.h',
+      '<(DEPTH)/starboard/shared/starboard/media/media_can_play_mime_and_key_system.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_configuration_stereo_only.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_get_audio_output_count_stereo_only.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
+      '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
+      '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/decoded_audio_queue.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/filter_based_player_worker_handler.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/wsola_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/input_buffer_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/job_queue.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_create.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_destroy.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_get_current_frame.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_get_info.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_output_mode_supported.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_output_mode_supported.h',
+      '<(DEPTH)/starboard/shared/starboard/player/player_seek.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_set_bounds.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_set_playback_rate.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_set_volume.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_worker.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_write_end_of_stream.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/player_write_sample.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/video_frame_internal.cc',
+      '<(DEPTH)/starboard/shared/stub/media_is_transfer_characteristics_supported.cc',
+
+      # Shared renderers
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_impl_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/video_renderer_internal.h',
+    ],
+    'starboard_platform_dependent_files': [
+      '<@(win32_media_player_files)',
+      '<@(win32_shared_media_player_files)',
+    ]
   },
   'targets': [
     {
       'target_name': 'starboard_platform',
       'type': 'static_library',
+      'hard_dependency': 1,
       'msvs_settings': {
         'VCCLCompilerTool': {
           'AdditionalIncludeDirectories': [
@@ -49,15 +130,31 @@
             '<(DEPTH)/third_party/angle/include/KHR',
           ],
           'AdditionalOptions': [
-            '/ZW',           # Windows Runtime
-            '/ZW:nostdlib',  # Windows Runtime, no default #using
-            '/EHsx',         # C++ exceptions (required with /ZW)
+            '/EHsc',         # C++ exceptions (required with /ZW)
             '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
             '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.UniversalApiContract/4.0.0.0/Windows.Foundation.UniversalApiContract.winmd"',
           ]
         }
       },
+      'conditions': [
+        ['winrt==1', {
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'AdditionalOptions': [
+                '/ZW',           # Windows Runtime
+                '/ZW:nostdlib',  # Windows Runtime, no default #using
+              ],
+            },
+          },
+          'defines': [
+            # VS2017 always defines this for UWP apps
+            'WINAPI_FAMILY=WINAPI_FAMILY_APP',
+            # VS2017 always defines this for UWP apps
+            '__WRL_NO_DEFAULT_LIB__',
+          ]
+        }]
+      ],
       'sources': [
         '<(DEPTH)/starboard/shared/iso/character_is_alphanumeric.cc',
         '<(DEPTH)/starboard/shared/iso/character_is_digit.cc',
@@ -192,7 +289,6 @@
         '<(DEPTH)/starboard/shared/win32/file_seek.cc',
         '<(DEPTH)/starboard/shared/win32/file_truncate.cc',
         '<(DEPTH)/starboard/shared/win32/file_write.cc',
-        '<(DEPTH)/starboard/shared/win32/get_home_directory.cc',
         '<(DEPTH)/starboard/shared/win32/log.cc',
         '<(DEPTH)/starboard/shared/win32/log_flush.cc',
         '<(DEPTH)/starboard/shared/win32/log_format.cc',
@@ -236,7 +332,6 @@
         '<(DEPTH)/starboard/shared/win32/socket_resolve.cc',
         '<(DEPTH)/starboard/shared/win32/socket_send_to.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_connection_type.cc',
-        '<(DEPTH)/starboard/shared/win32/system_get_device_type.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_error_string.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_number_of_processors.cc',
         '<(DEPTH)/starboard/shared/win32/system_get_total_cpu_memory.cc',
@@ -291,19 +386,15 @@
         '<(DEPTH)/starboard/shared/win32/time_zone_get_name.cc',
         '<(DEPTH)/starboard/shared/win32/time_utils.h',
         '<(DEPTH)/starboard/shared/win32/wchar_utils.h',
-        'configuration_public.h',
         # Include private stubs, if present.
         '<!@(python "<(DEPTH)/starboard/tools/find_private_files.py" "<(DEPTH)" "shared/stub/*.cc")',
         '<@(starboard_platform_dependent_files)',
+
       ],
       'defines': [
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
-        # VS2017 always defines this for UWP apps
-        'WINAPI_FAMILY=WINAPI_FAMILY_APP',
-        # VS2017 always defines this for UWP apps
-        '__WRL_NO_DEFAULT_LIB__',
       ],
       'dependencies': [
         'convert_i18n_data',

@@ -35,11 +35,6 @@
             'dynamic_annotations.c',
             'dynamic_annotations.h',
           ],
-          'configurations': {
-            'Common_Base': {
-              'msvs_target_platform': 'x64',
-            },
-          },
         },
       ],
     }],

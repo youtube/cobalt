@@ -36,7 +36,7 @@
           'AdditionalOptions': [
           '/ZW',           # Windows Runtime
           '/ZW:nostdlib',  # Windows Runtime, no default #using
-          '/EHsx',         # C++ exceptions (required with /ZW)
+          '/EHsc',         # C++ exceptions (required with /ZW)
           '/FU"<(visual_studio_install_path)/lib/x86/store/references/platform.winmd"',
           '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.FoundationContract/3.0.0.0/Windows.Foundation.FoundationContract.winmd"',
           '/FU"<(windows_sdk_path)/References/<(windows_sdk_version)/Windows.Foundation.UniversalApiContract/4.0.0.0/Windows.Foundation.UniversalApiContract.winmd"',

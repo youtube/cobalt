@@ -28,17 +28,17 @@ namespace cobalt {
 namespace render_tree {
 
 enum StereoMode {
-  kMono,
+  kMono = 0,
   // Stereoscopic modes where each half of the video represents the view of
   // one eye, and where the texture coordinates of the meshes need to be
   // scaled and offset to the appropriate half. The same mesh may be used for
   // both eyes, or there may be one for each eye.
-  kLeftRight,
-  kTopBottom,
+  kLeftRight = 1,
+  kTopBottom = 2,
   // Like kLeftRight, but where the texture coordinates already refer to the
   // corresponding half of the video and need no adjustment. This can only
   // happen when there are distinct meshes for each eye.
-  kLeftRightUnadjustedTextureCoords
+  kLeftRightUnadjustedTextureCoords = 3
 };
 
 // A MapToMeshFilter can be used to map source content onto a 3D mesh, within a
@@ -104,6 +104,13 @@ class MapToMeshFilter {
       // This stereo mode implies there are two meshes.
       DCHECK(right_eye_mesh());
     }
+  }
+
+  // A filter without a an explicit mesh, to represent mesh-mapped content whose
+  // mesh will be supplied externally.
+  explicit MapToMeshFilter(StereoMode stereo_mode)
+      : stereo_mode_(stereo_mode), data_() {
+    DCHECK(stereo_mode != kLeftRightUnadjustedTextureCoords);
   }
 
   StereoMode stereo_mode() const { return stereo_mode_; }

@@ -30,6 +30,7 @@
 #include "cobalt/base/console_commands.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/browser/lifecycle_observer.h"
+#include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/css_parser/parser.h"
 #if defined(ENABLE_DEBUG_CONSOLE)
 #include "cobalt/debug/debug_server.h"
@@ -179,6 +180,13 @@ class WebModule : public LifecycleObserver {
     // Allows image animations to be enabled/disabled.  Its default value
     // is true to enable them.
     bool enable_image_animations;
+
+    // The splash screen cache object, owned by the BrowserModule.
+    SplashScreenCache* splash_screen_cache;
+
+    // Whether or not the WebModule is allowed to fetch from cache via
+    // h5vcc-cache://.
+    bool can_fetch_cache;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;

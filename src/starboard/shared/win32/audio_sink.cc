@@ -19,6 +19,8 @@
 #include <xaudio2.h>
 
 #include <limits>
+#include <sstream>
+#include <string>
 
 #include "starboard/configuration.h"
 #include "starboard/log.h"
@@ -35,7 +37,14 @@ void CHECK_HRESULT_OK(HRESULT hr) {
 }
 
 const int kMaxBuffersSubmittedPerLoop = 2;
+
+std::string GenerateThreadName() {
+  static int s_count = 0;
+  std::stringstream ss;
+  ss << "AudioOut_" << s_count++;
+  return ss.str();
 }
+}  // namespace.
 
 namespace starboard {
 namespace shared {
@@ -110,16 +119,18 @@ XAudioAudioSink::XAudioAudioSink(
       wfx_(wfx),
       destroying_(false),
       playback_rate_(1.0) {
-  // TODO: Check MaxFrequencyRadio
+  // TODO: Check MaxFrequencyRatio
   CHECK_HRESULT_OK(
       type_->x_audio2_->CreateSourceVoice(&source_voice_, &wfx, 0,
-                                          /*MaxFrequencyRadio = */ 1.0));
+                                          /*MaxFrequencyRatio = */ 1.0));
 
-  CHECK_HRESULT_OK(source_voice_->Start(0));
+  CHECK_HRESULT_OK(source_voice_->Stop(0));
 
-  audio_out_thread_ =
-      SbThreadCreate(0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
-                     "audio_out", &XAudioAudioSink::ThreadEntryPoint, this);
+  std::string thread_name = GenerateThreadName();
+
+  audio_out_thread_ = SbThreadCreate(
+      0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
+      thread_name.c_str(), &XAudioAudioSink::ThreadEntryPoint, this);
   SB_DCHECK(SbThreadIsValid(audio_out_thread_));
 }
 
@@ -165,6 +176,7 @@ void XAudioAudioSink::AudioThreadFunc() {
   int submitted_frames = 0;
   uint64_t samples_played = 0;
   int queued_buffers = 0;
+  bool was_playing = false;  // The player starts out playing by default.
   for (;;) {
     {
       ScopedLock lock(mutex_);
@@ -181,6 +193,18 @@ void XAudioAudioSink::AudioThreadFunc() {
     }
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
+    if (is_playback_rate_zero) {
+      is_playing = false;
+    }
+
+    if (is_playing != was_playing) {
+      if (is_playing) {
+        CHECK_HRESULT_OK(source_voice_->Start(0));
+      } else {
+        CHECK_HRESULT_OK(source_voice_->Stop(0));
+      }
+    }
+    was_playing = is_playing;
 
     // TODO: make sure that frames_in_buffer is large enough
     // that it exceeds the voice state pool interval

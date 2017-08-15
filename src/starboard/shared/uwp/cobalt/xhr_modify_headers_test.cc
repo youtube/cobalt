@@ -23,17 +23,20 @@ namespace cobalt {
 
 using ::cobalt::xhr::CobaltXhrModifyHeader;
 using net::HttpRequestHeaders;
+const std::string kUrlString = "https://example.com/abc/xyz";
 
 TEST(XHRModificationTest, EmptyHeaders) {
   HttpRequestHeaders headers;
-  CobaltXhrModifyHeader(&headers);
+  GURL url(kUrlString);
+  CobaltXhrModifyHeader(url, &headers);
   EXPECT_TRUE(headers.IsEmpty());
 }
 
 TEST(XHRModificationTest, HeaderNotFound) {
   HttpRequestHeaders headers;
   headers.SetHeader("Authorization", "ABC");
-  CobaltXhrModifyHeader(&headers);
+  GURL url(kUrlString);
+  CobaltXhrModifyHeader(url, &headers);
   EXPECT_FALSE(!headers.IsEmpty());
   std::string headers_serialized = headers.ToString();
   EXPECT_STREQ(headers_serialized.c_str(), "Authorization: ABC\r\n\r\n");
@@ -44,7 +47,8 @@ TEST(XHRModificationTest, HeaderReplaced) {
   static const char* kXauthTriggerHeaderName = "X-STS-RelyingPartyId";
   headers.SetHeader(kXauthTriggerHeaderName, "ABC");
   EXPECT_TRUE(headers.HasHeader(kXauthTriggerHeaderName));
-  CobaltXhrModifyHeader(&headers);
+  GURL url(kUrlString);
+  CobaltXhrModifyHeader(url, &headers);
   EXPECT_FALSE(headers.HasHeader(kXauthTriggerHeaderName));
   std::string headers_serialized = headers.ToString();
   EXPECT_TRUE(headers_serialized.find("Authorization: XBL3.0 x=") !=
@@ -58,7 +62,8 @@ TEST(XHRModificationTest, MultipleHeaders) {
   headers.SetHeader("H2", "h2");
   headers.SetHeader("H3", "h3");
   EXPECT_TRUE(headers.HasHeader(kXauthTriggerHeaderName));
-  CobaltXhrModifyHeader(&headers);
+  GURL url(kUrlString);
+  CobaltXhrModifyHeader(url, &headers);
   EXPECT_TRUE(headers.HasHeader("H1"));
   EXPECT_TRUE(headers.HasHeader("H2"));
   EXPECT_TRUE(headers.HasHeader("H3"));

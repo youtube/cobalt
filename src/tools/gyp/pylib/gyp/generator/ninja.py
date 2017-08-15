@@ -32,6 +32,8 @@ import gyp.ninja_syntax as ninja_syntax
 if sys.platform == 'cygwin':
   import cygpath
 
+from starboard.tools.toolchain import abstract
+
 generator_default_variables = {
     'EXECUTABLE_PREFIX': '',
     'EXECUTABLE_SUFFIX': '',
@@ -70,26 +72,51 @@ generator_additional_non_configuration_keys = []
 generator_additional_path_sections = []
 generator_extra_sources_for_rules = []
 
-# TODO: figure out how to not build extra host objects in the non-cross-compile
-# case when this is enabled, and enable unconditionally.
-generator_supports_multiple_toolsets = (os.environ.get('GYP_CROSSCOMPILE') or
-                                        os.environ.get('AR_host') or
-                                        os.environ.get('CC_host') or
-                                        os.environ.get('CXX_host') or
-                                        os.environ.get('AR_target') or
-                                        os.environ.get('CC_target') or
-                                        os.environ.get('CXX_target'))
+generator_supports_multiple_toolsets = True
 
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'win-console', 'win-lib', 'xb1', 'xb1-future']
+microsoft_flavors = ['win', 'win-win32', 'win-console', 'win-lib', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
 
 def GetToolchainOrNone(flavor):
   return config.GetPlatformConfig(flavor).GetToolchain()
+
+
+def GetTargetToolchain(flavor):
+  return config.GetPlatformConfig(flavor).GetTargetToolchain()
+
+
+def GetHostToolchain(flavor):
+  return config.GetPlatformConfig(flavor).GetHostToolchain()
+
+
+def FindFirstInstanceOf(type, instances):
+  try:
+    return (instance for instance in instances
+            if isinstance(instance, type)).next()
+  except StopIteration:
+    return None
+
+
+def GetNinjaRuleName(tool, toolset):
+  if tool.IsPlatformAgnostic() or toolset == 'target':
+    return tool.GetRuleName()
+  return '{0}_{1}'.format(tool.GetRuleName(), toolset)
+
+
+def GetConfigFlags(config, toolset, keyword):
+  flags = config.get(keyword, [])
+  if toolset == 'host':
+    flags = config.get('{0}_host'.format(keyword), flags)
+  return flags
+
+
+def JoinShellArguments(shell, arguments):
+  return ' '.join(shell.MaybeQuoteArgument(argument) for argument in arguments)
 
 
 def StripPrefix(arg, prefix):
@@ -411,14 +438,17 @@ class NinjaWriter:
     if len(targets) == 1:
       return targets[0]
 
-    stamp = self.GypPathToUniqueOutput(name + '.stamp')
     try:
-      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+      assert FindFirstInstanceOf(abstract.Stamp, GetHostToolchain(
+          self.flavor)), 'Host toolchain must provide stamp tool.'
     except NotImplementedError:
       # Fall back to the legacy toolchain.
-      self.ninja.build(stamp, 'stamp', targets)
+      pass
+
+    stamp_output = self.GypPathToUniqueOutput(name + '.stamp')
+    self.ninja.build(stamp_output, 'stamp', targets)
     self.ninja.newline()
-    return stamp
+    return stamp_output
 
   def WriteSpec(self, spec, config_name, generator_flags):
     """The main entry point for NinjaWriter: write the build rules for a spec.
@@ -758,24 +788,27 @@ class NinjaWriter:
     return all_outputs
 
   def WriteCopy(self, src, dst, prebuild, env, mac_bundle_depends):
+    try:
+      assert FindFirstInstanceOf(abstract.Copy, GetHostToolchain(
+          self.flavor)), 'Host toolchain must provide copy tool.'
+    except NotImplementedError:
+      # Fall back to the legacy toolchain.
+      pass
+
     dst = self.GypPathToNinja(dst, env)
     # Renormalize with the separator character of the os on which ninja will run
     dst = self.path_module.normpath(dst)
 
-    try:
-      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
-    except NotImplementedError:
-      # Fall back to the legacy toolchain.
-      self.ninja.build(dst, 'copy', src, order_only=prebuild)
-      if self.is_mac_bundle:
-        # gyp has mac_bundle_resources to copy things into a bundle's
-        # Resources folder, but there's no built-in way to copy files to other
-        # places in the bundle. Hence, some targets use copies for this. Check
-        # if this file is copied into the current bundle, and if so add it to
-        # the bundle depends so that dependent targets get rebuilt if the copy
-        # input changes.
-        if dst.startswith(self.xcode_settings.GetBundleContentsFolderPath()):
-          mac_bundle_depends.append(dst)
+    self.ninja.build(dst, 'copy', src, order_only=prebuild)
+    if self.is_mac_bundle:
+      # gyp has mac_bundle_resources to copy things into a bundle's
+      # Resources folder, but there's no built-in way to copy files to other
+      # places in the bundle. Hence, some targets use copies for this. Check
+      # if this file is copied into the current bundle, and if so add it to
+      # the bundle depends so that dependent targets get rebuilt if the copy
+      # input changes.
+      if dst.startswith(self.xcode_settings.GetBundleContentsFolderPath()):
+        mac_bundle_depends.append(dst)
     return [dst]
 
   def WriteCopies(self, copies, prebuild, mac_bundle_depends):
@@ -860,7 +893,86 @@ class NinjaWriter:
     """Write build rules to compile all of |sources|."""
 
     try:
-      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+      shell = FindFirstInstanceOf(abstract.Shell, GetHostToolchain(self.flavor))
+      assert shell, 'Host toolchain must provide shell.'
+
+      if self.toolset == 'target':
+        toolchain = GetTargetToolchain(self.flavor)
+      else:
+        toolchain = GetHostToolchain(self.flavor)
+
+      defines = config.get('defines', [])
+      include_dirs = [
+          self.GypPathToNinja(include_dir)
+          for include_dir in config.get('include_dirs', [])
+      ]
+
+      # TODO: This code emulates legacy toolchain behavior. We need to migrate
+      #       to single-responsibility, toolchain-independent GYP keywords as
+      #       per abstract toolchain design doc.
+      cflags = GetConfigFlags(config, self.toolset, 'cflags')
+      cflags_c = GetConfigFlags(config, self.toolset, 'cflags_c')
+      cflags_cc = GetConfigFlags(config, self.toolset, 'cflags_cc')
+
+      c_compiler = FindFirstInstanceOf(abstract.CCompiler, toolchain)
+      if c_compiler:
+        c_compiler_flags = c_compiler.GetFlags(defines, include_dirs,
+                                               cflags + cflags_c)
+        self.ninja.variable(
+            '{0}_flags'.format(GetNinjaRuleName(c_compiler, self.toolset)),
+            JoinShellArguments(shell, c_compiler_flags))
+
+      cxx_compiler = FindFirstInstanceOf(abstract.CxxCompiler, toolchain)
+      if cxx_compiler:
+        cxx_compiler_flags = cxx_compiler.GetFlags(defines, include_dirs,
+                                                   cflags + cflags_cc)
+        self.ninja.variable(
+            '{0}_flags'.format(GetNinjaRuleName(cxx_compiler, self.toolset)),
+            JoinShellArguments(shell, cxx_compiler_flags))
+
+      assembler = FindFirstInstanceOf(abstract.AssemblerWithCPreprocessor,
+                                      toolchain)
+      if assembler:
+        assembler_flags = assembler.GetFlags(defines, include_dirs,
+                                             cflags + cflags_c)
+        self.ninja.variable(
+            '{0}_flags'.format(GetNinjaRuleName(assembler, self.toolset)),
+            JoinShellArguments(shell, assembler_flags))
+
+      self.ninja.newline()
+
+      outputs = []
+      for source in sources:
+        _, extension = os.path.splitext(source)
+        if extension in ['.c']:
+          assert c_compiler, ('Toolchain must provide C compiler in order to '
+                              'build {0} for {1} platform.').format(
+                                  source, self.toolset)
+          rule_name = GetNinjaRuleName(c_compiler, self.toolset)
+        elif extension in ['.cc', '.cpp', '.cxx']:
+          assert cxx_compiler, ('Toolchain must provide C++ compiler in order '
+                                'to build {0} for {1} platform.').format(
+                                    source, self.toolset)
+          rule_name = GetNinjaRuleName(cxx_compiler, self.toolset)
+        elif extension in ['.S', '.s']:
+          assert assembler, ('Toolchain must provide assembler in order to '
+                             'build {0} for {1} platform.').format(
+                                 source, self.toolset)
+          rule_name = GetNinjaRuleName(assembler, self.toolset)
+        else:
+          rule_name = None
+
+        if rule_name:
+          input = self.GypPathToNinja(source)
+          output = '{0}.o'.format(self.GypPathToUniqueOutput(source))
+          self.ninja.build(
+              output,
+              rule_name,
+              input,
+              implicit=None,  # TODO: Implemenet precompiled headers.
+              order_only=predepends)
+          outputs.append(output)
+
     except NotImplementedError:
       # Fall back to the legacy toolchain.
 
@@ -1048,7 +1160,76 @@ class NinjaWriter:
     """Write out a link step. Fills out target.binary. """
 
     try:
-      raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+      if self.toolset == 'target':
+        toolchain = GetTargetToolchain(self.flavor)
+      else:
+        toolchain = GetHostToolchain(self.flavor)
+
+      shell = FindFirstInstanceOf(abstract.Shell, GetHostToolchain(self.flavor))
+      assert shell, 'Host toolchain must provide shell.'
+
+      target_type = spec['type']
+      if target_type == 'executable':
+        executable_linker = FindFirstInstanceOf(abstract.ExecutableLinker,
+                                                toolchain)
+        assert executable_linker, ('Toolchain must provide executable linker '
+                                   'for {0} platform.').format(self.toolset)
+
+        rule_name = GetNinjaRuleName(executable_linker, self.toolset)
+
+        # TODO: This code emulates legacy toolchain behavior. We need to migrate
+        #       to single-responsibility, toolchain-independent GYP keywords as
+        #       per abstract toolchain design doc.
+        libraries_keyword = 'libraries{0}'.format('_host' if self.toolset ==
+                                                  'host' else '')
+        libraries = spec.get(libraries_keyword, []) + config.get(
+            libraries_keyword, [])
+        ldflags = gyp.common.uniquer(
+            map(self.ExpandSpecial,
+                GetConfigFlags(config, self.toolset, 'ldflags') + libraries))
+
+        executable_linker_flags = executable_linker.GetFlags(ldflags)
+        self.ninja.variable('{0}_flags'.format(rule_name),
+                            JoinShellArguments(shell, executable_linker_flags))
+      else:
+        raise Exception('Target type {0} is not supported.'.format(target_type))
+
+      order_only_deps = set()
+
+      if 'dependencies' in spec:
+        # Two kinds of dependencies:
+        # - Linkable dependencies (like a .a or a .so): add them to the link
+        #   line.
+        # - Non-linkable dependencies (like a rule that generates a file
+        #   and writes a stamp file): add them to implicit_deps or
+        #   order_only_deps
+        extra_link_deps = []
+        for dep in spec['dependencies']:
+          target = self.target_outputs.get(dep)
+          if not target:
+            continue
+          linkable = target.Linkable()
+          if linkable:
+            extra_link_deps.append(target.binary)
+
+          final_output = target.FinalOutput()
+          if not linkable or final_output != target.binary:
+            order_only_deps.add(final_output)
+
+        # dedup the extra link deps while preserving order
+        seen = set()
+        extra_link_deps = [
+            x for x in extra_link_deps if x not in seen and not seen.add(x)
+        ]
+
+        link_deps.extend(extra_link_deps)
+
+      output = self.ComputeOutput(spec)
+      self.target.binary = output
+
+      self.ninja.build(
+          output, rule_name, link_deps, order_only=list(order_only_deps))
+
     except NotImplementedError:
       # Fall back to the legacy toolchain.
 
@@ -1241,13 +1422,28 @@ class NinjaWriter:
       self.target.binary = compile_deps
     elif spec['type'] == 'static_library':
       self.target.binary = self.ComputeOutput(spec)
+      variables = []
 
       try:
-        raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+        if self.toolset == 'target':
+          toolchain = GetTargetToolchain(self.flavor)
+        else:
+          toolchain = GetHostToolchain(self.flavor)
+
+        static_linker = FindFirstInstanceOf(abstract.StaticLinker, toolchain)
+        if not self.is_standalone_static_library:
+          static_thin_linker = FindFirstInstanceOf(abstract.StaticThinLinker,
+                                                   toolchain)
+          if static_thin_linker:
+            static_linker = static_thin_linker
+        assert static_linker, ('Toolchain must provide static linker in order '
+                               'to build {0} for {1} platform.').format(
+                                   self.target.binary, self.toolset)
+
+        rule_name = GetNinjaRuleName(static_linker, self.toolset)
       except NotImplementedError:
         # Fall back to the legacy toolchain.
 
-        variables = []
         if GetToolchainOrNone(self.flavor):
           libflags = GetToolchainOrNone(
               self.flavor).GetCompilerSettings().GetLibFlags(
@@ -1264,17 +1460,18 @@ class NinjaWriter:
         # TODO: Starboardize.
         if (self.flavor not in (['mac'] + microsoft_flavors) and
             not self.is_standalone_static_library):
-          command = 'alink_thin'
+          rule_name = 'alink_thin'
         else:
-          command = 'alink'
+          rule_name = 'alink'
         if self.toolset != 'target':
-          command += '_' + self.toolset
-        self.ninja.build(
-            self.target.binary,
-            command,
-            link_deps,
-            order_only=compile_deps,
-            variables=variables)
+          rule_name += '_' + self.toolset
+
+      self.ninja.build(
+          self.target.binary,
+          rule_name,
+          link_deps,
+          order_only=compile_deps,
+          variables=variables)
     else:
       self.WriteLink(spec, config_name, config, link_deps)
     return self.target.binary
@@ -1419,10 +1616,12 @@ class NinjaWriter:
     if extension:
       extension = '.' + extension
     elif self.toolset == 'host':
-      if is_linux:
-        extension = ''
-      elif is_windows:
+      # TODO: Based on a type of target, ask a corresponding
+      #       tool from a toolchain to compute the file name.
+      if is_windows:
         extension = '.exe'
+      else:
+        extension = ''
     else:
       extension = DEFAULT_EXTENSION.get(type, '')
 
@@ -1700,6 +1899,46 @@ def GetDefaultConcurrentLinks():
     return 1
 
 
+def MaybeWritePathVariable(ninja, tool, toolset):
+  if tool.GetPath():
+    ninja.variable('{0}_path'.format(GetNinjaRuleName(tool, toolset)),
+                   tool.GetPath())
+
+
+def MaybeWriteExtraFlagsVariable(ninja, tool, toolset, shell):
+  if tool.GetExtraFlags():
+    ninja.variable(
+        '{0}_extra_flags'.format(GetNinjaRuleName(tool, toolset)),
+        JoinShellArguments(shell, tool.GetExtraFlags()))
+
+
+def MaybeWritePool(ninja, tool, toolset):
+  if tool.GetMaxConcurrentProcesses():
+    ninja.pool(
+        '{0}_pool'.format(GetNinjaRuleName(tool, toolset)),
+        depth=tool.GetMaxConcurrentProcesses())
+
+
+def MaybeWriteRule(ninja, tool, toolset):
+  if tool.GetRuleName():
+    name = GetNinjaRuleName(tool, toolset)
+
+    path = '${0}_path'.format(name)
+    extra_flags = '${0}_extra_flags'.format(name)
+    flags = '${0}_flags'.format(name)
+    pool = '{0}_pool'.format(name) if tool.GetMaxConcurrentProcesses() else None
+
+    ninja.rule(
+        name,
+        tool.GetCommand(path, extra_flags, flags),
+        description=tool.GetDescription(),
+        depfile=tool.GetHeaderDependenciesFilePath(),
+        deps=tool.GetHeaderDependenciesFormat(),
+        pool=pool,
+        rspfile=tool.GetRspFilePath(),
+        rspfile_content=tool.GetRspFileContent())
+
+
 def GenerateOutputForConfig(target_list, target_dicts, data, params,
                             config_name):
   options = params['options']
@@ -1729,7 +1968,40 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
   make_global_settings = data[build_file].get('make_global_settings', [])
 
   try:
-    raise NotImplementedError()  # TODO: Implement the abstract toolchain.
+    # To avoid duplication, platform-agnostic tools (such as stamp and copy)
+    # will be processed only in the host toolchain.
+    target_toolchain = [
+        target_tool for target_tool in GetTargetToolchain(flavor)
+        if not target_tool.IsPlatformAgnostic()
+    ]
+    host_toolchain = GetHostToolchain(flavor)
+
+    shell = FindFirstInstanceOf(abstract.Shell, host_toolchain)
+    assert shell, 'Host toolchain must provide shell.'
+
+    for target_tool in target_toolchain:
+      MaybeWritePathVariable(master_ninja, target_tool, 'target')
+    for host_tool in host_toolchain:
+      MaybeWritePathVariable(master_ninja, host_tool, 'host')
+    master_ninja.newline()
+
+    for target_tool in target_toolchain:
+      MaybeWriteExtraFlagsVariable(master_ninja, target_tool, 'target', shell)
+    for host_tool in host_toolchain:
+      MaybeWriteExtraFlagsVariable(master_ninja, host_tool, 'host', shell)
+    master_ninja.newline()
+
+    for target_tool in target_toolchain:
+      MaybeWritePool(master_ninja, target_tool, 'target')
+    for host_tool in host_toolchain:
+      MaybeWritePool(master_ninja, host_tool, 'host')
+    master_ninja.newline()
+
+    for target_tool in target_toolchain:
+      MaybeWriteRule(master_ninja, target_tool, 'target')
+    for host_tool in host_toolchain:
+      MaybeWriteRule(master_ninja, host_tool, 'host')
+    master_ninja.newline()
   except NotImplementedError:
     # Fall back to the legacy toolchain.
 

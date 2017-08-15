@@ -12,9 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef NB_SCRIPT_STACKTRACE_H_
-#define NB_SCRIPT_STACKTRACE_H_
-
 #include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 
 #include <algorithm>
@@ -38,7 +35,8 @@ namespace mozjs {
 namespace util {
 namespace {
 
-typedef nb::ThreadLocalObject<StackTraceGenerator> ThreadLocalJsStackTracer;
+typedef nb::ThreadLocalObject<MozjsStackTraceGenerator>
+    ThreadLocalJsStackTracer;
 
 SB_ONCE_INITIALIZE_FUNCTION(ThreadLocalJsStackTracer,
                             s_thread_local_js_stack_tracer_singelton);
@@ -52,25 +50,25 @@ void ToStringAppend(const StackFrame& sf, std::string* out) {
 }  // namespace.
 
 void SetThreadLocalJSContext(JSContext* context) {
-  GetThreadLocalStackTraceGenerator()->set_js_context(context);
+  static_cast<MozjsStackTraceGenerator*>(
+      ::cobalt::script::util::GetThreadLocalStackTraceGenerator())
+      ->set_js_context(context);
 }
 
 JSContext* GetThreadLocalJSContext() {
-  return GetThreadLocalStackTraceGenerator()->js_context();
-}
-
-StackTraceGenerator* GetThreadLocalStackTraceGenerator() {
-  return s_thread_local_js_stack_tracer_singelton()->GetOrCreate();
+  return static_cast<MozjsStackTraceGenerator*>(
+             ::cobalt::script::util::GetThreadLocalStackTraceGenerator())
+      ->js_context();
 }
 
 //////////////////////////////////// IMPL /////////////////////////////////////
 
-StackTraceGenerator::StackTraceGenerator() : js_context_(NULL) {}
-StackTraceGenerator::~StackTraceGenerator() {}
+MozjsStackTraceGenerator::MozjsStackTraceGenerator() : js_context_(NULL) {}
+MozjsStackTraceGenerator::~MozjsStackTraceGenerator() {}
 
-bool StackTraceGenerator::Valid() { return js_context_ != NULL; }
+bool MozjsStackTraceGenerator::Valid() { return js_context_ != NULL; }
 
-bool StackTraceGenerator::GenerateStackTrace(
+bool MozjsStackTraceGenerator::GenerateStackTrace(
     int depth, nb::RewindableVector<StackFrame>* out) {
   DCHECK(thread_checker_.CalledOnValidThread());
   out->rewindAll();
@@ -81,7 +79,7 @@ bool StackTraceGenerator::GenerateStackTrace(
   return !out->empty();
 }
 
-bool StackTraceGenerator::GenerateStackTraceLines(
+bool MozjsStackTraceGenerator::GenerateStackTraceLines(
     int depth, nb::RewindableVector<std::string>* out) {
   DCHECK(thread_checker_.CalledOnValidThread());
   out->rewindAll();
@@ -99,8 +97,8 @@ bool StackTraceGenerator::GenerateStackTraceLines(
   return true;
 }
 
-bool StackTraceGenerator::GenerateStackTraceString(int depth,
-                                                   std::string* out) {
+bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth,
+                                                        std::string* out) {
   DCHECK(thread_checker_.CalledOnValidThread());
   out->assign("");  // Should not deallocate memory.
 
@@ -119,8 +117,8 @@ bool StackTraceGenerator::GenerateStackTraceString(int depth,
   return true;
 }
 
-bool StackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
-                                                   size_t buff_size) {
+bool MozjsStackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
+                                                        size_t buff_size) {
   DCHECK(thread_checker_.CalledOnValidThread());
   SbMemorySet(buff, 0, buff_size);
   std::string& scratch_symbol = scratch_data_.symbol_;
@@ -133,15 +131,22 @@ bool StackTraceGenerator::GenerateStackTraceString(int depth, char* buff,
   return true;
 }
 
-JSContext* StackTraceGenerator::js_context() { return js_context_; }
+JSContext* MozjsStackTraceGenerator::js_context() { return js_context_; }
 
-void StackTraceGenerator::set_js_context(JSContext* js_ctx) {
+void MozjsStackTraceGenerator::set_js_context(JSContext* js_ctx) {
   js_context_ = js_ctx;
 }
 
 }  // namespace util
 }  // namespace mozjs
+
+namespace util {
+
+StackTraceGenerator* GetThreadLocalStackTraceGenerator() {
+  return mozjs::util::s_thread_local_js_stack_tracer_singelton()->GetOrCreate();
+}
+
+}  // namespace util
+
 }  // namespace script
 }  // namespace cobalt
-
-#endif  // NB_SCRIPT_STACKTRACE_H_

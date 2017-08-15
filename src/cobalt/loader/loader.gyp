@@ -23,6 +23,8 @@
       'sources': [
         'blob_fetcher.cc',
         'blob_fetcher.h',
+        'cache_fetcher.cc',
+        'cache_fetcher.h',
         'decoder.h',
         'embedded_fetcher.cc',
         'embedded_fetcher.h',
@@ -176,9 +178,12 @@
         'input_directory': 'embedded_resources',
       },
       'sources': [
+        '<(input_directory)/black_splash_screen.html',
+        '<(input_directory)/cobalt_splash_screen.css',
+        '<(input_directory)/cobalt_splash_screen.html',
         '<(input_directory)/equirectangular_40_40.msh',
-        '<(input_directory)/splash_screen.css',
-        '<(input_directory)/splash_screen.html',
+        '<(input_directory)/youtube_splash_screen.css',
+        '<(input_directory)/youtube_splash_screen.html',
         '<(input_directory)/splash_screen.js',
         '<(input_directory)/you_tube_logo.png',
       ],

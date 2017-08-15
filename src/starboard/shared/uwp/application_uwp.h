@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_UWP_APPLICATION_UWP_H_
 
 #include <agile.h>
-
 #include <string>
 #include <unordered_map>
 
@@ -26,7 +25,6 @@
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/localized_strings.h"
-#include "starboard/shared/uwp/winrt_workaround.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 

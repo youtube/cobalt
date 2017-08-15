@@ -19,6 +19,7 @@
 #include "base/logging.h"
 #include "cobalt/script/mozjs-45/weak_heap_object.h"
 #include "nb/memory_scope.h"
+#include "starboard/system.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
@@ -39,8 +40,16 @@ void WeakHeapObjectManager::SweepUnmarkedObjects() {
 }
 
 WeakHeapObjectManager::~WeakHeapObjectManager() {
-  // If this is not empty, that means that some WeakHeapObject may outlive this
-  // class.
+  // If this is not empty, that means that some WeakHeapObject may outlive
+  // this class.
+#if COBALT_TRACK_WEAK_HEAP_OBJECT_ADDED_FROM_LOCATION
+  for (const auto& object : weak_objects_) {
+    LOG(INFO) << static_cast<void*>(object);
+    for (const auto& location : added_from_[object]) {
+      LOG(INFO) << "  " << location;
+    }
+  }
+#endif
   DCHECK(weak_objects_.empty());
 }
 
@@ -49,6 +58,13 @@ void WeakHeapObjectManager::StartTracking(WeakHeapObject* weak_object) {
   std::pair<WeakHeapObjects::iterator, bool> pib =
       weak_objects_.insert(weak_object);
   DCHECK(pib.second) << "WeakHeapObject was already being tracked.";
+
+#if COBALT_TRACK_WEAK_HEAP_OBJECT_ADDED_FROM_LOCATION
+  const int kRequestedStackSize = 100;
+  void* stack[kRequestedStackSize];
+  int stack_size = SbSystemGetStack(stack, kRequestedStackSize);
+  added_from_[weak_object].assign(stack, stack + stack_size);
+#endif
 }
 
 void WeakHeapObjectManager::StopTracking(WeakHeapObject* weak_object) {
