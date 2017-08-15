@@ -195,8 +195,12 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
       switch (plane_info->gl_texture_format) {
         case GL_ALPHA:
         case GL_LUMINANCE_ALPHA:
+#if defined(GL_RED_EXT)
         case GL_RED_EXT:
+#endif
+#if defined(GL_RG_EXT)
         case GL_RG_EXT:
+#endif
           return plane_info->gl_texture_format;
         default:
           // gl_texture_format is either unassigned or assigned to
