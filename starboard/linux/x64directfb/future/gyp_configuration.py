@@ -14,6 +14,8 @@
 """Starboard Linux X64 DirectFB future platform configuration for gyp_cobalt."""
 
 import logging
+import os
+import sys
 
 # Import the shared Linux platform configuration.
 from starboard.linux.shared import gyp_configuration

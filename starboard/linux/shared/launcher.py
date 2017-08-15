@@ -1,3 +1,4 @@
+#!/usr/bin/python
 #
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
@@ -14,25 +15,17 @@
 # limitations under the License.
 """Linux implementation of Starboard launcher abstraction."""
 
-import importlib
+import imp
 import os
-import sys
-
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,
-                                          os.pardir, "tools"))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
-
 import signal
 import socket
 import subprocess
 
-import starboard.tools.abstract_launcher as abstract_launcher
+module_path = os.path.abspath(
+    os.path.join(os.path.dirname(__file__),
+                 os.pardir, os.pardir, "tools", "abstract_launcher.py"))
+
+abstract_launcher = imp.load_source("abstract_launcher", module_path)
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
