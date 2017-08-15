@@ -50,7 +50,6 @@ AnimatedWebPImage::AnimatedWebPImage(
       frame_count_(0),
       loop_count_(kLoopInfinite),
       current_frame_index_(0),
-      next_frame_index_(0),
       should_dispose_previous_frame_to_background_(false),
       resource_provider_(resource_provider),
       frame_provider_(new FrameProvider()) {
@@ -58,7 +57,7 @@ AnimatedWebPImage::AnimatedWebPImage(
                "AnimatedWebPImage::AnimatedWebPImage()");
 }
 
-scoped_refptr<const AnimatedImage::FrameProvider>
+scoped_refptr<AnimatedImage::FrameProvider>
 AnimatedWebPImage::GetFrameProvider() {
   TRACE_EVENT0("cobalt::loader::image",
                "AnimatedWebPImage::GetFrameProvider()");
@@ -172,25 +171,25 @@ void AnimatedWebPImage::DecodeFrames() {
         base::Bind(&AnimatedWebPImage::DecodeFrames, base::Unretained(this)));
   }
 
-  UpdateTimelineInfo();
-
-  // Decode the frames from current frame to next frame and blend the results.
-  for (int frame_index = current_frame_index_ + 1;
-       frame_index <= next_frame_index_; ++frame_index) {
-    if (!DecodeOneFrame(frame_index)) {
-      break;
-    }
+  if (AdvanceFrame()) {
+    // Decode the frames from current frame to next frame and blend the results.
+    DecodeOneFrame(current_frame_index_);
   }
-  current_frame_index_ = next_frame_index_;
 
   // Set up the next time to call the decode callback.
   if (is_playing_) {
-    base::TimeDelta delay = next_frame_time_ - base::TimeTicks::Now();
     const base::TimeDelta min_delay =
         base::TimeDelta::FromMilliseconds(kMinimumDelayInMilliseconds);
-    if (delay < min_delay) {
+    base::TimeDelta delay;
+    if (next_frame_time_) {
+      delay = *next_frame_time_ - base::TimeTicks::Now();
+      if (delay < min_delay) {
+        delay = min_delay;
+      }
+    } else {
       delay = min_delay;
     }
+
     message_loop_->PostDelayedTask(FROM_HERE, decode_closure_.callback(),
                                    delay);
   }
@@ -288,44 +287,78 @@ bool AnimatedWebPImage::DecodeOneFrame(int frame_index) {
   return true;
 }
 
-void AnimatedWebPImage::UpdateTimelineInfo() {
-  TRACE_EVENT0("cobalt::loader::image",
-               "AnimatedWebPImage::UpdateTimelineInfo()");
+bool AnimatedWebPImage::AdvanceFrame() {
+  TRACE_EVENT0("cobalt::loader::image", "AnimatedWebPImage::AdvanceFrame()");
   TRACK_MEMORY_SCOPE("Rendering");
   DCHECK(message_loop_->BelongsToCurrentThread());
   lock_.AssertAcquired();
 
   base::TimeTicks current_time = base::TimeTicks::Now();
-  next_frame_index_ = current_frame_index_ ? current_frame_index_ : 1;
-  while (true) {
-    // Decode frames, until a frame such that the duration covers the current
-    // time, i.e. the next frame should be displayed in the future.
-    WebPIterator webp_iterator;
-    WebPDemuxGetFrame(demux_, next_frame_index_, &webp_iterator);
-    next_frame_time_ = current_frame_time_ + base::TimeDelta::FromMilliseconds(
-                                                 webp_iterator.duration);
-    WebPDemuxReleaseIterator(&webp_iterator);
-    if (current_time < next_frame_time_) {
-      break;
+
+  // If the WebP image hasn't been fully fetched, then stop on the current
+  // frame.
+  if (demux_state_ == WEBP_DEMUX_PARSED_HEADER) {
+    return false;
+  }
+
+  // If we're done playing the animation, do nothing.
+  if (LoopingFinished()) {
+    return false;
+  }
+
+  // If it's still not time to advance to the next frame, do nothing.
+  if (next_frame_time_ && current_time < *next_frame_time_) {
+    return false;
+  }
+
+  // Always wait for a consumer to consume the previous frame before moving
+  // forward with decoding the next frame.
+  if (!frame_provider_->FrameConsumed()) {
+    return false;
+  }
+
+  if (next_frame_time_) {
+    current_frame_time_ = *next_frame_time_;
+  } else {
+    current_frame_time_ = current_time;
+  }
+
+  ++current_frame_index_;
+  if (current_frame_index_ == frame_count_) {
+    // Check if we have finished looping, and if so return indicating that there
+    // is no additional frame available.
+    if (LoopingFinished()) {
+      next_frame_time_ = base::nullopt;
+      return false;
     }
 
-    current_frame_time_ = next_frame_time_;
-    if (next_frame_index_ < frame_count_) {
-      next_frame_index_++;
-    } else {
-      DCHECK_EQ(next_frame_index_, frame_count_);
-      // If the WebP image hasn't been fully fetched, or we've reached the end
-      // of the last loop, then stop on the current frame.
-      if (demux_state_ == WEBP_DEMUX_PARSED_HEADER || loop_count_ == 1) {
-        break;
-      }
-      next_frame_index_ = 1;
-      current_frame_index_ = 0;
-      if (loop_count_ != kLoopInfinite) {
-        loop_count_--;
-      }
+    // Loop around to the beginning
+    current_frame_index_ = 0;
+    if (loop_count_ != kLoopInfinite) {
+      loop_count_--;
     }
   }
+
+  // Update the time in the future at which point we should switch to the
+  // frame after the new current frame.
+  next_frame_time_ =
+      current_frame_time_ + GetFrameDuration(current_frame_index_);
+  if (next_frame_time_ < current_time) {
+    // Don't let the animation fall back for more than a frame.
+    next_frame_time_ = current_time;
+  }
+
+  return true;
+}
+
+base::TimeDelta AnimatedWebPImage::GetFrameDuration(int frame_index) {
+  lock_.AssertAcquired();
+  WebPIterator webp_iterator;
+  WebPDemuxGetFrame(demux_, frame_index, &webp_iterator);
+  base::TimeDelta frame_duration =
+      base::TimeDelta::FromMilliseconds(webp_iterator.duration);
+  WebPDemuxReleaseIterator(&webp_iterator);
+  return frame_duration;
 }
 
 scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData(
@@ -338,6 +371,10 @@ scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData(
           size, pixel_format_, render_tree::kAlphaFormatPremultiplied);
   DCHECK(image_data) << "Failed to allocate image.";
   return image_data.Pass();
+}
+
+bool AnimatedWebPImage::LoopingFinished() const {
+  return loop_count_ == 1 && current_frame_index_ == frame_count_;
 }
 
 }  // namespace image
