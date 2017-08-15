@@ -116,6 +116,13 @@ void HTMLLinkElement::Obtain() {
       &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
       GetCspResourceTypeForRel(rel()));
 
+  if (IsRelContentCriticalResource(rel())) {
+    // The element must delay the load event of the element's document until all
+    // the attempts to obtain the resource and its critical subresources are
+    // complete.
+    document->IncreaseLoadingCounter();
+  }
+
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(
           &loader::FetcherFactory::CreateSecureFetcher,
@@ -124,13 +131,6 @@ void HTMLLinkElement::Obtain() {
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
-
-  if (IsRelContentCriticalResource(rel())) {
-    // The element must delay the load event of the element's document until all
-    // the attempts to obtain the resource and its critical subresources are
-    // complete.
-    document->IncreaseLoadingCounter();
-  }
 }
 
 void HTMLLinkElement::OnLoadingDone(const std::string& content) {
