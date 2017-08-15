@@ -88,13 +88,22 @@ class AnimatedImage : public Image {
   // that was in there.
   class FrameProvider : public base::RefCountedThreadSafe<FrameProvider> {
    public:
+    FrameProvider() : frame_consumed_(true) {}
+
     void SetFrame(const scoped_refptr<render_tree::Image>& frame) {
       base::AutoLock lock(mutex_);
       frame_ = frame;
+      frame_consumed_ = false;
     }
 
-    scoped_refptr<render_tree::Image> GetFrame() const {
+    bool FrameConsumed() const {
       base::AutoLock lock(mutex_);
+      return frame_consumed_;
+    }
+
+    scoped_refptr<render_tree::Image> GetFrame() {
+      base::AutoLock lock(mutex_);
+      frame_consumed_ = true;
       return frame_;
     }
 
@@ -103,6 +112,9 @@ class AnimatedImage : public Image {
     friend class base::RefCountedThreadSafe<FrameProvider>;
 
     mutable base::Lock mutex_;
+    // True if a call to FrameConsumed() has been made after the last call to
+    // SetFrame().
+    bool frame_consumed_;
     scoped_refptr<render_tree::Image> frame_;
   };
 
@@ -121,11 +133,11 @@ class AnimatedImage : public Image {
   // Returns a FrameProvider object from which frames can be pulled out of.
   // The AnimatedImage object is expected to push frames into the FrameProvider
   // as it generates them.
-  virtual scoped_refptr<const FrameProvider> GetFrameProvider() = 0;
+  virtual scoped_refptr<FrameProvider> GetFrameProvider() = 0;
 
   // This callback is intended to be used in a render_tree::AnimateNode.
   static void AnimateCallback(
-      scoped_refptr<const FrameProvider> frame_provider,
+      scoped_refptr<FrameProvider> frame_provider,
       const math::RectF& destination_rect,
       const math::Matrix3F& local_transform,
       render_tree::ImageNode::Builder* image_node_builder,
