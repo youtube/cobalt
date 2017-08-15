@@ -369,6 +369,8 @@ const char kYouTubeTvLocationPolicy[] =
     "https://s.ytimg.com/yts/cobalt/ "
     "https://www.youtube.com/tv "
     "https://www.youtube.com/tv/ "
+    "https://web-green-qa.youtube.com/tv "
+    "https://web-green-qa.youtube.com/tv/ "
     "https://web-release-qa.youtube.com/tv "
     "https://web-release-qa.youtube.com/tv/ "
 #if defined(ENABLE_ABOUT_SCHEME)
