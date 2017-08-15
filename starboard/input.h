@@ -173,7 +173,10 @@ typedef struct SbInputData {
   unsigned int key_modifiers;
 
   // The (x, y) coordinates of the persistent cursor controlled by this device.
-  // The value is |0| if this data is not applicable.
+  // The value is |0| if this data is not applicable. For events with type
+  // kSbInputEventTypeMove and device_type kSbInputDeviceTypeGamepad, this field
+  // is interpreted as a stick position with the range [-1, 1], with positive
+  // values for the up and left direction.
   SbInputVector position;
 
   // The relative motion vector of this input. The value is |0| if this data is
