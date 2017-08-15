@@ -21,12 +21,12 @@ namespace cobalt {
 namespace browser {
 #if defined(COBALT_BUILD_TYPE_DEBUG)
   // Non-optimized builds require a bigger stack size.
-  const size_t kBaseStackSize = 2 * 1024 * 1024;
+  const size_t kBaseStackSize = 3 * 1024 * 1024;
 #elif defined(COBALT_BUILD_TYPE_DEVEL)
   // Devel builds require a slightly bigger stack size.
-  const size_t kBaseStackSize = 448 * 1024;
+  const size_t kBaseStackSize = 832 * 1024;
 #else
-  const size_t kBaseStackSize = 384 * 1024;
+  const size_t kBaseStackSize = 768 * 1024;
 #endif
   const size_t kWebModuleStackSize =
       kBaseStackSize + base::kAsanAdditionalStackSize;
