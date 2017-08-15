@@ -45,18 +45,21 @@ class AnimatedWebPImage : public AnimatedImage {
   const math::Size& GetSize() const OVERRIDE { return size_; }
 
   uint32 GetEstimatedSizeInBytes() const OVERRIDE {
-    return static_cast<uint32>(data_buffer_.size());
+    // Return the size of 2 frames of images, since we can have two frames in
+    // memory at a time (the previous decode image passed to the frame provider
+    // and the next frame that is composed from the previous frame).
+    return size_.GetArea() * 4 * 2 + static_cast<uint32>(data_buffer_.size());
   }
 
   bool IsOpaque() const OVERRIDE { return is_opaque_; }
 
-  scoped_refptr<const FrameProvider> GetFrameProvider() OVERRIDE;
+  scoped_refptr<FrameProvider> GetFrameProvider() OVERRIDE;
 
   void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) OVERRIDE;
 
   void Stop() OVERRIDE;
 
-  void AppendChunk(const uint8* data, size_t size);
+  void AppendChunk(const uint8* data, size_t input_byte);
 
  private:
   ~AnimatedWebPImage() OVERRIDE;
@@ -72,10 +75,16 @@ class AnimatedWebPImage : public AnimatedImage {
   // Decodes the frame with the given index, returns if it succeeded.
   bool DecodeOneFrame(int frame_index);
 
-  // Updates the index and time info of the current and next frames.
-  void UpdateTimelineInfo();
-
   scoped_ptr<render_tree::ImageData> AllocateImageData(const math::Size& size);
+
+  // If the time is right, updates the index and time info of the current frame.
+  bool AdvanceFrame();
+
+  // Returns the duration of the given frame index.
+  base::TimeDelta GetFrameDuration(int frame_index);
+
+  // Returns true if the animation loop is finished.
+  bool LoopingFinished() const;
 
   const math::Size size_;
   const bool is_opaque_;
@@ -89,7 +98,6 @@ class AnimatedWebPImage : public AnimatedImage {
   // looping infinitely.
   int loop_count_;
   int current_frame_index_;
-  int next_frame_index_;
   bool should_dispose_previous_frame_to_background_;
   render_tree::ResourceProvider* resource_provider_;
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -98,7 +106,7 @@ class AnimatedWebPImage : public AnimatedImage {
   math::RectF previous_frame_rect_;
   base::CancelableClosure decode_closure_;
   base::TimeTicks current_frame_time_;
-  base::TimeTicks next_frame_time_;
+  base::optional<base::TimeTicks> next_frame_time_;
   // The original encoded data.
   std::vector<uint8> data_buffer_;
   scoped_refptr<render_tree::Image> current_canvas_;
