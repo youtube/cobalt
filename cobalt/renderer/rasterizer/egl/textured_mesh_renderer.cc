@@ -494,9 +494,11 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
           case GL_ALPHA:
             texture_infos.push_back(TextureInfo("y", "a"));
             break;
+#if defined(GL_RED_EXT)
           case GL_RED_EXT:
             texture_infos.push_back(TextureInfo("y", "r"));
             break;
+#endif
           default:
             NOTREACHED();
         }
@@ -504,9 +506,11 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
           case GL_LUMINANCE_ALPHA:
             texture_infos.push_back(TextureInfo("uv", "ba"));
             break;
+#if defined(GL_RG_EXT)
           case GL_RG_EXT:
             texture_infos.push_back(TextureInfo("uv", "rg"));
             break;
+#endif
           default:
             NOTREACHED();
         }
