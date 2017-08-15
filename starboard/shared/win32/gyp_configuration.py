@@ -85,5 +85,5 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
   def GetToolchain(self):
     sys.path.append(
         os.path.join(STARBOARD_ROOT, 'shared', 'msvc', 'uwp'))
-    from toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
+    from msvc_toolchain import MSVCUWPToolchain  # pylint: disable=g-import-not-at-top,g-bad-import-order
     return MSVCUWPToolchain()
