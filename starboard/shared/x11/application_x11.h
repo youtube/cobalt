@@ -20,9 +20,11 @@
 #include <queue>
 #include <vector>
 
+#include "base/memory/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/linux/dev_input/dev_input.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/queue_application.h"
 #include "starboard/types.h"
@@ -117,6 +119,9 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   // Indicates whether a key press event that requires a matching release has
   // been dispatched.
   bool paste_buffer_key_release_pending_;
+
+  // The /dev/input input handler. Only set when there is an open window.
+  scoped_ptr<::starboard::shared::dev_input::DevInput> dev_input_;
 };
 
 }  // namespace x11

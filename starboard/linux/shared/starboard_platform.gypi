@@ -90,6 +90,8 @@
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.cc',
       '<(DEPTH)/starboard/shared/libvpx/vpx_video_decoder.h',
       '<(DEPTH)/starboard/shared/linux/byte_swap.cc',
+      '<(DEPTH)/starboard/shared/linux/dev_input/dev_input.cc',
+      '<(DEPTH)/starboard/shared/linux/dev_input/dev_input.h',
       '<(DEPTH)/starboard/shared/linux/get_home_directory.cc',
       '<(DEPTH)/starboard/shared/linux/memory_get_stack_bounds.cc',
       '<(DEPTH)/starboard/shared/linux/page_internal.cc',
