@@ -291,7 +291,7 @@ JSBool fcn_setAny(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<ValueHandle >::ConversionType value;
+  TypeTraits<::cobalt::script::ValueHandle >::ConversionType value;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(

@@ -24,4 +24,7 @@ dictionary TestDictionary {
 
   long memberWithDefault = 5;
   long nonDefaultMember;
+
+  any anyMemberWithDefault = null;
+  any anyMember;
 };

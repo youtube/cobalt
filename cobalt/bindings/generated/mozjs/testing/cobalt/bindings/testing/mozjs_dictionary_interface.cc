@@ -265,7 +265,7 @@ JSBool set_dictionarySequence(
       WrapperPrivate::GetFromObject(context, object);
   DictionaryInterface* impl =
       wrapper_private->wrappable<DictionaryInterface>().get();
-  TypeTraits<script::Sequence< TestDictionary > >::ConversionType value;
+  TypeTraits<::cobalt::script::Sequence< TestDictionary > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
