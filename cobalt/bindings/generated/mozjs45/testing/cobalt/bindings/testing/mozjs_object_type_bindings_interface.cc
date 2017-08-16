@@ -521,7 +521,7 @@ bool set_objectProperty(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-  TypeTraits<OpaqueHandle >::ConversionType value;
+  TypeTraits<::cobalt::script::OpaqueHandle >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -649,7 +649,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 36;
+  const int kInterfaceUniqueId = 37;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
