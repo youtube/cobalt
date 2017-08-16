@@ -25,7 +25,9 @@
 #include <string>
 
 #include "base/optional.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 
 using cobalt::bindings::testing::ArbitraryInterface;
@@ -49,10 +51,73 @@ class TestDictionary {
     string_member_ = std::string();
     has_interface_member_ = false;
     interface_member_ = scoped_refptr<ArbitraryInterface>();
-    has_member_with_default_ = true;
     member_with_default_ = 5;
     has_non_default_member_ = false;
     non_default_member_ = int32_t();
+    has_any_member_ = false;
+  }
+
+  TestDictionary(const TestDictionary& other) {
+    has_boolean_member_ = other.has_boolean_member_;
+    boolean_member_ = other.boolean_member_;
+    has_short_clamp_member_ = other.has_short_clamp_member_;
+    short_clamp_member_ = other.short_clamp_member_;
+    has_long_member_ = other.has_long_member_;
+    long_member_ = other.long_member_;
+    has_double_member_ = other.has_double_member_;
+    double_member_ = other.double_member_;
+    has_string_member_ = other.has_string_member_;
+    string_member_ = other.string_member_;
+    has_interface_member_ = other.has_interface_member_;
+    interface_member_ = other.interface_member_;
+    member_with_default_ = other.member_with_default_;
+    has_non_default_member_ = other.has_non_default_member_;
+    non_default_member_ = other.non_default_member_;
+    if (other.any_member_with_default_) {
+      any_member_with_default_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
+              other.any_member_with_default_->referenced_value()));
+    }
+    has_any_member_ = other.has_any_member_;
+    if (other.any_member_) {
+      any_member_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
+              other.any_member_->referenced_value()));
+    }
+  }
+
+  TestDictionary& operator=(const TestDictionary& other) {
+    has_boolean_member_ = other.has_boolean_member_;
+    boolean_member_ = other.boolean_member_;
+    has_short_clamp_member_ = other.has_short_clamp_member_;
+    short_clamp_member_ = other.short_clamp_member_;
+    has_long_member_ = other.has_long_member_;
+    long_member_ = other.long_member_;
+    has_double_member_ = other.has_double_member_;
+    double_member_ = other.double_member_;
+    has_string_member_ = other.has_string_member_;
+    string_member_ = other.string_member_;
+    has_interface_member_ = other.has_interface_member_;
+    interface_member_ = other.interface_member_;
+    member_with_default_ = other.member_with_default_;
+    has_non_default_member_ = other.has_non_default_member_;
+    non_default_member_ = other.non_default_member_;
+    if (other.any_member_with_default_) {
+      any_member_with_default_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
+                other.any_member_with_default_->referenced_value()));
+    } else {
+      any_member_with_default_.reset();
+    }
+    has_any_member_ = other.has_any_member_;
+    if (other.any_member_) {
+      any_member_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(
+                other.any_member_->referenced_value()));
+    } else {
+      any_member_.reset();
+    }
+    return *this;
   }
 
   bool has_boolean_member() const {
@@ -106,7 +171,7 @@ class TestDictionary {
   bool has_string_member() const {
     return has_string_member_;
   }
-  std::string string_member() const {
+  const std::string& string_member() const {
     DCHECK(has_string_member_);
     return string_member_;
   }
@@ -118,7 +183,7 @@ class TestDictionary {
   bool has_interface_member() const {
     return has_interface_member_;
   }
-  scoped_refptr<ArbitraryInterface> interface_member() const {
+  const scoped_refptr<ArbitraryInterface>& interface_member() const {
     DCHECK(has_interface_member_);
     return interface_member_;
   }
@@ -128,14 +193,12 @@ class TestDictionary {
   }
 
   bool has_member_with_default() const {
-    return has_member_with_default_;
+    return true;
   }
   int32_t member_with_default() const {
-    DCHECK(has_member_with_default_);
     return member_with_default_;
   }
   void set_member_with_default(int32_t value) {
-    has_member_with_default_ = true;
     member_with_default_ = value;
   }
 
@@ -151,6 +214,44 @@ class TestDictionary {
     non_default_member_ = value;
   }
 
+  bool has_any_member_with_default() const {
+    return true;
+  }
+  const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* any_member_with_default() const {
+    if (!any_member_with_default_) {
+      return NULL;
+    }
+    return &(any_member_with_default_->referenced_value());
+  }
+  void set_any_member_with_default(const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* value) {
+    if (value) {
+      any_member_with_default_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(*value));
+    } else {
+      any_member_with_default_.reset();
+    }
+  }
+
+  bool has_any_member() const {
+    return has_any_member_;
+  }
+  const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* any_member() const {
+    DCHECK(has_any_member_);
+    if (!any_member_) {
+      return NULL;
+    }
+    return &(any_member_->referenced_value());
+  }
+  void set_any_member(const ::cobalt::script::ScriptValue<::cobalt::script::ValueHandle>* value) {
+    has_any_member_ = true;
+    if (value) {
+      any_member_.reset(
+          new script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference(*value));
+    } else {
+      any_member_.reset();
+    }
+  }
+
  private:
   bool has_boolean_member_;
   bool boolean_member_;
@@ -164,10 +265,12 @@ class TestDictionary {
   std::string string_member_;
   bool has_interface_member_;
   scoped_refptr<ArbitraryInterface> interface_member_;
-  bool has_member_with_default_;
   int32_t member_with_default_;
   bool has_non_default_member_;
   int32_t non_default_member_;
+  scoped_ptr<script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference> any_member_with_default_;
+  bool has_any_member_;
+  scoped_ptr<script::ScriptValue<::cobalt::script::ValueHandle>::StrongReference> any_member_;
 };
 
 // This ostream override is necessary for MOCK_METHODs commonly used

@@ -269,7 +269,7 @@ JSBool set_unionProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
+  TypeTraits<::cobalt::script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -351,7 +351,7 @@ JSBool set_unionWithNullableMemberProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -433,7 +433,7 @@ JSBool set_nullableUnionProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -515,7 +515,7 @@ JSBool set_unionBaseProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType value;
+  TypeTraits<::cobalt::script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType value;
   FromJSValue(context, vp, kNoConversionFlags, &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
