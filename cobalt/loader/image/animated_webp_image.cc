@@ -109,14 +109,14 @@ void AnimatedWebPImage::AppendChunk(const uint8* data, size_t size) {
     received_first_frame_ = true;
     loop_count_ = WebPDemuxGetI(demux_, WEBP_FF_LOOP_COUNT);
 
-    // The default background color of the canvas in [Blue, Green, Red, Alpha]
-    // byte order. It is read in little endian order as an 32bit int.
+    // The default background color of the canvas in [Blue, Green, Red, Alpha],
+    // from most significant byte to least significant byte.
     uint32_t background_color = WebPDemuxGetI(demux_, WEBP_FF_BACKGROUND_COLOR);
     background_color_ =
-        render_tree::ColorRGBA((background_color >> 16 & 0xff) / 255.0f,
-                               (background_color >> 8 & 0xff) / 255.0f,
-                               (background_color & 0xff) / 255.0f,
-                               (background_color >> 24 & 0xff) / 255.0f);
+        render_tree::ColorRGBA((background_color >> 8 & 0xff) / 255.0f,
+                               (background_color >> 16 & 0xff) / 255.0f,
+                               (background_color >> 24 & 0xff) / 255.0f,
+                               (background_color >> 0 & 0xff) / 255.0f);
 
     if (is_playing_) {
       PlayInternal();
