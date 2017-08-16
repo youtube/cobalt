@@ -674,7 +674,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImage) {
   thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
-  EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());
+  EXPECT_EQ(4261474u, animated_webp_image->GetEstimatedSizeInBytes());
 
   EXPECT_EQ(math::Size(480, 270), animated_webp_image->GetSize());
   EXPECT_TRUE(animated_webp_image->IsOpaque());
@@ -705,7 +705,7 @@ TEST(ImageDecoderTest, DecodeAnimatedWEBPImageWithMultipleChunks) {
   thread.Stop();
 
   // The image should contain the whole undecoded data from the file.
-  EXPECT_EQ(3224674u, animated_webp_image->GetEstimatedSizeInBytes());
+  EXPECT_EQ(4261474u, animated_webp_image->GetEstimatedSizeInBytes());
 
   EXPECT_EQ(math::Size(480, 270), animated_webp_image->GetSize());
   EXPECT_TRUE(animated_webp_image->IsOpaque());
