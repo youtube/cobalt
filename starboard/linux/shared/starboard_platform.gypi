@@ -98,7 +98,6 @@
       '<(DEPTH)/starboard/shared/linux/system_get_random_data.cc',
       '<(DEPTH)/starboard/shared/linux/system_get_stack.cc',
       '<(DEPTH)/starboard/shared/linux/system_get_total_cpu_memory.cc',
-      '<(DEPTH)/starboard/shared/linux/system_get_used_cpu_memory.cc',
       '<(DEPTH)/starboard/shared/linux/system_is_debugger_attached.cc',
       '<(DEPTH)/starboard/shared/linux/system_symbolize.cc',
       '<(DEPTH)/starboard/shared/linux/thread_get_id.cc',
@@ -326,12 +325,14 @@
           '<(DEPTH)/starboard/shared/dlmalloc/memory_free.cc',
           '<(DEPTH)/starboard/shared/dlmalloc/memory_free_aligned.cc',
           '<(DEPTH)/starboard/shared/dlmalloc/memory_reallocate_unchecked.cc',
+          '<(DEPTH)/starboard/shared/dlmalloc/system_get_used_cpu_memory.cc',
         ],
       }, {
         'starboard_platform_sources': [
           '<(DEPTH)/starboard/shared/iso/memory_allocate_unchecked.cc',
           '<(DEPTH)/starboard/shared/iso/memory_free.cc',
           '<(DEPTH)/starboard/shared/iso/memory_reallocate_unchecked.cc',
+          '<(DEPTH)/starboard/shared/linux/system_get_used_cpu_memory.cc',
           '<(DEPTH)/starboard/shared/posix/memory_allocate_aligned_unchecked.cc',
           '<(DEPTH)/starboard/shared/posix/memory_free_aligned.cc',
         ],
