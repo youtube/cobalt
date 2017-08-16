@@ -249,7 +249,7 @@ void VideoDecoder::DecoderThreadFunc() {
     did_work |= (output_buffer_handles.size() != previous_size);
 
     if (event.type == Event::kInvalid && !did_work) {
-      SbThreadSleep(kSbTimeMillisecond / 2);
+      SbThreadSleep(kSbTimeMillisecond);
       continue;
     }
   }
@@ -350,6 +350,21 @@ bool VideoDecoder::ProcessOneOutputBuffer(
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
   if (dequeue_output_result.index < 0) {
+    if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
+      SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
+      // Record the latest width/height of the decoded input.
+      SurfaceDimensions output_dimensions =
+          media_codec_bridge_->GetOutputDimensions();
+      frame_width_ = output_dimensions.width;
+      frame_height_ = output_dimensions.height;
+      return true;
+    }
+
+    if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED) {
+      SB_DLOG(INFO) << "Output buffers changed, trying to dequeue again.";
+      return true;
+    }
+
     // Don't bother logging a try again later status, it will happen a lot.
     if (dequeue_output_result.status !=
         MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
@@ -357,16 +372,6 @@ bool VideoDecoder::ProcessOneOutputBuffer(
                     << dequeue_output_result.status;
     }
     return false;
-  }
-
-  if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED) {
-    SB_DLOG(INFO) << "Output buffers changed, trying to dequeue again.";
-    return true;
-  }
-
-  if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
-    SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
-    return true;
   }
 
   SbMediaTime out_pts = ConvertMicrosecondsToSbMediaTime(
@@ -377,12 +382,6 @@ bool VideoDecoder::ProcessOneOutputBuffer(
       dequeue_output_result.presentation_time_microseconds,
       dequeue_output_result.flags};
   output_buffer_handles->push_back(output_buffer_handle);
-
-  // Record the latest width/height of the decoded input.
-  SurfaceDimensions output_dimensions =
-      media_codec_bridge_->GetOutputDimensions();
-  frame_width_ = output_dimensions.width;
-  frame_height_ = output_dimensions.height;
 
   return true;
 }
