@@ -64,6 +64,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     proc = subprocess.Popen([self.executable] + self.target_command_line_params)
     self.pid = proc.pid
     proc.wait()
+    return proc.returncode
 
   def Kill(self):
     print "\n***Killing Launcher***\n"
