@@ -92,7 +92,11 @@ class AbstractLauncher(object):
 
   @abc.abstractmethod
   def Run(self):
-    """Runs the launcher's executable.  Must be implemented in subclasses."""
+    """Runs the launcher's executable.  Must be implemented in subclasses.
+
+    Returns:
+      The return code from the launcher's executable.
+    """
     pass
 
   @abc.abstractmethod
