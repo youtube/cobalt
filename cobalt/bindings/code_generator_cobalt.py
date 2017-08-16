@@ -483,8 +483,7 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
       referenced_interface_names.update(IdlType.callback_interfaces)
     else:
       # Build the set of referenced interfaces from this interface's members.
-      referenced_interface_names = set()
-      referenced_interface_names.update(
+      referenced_interface_names = set(
           get_interface_type_names_from_typed_objects(self.info_provider,
                                                       interface.attributes))
       referenced_interface_names.update(

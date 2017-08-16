@@ -265,7 +265,7 @@ bool set_dictionarySequence(
       WrapperPrivate::GetFromObject(context, object);
   DictionaryInterface* impl =
       wrapper_private->wrappable<DictionaryInterface>().get();
-  TypeTraits<script::Sequence< TestDictionary > >::ConversionType value;
+  TypeTraits<::cobalt::script::Sequence< TestDictionary > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;

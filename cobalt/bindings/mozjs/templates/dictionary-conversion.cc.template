@@ -115,6 +115,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     exception_state->SetSimpleException(kSimpleError);
     return;
   }
+{% if not member.is_script_value %}
   if (!{{member.name}}.isUndefined()) {
     {{member.type}} converted_value;
     FromJSValue(context,
@@ -127,6 +128,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     }
     out_dictionary->set_{{member.name}}(converted_value);
   }
+{% endif %}
 {% endfor %}
 }
 
