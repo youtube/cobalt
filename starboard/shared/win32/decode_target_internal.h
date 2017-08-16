@@ -23,6 +23,9 @@ struct SbDecodeTargetPrivate {
   // Publicly accessible information about the decode target.
   SbDecodeTargetInfo info;
   ::starboard::shared::win32::VideoFramePtr frame;
+  // EGLSurface is defined as void* in "third_party/angle/include/EGL/egl.h".
+  // Use void* directly here to avoid `egl.h` being included broadly.
+  void* surface[2];
   explicit SbDecodeTargetPrivate(starboard::shared::win32::VideoFramePtr frame);
   ~SbDecodeTargetPrivate();
 };

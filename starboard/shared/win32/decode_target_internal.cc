@@ -120,16 +120,16 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
                                  dxgi_buffer.GetAddressOf());
   SB_DCHECK(SUCCEEDED(hr));
 
-  EGLSurface surface = eglCreatePbufferFromClientBuffer(
-      display, EGL_D3D_TEXTURE_ANGLE, d3texture.Get(), config,
-      luma_texture_attributes);
+  surface[0] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                d3texture.Get(), config,
+                                                luma_texture_attributes);
 
-  SB_DCHECK(surface != EGL_NO_SURFACE);
+  SB_DCHECK(surface[0] != EGL_NO_SURFACE);
 
   glBindTexture(GL_TEXTURE_2D, gl_textures[0]);
   SB_DCHECK(glGetError() == GL_NO_ERROR);
 
-  ok = eglBindTexImage(display, surface, EGL_BACK_BUFFER);
+  ok = eglBindTexImage(display, surface[0], EGL_BACK_BUFFER);
   SB_DCHECK(ok);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -155,16 +155,16 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
       EGL_TEXTURE_FORMAT,
       EGL_TEXTURE_RGBA,
       EGL_NONE};
-  surface = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
-                                             d3texture.Get(), config,
-                                             chroma_texture_attributes);
+  surface[1] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                d3texture.Get(), config,
+                                                chroma_texture_attributes);
 
-  SB_DCHECK(surface != EGL_NO_SURFACE);
+  SB_DCHECK(surface[1] != EGL_NO_SURFACE);
 
   glBindTexture(GL_TEXTURE_2D, gl_textures[1]);
   SB_DCHECK(glGetError() == GL_NO_ERROR);
 
-  ok = eglBindTexImage(display, surface, EGL_BACK_BUFFER);
+  ok = eglBindTexImage(display, surface[1], EGL_BACK_BUFFER);
   SB_DCHECK(ok);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -181,6 +181,14 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 SbDecodeTargetPrivate::~SbDecodeTargetPrivate() {
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneY].texture));
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneUV].texture));
+
+  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
+  eglReleaseTexImage(display, surface[0], EGL_BACK_BUFFER);
+  eglDestroySurface(display, surface[0]);
+
+  eglReleaseTexImage(display, surface[1], EGL_BACK_BUFFER);
+  eglDestroySurface(display, surface[1]);
 }
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
