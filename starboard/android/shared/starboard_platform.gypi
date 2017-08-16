@@ -130,6 +130,7 @@
         'thread_types_public.h',
         'time_zone_get_dst_name.cc',
         'time_zone_get_name.cc',
+        'trace_util.h',
         'video_decoder.cc',
         'video_decoder.h',
         'video_renderer.cc',
