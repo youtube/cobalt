@@ -34,6 +34,8 @@ namespace {
 // audio track completely.
 const int kMaxFramesPerRequest = 2048;
 
+const jint kNoOffset = 0;
+
 // Helper function to compute the size of the two valid starboard audio sample
 // types.
 size_t GetSampleSize(SbMediaAudioSampleType sample_type) {
@@ -62,16 +64,6 @@ int GetAudioFormatSampleType(SbMediaAudioSampleType sample_type) {
 
 void* IncrementPointerByBytes(void* pointer, size_t offset) {
   return static_cast<uint8_t*>(pointer) + offset;
-}
-
-jbyteArray ByteArrayFromRaw(const void* data, int size) {
-  return JniEnvExt::Get()->NewByteArrayFromRaw(static_cast<const jbyte*>(data),
-                                               size);
-}
-
-jfloatArray FloatArrayFromRaw(const void* data, int size) {
-  return JniEnvExt::Get()->NewFloatArrayFromRaw(
-      static_cast<const jfloat*>(data), size);
 }
 
 class AudioTrackAudioSink : public SbAudioSinkPrivate {
@@ -115,6 +107,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
   void* context_;
   int last_playback_head_position_;
   jobject j_audio_track_bridge_;
+  jobject j_audio_data_;
 
   volatile bool quit_;
   SbThread audio_out_thread_;
@@ -146,6 +139,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       context_(context),
       last_playback_head_position_(0),
       j_audio_track_bridge_(NULL),
+      j_audio_data_(NULL),
       quit_(false),
       audio_out_thread_(kSbThreadInvalid),
       playback_rate_(1.0f),
@@ -165,6 +159,15 @@ AudioTrackAudioSink::AudioTrackAudioSink(
       GetAudioFormatSampleType(sample_type_), sampling_frequency_hz_,
       channels_);
   j_audio_track_bridge_ = env->ConvertLocalRefToGlobalRef(j_audio_track_bridge);
+  if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
+    j_audio_data_ = env->NewFloatArray(channels_ * kMaxFramesPerRequest);
+  } else if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
+    j_audio_data_ = env->NewByteArray(channels_ * GetSampleSize(sample_type_) *
+                                      kMaxFramesPerRequest);
+  } else {
+    SB_NOTREACHED();
+  }
+  j_audio_data_ = env->ConvertLocalRefToGlobalRef(j_audio_data_);
 
   audio_out_thread_ = SbThreadCreate(
       0, kSbThreadPriorityRealTime, kSbThreadNoAffinity, true,
@@ -190,6 +193,11 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
         "(Lfoo/cobalt/media/AudioTrackBridge;)V", j_audio_track_bridge_);
     env->DeleteGlobalRef(j_audio_track_bridge_);
     j_audio_track_bridge_ = NULL;
+  }
+
+  if (j_audio_data_) {
+    env->DeleteGlobalRef(j_audio_data_);
+    j_audio_data_ = NULL;
   }
 }
 
@@ -264,34 +272,35 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
     if (sample_type_ == kSbMediaAudioSampleTypeFloat32) {
       int expected_written_size = expected_written_frames * channels_;
-      // TODO: Look into reusing an object for the buffer that we pass in, to
-      // avoid excessive allocations.
-      ScopedLocalJavaRef<jfloatArray> j_buf(FloatArrayFromRaw(
-          IncrementPointerByBytes(
+      env->SetFloatArrayRegion(
+          static_cast<jfloatArray>(j_audio_data_), kNoOffset,
+          expected_written_size,
+          static_cast<const float*>(IncrementPointerByBytes(
               frame_buffer_,
-              start_position * channels_ * GetSampleSize(sample_type_)),
-          expected_written_size));
-      jint written = env->CallIntMethodOrAbort(j_audio_track_bridge_, "write",
-                                               "([F)I", j_buf.Get());
+              start_position * channels_ * GetSampleSize(sample_type_))));
+      int written =
+          env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([FI)I",
+                                    j_audio_data_, expected_written_size);
       SB_DCHECK(written >= 0);
       SB_DCHECK(written % channels_ == 0);
       written_frames_ += written / channels_;
-    } else {
-      SB_DCHECK(sample_type_ == kSbMediaAudioSampleTypeInt16);
+    } else if (sample_type_ == kSbMediaAudioSampleTypeInt16) {
       int expected_written_size =
           expected_written_frames * channels_ * GetSampleSize(sample_type_);
-      // TODO: Look into reusing an object for the buffer that we pass in, to
-      // avoid excessive allocations.
-      ScopedLocalJavaRef<jbyteArray> j_buf(ByteArrayFromRaw(
-          IncrementPointerByBytes(
+      env->SetByteArrayRegion(
+          static_cast<jbyteArray>(j_audio_data_), kNoOffset,
+          expected_written_size,
+          static_cast<const jbyte*>(IncrementPointerByBytes(
               frame_buffer_,
-              start_position * channels_ * GetSampleSize(sample_type_)),
-          expected_written_size));
-      jint written = env->CallIntMethodOrAbort(j_audio_track_bridge_, "write",
-                                               "([B)I", j_buf.Get());
+              start_position * channels_ * GetSampleSize(sample_type_))));
+      int written =
+          env->CallIntMethodOrAbort(j_audio_track_bridge_, "write", "([BI)I",
+                                    j_audio_data_, expected_written_size);
       SB_DCHECK(written >= 0);
       SB_DCHECK(written % (channels_ * GetSampleSize(sample_type_)) == 0);
       written_frames_ += written / (channels_ * GetSampleSize(sample_type_));
+    } else {
+      SB_NOTREACHED();
     }
   }
 
