@@ -478,7 +478,7 @@ JSBool set_objectProperty(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-  TypeTraits<OpaqueHandle >::ConversionType value;
+  TypeTraits<::cobalt::script::OpaqueHandle >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {

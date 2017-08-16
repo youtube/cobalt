@@ -17,7 +17,6 @@
 
 #include <string>
 
-#include "base/string_piece.h"
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/ui_event_init.h"

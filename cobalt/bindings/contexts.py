@@ -56,6 +56,15 @@ def idl_literal_to_cobalt_literal(idl_type, idl_literal):
   return str(idl_literal)
 
 
+def get_dictionary_default_value(idl_type, idl_literal, name):
+  """Mapping to cobalt value filtering for dictionary acceptable values."""
+  if is_any_type(idl_type) and not idl_literal.is_null:
+    raise ValueError('Unsupported default value in dictionary: '
+                     '\'%s %s = %s\'. Only null default is supported.' %
+                     (idl_type, name, idl_literal))
+  return idl_literal_to_cobalt_literal(idl_type, idl_literal)
+
+
 def idl_primitive_type_to_cobalt(idl_type):
   """Map IDL primitive type to C++ type."""
   type_map = {
@@ -198,7 +207,7 @@ class ContextBuilder(object):
             not idl_type.is_callback_interface), 'Callback types not supported.'
     element_cobalt_type = self.idl_type_to_cobalt_type(
         self.resolve_typedef(element_idl_type))
-    return 'script::Sequence< %s >' % element_cobalt_type
+    return '::cobalt::script::Sequence< %s >' % element_cobalt_type
 
   def idl_union_type_to_cobalt(self, idl_type):
     """Map IDL union type to C++ union type implementation."""
@@ -216,8 +225,8 @@ class ContextBuilder(object):
         flattened_types.append(member)
 
     cobalt_types = [self.idl_type_to_cobalt_type(t) for t in flattened_types]
-    return 'script::UnionType%d<%s >' % (len(cobalt_types),
-                                         ', '.join(cobalt_types))
+    return '::cobalt::script::UnionType%d<%s >' % (len(cobalt_types),
+                                                   ', '.join(cobalt_types))
 
   def idl_type_to_cobalt_type(self, idl_type):
     """Map IDL type to C++ type."""
@@ -228,8 +237,8 @@ class ContextBuilder(object):
     elif idl_type.is_string_type:
       cobalt_type = 'std::string'
     elif idl_type.is_callback_interface:
-      cobalt_type = 'CallbackInterfaceTraits<%s >' % get_interface_name(
-          idl_type)
+      cobalt_type = '::cobalt::script::CallbackInterfaceTraits<%s >' % (
+          get_interface_name(idl_type))
     elif idl_type.is_interface_type:
       cobalt_type = 'scoped_refptr<%s>' % get_interface_name(idl_type)
     elif idl_type.is_union_type:
@@ -241,13 +250,13 @@ class ContextBuilder(object):
     elif idl_type.name == 'void':
       cobalt_type = 'void'
     elif is_object_type(idl_type):
-      cobalt_type = 'OpaqueHandle'
+      cobalt_type = '::cobalt::script::OpaqueHandle'
     elif is_any_type(idl_type):
-      cobalt_type = 'ValueHandle'
+      cobalt_type = '::cobalt::script::ValueHandle'
     elif idl_type.is_dictionary:
       cobalt_type = get_interface_name(idl_type)
     elif is_promise_type(idl_type):
-      cobalt_type = 'NativePromise'
+      cobalt_type = '::cobalt::script::NativePromise'
 
     assert cobalt_type, 'Unsupported idl_type %s' % idl_type
 
@@ -275,6 +284,8 @@ class ContextBuilder(object):
     if (idl_type.is_callback_function or idl_type.is_object_type or
         idl_type.is_callback_interface):
       return base_type + '*'
+    if is_any_type(idl_type):
+      return 'const ::cobalt::script::ScriptValue<%s>*' % base_type
     if idl_type.is_string_type or idl_type.is_interface_type:
       return 'const %s&' % base_type
     return base_type
@@ -600,6 +611,8 @@ class ContextBuilder(object):
             dictionary_member.idl_type,
         'name':
             convert_to_cobalt_name(dictionary_member.name),
+        'is_script_value':
+            is_any_type(dictionary_member.idl_type),
         'idl_name':
             dictionary_member.name,
         'type':
@@ -611,7 +624,8 @@ class ContextBuilder(object):
                 self.resolve_typedef(dictionary_member.idl_type),
                 dictionary_member.extended_attributes),
         'default_value':
-            idl_literal_to_cobalt_literal(dictionary_member.idl_type,
-                                          dictionary_member.default_value)
+            get_dictionary_default_value(dictionary_member.idl_type,
+                                         dictionary_member.default_value,
+                                         dictionary_member.name)
             if dictionary_member.default_value else None,
     }
