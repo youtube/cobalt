@@ -66,6 +66,8 @@
         'memory_tracker/tool/log_writer_tool.h',
         'memory_tracker/tool/malloc_stats_tool.cc',
         'memory_tracker/tool/malloc_stats_tool.h',
+        'memory_tracker/tool/malloc_logger_tool.cc',
+        'memory_tracker/tool/malloc_logger_tool.h',
         'memory_tracker/tool/memory_size_binner_tool.cc',
         'memory_tracker/tool/memory_size_binner_tool.h',
         'memory_tracker/tool/params.cc',
