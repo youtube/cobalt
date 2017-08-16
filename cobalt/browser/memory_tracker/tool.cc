@@ -23,6 +23,7 @@
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
+#include "cobalt/browser/memory_tracker/tool/malloc_logger_tool.h"
 #include "cobalt/browser/memory_tracker/tool/malloc_stats_tool.h"
 #include "cobalt/browser/memory_tracker/tool/memory_size_binner_tool.h"
 #include "cobalt/browser/memory_tracker/tool/print_csv_tool.h"
@@ -65,6 +66,7 @@ enum SwitchEnum {
   kLeakTracer,
   kJavascriptLeakTracer,
   kMallocStats,
+  kMallocLogger,
 };
 
 struct SwitchVal {
@@ -213,6 +215,14 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       "  lightweight tool. Output is CSV format.\n",
       kMallocStats);
 
+  SwitchVal malloc_logger_tool(
+      "malloc_logger",
+      "  Continuously writes allocations, deallocations, allocation location\n"
+      "  and malloc stats to memory_log_<timestamp>.csv, without headers.\n"
+      "  The location of this log file is in the platform dependent\n"
+      "  directory specified by kSbSystemPathDebugOutputDirectory.\n",
+      kMallocLogger);
+
   SwitchMap switch_map;
   switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
   switch_map[ParseToolName(continuous_printer_tool.tool_name)] =
@@ -225,6 +235,8 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
   switch_map[ParseToolName(js_leak_tracing_tool.tool_name)] =
       js_leak_tracing_tool;
+  switch_map[ParseToolName(malloc_logger_tool.tool_name)] =
+      malloc_logger_tool;
 
   switch_map[ParseToolName(malloc_stats_tool.tool_name)] = malloc_stats_tool;
 
@@ -382,6 +394,16 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
     }
     case kMallocStats: {
       tool_ptr.reset(new MallocStatsTool);
+      break;
+    }
+    case kMallocLogger: {
+      scoped_ptr<MallocLoggerTool> malloc_logger(
+          new MallocLoggerTool());
+
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
+      memory_tracker->SetMemoryTrackerDebugCallback(malloc_logger.get());
+      tool_ptr.reset(malloc_logger.release());
       break;
     }
     default: {
