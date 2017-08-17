@@ -36,20 +36,33 @@ size_t GetAlignment(void *pointer) {
 }
 
 struct AlignedFields {
-  char unaligned;
+  char unaligned1;
   SB_ALIGNAS(2) char by_2;
+  char unaligned2;
   SB_ALIGNAS(4) char by_4;
+  char unaligned3;
   SB_ALIGNAS(8) char by_8;
+  char unaligned4;
   SB_ALIGNAS(16) char by_16;
+  char unaligned5;
   SB_ALIGNAS(32) char by_32;
+  char unaligned6;
   SB_ALIGNAS(64) char by_64;
+  char unaligned7;
+  SB_ALIGNAS(128) char by_128;
+  char unaligned8;
+  SB_ALIGNAS(256) char by_256;
+  char unaligned9;
 };
 
 struct AlignedFieldsOf {
-  char unaligned;
+  char unaligned1;
   SB_ALIGNAS(SB_ALIGNOF(void*)) char by_void_star;
+  char unaligned2;
   SB_ALIGNAS(SB_ALIGNOF(int)) char by_int;
+  char unaligned3;
   SB_ALIGNAS(SB_ALIGNOF(uint64_t)) char by_uint64_t;
+  char unaligned4;
 };
 
 TEST(SbAlignTest, AlignAsStructFieldOnHeap) {
@@ -58,8 +71,15 @@ TEST(SbAlignTest, AlignAsStructFieldOnHeap) {
   EXPECT_LE(4, GetAlignment(&(aligned->by_4)));
   EXPECT_LE(8, GetAlignment(&(aligned->by_8)));
   EXPECT_LE(16, GetAlignment(&(aligned->by_16)));
+
+#if !SB_HAS_QUIRK(DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES)
   EXPECT_LE(32, GetAlignment(&(aligned->by_32)));
   EXPECT_LE(64, GetAlignment(&(aligned->by_64)));
+  EXPECT_LE(128, GetAlignment(&(aligned->by_128)));
+#endif  // !SB_HAS_QUIRK(DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES)
+
+  // Even Linux clang does not support heap-allocated struct fields aligned to
+  // 256 bytes.
 }
 
 TEST(SbAlignTest, AlignAsStructFieldOnStack) {
@@ -70,6 +90,8 @@ TEST(SbAlignTest, AlignAsStructFieldOnStack) {
   EXPECT_LE(16, GetAlignment(&(aligned.by_16)));
   EXPECT_LE(32, GetAlignment(&(aligned.by_32)));
   EXPECT_LE(64, GetAlignment(&(aligned.by_64)));
+  EXPECT_LE(128, GetAlignment(&(aligned.by_128)));
+  EXPECT_LE(256, GetAlignment(&(aligned.by_256)));
 }
 
 TEST(SbAlignTest, AlignAsStackVariable) {
@@ -86,10 +108,14 @@ TEST(SbAlignTest, AlignAsStackVariable) {
 #if !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
   SB_ALIGNAS(32) char by_32;
   SB_ALIGNAS(64) char by_64;
+  SB_ALIGNAS(128) char by_128;
+  SB_ALIGNAS(256) char by_256;
 
   EXPECT_LE(32, GetAlignment(&by_32));
   EXPECT_LE(64, GetAlignment(&by_64));
-#endif
+  EXPECT_LE(128, GetAlignment(&by_128));
+  EXPECT_LE(256, GetAlignment(&by_256));
+#endif  // !SB_HAS_QUIRK(DOES_NOT_STACK_ALIGN_OVER_16_BYTES)
 }
 
 TEST(SbAlignTest, AlignOf) {
