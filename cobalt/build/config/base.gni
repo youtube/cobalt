@@ -576,12 +576,6 @@ if (!defined(use_system_libjpeg)) {
   use_system_libjpeg = false
 }
 
-# Enable sampling based profiler.
-# See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
-if (!defined(enable_profiling)) {
-  enable_profiling = false
-}
-
 # TODO: add ARM compilation flags to the starboard platform config
 
 # TODO: implement remaining flags like clang_type_profiler, build_for_tool, order_profiling, etc.
