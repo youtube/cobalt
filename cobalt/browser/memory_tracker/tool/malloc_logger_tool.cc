@@ -62,13 +62,29 @@ std::string MallocLoggerTool::tool_name() const {
 void MallocLoggerTool::Run(Params* params) {
   // Update malloc stats every second
   params->logger()->Output("MemoryTrackerMallocLogger running...");
+
+  // There are some memory allocations which do not get tracked.
+  // Those allocations show up as fragmentation.
+  // It has been empirically observed that a majority (98%+) of these
+  // untracked allocations happen in the first 20 seconds of Cobalt runtime.
+  //
+  // Also, there is minimal external fragmentation (< 1 MB) during this initial
+  // period.
+  //
+  // The following piece of code resets atomic_used_memory_ at the 20 second
+  // mark, to compensate for the deviation due to untracked memory.
+  base::TimeDelta current_sample_interval =
+      base::TimeDelta::FromSeconds(20);
+  if (!params->wait_for_finish_signal(current_sample_interval.ToSbTime())) {
+    atomic_used_memory_.store(SbSystemGetUsedCPUMemory());
+  }
 }
 
 void MallocLoggerTool::LogRecord(const void* memory_block,
     const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack, int type) {
   const int log_counter = atomic_counter_.increment();
-  const int64_t used_memory = atomic_used_memory_.fetch_add(record.size);
+  const int64_t used_memory = atomic_used_memory_.load();
   const int64_t allocated_memory = SbSystemGetUsedCPUMemory();
   const int time_since_start_ms = GetTimeSinceStartMs();
   char buff[kRecordLimit] = {0};
@@ -115,12 +131,14 @@ void MallocLoggerTool::LogRecord(const void* memory_block,
 void MallocLoggerTool::OnMemoryAllocation(
     const void* memory_block, const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack) {
+  atomic_used_memory_.fetch_add(record.size);
   LogRecord(memory_block, record, callstack, kAllocationRecord);
 }
 
 void MallocLoggerTool::OnMemoryDeallocation(
     const void* memory_block, const nb::analytics::AllocationRecord& record,
     const nb::analytics::CallStack& callstack) {
+  atomic_used_memory_.fetch_sub(record.size);
   LogRecord(memory_block, record, callstack, kDeallocationRecord);
 }
 
