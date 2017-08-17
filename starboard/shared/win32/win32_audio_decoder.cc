@@ -151,6 +151,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     media_buffer->Unlock();
   }
 
+  void OnNewOutputType(const ComPtr<IMFMediaType>& type) override {}
+
   ComPtr<IMFMediaType> Configure(IMFTransform* decoder) {
     ComPtr<IMFMediaType> input_type;
     HRESULT hr = MFCreateMediaType(&input_type);

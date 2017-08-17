@@ -74,24 +74,24 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
 
-  planeY->width = texture_desc.Width;
-  planeY->height = texture_desc.Height;
+  planeY->width = info.width;
+  planeY->height = info.height;
   planeY->content_region.left = 0;
-  planeY->content_region.top = 0;
-  planeY->content_region.right = texture_desc.Width;
-  planeY->content_region.bottom = texture_desc.Height;
+  planeY->content_region.top = info.height;
+  planeY->content_region.right = frame->width();
+  planeY->content_region.bottom = info.height - frame->height();
 
-  planeUV->width = texture_desc.Width / 2;
-  planeUV->height = texture_desc.Height / 2;
-  planeUV->content_region.left = 0;
-  planeUV->content_region.top = 0;
-  planeUV->content_region.right = texture_desc.Width / 2;
-  planeUV->content_region.bottom = texture_desc.Height / 2;
+  planeUV->width = info.width / 2;
+  planeUV->height = info.height / 2;
+  planeUV->content_region.left = planeY->content_region.left / 2;
+  planeUV->content_region.top = planeY->content_region.top / 2;
+  planeUV->content_region.right = planeY->content_region.right / 2;
+  planeUV->content_region.bottom = planeY->content_region.bottom / 2;
 
   EGLint luma_texture_attributes[] = {EGL_WIDTH,
-                                      static_cast<EGLint>(texture_desc.Width),
+                                      static_cast<EGLint>(info.width),
                                       EGL_HEIGHT,
-                                      static_cast<EGLint>(texture_desc.Height),
+                                      static_cast<EGLint>(info.height),
                                       EGL_TEXTURE_TARGET,
                                       EGL_TEXTURE_2D,
                                       EGL_TEXTURE_FORMAT,
@@ -147,9 +147,9 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   EGLint chroma_texture_attributes[] = {
       EGL_WIDTH,
-      static_cast<EGLint>(texture_desc.Width) / 2,
+      static_cast<EGLint>(info.width) / 2,
       EGL_HEIGHT,
-      static_cast<EGLint>(texture_desc.Height) / 2,
+      static_cast<EGLint>(info.height) / 2,
       EGL_TEXTURE_TARGET,
       EGL_TEXTURE_2D,
       EGL_TEXTURE_FORMAT,
