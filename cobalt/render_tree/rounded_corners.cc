@@ -17,38 +17,59 @@
 namespace cobalt {
 namespace render_tree {
 
-void RoundedCorners::Normalize(const math::RectF& rect) {
+RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {
   float scale = 1.0f;
   float size;
 
-  size = top_left.horizontal + top_right.horizontal;
+  // Normalize overlapping curves.
+  // https://www.w3.org/TR/css3-background/#corner-overlap
+  // Additionally, normalize opposing curves so the corners do not overlap.
+  size = top_left.horizontal +
+         std::max(top_right.horizontal, bottom_right.horizontal);
   if (size > rect.width()) {
     scale = rect.width() / size;
   }
 
-  size = bottom_left.horizontal + bottom_right.horizontal;
+  size = bottom_left.horizontal +
+         std::max(bottom_right.horizontal, top_right.horizontal);
   if (size > rect.width()) {
     scale = std::min(rect.width() / size, scale);
   }
 
-  size = top_left.vertical + bottom_left.vertical;
+  size = top_left.vertical +
+         std::max(bottom_left.vertical, bottom_right.vertical);
   if (size > rect.height()) {
     scale = std::min(rect.height() / size, scale);
   }
 
-  size = top_right.vertical + bottom_right.vertical;
+  size = top_right.vertical +
+         std::max(bottom_right.vertical, bottom_left.vertical);
   if (size > rect.height()) {
     scale = std::min(rect.height() / size, scale);
   }
 
-  top_left.horizontal *= scale;
-  top_left.vertical *= scale;
-  top_right.horizontal *= scale;
-  top_right.vertical *= scale;
-  bottom_left.horizontal *= scale;
-  bottom_left.vertical *= scale;
-  bottom_right.horizontal *= scale;
-  bottom_right.vertical *= scale;
+  return RoundedCorners(RoundedCorner(top_left.horizontal * scale,
+                                      top_left.vertical * scale),
+                        RoundedCorner(top_right.horizontal * scale,
+                                      top_right.vertical * scale),
+                        RoundedCorner(bottom_right.horizontal * scale,
+                                      bottom_right.vertical * scale),
+                        RoundedCorner(bottom_left.horizontal * scale,
+                                      bottom_left.vertical * scale));
+}
+
+bool RoundedCorners::IsNormalized(const math::RectF& rect) const {
+  return
+      // Adjacent corners must not overlap.
+      top_left.horizontal + top_right.horizontal <= rect.width() &&
+      bottom_left.horizontal + bottom_right.horizontal <= rect.width() &&
+      top_left.vertical + bottom_left.vertical <= rect.height() &&
+      top_right.vertical + bottom_right.vertical <= rect.height() &&
+      // Opposing corners must not overlap.
+      top_left.horizontal + bottom_right.horizontal <= rect.width() &&
+      bottom_left.horizontal + top_right.horizontal <= rect.width() &&
+      top_left.vertical + bottom_right.vertical <= rect.height() &&
+      top_right.vertical + bottom_left.vertical <= rect.height();
 }
 
 }  // namespace render_tree
