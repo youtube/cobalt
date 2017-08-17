@@ -1307,7 +1307,12 @@ void GenerateCaps(ID3D11Device *device, ID3D11DeviceContext *deviceContext, cons
     extensions->textureNPOT = GetNPOTTextureSupport(featureLevel);
     extensions->drawBuffers = GetMaximumSimultaneousRenderTargets(featureLevel) > 1;
     extensions->textureStorage = true;
-    extensions->textureFilterAnisotropic = true;
+    // Anisotropic filtering isn't supported completely; in particular, it
+    // does not work correctly when interacting with glSamplerParameterf as
+    // GL_TEXTURE_MAX_ANISOTROPY_EXT is not considered a valid parameter name.
+    // So, although there is partial support at least, we explicitly disable it
+    // as normal use of the parameter causes GL errors.
+    extensions->textureFilterAnisotropic = false;
     extensions->maxTextureAnisotropy = GetMaximumAnisotropy(featureLevel);
     extensions->occlusionQueryBoolean = GetOcclusionQuerySupport(featureLevel);
     extensions->fence = GetEventQuerySupport(featureLevel);
