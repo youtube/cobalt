@@ -45,7 +45,6 @@ void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
   // Ensure a minimum radius for each corner to avoid division by zero.
   const float kMinSize = 0.01f;
 
-  corners.Normalize(rect);
   corners = corners.Inset(-kMinSize, -kMinSize, -kMinSize, -kMinSize);
   rect.Outset(kMinSize, kMinSize);
 
@@ -121,9 +120,6 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
     DCHECK(inner_corners_);
     DCHECK(outer_corners_);
     DCHECK(spread_corners_);
-    inner_corners_->Normalize(inner_rect_);
-    outer_corners_->Normalize(outer_rect_);
-    spread_corners_->Normalize(spread_rect_);
   } else {
     // Non-rounded rects specify vertex offset in terms of sigma from the
     // center of the spread rect.
