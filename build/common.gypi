@@ -44,12 +44,6 @@
       'target_arch%': '<(target_arch)',
       'android_build_type%': '<(android_build_type)',
 
-      # Set to 1 to enable dcheck in release without having to use the flag.
-      'dcheck_always_on%': 0,
-
-      # Python version.
-      'python_ver%': '2.6',
-
       # Set ARM-v7 compilation flags
       'armv7%': 0,
 
@@ -80,23 +74,9 @@
       # See http://clang.llvm.org/docs/ThreadSanitizer.html
       'tsan%': 0,
 
-      # Use a modified version of Clang to intercept allocated types and sizes
-      # for allocated objects. clang_type_profiler=1 implies clang=1.
-      # See http://dev.chromium.org/developers/deep-memory-profiler/cpp-object-type-identifier
-      # TODO(dmikurube): Support mac.  See http://crbug.com/123758#c11
-      'clang_type_profiler%': 0,
-
-      # Set to true to instrument the code with function call logger.
-      # See src/third_party/cygprofile/cyg-profile.cc for details.
-      'order_profiling%': 0,
-
       # Set this to true when building with Clang.
       # See http://code.google.com/p/chromium/wiki/Clang for details.
       'clang%': 0,
-
-      # Set to "tsan", "memcheck", or "drmemory" to configure the build to work
-      # with one of those tools.
-      'build_for_tool%': '',
 
       'os_posix%': 0,
       'os_bsd%': 0,
@@ -113,16 +93,12 @@
     'library%': 'static_library',
     'os_bsd%': '<(os_bsd)',
     'os_posix%': '<(os_posix)',
-    'dcheck_always_on%': '<(dcheck_always_on)',
-    'python_ver%': '<(python_ver)',
     'armv7%': '<(armv7)',
     'arm_neon%': '<(arm_neon)',
     'sysroot%': '<(sysroot)',
     'component%': '<(component)',
     'asan%': '<(asan)',
     'tsan%': '<(tsan)',
-    'clang_type_profiler%': '<(clang_type_profiler)',
-    'order_profiling%': '<(order_profiling)',
     'use_system_libjpeg%': '<(use_system_libjpeg)',
     'android_build_type%': '<(android_build_type)',
 
@@ -149,10 +125,6 @@
     'clang_load%': '',
     'clang_add_plugin%': '',
 
-    # Enable sampling based profiler.
-    # See http://google-perftools.googlecode.com/svn/trunk/doc/cpuprofile.html
-    'profiling%': '0',
-
     # Set Thumb compilation flags.
     'arm_thumb%': 0,
 
@@ -168,8 +140,6 @@
     # used to control such things as the set of warnings to enable, and
     # whether warnings are treated as errors.
     'chromium_code%': 0,
-
-    'release_valgrind_build%': 0,
 
     # TODO(thakis): Make this a blacklist instead, http://crbug.com/101600
     'enable_wexit_time_destructors%': 0,
@@ -247,59 +217,6 @@
       ['tsan==1', {
         'clang%': 1,
       }],
-
-      # On valgrind bots, override the optimizer settings so we don't inline too
-      # much and make the stacks harder to figure out.
-      #
-      # TODO(rnk): Kill off variables that no one else uses and just implement
-      # them under a build_for_tool== condition.
-      ['build_for_tool=="memcheck" or build_for_tool=="tsan"', {
-        # gcc flags
-        'mac_debug_optimization': '1',
-        'mac_release_optimization': '1',
-        'release_optimize': '1',
-        'no_gc_sections': 1,
-        'debug_extra_cflags': '-g -fno-inline -fno-omit-frame-pointer '
-                              '-fno-builtin -fno-optimize-sibling-calls',
-        'release_extra_cflags': '-g -fno-inline -fno-omit-frame-pointer '
-                                '-fno-builtin -fno-optimize-sibling-calls',
-
-        # MSVS flags for TSan on Pin and Windows.
-        'win_debug_RuntimeChecks': '0',
-        'win_debug_disable_iterator_debugging': '1',
-        'win_debug_Optimization': '1',
-        'win_debug_InlineFunctionExpansion': '0',
-        'win_release_InlineFunctionExpansion': '0',
-        'win_release_OmitFramePointers': '0',
-
-        'linux_use_tcmalloc': 1,
-        'release_valgrind_build': 1,
-        'werror': '',
-        'component': 'static_library',
-        'use_system_zlib': 0,
-      }],
-
-      # Build tweaks for DrMemory.
-      # TODO(rnk): Combine with tsan config to share the builder.
-      # http://crbug.com/108155
-      ['build_for_tool=="drmemory"', {
-        # These runtime checks force initialization of stack vars which blocks
-        # DrMemory's uninit detection.
-        'win_debug_RuntimeChecks': '0',
-        # Iterator debugging is slow.
-        'win_debug_disable_iterator_debugging': '1',
-        # Try to disable optimizations that mess up stacks in a release build.
-        # DrM-i#1054 (http://code.google.com/p/drmemory/issues/detail?id=1054)
-        # /O2 and /Ob0 (disable inline) cannot be used together because of a
-        # compiler bug, so we use /Ob1 instead.
-        'win_release_InlineFunctionExpansion': '1',
-        'win_release_OmitFramePointers': '0',
-        # Ditto for debug, to support bumping win_debug_Optimization.
-        'win_debug_InlineFunctionExpansion': 0,
-        'win_debug_OmitFramePointers': 0,
-        # Keep the code under #ifndef NVALGRIND.
-        'release_valgrind_build': 1,
-      }],
     ],
   },
   'target_defaults': {
@@ -342,8 +259,6 @@
       'release_extra_cflags%': '',
       'debug_extra_cflags%': '',
 
-      'release_valgrind_build%': '<(release_valgrind_build)',
-
       # the non-qualified versions are widely assumed to be *nix-only
       'win_release_extra_cflags%': '',
       'win_debug_extra_cflags%': '',
@@ -385,12 +300,6 @@
       ['component=="shared_library"', {
         'defines': ['COMPONENT_BUILD'],
       }],
-      ['profiling==1', {
-        'defines': ['ENABLE_PROFILING=1'],
-      }],
-      ['dcheck_always_on!=0', {
-        'defines': ['DCHECK_ALWAYS_ON=1'],
-      }],  # dcheck_always_on!=0
     ],  # conditions for 'target_defaults'
     'target_conditions': [
       ['enable_wexit_time_destructors==1', {
