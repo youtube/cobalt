@@ -67,9 +67,9 @@ class SurfaceD3D : public SurfaceImpl
       return mBindChroma;
     }
 
-    UINT getArrayIndex() const
+    IUnknown* getDxgiBuffer() const
     {
-      return mArrayIndex;
+      return mDXGIBuffer;
     }
 
   protected:
@@ -106,7 +106,7 @@ class SurfaceD3D : public SurfaceImpl
     HANDLE mShareHandle;
     IUnknown *mD3DTexture;
     EGLenum mBuftype;
-    UINT mArrayIndex;
+    IUnknown *mDXGIBuffer;
     bool mBindChroma;
 };
 
