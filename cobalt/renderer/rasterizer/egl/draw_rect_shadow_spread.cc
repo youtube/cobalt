@@ -49,8 +49,6 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
     // rounded corner definitions.
     DCHECK(inner_corners_);
     DCHECK(outer_corners_);
-    inner_corners_->Normalize(inner_rect_);
-    outer_corners_->Normalize(outer_rect_);
   }
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }

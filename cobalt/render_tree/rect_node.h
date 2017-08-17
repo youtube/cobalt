@@ -69,31 +69,39 @@ class RectNode : public Node {
 
   RectNode(const math::RectF& rect, scoped_ptr<Border> border)
       : data_(rect, border.Pass()) {
+    AssertValid();
   }
   RectNode(const math::RectF& rect, scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, border.Pass(), rounded_corners.Pass()) {
+    AssertValid();
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush)
       : data_(rect, background_brush.Pass()) {
+    AssertValid();
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border)
       : data_(rect, background_brush.Pass(), border.Pass()) {
+    AssertValid();
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, background_brush.Pass(), rounded_corners.Pass()) {
+    AssertValid();
   }
   RectNode(const math::RectF& rect, scoped_ptr<Brush> background_brush,
            scoped_ptr<Border> border,
            scoped_ptr<RoundedCorners> rounded_corners)
       : data_(rect, background_brush.Pass(), border.Pass(),
               rounded_corners.Pass()) {
+    AssertValid();
   }
   explicit RectNode(const Builder& builder) : data_(builder) {
+    AssertValid();
   }
   explicit RectNode(Builder::Moved builder) : data_(builder) {
+    AssertValid();
   }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
@@ -106,6 +114,8 @@ class RectNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
+  void AssertValid() const;
+
   const Builder data_;
 };
 

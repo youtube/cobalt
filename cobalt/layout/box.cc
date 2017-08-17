@@ -660,7 +660,8 @@ void SetupBackgroundNodeFromStyle(
 
   if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
+        scoped_ptr<RoundedCorners>(new RoundedCorners(
+            rounded_corners->Normalize(rect_node_builder->rect)));
   }
 }
 
@@ -749,7 +750,8 @@ void SetupBorderNodeFromStyle(
 
   if (rounded_corners) {
     rect_node_builder->rounded_corners =
-        scoped_ptr<RoundedCorners>(new RoundedCorners(*rounded_corners));
+        scoped_ptr<RoundedCorners>(new RoundedCorners(
+            rounded_corners->Normalize(rect_node_builder->rect)));
   }
 }
 
@@ -1192,7 +1194,10 @@ void Box::RenderAndAnimateBoxShadow(
       render_tree::RectShadowNode::Builder shadow_builder(
           math::RectF(rect_offset, shadow_rect_size), shadow,
           shadow_value->has_inset(), spread_radius);
-      shadow_builder.rounded_corners = rounded_corners;
+      if (rounded_corners) {
+        shadow_builder.rounded_corners = rounded_corners->Normalize(
+            shadow_builder.rect);
+      }
 
       // Finally, create our shadow node.
       scoped_refptr<render_tree::RectShadowNode> shadow_node(
@@ -1346,7 +1351,8 @@ Box::RenderAndAnimateBackgroundImageResult Box::RenderAndAnimateBackgroundImage(
         // Apply rounded viewport filter to the background image.
         FilterNode::Builder filter_node_builder(background_node);
         filter_node_builder.viewport_filter =
-            ViewportFilter(image_frame, *rounded_corners);
+            ViewportFilter(image_frame,
+                           rounded_corners->Normalize(image_frame));
         background_node = new FilterNode(filter_node_builder);
       }
 
@@ -1448,7 +1454,9 @@ scoped_refptr<render_tree::Node> Box::RenderAndAnimateOverflow(
                   border_node_offset.y() + border_top_width().toFloat(),
                   padding_size.width(), padding_size.height()));
   if (rounded_corners) {
-    filter_node_builder.viewport_filter->set_rounded_corners(*rounded_corners);
+    filter_node_builder.viewport_filter->set_rounded_corners(
+        rounded_corners->Normalize(
+            filter_node_builder.viewport_filter->viewport()));
   }
 
   return scoped_refptr<render_tree::Node>(new FilterNode(filter_node_builder));
