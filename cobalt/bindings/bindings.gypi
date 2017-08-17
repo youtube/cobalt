@@ -553,6 +553,7 @@
         'inputs': [
           '<@(jinja_module_files)',
           '<(DEPTH)/cobalt/bindings/code_generator_cobalt.py',
+          '<(DEPTH)/cobalt/bindings/path_generator.py',
           '<@(code_generator_template_files)',
         ],
         'outputs': [

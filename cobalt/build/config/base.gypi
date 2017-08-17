@@ -24,6 +24,19 @@
   'variables': {
     # Cobalt variables.
 
+    # We need to define some variables inside of an inner 'variables' scope
+    # so that they can be referenced by other outer variables here.  Also, it
+    # allows for the specification of default values that get referenced by
+    # a top level scope.
+    'variables': {
+      # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
+      # that it can be accessed by 'cobalt_enable_lib' below.
+      'sb_enable_lib%': 0,
+
+      'cobalt_webapi_extension_source_idl_files%': [],
+      'cobalt_webapi_extension_generated_header_idl_files%': [],
+    },
+
     # Whether Cobalt is being built.
     'cobalt': 1,
 
@@ -39,13 +52,8 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
-    # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
-    # that it can be accessed by 'cobalt_enable_lib' below here.
-    'variables': {
-      # Enables embedding Cobalt as a shared library within another app. This
-      # requires a 'lib' starboard implementation for the corresponding platform.
-      'sb_enable_lib%': 0,
-    },
+    # Enables embedding Cobalt as a shared library within another app. This
+    # requires a 'lib' starboard implementation for the corresponding platform.
     'sb_enable_lib%': '<(sb_enable_lib)',
     'cobalt_enable_lib': '<(sb_enable_lib)',
 
@@ -183,9 +191,30 @@
     # this value is defaulted to 0.
     'render_dirty_region_only%': 0,
 
-    # Modify this value to adjust the default rasterizer setting for your
+    # Override this value to adjust the default rasterizer setting for your
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
+
+    # Override this to inject a custom interface into Cobalt's JavaScript
+    # `window` global object.  This implies that you will have to provide your
+    # own IDL files to describe that interface and all interfaces that it
+    # references.  See cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_source_idl_files%': [
+      '<@(cobalt_webapi_extension_source_idl_files)'\
+    ],
+    # Override this to have Cobalt build IDL files that result in generated
+    # header files that may need to be included from other C++ source files.
+    # This includes, for example, IDL enumerations.  See
+    # cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_generated_header_idl_files%': [
+      '<@(cobalt_webapi_extension_generated_header_idl_files)'
+    ],
+
+    # This gyp target must implement the functions defined in
+    # <(DEPTH)/cobalt/browser/idl_extensions.h.  See
+    # cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_gyp_target%':
+        '<(DEPTH)/cobalt/browser/null_webapi_extension.gyp:null_webapi_extension',
 
     # Allow throttling of the frame rate. This is expressed in terms of
     # milliseconds and can be a floating point number. Keep in mind that
