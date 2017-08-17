@@ -152,6 +152,7 @@
         '<(DEPTH)/nb/nb.gyp:nb',
         'browser_bindings.gyp:bindings',
         'screen_shot_writer',
+        '<(cobalt_webapi_extension_gyp_target)',
       ],
       # This target doesn't generate any headers, but it exposes generated
       # header files (for idl dictionaries) through this module's public header

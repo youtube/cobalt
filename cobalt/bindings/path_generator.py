@@ -48,6 +48,7 @@ class PathBuilder(object):
 
   def NamespaceComponents(self, interface_name):
     """Get the interface's namespace as a list of namespace components."""
+
     # Get the IDL filename relative to the cobalt directory, and split the
     # directory to get the list of namespace components.
     if interface_name in self.interfaces_info:
@@ -59,9 +60,23 @@ class PathBuilder(object):
     else:
       raise KeyError('Unknown interface name %s', interface_name)
 
-    idl_path = os.path.relpath(idl_path, self.interfaces_root)
-    components = os.path.dirname(idl_path).split(os.sep)
-    return [os.path.basename(self.interfaces_root)] + components
+    rel_idl_path = os.path.relpath(idl_path, self.interfaces_root)
+    components = os.path.dirname(rel_idl_path).split(os.sep)
+
+    # Check if this IDL's path lies in our interfaces root.  If it does not,
+    # we treat it as an extension IDL.
+    real_interfaces_root = os.path.realpath(self.interfaces_root)
+    real_idl_path = os.path.realpath(os.path.dirname(idl_path))
+    interfaces_root_is_in_components_path = (os.path.commonprefix(
+        [real_interfaces_root, real_idl_path]) == real_interfaces_root)
+
+    if interfaces_root_is_in_components_path:
+      return [os.path.basename(self.interfaces_root)] + components
+    else:
+      # If our IDL path lies outside of the cobalt/ directory, assume it is
+      # an externally defined web extension and assign it the 'webapi_extension'
+      # namespace.
+      return [os.path.basename(self.interfaces_root), 'webapi_extension']
 
   def Namespace(self, interface_name):
     """Get the interface's namespace."""
