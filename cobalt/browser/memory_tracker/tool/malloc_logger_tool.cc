@@ -17,6 +17,7 @@
 #include <algorithm>
 
 #include "base/time.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/browser/memory_tracker/tool/buffered_file_writer.h"
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
@@ -77,6 +78,22 @@ void MallocLoggerTool::Run(Params* params) {
       base::TimeDelta::FromSeconds(20);
   if (!params->wait_for_finish_signal(current_sample_interval.ToSbTime())) {
     atomic_used_memory_.store(SbSystemGetUsedCPUMemory());
+  }
+
+  // Export fragmentation as a CVal on HUD.
+  base::CVal<base::cval::SizeInBytes> memory_fragmentation(
+      "Memory.CPU.Fragmentation", base::cval::SizeInBytes(0),
+      "Memory Fragmentation");
+
+  // Update CVal every 5 seconds
+  current_sample_interval = base::TimeDelta::FromSeconds(5);
+  int64_t allocated_memory = 0;
+  int64_t used_memory = 0;
+  while (!params->wait_for_finish_signal(current_sample_interval.ToSbTime())) {
+    allocated_memory = SbSystemGetUsedCPUMemory();
+    used_memory = atomic_used_memory_.load();
+    memory_fragmentation = static_cast<uint64>(
+        std::max(allocated_memory - used_memory, static_cast<int64_t>(0)));
   }
 }
 
