@@ -22,12 +22,15 @@ source_set("common") {
     "memory.cc",
     "move.h",
     "new.cc",
+    "optional.cc",
     "ref_counted.cc",
     "ref_counted.h",
     "reset_and_return.h",
     "rwlock.h",
     "semaphore.h",
     "scoped_ptr.h",
+    "state_machine.cc",
+    "state_machine.h",
     "thread_collision_warner.cc",
     "thread_collision_warner.h",
   ]
@@ -37,5 +40,7 @@ source_set("common") {
     sources += [ "//starboard/shared/media_session/stub_playback_state.cc" ]
   }
 
+  # This must be defined when building Starboard, and must not when building
+  # Starboard client code.
   defines = [ "STARBOARD_IMPLEMENTATION" ]
 }
