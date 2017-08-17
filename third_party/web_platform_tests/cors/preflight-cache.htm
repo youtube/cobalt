@@ -17,25 +17,33 @@
  * Cache
  */
 
-function did_preflight(expect, client, settings) {
+
+function did_preflight(expect, client, settings, atest, lastone, func) {
     var uuid_token = (settings && settings.token) || token();
     if(!settings)
         settings = {}
-
     set = {
         method: 'method' in settings ? settings.method : 'GET',
         extra: 'extra' in settings ? '&' + settings.extra : ''
     }
-
     client.open(set.method,
             CROSSDOMAIN + 'resources/preflight.py?token=' + uuid_token + set.extra,
-            false)
+            true)
     client.setRequestHeader('x-print', uuid_token)
+    client.onload = atest.step_func(function(e){
+        client.open('GET', 'resources/preflight.py?check&token=' + uuid_token, true)
+        client.onload = atest.step_func(function(e){
+            assert_equals(client.response, expect === true ? '1' : '0', "did preflight")
+            if (lastone){
+                this.done()
+            }
+            if (func){
+                atest.step(func)
+            }
+        })
+        client.send()
+    })
     client.send()
-
-    client.open('GET', 'resources/preflight.py?check&token=' + uuid_token, false)
-    client.send()
-    assert_equals(client.response, expect === true ? '1' : '0', "did preflight")
     return uuid_token;
 }
 
@@ -43,37 +51,45 @@ function did_preflight(expect, client, settings) {
  * Should run preflight
  */
 
-test(function() {
+async_test(function() {
     var time = new Date().getTime()
     var client = new XMLHttpRequest()
-    did_preflight(true, client);
+    did_preflight(true, client, null, this, 1);
 },
 'Test preflight')
 
-test(function() {
+// The original test requires caching result with max-age=0.
+// It's ambiguous if we should allow a very short period for the cache to exist.
+// https://fetch.spec.whatwg.org/#concept-cache
+async_test(function() {
     var time = new Date().getTime()
     var client = new XMLHttpRequest()
-
-    var id = did_preflight(true,  client)
-    did_preflight(false, client, {token: id})
+    var id = did_preflight(true,  client, {extra:'max_age=1'}, this, 0,
+        function(){
+            did_preflight(false, client, {extra:'max_age=1', token: id}, this, 1)
+        })
 },
 'preflight for x-print should be cached')
 
-test(function() {
+async_test(function() {
     var time = new Date().getTime()
     var client = new XMLHttpRequest()
 
-    var id = did_preflight(true, client, {extra:'max_age=0'})
-    did_preflight(true, client, {extra:'max_age=0', token: id})
+    var id = did_preflight(true, client, {extra:'max_age=0'}, this, 0,
+        function(){
+            did_preflight(true, client, {extra:'max_age=0', token: id}, this, 1)
+        })
 },
 'age = 0, should not be cached')
 
-test(function() {
+async_test(function() {
     var time = new Date().getTime()
     var client = new XMLHttpRequest()
 
-    var id = did_preflight(true, client, {extra:'max_age=-1'})
-    did_preflight(true, client, {extra:'max_age=-1', token: id})
+    var id = did_preflight(true, client, {extra:'max_age=-1'}, this, 0,
+        function(){
+            did_preflight(true, client, {extra:'max_age=-1', token: id},this, 1)
+        })
 },
 'age = -1, should not be cached');
 

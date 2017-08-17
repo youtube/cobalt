@@ -18,24 +18,36 @@ var test_c = 0;
 
 function check_simple(method, headers)
 {
-    test(function() {
+    async_test(function() {
         var client = new XMLHttpRequest()
         var uuid_token = token();
         client.open(method, CROSSDOMAIN + 'resources/preflight.py?token='
-                            + uuid_token, false)
+                            + uuid_token, true)
         for (head in headers)
             client.setRequestHeader(head, headers[head])
+        client.onload = this.step_func(function(e){
+            assert_equals(client.getResponseHeader('content-type'), "text/plain")
+            if (method == 'HEAD')
+                assert_equals(client.response, '', 'response')
+            else
+                assert_equals(client.response, 'NO', 'response')
+            this.done()
+        })
+        client.onerror = this.step_func(function(e){
+             assert_unreached("should succeed")
+        })
         client.send("data")
-        assert_equals(client.getResponseHeader('content-type'), "text/plain")
-        if (method == 'HEAD')
-            assert_equals(client.response, '', 'response')
-        else
-            assert_equals(client.response, 'NO', 'response')
 
         client.open('GET', 'resources/preflight.py?check&token='
-                          + uuid_token, false)
+                          + uuid_token, true)
+        client.onload = this.step_func(function(e){
+            assert_equals(client.response, "0", "Found preflight log")
+            this.done()
+        })
+        client.onerror = this.step_func(function(e){
+             assert_unreached("should succeed")
+        })
         client.send("data")
-        assert_equals(client.response, "0", "Found preflight log")
     },
     'No preflight ' + method + ' and ' + JSON.stringify(headers))
 }

@@ -66,21 +66,24 @@
       redirect("301", "301 GET with explicit Content-Type safelisted", "GET", null, "application/x-pony", true)
       redirect("302")
       redirect("303")
-      redirect("303", "303 LALA with string and explicit Content-Type safelisted", "LALA", "test", "application/x-pony", true)
+      // The following disabled subtests except for the second one all use special
+      // request methods for which Cobalt specifically disallows.
+      // redirect("303", "303 LALA with string and explicit Content-Type safelisted", "LALA", "test", "application/x-pony", true)
       redirect("307")
       redirect("307", "307 post with null", "POST", null)
       redirect("307", "307 post with string", "POST", "hello")
       redirect("307", "307 post with typed array", "POST", new Uint8Array([65, 66, 67]))
       redirect("301", "301 POST with string and explicit Content-Type", "POST", "yoyo", "application/x-pony")
-      redirect("301", "301 POST with string and explicit Content-Type safelisted", "POST", "yoyo", "application/x-pony", true)
+      // This test is a special use case under which we handle differently from spec.
+      // redirect("301", "301 POST with string and explicit Content-Type safelisted", "POST", "yoyo", "application/x-pony", true)
       redirect("302", "302 POST with string and explicit Content-Type", "POST", "yoyo", "application/x-pony")
       redirect("307", "307 POST with string and explicit Content-Type", "POST", "yoyo", "application/x-pony")
-      redirect("307", "307 FOO with string and explicit Content-Type", "FOO", "yoyo", "application/x-pony")
+      // redirect("307", "307 FOO with string and explicit Content-Type", "FOO", "yoyo", "application/x-pony")
       redirect("308", "308 POST with string and explicit Content-Type", "POST", "yoyo", "application/x-pony")
-      redirect("308", "308 FOO with string and explicit Content-Type", "FOO", "yoyo", "application/x-pony")
-      redirect("308", "308 FOO with string and explicit Content-Type text/plain", "FOO", "yoyo", "text/plain")
-      redirect("308", "308 FOO with string and explicit Content-Type multipart/form-data", "FOO", "yoyo", "multipart/form-data")
-      redirect("308", "308 FOO with string and explicit Content-Type safelisted", "FOO", "yoyo", "application/thunderstorm", true)
+      // redirect("308", "308 FOO with string and explicit Content-Type", "FOO", "yoyo", "application/x-pony")
+      // redirect("308", "308 FOO with string and explicit Content-Type text/plain", "FOO", "yoyo", "text/plain")
+      // redirect("308", "308 FOO with string and explicit Content-Type multipart/form-data", "FOO", "yoyo", "multipart/form-data")
+      // redirect("308", "308 FOO with string and explicit Content-Type safelisted", "FOO", "yoyo", "application/thunderstorm", true)
       redirect("307", "307 POST with string and explicit Content-Type safelisted", "POST", "yoyo", "application/thunderstorm", true)
     </script>
   </body>
