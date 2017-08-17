@@ -74,12 +74,6 @@ config("compiler_defaults") {
   if (!enable_spdy) {
     defines += [ "COBALT_DISABLE_SPDY" ]
   }
-
-
-  # From common.gypi
-  if (enable_profiling) {
-    defines += [ "ENABLE_PROFILING=1" ]
-  }
 }
 
 config("final_executable_target_config") {
