@@ -236,8 +236,10 @@ TEST_F(PixelTest, RedRectWith2DifferentRadiusForEachCornerOnTopLeftOfSurface) {
   RoundedCorner bottom_left(70, 80);
   scoped_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
+  math::RectF rect(ScaleSize(output_surface_size(), 0.5f, 0.5f));
+  *rounded_corners = rounded_corners->Normalize(rect);
   TestTree(new RectNode(
-      RectF(ScaleSize(output_surface_size(), 0.5f, 0.5f)),
+      rect,
       scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 0.0, 0.0, 1))),
       rounded_corners.Pass()));
 }

@@ -214,8 +214,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         draw_state_.rounded_scissor_rect = data.viewport_filter->viewport();
         draw_state_.rounded_scissor_corners =
             data.viewport_filter->rounded_corners();
-        draw_state_.rounded_scissor_corners->Normalize(
-            draw_state_.rounded_scissor_rect);
         data.source->Accept(this);
         draw_state_.rounded_scissor_corners = base::nullopt;
         return;
