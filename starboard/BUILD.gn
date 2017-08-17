@@ -76,13 +76,14 @@ source_set("starboard") {
     "//starboard/shared/media_session/playback_state.h",
   ]
 
-  sources += exec_script("tools/find_private_files.py",
-                         [
-                           rebase_path("//", root_build_dir),
-                           "*.h",
-                         ],
-                         "list lines",
-                         [ "//starboard/private" ])
+  private_sources = exec_script("tools/find_private_files.py",
+                                [
+                                  rebase_path("//", root_build_dir),
+                                  "*.h",
+                                ],
+                                "list lines",
+                                [ "//starboard/private" ])
+  sources += rebase_path(private_sources, ".", root_build_dir)
 
   deps = [
     "//starboard/common",

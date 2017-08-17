@@ -263,21 +263,22 @@ test("nplb") {
     "window_get_size_test.cc",
   ]
   # Include private C headers, if present.
-  sources += exec_script("//starboard/tools/find_private_files.py",
-                         [
-                           rebase_path("//", root_build_dir),
-                           "nplb/include_all_private.c",
-                         ],
-                         "list lines",
-                         [ "." ])
+  private_sources = exec_script("//starboard/tools/find_private_files.py",
+                                [
+                                  rebase_path("//", root_build_dir),
+                                  "nplb/include_all_private.c",
+                                ],
+                                "list lines",
+                                [ "." ])
   # Include private tests, if present.
-  sources += exec_script("//starboard/tools/find_private_files.py",
-                         [
-                           rebase_path("//", root_build_dir),
-                           "nplb/*_test.cc",
-                         ],
-                         "list lines",
-                         [ "." ])
+  private_sources += exec_script("//starboard/tools/find_private_files.py",
+                                 [
+                                   rebase_path("//", root_build_dir),
+                                   "nplb/*_test.cc",
+                                 ],
+                                 "list lines",
+                                 [ "." ])
+  sources += rebase_path(private_sources, ".", root_build_dir)
 
   deps = [
     "//starboard",
