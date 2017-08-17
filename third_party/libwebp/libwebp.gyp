@@ -54,13 +54,6 @@
         ['OS == "android"', {
           'includes': [ '../../build/android/cpufeatures.gypi' ],
         }],
-        ['order_profiling != 0', {
-          'target_conditions' : [
-            ['_toolset=="target"', {
-              'cflags!': [ '-finstrument-functions' ],
-            }],
-          ],
-        }],
       ],
     },
     {
@@ -83,13 +76,6 @@
         ['target_arch == "arm" and arm_version >= 8 and clang == 1', {
           # NEON is implicit on ARMv8, and clang doesn't like the redundant flag
           'cflags!': [ '-mfpu=neon' ],
-        }],
-        ['order_profiling != 0', {
-          'target_conditions' : [
-            ['_toolset=="target"', {
-              'cflags!': [ '-finstrument-functions' ],
-            }],
-          ],
         }],
       ],
     },
