@@ -94,6 +94,7 @@
         'dom_token_list.h',
         'element.cc',
         'element.h',
+        'error_event.h',
         'event.cc',
         'event.h',
         'event_init.h',
