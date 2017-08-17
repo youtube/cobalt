@@ -4045,9 +4045,9 @@ TextureStorage *Renderer11::createTextureStorage2D(SwapChainD3D *swapChain)
 
 TextureStorage *Renderer11::createTextureStorage2D(IUnknown *texture,
                                                    bool bindChroma,
-                                                   UINT arrayIndex)
+                                                   IUnknown *dxgiBuffer)
 {
-    return new TextureStorage11_2D(this, texture, bindChroma, arrayIndex);
+    return new TextureStorage11_2D(this, texture, bindChroma, dxgiBuffer);
 }
 
 TextureStorage *Renderer11::createTextureStorageEGLImage(EGLImageD3D *eglImage,
