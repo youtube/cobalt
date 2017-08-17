@@ -410,13 +410,14 @@ static_library("starboard_platform") {
   ]
 
   # Include private stubs, if present.
-  sources += exec_script("//starboard/tools/find_private_files.py",
-                         [
-                           rebase_path("//", root_build_dir),
-                           "shared/stub/*.cc",
-                         ],
-                         "list lines",
-                         [ "//starboard/private/shared/stub" ])
+  private_sources = exec_script("//starboard/tools/find_private_files.py",
+                                [
+                                  rebase_path("//", root_build_dir),
+                                  "shared/stub/*.cc",
+                                ],
+                                "list lines",
+                                [ "//starboard/private/shared/stub" ])
+  sources += rebase_path(private_sources, ".", root_build_dir)
 
   defines = [ "STARBOARD_IMPLEMENTATION" ]
 }
