@@ -150,9 +150,11 @@ scoped_refptr<script::Wrappable> CreateDebugHub(
     const debug::DebugHub::GetHudModeCallback& get_hud_mode_function,
     const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+    dom::MutationObserverTaskManager* mutation_observer_task_manager,
+    script::GlobalEnvironment* global_environment) {
   UNREFERENCED_PARAMETER(window);
   UNREFERENCED_PARAMETER(mutation_observer_task_manager);
+  UNREFERENCED_PARAMETER(global_environment);
   return new debug::DebugHub(get_hud_mode_function, get_debug_server_callback);
 }
 
