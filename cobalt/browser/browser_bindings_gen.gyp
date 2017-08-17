@@ -209,6 +209,8 @@
         '../xhr/xml_http_request.idl',
         '../xhr/xml_http_request_event_target.idl',
         '../xhr/xml_http_request_upload.idl',
+
+        '<@(cobalt_webapi_extension_source_idl_files)',
     ],
 
     # IDL files that will end up generating a .h that will be #included in
@@ -243,6 +245,7 @@
         '../web_animations/animation_fill_mode.idl',
         '../web_animations/animation_playback_direction.idl',
         '../websocket/close_event_init.idl',
+        '<@(cobalt_webapi_extension_generated_header_idl_files)',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes

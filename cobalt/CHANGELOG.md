@@ -40,6 +40,14 @@ This document records all notable changes made to Cobalt since the last release.
    `kSbInputEventTypeMove` events.  These will be passed into the WebModule to
    be processed by JavaScript.
 
+ - **Custom Web Extension Support**
+
+   Cobalt now allows platforms to inject a custom namespace property into
+   the JavaScript global `window` object visible to the web apps.  This allows
+   for custom web apps to interface with custom C++ code written outside of
+   Cobalt common code.  See
+   [doc/webapi_extension.md](doc/webapi_extension.md) for more details.
+
  - **Playback Rate**
 
    Cobalt now supports adjusting the video playback rate.

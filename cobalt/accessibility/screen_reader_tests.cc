@@ -104,7 +104,9 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
 
   scoped_refptr<script::Wrappable> CreateWindowAttribute(
       const scoped_refptr<dom::Window>& window,
-      dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+      dom::MutationObserverTaskManager* mutation_observer_task_manager,
+      script::GlobalEnvironment* global_environment) {
+    UNREFERENCED_PARAMETER(global_environment);
     screen_reader_.reset(new accessibility::ScreenReader(
         window->document(), &tts_engine_, mutation_observer_task_manager));
     screen_reader_->set_enabled(GetParam().screen_reader_enabled);
