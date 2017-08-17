@@ -8,6 +8,8 @@
 // classes TextureStorage11_2D and TextureStorage11_Cube, which act as the interface to the D3D11
 // texture.
 
+#include <mfobjects.h>
+
 #include "libANGLE/renderer/d3d/d3d11/TextureStorage11.h"
 
 #include <tuple>
@@ -29,6 +31,22 @@
 #include "libANGLE/renderer/d3d/TextureD3D.h"
 
 #include "starboard/log.h"
+
+namespace
+{
+// This GUID is used for a D3D private data property that allows
+// us to keep the associated IMFDXGIBuffer (if any) alive as long
+// as the shader resource view is alive. Video decoders re-use the same
+// textures, but they track their lifetime by watching the lifetime of
+// the IMFDXGIBuffer. So the IMFDXGIBuffer must be kept alive as long
+// as the texture may still be used to draw a given video frame.
+static const GUID kCobaltKeepAlive = { /* 99a98f3c-37d9-46db-b6a6-bc83c96090e9 */
+    0x99a98f3c,
+    0x37d9,
+    0x46db,
+    {0xb6, 0xa6, 0xbc, 0x83, 0xc9, 0x60, 0x90, 0xe9}
+  };
+}
 
 namespace rx
 {
@@ -717,7 +735,7 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
       mUseLevelZeroTexture(false),
       mSwizzleTexture(nullptr),
       mBindChroma(false),
-      mArrayIndex(0)
+      mDxgiBuffer(nullptr)
 {
     mTexture->AddRef();
 
@@ -739,7 +757,7 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer, SwapChain11 *swap
 TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
                                          IUnknown *texture,
                                          bool bindChroma,
-                                         UINT arrayIndex)
+                                         IUnknown *dxgiBuffer)
     : TextureStorage11(renderer,
                        0,
                        0,
@@ -750,9 +768,13 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
       mUseLevelZeroTexture(false),
       mSwizzleTexture(nullptr),
       mBindChroma(bindChroma),
-      mArrayIndex(arrayIndex)
+      mDxgiBuffer(dxgiBuffer)
 {
     mTexture->AddRef();
+    if (mDxgiBuffer != nullptr)
+    {
+        mDxgiBuffer->AddRef();
+    }
 
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
@@ -789,7 +811,9 @@ TextureStorage11_2D::TextureStorage11_2D(Renderer11 *renderer,
       mLevelZeroTexture(nullptr),
       mLevelZeroRenderTarget(nullptr),
       mUseLevelZeroTexture(hintLevelZeroOnly && levels > 1),
-      mSwizzleTexture(nullptr)
+      mSwizzleTexture(nullptr),
+      mBindChroma(nullptr),
+      mDxgiBuffer(nullptr)
 {
     for (unsigned int i = 0; i < gl::IMPLEMENTATION_MAX_TEXTURE_LEVELS; i++)
     {
@@ -827,6 +851,7 @@ TextureStorage11_2D::~TextureStorage11_2D()
     }
 
     SafeRelease(mTexture);
+    SafeRelease(mDxgiBuffer);
     SafeRelease(mSwizzleTexture);
 
     SafeRelease(mLevelZeroTexture);
@@ -1207,10 +1232,16 @@ gl::Error TextureStorage11_2D::createSRV(int baseLevel,
         d3Texture->GetDesc(&texture_desc);
         if (texture_desc.Format == DXGI_FORMAT_NV12)
         {
+            UINT arrayIndex = 0;
+            if (mDxgiBuffer != nullptr)
+            {
+                static_cast<IMFDXGIBuffer*>(mDxgiBuffer)->
+                    GetSubresourceIndex(&arrayIndex);
+            }
             srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2DARRAY;
             srvDesc.Texture2DArray.MostDetailedMip = mTopLevel + baseLevel;
             srvDesc.Texture2DArray.MipLevels       = mipLevels;
-            srvDesc.Texture2DArray.FirstArraySlice = mArrayIndex;
+            srvDesc.Texture2DArray.FirstArraySlice = arrayIndex;
             srvDesc.Texture2DArray.ArraySize       = 1;
 
             if (mBindChroma)
@@ -1255,6 +1286,9 @@ gl::Error TextureStorage11_2D::createSRV(int baseLevel,
     }
 
     d3d11::SetDebugName(*outSRV, "TexStorage2D.SRV");
+
+    result = (*outSRV)->SetPrivateDataInterface(kCobaltKeepAlive, mDxgiBuffer);
+    ASSERT(SUCCEEDED(result));
 
     return gl::NoError();
 }
