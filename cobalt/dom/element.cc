@@ -33,6 +33,7 @@
 #include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
@@ -551,6 +552,32 @@ void Element::set_outer_html(const std::string& outer_html,
     document->html_element_context()->dom_parser()->ParseDocumentFragment(
         outer_html, document, parent, reference, GetInlineSourceLocation());
   }
+}
+
+void Element::SetPointerCapture(int pointer_id,
+                                script::ExceptionState* exception_state) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->SetPointerCapture(pointer_id, this,
+                                                 exception_state);
+  }
+}
+
+void Element::ReleasePointerCapture(int pointer_id,
+                                    script::ExceptionState* exception_state) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->ReleasePointerCapture(pointer_id, this,
+                                                     exception_state);
+  }
+}
+
+bool Element::HasPointerCapture(int pointer_id) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->HasPointerCapture(pointer_id, this);
+  }
+  return false;
 }
 
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }

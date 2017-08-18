@@ -14,13 +14,14 @@
 
 // https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-mouseevent
 // https://www.w3.org/TR/2016/WD-uievents-20160804/#idl-interface-MouseEvent-initializers
+// https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-mouseevent-interface
 
 [Constructor(DOMString type, optional MouseEventInit eventInitDict)]
 interface MouseEvent : UIEvent {
-  readonly attribute long screenX;
-  readonly attribute long screenY;
-  readonly attribute long clientX;
-  readonly attribute long clientY;
+  readonly attribute double screenX;
+  readonly attribute double screenY;
+  readonly attribute double clientX;
+  readonly attribute double clientY;
 
   readonly attribute boolean ctrlKey;
   readonly attribute boolean shiftKey;

@@ -54,10 +54,8 @@
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
-#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
-#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "nb/memory_scope.h"
@@ -856,43 +854,6 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(location_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
-}
-
-void Document::QueuePointerEvent(const scoped_refptr<Event>& event) {
-  // Only accept this for event types that are MouseEvents or known derivatives.
-  SB_DCHECK(event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
-            event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
-            event->GetWrappableType() == base::GetTypeId<WheelEvent>());
-
-  // Queue the event to be handled on the next layout.
-  pointer_events_.push(event);
-}
-
-scoped_refptr<Event> Document::GetNextQueuedPointerEvent() {
-  scoped_refptr<Event> event;
-  if (pointer_events_.empty()) {
-    return event;
-  }
-
-  // Ignore pointer move events when they are succeeded by additional pointer
-  // move events.
-  bool next_event_is_move_event =
-      pointer_events_.front()->type() == base::Tokens::pointermove() ||
-      pointer_events_.front()->type() == base::Tokens::mousemove();
-  bool current_event_is_move_event;
-  do {
-    current_event_is_move_event = next_event_is_move_event;
-    event = pointer_events_.front();
-    pointer_events_.pop();
-    if (!current_event_is_move_event) {
-      break;
-    }
-    next_event_is_move_event =
-        !pointer_events_.empty() &&
-        (pointer_events_.front()->type() == base::Tokens::pointermove() ||
-         pointer_events_.front()->type() == base::Tokens::mousemove());
-  } while (next_event_is_move_event);
-  return event;
 }
 
 void Document::DispatchOnLoadEvent() {

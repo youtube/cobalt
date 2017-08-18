@@ -237,6 +237,23 @@ class EventTarget : public script::Wrappable,
     SetAttributeEventListener(base::Tokens::resize(), event_listener);
   }
 
+  const EventListenerScriptValue* ongotpointercapture() {
+    return GetAttributeEventListener(base::Tokens::gotpointercapture());
+  }
+  void set_ongotpointercapture(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::gotpointercapture(),
+                              event_listener);
+  }
+
+  const EventListenerScriptValue* onlostpointercapture() {
+    return GetAttributeEventListener(base::Tokens::lostpointercapture());
+  }
+  void set_onlostpointercapture(
+      const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::lostpointercapture(),
+                              event_listener);
+  }
+
   const EventListenerScriptValue* onpointerdown() {
     return GetAttributeEventListener(base::Tokens::pointerdown());
   }

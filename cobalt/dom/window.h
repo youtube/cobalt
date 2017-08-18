@@ -317,12 +317,12 @@ class Window : public EventTarget,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  DEFINE_WRAPPABLE_TYPE(Window);
-
   const base::Callback<bool(const std::string&)> splash_screen_cache_callback()
       const {
     return splash_screen_cache_callback_;
   }
+
+  DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
   void StartDocumentLoad(
