@@ -75,11 +75,15 @@ void TopmostEventTarget::ConsiderElement(
         const Box* box = boxes.front();
         box->UpdateCoordinateForTransform(&element_coordinate);
 
-        if (box->computed_style()->position() ==
-            cssom::KeywordValue::GetAbsolute()) {
-          // The containing block for position:absolute elements is formed by
-          // the padding box instead of the content box, as described in
+        if (box->IsAbsolutelyPositioned()) {
+          // The containing block is formed by the padding box instead of the
+          // content box, as described in
           // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+          // NOTE: While not explicitly stated in the spec, which specifies that
+          // the containing block of a 'fixed' position element must always be
+          // the viewport, all major browsers use the padding box of a
+          // transformed ancestor as the containing block for 'fixed' position
+          // elements.
           element_coordinate +=
               box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
         }
