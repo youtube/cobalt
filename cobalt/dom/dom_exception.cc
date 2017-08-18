@@ -45,17 +45,31 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "QuotaExceededError";
     case DOMException::kReadOnlyErr:
       return "ReadOnlyError";
+    case DOMException::kInvalidPointerIdErr:
+      return "InvalidPointerId";
   }
   NOTREACHED();
   return "";
 }
+
+// The code attribute's getter must return the legacy code indicated in the
+// error names table for this DOMException object's name, or 0 if no such entry
+// exists in the table.
+//   https://heycam.github.io/webidl/#dom-domexception-code
+DOMException::ExceptionCode GetLegacyCodeValue(
+    DOMException::ExceptionCode value) {
+  return value > DOMException::kHighestErrCodeValue ? DOMException::kNone
+                                                    : value;
+}
 }  // namespace
 
 DOMException::DOMException(ExceptionCode code)
-    : code_(code), name_(GetErrorName(code)) {}
+    : code_(GetLegacyCodeValue(code)), name_(GetErrorName(code)) {}
 
 DOMException::DOMException(ExceptionCode code, const std::string& message)
-    : code_(code), name_(GetErrorName(code)), message_(message) {}
+    : code_(GetLegacyCodeValue(code)),
+      name_(GetErrorName(code)),
+      message_(message) {}
 
 // static
 void DOMException::Raise(ExceptionCode code,

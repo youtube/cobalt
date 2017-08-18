@@ -212,6 +212,8 @@
         'plugin_array.h',
         'pointer_event.cc',
         'pointer_event.h',
+        'pointer_state.cc',
+        'pointer_state.h',
         'progress_event.cc',
         'progress_event.h',
         'pseudo_element.cc',
