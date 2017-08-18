@@ -155,7 +155,7 @@ send-entity-body-empty.htm,FAIL
 send-entity-body-get-head-async.htm,PASS
 send-entity-body-get-head.htm,FAIL
 send-entity-body-none.htm,FAIL
-send-network-error-async-events.sub.htm,FAIL
+send-network-error-async-events.sub.htm,PASS
 # Synchronous
 send-network-error-sync-events.sub.htm,FAIL
 send-non-same-origin.sub.htm,FAIL
@@ -170,7 +170,7 @@ send-redirect.htm,PASS
 send-redirect-infinite.htm,PASS
 send-redirect-infinite-sync.htm,FAIL
 send-redirect-no-location.htm,FAIL
-send-redirect-to-cors.htm,PASS
+send-redirect-to-cors.htm,FAIL
 send-redirect-to-non-cors.htm,FAIL
 send-response-event-order.htm,FAIL
 send-response-upload-event-loadend.htm,PASS
