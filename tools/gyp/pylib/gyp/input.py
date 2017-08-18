@@ -121,6 +121,11 @@ absolute_build_file_paths = False
 # Controls whether or not the generator supports multiple toolsets.
 multiple_toolsets = False
 
+# Paths for converting filelist paths to output paths: {
+#   toplevel,
+#   qualified_output_dir,
+# }
+generator_filelist_paths = None
 
 def GetIncludedBuildFiles(build_file_path, aux_data, included=None):
   """Return a list of all build files included into build_file_path.
@@ -809,14 +814,27 @@ def ExpandVariables(input, phase, variables, build_file):
     # This works around actions/rules which have more inputs than will
     # fit on the command line.
     if file_list:
-      if type(contents) == list:
+      if type(contents) is list:
         contents_list = contents
       else:
         contents_list = contents.split(' ')
       replacement = contents_list[0]
-      path = replacement
-      if not os.path.isabs(path):
-        path = os.path.join(build_file_dir, path)
+      if os.path.isabs(replacement):
+        raise GypError('| cannot handle absolute paths, got "%s"' % replacement)
+
+      if not generator_filelist_paths:
+        path = os.path.join(build_file_dir, replacement)
+      else:
+        if os.path.isabs(build_file_dir):
+          toplevel = generator_filelist_paths['toplevel']
+          rel_build_file_dir = gyp.common.RelativePath(build_file_dir, toplevel)
+        else:
+          rel_build_file_dir = build_file_dir
+        qualified_out_dir = generator_filelist_paths['qualified_out_dir']
+        path = os.path.join(qualified_out_dir, rel_build_file_dir, replacement)
+        gyp.common.EnsureDirExists(path)
+
+      replacement = gyp.common.RelativePath(path, build_file_dir)
       f = gyp.common.WriteOnDiff(path)
       for i in contents_list[1:]:
         f.write('%s\n' % i)
@@ -2532,6 +2550,9 @@ def VerifyNoCollidingTargets(targets):
 
 def Load(build_files, variables, includes, depth, generator_input_info, check,
          circular_check, parallel):
+  global generator_filelist_paths
+  generator_filelist_paths = generator_input_info['generator_filelist_paths']
+
   # Set up path_sections and non_configuration_keys with the default data plus
   # the generator-specifc data.
   global path_sections
