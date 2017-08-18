@@ -1298,7 +1298,7 @@ void WebModule::Impl::HandlePointerEvents() {
   const scoped_refptr<dom::Document>& document = window_->document();
   scoped_refptr<dom::Event> event;
   do {
-    event = document->GetNextQueuedPointerEvent();
+    event = document->pointer_state()->GetNextQueuedPointerEvent();
     if (event) {
       SB_DCHECK(
           window_ ==

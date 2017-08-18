@@ -43,7 +43,9 @@ class DOMException : public script::ScriptException {
     kTypeMismatchErr = 17,
     kSecurityErr = 18,
     kQuotaExceededErr = 22,
-    kReadOnlyErr
+    kHighestErrCodeValue = kQuotaExceededErr,
+    kReadOnlyErr,
+    kInvalidPointerIdErr
   };
 
   explicit DOMException(ExceptionCode code);

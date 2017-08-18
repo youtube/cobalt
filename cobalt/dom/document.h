@@ -21,6 +21,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/optional.h"
@@ -39,12 +40,14 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/pointer_state.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -384,11 +387,7 @@ class Document : public Node,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  // Queue up pointer related events.
-  void QueuePointerEvent(const scoped_refptr<Event>& event);
-
-  // Get the next queued pointer event.
-  scoped_refptr<Event> GetNextQueuedPointerEvent();
+  PointerState* pointer_state() { return &pointer_state_; }
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -482,7 +481,8 @@ class Document : public Node,
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;
 
-  std::queue<scoped_refptr<Event> > pointer_events_;
+  // Various state related to pointer and mouse support.
+  PointerState pointer_state_;
 };
 
 }  // namespace dom

@@ -34,33 +34,36 @@ MouseEvent::MouseEvent(const std::string& type)
 MouseEvent::MouseEvent(const std::string& type, const MouseEventInit& init_dict)
     : UIEventWithKeyState(base::Token(type), kBubbles, kCancelable,
                           init_dict.view(), init_dict),
-      screen_x_(init_dict.screen_x()),
-      screen_y_(init_dict.screen_y()),
-      client_x_(init_dict.client_x()),
-      client_y_(init_dict.client_y()),
+      screen_x_(static_cast<float>(init_dict.screen_x())),
+      screen_y_(static_cast<float>(init_dict.screen_y())),
+      client_x_(static_cast<float>(init_dict.client_x())),
+      client_y_(static_cast<float>(init_dict.client_y())),
       button_(init_dict.button()),
-      buttons_(init_dict.buttons()) {}
+      buttons_(init_dict.buttons()),
+      related_target_(init_dict.related_target()) {}
 
 MouseEvent::MouseEvent(base::Token type, const scoped_refptr<Window>& view,
                        const MouseEventInit& init_dict)
     : UIEventWithKeyState(type, kBubbles, kCancelable, view, init_dict),
-      screen_x_(init_dict.screen_x()),
-      screen_y_(init_dict.screen_y()),
-      client_x_(init_dict.client_x()),
-      client_y_(init_dict.client_y()),
+      screen_x_(static_cast<float>(init_dict.screen_x())),
+      screen_y_(static_cast<float>(init_dict.screen_y())),
+      client_x_(static_cast<float>(init_dict.client_x())),
+      client_y_(static_cast<float>(init_dict.client_y())),
       button_(init_dict.button()),
-      buttons_(init_dict.buttons()) {}
+      buttons_(init_dict.buttons()),
+      related_target_(init_dict.related_target()) {}
 
 MouseEvent::MouseEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
                        const scoped_refptr<Window>& view,
                        const MouseEventInit& init_dict)
     : UIEventWithKeyState(type, bubbles, cancelable, view, init_dict),
-      screen_x_(init_dict.screen_x()),
-      screen_y_(init_dict.screen_y()),
-      client_x_(init_dict.client_x()),
-      client_y_(init_dict.client_y()),
+      screen_x_(static_cast<float>(init_dict.screen_x())),
+      screen_y_(static_cast<float>(init_dict.screen_y())),
+      client_x_(static_cast<float>(init_dict.client_x())),
+      client_y_(static_cast<float>(init_dict.client_y())),
       button_(init_dict.button()),
-      buttons_(init_dict.buttons()) {}
+      buttons_(init_dict.buttons()),
+      related_target_(init_dict.related_target()) {}
 
 MouseEvent::MouseEvent(UninitializedFlag uninitialized_flag)
     : UIEventWithKeyState(uninitialized_flag),

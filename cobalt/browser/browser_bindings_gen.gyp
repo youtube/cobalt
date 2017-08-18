@@ -261,6 +261,7 @@
         '../dom/element_css_inline_style.idl',
         '../dom/element_cssom_view.idl',
         '../dom/element_dom_parsing_and_serialization.idl',
+        '../dom/element_pointer_events.idl',
         '../dom/global_crypto.idl',
         '../dom/global_event_handlers.idl',
         '../dom/html_element_cssom_view.idl',
