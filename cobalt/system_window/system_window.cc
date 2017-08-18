@@ -14,6 +14,9 @@
 
 #include "cobalt/system_window/system_window.h"
 
+#include <algorithm>
+#include <cmath>
+
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/stringprintf.h"
@@ -100,22 +103,30 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
   // uses.
   int key_code = static_cast<int>(data.key);
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  float pressure = data.pressure;
   uint32 modifiers = data.key_modifiers;
-  if (((data.device_type == kSbInputDeviceTypeTouchPad) ||
-       (data.device_type == kSbInputDeviceTypeTouchScreen)) &&
-      ((type == InputEvent::kPointerDown) ||
-       (type == InputEvent::kPointerMove))) {
-    // For touch contact input, ensure that the device button state is also
-    // reported as pressed.
-    //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#button-states
-    key_code = kSbKeyMouse1;
-    modifiers |= InputEvent::kLeftButton;
+  if (data.device_type == kSbInputDeviceTypeTouchScreen) {
+    switch (type) {
+      case InputEvent::kPointerDown:
+      case InputEvent::kPointerMove:
+        // For touch contact input, ensure that the device button state is also
+        // reported as pressed.
+        //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#button-states
+        key_code = kSbKeyMouse1;
+        modifiers |= InputEvent::kLeftButton;
+        if (!std::isnan(pressure)) {
+          pressure = std::max(pressure, 0.5f);
+        }
+        break;
+      default:
+        break;
+    }
   }
 
   scoped_ptr<InputEvent> input_event(
       new InputEvent(type, data.device_id, key_code, modifiers, is_repeat,
                      math::PointF(data.position.x, data.position.y),
-                     math::PointF(data.delta.x, data.delta.y), data.pressure,
+                     math::PointF(data.delta.x, data.delta.y), pressure,
                      math::PointF(data.size.x, data.size.y),
                      math::PointF(data.tilt.x, data.tilt.y)));
 #else
@@ -129,12 +140,12 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
 
 void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
   switch (data.type) {
-    case kSbInputEventTypePress:
+    case kSbInputEventTypePress: {
+      DispatchInputEvent(data, InputEvent::kPointerDown, false /* is_repeat */);
+      break;
+    }
     case kSbInputEventTypeUnpress: {
-      InputEvent::Type input_event_type = data.type == kSbInputEventTypePress
-                                              ? InputEvent::kPointerDown
-                                              : InputEvent::kPointerUp;
-      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
+      DispatchInputEvent(data, InputEvent::kPointerUp, false /* is_repeat */);
       break;
     }
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
@@ -143,9 +154,10 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       break;
     }
 #endif
-    case kSbInputEventTypeMove:
+    case kSbInputEventTypeMove: {
       DispatchInputEvent(data, InputEvent::kPointerMove, false /* is_repeat */);
       break;
+    }
     default:
       SB_NOTREACHED();
       break;
@@ -185,13 +197,11 @@ void SystemWindow::HandleInputEvent(const SbInputData& data) {
 
 void OnDialogClose(SbSystemPlatformErrorResponse response, void* user_data) {
   DCHECK(user_data);
-  SystemWindow* system_window =
-      static_cast<SystemWindow*>(user_data);
+  SystemWindow* system_window = static_cast<SystemWindow*>(user_data);
   system_window->HandleDialogClose(response);
 }
 
-void SystemWindow::ShowDialog(
-    const SystemWindow::DialogOptions& options) {
+void SystemWindow::ShowDialog(const SystemWindow::DialogOptions& options) {
   SbSystemPlatformErrorType error_type =
       kSbSystemPlatformErrorTypeConnectionError;
   switch (options.message_code) {
@@ -208,13 +218,11 @@ void SystemWindow::ShowDialog(
   if (SbSystemPlatformErrorIsValid(handle)) {
     current_dialog_callback_ = options.callback;
   } else {
-    DLOG(WARNING) << "Failed to notify user of error: "
-                  << options.message_code;
+    DLOG(WARNING) << "Failed to notify user of error: " << options.message_code;
   }
 }
 
-void SystemWindow::HandleDialogClose(
-    SbSystemPlatformErrorResponse response) {
+void SystemWindow::HandleDialogClose(SbSystemPlatformErrorResponse response) {
   DCHECK(!current_dialog_callback_.is_null());
   switch (response) {
     case kSbSystemPlatformErrorResponsePositive:

@@ -108,14 +108,17 @@ void UpdateMouseEventInitButton(int key_code, MouseEventInit* event) {
     // button or the only button on single-button devices, used to activate a
     // user interface control or select text) or the un-initialized value.
     event->set_button(0);
+    event->set_buttons(1);
   } else if (key_code == kSbKeyMouse2) {
     // 1 MUST indicate the auxiliary button (in general, the middle button,
     // often combined with a mouse wheel).
     event->set_button(1);
+    event->set_buttons(2);
   } else if (key_code == kSbKeyMouse3) {
     // 2 MUST indicate the secondary button (in general, the right button, often
     // used to display a context menu).
     event->set_button(2);
+    event->set_buttons(4);
   }
 }
 
@@ -141,7 +144,7 @@ void UpdateMouseEventInitButtons(uint32 modifiers, MouseEventInit* event) {
     // often combined with a mouse wheel).
     buttons |= 4;
   }
-  event->set_buttons(buttons);
+  event->set_buttons(event->buttons() | buttons);
 }
 
 void UpdateMouseEventInit(const system_window::InputEvent* input_event,
@@ -150,10 +153,11 @@ void UpdateMouseEventInit(const system_window::InputEvent* input_event,
   UpdateMouseEventInitButton(input_event->key_code(), mouse_event);
   UpdateMouseEventInitButtons(input_event->modifiers(), mouse_event);
 
-  mouse_event->set_screen_x(static_cast<float>(input_event->position().x()));
-  mouse_event->set_screen_y(static_cast<float>(input_event->position().y()));
-  mouse_event->set_client_x(static_cast<float>(input_event->position().x()));
-  mouse_event->set_client_y(static_cast<float>(input_event->position().y()));
+  const math::PointF& position = input_event->position();
+  mouse_event->set_screen_x(static_cast<float>(position.x()));
+  mouse_event->set_screen_y(static_cast<float>(position.y()));
+  mouse_event->set_client_x(static_cast<float>(position.x()));
+  mouse_event->set_client_y(static_cast<float>(position.y()));
 }
 
 // Returns the value or the default_value when value is NaN.
@@ -183,7 +187,7 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
     base::Token type, const system_window::InputEvent* input_event) {
   dom::PointerEventInit pointer_event;
   UpdateMouseEventInit(input_event, &pointer_event);
-
+  pointer_event.set_pointer_type("mouse");
   pointer_event.set_pointer_id(input_event->device_id());
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
   pointer_event.set_width(value_or(input_event->size().x(), 0.0f));
