@@ -61,6 +61,7 @@ namespace base {
     MacroOpWithNameOnly(focus)                                       \
     MacroOpWithNameOnly(focusin)                                     \
     MacroOpWithNameOnly(focusout)                                    \
+    MacroOpWithNameOnly(gotpointercapture)                           \
     MacroOpWithNameOnly(hashchange)                                  \
     MacroOpWithNameOnly(keydown)                                     \
     MacroOpWithNameOnly(keypress)                                    \
@@ -71,6 +72,7 @@ namespace base {
     MacroOpWithNameOnly(loadedmetadata)                              \
     MacroOpWithNameOnly(loadend)                                     \
     MacroOpWithNameOnly(loadstart)                                   \
+    MacroOpWithNameOnly(lostpointercapture)                          \
     MacroOpWithNameOnly(mark)                                        \
     MacroOpWithNameOnly(message)                                     \
     MacroOpWithNameOnly(mousedown)                                   \

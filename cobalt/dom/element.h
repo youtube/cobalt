@@ -23,6 +23,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/token.h"
+#include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/script/exception_state.h"
 #include "cobalt/web_animations/animation_set.h"
@@ -114,6 +115,15 @@ class Element : public Node {
   std::string outer_html(script::ExceptionState* exception_state) const;
   void set_outer_html(const std::string& outer_html,
                       script::ExceptionState* exception_state);
+
+  // Web API: Pointer Events: Extensions to the Element Interface (partial
+  // interface)
+  //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#extensions-to-the-element-interface
+  void SetPointerCapture(int32_t pointer_id,
+                         script::ExceptionState* exception_state);
+  void ReleasePointerCapture(int32_t pointer_id,
+                             script::ExceptionState* exception_state);
+  bool HasPointerCapture(int32_t pointer_id);
 
   // Custom, not in any spec: Node.
   //
