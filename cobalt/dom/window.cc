@@ -419,7 +419,7 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
   } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
              event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
              event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
-    document_->QueuePointerEvent(event);
+    document_->pointer_state()->QueuePointerEvent(event);
   } else {
     SB_NOTREACHED();
   }
