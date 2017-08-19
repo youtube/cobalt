@@ -81,6 +81,8 @@ class PlayerWorker {
 #if SB_API_VERSION >= 4
     virtual bool SetPlaybackRate(double playback_rate) = 0;
 #endif  // SB_API_VERSION >= 4
+    virtual void SetVolume(double volume) = 0;
+
     virtual bool SetBounds(const Bounds& bounds) = 0;
 
     // Once this function returns, all processing on the Handler and related
@@ -146,6 +148,10 @@ class PlayerWorker {
   }
 #endif  // SB_API_VERSION >= 4
 
+  void SetVolume(double volume) {
+    job_queue_->Schedule(Bind(&PlayerWorker::DoSetVolume, this, volume));
+  }
+
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
@@ -177,6 +183,7 @@ class PlayerWorker {
 #if SB_API_VERSION >= 4
   void DoSetPlaybackRate(double rate);
 #endif  // SB_API_VERSION >= 4
+  void DoSetVolume(double volume);
   void DoStop();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);

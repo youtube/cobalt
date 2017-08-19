@@ -62,7 +62,11 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       audio_codec_(audio_codec),
       drm_system_(drm_system),
       audio_header_(audio_header),
-      paused_(false)
+      paused_(false),
+#if SB_API_VERSION >= 4
+      playback_rate_(1.0),
+#endif  // SB_API_VERSION >= 4
+      volume_(1.0)
 #if SB_API_VERSION >= 4
       ,
       output_mode_(output_mode),
@@ -135,6 +139,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
   media_components->GetRenderers(&audio_renderer_, &video_renderer_);
+
+#if SB_API_VERSION >= 4
+  audio_renderer_->SetPlaybackRate(playback_rate_);
+#endif  // SB_API_VERSION >= 4
+  audio_renderer_->SetVolume(volume_);
 
   job_queue_->Schedule(update_closure_, kUpdateInterval);
 
@@ -265,14 +274,25 @@ bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
 bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
+  playback_rate_ = playback_rate;
+
   if (!audio_renderer_) {
     return false;
   }
 
-  audio_renderer_->SetPlaybackRate(playback_rate);
+  audio_renderer_->SetPlaybackRate(playback_rate_);
   return true;
 }
 #endif  // SB_API_VERSION >= 4
+
+void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  volume_ = volume;
+  if (audio_renderer_) {
+    audio_renderer_->SetVolume(volume_);
+  }
+}
 
 bool FilterBasedPlayerWorkerHandler::SetBounds(
     const PlayerWorker::Bounds& bounds) {

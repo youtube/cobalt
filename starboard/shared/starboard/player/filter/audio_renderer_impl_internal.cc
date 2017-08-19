@@ -71,6 +71,7 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
       sink_sample_type_(GetSinkAudioSampleType()),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       playback_rate_(1.0),
+      volume_(1.0),
       paused_(true),
       seeking_(false),
       seeking_to_pts_(0),
@@ -178,6 +179,14 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   }
 }
 #endif  // SB_API_VERSION >= 4
+
+void AudioRendererImpl::SetVolume(double volume) {
+  SB_DCHECK(BelongsToCurrentThread());
+  volume_ = volume;
+  if (audio_sink_) {
+    audio_sink_->SetVolume(volume_);
+  }
+}
 
 void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -288,6 +297,7 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
 #endif  // SB_API_VERSION >= 4
+  audio_sink_->SetVolume(volume_);
 }
 
 void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
