@@ -38,6 +38,7 @@ class AudioRenderer {
 #if SB_API_VERSION >= 4
   virtual void SetPlaybackRate(double playback_rate) = 0;
 #endif  // SB_API_VERSION >= 4
+  virtual void SetVolume(double volume) = 0;
   virtual void Seek(SbMediaTime seek_to_pts) = 0;
   virtual bool IsEndOfStreamWritten() const = 0;
   virtual bool IsEndOfStreamPlayed() const = 0;

@@ -60,6 +60,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
 #if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE;
 #endif  // SB_API_VERSION >= 4
+  void SetVolume(double volume) SB_OVERRIDE;
   void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
   bool IsEndOfStreamWritten() const SB_OVERRIDE {
@@ -117,6 +118,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   scoped_ptr<AudioResampler> resampler_;
   AudioTimeStretcher time_stretcher_;
   double playback_rate_;
+  double volume_;
 
   atomic_bool paused_;
   atomic_bool seeking_;
