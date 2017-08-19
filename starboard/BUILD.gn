@@ -19,7 +19,7 @@ group("all") {
     # "//starboard/client_porting/eztime:all",
     # "//starboard/client_porting/icu_init:all",
     # "//starboard/client_porting/poem:all",
-    # "//starboard/examples:all",
+    "//starboard/examples",
     # "//starboard/nplb/blitter_pixel_tests:all",
     "//starboard/nplb:all",
     ":starboard",
