@@ -92,6 +92,8 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
     playback_rate_ = playback_rate;
   }
 
+  void SetVolume(double volume) SB_OVERRIDE;
+
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
@@ -310,6 +312,15 @@ void AudioTrackAudioSink::AudioThreadFunc() {
   // Flushes the audio data currently queued for playback. Any data that has
   // been written but not yet presented will be discarded.
   env->CallVoidMethodOrAbort(j_audio_track_bridge_, "flush", "()V");
+}
+
+void AudioTrackAudioSink::SetVolume(double volume) {
+  auto* env = JniEnvExt::Get();
+  jint status = env->CallIntMethodOrAbort(j_audio_track_bridge_, "setVolume",
+                                          "(F)I", static_cast<float>(volume));
+  if (status != 0) {
+    SB_LOG(ERROR) << "Failed to set volume";
+  }
 }
 
 }  // namespace
