@@ -71,8 +71,8 @@ void GraphicsState::SetDirty() {
 
 void GraphicsState::BeginFrame() {
   DCHECK_EQ(vertex_data_allocated_, 0);
-  if (vertex_data_reserved_ > vertex_data_buffer_.capacity()) {
-    vertex_data_buffer_.reserve(vertex_data_reserved_);
+  if (vertex_data_reserved_ > vertex_data_buffer_.size()) {
+    vertex_data_buffer_.resize(vertex_data_reserved_);
   }
 
   // Reset to default GL state. Assume the current state is dirty, so just
