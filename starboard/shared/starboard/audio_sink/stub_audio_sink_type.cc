@@ -44,6 +44,10 @@ class StubAudioSink : public SbAudioSinkPrivate {
   }
 #endif  // SB_API_VERSION >= 4
 
+  void SetVolume(double volume) SB_OVERRIDE {
+    SB_UNREFERENCED_PARAMETER(volume);
+  }
+
  private:
   static void* ThreadEntryPoint(void* context);
   void AudioThreadFunc();
