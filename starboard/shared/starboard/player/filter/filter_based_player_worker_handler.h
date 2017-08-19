@@ -68,6 +68,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 #if SB_API_VERSION >= 4
   bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
 #endif  // SB_API_VERSION >= 4
+  void SetVolume(double volume) SB_OVERRIDE;
   bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
   void Stop() SB_OVERRIDE;
 
@@ -98,6 +99,10 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   scoped_ptr<VideoRenderer> video_renderer_;
 
   bool paused_;
+#if SB_API_VERSION >= 4
+  double playback_rate_;
+#endif  // SB_API_VERSION >= 4
+  double volume_;
   PlayerWorker::Bounds bounds_;
   Closure update_closure_;
 
