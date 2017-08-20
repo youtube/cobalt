@@ -35,6 +35,8 @@ VideoDecoder::VideoDecoder(const VideoParameters& params)
 }
 
 VideoDecoder::~VideoDecoder() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   video_decoder_thread_.reset(nullptr);
   impl_.reset(nullptr);
 }
