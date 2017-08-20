@@ -16,9 +16,9 @@
 #define COBALT_RENDERER_RASTERIZER_EGL_GRAPHICS_STATE_H_
 
 #include <GLES2/gl2.h>
-#include <vector>
 
 #include "base/basictypes.h"
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/math/size.h"
@@ -104,9 +104,23 @@ class GraphicsState {
   // be done after all calls to ReserveVertexData for a given render frame.
   uint8_t* AllocateVertexData(size_t bytes);
 
-  // Update the GPU with the current contents of the vertex data buffer. This
-  // should only be called once, after BeginFrame().
-  void UpdateVertexData();
+  // Reserve the specified number of vertex indices for the upcoming frame.
+  // This must be called outside of a render frame.
+  void ReserveVertexIndices(size_t count);
+
+  // Returns a client-side pointer to the specified number of vertex indices.
+  // These indices should have been reserved using ReserveVertexIndices.
+  // Allocations can only be made after all calls to reserve indices for a
+  // given frame.
+  uint16_t* AllocateVertexIndices(size_t count);
+
+  // Return a pointer to a previously allocated vertex index buffer. The return
+  // value is suitable for use with glDrawElements.
+  const GLvoid* GetVertexIndexPointer(const uint16_t* client_pointer);
+
+  // Update the GPU with the current contents of the vertex data and index
+  // buffers. This should only be called once, after BeginFrame().
+  void UpdateVertexBuffers();
 
   // Specify vertex attribute data that the current program will use.
   // |client_pointer| should be within the range of addresses returned by
@@ -134,6 +148,7 @@ class GraphicsState {
 
   GLuint program_;
   GLuint array_buffer_handle_;
+  GLuint index_buffer_handle_;
   GLenum texture_unit_;
   uint32_t enabled_vertex_attrib_array_mask_;
   uint32_t disable_vertex_attrib_array_mask_;
@@ -151,11 +166,17 @@ class GraphicsState {
   int frame_index_;
 
   static const size_t kVertexDataAlignment = 4;
-  std::vector<uint8_t> vertex_data_buffer_;
+  scoped_array<uint8_t> vertex_data_buffer_;
+  size_t vertex_data_capacity_;
   size_t vertex_data_reserved_;
   size_t vertex_data_allocated_;
   GLuint vertex_data_buffer_handle_[kNumFramesBuffered];
-  bool vertex_data_buffer_updated_;
+  scoped_array<uint16_t> vertex_index_buffer_;
+  size_t vertex_index_capacity_;
+  size_t vertex_index_reserved_;
+  size_t vertex_index_allocated_;
+  GLuint vertex_index_buffer_handle_[kNumFramesBuffered];
+  bool vertex_buffers_updated_;
 };
 
 }  // namespace egl
