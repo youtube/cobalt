@@ -85,7 +85,7 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 }
 
 void VideoDecoder::OnVideoDecoded(VideoFramePtr data) {
-  Status sts = data->IsEndOfStream() ? kBufferFull : kNeedMoreInput;
+  Status sts = (data && data->IsEndOfStream()) ? kBufferFull : kNeedMoreInput;
   host_->OnDecoderStatusUpdate(sts, data);
 }
 
