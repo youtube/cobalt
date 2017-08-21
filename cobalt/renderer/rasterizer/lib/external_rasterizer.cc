@@ -109,6 +109,7 @@ INSTANCE_CALLBACK_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
 INSTANCE_CALLBACK_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
 INSTANCE_CALLBACK_UPDATE(UpdateProjectionTypeAndStereoMode,
                          CbLibVideoSetOnUpdateProjectionTypeAndStereoMode);
+INSTANCE_CALLBACK_UPDATE(UpdateAspectRatio, CbLibVideoSetOnUpdateAspectRatio);
 INSTANCE_CALLBACK_UPDATE(GraphicsContextCreated,
                          CbLibGraphicsSetContextCreatedCallback);
 INSTANCE_CALLBACK_UPDATE(BeginRenderFrame,
@@ -123,6 +124,8 @@ UpdateRgbTextureId::LazyCallback g_update_rgb_texture_id_callback =
 UpdateProjectionTypeAndStereoMode::LazyCallback
     g_update_projection_type_and_stereo_mode_callback =
         LAZY_INSTANCE_INITIALIZER;
+UpdateAspectRatio::LazyCallback g_update_aspect_ratio_callback =
+    LAZY_INSTANCE_INITIALIZER;
 GraphicsContextCreated::LazyCallback g_graphics_context_created_callback =
     LAZY_INSTANCE_INITIALIZER;
 BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
@@ -207,6 +210,8 @@ class ExternalRasterizer::Impl {
   // of the buffer for the main RenderTarget should aim to be within some small
   // delta of this whenever a new RenderTree is rendered.
   cobalt::math::Size target_main_render_target_size_;
+  int video_width_;
+  int video_height_;
 };
 
 ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
@@ -226,6 +231,8 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0),
+      video_width_(-1),
+      video_height_(-1),
       target_main_render_target_size_(1, 1) {
   CHECK(!g_external_rasterizer_impl);
   g_external_rasterizer_impl = this;
@@ -294,14 +301,23 @@ void ExternalRasterizer::Impl::Submit(
           static_cast<CbLibVideoStereoMode>(video_stereo_mode_));
     }
 
+    const scoped_refptr<render_tree::Node>& video_render_tree =
+        map_to_mesh_search.found_node->data().source;
+    math::SizeF resolutionf = video_render_tree->GetBounds().size();
+    int width = static_cast<int>(resolutionf.width());
+    int height = static_cast<int>(resolutionf.height());
+
+    if (video_width_ != width || video_height_ != height) {
+      g_update_aspect_ratio_callback.Get().Run(
+          width > 0 && height > 0 ?  // Avoid division by zero.
+              resolutionf.width() / resolutionf.height()
+                                  : 0.0f);
+      video_width_ = width;
+      video_height_ = height;
+    }
+
     if (video_projection_type_ == kCbLibVideoProjectionTypeMesh) {
       // Use resolution to lookup custom mesh map.
-      const scoped_refptr<render_tree::Node>& video_render_tree =
-          map_to_mesh_search.found_node->data().source;
-      math::SizeF resolutionf = video_render_tree->GetBounds().size();
-      int width = static_cast<int>(resolutionf.width());
-      int height = static_cast<int>(resolutionf.height());
-
       math::Size resolution(width, height);
       scoped_refptr<skia::HardwareMesh> left_eye_video_mesh(
           base::polymorphic_downcast<skia::HardwareMesh*>(
@@ -345,6 +361,7 @@ void ExternalRasterizer::Impl::Submit(
       video_projection_type_ = kCbLibVideoProjectionTypeNone;
       g_update_projection_type_and_stereo_mode_callback.Get().Run(
           video_projection_type_, kCbLibVideoStereoModeMono);
+      video_width_ = video_height_ = -1;
     }
   }
 
@@ -538,6 +555,13 @@ void CbLibVideoSetOnUpdateProjectionTypeAndStereoMode(
       callback ? base::Bind(callback, context)
                : base::Bind(
                      &UpdateProjectionTypeAndStereoMode::DefaultImplementation);
+}
+
+void CbLibVideoSetOnUpdateAspectRatio(
+    void* context, CbLibVideoUpdateAspectRatioCallback callback) {
+  g_update_aspect_ratio_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateAspectRatio::DefaultImplementation);
 }
 
 void CbLibGraphicsSetContextCreatedCallback(

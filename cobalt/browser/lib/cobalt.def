@@ -24,6 +24,7 @@ EXPORTS
     CbLibVideoSetOnUpdateProjectionTypeAndStereoMode
     CbLibVideoSetOnUpdateMeshes
     CbLibVideoSetOnUpdateRgbTextureId
+    CbLibVideoSetOnUpdateAspectRatio
 
     ; Following GL functions are copied from libGLESv2.def and EGL from
     ; libEGL.def. We export these so that host-applications may use the same
