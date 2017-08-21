@@ -53,11 +53,6 @@ GraphicsState::GraphicsState()
   SetDirty();
   blend_enabled_ = false;
   Reset();
-
-  // These settings should only need to be set once. Nothing should touch them.
-  GL_CALL(glDisable(GL_DITHER));
-  GL_CALL(glDisable(GL_CULL_FACE));
-  GL_CALL(glDisable(GL_STENCIL_TEST));
 }
 
 GraphicsState::~GraphicsState() {
@@ -345,6 +340,10 @@ void GraphicsState::VertexAttribFinish() {
 
 void GraphicsState::Reset() {
   program_ = 0;
+
+  GL_CALL(glDisable(GL_DITHER));
+  GL_CALL(glDisable(GL_STENCIL_TEST));
+  GL_CALL(glDisable(GL_CULL_FACE));
 
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, render_target_handle_));
   GLViewport(viewport_, render_target_size_);
