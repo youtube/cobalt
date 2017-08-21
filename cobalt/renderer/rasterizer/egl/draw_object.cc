@@ -59,20 +59,10 @@ uint32_t DrawObject::GetGLRGBA(float r, float g, float b, float a) {
 void DrawObject::SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
     const math::RectF& rect, const render_tree::RoundedCorners& corners,
     float inset) {
-  // Ensure corner sizes are non-zero to allow generic handling of square and
-  // rounded corners.
-  const float kMinCornerSize = 0.01f;
-
   math::RectF inset_rect(rect);
   inset_rect.Inset(inset, inset);
   render_tree::RoundedCorners inset_corners =
       corners.Inset(inset, inset, inset, inset);
-
-  // The rect data is a vec4 representing (min.xy, max.xy).
-  float rect_data[4] = {
-    inset_rect.x(), inset_rect.y(), inset_rect.right(), inset_rect.bottom(),
-  };
-  GL_CALL(glUniform4fv(rect_uniform, 1, rect_data));
 
   // Tweak corners that are square-ish so they have values that play
   // nicely with the shader. Interpolating x^2 / a^2 + y^2 / b^2 does not
@@ -98,26 +88,40 @@ void DrawObject::SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
     inset_corners.bottom_right.vertical = 0.0f;
   }
 
+  // Ensure corner sizes are non-zero to allow generic handling of square and
+  // rounded corners.
+  const float kMinCornerSize = 0.01f;
+  inset_rect.Outset(kMinCornerSize, kMinCornerSize);
+  inset_corners = inset_corners.Inset(-kMinCornerSize, -kMinCornerSize,
+      -kMinCornerSize, -kMinCornerSize);
+  inset_corners = inset_corners.Normalize(inset_rect);
+
+  // The rect data is a vec4 representing (min.xy, max.xy).
+  float rect_data[4] = {
+    inset_rect.x(), inset_rect.y(), inset_rect.right(), inset_rect.bottom(),
+  };
+  GL_CALL(glUniform4fv(rect_uniform, 1, rect_data));
+
   // The corners data is a mat4 with each vector representing a corner
   // (ordered top left, top right, bottom left, bottom right). Each corner
   // vec4 represents (start.xy, radius.xy).
   float corners_data[16] = {
     inset_rect.x() + inset_corners.top_left.horizontal,
     inset_rect.y() + inset_corners.top_left.vertical,
-    std::max(inset_corners.top_left.horizontal, kMinCornerSize),
-    std::max(inset_corners.top_left.vertical, kMinCornerSize),
+    inset_corners.top_left.horizontal,
+    inset_corners.top_left.vertical,
     inset_rect.right() - inset_corners.top_right.horizontal,
     inset_rect.y() + inset_corners.top_right.vertical,
-    std::max(inset_corners.top_right.horizontal, kMinCornerSize),
-    std::max(inset_corners.top_right.vertical, kMinCornerSize),
+    inset_corners.top_right.horizontal,
+    inset_corners.top_right.vertical,
     inset_rect.x() + inset_corners.bottom_left.horizontal,
     inset_rect.bottom() - inset_corners.bottom_left.vertical,
-    std::max(inset_corners.bottom_left.horizontal, kMinCornerSize),
-    std::max(inset_corners.bottom_left.vertical, kMinCornerSize),
+    inset_corners.bottom_left.horizontal,
+    inset_corners.bottom_left.vertical,
     inset_rect.right() - inset_corners.bottom_right.horizontal,
     inset_rect.bottom() - inset_corners.bottom_right.vertical,
-    std::max(inset_corners.bottom_right.horizontal, kMinCornerSize),
-    std::max(inset_corners.bottom_right.vertical, kMinCornerSize),
+    inset_corners.bottom_right.horizontal,
+    inset_corners.bottom_right.vertical,
   };
   GL_CALL(glUniformMatrix4fv(corners_uniform, 1, false, corners_data));
 }

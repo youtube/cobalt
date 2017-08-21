@@ -45,8 +45,9 @@ void SetBlurRRectUniforms(const ShaderFragmentColorBlurRrects& shader,
   // Ensure a minimum radius for each corner to avoid division by zero.
   const float kMinSize = 0.01f;
 
-  corners = corners.Inset(-kMinSize, -kMinSize, -kMinSize, -kMinSize);
   rect.Outset(kMinSize, kMinSize);
+  corners = corners.Inset(-kMinSize, -kMinSize, -kMinSize, -kMinSize);
+  corners = corners.Normalize(rect);
 
   // Specify the blur extent size and the (min.y, max.y) for the rect.
   const float kBlurExtentInPixels = kBlurExtentInSigmas * sigma;
