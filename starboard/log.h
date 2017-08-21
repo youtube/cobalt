@@ -145,7 +145,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 }
 
 #if defined(__cplusplus_winrt)
-inline std::ostream& operator<<(std::ostream& out, ::Platform::String ^ str) {
+inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
   return out << std::wstring(str->Begin(), str->End());
 }
 #endif
