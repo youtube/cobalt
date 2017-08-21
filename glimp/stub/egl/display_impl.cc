@@ -15,6 +15,7 @@
  */
 
 #include "glimp/stub/egl/display_impl.h"
+
 #include "glimp/stub/egl/pbuffer_surface_impl.h"
 #include "glimp/stub/egl/window_surface_impl.h"
 #include "glimp/stub/gles/context_impl.h"
@@ -65,8 +66,8 @@ void DisplayImplStub::InitializeSupportedConfigs() {
   (*config)[EGL_LUMINANCE_SIZE] = 0;
   (*config)[EGL_STENCIL_SIZE] = 0;
   (*config)[EGL_COLOR_BUFFER_TYPE] = EGL_RGB_BUFFER;
-  (*config)[EGL_CONFORMANT] = EGL_OPENGL_ES2_BIT;
-  (*config)[EGL_RENDERABLE_TYPE] = EGL_OPENGL_ES2_BIT;
+  (*config)[EGL_CONFORMANT] = EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT;
+  (*config)[EGL_RENDERABLE_TYPE] = EGL_OPENGL_ES2_BIT | EGL_OPENGL_ES3_BIT;
   (*config)[EGL_SURFACE_TYPE] = EGL_WINDOW_BIT | EGL_PBUFFER_BIT;
   (*config)[EGL_BIND_TO_TEXTURE_RGBA] = EGL_TRUE;
 
