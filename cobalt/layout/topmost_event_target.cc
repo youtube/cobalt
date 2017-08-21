@@ -74,19 +74,6 @@ void TopmostEventTarget::ConsiderElement(
       if (!boxes.empty()) {
         const Box* box = boxes.front();
         box->UpdateCoordinateForTransform(&element_coordinate);
-
-        if (box->IsAbsolutelyPositioned()) {
-          // The containing block is formed by the padding box instead of the
-          // content box, as described in
-          // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-          // NOTE: While not explicitly stated in the spec, which specifies that
-          // the containing block of a 'fixed' position element must always be
-          // the viewport, all major browsers use the padding box of a
-          // transformed ancestor as the containing block for 'fixed' position
-          // elements.
-          element_coordinate +=
-              box->GetContainingBlock()->GetContentBoxOffsetFromPaddingBox();
-        }
         ConsiderBoxes(html_element, layout_boxes, element_coordinate);
       }
     }
@@ -109,15 +96,18 @@ void TopmostEventTarget::ConsiderBoxes(
                                        LayoutUnit(coordinate.y()));
   for (Boxes::const_iterator box_iterator = boxes.begin();
        box_iterator != boxes.end(); ++box_iterator) {
-    const scoped_refptr<Box>& box = *box_iterator;
-    if (box->IsUnderCoordinate(layout_coordinate)) {
-      Box::RenderSequence render_sequence = box->GetRenderSequence();
-      if (Box::IsRenderedLater(render_sequence, render_sequence_)) {
-        html_element_ = html_element;
-        box_ = box;
-        render_sequence_.swap(render_sequence);
+    Box* box = *box_iterator;
+    do {
+      if (box->IsUnderCoordinate(layout_coordinate)) {
+        Box::RenderSequence render_sequence = box->GetRenderSequence();
+        if (Box::IsRenderedLater(render_sequence, render_sequence_)) {
+          html_element_ = html_element;
+          box_ = box;
+          render_sequence_.swap(render_sequence);
+        }
       }
-    }
+      box = box->GetSplitSibling();
+    } while (box != NULL);
   }
 }
 
