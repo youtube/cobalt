@@ -61,8 +61,10 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
       // boxes. Our current clients don't currently rely on GetClientRects() to
       // do that.
 
-      dom_rect->set_x(box->GetBorderBoxLeftEdge().toFloat());
-      dom_rect->set_y(box->GetBorderBoxTopEdge().toFloat());
+      dom_rect->set_x(
+          box->GetBorderBoxLeftEdge(false /*stop_at_transform*/).toFloat());
+      dom_rect->set_y(
+          box->GetBorderBoxTopEdge(false /*stop_at_transform*/).toFloat());
       SizeLayoutUnit box_size = box->GetBorderBoxSize();
       dom_rect->set_width(box_size.width().toFloat());
       dom_rect->set_height(box_size.height().toFloat());
@@ -119,12 +121,16 @@ float LayoutBoxes::GetMarginEdgeHeight() const {
 
 float LayoutBoxes::GetPaddingEdgeLeft() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxLeftEdge().toFloat();
+  return boxes_.front()
+      ->GetPaddingBoxLeftEdge(false /*stop_at_transform*/)
+      .toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeTop() const {
   DCHECK(!boxes_.empty());
-  return boxes_.front()->GetPaddingBoxTopEdge().toFloat();
+  return boxes_.front()
+      ->GetPaddingBoxTopEdge(false /*stop_at_transform*/)
+      .toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeWidth() const {
@@ -187,7 +193,7 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
     do {
-      bounding_rectangle.Union(box->GetBorderBox());
+      bounding_rectangle.Union(box->GetBorderBox(false /*stop_at_transform*/));
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
