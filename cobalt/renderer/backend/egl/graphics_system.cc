@@ -14,10 +14,6 @@
 
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 
-#if defined(GLES3_SUPPORTED)
-#include <EGL/eglext.h>
-#endif
-
 #include "base/debug/leak_annotations.h"
 #if defined(ENABLE_GLIMP_TRACING)
 #include "base/debug/trace_event.h"
@@ -94,7 +90,7 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 #endif
     EGL_RENDERABLE_TYPE,
 #if defined(GLES3_SUPPORTED)
-    EGL_OPENGL_ES3_BIT_KHR,
+    EGL_OPENGL_ES3_BIT,
 #else
     EGL_OPENGL_ES2_BIT,
 #endif  // #if defined(GLES3_SUPPORTED)
