@@ -213,6 +213,14 @@ class Box : public base::RefCounted<Box> {
   // out-of-flow descendants. Does not update the position of the box.
   void UpdateSize(const LayoutParams& layout_params);
 
+  // Returns the left offset from root (or a transform if |stop_at_transform| is
+  // true) to this box's containing block.
+  LayoutUnit GetContainingBlockLeftOffset(bool stop_at_transform) const;
+
+  // Returns the top offset from root (or a transform if |stop_at_transform| is
+  // true) to this box's containing block.
+  LayoutUnit GetContainingBlockTopOffset(bool stop_at_transform) const;
+
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of
   // the parent box.
@@ -267,8 +275,8 @@ class Box : public base::RefCounted<Box> {
   const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
     return margin_box_offset_from_containing_block_;
   }
-  LayoutUnit GetMarginBoxLeftEdge() const;
-  LayoutUnit GetMarginBoxTopEdge() const;
+  LayoutUnit GetMarginBoxLeftEdge(bool stop_at_transform) const;
+  LayoutUnit GetMarginBoxTopEdge(bool stop_at_transform) const;
   LayoutUnit GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxStartEdgeOffsetFromContainingBlock(
@@ -283,17 +291,17 @@ class Box : public base::RefCounted<Box> {
   // Border box.
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;
-  RectLayoutUnit GetBorderBox() const;
+  RectLayoutUnit GetBorderBox(bool stop_at_transform) const;
   SizeLayoutUnit GetBorderBoxSize() const;
-  LayoutUnit GetBorderBoxLeftEdge() const;
-  LayoutUnit GetBorderBoxTopEdge() const;
+  LayoutUnit GetBorderBoxLeftEdge(bool stop_at_transform) const;
+  LayoutUnit GetBorderBoxTopEdge(bool stop_at_transform) const;
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
   SizeLayoutUnit GetPaddingBoxSize() const;
-  LayoutUnit GetPaddingBoxLeftEdge() const;
-  LayoutUnit GetPaddingBoxTopEdge() const;
+  LayoutUnit GetPaddingBoxLeftEdge(bool stop_at_transform) const;
+  LayoutUnit GetPaddingBoxTopEdge(bool stop_at_transform) const;
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }
@@ -309,8 +317,8 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
   LayoutUnit GetContentBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  LayoutUnit GetContentBoxLeftEdge() const;
-  LayoutUnit GetContentBoxTopEdge() const;
+  LayoutUnit GetContentBoxLeftEdge(bool stop_at_transform) const;
+  LayoutUnit GetContentBoxTopEdge(bool stop_at_transform) const;
 
   // The height of each inline-level box in the line box is calculated. For
   // replaced elements, inline-block elements, and inline-table elements, this
@@ -533,7 +541,7 @@ class Box : public base::RefCounted<Box> {
   bool IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const;
 
   // Returns a data structure that can be used by Box::IsRenderedLater().
-  RenderSequence GetRenderSequence();
+  RenderSequence GetRenderSequence() const;
 
   // Returns true if the box for the given render_sequence is rendered after
   // the box for the other_render_sequence. The boxes must be from the same
