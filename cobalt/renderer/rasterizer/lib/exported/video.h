@@ -82,6 +82,13 @@ typedef void (*CbLibVideoUpdateRgbTextureIdCallback)(void* context, int id);
 SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateRgbTextureId(
     void* context, CbLibVideoUpdateRgbTextureIdCallback callback);
 
+// Called to set aspect ratio of the video (width over height).
+typedef void (*CbLibVideoUpdateAspectRatioCallback)(void* context,
+                                                    float aspect_ratio);
+
+SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateAspectRatio(
+    void* context, CbLibVideoUpdateAspectRatioCallback callback);
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif
