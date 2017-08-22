@@ -156,6 +156,10 @@ void HardwareRasterizer::Impl::Submit(
   RasterizeTree(render_tree, render_target_egl, content_rect);
 
   graphics_context_->SwapBuffers(render_target_egl);
+
+  // Reset the fallback context in case it is used between frames (e.g.
+  // to initialize images).
+  GetFallbackContext()->resetContext();
 }
 
 void HardwareRasterizer::Impl::SubmitToFallbackRasterizer(
