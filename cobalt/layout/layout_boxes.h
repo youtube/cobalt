@@ -67,6 +67,8 @@ class LayoutBoxes : public dom::LayoutBoxes {
   // Returns the bounding rectangle of the border edges of the boxes.
   math::RectF GetBoundingBorderRectangle() const;
 
+  void GetClientRectBoxes(const Boxes& boxes, Boxes* client_rect_boxes) const;
+
   Boxes boxes_;
 };
 

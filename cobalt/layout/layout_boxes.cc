@@ -15,6 +15,7 @@
 #include "cobalt/layout/layout_boxes.h"
 
 #include "cobalt/cssom/keyword_value.h"
+#include "cobalt/layout/anonymous_block_box.h"
 #include "cobalt/layout/container_box.h"
 #include "cobalt/layout/rect_layout_unit.h"
 #include "cobalt/layout/size_layout_unit.h"
@@ -50,28 +51,19 @@ scoped_refptr<dom::DOMRectList> LayoutBoxes::GetClientRects() const {
   //  . Replace each anonymous block box with its child box(es) and repeat this
   //    until no anonymous block boxes are left in the final list.
 
+  Boxes client_rect_boxes;
+  GetClientRectBoxes(boxes_, &client_rect_boxes);
+
   scoped_refptr<dom::DOMRectList> dom_rect_list(new dom::DOMRectList());
-  for (Boxes::const_iterator box_iterator = boxes_.begin();
-       box_iterator != boxes_.end(); ++box_iterator) {
-    Box* box = *box_iterator;
-    do {
-      scoped_refptr<dom::DOMRect> dom_rect(new dom::DOMRect());
-
-      // TODO: Take transforms into account and recurse into anonymous block
-      // boxes. Our current clients don't currently rely on GetClientRects() to
-      // do that.
-
-      dom_rect->set_x(
-          box->GetBorderBoxLeftEdge(false /*stop_at_transform*/).toFloat());
-      dom_rect->set_y(
-          box->GetBorderBoxTopEdge(false /*stop_at_transform*/).toFloat());
-      SizeLayoutUnit box_size = box->GetBorderBoxSize();
-      dom_rect->set_width(box_size.width().toFloat());
-      dom_rect->set_height(box_size.height().toFloat());
-      dom_rect_list->AppendDOMRect(dom_rect);
-
-      box = box->GetSplitSibling();
-    } while (box != NULL);
+  for (Boxes::const_iterator box_iterator = client_rect_boxes.begin();
+       box_iterator != client_rect_boxes.end(); ++box_iterator) {
+    RectLayoutUnit transformed_border_box(
+        (*box_iterator)->GetTransformedBorderBoxFromRoot());
+    dom_rect_list->AppendDOMRect(
+        new dom::DOMRect(transformed_border_box.x().toFloat(),
+                         transformed_border_box.y().toFloat(),
+                         transformed_border_box.width().toFloat(),
+                         transformed_border_box.height().toFloat()));
   }
 
   return dom_rect_list;
@@ -122,14 +114,16 @@ float LayoutBoxes::GetMarginEdgeHeight() const {
 float LayoutBoxes::GetPaddingEdgeLeft() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()
-      ->GetPaddingBoxLeftEdge(false /*stop_at_transform*/)
+      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
+      .x()
       .toFloat();
 }
 
 float LayoutBoxes::GetPaddingEdgeTop() const {
   DCHECK(!boxes_.empty());
   return boxes_.front()
-      ->GetPaddingBoxTopEdge(false /*stop_at_transform*/)
+      ->GetPaddingBoxOffsetFromRoot(false /*transform_forms_root*/)
+      .y()
       .toFloat();
 }
 
@@ -193,7 +187,8 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
        box_iterator != boxes_.end(); ++box_iterator) {
     Box* box = *box_iterator;
     do {
-      bounding_rectangle.Union(box->GetBorderBox(false /*stop_at_transform*/));
+      bounding_rectangle.Union(
+          box->GetBorderBoxFromRoot(false /*transform_forms_root*/));
       box = box->GetSplitSibling();
     } while (box != NULL);
   }
@@ -202,6 +197,29 @@ math::RectF LayoutBoxes::GetBoundingBorderRectangle() const {
                      bounding_rectangle.y().toFloat(),
                      bounding_rectangle.width().toFloat(),
                      bounding_rectangle.height().toFloat());
+}
+
+void LayoutBoxes::GetClientRectBoxes(const Boxes& boxes,
+                                     Boxes* client_rect_boxes) const {
+  for (Boxes::const_iterator box_iterator = boxes.begin();
+       box_iterator != boxes.end(); ++box_iterator) {
+    Box* box = *box_iterator;
+    do {
+      // Replace each anonymous block box with its child box(es) and repeat this
+      // until no anonymous block boxes are left in the final list.
+      const AnonymousBlockBox* anonymous_block_box = box->AsAnonymousBlockBox();
+      if (anonymous_block_box) {
+        GetClientRectBoxes(anonymous_block_box->child_boxes(),
+                           client_rect_boxes);
+      } else if (!box->AsTextBox()) {
+        // Only add the box if it isn't a text box. Text boxes are anonymous
+        // inline boxes and shouldn't be included.
+        client_rect_boxes->push_back(box);
+      }
+
+      box = box->GetSplitSibling();
+    } while (box != NULL);
+  }
 }
 
 }  // namespace layout
