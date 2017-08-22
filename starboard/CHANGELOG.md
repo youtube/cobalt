@@ -69,6 +69,11 @@ availability.
 Add `key_statuses_changed_callback` parameter to `SbDrmCreateSystem()` to
 support MediaKeySession::keyStatuses and MediaKeySession::onkeystatuseschange.
 
+### Changes thumbstick direction
+
+Change the meaning of negative values for thumbstick position from bottom
+right to upper left.
+
 ## Version 5
 
 ### Add Speech Recognizer API
