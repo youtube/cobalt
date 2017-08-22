@@ -149,7 +149,9 @@ class PlayerWorker {
   }
 #endif  // SB_API_VERSION >= 4
 
-  void SetVolume(double volume) { handler_->SetVolume(volume); }
+  void SetVolume(double volume) {
+    job_queue_->Schedule(Bind(&PlayerWorker::DoSetVolume, this, volume));
+  }
 
   void UpdateDroppedVideoFrames(int dropped_video_frames) {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
@@ -181,6 +183,7 @@ class PlayerWorker {
 #if SB_API_VERSION >= 4
   void DoSetPlaybackRate(double rate);
 #endif  // SB_API_VERSION >= 4
+  void DoSetVolume(double volume);
   void DoStop();
 
   void UpdateDecoderState(SbMediaType type, SbPlayerDecoderState state);

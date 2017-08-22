@@ -297,6 +297,8 @@ bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
 #endif  // SB_API_VERSION >= 4
 
 void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
   volume_ = volume;
   if (audio_renderer_) {
     audio_renderer_->SetVolume(volume_);
