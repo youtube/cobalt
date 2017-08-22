@@ -240,6 +240,7 @@ class ContainerBox : public Box, public base::SupportsWeakPtr<ContainerBox> {
   // This mutual friendship is a result of the need to maintain 2-way links
   // between boxes and containers.
   friend class Box;
+  friend class LayoutBoxes;
 
   DISALLOW_COPY_AND_ASSIGN(ContainerBox);
 };

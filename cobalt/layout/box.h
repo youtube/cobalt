@@ -50,6 +50,7 @@ namespace layout {
 
 class AnonymousBlockBox;
 class ContainerBox;
+class TextBox;
 class UsedStyleProvider;
 
 struct LayoutParams {
@@ -113,6 +114,11 @@ class Box : public base::RefCounted<Box> {
     kIsBoxAncestor,
     kIsBox,
     kIsBoxDescendant,
+  };
+
+  enum TransformAction {
+    kEnterTransform,
+    kExitTransform,
   };
 
   // Info tracked on container boxes encountered when a stacking context is
@@ -213,13 +219,9 @@ class Box : public base::RefCounted<Box> {
   // out-of-flow descendants. Does not update the position of the box.
   void UpdateSize(const LayoutParams& layout_params);
 
-  // Returns the left offset from root (or a transform if |stop_at_transform| is
-  // true) to this box's containing block.
-  LayoutUnit GetContainingBlockLeftOffset(bool stop_at_transform) const;
-
-  // Returns the top offset from root (or a transform if |stop_at_transform| is
-  // true) to this box's containing block.
-  LayoutUnit GetContainingBlockTopOffset(bool stop_at_transform) const;
+  // Returns the offset from root to this box's containing block.
+  Vector2dLayoutUnit GetContainingBlockOffsetFromRoot(
+      bool transform_forms_root) const;
 
   // Used values of "left" and "top" are publicly readable and writable so that
   // they can be calculated and adjusted by the formatting context of
@@ -270,43 +272,53 @@ class Box : public base::RefCounted<Box> {
   // border, padding, and content boxes.
 
   // Margin box.
+  LayoutUnit margin_left() const { return margin_insets_.left(); }
+  LayoutUnit margin_top() const { return margin_insets_.top(); }
+  LayoutUnit margin_right() const { return margin_insets_.right(); }
+  LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
   LayoutUnit GetMarginBoxWidth() const;
   LayoutUnit GetMarginBoxHeight() const;
+
+  Vector2dLayoutUnit GetMarginBoxOffsetFromRoot(
+      bool transform_forms_root) const;
   const Vector2dLayoutUnit& margin_box_offset_from_containing_block() const {
     return margin_box_offset_from_containing_block_;
   }
-  LayoutUnit GetMarginBoxLeftEdge(bool stop_at_transform) const;
-  LayoutUnit GetMarginBoxTopEdge(bool stop_at_transform) const;
   LayoutUnit GetMarginBoxRightEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxBottomEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetMarginBoxStartEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
   LayoutUnit GetMarginBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  LayoutUnit margin_left() const { return margin_insets_.left(); }
-  LayoutUnit margin_top() const { return margin_insets_.top(); }
-  LayoutUnit margin_right() const { return margin_insets_.right(); }
-  LayoutUnit margin_bottom() const { return margin_insets_.bottom(); }
 
   // Border box.
+  RectLayoutUnit GetBorderBoxFromRoot(bool transform_forms_root) const;
+  RectLayoutUnit GetTransformedBorderBoxFromRoot() const;
+
   LayoutUnit GetBorderBoxWidth() const;
   LayoutUnit GetBorderBoxHeight() const;
-  RectLayoutUnit GetBorderBox(bool stop_at_transform) const;
   SizeLayoutUnit GetBorderBoxSize() const;
-  LayoutUnit GetBorderBoxLeftEdge(bool stop_at_transform) const;
-  LayoutUnit GetBorderBoxTopEdge(bool stop_at_transform) const;
+
+  Vector2dLayoutUnit GetBorderBoxOffsetFromRoot(
+      bool transform_forms_root) const;
+  Vector2dLayoutUnit GetBorderBoxOffsetFromMarginBox() const;
 
   // Padding box.
   LayoutUnit GetPaddingBoxWidth() const;
   LayoutUnit GetPaddingBoxHeight() const;
   SizeLayoutUnit GetPaddingBoxSize() const;
-  LayoutUnit GetPaddingBoxLeftEdge(bool stop_at_transform) const;
-  LayoutUnit GetPaddingBoxTopEdge(bool stop_at_transform) const;
+
+  Vector2dLayoutUnit GetPaddingBoxOffsetFromRoot(
+      bool transform_forms_root) const;
+  Vector2dLayoutUnit GetPaddingBoxOffsetFromBorderBox() const;
 
   // Content box.
   LayoutUnit width() const { return content_size_.width(); }
   LayoutUnit height() const { return content_size_.height(); }
   const SizeLayoutUnit& content_box_size() const { return content_size_; }
+
+  Vector2dLayoutUnit GetContentBoxOffsetFromRoot(
+      bool transform_forms_root) const;
   Vector2dLayoutUnit GetContentBoxOffsetFromMarginBox() const;
   Vector2dLayoutUnit GetContentBoxOffsetFromPaddingBox() const;
   LayoutUnit GetContentBoxLeftEdgeOffsetFromMarginBox() const;
@@ -317,8 +329,6 @@ class Box : public base::RefCounted<Box> {
       BaseDirection base_direction) const;
   LayoutUnit GetContentBoxEndEdgeOffsetFromContainingBlock(
       BaseDirection base_direction) const;
-  LayoutUnit GetContentBoxLeftEdge(bool stop_at_transform) const;
-  LayoutUnit GetContentBoxTopEdge(bool stop_at_transform) const;
 
   // The height of each inline-level box in the line box is calculated. For
   // replaced elements, inline-block elements, and inline-table elements, this
@@ -486,8 +496,11 @@ class Box : public base::RefCounted<Box> {
 
   // Poor man's reflection.
   virtual AnonymousBlockBox* AsAnonymousBlockBox();
+  virtual const AnonymousBlockBox* AsAnonymousBlockBox() const;
   virtual ContainerBox* AsContainerBox();
   virtual const ContainerBox* AsContainerBox() const;
+  virtual TextBox* AsTextBox();
+  virtual const TextBox* AsTextBox() const;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
   // Used by box generator to set a DOM node that produced this box.
@@ -549,9 +562,11 @@ class Box : public base::RefCounted<Box> {
   static bool IsRenderedLater(RenderSequence render_sequence,
                               RenderSequence other_render_sequence);
 
-  // Updates the passed coordinate corresponding to the transform applied to
-  // this box.
-  void UpdateCoordinateForTransform(math::Vector2dF* coordinate) const;
+  // Applies the specified transform action to the provided coordinates.
+  void ApplyTransformActionToCoordinate(TransformAction action,
+                                        math::Vector2dF* coordinate) const;
+  void ApplyTransformActionToCoordinates(
+      TransformAction action, std::vector<math::Vector2dF>* coordinates) const;
 
  protected:
   UsedStyleProvider* used_style_provider() const {
