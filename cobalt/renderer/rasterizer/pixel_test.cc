@@ -3629,6 +3629,12 @@ TEST_F(PixelTest, MapToMeshUYVYTest) {
 
 #endif  // defined(ENABLE_MAP_TO_MESH)
 
+TEST_F(PixelTest, DrawNullImage) {
+  // An ImageNode with no source is legal, though it should result in nothing
+  // being drawn.
+  TestTree(new ImageNode(NULL, math::RectF(output_surface_size())));
+}
+
 }  // namespace rasterizer
 }  // namespace renderer
 }  // namespace cobalt
