@@ -987,36 +987,33 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
   SbInputVector input_vector;
   // The mapping for the axis codes can vary from controller to controller.
   // TODO: Include axis mapping for controllers with different layout.
+  // Report up and left as negative values.
   switch (event.code) {
     case ABS_X:
-      // Report up and left as positive values.
-      input_vector.x = -axis_value;
-      input_vector.y = -device_info->axis_value[ABS_Y];
+      input_vector.x = axis_value;
+      input_vector.y = device_info->axis_value[ABS_Y];
       key = kSbKeyGamepadLeftStickLeft;
       location = kSbKeyLocationLeft;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
     case ABS_Y: {
-      // Report up and left as positive values.
-      input_vector.x = -device_info->axis_value[ABS_X];
-      input_vector.y = -axis_value;
+      input_vector.x = device_info->axis_value[ABS_X];
+      input_vector.y = axis_value;
       key = kSbKeyGamepadLeftStickUp;
       location = kSbKeyLocationLeft;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
     }
     case ABS_Z:
-      // Report up and left as positive values.
-      input_vector.x = -axis_value;
-      input_vector.y = -device_info->axis_value[ABS_RZ];
+      input_vector.x = axis_value;
+      input_vector.y = device_info->axis_value[ABS_RZ];
       key = kSbKeyGamepadRightStickLeft;
       location = kSbKeyLocationRight;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
                                     input_vector);
     case ABS_RZ:
-      // Report up and left as positive values.
-      input_vector.x = -device_info->axis_value[ABS_Z];
-      input_vector.y = -axis_value;
+      input_vector.x = device_info->axis_value[ABS_Z];
+      input_vector.y = axis_value;
       key = kSbKeyGamepadRightStickUp;
       location = kSbKeyLocationRight;
       return CreateMoveEventWithKey(window_, key, location, modifiers,
@@ -1065,8 +1062,8 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
         device_info->touchpad_position_state = kTouchPadPositionNone;
         if (touchpad_position_is_known) {
           // Touch point is released, report last known position as unpress.
-          input_vector.x = (device_info->axis_value[ABS_MT_POSITION_X] + 1 / 2);
-          input_vector.y = (device_info->axis_value[ABS_MT_POSITION_Y] + 1 / 2);
+          input_vector.x = device_info->axis_value[ABS_MT_POSITION_X] * 2;
+          input_vector.y = device_info->axis_value[ABS_MT_POSITION_Y];
           return CreateTouchPadEvent(window_, kSbInputEventTypeUnpress, key,
                                      location, modifiers, input_vector);
         }
@@ -1080,9 +1077,10 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
                                   : kSbInputEventTypePress;
       device_info->touchpad_position_state |= kTouchPadPositionX;
       if (IsTouchpadPositionKnown(device_info)) {
-        // For touchpads, the range is [0..1].
-        input_vector.x = (axis_value + 1) / 2;
-        input_vector.y = (device_info->axis_value[ABS_MT_POSITION_Y] + 1) / 2;
+        // For touchpads, the unit range is [-1..1]. Negative values for top
+        // left.
+        input_vector.x = axis_value * 2;  // Touch are is twice as wide.
+        input_vector.y = device_info->axis_value[ABS_MT_POSITION_Y];
         return CreateTouchPadEvent(window_, type, key, location, modifiers,
                                    input_vector);
       }
@@ -1097,9 +1095,9 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
                                   : kSbInputEventTypePress;
       device_info->touchpad_position_state |= kTouchPadPositionY;
       if (IsTouchpadPositionKnown(device_info)) {
-        // For touchpads, the range is [0..1].
-        input_vector.x = (device_info->axis_value[ABS_MT_POSITION_X] + 1) / 2;
-        input_vector.y = (axis_value + 1) / 2;
+        // For touchpads, the range is [-1..1]. Negative values for top left.
+        input_vector.x = device_info->axis_value[ABS_MT_POSITION_X] * 2;
+        input_vector.y = axis_value;
         return CreateTouchPadEvent(window_, type, key, location, modifiers,
                                    input_vector);
       }
