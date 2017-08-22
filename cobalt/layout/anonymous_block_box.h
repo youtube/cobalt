@@ -40,6 +40,7 @@ class AnonymousBlockBox : public BlockContainerBox {
   // From |Box|.
   Level GetLevel() const OVERRIDE;
   AnonymousBlockBox* AsAnonymousBlockBox() OVERRIDE;
+  const AnonymousBlockBox* AsAnonymousBlockBox() const OVERRIDE;
 
   void SplitBidiLevelRuns() OVERRIDE;
 
