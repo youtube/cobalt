@@ -66,6 +66,9 @@ TextBox::TextBox(const scoped_refptr<cssom::CSSComputedStyleDeclaration>&
 
 Box::Level TextBox::GetLevel() const { return kInlineLevel; }
 
+TextBox* TextBox::AsTextBox() { return this; }
+const TextBox* TextBox::AsTextBox() const { return this; }
+
 bool TextBox::ValidateUpdateSizeInputs(const LayoutParams& params) {
   // Also take into account mutable local state about (at least) whether white
   // space should be collapsed or not.

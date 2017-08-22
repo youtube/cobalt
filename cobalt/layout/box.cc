@@ -142,7 +142,8 @@ void Box::InvalidateUpdateSizeInputsOfBoxAndAncestors() {
   }
 }
 
-LayoutUnit Box::GetContainingBlockLeftOffset(bool stop_at_transform) const {
+Vector2dLayoutUnit Box::GetContainingBlockOffsetFromRoot(
+    bool transform_forms_root) const {
   // If the box is absolutely positioned, then its containing block is formed by
   // the padding box instead of the content box, as described in
   // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
@@ -151,27 +152,11 @@ LayoutUnit Box::GetContainingBlockLeftOffset(bool stop_at_transform) const {
   // all major browsers use the padding box of a transformed ancestor as the
   // containing block for 'fixed' position elements.
   return parent_ ? IsAbsolutelyPositioned()
-                       ? GetContainingBlock()->GetPaddingBoxLeftEdge(
-                             stop_at_transform)
-                       : GetContainingBlock()->GetContentBoxLeftEdge(
-                             stop_at_transform)
-                 : LayoutUnit();
-}
-
-LayoutUnit Box::GetContainingBlockTopOffset(bool stop_at_transform) const {
-  // If the box is absolutely positioned, then its containing block is formed by
-  // the padding box instead of the content box, as described in
-  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-  // NOTE: While not explicitly stated in the spec, which specifies that the
-  // containing block of a 'fixed' position element must always be the viewport,
-  // all major browsers use the padding box of a transformed ancestor as the
-  // containing block for 'fixed' position elements.
-  return parent_ ? IsAbsolutelyPositioned()
-                       ? GetContainingBlock()->GetPaddingBoxTopEdge(
-                             stop_at_transform)
-                       : GetContainingBlock()->GetContentBoxTopEdge(
-                             stop_at_transform)
-                 : LayoutUnit();
+                       ? GetContainingBlock()->GetPaddingBoxOffsetFromRoot(
+                             transform_forms_root)
+                       : GetContainingBlock()->GetContentBoxOffsetFromRoot(
+                             transform_forms_root)
+                 : Vector2dLayoutUnit();
 }
 
 void Box::SetStaticPositionLeftFromParent(LayoutUnit left) {
@@ -247,20 +232,14 @@ LayoutUnit Box::GetMarginBoxHeight() const {
   return margin_top() + GetBorderBoxHeight() + margin_bottom();
 }
 
-LayoutUnit Box::GetMarginBoxLeftEdge(bool stop_at_transform) const {
-  LayoutUnit containing_block_left_offset =
-      (!stop_at_transform || !IsTransformed())
-          ? GetContainingBlockLeftOffset(stop_at_transform)
-          : LayoutUnit();
-  return containing_block_left_offset + left();
-}
-
-LayoutUnit Box::GetMarginBoxTopEdge(bool stop_at_transform) const {
-  LayoutUnit containing_block_top_offset =
-      (!stop_at_transform || !IsTransformed())
-          ? GetContainingBlockTopOffset(stop_at_transform)
-          : LayoutUnit();
-  return containing_block_top_offset + top();
+Vector2dLayoutUnit Box::GetMarginBoxOffsetFromRoot(
+    bool transform_forms_root) const {
+  Vector2dLayoutUnit containing_block_offset_from_root =
+      (!transform_forms_root || !IsTransformed())
+          ? GetContainingBlockOffsetFromRoot(transform_forms_root)
+          : Vector2dLayoutUnit();
+  return containing_block_offset_from_root +
+         margin_box_offset_from_containing_block();
 }
 
 LayoutUnit Box::GetMarginBoxRightEdgeOffsetFromContainingBlock() const {
@@ -285,6 +264,52 @@ LayoutUnit Box::GetMarginBoxEndEdgeOffsetFromContainingBlock(
              : GetMarginBoxRightEdgeOffsetFromContainingBlock();
 }
 
+RectLayoutUnit Box::GetBorderBoxFromRoot(bool transform_forms_root) const {
+  Vector2dLayoutUnit border_box_offset =
+      GetBorderBoxOffsetFromRoot(transform_forms_root);
+  return RectLayoutUnit(border_box_offset.x(), border_box_offset.y(),
+                        GetBorderBoxWidth(), GetBorderBoxHeight());
+}
+
+RectLayoutUnit Box::GetTransformedBorderBoxFromRoot() const {
+  // Initialize the box corners to the border box.
+  RectLayoutUnit border_box =
+      GetBorderBoxFromRoot(true /*transform_forms_root*/);
+  std::vector<math::Vector2dF> box_corners;
+  box_corners.push_back(
+      math::Vector2dF(border_box.x().toFloat(), border_box.y().toFloat()));
+  box_corners.push_back(
+      math::Vector2dF((border_box.x() + border_box.width()).toFloat(),
+                      border_box.y().toFloat()));
+  box_corners.push_back(
+      math::Vector2dF(border_box.x().toFloat(),
+                      (border_box.y() + border_box.height()).toFloat()));
+  box_corners.push_back(
+      math::Vector2dF((border_box.x() + border_box.width()).toFloat(),
+                      (border_box.y() + border_box.height()).toFloat()));
+
+  // Update the coordinates of the 4 corners by walking up to root and removing
+  // any transforms that have been applied.
+  for (const Box* check_box = this; check_box != NULL;
+       check_box = check_box->GetContainingBlock()) {
+    check_box->ApplyTransformActionToCoordinates(kExitTransform, &box_corners);
+  }
+
+  // Generate the new box from the min and max values of all of the corners.
+  math::Vector2dF& current_corner = box_corners[0];
+  math::Vector2dF min_corner(current_corner);
+  math::Vector2dF max_corner(current_corner);
+  for (size_t i = 1; i < 4; ++i) {
+    current_corner = box_corners[i];
+    min_corner.SetToMin(current_corner);
+    max_corner.SetToMax(current_corner);
+  }
+
+  return RectLayoutUnit(LayoutUnit(min_corner.x()), LayoutUnit(min_corner.y()),
+                        LayoutUnit(max_corner.x() - min_corner.x()),
+                        LayoutUnit(max_corner.y() - min_corner.y()));
+}
+
 LayoutUnit Box::GetBorderBoxWidth() const {
   return border_left_width() + GetPaddingBoxWidth() + border_right_width();
 }
@@ -293,22 +318,18 @@ LayoutUnit Box::GetBorderBoxHeight() const {
   return border_top_width() + GetPaddingBoxHeight() + border_bottom_width();
 }
 
-RectLayoutUnit Box::GetBorderBox(bool stop_at_transform) const {
-  return RectLayoutUnit(GetBorderBoxLeftEdge(stop_at_transform),
-                        GetBorderBoxTopEdge(stop_at_transform),
-                        GetBorderBoxWidth(), GetBorderBoxHeight());
-}
-
 SizeLayoutUnit Box::GetBorderBoxSize() const {
   return SizeLayoutUnit(GetBorderBoxWidth(), GetBorderBoxHeight());
 }
 
-LayoutUnit Box::GetBorderBoxLeftEdge(bool stop_at_transform) const {
-  return GetMarginBoxLeftEdge(stop_at_transform) + margin_left();
+Vector2dLayoutUnit Box::GetBorderBoxOffsetFromRoot(
+    bool transform_forms_root) const {
+  return GetMarginBoxOffsetFromRoot(transform_forms_root) +
+         GetBorderBoxOffsetFromMarginBox();
 }
 
-LayoutUnit Box::GetBorderBoxTopEdge(bool stop_at_transform) const {
-  return GetMarginBoxTopEdge(stop_at_transform) + margin_top();
+Vector2dLayoutUnit Box::GetBorderBoxOffsetFromMarginBox() const {
+  return Vector2dLayoutUnit(margin_left(), margin_top());
 }
 
 LayoutUnit Box::GetPaddingBoxWidth() const {
@@ -323,12 +344,20 @@ SizeLayoutUnit Box::GetPaddingBoxSize() const {
   return SizeLayoutUnit(GetPaddingBoxWidth(), GetPaddingBoxHeight());
 }
 
-LayoutUnit Box::GetPaddingBoxLeftEdge(bool stop_at_transform) const {
-  return GetBorderBoxLeftEdge(stop_at_transform) + border_left_width();
+Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromRoot(
+    bool transform_forms_root) const {
+  return GetBorderBoxOffsetFromRoot(transform_forms_root) +
+         GetPaddingBoxOffsetFromBorderBox();
 }
 
-LayoutUnit Box::GetPaddingBoxTopEdge(bool stop_at_transform) const {
-  return GetBorderBoxTopEdge(stop_at_transform) + border_top_width();
+Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromBorderBox() const {
+  return Vector2dLayoutUnit(border_left_width(), border_top_width());
+}
+
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromRoot(
+    bool transform_forms_root) const {
+  return GetPaddingBoxOffsetFromRoot(transform_forms_root) +
+         GetContentBoxOffsetFromPaddingBox();
 }
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromMarginBox() const {
@@ -368,14 +397,6 @@ LayoutUnit Box::GetContentBoxEndEdgeOffsetFromContainingBlock(
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromPaddingBox() const {
   return Vector2dLayoutUnit(padding_left(), padding_top());
-}
-
-LayoutUnit Box::GetContentBoxLeftEdge(bool stop_at_transform) const {
-  return GetPaddingBoxLeftEdge(stop_at_transform) + padding_left();
-}
-
-LayoutUnit Box::GetContentBoxTopEdge(bool stop_at_transform) const {
-  return GetPaddingBoxTopEdge(stop_at_transform) + padding_top();
 }
 
 LayoutUnit Box::GetInlineLevelBoxHeight() const { return GetMarginBoxHeight(); }
@@ -649,8 +670,11 @@ bool Box::IsRenderedLater(RenderSequence render_sequence,
 }
 
 AnonymousBlockBox* Box::AsAnonymousBlockBox() { return NULL; }
+const AnonymousBlockBox* Box::AsAnonymousBlockBox() const { return NULL; }
 ContainerBox* Box::AsContainerBox() { return NULL; }
 const ContainerBox* Box::AsContainerBox() const { return NULL; }
+TextBox* Box::AsTextBox() { return NULL; }
+const TextBox* Box::AsTextBox() const { return NULL; }
 
 #ifdef COBALT_BOX_DUMP_ENABLED
 
@@ -922,7 +946,7 @@ int Box::GetZIndex() const {
 }
 
 bool Box::IsUnderCoordinate(const Vector2dLayoutUnit& coordinate) const {
-  RectLayoutUnit rect = GetBorderBox(true /*stop_at_transform*/);
+  RectLayoutUnit rect = GetBorderBoxFromRoot(true /*transform_forms_root*/);
   bool res =
       coordinate.x() >= rect.x() && coordinate.x() <= rect.x() + rect.width() &&
       coordinate.y() >= rect.y() && coordinate.y() <= rect.y() + rect.height();
@@ -1589,40 +1613,69 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
   }
 }
 
-void Box::UpdateCoordinateForTransform(math::Vector2dF* coordinate) const {
-  // If the element has a transform, it needs to be applied.
-  if (!computed_style()) {
-    return;
-  }
+void Box::ApplyTransformActionToCoordinate(TransformAction action,
+                                           math::Vector2dF* coordinate) const {
+  std::vector<math::Vector2dF> coordinate_vector;
+  coordinate_vector.push_back(*coordinate);
+  ApplyTransformActionToCoordinates(action, &coordinate_vector);
+  *coordinate = coordinate_vector[0];
+}
+
+void Box::ApplyTransformActionToCoordinates(
+    TransformAction action, std::vector<math::Vector2dF>* coordinates) const {
   const scoped_refptr<cssom::PropertyValue>& transform =
       computed_style()->transform();
-  if (transform != cssom::KeywordValue::GetNone()) {
-    LayoutUnit containing_block_left_offset =
-        GetContainingBlockLeftOffset(true /*stop_at_transform*/);
-    LayoutUnit containing_block_top_offset =
-        GetContainingBlockTopOffset(true /*stop_at_transform*/);
+  if (transform == cssom::KeywordValue::GetNone()) {
+    return;
+  }
 
-    math::Vector2dF border_box_offset(
-        (containing_block_left_offset + left() + margin_left()).toFloat(),
-        (containing_block_top_offset + top() + margin_top()).toFloat());
+  // The border box offset is calculated in two steps because we want to
+  // stop at the second transform and not the first (which is this box).
+  Vector2dLayoutUnit containing_block_offset_from_root =
+      GetContainingBlockOffsetFromRoot(true /*transform_forms_root*/);
+  Vector2dLayoutUnit border_box_offset_from_root =
+      (containing_block_offset_from_root +
+       margin_box_offset_from_containing_block() +
+       GetBorderBoxOffsetFromMarginBox());
 
-    math::RectF rect = math::RectF(PointAtOffsetFromOrigin(border_box_offset),
-                                   GetBorderBoxSize());
-    math::Matrix3F matrix =
-        GetCSSTransform(transform, computed_style()->transform_origin(), rect);
-    if (!matrix.IsIdentity()) {
-      // Transform the coordinate.
-      math::PointF transformed_point =
-          matrix.Inverse() * math::PointF(coordinate->x(), coordinate->y());
-      coordinate->set_x(transformed_point.x());
-      coordinate->set_y(transformed_point.y());
+  // Transform the coordinates.
+  math::Matrix3F matrix =
+      GetCSSTransform(transform, computed_style()->transform_origin(),
+                      math::RectF(border_box_offset_from_root.x().toFloat(),
+                                  border_box_offset_from_root.y().toFloat(),
+                                  GetBorderBoxWidth().toFloat(),
+                                  GetBorderBoxHeight().toFloat()));
+  if (!matrix.IsIdentity()) {
+    if (action == kEnterTransform) {
+      matrix = matrix.Inverse();
     }
 
-    // The transformed box forms a new coordinate system and its containing
-    // block's offset is considered (0,0) within it. Convert the coordinate to
-    // the new system.
-    *coordinate -= math::Vector2dF(containing_block_left_offset.toFloat(),
-                                   containing_block_top_offset.toFloat());
+    for (std::vector<math::Vector2dF>::iterator coordinate_iter =
+             coordinates->begin();
+         coordinate_iter != coordinates->end(); ++coordinate_iter) {
+      math::Vector2dF& coordinate = *coordinate_iter;
+      math::PointF transformed_point =
+          matrix * math::PointF(coordinate.x(), coordinate.y());
+      coordinate.set_x(transformed_point.x());
+      coordinate.set_y(transformed_point.y());
+    }
+  }
+
+  // The transformed box forms a new coordinate system and its containing
+  // block's offset is the origin within it. Update the coordinates for their
+  // new origin.
+  math::Vector2dF containing_block_offset_from_root_as_float(
+      containing_block_offset_from_root.x().toFloat(),
+      containing_block_offset_from_root.y().toFloat());
+  for (std::vector<math::Vector2dF>::iterator coordinate_iter =
+           coordinates->begin();
+       coordinate_iter != coordinates->end(); ++coordinate_iter) {
+    math::Vector2dF& coordinate = *coordinate_iter;
+    if (action == kEnterTransform) {
+      coordinate -= containing_block_offset_from_root_as_float;
+    } else {
+      coordinate += containing_block_offset_from_root_as_float;
+    }
   }
 }
 
