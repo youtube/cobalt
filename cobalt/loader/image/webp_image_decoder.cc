@@ -90,8 +90,20 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       if (status == VP8_STATUS_OK) {
         DCHECK(image_data());
         DCHECK(config_.output.u.RGBA.rgba);
-        SbMemoryCopy(image_data()->GetMemory(), config_.output.u.RGBA.rgba,
-                     config_.output.u.RGBA.size);
+
+        // Copy the image data over line by line.  We copy line by line instead
+        // of all at once so that we can adjust for differences in pitch between
+        // source and destination buffers.
+        uint8* cur_src = config_.output.u.RGBA.rgba;
+        uint8* cur_dest = image_data()->GetMemory();
+        int height = image_data()->GetDescriptor().size.height();
+        int num_pixel_bytes = image_data()->GetDescriptor().size.width() * 4;
+        for (int i = 0; i < height; ++i) {
+          SbMemoryCopy(cur_dest, cur_src, num_pixel_bytes);
+          cur_src += config_.output.u.RGBA.stride;
+          cur_dest += image_data()->GetDescriptor().pitch_in_bytes;
+        }
+
         set_state(kDone);
       } else if (status != VP8_STATUS_SUSPENDED) {
         DLOG(ERROR) << "WebPIAppend error, status code: " << status;
@@ -140,10 +152,6 @@ bool WEBPImageDecoder::CreateInternalDecoder(bool has_alpha) {
   config_.output.colorspace = pixel_format() == render_tree::kPixelFormatRGBA8
                                   ? (has_alpha ? MODE_rgbA : MODE_RGBA)
                                   : (has_alpha ? MODE_bgrA : MODE_BGRA);
-  config_.output.u.RGBA.stride = image_data()->GetDescriptor().pitch_in_bytes;
-  config_.output.u.RGBA.size =
-      static_cast<size_t>(config_.output.u.RGBA.stride *
-                          image_data()->GetDescriptor().size.height());
   // We don't use image buffer as the decoding buffer because libwebp will read
   // from it while we assume that our image buffer is write only.
   config_.output.is_external_memory = 0;
