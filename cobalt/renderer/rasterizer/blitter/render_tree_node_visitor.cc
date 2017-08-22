@@ -190,6 +190,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
 void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   TRACE_EVENT0_IF_ENABLED("Visit(ImageNode)");
+  // The image_node may contain nothing. For example, when it represents a video
+  // or other kind of animated image element before any frame is decoded.
+  if (!image_node->data().source) {
+    return;
+  }
 
   // All Blitter API images derive from skia::Image (so that they can be
   // compatible with the Skia software renderer), so we start here by casting
