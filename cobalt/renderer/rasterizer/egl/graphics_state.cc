@@ -132,11 +132,13 @@ void GraphicsState::UseProgram(GLuint program) {
     GL_CALL(glUseProgram(program));
   }
 
-  if (array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
+  if (vertex_data_allocated_ > 0 &&
+      array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
     array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
     GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
   }
-  if (index_buffer_handle_ != vertex_index_buffer_handle_[frame_index_]) {
+  if (vertex_index_allocated_ > 0 &&
+      index_buffer_handle_ != vertex_index_buffer_handle_[frame_index_]) {
     index_buffer_handle_ = vertex_index_buffer_handle_[frame_index_];
     GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_handle_));
   }
@@ -343,20 +345,20 @@ void GraphicsState::UpdateVertexBuffers() {
   DCHECK(!vertex_buffers_updated_);
   vertex_buffers_updated_ = true;
 
-  if (array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
-    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
-    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
-  }
   if (vertex_data_allocated_ > 0) {
+    if (array_buffer_handle_ != vertex_data_buffer_handle_[frame_index_]) {
+      array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+      GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
+    }
     GL_CALL(glBufferData(GL_ARRAY_BUFFER, vertex_data_allocated_,
                          &vertex_data_buffer_[0], GL_DYNAMIC_DRAW));
   }
 
-  if (index_buffer_handle_ != vertex_index_buffer_handle_[frame_index_]) {
-    index_buffer_handle_ = vertex_index_buffer_handle_[frame_index_];
-    GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_handle_));
-  }
   if (vertex_index_allocated_ > 0) {
+    if (index_buffer_handle_ != vertex_index_buffer_handle_[frame_index_]) {
+      index_buffer_handle_ = vertex_index_buffer_handle_[frame_index_];
+      GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_handle_));
+    }
     GL_CALL(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
                          vertex_index_allocated_ * sizeof(uint16_t),
                          &vertex_index_buffer_[0], GL_DYNAMIC_DRAW));
@@ -412,10 +414,14 @@ void GraphicsState::Reset() {
   clip_adjustment_dirty_ = true;
 
   if (vertex_buffers_updated_) {
-    array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
-    GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
-    index_buffer_handle_ = vertex_index_buffer_handle_[frame_index_];
-    GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_handle_));
+    if (vertex_data_allocated_ > 0) {
+      array_buffer_handle_ = vertex_data_buffer_handle_[frame_index_];
+      GL_CALL(glBindBuffer(GL_ARRAY_BUFFER, array_buffer_handle_));
+    }
+    if (vertex_index_allocated_ > 0) {
+      index_buffer_handle_ = vertex_index_buffer_handle_[frame_index_];
+      GL_CALL(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, index_buffer_handle_));
+    }
   }
 
   if (blend_enabled_) {
