@@ -218,7 +218,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
 
   while (!quit_) {
     int playback_head_position = env->CallIntMethodOrAbort(
-        j_audio_track_bridge_, "getPlaybackHeadPosition", "()I");
+        j_audio_track_bridge_, "getFramePosition", "()I");
     int frames_consumed = playback_head_position - last_playback_head_position_;
     last_playback_head_position_ = playback_head_position;
     if (frames_consumed != 0) {
@@ -245,10 +245,11 @@ void AudioTrackAudioSink::AudioThreadFunc() {
       continue;
     } else {
       // Wait for 1 ms before checking if more frames have been consumed.
-      // MediaTrack's getPlaybackHeadPosition() updates very coarsely, it is
+      // MediaTrack's getFramePosition() updates very coarsely, it is
       // witnessed to update at ~1024 frame chunks, which would take roughly
       // ~21.3ms to consume, so 1ms should be negligible on that scale (e.g.
-      // at worse, we may take ~22.3ms to update the number of frames consumed).
+      // at worse, we may take ~22.3ms to update the number of frames
+      // consumed).
       SbThreadSleep(kSbTimeMillisecond);
     }
 
