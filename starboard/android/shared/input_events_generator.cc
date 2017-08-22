@@ -73,6 +73,7 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
     int32_t device_id,
     SbWindow window,
     SbKey key,
+    SbKeyLocation location,
     const SbInputVector& input_vector) {
   std::unique_ptr<SbInputData> data(new SbInputData());
   SbMemorySet(data.get(), 0, sizeof(*data));
@@ -85,7 +86,7 @@ std::unique_ptr<Event> CreateMoveEventWithKey(
 
   // key
   data->key = key;
-  data->key_location = kSbKeyLocationUnspecified;
+  data->key_location = location;
   data->key_modifiers = kSbKeyModifiersNone;
   data->position = input_vector;
 
@@ -404,31 +405,37 @@ void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
   // [-1.0f, -flat] to [-1.0f, 0.0f] and [flat, 1.0f] to [0.0f, 1.0f]
   offset = (offset - sign * flat) / (1 - flat);
 
+  // Report up and left as negative values.
   SbInputVector input_vector;
   SbKey key = kSbKeyUnknown;
+  SbKeyLocation location = kSbKeyLocationUnspecified;
   switch (axis) {
     case kLeftX: {
-      input_vector.x = -offset;
+      input_vector.x = offset;
       input_vector.y = 0.0f;
       key = kSbKeyGamepadLeftStickLeft;
+      location = kSbKeyLocationLeft;
       break;
     }
     case kLeftY: {
       input_vector.x = 0.0f;
-      input_vector.y = -offset;
+      input_vector.y = offset;
       key = kSbKeyGamepadLeftStickUp;
+      location = kSbKeyLocationLeft;
       break;
     }
     case kRightX: {
-      input_vector.x = -offset;
+      input_vector.x = offset;
       input_vector.y = 0.0f;
       key = kSbKeyGamepadRightStickLeft;
+      location = kSbKeyLocationRight;
       break;
     }
     case kRightY: {
       input_vector.x = 0.0f;
-      input_vector.y = -offset;
+      input_vector.y = offset;
       key = kSbKeyGamepadRightStickUp;
+      location = kSbKeyLocationRight;
       break;
     }
     default:
@@ -436,7 +443,7 @@ void InputEventsGenerator::ProcessJoyStickEvent(FlatAxis axis,
   }
 
   events->push_back(
-      CreateMoveEventWithKey(device_id, window_, key, input_vector));
+      CreateMoveEventWithKey(device_id, window_, key, location, input_vector));
 }
 
 namespace {
