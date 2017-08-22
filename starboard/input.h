@@ -176,7 +176,7 @@ typedef struct SbInputData {
   // The value is |0| if this data is not applicable. For events with type
   // kSbInputEventTypeMove and device_type kSbInputDeviceTypeGamepad, this field
   // is interpreted as a stick position with the range [-1, 1], with positive
-  // values for the up and left direction.
+  // values for the down and right direction.
   SbInputVector position;
 
   // The relative motion vector of this input. The value is |0| if this data is
