@@ -47,6 +47,8 @@
         'draw_object_manager.cc',
         'draw_poly_color.h',
         'draw_poly_color.cc',
+        'draw_rect_border.h',
+        'draw_rect_border.cc',
         'draw_rect_color_texture.h',
         'draw_rect_color_texture.cc',
         'draw_rect_linear_gradient.h',

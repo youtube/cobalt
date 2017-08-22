@@ -29,6 +29,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 #include "cobalt/renderer/rasterizer/egl/draw_clear.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_border.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
@@ -439,7 +440,8 @@ void RenderTreeNodeVisitor::Visit(
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
-  if (!IsVisible(rect_node->GetBounds())) {
+  math::RectF node_bounds(rect_node->GetBounds());
+  if (!IsVisible(node_bounds)) {
     return;
   }
 
@@ -451,13 +453,12 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
       brush->GetTypeId() == base::GetTypeId<render_tree::SolidColorBrush>() ||
       brush->GetTypeId() == base::GetTypeId<render_tree::LinearGradientBrush>();
 
-  // Borders are not supported natively by this rasterizer at this time. The
-  // difficulty lies in getting anti-aliased borders and minimizing state
-  // switches (due to anti-aliased borders requiring transparency). However,
-  // by using the fallback rasterizer, both can be accomplished -- sort to
-  // minimize state switches while rendering anti-aliased borders to the
-  // offscreen target, then use a single shader to render those.
-  const bool border_supported = !data.border;
+  scoped_ptr<DrawRectBorder> draw_border;
+  if (data.border) {
+    draw_border.reset(new DrawRectBorder(graphics_state_, draw_state_,
+        rect_node));
+  }
+  const bool border_supported = !data.border || draw_border->IsValid();
 
   if (data.rounded_corners && brush &&
       brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
@@ -467,7 +468,12 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   } else if (!border_supported) {
     FallbackRasterize(rect_node);
   } else {
-    DCHECK(!data.border);
+    math::RectF content_rect(data.rect);
+    if (data.border) {
+      content_rect = draw_border->GetContentRect();
+      node_bounds = draw_border->GetBounds();
+      AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
+    }
 
     // Handle drawing the content.
     if (brush) {
@@ -484,16 +490,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             brush_color.a());
         if (data.rounded_corners) {
           scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-              draw_state_, data.rect, *data.rounded_corners, color));
+              draw_state_, content_rect, *data.rounded_corners, color));
           // Transparency is used for anti-aliasing.
-          AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+          AddTransparentDraw(draw.Pass(), node_bounds);
         } else {
           scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-              draw_state_, data.rect, color));
+              draw_state_, content_rect, color));
           if (draw_state_.opacity * color.a() == 1.0f) {
-            AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
+            AddOpaqueDraw(draw.Pass(), node_bounds);
           } else {
-            AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+            AddTransparentDraw(draw.Pass(), node_bounds);
           }
         }
       } else {
@@ -501,10 +507,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
             base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
                 (brush.get());
         scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
-            draw_state_, data.rect, *linear_brush));
+            draw_state_, content_rect, *linear_brush));
         // The draw may use transparent pixels to ensure only pixels in the
         // specified area are modified.
-        AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+        AddTransparentDraw(draw.Pass(), node_bounds);
       }
     }
   }
