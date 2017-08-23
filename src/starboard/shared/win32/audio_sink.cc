@@ -183,6 +183,7 @@ void XAudioAudioSink::AudioThreadFunc() {
   uint64_t samples_played = 0;
   int queued_buffers = 0;
   bool was_playing = false;  // The player starts out playing by default.
+  double current_volume = 1.0;
   for (;;) {
     {
       ScopedLock lock(mutex_);
@@ -193,11 +194,18 @@ void XAudioAudioSink::AudioThreadFunc() {
     int frames_in_buffer, offset_in_frames;
     bool is_playing, is_eos_reached;
     bool is_playback_rate_zero;
-    // TODO: Support |volume_| here as well...
+    bool should_set_volume;
     {
       ScopedLock lock(mutex_);
       is_playback_rate_zero = playback_rate_ == 0.0;
+      should_set_volume = current_volume != volume_;
+      current_volume = volume_;
     }
+
+    if (should_set_volume) {
+      CHECK_HRESULT_OK(source_voice_->SetVolume(current_volume));
+    }
+
     update_source_status_func_(&frames_in_buffer, &offset_in_frames,
                                &is_playing, &is_eos_reached, context_);
     if (is_playback_rate_zero) {

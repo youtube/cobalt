@@ -207,8 +207,8 @@ SbKey VirtualKeyToSbKey(VirtualKey key) {
     case VirtualKey::GamepadDPadDown: return kSbKeyGamepadDPadDown;
     case VirtualKey::GamepadDPadLeft: return kSbKeyGamepadDPadLeft;
     case VirtualKey::GamepadDPadRight: return kSbKeyGamepadDPadRight;
-    case VirtualKey::GamepadMenu: return kSbKeyGamepad6;
-    case VirtualKey::GamepadView: return kSbKeyGamepad5;
+    case VirtualKey::GamepadMenu: return kSbKeyMediaLaunchMediaSelect;
+    case VirtualKey::GamepadView: return kSbKeyF1;
     case VirtualKey::GamepadLeftThumbstickButton:
       return kSbKeyGamepadLeftStick;
     case VirtualKey::GamepadRightThumbstickButton:
