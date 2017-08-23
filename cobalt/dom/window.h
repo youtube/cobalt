@@ -228,6 +228,11 @@ class Window : public EventTarget,
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
 
+  // base64 encoding and decoding
+  std::string Btoa(const std::string& string_to_encode);
+
+  std::string Atob(const std::string& encoded_string);
+
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html5/webappapis.html#timers
   //
