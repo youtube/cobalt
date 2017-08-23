@@ -70,7 +70,7 @@ class SdkConfiguration:
 
     if not os.path.exists(self.vs_host_tools_path):
       logging.critical('Expected Visual Studio path \"%s\" not found.',
-                       self.vs_cl_path)
+                       self.vs_host_tools_path)
     self._CheckWindowsSdkVersion()
 
   def _CheckWindowsSdkVersion(self):

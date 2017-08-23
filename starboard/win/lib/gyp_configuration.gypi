@@ -23,6 +23,7 @@
     'final_executable_type': 'shared_library',
     'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/rasterizer/lib/lib.gyp:external_rasterizer',
     'sb_enable_lib': 1,
+    'enable_map_to_mesh': 1,
     'angle_build_winrt': 0,
     'winrt': 0,
     'enable_d3d11_feature_level_11': 1,
