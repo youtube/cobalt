@@ -36,31 +36,22 @@ namespace {
 // This magic number is taken directly from sample from MS.  Can be further
 // tuned in case if there is playback issues.
 const int kSampleAllocatorFramesMax = 5;
+// This is the minimum allocated frames in the output ring buffer.  Can be
+// further tuned to save memory.  Note that use a value that is too small leads
+// to hang when calling ProcessOutput().
+const int kMinimumOutputSampleCount = 10;
 
 // CLSID_CMSVideoDecoderMFT {62CE7E72-4C71-4D20-B15D-452831A87D9D}
 const GUID CLSID_VideoDecoder = {0x62CE7E72, 0x4C71, 0x4d20, 0xB1, 0x5D, 0x45,
                                  0x28,       0x31,   0xA8,   0x7D, 0x9D};
 
-ComPtr<ID3D11Texture2D> GetTexture2D(ComPtr<IMFMediaBuffer> media_buffer) {
-  ComPtr<IMFDXGIBuffer> dxgi_buffer;
-  HRESULT hr = media_buffer.As(&dxgi_buffer);
-  CheckResult(hr);
-  SB_DCHECK(dxgi_buffer.Get());
-
-  ComPtr<ID3D11Texture2D> dx_texture;
-  hr = dxgi_buffer->GetResource(IID_PPV_ARGS(&dx_texture));
-  CheckResult(hr);
-  return dx_texture;
-}
-
 class VideoFrameFactory {
  public:
   static VideoFramePtr Construct(SbMediaTime timestamp,
-                                 ComPtr<IMFMediaBuffer> media_buffer) {
-    ComPtr<ID3D11Texture2D> texture = GetTexture2D(media_buffer);
-    D3D11_TEXTURE2D_DESC tex_desc;
-    texture->GetDesc(&tex_desc);
-    VideoFramePtr out(new VideoFrame(tex_desc.Width, tex_desc.Height,
+                                 ComPtr<IMFMediaBuffer> media_buffer,
+                                 uint32_t width,
+                                 uint32_t height) {
+    VideoFramePtr out(new VideoFrame(width, height,
                                      timestamp, media_buffer.Detach(),
                                      nullptr, DeleteTextureFn));
     frames_in_flight_.increment();
@@ -84,10 +75,10 @@ atomic_int32_t VideoFrameFactory::frames_in_flight_;
 class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
                                     public MediaBufferConsumerInterface {
  public:
-  explicit AbstractWin32VideoDecoderImpl(SbMediaVideoCodec codec)
+  AbstractWin32VideoDecoderImpl(SbMediaVideoCodec codec, SbDrmSystem drm_system)
       : codec_(codec), surface_width_(0), surface_height_(0) {
     MediaBufferConsumerInterface* media_cb = this;
-    impl_.reset(new DecoderImpl("video", media_cb));
+    impl_.reset(new DecoderImpl("video", media_cb, drm_system));
     EnsureVideoDecoderCreated();
   }
 
@@ -95,8 +86,30 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
                        int64_t win32_timestamp) {
     const SbMediaTime media_timestamp = ConvertToMediaTime(win32_timestamp);
     VideoFramePtr frame_output =
-        VideoFrameFactory::Construct(media_timestamp, media_buffer);
+        VideoFrameFactory::Construct(media_timestamp, media_buffer,
+            surface_width_, surface_height_);
     output_queue_.PushBack(frame_output);
+  }
+
+  void OnNewOutputType(const ComPtr<IMFMediaType>& type) override {
+    MFVideoArea aperture;
+    HRESULT hr = type->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE,
+        reinterpret_cast<UINT8*>(&aperture), sizeof(MFVideoArea), nullptr);
+    if (SUCCEEDED(hr)) {
+      // TODO: consider offset as well
+      surface_width_ = aperture.Area.cx;
+      surface_height_ = aperture.Area.cy;
+      return;
+    }
+
+    uint32_t width;
+    uint32_t height;
+    hr = MFGetAttributeSize(type.Get(), MF_MT_FRAME_SIZE,
+                            &width, &height);
+    if (SUCCEEDED(hr)) {
+      surface_width_ = width;
+      surface_height_ = height;
+    }
   }
 
   ComPtr<IMFMediaType> Configure(IMFTransform* decoder) {
@@ -160,8 +173,6 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
     SB_DCHECK(1 == input_stream_count);
     SB_DCHECK(1 == output_stream_count);
 
-    impl_->ActivateDecryptor(media_type);
-
     ComPtr<IMFMediaType> output_type =
         FindMediaType(MFVideoFormat_YV12, decoder.Get());
 
@@ -172,6 +183,10 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
 
     ComPtr<IMFAttributes> attributes;
     hr = decoder->GetAttributes(attributes.GetAddressOf());
+    CheckResult(hr);
+
+    hr = attributes->SetUINT32(MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT,
+                               kMinimumOutputSampleCount);
     CheckResult(hr);
 
     UINT32 value = 0;
@@ -225,19 +240,35 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
       return false;  // Wait for more data.
     }
 
-    // This would be used for decrypting content.
-    // For now this is empty.
     std::vector<uint8_t> key_id;
     std::vector<uint8_t> iv;
+    std::vector<Subsample> subsamples;
 
-    std::vector<Subsample> empty_subsample;
+    // TODO: Merge this with similar code in the audio decoder.
+    const SbDrmSampleInfo* drm_info = buff->drm_info();
+
+    if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
+      key_id.assign(drm_info->identifier,
+                    drm_info->identifier + drm_info->identifier_size);
+      iv.assign(drm_info->initialization_vector,
+                drm_info->initialization_vector +
+                    drm_info->initialization_vector_size);
+      subsamples.reserve(drm_info->subsample_count);
+      for (int32_t i = 0; i < drm_info->subsample_count; ++i) {
+        Subsample subsample = {
+            static_cast<uint32_t>(
+                drm_info->subsample_mapping[i].clear_byte_count),
+            static_cast<uint32_t>(
+                drm_info->subsample_mapping[i].encrypted_byte_count)};
+        subsamples.push_back(subsample);
+      }
+    }
 
     const SbMediaTime media_timestamp = buff->pts();
     const int64_t win32_timestamp = ConvertToWin32Time(media_timestamp);
 
     const bool write_ok = impl_->TryWriteInputBuffer(
-        buff->data(), buff->size(), win32_timestamp,
-        key_id, iv, empty_subsample);
+        buff->data(), buff->size(), win32_timestamp, key_id, iv, subsamples);
 
     return write_ok;
   }
@@ -271,12 +302,14 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
   uint32_t surface_height_;
   HardwareDecoderContext dx_decoder_ctx_;
 };
+
 }  // anonymous namespace.
 
 scoped_ptr<AbstractWin32VideoDecoder> AbstractWin32VideoDecoder::Create(
-    SbMediaVideoCodec codec) {
+    SbMediaVideoCodec codec,
+    SbDrmSystem drm_system) {
   return scoped_ptr<AbstractWin32VideoDecoder>(
-      new AbstractWin32VideoDecoderImpl(codec));
+      new AbstractWin32VideoDecoderImpl(codec, drm_system));
 }
 
 }  // namespace win32

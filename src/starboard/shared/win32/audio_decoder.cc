@@ -56,19 +56,24 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
 };
 
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
-                           const SbMediaAudioHeader& audio_header)
-    : sample_type_(kSbMediaAudioSampleTypeFloat32),
-      stream_ended_(false),
-      audio_codec_(audio_codec),
-      audio_header_(audio_header) {
+                           const SbMediaAudioHeader& audio_header,
+                           SbDrmSystem drm_system)
+    : audio_codec_(audio_codec),
+      audio_header_(audio_header),
+      drm_system_(drm_system),
+      sample_type_(kSbMediaAudioSampleTypeFloat32),
+      stream_ended_(false) {
   SB_DCHECK(audio_codec == kSbMediaAudioCodecAac);
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_);
+      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   callback_scheduler_.reset(new CallbackScheduler());
 }
 
 AudioDecoder::~AudioDecoder() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   decoder_thread_.reset(nullptr);
   decoder_impl_.reset(nullptr);
   callback_scheduler_.reset(nullptr);
@@ -76,7 +81,9 @@ AudioDecoder::~AudioDecoder() {
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
                           const Closure& consumed_cb) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(input_buffer);
+
   callback_scheduler_->SetCallbackOnce(consumed_cb);
   callback_scheduler_->OnCallbackSignaled();
   const bool can_take_more_data = decoder_thread_->QueueInput(input_buffer);
@@ -91,22 +98,29 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
 }
 
 void AudioDecoder::WriteEndOfStream() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   ::starboard::ScopedLock lock(mutex_);
   stream_ended_ = true;
   decoder_thread_->QueueEndOfStream();
 }
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   DecodedAudioPtr data = decoded_data_.PopFront();
   SB_DCHECK(data);
   return data;
 }
 
 void AudioDecoder::Reset() {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   decoder_thread_.reset(nullptr);
   decoder_impl_.reset(nullptr);
   decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_);
+      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
+      drm_system_);
   decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
   decoded_data_.Clear();
   stream_ended_ = false;
@@ -114,14 +128,20 @@ void AudioDecoder::Reset() {
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   return sample_type_;
 }
 
 int AudioDecoder::GetSamplesPerSecond() const {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   return audio_header_.samples_per_second;
 }
 
 void AudioDecoder::Initialize(const Closure& output_cb) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+
   SB_DCHECK(output_cb.is_valid());
   SB_DCHECK(!output_cb_.is_valid());
   output_cb_ = output_cb;

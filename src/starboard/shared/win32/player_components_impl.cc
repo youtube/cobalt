@@ -35,9 +35,13 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
   using VideoRendererImpl = ::starboard::shared::win32::VideoRendererImpl;
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
-      audio_parameters.audio_codec, audio_parameters.audio_header);
+      audio_parameters.audio_codec, audio_parameters.audio_header,
+      audio_parameters.drm_system);
 
-  VideoDecoderImpl* video_decoder = new VideoDecoderImpl(video_parameters);
+  VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
+      video_parameters.video_codec, video_parameters.output_mode,
+      video_parameters.decode_target_graphics_context_provider,
+      video_parameters.drm_system);
 
   AudioRendererImpl* audio_renderer =
       new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),

@@ -12,11 +12,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+#####################################################################
+# If you modify this file, PLEASE REMEMBER TO UPDATE
+# //cobalt/build/config/base.gni or //starboard/build/config/base.gni
+# AS WELL
+#####################################################################
+
 # This file should be included in all .gyp files used by Cobalt. Normally,
 # this should be done automatically by gyp_cobalt.
 {
   'variables': {
     # Cobalt variables.
+
+    # We need to define some variables inside of an inner 'variables' scope
+    # so that they can be referenced by other outer variables here.  Also, it
+    # allows for the specification of default values that get referenced by
+    # a top level scope.
+    'variables': {
+      # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
+      # that it can be accessed by 'cobalt_enable_lib' below.
+      'sb_enable_lib%': 0,
+
+      'cobalt_webapi_extension_source_idl_files%': [],
+      'cobalt_webapi_extension_generated_header_idl_files%': [],
+    },
 
     # Whether Cobalt is being built.
     'cobalt': 1,
@@ -33,13 +52,8 @@
     # implement spherical video playback.
     'enable_map_to_mesh%': 0,
 
-    # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
-    # that it can be accessed by 'cobalt_enable_lib' below here.
-    'variables': {
-      # Enables embedding Cobalt as a shared library within another app. This
-      # requires a 'lib' starboard implementation for the corresponding platform.
-      'sb_enable_lib%': 0,
-    },
+    # Enables embedding Cobalt as a shared library within another app. This
+    # requires a 'lib' starboard implementation for the corresponding platform.
     'sb_enable_lib%': '<(sb_enable_lib)',
     'cobalt_enable_lib': '<(sb_enable_lib)',
 
@@ -177,9 +191,30 @@
     # this value is defaulted to 0.
     'render_dirty_region_only%': 0,
 
-    # Modify this value to adjust the default rasterizer setting for your
+    # Override this value to adjust the default rasterizer setting for your
     # platform.
     'default_renderer_options_dependency%': '<(DEPTH)/cobalt/renderer/default_options_starboard.gyp:default_options',
+
+    # Override this to inject a custom interface into Cobalt's JavaScript
+    # `window` global object.  This implies that you will have to provide your
+    # own IDL files to describe that interface and all interfaces that it
+    # references.  See cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_source_idl_files%': [
+      '<@(cobalt_webapi_extension_source_idl_files)'\
+    ],
+    # Override this to have Cobalt build IDL files that result in generated
+    # header files that may need to be included from other C++ source files.
+    # This includes, for example, IDL enumerations.  See
+    # cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_generated_header_idl_files%': [
+      '<@(cobalt_webapi_extension_generated_header_idl_files)'
+    ],
+
+    # This gyp target must implement the functions defined in
+    # <(DEPTH)/cobalt/browser/idl_extensions.h.  See
+    # cobalt/doc/webapi_extension.md for more information.
+    'cobalt_webapi_extension_gyp_target%':
+        '<(DEPTH)/cobalt/browser/null_webapi_extension.gyp:null_webapi_extension',
 
     # Allow throttling of the frame rate. This is expressed in terms of
     # milliseconds and can be a floating point number. Keep in mind that
@@ -518,6 +553,12 @@
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+
+    # Set to 1 to enable MediaKeySession::keyStatuses and
+    # MediaKeySession::onkeystatuseschange support.  This requires that
+    # SB_API_VERSION is greater than or equal to
+    # SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION.
+    'cobalt_encrypted_media_extension_enable_key_statuses_update%': 1,
   },
 
   'target_defaults': {
@@ -544,6 +585,7 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
+      'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=<(cobalt_encrypted_media_extension_enable_key_statuses_update)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],

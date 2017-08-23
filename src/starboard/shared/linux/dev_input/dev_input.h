@@ -48,6 +48,11 @@ class DevInput {
   // Creates an instance of DevInput for the given window.
   static DevInput* Create(SbWindow window);
 
+  // Creates an instance of DevInput for the given window.
+  // The wake_up_fd will be used in WaitForSystemEventWithTimeout() to return
+  // early when input is available on it.
+  static DevInput* Create(SbWindow window, int wake_up_fd);
+
  protected:
   DevInput() {}
 };

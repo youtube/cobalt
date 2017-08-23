@@ -132,6 +132,28 @@ void ToJSValue(
       return;
     }
   }
+  if (in_dictionary.has_any_member_with_default()) {
+    JS::RootedValue member_value(context);
+    ToJSValue(context, in_dictionary.any_member_with_default(), &member_value);
+    if (!JS_DefineProperty(context, dictionary_object,
+                           "anyMemberWithDefault",
+                           member_value, kPropertyAttributes, nullptr, nullptr)) {
+      // Some internal error occurred.
+      NOTREACHED();
+      return;
+    }
+  }
+  if (in_dictionary.has_any_member()) {
+    JS::RootedValue member_value(context);
+    ToJSValue(context, in_dictionary.any_member(), &member_value);
+    if (!JS_DefineProperty(context, dictionary_object,
+                           "anyMember",
+                           member_value, kPropertyAttributes, nullptr, nullptr)) {
+      // Some internal error occurred.
+      NOTREACHED();
+      return;
+    }
+  }
   out_value.setObject(*dictionary_object);
 }
 
@@ -304,6 +326,20 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
       return;
     }
     out_dictionary->set_non_default_member(converted_value);
+  }
+  JS::RootedValue any_member_with_default(context);
+  if (!JS_GetProperty(context, dictionary_object,
+                      "anyMemberWithDefault",
+                      &any_member_with_default)) {
+    exception_state->SetSimpleException(kSimpleError);
+    return;
+  }
+  JS::RootedValue any_member(context);
+  if (!JS_GetProperty(context, dictionary_object,
+                      "anyMember",
+                      &any_member)) {
+    exception_state->SetSimpleException(kSimpleError);
+    return;
   }
 }
 

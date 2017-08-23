@@ -76,7 +76,7 @@ Thread *GetCurrentThread()
 
 }  // namespace egl
 
-#ifdef ANGLE_PLATFORM_WINDOWS
+#if defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)
 namespace egl
 {
 
@@ -145,4 +145,4 @@ extern "C" BOOL WINAPI DllMain(HINSTANCE, DWORD reason, LPVOID)
 
     return TRUE;
 }
-#endif  // ANGLE_PLATFORM_WINDOWS
+#endif  // defined(ANGLE_PLATFORM_WINDOWS) && defined(LIBGLESV2_DLL)

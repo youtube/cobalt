@@ -1,4 +1,5 @@
-#!/usr/bin/python
+#
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -10,59 +11,25 @@
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
-# limitations under the License."""
+# limitations under the License.
 """Abstraction for running Cobalt development tools."""
 
-import abc
-import imp
+import importlib
 import os
-import re
 import sys
 
-platform_module = imp.load_source(
-    "platform", os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "platform.py")))
+if "environment" in sys.modules:
+  environment = sys.modules["environment"]
+else:
+  env_path = os.path.abspath(os.path.dirname(__file__))
+  if env_path not in sys.path:
+    sys.path.append(env_path)
+  environment = importlib.import_module("environment")
 
 
-def _GetAllPlatforms(path):
-  """Retrieves information about all available Cobalt ports.
+import abc
 
-  Args:
-    path:  Root path that will be crawled to find ports.
-
-  Returns:
-    Dict mapping available cobalt ports to their respective location in
-    the filesystem.
-  """
-  platform_dict = {}
-  for port in platform_module.PlatformInfo.EnumeratePorts(path):
-    port_name = re.search(".*starboard-(.*)", port.port_name).group(1)
-    platform_dict[port_name] = port.path
-  return platform_dict
-
-
-def _GetProjectRoot():
-  """Gets the root of this project.
-
-  Returns:
-    Path to the root of this project
-
-  Raises:
-    RuntimeError: There is no root.
-  """
-  current_path = os.path.normpath(os.path.dirname(__file__))
-  while not os.access(os.path.join(current_path, ".gclient"), os.R_OK):
-    next_path = os.path.dirname(current_path)
-    if next_path == current_path:
-      current_path = None
-      break
-    current_path = next_path
-  client_root = current_path
-
-  if not client_root:
-    raise RuntimeError("No project root declared.")
-
-  return client_root
+import starboard.tools.platform as platform_module
 
 
 def _GetLauncherForPlatform(platform_path):
@@ -74,23 +41,9 @@ def _GetLauncherForPlatform(platform_path):
   Returns:
     The module containing the platform's launcher implementation.
   """
-
-  # Necessary because gyp_configuration modules use relative imports.
-  # "cobalt/build" needs to be in sys.path to keep the imports working
-  sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                               os.pardir, os.pardir,
-                                               "cobalt", "build")))
-
-  # Necessary because the gyp_configuration for linux-x64x11 imports
-  # directly from "starboard/".  All of this import logic will eventually be
-  # moved to a configuration system.
-  sys.path.append(os.path.abspath(os.path.join(
-      os.path.dirname(__file__), os.pardir, os.pardir)))
-
-  module_path = os.path.abspath(os.path.join(platform_path,
-                                             "gyp_configuration.py"))
-
-  gyp_module = imp.load_source("platform_module", module_path)
+  if platform_path not in sys.path:
+    sys.path.append(platform_path)
+  gyp_module = importlib.import_module("gyp_configuration")
   return gyp_module.CreatePlatformConfig().GetLauncher()
 
 
@@ -112,8 +65,7 @@ def LauncherFactory(platform, target_name, config, device_id, args):
   """
 
   #  Creates launcher for provided platform if the platform has a valid port
-  client_root = _GetProjectRoot()
-  platform_dict = _GetAllPlatforms(client_root)
+  platform_dict = platform_module.GetAllPorts()
   if platform in platform_dict:
     platform_path = platform_dict[platform]
     launcher_module = _GetLauncherForPlatform(platform_path)
@@ -140,7 +92,11 @@ class AbstractLauncher(object):
 
   @abc.abstractmethod
   def Run(self):
-    """Runs the launcher's executable.  Must be implemented in subclasses."""
+    """Runs the launcher's executable.  Must be implemented in subclasses.
+
+    Returns:
+      The return code from the launcher's executable.
+    """
     pass
 
   @abc.abstractmethod

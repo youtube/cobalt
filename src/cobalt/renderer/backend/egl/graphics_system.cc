@@ -69,27 +69,33 @@ GraphicsSystemEGL::GraphicsSystemEGL() {
 
   // Setup our configuration to support RGBA and compatibility with PBuffer
   // objects (for offscreen rendering).
-  EGLint attribute_list[] = {EGL_SURFACE_TYPE,    // this must be first
-                             EGL_WINDOW_BIT | EGL_PBUFFER_BIT
+  EGLint attribute_list[] = {
+    EGL_SURFACE_TYPE,  // this must be first
+    EGL_WINDOW_BIT | EGL_PBUFFER_BIT
 #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-                                 | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
+        | EGL_SWAP_BEHAVIOR_PRESERVED_BIT
 #endif  // #if defined(COBALT_RENDER_DIRTY_REGION_ONLY)
-                             ,
-                             EGL_RED_SIZE,
-                             8,
-                             EGL_GREEN_SIZE,
-                             8,
-                             EGL_BLUE_SIZE,
-                             8,
-                             EGL_ALPHA_SIZE,
-                             8,
+    ,
+    EGL_RED_SIZE,
+    8,
+    EGL_GREEN_SIZE,
+    8,
+    EGL_BLUE_SIZE,
+    8,
+    EGL_ALPHA_SIZE,
+    8,
 #if !SB_HAS_QUIRK(NO_EGL_BIND_TO_TEXTURE)
-                             EGL_BIND_TO_TEXTURE_RGBA,
-                             EGL_TRUE,
+    EGL_BIND_TO_TEXTURE_RGBA,
+    EGL_TRUE,
 #endif
-                             EGL_RENDERABLE_TYPE,
-                             EGL_OPENGL_ES2_BIT,
-                             EGL_NONE};
+    EGL_RENDERABLE_TYPE,
+#if defined(GLES3_SUPPORTED)
+    EGL_OPENGL_ES3_BIT,
+#else
+    EGL_OPENGL_ES2_BIT,
+#endif  // #if defined(GLES3_SUPPORTED)
+    EGL_NONE
+  };
 
   EGLint num_configs;
   eglChooseConfig(display_, attribute_list, &config_, 1, &num_configs);

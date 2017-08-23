@@ -102,6 +102,7 @@ void VideoDecoderThread::Run() {
     if (number_written > 0) {
       processing_elements_.fetch_sub(static_cast<int32_t>(number_written));
       work_done = true;
+      callback_->OnVideoDecoded(NULL);
     }
 
     while (VideoFramePtr decoded_datum =

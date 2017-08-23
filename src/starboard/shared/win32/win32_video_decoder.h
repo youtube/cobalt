@@ -20,6 +20,7 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
@@ -33,7 +34,8 @@ namespace win32 {
 // VideoDecoder for Win32.
 class AbstractWin32VideoDecoder {
  public:
-  static scoped_ptr<AbstractWin32VideoDecoder> Create(SbMediaVideoCodec codec);
+  static scoped_ptr<AbstractWin32VideoDecoder> Create(SbMediaVideoCodec codec,
+                                                      SbDrmSystem drm_system);
   virtual ~AbstractWin32VideoDecoder() {}
 
   virtual bool TryWrite(const scoped_refptr<InputBuffer>& buff) = 0;

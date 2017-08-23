@@ -88,5 +88,11 @@ void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF RectNode::GetBounds() const { return data_.rect; }
 
+void RectNode::AssertValid() const {
+  if (data_.rounded_corners) {
+    DCHECK(data_.rounded_corners->IsNormalized(data_.rect));
+  }
+}
+
 }  // namespace render_tree
 }  // namespace cobalt

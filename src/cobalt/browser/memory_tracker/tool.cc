@@ -23,6 +23,7 @@
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
+#include "cobalt/browser/memory_tracker/tool/malloc_logger_tool.h"
 #include "cobalt/browser/memory_tracker/tool/malloc_stats_tool.h"
 #include "cobalt/browser/memory_tracker/tool/memory_size_binner_tool.h"
 #include "cobalt/browser/memory_tracker/tool/print_csv_tool.h"
@@ -65,6 +66,7 @@ enum SwitchEnum {
   kLeakTracer,
   kJavascriptLeakTracer,
   kMallocStats,
+  kMallocLogger,
 };
 
 struct SwitchVal {
@@ -160,57 +162,66 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
 
   SwitchVal startup_tool(
       "startup(num_mins=1)",  // Name of tool.
-      "Records high-frequency memory metrics for the first 60 "
-      "seconds of program launch and then dumps it out in CSV format "
-      "to stdout.",
+      "  Records high-frequency memory metrics for the first 60\n"
+      "  seconds of program launch and then dumps it out in CSV format\n"
+      "  to stdout.\n",
       kStartup);
 
   SwitchVal continuous_printer_tool(
       "continuous_printer",  // Name of tool.
-      "Once every second the memory state is dumped to stdout.",
+      "  Once every second the memory state is dumped to stdout.\n",
       kContinuousPrinter);
 
   SwitchVal compressed_timeseries_tool(
       "compressed_timeseries",  // Name of tool.
-      "Use this tool to see the growth in memory usage as the app runs. The "
-      "memory growth is segmented into memory scopes and outputted as CSV. "
-      "The compressed time-series will depict the full history of the memory "
-      "using a fixed number of rows. Older history has degraded resolution and "
-      "while new entries are captured in full detail. This achieved by "
-      "evicting old entries by an exponential decay scheme.",
+      "  Use this tool to see the growth in memory usage as the app runs.\n"
+      "  The memory growth is segmented into memory scopes and outputted as\n"
+      "  CSV. The compressed time-series will depict the full history of\n"
+      "  the memory using a fixed number of rows. Older history has degraded\n"
+      "  resolution and while new entries are captured in full detail. This\n"
+      "  achieved by evicting old entries by an exponential decay scheme.\n",
       kCompressedTimeseries);
 
   SwitchVal binner_tool(
       "binner(region=NULL)",
-      "Dumps memory statistics once a second in CSV format to stdout. "
-      "The default memory region is all memory regions. Pass the "
-      "name of the memory region to specify that only that memory region "
-      "should be tracked. For example: binner(Javascript).",
+      "  Dumps memory statistics once a second in CSV format to stdout.\n"
+      "  The default memory region is all memory regions. Pass the\n"
+      "  name of the memory region to specify that only that memory region\n"
+      "  should be tracked. For example: binner(Javascript).\n",
       kBinnerAnalytics);
 
   SwitchVal allocation_logger_tool(
       "allocation_logger",
-      "Continuously writes allocations and deallocations to memory_log.txt. "
-      "This is a legacy format used by lbshell. The location of this "
-      "memory_log.txt file is in the platform dependent directory specified "
-      "by kSbSystemPathDebugOutputDirectory.",
+      "  Continuously writes allocations and deallocations to\n"
+      "  memory_log.txt. This is a legacy format used by lbshell. The\n"
+      "  location of this memory_log.txt file is in the platform dependent\n"
+      "  directory specified by kSbSystemPathDebugOutputDirectory.\n",
       kAllocationLogger);
 
   SwitchVal leak_tracing_tool(
       "leak_tracer",
-      "Automatically detects leaks and reports them in CSV format.",
+      "  Automatically detects leaks and reports them in CSV format.\n",
       kLeakTracer);
 
   SwitchVal js_leak_tracing_tool(
       "js_leak_tracer",
-      "Automatically detects Javascript leaks and reports them in CSV format.",
+      "  Automatically detects Javascript leaks and reports them in CSV\n"
+      "  format.\n",
       kJavascriptLeakTracer);
 
   SwitchVal malloc_stats_tool(
       "malloc_stats",
-      "Queries the allocation system for memory usage. This is the most "
-      "lightweight tool. Output is CSV format.",
+      "  Queries the allocation system for memory usage. This is the most\n"
+      "  lightweight tool. Output is CSV format.\n",
       kMallocStats);
+
+  SwitchVal malloc_logger_tool(
+      "malloc_logger",
+      "  Continuously writes allocations, deallocations, allocation location\n"
+      "  and malloc stats to memory_log_<timestamp>.csv, without headers.\n"
+      "  The location of this log file is in the platform dependent\n"
+      "  directory specified by kSbSystemPathDebugOutputDirectory.\n",
+      kMallocLogger);
 
   SwitchMap switch_map;
   switch_map[ParseToolName(startup_tool.tool_name)] = startup_tool;
@@ -224,6 +235,8 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
   switch_map[ParseToolName(js_leak_tracing_tool.tool_name)] =
       js_leak_tracing_tool;
+  switch_map[ParseToolName(malloc_logger_tool.tool_name)] =
+      malloc_logger_tool;
 
   switch_map[ParseToolName(malloc_stats_tool.tool_name)] = malloc_stats_tool;
 
@@ -381,6 +394,16 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
     }
     case kMallocStats: {
       tool_ptr.reset(new MallocStatsTool);
+      break;
+    }
+    case kMallocLogger: {
+      scoped_ptr<MallocLoggerTool> malloc_logger(
+          new MallocLoggerTool());
+
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
+      memory_tracker->SetMemoryTrackerDebugCallback(malloc_logger.get());
+      tool_ptr.reset(malloc_logger.release());
       break;
     }
     default: {

@@ -72,6 +72,10 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
     ScopedLock lock(mutex_);
     playback_rate_ = playback_rate;
   }
+  void SetVolume(double volume) SB_OVERRIDE {
+    ScopedLock lock(mutex_);
+    volume_ = volume;
+  }
 
  private:
   static void* ThreadEntryPoint(void* context);
@@ -99,6 +103,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
   ::starboard::Mutex mutex_;
   bool destroying_;
   double playback_rate_;
+  double volume_;
 };
 
 XAudioAudioSink::XAudioAudioSink(
@@ -118,7 +123,8 @@ XAudioAudioSink::XAudioAudioSink(
       frame_buffers_size_in_frames_(frame_buffers_size_in_frames),
       wfx_(wfx),
       destroying_(false),
-      playback_rate_(1.0) {
+      playback_rate_(1.0),
+      volume_(1.0) {
   // TODO: Check MaxFrequencyRatio
   CHECK_HRESULT_OK(
       type_->x_audio2_->CreateSourceVoice(&source_voice_, &wfx, 0,
@@ -187,6 +193,7 @@ void XAudioAudioSink::AudioThreadFunc() {
     int frames_in_buffer, offset_in_frames;
     bool is_playing, is_eos_reached;
     bool is_playback_rate_zero;
+    // TODO: Support |volume_| here as well...
     {
       ScopedLock lock(mutex_);
       is_playback_rate_zero = playback_rate_ == 0.0;

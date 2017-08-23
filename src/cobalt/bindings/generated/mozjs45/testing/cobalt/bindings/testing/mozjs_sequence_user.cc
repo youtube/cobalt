@@ -592,7 +592,7 @@ bool fcn_setInterfaceSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< scoped_refptr<ArbitraryInterface> > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< scoped_refptr<ArbitraryInterface> > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -656,7 +656,7 @@ bool fcn_setInterfaceSequenceSequenceSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< script::Sequence< script::Sequence< scoped_refptr<ArbitraryInterface> > > > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< ::cobalt::script::Sequence< ::cobalt::script::Sequence< scoped_refptr<ArbitraryInterface> > > > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -720,7 +720,7 @@ bool fcn_setLongSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< int32_t > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< int32_t > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -784,7 +784,7 @@ bool fcn_setStringSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< std::string > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< std::string > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -848,7 +848,7 @@ bool fcn_setStringSequenceSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< script::Sequence< std::string > > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< ::cobalt::script::Sequence< std::string > > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -912,7 +912,7 @@ bool fcn_setUnionOfStringAndStringSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::UnionType2<std::string, script::Sequence< std::string > > >::ConversionType elements;
+  TypeTraits<::cobalt::script::UnionType2<std::string, ::cobalt::script::Sequence< std::string > > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -976,7 +976,7 @@ bool fcn_setUnionSequence(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<script::Sequence< script::UnionType2<std::string, scoped_refptr<ArbitraryInterface> > > >::ConversionType elements;
+  TypeTraits<::cobalt::script::Sequence< ::cobalt::script::UnionType2<std::string, scoped_refptr<ArbitraryInterface> > > >::ConversionType elements;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
@@ -1133,7 +1133,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 40;
+  const int kInterfaceUniqueId = 41;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with

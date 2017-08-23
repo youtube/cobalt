@@ -64,6 +64,15 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// SbDecodeTargetInfoPlane's now can specify color plane information.
+// Previously: Planes of type kSbDecodeTargetFormat2PlaneYUVNV12
+// were assumed to have the luma mapped to the alpha channel (GL_ALPHA)
+// and the chroma mapped to blue and alpha (GL_LUMINANCE_ALPHA). However,
+// some graphics systems require that luma is on GL_RED_EXT and the chroma
+// is on GL_RG_EXT.
+
+#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 #define SB_POINTER_INPUT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
@@ -78,6 +87,9 @@
 #define SB_LOW_MEMORY_EVENT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION \
   SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_STORAGE_NAMES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -311,6 +323,32 @@ struct CompileAssert {};
 #endif
 #endif  // SB_NORETURN
 #endif  // SB_API_VERSION >= 4
+
+// Specifies the alignment for a class, struct, union, enum, class/struct field,
+// or stack variable.
+#if !defined(SB_ALIGNAS)
+#if SB_IS(COMPILER_GCC)
+#define SB_ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
+#elif SB_IS(COMPILER_MSVC)
+#define SB_ALIGNAS(byte_alignment) __declspec(align(byte_alignment))
+#else
+// Fallback to the C++11 form.
+#define SB_ALIGNAS(byte_alignment) alignas(byte_alignment)
+#endif
+#endif  // !defined(SB_ALIGNAS)
+
+// Returns the alignment reqiured for any instance of the type indicated by
+// |type|.
+#if !defined(SB_ALIGNOF)
+#if SB_IS(COMPILER_GCC)
+#define SB_ALIGNOF(type) __alignof__(type)
+#elif SB_IS(COMPILER_MSVC)
+#define SB_ALIGNOF(type) (sizeof(type) - sizeof(type) + __alignof(type))
+#else
+// Fallback to the C++11 form.
+#define SB_ALIGNOF(type) alignof(type)
+#endif
+#endif  // !defined(SB_ALIGNOF)
 
 // --- Configuration Audits --------------------------------------------------
 

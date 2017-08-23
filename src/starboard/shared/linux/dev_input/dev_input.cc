@@ -24,6 +24,8 @@
 #include <vector>
 
 #include <algorithm>
+#include <cmath>
+#include <map>
 #include <string>
 
 #include "starboard/configuration.h"
@@ -44,14 +46,43 @@ namespace {
 using ::starboard::shared::starboard::Application;
 
 typedef int FileDescriptor;
-const FileDescriptor kInvalidFd = -1;
-const int kKeyboardDeviceId = 1;
+const FileDescriptor kInvalidFd = -ENODEV;
+
+enum InputDeviceIds {
+  kKeyboardDeviceId = 1,
+  kGamepadDeviceId,
+};
+
+enum TouchPadPositionState {
+  kTouchPadPositionNone = 0,
+  kTouchPadPositionX = 1,
+  kTouchPadPositionY = 2,
+  kTouchPadPositionAll = kTouchPadPositionX | kTouchPadPositionY
+};
+
+struct InputDeviceInfo {
+  InputDeviceInfo() : fd(-1), touchpad_position_state(kTouchPadPositionNone) {}
+
+  // File descriptor open for the device
+  FileDescriptor fd;
+  // Absolute Axis info.
+  std::map<int, struct input_absinfo> axis_info;
+  std::map<int, float> axis_value;
+  int touchpad_position_state;
+};
+
+bool IsTouchpadPositionKnown(InputDeviceInfo* device_info) {
+  return device_info->touchpad_position_state == kTouchPadPositionAll;
+}
 
 // Private implementation of DevInput.
 class DevInputImpl : public DevInput {
  public:
   explicit DevInputImpl(SbWindow window);
+  DevInputImpl(SbWindow window, FileDescriptor wake_up_fd);
   ~DevInputImpl() SB_OVERRIDE;
+
+  void InitDevInputImpl(SbWindow window);
 
   Event* PollNextSystemEvent() SB_OVERRIDE;
   Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
@@ -61,13 +92,27 @@ class DevInputImpl : public DevInput {
   // Converts an input_event into a kSbEventInput Application::Event. The caller
   // is responsible for deleting the returned event.
   Event* InputToApplicationEvent(const struct input_event& event,
+                                 InputDeviceInfo* device_info,
                                  int modifiers);
+
+  // Converts an input_event containing a key input into a kSbEventInput
+  // Application::Event. The caller is responsible for deleting the returned
+  // event.
+  Event* KeyInputToApplicationEvent(const struct input_event& event,
+                                    int modifiers);
+
+  // Converts an input_event containing an axis event into a kSbEventInput
+  // Application::Event. The caller is responsible for deleting the returned
+  // event.
+  Event* AxisInputToApplicationEvent(const struct input_event& event,
+                                     InputDeviceInfo* device_info,
+                                     int modifiers);
 
   // The window to attribute /dev/input events to.
   SbWindow window_;
 
   // A set of read-only file descriptor of keyboard input devices.
-  std::vector<FileDescriptor> keyboard_fds_;
+  std::vector<InputDeviceInfo> input_devices_;
 
   // A file descriptor of the write end of a pipe that can be written to from
   // any thread to wake up this waiter in a thread-safe manner.
@@ -76,6 +121,8 @@ class DevInputImpl : public DevInput {
   // A file descriptor of the read end of a pipe that this waiter will wait on
   // to allow it to be signalled safely from other threads.
   FileDescriptor wakeup_read_fd_;
+
+  FileDescriptor wake_up_fd_;
 };
 
 // Helper class to manage a file descriptor set.
@@ -126,16 +173,12 @@ SbKey KeyCodeToSbKey(uint16_t code) {
     case KEY_PAGEDOWN:
       return kSbKeyNext;
     case KEY_LEFT:
-    case BTN_DPAD_LEFT:
       return kSbKeyLeft;
     case KEY_RIGHT:
-    case BTN_DPAD_RIGHT:
       return kSbKeyRight;
     case KEY_DOWN:
-    case BTN_DPAD_DOWN:
       return kSbKeyDown;
     case KEY_UP:
-    case BTN_DPAD_UP:
       return kSbKeyUp;
     case KEY_ESC:
       return kSbKeyEscape;
@@ -374,6 +417,49 @@ SbKey KeyCodeToSbKey(uint16_t code) {
       return kSbKeyBrightnessDown;
     case KEY_BRIGHTNESSUP:
       return kSbKeyBrightnessUp;
+
+    // Gamepad buttons.
+    //   https://www.kernel.org/doc/Documentation/input/gamepad.txt
+    case BTN_TL:
+      return kSbKeyGamepadLeftTrigger;
+    case BTN_TR:
+      return kSbKeyGamepadRightTrigger;
+    case BTN_DPAD_DOWN:
+      return kSbKeyGamepadDPadDown;
+    case BTN_DPAD_UP:
+      return kSbKeyGamepadDPadUp;
+    case BTN_DPAD_LEFT:
+      return kSbKeyGamepadDPadLeft;
+    case BTN_DPAD_RIGHT:
+      return kSbKeyGamepadDPadRight;
+    // The mapping for the buttons below can vary from controller to controller.
+    // TODO: Include button mapping for controllers with different layout.
+    case BTN_B:
+      return kSbKeyGamepad1;
+    case BTN_C:
+      return kSbKeyGamepad2;
+    case BTN_A:
+      return kSbKeyGamepad3;
+    case BTN_X:
+      return kSbKeyGamepad4;
+    case BTN_Y:
+      return kSbKeyGamepadLeftBumper;
+    case BTN_Z:
+      return kSbKeyGamepadRightBumper;
+    case BTN_TL2:
+      return kSbKeyGamepad5;
+    case BTN_TR2:
+      return kSbKeyGamepad6;
+    case BTN_SELECT:
+      return kSbKeyGamepadLeftStick;
+    case BTN_START:
+      return kSbKeyGamepadRightStick;
+    case BTN_MODE:
+      return kSbKeyGamepadSystem;
+    case BTN_THUMBL:
+      return kSbKeyGamepad1;
+    case BTN_THUMBR:
+      return kSbKeyGamepad1;
   }
   SB_DLOG(WARNING) << "Unknown code: 0x" << std::hex << code;
   return kSbKeyUnknown;
@@ -408,20 +494,128 @@ bool IsBitSet(const std::vector<uint8_t>& bitset, int bit) {
   return !!(bitset.at(bit / 8) & (1 << (bit % 8)));
 }
 
-// Searches for the keyboard /dev/input devices, opens them and returns the file
-// descriptors that report keyboard events.
-std::vector<FileDescriptor> GetKeyboardFds() {
-  const char kDevicePath[] = "/dev/input";
-  SbDirectory directory = SbDirectoryOpen(kDevicePath, NULL);
-  std::vector<FileDescriptor> fds;
-  if (!SbDirectoryIsValid(directory)) {
-    SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
-                   << "unable to open: " << kDevicePath;
-    return fds;
+bool IsAxisFlat(float median, const struct input_absinfo& axis_info) {
+  SB_DCHECK((axis_info.flat * 2) <= (axis_info.maximum - axis_info.minimum));
+  return (axis_info.flat != 0) && (axis_info.value > median - axis_info.flat) &&
+         (axis_info.value < median + axis_info.flat);
+}
+
+float GetAxisValue(const struct input_absinfo& axis_info) {
+  float median =
+      static_cast<float>(axis_info.maximum + axis_info.minimum) / 2.0f;
+  if (IsAxisFlat(median, axis_info))
+    return 0;
+  float range = static_cast<float>(axis_info.maximum - axis_info.minimum);
+  float radius = range / 2.0f;
+  // Scale the axis value to [-1, 1].
+  float axis_value = (static_cast<float>(axis_info.value) - median) / radius;
+
+  if (axis_info.flat != 0) {
+    // Calculate the flat value scaled to [0, 1].
+    float flat = static_cast<float>(axis_info.flat) / range;
+
+    int sign = axis_value < 0.0f ? -1 : 1;
+    // Rescale the range:
+    // [-1.0f, -flat] to [-1.0f, 0.0f] and [flat, 1.0f] to [0.0f, 1.0f].
+    axis_value = (axis_value - sign * flat) / (1 - flat);
+  }
+  return axis_value;
+}
+
+void GetInputDeviceAbsoluteAxisInfo(int axis,
+                                    const std::vector<uint8_t>& bits,
+                                    InputDeviceInfo* info) {
+  if (IsBitSet(bits, axis)) {
+    struct input_absinfo axis_info;
+    int result = ioctl(info->fd, EVIOCGABS(axis), &axis_info);
+    if (result < 0) {
+      return;
+    }
+    info->axis_info.insert(std::make_pair(axis, axis_info));
+    info->axis_value.insert(std::make_pair(axis, GetAxisValue(axis_info)));
+  }
+}
+
+void GetInputDeviceInfo(InputDeviceInfo* info) {
+  std::vector<uint8_t> axis_bits(BytesNeededForBitSet(KEY_MAX));
+  int result =
+      ioctl(info->fd, EVIOCGBIT(EV_ABS, axis_bits.size()), axis_bits.data());
+  if (result < 0) {
+    return;
+  }
+
+  GetInputDeviceAbsoluteAxisInfo(ABS_X, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_Y, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_Z, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_RZ, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_RX, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_RY, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_HAT0X, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_HAT0Y, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_MT_POSITION_X, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_MT_POSITION_Y, axis_bits, info);
+  GetInputDeviceAbsoluteAxisInfo(ABS_MT_TRACKING_ID, axis_bits, info);
+  // TODO: Handle multi-touch using ABS_MT_SLOT.
+}
+
+FileDescriptor OpenDeviceIfKeyboardOrGamepad(const char* path) {
+  FileDescriptor fd = open(path, O_RDONLY | O_NONBLOCK);
+  if (fd < 0) {
+    // Open can fail if the application doesn't have permission to access
+    // the input device directly.
+    return kInvalidFd;
   }
 
   std::vector<uint8_t> ev_bits(BytesNeededForBitSet(EV_CNT));
   std::vector<uint8_t> key_bits(BytesNeededForBitSet(KEY_MAX));
+
+  int result = ioctl(fd, EVIOCGBIT(0, ev_bits.size()), ev_bits.data());
+  if (result < 0) {
+    close(fd);
+    return kInvalidFd;
+  }
+
+  bool has_ev_key = IsBitSet(ev_bits, EV_KEY);
+  if (!has_ev_key) {
+    close(fd);
+    return kInvalidFd;
+  }
+
+  result = ioctl(fd, EVIOCGBIT(EV_KEY, key_bits.size()), key_bits.data());
+  if (result < 0) {
+    close(fd);
+    return kInvalidFd;
+  }
+
+  bool has_key_space = IsBitSet(key_bits, KEY_SPACE);
+  bool has_gamepad_button = IsBitSet(key_bits, BTN_GAMEPAD);
+  if (!has_key_space && !has_gamepad_button) {
+    // If it doesn't have a space key or gamepad button, it may be a mouse.
+    close(fd);
+    return kInvalidFd;
+  }
+
+  result = ioctl(fd, EVIOCGRAB, 1);
+  if (result != 0) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": "
+                   << "Unable to get exclusive access to \"" << path << "\".";
+    close(fd);
+    return kInvalidFd;
+  }
+  return fd;
+}
+
+// Searches for the keyboard and game controller /dev/input devices, opens them
+// and returns the device info with a file descriptor and absolute axis details.
+std::vector<InputDeviceInfo> GetInputDevices() {
+  const char kDevicePath[] = "/dev/input";
+  SbDirectory directory = SbDirectoryOpen(kDevicePath, NULL);
+  std::vector<InputDeviceInfo> input_devices;
+  if (!SbDirectoryIsValid(directory)) {
+    SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support, "
+                   << "unable to open: " << kDevicePath;
+    return input_devices;
+  }
 
   while (true) {
     SbDirectoryEntry entry;
@@ -438,60 +632,25 @@ std::vector<FileDescriptor> GetKeyboardFds() {
       continue;
     }
 
-    FileDescriptor fd = open(path.c_str(), O_RDONLY | O_NONBLOCK);
-    if (fd < 0) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Unable to open \"" << path << "\".";
+    FileDescriptor fd = OpenDeviceIfKeyboardOrGamepad(path.c_str());
+    if (fd == kInvalidFd) {
       continue;
     }
+    InputDeviceInfo info;
+    info.fd = fd;
+    GetInputDeviceInfo(&info);
 
-    int result = ioctl(fd, EVIOCGBIT(0, ev_bits.size()), ev_bits.data());
-
-    if (result < 0) {
-      close(fd);
-      continue;
-    }
-
-    bool has_ev_key = IsBitSet(ev_bits, EV_KEY);
-
-    if (!has_ev_key) {
-      close(fd);
-      continue;
-    }
-
-    result = ioctl(fd, EVIOCGBIT(EV_KEY, key_bits.size()), key_bits.data());
-
-    if (result < 0) {
-      close(fd);
-      continue;
-    }
-
-    bool has_key_space = IsBitSet(key_bits, KEY_SPACE);
-
-    if (!has_key_space) {
-      // If it doesn't have a space key, it may be a mouse
-      close(fd);
-      continue;
-    }
-
-    result = ioctl(fd, EVIOCGRAB, 1);
-    if (result != 0) {
-      SB_DLOG(ERROR) << __FUNCTION__ << ": "
-                     << "Unable to get exclusive access to \"" << path << "\".";
-      close(fd);
-      continue;
-    }
-
-    SB_DCHECK(fd != kInvalidFd);
-    fds.push_back(fd);
+    SB_DCHECK(info.fd != kInvalidFd);
+    input_devices.push_back(info);
   }
 
-  if (fds.empty()) {
+  if (input_devices.empty()) {
     SB_DLOG(ERROR) << __FUNCTION__ << ": No /dev/input support. "
-                   << "No keyboards available.";
+                   << "No keyboards or game controllers available.";
   }
 
   SbDirectoryClose(directory);
-  return fds;
+  return input_devices;
 }
 
 // Returns whether |key_code|'s bit is set in the bitmap |map|, assuming
@@ -513,14 +672,14 @@ int GetModifier(int left_key_code,
   return 0;
 }
 
-// Polls the given keyboard file descriptor for an input_event. If there are no
+// Polls the given input file descriptor for an input_event. If there are no
 // bytes available, assumes that there is no input event to read. If it gets a
 // partial event, it will assume that it will be completed, and spins until it
 // receives an entire event.
-bool PollKeyboardEvent(FileDescriptor fd,
-                       struct input_event* out_event,
-                       int* out_modifiers) {
-  if (fd == kInvalidFd) {
+bool PollInputEvent(InputDeviceInfo* device_info,
+                    struct input_event* out_event,
+                    int* out_modifiers) {
+  if (device_info->fd == kInvalidFd) {
     return false;
   }
 
@@ -531,7 +690,7 @@ bool PollKeyboardEvent(FileDescriptor fd,
   size_t remaining = kEventSize;
   char* buffer = reinterpret_cast<char*>(out_event);
   while (remaining > 0) {
-    int bytes_read = read(fd, buffer, remaining);
+    int bytes_read = read(device_info->fd, buffer, remaining);
     if (bytes_read <= 0) {
       if (errno == EAGAIN || bytes_read == 0) {
         if (remaining == kEventSize) {
@@ -544,18 +703,18 @@ bool PollKeyboardEvent(FileDescriptor fd,
       }
 
       // Some unexpected type of read error occured.
-      SB_DLOG(ERROR) << __FUNCTION__ << ": Error reading keyboard: " << errno
+      SB_DLOG(ERROR) << __FUNCTION__ << ": Error reading input: " << errno
                      << " - " << strerror(errno);
       return false;
     }
 
-    SB_DCHECK(bytes_read <= remaining) << "bytes_read=" << bytes_read
-                                       << ", remaining=" << remaining;
+    SB_DCHECK(bytes_read <= remaining)
+        << "bytes_read=" << bytes_read << ", remaining=" << remaining;
     remaining -= bytes_read;
     buffer += bytes_read;
   }
 
-  if (out_event->type != EV_KEY) {
+  if ((out_event->type != EV_KEY) && (out_event->type != EV_ABS)) {
     return false;
   }
 
@@ -563,7 +722,7 @@ bool PollKeyboardEvent(FileDescriptor fd,
   int modifiers = 0;
   char map[(KEY_MAX / 8) + 1] = {0};
   errno = 0;
-  int result = ioctl(fd, EVIOCGKEY(sizeof(map)), map);
+  int result = ioctl(device_info->fd, EVIOCGKEY(sizeof(map)), map);
   if (result != -1) {
     modifiers |=
         GetModifier(KEY_LEFTSHIFT, KEY_RIGHTSHIFT, kSbKeyModifiersShift, map);
@@ -593,20 +752,35 @@ void CloseFdSafely(FileDescriptor* fd) {
 
 // Also in starboard/shared/libevent/socket_waiter_internal.cc
 // TODO: Consider consolidating.
-int SetNonBlocking(int fd) {
+int SetNonBlocking(FileDescriptor fd) {
   int flags = fcntl(fd, F_GETFL, 0);
-  if (flags == -1)
+  if (flags == -1) {
     flags = 0;
+  }
   return fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 }
 
 DevInputImpl::DevInputImpl(SbWindow window)
     : window_(window),
-      keyboard_fds_(GetKeyboardFds()),
+      input_devices_(GetInputDevices()),
       wakeup_write_fd_(kInvalidFd),
-      wakeup_read_fd_(kInvalidFd) {
+      wakeup_read_fd_(kInvalidFd),
+      wake_up_fd_(kInvalidFd) {
+  InitDevInputImpl(window);
+}
+
+DevInputImpl::DevInputImpl(SbWindow window, FileDescriptor wake_up_fd)
+    : window_(window),
+      input_devices_(GetInputDevices()),
+      wakeup_write_fd_(kInvalidFd),
+      wakeup_read_fd_(kInvalidFd),
+      wake_up_fd_(wake_up_fd) {
+  InitDevInputImpl(window);
+}
+
+void DevInputImpl::InitDevInputImpl(SbWindow window) {
   // Initialize wakeup pipe.
-  int fds[2] = {kInvalidFd, kInvalidFd};
+  FileDescriptor fds[2] = {kInvalidFd, kInvalidFd};
   int result = pipe(fds);
   SB_DCHECK(result == 0) << "result=" << result;
 
@@ -622,9 +796,8 @@ DevInputImpl::DevInputImpl(SbWindow window)
 }
 
 DevInputImpl::~DevInputImpl() {
-  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
-       it != keyboard_fds_.end(); ++it) {
-    close(*it);
+  for (const auto& device : input_devices_) {
+    close(device.fd);
   }
   CloseFdSafely(&wakeup_write_fd_);
   CloseFdSafely(&wakeup_read_fd_);
@@ -633,13 +806,12 @@ DevInputImpl::~DevInputImpl() {
 DevInput::Event* DevInputImpl::PollNextSystemEvent() {
   struct input_event event;
   int modifiers = 0;
-  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
-       it != keyboard_fds_.end(); ++it) {
-    if (!PollKeyboardEvent(*it, &event, &modifiers)) {
+  for (auto& device : input_devices_) {
+    if (!PollInputEvent(&device, &event, &modifiers)) {
       continue;
     }
 
-    return InputToApplicationEvent(event, modifiers);
+    return InputToApplicationEvent(event, &device, modifiers);
   }
   return NULL;
 }
@@ -651,9 +823,13 @@ DevInput::Event* DevInputImpl::WaitForSystemEventWithTimeout(SbTime duration) {
   }
 
   FdSet read_set;
-  for (std::vector<FileDescriptor>::const_iterator it = keyboard_fds_.begin();
-       it != keyboard_fds_.end(); ++it) {
-    read_set.Set(*it);
+  if (wake_up_fd_ != kInvalidFd) {
+    read_set.Set(wake_up_fd_);
+  }
+
+  for (std::vector<InputDeviceInfo>::const_iterator it = input_devices_.begin();
+       it != input_devices_.end(); ++it) {
+    read_set.Set(it->fd);
   }
   read_set.Set(wakeup_read_fd_);
 
@@ -693,13 +869,256 @@ void DevInputImpl::WakeSystemEventWait() {
   }
 }
 
-DevInput::Event* DevInputImpl::InputToApplicationEvent(
-    const struct input_event& event,
-    int modifiers) {
-  if (event.type != EV_KEY) {
+namespace {
+
+// Creates a key event for an analog button input.
+DevInput::Event* CreateAnalogButtonKeyEvent(SbWindow window,
+                                            float axis_value,
+                                            float previous_axis_value,
+                                            SbKey key,
+                                            SbKeyLocation location,
+                                            int modifiers,
+                                            const struct input_event& event) {
+  SbInputEventType previous_type =
+      (std::abs(previous_axis_value) > 0.5 ? kSbInputEventTypePress
+                                           : kSbInputEventTypeUnpress);
+  SbInputEventType type =
+      (std::abs(axis_value) > 0.5 ? kSbInputEventTypePress
+                                  : kSbInputEventTypeUnpress);
+  if (previous_type == type) {
+    // Key press/unpress state did not change.
     return NULL;
   }
 
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+  data->window = window;
+  data->type = type;
+  data->device_type = kSbInputDeviceTypeGamepad;
+  data->device_id = kGamepadDeviceId;
+  data->key = key;
+  data->key_location = location;
+  data->key_modifiers = modifiers;
+  return new DevInput::Event(kSbEventTypeInput, data,
+                             &Application::DeleteDestructor<SbInputData>);
+}
+
+// Creates a move event with key for a stick input.
+DevInput::Event* CreateMoveEventWithKey(SbWindow window,
+                                        SbKey key,
+                                        SbKeyLocation location,
+                                        int modifiers,
+                                        const SbInputVector& input_vector) {
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window;
+  data->type = kSbInputEventTypeMove;
+  data->device_type = kSbInputDeviceTypeGamepad;
+  data->device_id = kGamepadDeviceId;
+
+  data->key = key;
+  data->key_location = location;
+  data->key_modifiers = modifiers;
+  data->position = input_vector;
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  data->pressure = NAN;
+  data->size = {NAN, NAN};
+  data->tilt = {NAN, NAN};
+#endif
+
+  return new DevInput::Event(kSbEventTypeInput, data,
+                             &Application::DeleteDestructor<SbInputData>);
+}
+
+DevInput::Event* CreateTouchPadEvent(SbWindow window,
+                                     SbInputEventType type,
+                                     SbKey key,
+                                     SbKeyLocation location,
+                                     int modifiers,
+                                     const SbInputVector& input_vector) {
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window;
+  data->type = type;
+  data->device_type = kSbInputDeviceTypeTouchPad;
+  data->device_id = kGamepadDeviceId;
+
+  data->key = key;
+  data->key_location = location;
+  data->key_modifiers = modifiers;
+  data->position = input_vector;
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  data->pressure = NAN;
+  data->size = {NAN, NAN};
+  data->tilt = {NAN, NAN};
+#endif
+
+  return new DevInput::Event(kSbEventTypeInput, data,
+                             &Application::DeleteDestructor<SbInputData>);
+}
+
+}  // namespace
+
+DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
+    const struct input_event& event,
+    InputDeviceInfo* device_info,
+    int modifiers) {
+  SB_DCHECK(event.type == EV_ABS);
+  SbKey key = kSbKeyUnknown;
+  float axis_value = 0;
+  float previous_axis_value = 0;
+  auto axis_info_it = device_info->axis_info.find(event.code);
+  if (axis_info_it != device_info->axis_info.end()) {
+    struct input_absinfo& axis_info = axis_info_it->second;
+    axis_info.value = event.value;
+    axis_value = GetAxisValue(axis_info);
+    float& stored_axis_value = device_info->axis_value[event.code];
+    previous_axis_value = stored_axis_value;
+    if (previous_axis_value == axis_value) {
+      // If the value is unchanged, don't do anything.
+      return NULL;
+    }
+    stored_axis_value = axis_value;
+  }
+
+  SbKeyLocation location = kSbKeyLocationUnspecified;
+  SbInputVector input_vector;
+  // The mapping for the axis codes can vary from controller to controller.
+  // TODO: Include axis mapping for controllers with different layout.
+  switch (event.code) {
+    case ABS_X:
+      // Report up and left as positive values.
+      input_vector.x = -axis_value;
+      input_vector.y = -device_info->axis_value[ABS_Y];
+      key = kSbKeyGamepadLeftStickLeft;
+      location = kSbKeyLocationLeft;
+      return CreateMoveEventWithKey(window_, key, location, modifiers,
+                                    input_vector);
+    case ABS_Y: {
+      // Report up and left as positive values.
+      input_vector.x = -device_info->axis_value[ABS_X];
+      input_vector.y = -axis_value;
+      key = kSbKeyGamepadLeftStickUp;
+      location = kSbKeyLocationLeft;
+      return CreateMoveEventWithKey(window_, key, location, modifiers,
+                                    input_vector);
+    }
+    case ABS_Z:
+      // Report up and left as positive values.
+      input_vector.x = -axis_value;
+      input_vector.y = -device_info->axis_value[ABS_RZ];
+      key = kSbKeyGamepadRightStickLeft;
+      location = kSbKeyLocationRight;
+      return CreateMoveEventWithKey(window_, key, location, modifiers,
+                                    input_vector);
+    case ABS_RZ:
+      // Report up and left as positive values.
+      input_vector.x = -device_info->axis_value[ABS_Z];
+      input_vector.y = -axis_value;
+      key = kSbKeyGamepadRightStickUp;
+      location = kSbKeyLocationRight;
+      return CreateMoveEventWithKey(window_, key, location, modifiers,
+                                    input_vector);
+    case ABS_RX: {
+      key = kSbKeyGamepadLeftTrigger;
+      location = kSbKeyLocationLeft;
+      // For trigger buttons, the range is [0..1].
+      float trigger_value = (axis_value + 1) / 2;
+      float previous_trigger_value = (previous_axis_value + 1) / 2;
+      return CreateAnalogButtonKeyEvent(window_, trigger_value,
+                                        previous_trigger_value, key, location,
+                                        modifiers, event);
+    }
+    case ABS_RY: {
+      key = kSbKeyGamepadRightTrigger;
+      location = kSbKeyLocationRight;
+      // For trigger buttons, the range is [0..1].
+      float trigger_value = (axis_value + 1) / 2;
+      float previous_trigger_value = (previous_axis_value + 1) / 2;
+      return CreateAnalogButtonKeyEvent(window_, trigger_value,
+                                        previous_trigger_value, key, location,
+                                        modifiers, event);
+    }
+    case ABS_HAT0X: {
+      float axis_value_for_key =
+          std::abs(axis_value) > 0.5f ? axis_value : previous_axis_value;
+      key = (axis_value_for_key < 0) ? kSbKeyGamepadDPadLeft
+                                     : kSbKeyGamepadDPadRight;
+      return CreateAnalogButtonKeyEvent(window_, axis_value,
+                                        previous_axis_value, key, location,
+                                        modifiers, event);
+    }
+    case ABS_HAT0Y: {
+      float axis_value_for_key =
+          std::abs(axis_value) > 0.5f ? axis_value : previous_axis_value;
+      key = (axis_value_for_key < 0) ? kSbKeyGamepadDPadUp
+                                     : kSbKeyGamepadDPadDown;
+      return CreateAnalogButtonKeyEvent(window_, axis_value,
+                                        previous_axis_value, key, location,
+                                        modifiers, event);
+    }
+    case ABS_MT_TRACKING_ID:
+      if (event.value == -1) {
+        bool touchpad_position_is_known = IsTouchpadPositionKnown(device_info);
+        device_info->touchpad_position_state = kTouchPadPositionNone;
+        if (touchpad_position_is_known) {
+          // Touch point is released, report last known position as unpress.
+          input_vector.x = (device_info->axis_value[ABS_MT_POSITION_X] + 1 / 2);
+          input_vector.y = (device_info->axis_value[ABS_MT_POSITION_Y] + 1 / 2);
+          return CreateTouchPadEvent(window_, kSbInputEventTypeUnpress, key,
+                                     location, modifiers, input_vector);
+        }
+      }
+      return NULL;
+    case ABS_MT_POSITION_X: {
+      // If all positions were known before this event, then this event is a
+      // move.
+      SbInputEventType type = IsTouchpadPositionKnown(device_info)
+                                  ? kSbInputEventTypeMove
+                                  : kSbInputEventTypePress;
+      device_info->touchpad_position_state |= kTouchPadPositionX;
+      if (IsTouchpadPositionKnown(device_info)) {
+        // For touchpads, the range is [0..1].
+        input_vector.x = (axis_value + 1) / 2;
+        input_vector.y = (device_info->axis_value[ABS_MT_POSITION_Y] + 1) / 2;
+        return CreateTouchPadEvent(window_, type, key, location, modifiers,
+                                   input_vector);
+      }
+      // Not all axis positions are known yet.
+      return NULL;
+    }
+    case ABS_MT_POSITION_Y: {
+      // If all positions were known before this event, then this event is a
+      // move.
+      SbInputEventType type = IsTouchpadPositionKnown(device_info)
+                                  ? kSbInputEventTypeMove
+                                  : kSbInputEventTypePress;
+      device_info->touchpad_position_state |= kTouchPadPositionY;
+      if (IsTouchpadPositionKnown(device_info)) {
+        // For touchpads, the range is [0..1].
+        input_vector.x = (device_info->axis_value[ABS_MT_POSITION_X] + 1) / 2;
+        input_vector.y = (axis_value + 1) / 2;
+        return CreateTouchPadEvent(window_, type, key, location, modifiers,
+                                   input_vector);
+      }
+      // Not all axis positions are known yet.
+      return NULL;
+    }
+    default:
+      // Ignored event codes.
+      return NULL;
+  }
+
+  SB_NOTREACHED();
+  return NULL;
+}
+
+DevInput::Event* DevInputImpl::KeyInputToApplicationEvent(
+    const struct input_event& event,
+    int modifiers) {
+  SB_DCHECK(event.type == EV_KEY);
   SB_DCHECK(event.value <= 2);
   SbInputData* data = new SbInputData();
   SbMemorySet(data, 0, sizeof(*data));
@@ -715,11 +1134,31 @@ DevInput::Event* DevInputImpl::InputToApplicationEvent(
                    &Application::DeleteDestructor<SbInputData>);
 }
 
+DevInput::Event* DevInputImpl::InputToApplicationEvent(
+    const struct input_event& event,
+    InputDeviceInfo* device_info,
+    int modifiers) {
+  // EV_ABS events are axis values: Sticks, dpad, and touchpad.
+  // https://www.kernel.org/doc/Documentation/input/event-codes.txt
+  switch (event.type) {
+    case EV_ABS:
+      return AxisInputToApplicationEvent(event, device_info, modifiers);
+    case EV_KEY:
+      return KeyInputToApplicationEvent(event, modifiers);
+  }
+  return NULL;
+}
+
 }  // namespace
 
 // static
 DevInput* DevInput::Create(SbWindow window) {
   return new DevInputImpl(window);
+}
+
+// static
+DevInput* DevInput::Create(SbWindow window, int wake_up_fd) {
+  return new DevInputImpl(window, wake_up_fd);
 }
 
 }  // namespace dev_input

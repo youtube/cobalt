@@ -1176,7 +1176,14 @@
                 {
                     'msvs_requires_importlibrary' : 'true',
                 }],
+                ['angle_gl_library_type== "shared_library"',
+                {
+                    'defines':[
+                      'LIBGLESV2_DLL'
+                    ]
+                }],
             ],
+
         },
 
         {

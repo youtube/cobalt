@@ -98,7 +98,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 WebTokenRequestResult^ RequestToken(WebTokenRequest^ request) {
   using starboard::shared::uwp::WaitForResult;
-  IAsyncOperation<WebTokenRequestResult ^> ^ request_operation = nullptr;
+  IAsyncOperation<WebTokenRequestResult^>^ request_operation = nullptr;
   base::WaitableEvent request_operation_set(false, false);
   // Ensure WebAuthenticationCoreManager::RequestTokenAsync is called on the
   // UI thread, since documentation states that "This method cannot be called

@@ -23,7 +23,7 @@ using Windows::System::Profile::AnalyticsInfo;
 using Windows::System::Profile::AnalyticsVersionInfo;
 
 SbSystemDeviceType SbSystemGetDeviceType() {
-  AnalyticsVersionInfo ^ version_info = AnalyticsInfo::VersionInfo;
+  AnalyticsVersionInfo^ version_info = AnalyticsInfo::VersionInfo;
   std::string family = starboard::shared::win32::platformStringToString(
       version_info->DeviceFamily);
 

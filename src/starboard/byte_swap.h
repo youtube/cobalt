@@ -82,4 +82,47 @@ SB_EXPORT uint64_t SbByteSwapU64(uint64_t value);
 }  // extern "C"
 #endif
 
+#ifdef __cplusplus
+
+#include <algorithm>
+
+template <typename T>
+T SbByteSwap(T value) {
+  std::reverse(reinterpret_cast<uint8_t*>(&value),
+               reinterpret_cast<uint8_t*>(&value + 1));
+  return value;
+}
+
+template <>
+inline int16_t SbByteSwap(int16_t value) {
+  return SbByteSwapS16(value);
+}
+
+template <>
+inline uint16_t SbByteSwap(uint16_t value) {
+  return SbByteSwapU16(value);
+}
+
+template <>
+inline int32_t SbByteSwap(int32_t value) {
+  return SbByteSwapS32(value);
+}
+
+template <>
+inline uint32_t SbByteSwap(uint32_t value) {
+  return SbByteSwapU32(value);
+}
+
+template <>
+inline int64_t SbByteSwap(int64_t value) {
+  return SbByteSwapS64(value);
+}
+
+template <>
+inline uint64_t SbByteSwap(uint64_t value) {
+  return SbByteSwapU64(value);
+}
+
+#endif
+
 #endif  // STARBOARD_BYTE_SWAP_H_

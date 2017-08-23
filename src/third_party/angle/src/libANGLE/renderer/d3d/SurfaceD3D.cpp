@@ -76,7 +76,7 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
       mShareHandle(0),
       mD3DTexture(nullptr),
       mBuftype(buftype),
-      mArrayIndex(0),
+      mDXGIBuffer(nullptr),
       mBindChroma(false)
 {
     if (window != nullptr && !mFixedSize)
@@ -104,14 +104,12 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
                 GetPrivateData(kCobaltNv12BindChroma, &out, nullptr);
             mBindChroma = (SUCCEEDED(hr)) && (out != 0);
 
-            // kCobaltDxgiBuffer
-            IMFDXGIBuffer* dxgi_buffer = nullptr;
-            out = sizeof(dxgi_buffer);
+            out = sizeof(mDXGIBuffer);
             hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
-                GetPrivateData(kCobaltDxgiBuffer, &out, &dxgi_buffer);
+                GetPrivateData(kCobaltDxgiBuffer, &out, &mDXGIBuffer);
             ASSERT(SUCCEEDED(hr));
-            if (dxgi_buffer != nullptr) {
-              dxgi_buffer->GetSubresourceIndex(&mArrayIndex);
+            if (mDXGIBuffer != nullptr) {
+              mDXGIBuffer->AddRef();
             }
             break;
         }
@@ -126,6 +124,7 @@ SurfaceD3D::~SurfaceD3D()
     releaseSwapChain();
     SafeDelete(mNativeWindow);
     SafeRelease(mD3DTexture);
+    SafeRelease(mDXGIBuffer);
 }
 
 void SurfaceD3D::releaseSwapChain()

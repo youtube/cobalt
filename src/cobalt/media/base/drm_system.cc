@@ -20,8 +20,19 @@
 namespace cobalt {
 namespace media {
 
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+DrmSystem::Session::Session(
+    DrmSystem* drm_system,
+    SessionUpdateKeyStatusesCallback update_key_statuses_callback)
+    : drm_system_(drm_system),
+      update_key_statuses_callback_(update_key_statuses_callback),
+      closed_(false) {
+  DCHECK(!update_key_statuses_callback_.is_null());
+}
+#else   // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 DrmSystem::Session::Session(DrmSystem* drm_system)
     : drm_system_(drm_system), closed_(false) {}
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 
 DrmSystem::Session::~Session() {
   if (id_ && !closed_) {
@@ -65,7 +76,12 @@ void DrmSystem::Session::Close() {
 DrmSystem::DrmSystem(const char* key_system)
     : wrapped_drm_system_(SbDrmCreateSystem(key_system, this,
                                             OnSessionUpdateRequestGeneratedFunc,
-                                            OnSessionUpdatedFunc)),
+                                            OnSessionUpdatedFunc
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+                                            ,
+                                            OnSessionKeyStatusesChangedFunc
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+                                            )),
       message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
@@ -76,9 +92,17 @@ DrmSystem::DrmSystem(const char* key_system)
 
 DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }
 
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession(
+    SessionUpdateKeyStatusesCallback session_update_key_statuses_callback) {
+  return make_scoped_ptr(
+      new Session(this, session_update_key_statuses_callback));
+}
+#else   // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession() {
   return make_scoped_ptr(new Session(this));
 }
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 
 void DrmSystem::GenerateSessionUpdateRequest(
     Session* session, const std::string& type, const uint8_t* init_data,
@@ -202,6 +226,23 @@ void DrmSystem::OnSessionUpdated(int ticket, bool succeeded) {
   ticket_to_session_update_map_.erase(session_update_iterator);
 }
 
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+void DrmSystem::OnSessionKeyStatusChanged(
+    const std::string& session_id, const std::vector<std::string>& key_ids,
+    const std::vector<SbDrmKeyStatus>& key_statuses) {
+  // Find the session by ID.
+  IdToSessionMap::iterator session_iterator =
+      id_to_session_map_.find(session_id);
+  if (session_iterator == id_to_session_map_.end()) {
+    LOG(ERROR) << "Unknown session id: " << session_id << ".";
+    return;
+  }
+  Session* session = session_iterator->second;
+
+  session->update_key_statuses_callback().Run(key_ids, key_statuses);
+}
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+
 // static
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
     SbDrmSystem wrapped_drm_system, void* context, int ticket,
@@ -241,6 +282,40 @@ void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
       FROM_HERE, base::Bind(&DrmSystem::OnSessionUpdated,
                             drm_system->weak_this_, ticket, succeeded));
 }
+
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+// static
+void DrmSystem::OnSessionKeyStatusesChangedFunc(
+    SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
+    int session_id_size, int number_of_keys, const SbDrmKeyId* key_ids,
+    const SbDrmKeyStatus* key_statuses) {
+  DCHECK(context);
+  DrmSystem* drm_system = static_cast<DrmSystem*>(context);
+  DCHECK_EQ(wrapped_drm_system, drm_system->wrapped_drm_system_);
+
+  DCHECK(session_id != NULL);
+
+  std::string session_id_copy =
+      std::string(static_cast<const char*>(session_id),
+                  static_cast<const char*>(session_id) + session_id_size);
+
+  std::vector<std::string> key_ids_copy(number_of_keys);
+  std::vector<SbDrmKeyStatus> key_statuses_copy(number_of_keys);
+
+  for (int i = 0; i < number_of_keys; ++i) {
+    const char* identifier =
+        reinterpret_cast<const char*>(key_ids[i].identifier);
+    std::string key_id(identifier, identifier + key_ids[i].identifier_size);
+    key_ids_copy[i] = key_id;
+    key_statuses_copy[i] = key_statuses[i];
+  }
+
+  drm_system->message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&DrmSystem::OnSessionKeyStatusChanged, drm_system->weak_this_,
+                 session_id_copy, key_ids_copy, key_statuses_copy));
+}
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 
 }  // namespace media
 }  // namespace cobalt

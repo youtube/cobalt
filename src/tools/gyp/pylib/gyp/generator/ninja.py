@@ -77,7 +77,7 @@ generator_supports_multiple_toolsets = True
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'win-win32', 'win-console', 'win-lib', 'xb1', 'xb1-future']
+microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
@@ -1835,6 +1835,33 @@ def CalculateVariables(default_variables, params):
         '$!PRODUCT_DIR', 'obj'))
 
 
+def ComputeOutputDir(params):
+  """Returns the path from the toplevel_dir to the build output directory."""
+  # generator_dir: relative path from pwd to where make puts build files.
+  # Makes migrating from make to ninja easier, ninja doesn't put anything here.
+  generator_dir = os.path.relpath(params['options'].generator_output or '.')
+
+  # output_dir: relative path from generator_dir to the build directory.
+  output_dir = params.get('generator_flags', {}).get('output_dir', 'out')
+
+  # Relative path from source root to our output files.  e.g. "out"
+  return os.path.normpath(os.path.join(generator_dir, output_dir))
+
+
+def CalculateGeneratorInputInfo(params):
+  """Called by __init__ to initialize generator values based on params."""
+  user_config = params.get('generator_flags', {}).get('config', None)
+  toplevel = params['options'].toplevel_dir
+  qualified_out_dir = os.path.normpath(os.path.join(
+      toplevel, ComputeOutputDir(params), user_config, 'gypfiles'))
+
+  global generator_filelist_paths
+  generator_filelist_paths = {
+      'toplevel': toplevel,
+      'qualified_out_dir': qualified_out_dir,
+  }
+
+
 def OpenOutput(path, mode='w'):
   """Open |path| for writing, creating directories if necessary."""
   try:
@@ -1946,17 +1973,10 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params,
 
   generator_flags = params.get('generator_flags', {})
 
-  # generator_dir: relative path from pwd to where make puts build files.
-  # Makes migrating from make to ninja easier, ninja doesn't put anything here.
-  generator_dir = os.path.relpath(params['options'].generator_output or '.')
-
-  # output_dir: relative path from generator_dir to the build directory.
-  output_dir = generator_flags.get('output_dir', 'out')
-
   # build_dir: relative path from source root to our output files.
   # e.g. "out/Debug"
   build_dir = os.path.normpath(
-      os.path.join(generator_dir, output_dir, config_name))
+      os.path.join(ComputeOutputDir(params), config_name))
 
   toplevel_build = os.path.join(options.toplevel_dir, build_dir)
 

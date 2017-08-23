@@ -13,28 +13,12 @@
 # limitations under the License.
 {
   'includes': [
-        '../shared/starboard_platform.gypi',
-    ],
-    'variables': {
-      'starboard_platform_dependent_files': [
-        'atomic_public.h',
-        'configuration_public.h',
-        'thread_types_public.h',
-        '../shared/system_get_path.cc',
-        'main.cc',
-        '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
-        '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
-        '<(DEPTH)/starboard/shared/starboard/queue_application.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
-        '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
-        '<@(uwp_incompatible_win32)',
-        '<@(stub_media_player)'
-      ]
-    },
-  }
+    'starboard_platform.gypi',
+  ],
+  'variables': {
+    'starboard_platform_dependent_files': [
+      'main.cc',
+      '<@(base_win32_starboard_platform_dependent_files)',
+    ]
+  },
+}

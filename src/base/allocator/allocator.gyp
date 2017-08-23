@@ -315,122 +315,9 @@
         },
       },
       'conditions': [
-        ['OS=="linux" and clang_type_profiler==1', {
-          'dependencies': [
-            'type_profiler_tcmalloc',
-          ],
-          # It is undoing dependencies and cflags_cc for type_profiler which
-          # build/common.gypi injects into all targets.
-          'dependencies!': [
-            'type_profiler',
-          ],
-          'cflags_cc!': [
-            '-fintercept-allocation-functions',
-          ],
-        }],
-        ['OS=="win"', {
-          'defines': [
-            'PERFTOOLS_DLL_DECL=',
-          ],
-          'defines!': [
-            # tcmalloc source files unconditionally define this, remove it from
-            # the list of defines that common.gypi defines globally.
-            'NOMINMAX',
-          ],
-          'dependencies': [
-            'libcmt',
-          ],
-          'include_dirs': [
-            '<(jemalloc_dir)',
-            '<(tcmalloc_dir)/src/windows',
-          ],
-          'sources!': [
-            '<(tcmalloc_dir)/src/base/elf_mem_image.cc',
-            '<(tcmalloc_dir)/src/base/elf_mem_image.h',
-            '<(tcmalloc_dir)/src/base/linuxthreads.cc',
-            '<(tcmalloc_dir)/src/base/linuxthreads.h',
-            '<(tcmalloc_dir)/src/base/vdso_support.cc',
-            '<(tcmalloc_dir)/src/base/vdso_support.h',
-            '<(tcmalloc_dir)/src/maybe_threads.cc',
-            '<(tcmalloc_dir)/src/maybe_threads.h',
-            '<(tcmalloc_dir)/src/symbolize.h',
-            '<(tcmalloc_dir)/src/system-alloc.cc',
-            '<(tcmalloc_dir)/src/system-alloc.h',
-
-            # included by allocator_shim.cc
-            'debugallocation_shim.cc',
-
-            # heap-profiler/checker/cpuprofiler
-            '<(tcmalloc_dir)/src/base/thread_lister.c',
-            '<(tcmalloc_dir)/src/base/thread_lister.h',
-            '<(tcmalloc_dir)/src/deep-heap-profile.cc',
-            '<(tcmalloc_dir)/src/deep-heap-profile.h',
-            '<(tcmalloc_dir)/src/heap-profiler.cc',
-            '<(tcmalloc_dir)/src/heap-profile-table.cc',
-            '<(tcmalloc_dir)/src/heap-profile-table.h',
-            '<(tcmalloc_dir)/src/memory_region_map.cc',
-            '<(tcmalloc_dir)/src/memory_region_map.h',
-            '<(tcmalloc_dir)/src/profiledata.cc',
-            '<(tcmalloc_dir)/src/profiledata.h',
-            '<(tcmalloc_dir)/src/profile-handler.cc',
-            '<(tcmalloc_dir)/src/profile-handler.h',
-            '<(tcmalloc_dir)/src/profiler.cc',
-          ],
-        }],
-        ['OS=="linux" or OS=="freebsd" or OS=="solaris"', {
-          'sources!': [
-            '<(tcmalloc_dir)/src/system-alloc.h',
-            '<(tcmalloc_dir)/src/windows/port.cc',
-            '<(tcmalloc_dir)/src/windows/port.h',
-
-            # TODO(willchan): Support allocator shim later on.
-            'allocator_shim.cc',
-
-            # TODO(willchan): support jemalloc on other platforms
-            # jemalloc files
-            '<(jemalloc_dir)/jemalloc.c',
-            '<(jemalloc_dir)/jemalloc.h',
-            '<(jemalloc_dir)/ql.h',
-            '<(jemalloc_dir)/qr.h',
-            '<(jemalloc_dir)/rb.h',
-
-          ],
-          # We enable all warnings by default, but upstream disables a few.
-          # Keep "-Wno-*" flags in sync with upstream by comparing against:
-          # http://code.google.com/p/google-perftools/source/browse/trunk/Makefile.am
-          'cflags': [
-            '-Wno-sign-compare',
-            '-Wno-unused-result',
-          ],
-          'cflags!': [
-            '-fvisibility=hidden',
-          ],
-          'link_settings': {
-            'ldflags': [
-              # Don't let linker rip this symbol out, otherwise the heap&cpu
-              # profilers will not initialize properly on startup.
-              '-Wl,-uIsHeapProfilerRunning,-uProfilerStart',
-              # Do the same for heap leak checker.
-              '-Wl,-u_Z21InitialMallocHook_NewPKvj,-u_Z22InitialMallocHook_MMapPKvS0_jiiix,-u_Z22InitialMallocHook_SbrkPKvi',
-              '-Wl,-u_Z21InitialMallocHook_NewPKvm,-u_Z22InitialMallocHook_MMapPKvS0_miiil,-u_Z22InitialMallocHook_SbrkPKvl',
-              '-Wl,-u_ZN15HeapLeakChecker12IgnoreObjectEPKv,-u_ZN15HeapLeakChecker14UnIgnoreObjectEPKv',
-          ]},
-        }],
-        [ 'use_vtable_verify==1', {
-          'cflags': [
-            '-fvtable-verify=preinit',
-          ],
-        }],
         [ 'clang==1', {
           'cflags': [
             '-Wno-non-literal-null-conversion',
-          ],
-        }],
-        ['order_profiling != 0', {
-          'target_conditions' : [
-            ['_toolset=="target"', {
-              'cflags!': [ '-finstrument-functions' ],
-            }],
           ],
         }],
       ],
@@ -448,18 +335,6 @@
       'toolsets': ['host', 'target'],
       'include_dirs': [
         '../../'
-      ],
-      'conditions': [
-        ['OS=="linux" and clang_type_profiler==1', {
-          # It is undoing dependencies and cflags_cc for type_profiler which
-          # build/common.gypi injects into all targets.
-          'dependencies!': [
-            'type_profiler',
-          ],
-          'cflags_cc!': [
-            '-fintercept-allocation-functions',
-          ],
-        }],
       ],
     },
    ],

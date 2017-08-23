@@ -145,7 +145,7 @@ inline std::ostream& operator<<(std::ostream& out, const std::wstring& wstr) {
 }
 
 #if defined(__cplusplus_winrt)
-inline std::ostream& operator<<(std::ostream& out, ::Platform::String ^ str) {
+inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
   return out << std::wstring(str->Begin(), str->End());
 }
 #endif
@@ -156,7 +156,10 @@ const SbLogPriority SB_LOG_ERROR = kSbLogPriorityError;
 const SbLogPriority SB_LOG_FATAL = kSbLogPriorityFatal;
 const SbLogPriority SB_LOG_0 = SB_LOG_ERROR;
 
-class SB_EXPORT LogMessage {
+// TODO: Export this, e.g. by wrapping in straight-C functions which can then be
+// SB_EXPORT'd. Using SB_EXPORT here directly causes issues on Windows because
+// it uses std classes which also need to be exported.
+class LogMessage {
  public:
   LogMessage(const char* file, int line, SbLogPriority priority);
   ~LogMessage();

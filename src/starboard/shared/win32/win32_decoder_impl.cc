@@ -117,11 +117,15 @@ void ReleaseIfNotNull(T** ptr) {
 }  // namespace
 
 DecoderImpl::DecoderImpl(const std::string& type,
-                         MediaBufferConsumerInterface* media_buffer_consumer)
+                         MediaBufferConsumerInterface* media_buffer_consumer,
+                         SbDrmSystem drm_system)
     : type_(type),
       media_buffer_consumer_(media_buffer_consumer),
       discontinuity_(false) {
   SB_DCHECK(media_buffer_consumer_);
+  drm_system_ =
+      static_cast<::starboard::xb1::shared::playready::SbDrmSystemPlayready*>(
+          drm_system);
 }
 
 DecoderImpl::~DecoderImpl() {
@@ -137,13 +141,29 @@ ComPtr<IMFTransform> DecoderImpl::CreateDecoder(CLSID clsid) {
   return decoder;
 }
 
-void DecoderImpl::ActivateDecryptor(ComPtr<IMFMediaType> input_type) {
+void DecoderImpl::ActivateDecryptor() {
+  SB_DCHECK(decoder_);
+
   if (!decryptor_) {
     return;
   }
 
-  HRESULT hr = decryptor_->SetInputType(kStreamId, input_type.Get(),
-                                        0);  // MFT_SET_TYPE_TEST_FLAGS.
+  ComPtr<IMFMediaType> decryptor_input_type;
+
+  HRESULT hr = decoder_->GetInputCurrentType(
+      kStreamId, decryptor_input_type.GetAddressOf());
+  CheckResult(hr);
+
+  GUID original_sub_type;
+  {
+    ComPtr<IMFMediaType> output_type;
+    hr = decoder_->GetOutputCurrentType(kStreamId, output_type.GetAddressOf());
+    CheckResult(hr);
+    output_type->GetGUID(MF_MT_SUBTYPE, &original_sub_type);
+  }
+
+  const DWORD kFlags = 0;
+  hr = decryptor_->SetInputType(kStreamId, decryptor_input_type.Get(), kFlags);
   CheckResult(hr);
 
   // Ensure that the decryptor and the decoder agrees on the protection of
@@ -158,7 +178,6 @@ void DecoderImpl::ActivateDecryptor(ComPtr<IMFMediaType> input_type) {
   BYTE* crypt_seed = NULL;
   DWORD crypt_seed_size = 0;
   ComPtr<IMFMediaType> decoder_input_type;
-  ComPtr<IMFMediaType> decoder_output_type;
 
   hr = decryptor_.As(&decryption_sample_protection);
   CheckResult(hr);
@@ -211,6 +230,21 @@ void DecoderImpl::ActivateDecryptor(ComPtr<IMFMediaType> input_type) {
   // Start the decryptor, note that this should be better abstracted.
   SendMFTMessage(decryptor_.Get(), MFT_MESSAGE_NOTIFY_BEGIN_STREAMING);
   SendMFTMessage(decryptor_.Get(), MFT_MESSAGE_NOTIFY_START_OF_STREAM);
+
+  for (int index = 0;; ++index) {
+    ComPtr<IMFMediaType> output_type;
+    hr = decoder_->GetOutputAvailableType(0, index, &output_type);
+    if (SUCCEEDED(hr)) {
+      GUID sub_type;
+      output_type->GetGUID(MF_MT_SUBTYPE, &sub_type);
+      if (IsEqualGUID(sub_type, original_sub_type)) {
+        hr = decoder_->SetOutputType(0, output_type.Get(), 0);
+        CheckResult(hr);
+        break;
+      }
+    }
+    output_type.Reset();
+  }
 }
 
 bool DecoderImpl::TryWriteInputBuffer(
@@ -236,6 +270,19 @@ bool DecoderImpl::TryWriteInputBuffer(
   // Better check the key id size is 16 and iv size is 8 or 16.
   bool encrypted = !key_id.empty() && !iv.empty();
   if (encrypted) {
+    if (!decryptor_) {
+      scoped_refptr<::starboard::xb1::shared::playready::PlayreadyLicense>
+          license = drm_system_->GetLicense(key_id.data(),
+                                            static_cast<int>(key_id.size()));
+      if (license && license->usable()) {
+        decryptor_ = license->decryptor();
+        ActivateDecryptor();
+      }
+    }
+    if (!decryptor_) {
+      SB_NOTREACHED();
+      return false;
+    }
     size_t iv_size = iv.size();
     const char kEightZeros[8] = {0};
     if (iv_size == 16 && SbMemoryCompare(iv.data() + 8, kEightZeros, 8) == 0) {
@@ -315,27 +362,33 @@ bool DecoderImpl::DeliverOutputOnAllTransforms() {
 
 bool DecoderImpl::DeliverOneOutputOnAllTransforms() {
   SB_DCHECK(decoder_);
-  bool delivered = false;
   if (decryptor_) {
-    if (ComPtr<IMFSample> sample = DeliverOutputOnTransform(decryptor_)) {
-      HRESULT hr = decoder_->ProcessInput(kStreamId, sample.Get(), 0);
+    if (!cached_decryptor_output_) {
+      cached_decryptor_output_ = DeliverOutputOnTransform(decryptor_);
+    }
+    while (cached_decryptor_output_) {
+      HRESULT hr =
+          decoder_->ProcessInput(kStreamId, cached_decryptor_output_.Get(), 0);
       if (hr == MF_E_NOTACCEPTING) {
-        // The protocol says that when ProcessInput() returns MF_E_NOTACCEPTING,
-        // there must be some output available. Retrieve the output and the next
-        // ProcessInput() should succeed.
-        ComPtr<IMFSample> sample_inner = DeliverOutputOnTransform(decoder_);
-        if (sample_inner) {
-          DeliverDecodedSample(sample_inner);
-          delivered = true;
-        }
-        hr = decoder_->ProcessInput(kStreamId, sample.Get(), 0);
+        break;
+      } else {
         CheckResult(hr);
-        return delivered;
+        cached_decryptor_output_ = DeliverOutputOnTransform(decryptor_);
       }
-      CheckResult(hr);
-      delivered = true;
+    }
+    if (cached_decryptor_output_) {
+      // The protocol says that when ProcessInput() returns MF_E_NOTACCEPTING,
+      // there must be some output available. Retrieve the output and the next
+      // ProcessInput() should succeed.
+      ComPtr<IMFSample> decoder_output = DeliverOutputOnTransform(decoder_);
+      if (decoder_output) {
+        DeliverDecodedSample(decoder_output);
+      }
+      return decoder_output != NULL;
     }
   }
+
+  bool delivered = false;
   if (ComPtr<IMFSample> sample = DeliverOutputOnTransform(decoder_)) {
     DeliverDecodedSample(sample);
     delivered = true;
@@ -370,18 +423,6 @@ void DecoderImpl::PrepareOutputDataBuffer(
   MFT_OUTPUT_STREAM_INFO output_stream_info;
   HRESULT hr = transform->GetOutputStreamInfo(kStreamId, &output_stream_info);
   CheckResult(hr);
-
-  // Each media sample (IMFSample interface) of output data from the MFT
-  // contains complete, unbroken units of data. The definition of a unit
-  // of data depends on the media type: For uncompressed video, a video
-  // frame; for compressed data, a compressed packet; for uncompressed audio,
-  // a single audio frame.
-  //
-  // For uncompressed audio formats, this flag is always implied. (It is valid
-  // to set the flag, but not required.) An uncompressed audio frame should
-  // never span more than one media sample.
-  SB_DCHECK((output_stream_info.dwFlags & MFT_OUTPUT_STREAM_WHOLE_SAMPLES) !=
-            0);
 
   if (StreamAllocatesMemory(output_stream_info.dwFlags)) {
     // Try to let the IMFTransform allocate the memory if possible.
@@ -431,9 +472,21 @@ ComPtr<IMFSample> DecoderImpl::DeliverOutputOnTransform(
 
     hr = transform->SetOutputType(kStreamId, media_type.Get(), 0);
     CheckResult(hr);
-    return NULL;
-  } else if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT ||
-             output_data_buffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_NO_SAMPLE) {
+
+    media_buffer_consumer_->OnNewOutputType(media_type);
+
+    hr = transform->ProcessOutput(kFlags, kNumberOfBuffers, &output_data_buffer,
+                                  &status);
+
+    SB_DCHECK(!output_data_buffer.pEvents);
+
+    output = output_data_buffer.pSample;
+    ReleaseIfNotNull(&output_data_buffer.pEvents);
+    ReleaseIfNotNull(&output_data_buffer.pSample);
+  }
+
+  if (hr == MF_E_TRANSFORM_NEED_MORE_INPUT ||
+      output_data_buffer.dwStatus == MFT_OUTPUT_DATA_BUFFER_NO_SAMPLE) {
     return NULL;
   }
 

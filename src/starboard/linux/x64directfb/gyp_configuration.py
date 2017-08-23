@@ -14,13 +14,9 @@
 """Starboard Linux X64 DirectFB platform configuration for gyp_cobalt."""
 
 import logging
-import os
-import sys
 
 # Import the shared Linux platform configuration.
-sys.path.append(os.path.realpath(os.path.join(
-    os.path.dirname(__file__), os.pardir, 'shared')))
-import gyp_configuration
+from starboard.linux.shared import gyp_configuration
 
 
 def CreatePlatformConfig():

@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "starboard/common/scoped_ptr.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
@@ -35,7 +36,8 @@ class AbstractWin32AudioDecoder {
       SbMediaAudioCodec codec,
       SbMediaAudioFrameStorageType audio_frame_fmt,
       SbMediaAudioSampleType sample_type,
-      const SbMediaAudioHeader& audio_header);
+      const SbMediaAudioHeader& audio_header,
+      SbDrmSystem drm_system);
   virtual ~AbstractWin32AudioDecoder() {}
 
   // INPUT:

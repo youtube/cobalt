@@ -15,7 +15,6 @@
 #define COBALT_SCRIPT_VALUE_HANDLE_H_
 
 #include "cobalt/script/script_value.h"
-#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace script {

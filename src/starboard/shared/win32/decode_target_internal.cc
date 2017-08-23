@@ -26,6 +26,7 @@
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 #include "third_party/angle/include/GLES2/gl2.h"
+#include "third_party/angle/include/GLES2/gl2ext.h"
 
 using Microsoft::WRL::ComPtr;
 using starboard::shared::win32::VideoFramePtr;
@@ -73,24 +74,24 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
 
-  planeY->width = texture_desc.Width;
-  planeY->height = texture_desc.Height;
+  planeY->width = info.width;
+  planeY->height = info.height;
   planeY->content_region.left = 0;
-  planeY->content_region.top = 0;
-  planeY->content_region.right = texture_desc.Width;
-  planeY->content_region.bottom = texture_desc.Height;
+  planeY->content_region.top = info.height;
+  planeY->content_region.right = frame->width();
+  planeY->content_region.bottom = info.height - frame->height();
 
-  planeUV->width = texture_desc.Width / 2;
-  planeUV->height = texture_desc.Height / 2;
-  planeUV->content_region.left = 0;
-  planeUV->content_region.top = 0;
-  planeUV->content_region.right = texture_desc.Width / 2;
-  planeUV->content_region.bottom = texture_desc.Height / 2;
+  planeUV->width = info.width / 2;
+  planeUV->height = info.height / 2;
+  planeUV->content_region.left = planeY->content_region.left / 2;
+  planeUV->content_region.top = planeY->content_region.top / 2;
+  planeUV->content_region.right = planeY->content_region.right / 2;
+  planeUV->content_region.bottom = planeY->content_region.bottom / 2;
 
   EGLint luma_texture_attributes[] = {EGL_WIDTH,
-                                      static_cast<EGLint>(texture_desc.Width),
+                                      static_cast<EGLint>(info.width),
                                       EGL_HEIGHT,
-                                      static_cast<EGLint>(texture_desc.Height),
+                                      static_cast<EGLint>(info.height),
                                       EGL_TEXTURE_TARGET,
                                       EGL_TEXTURE_2D,
                                       EGL_TEXTURE_FORMAT,
@@ -119,16 +120,16 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
                                  dxgi_buffer.GetAddressOf());
   SB_DCHECK(SUCCEEDED(hr));
 
-  EGLSurface surface = eglCreatePbufferFromClientBuffer(
-      display, EGL_D3D_TEXTURE_ANGLE, d3texture.Get(), config,
-      luma_texture_attributes);
+  surface[0] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                d3texture.Get(), config,
+                                                luma_texture_attributes);
 
-  SB_DCHECK(surface != EGL_NO_SURFACE);
+  SB_DCHECK(surface[0] != EGL_NO_SURFACE);
 
   glBindTexture(GL_TEXTURE_2D, gl_textures[0]);
   SB_DCHECK(glGetError() == GL_NO_ERROR);
 
-  ok = eglBindTexImage(display, surface, EGL_BACK_BUFFER);
+  ok = eglBindTexImage(display, surface[0], EGL_BACK_BUFFER);
   SB_DCHECK(ok);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -136,6 +137,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   planeY->texture = gl_textures[0];
   planeY->gl_texture_target = GL_TEXTURE_2D;
+  planeY->gl_texture_format = GL_RED_EXT;
 
   // This tells ANGLE that the texture it creates should draw
   // the chroma channel on R8G8.
@@ -145,24 +147,24 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   EGLint chroma_texture_attributes[] = {
       EGL_WIDTH,
-      static_cast<EGLint>(texture_desc.Width) / 2,
+      static_cast<EGLint>(info.width) / 2,
       EGL_HEIGHT,
-      static_cast<EGLint>(texture_desc.Height) / 2,
+      static_cast<EGLint>(info.height) / 2,
       EGL_TEXTURE_TARGET,
       EGL_TEXTURE_2D,
       EGL_TEXTURE_FORMAT,
       EGL_TEXTURE_RGBA,
       EGL_NONE};
-  surface = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
-                                             d3texture.Get(), config,
-                                             chroma_texture_attributes);
+  surface[1] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
+                                                d3texture.Get(), config,
+                                                chroma_texture_attributes);
 
-  SB_DCHECK(surface != EGL_NO_SURFACE);
+  SB_DCHECK(surface[1] != EGL_NO_SURFACE);
 
   glBindTexture(GL_TEXTURE_2D, gl_textures[1]);
   SB_DCHECK(glGetError() == GL_NO_ERROR);
 
-  ok = eglBindTexImage(display, surface, EGL_BACK_BUFFER);
+  ok = eglBindTexImage(display, surface[1], EGL_BACK_BUFFER);
   SB_DCHECK(ok);
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -170,6 +172,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   planeUV->texture = gl_textures[1];
   planeUV->gl_texture_target = GL_TEXTURE_2D;
+  planeUV->gl_texture_format = GL_RG_EXT;
 
   hr = d3texture->SetPrivateData(kCobaltDxgiBuffer, 0, nullptr);
   SB_DCHECK(SUCCEEDED(hr));
@@ -178,6 +181,14 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 SbDecodeTargetPrivate::~SbDecodeTargetPrivate() {
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneY].texture));
   glDeleteTextures(1, &(info.planes[kSbDecodeTargetPlaneUV].texture));
+
+  EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
+  eglReleaseTexImage(display, surface[0], EGL_BACK_BUFFER);
+  eglDestroySurface(display, surface[0]);
+
+  eglReleaseTexImage(display, surface[1], EGL_BACK_BUFFER);
+  eglDestroySurface(display, surface[1]);
 }
 
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {

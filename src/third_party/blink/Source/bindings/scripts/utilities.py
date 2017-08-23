@@ -14,26 +14,21 @@ import shlex
 import string
 import subprocess
 
-# Interfaces related to css are under the cssom directory.
-# All of Cobalt's interfaces are under the dom directory.
-# Interfaces related to testing the bindings generation are under testing.
-# Interfaces to our custom debugging functionality (e.g. console) is in debug.
+# All of Cobalt's interfaces are under either the cobalt/, starboard/ or
+# third_party/ directory.
+# Note that an IDL's "component" is not actually used for anything in Cobalt and
+# so this list just acts as a file path whitelist (i.e. one of these items must
+# appear in the path).
 KNOWN_COMPONENTS = frozenset(
     [
-        'audio',
-        'cssom',
-        'debug',
-        'dom',
-        'fetch',
-        'h5vcc',
-        'media_session',
-        'page_visibility',
-        'speech',
+        'cobalt',
+        'starboard',
+        'third_party',
+        # This is required to pass the Cobalt run_cobalt_bindings_tests.py,
+        # which is run on presubmit.
         'testing',
-        'web_animations',
-        'webdriver',
-        'websocket',
-        'xhr',
+        # Required to identify the generated window_constructors.idl.
+        'gen',
     ])
 
 # List of regular expressions finding tokens that would appear in a name that

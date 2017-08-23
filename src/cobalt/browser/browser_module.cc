@@ -35,6 +35,7 @@
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
 #include "cobalt/browser/switches.h"
+#include "cobalt/browser/webapi_extension.h"
 #include "cobalt/dom/csp_delegate_factory.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
@@ -171,9 +172,19 @@ void OnScreenshotMessage(BrowserModule* browser_module,
 scoped_refptr<script::Wrappable> CreateH5VCC(
     const h5vcc::H5vcc::Settings& settings,
     const scoped_refptr<dom::Window>& window,
-    dom::MutationObserverTaskManager* mutation_observer_task_manager) {
+    dom::MutationObserverTaskManager* mutation_observer_task_manager,
+    script::GlobalEnvironment* global_environment) {
+  UNREFERENCED_PARAMETER(global_environment);
   return scoped_refptr<script::Wrappable>(
       new h5vcc::H5vcc(settings, window, mutation_observer_task_manager));
+}
+
+scoped_refptr<script::Wrappable> CreateExtensionInterface(
+    const scoped_refptr<dom::Window>& window,
+    dom::MutationObserverTaskManager* mutation_observer_task_manager,
+    script::GlobalEnvironment* global_environment) {
+  UNREFERENCED_PARAMETER(mutation_observer_task_manager);
+  return CreateWebAPIExtensionObject(window, global_environment);
 }
 
 renderer::RendererModule::Options RendererModuleWithCameraOptions(
@@ -197,10 +208,9 @@ BrowserModule::BrowserModule(const GURL& url,
       options_(options),
       self_message_loop_(MessageLoop::current()),
       event_dispatcher_(event_dispatcher),
-      storage_manager_(
-          scoped_ptr<StorageUpgradeHandler>(new StorageUpgradeHandler(url))
-              .PassAs<storage::StorageManager::UpgradeHandler>(),
-          options_.storage_manager_options),
+      storage_manager_(make_scoped_ptr(new StorageUpgradeHandler(url))
+                           .PassAs<storage::StorageManager::UpgradeHandler>(),
+                       options_.storage_manager_options),
 #if defined(OS_STARBOARD)
       is_rendered_(false),
 #endif  // OS_STARBOARD
@@ -271,6 +281,14 @@ BrowserModule::BrowserModule(const GURL& url,
   h5vcc_settings.initial_deep_link = options_.initial_deep_link;
   options_.web_module_options.injected_window_attributes["h5vcc"] =
       base::Bind(&CreateH5VCC, h5vcc_settings);
+
+  base::optional<std::string> extension_object_name =
+      GetWebAPIExtensionObjectPropertyName();
+  if (extension_object_name) {
+    options_.web_module_options
+        .injected_window_attributes[*extension_object_name] =
+        base::Bind(&CreateExtensionInterface);
+  }
 
 #if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();

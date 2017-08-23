@@ -22,6 +22,8 @@
       'system_clear_platform_error.cc',
       'system_get_device_type.cc',
       'system_get_property.cc',
+      'system_get_total_cpu_memory.cc',
+      'system_get_used_cpu_memory.cc',
       'system_raise_platform_error.cc',
       'window_create.cc',
       'window_destroy.cc',

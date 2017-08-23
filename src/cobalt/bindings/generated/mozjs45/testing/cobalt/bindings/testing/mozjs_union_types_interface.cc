@@ -269,7 +269,7 @@ bool set_unionProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
+  TypeTraits<::cobalt::script::UnionType4<std::string, bool, scoped_refptr<ArbitraryInterface>, int32_t > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -369,7 +369,7 @@ bool set_unionWithNullableMemberProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -469,7 +469,7 @@ bool set_nullableUnionProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<base::optional<script::UnionType2<double, std::string > > >::ConversionType value;
+  TypeTraits<base::optional<::cobalt::script::UnionType2<double, std::string > > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -569,7 +569,7 @@ bool set_unionBaseProperty(
       WrapperPrivate::GetFromObject(context, object);
   UnionTypesInterface* impl =
       wrapper_private->wrappable<UnionTypesInterface>().get();
-  TypeTraits<script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType value;
+  TypeTraits<::cobalt::script::UnionType2<scoped_refptr<BaseInterface>, std::string > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -697,7 +697,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 48;
+  const int kInterfaceUniqueId = 49;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with

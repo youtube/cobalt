@@ -99,6 +99,11 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   }
 #endif  // SB_API_VERSION >= 4
 
+  void SetVolume(double volume) SB_OVERRIDE {
+    ScopedLock lock(mutex_);
+    volume_ = volume;
+  }
+
   bool is_valid() { return playback_handle_ != NULL; }
 
  private:
@@ -124,6 +129,7 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
   void* context_;
 
   double playback_rate_;
+  double volume_;
   std::vector<uint8_t> resample_buffer_;
 
   int channels_;
@@ -157,6 +163,7 @@ AlsaAudioSink::AlsaAudioSink(
     void* context)
     : type_(type),
       playback_rate_(1.0),
+      volume_(1.0),
       resample_buffer_(channels * kFramesPerRequest *
                        GetSampleSize(sample_type)),
       channels_(channels),
@@ -272,6 +279,7 @@ bool AlsaAudioSink::IdleLoop() {
 bool AlsaAudioSink::PlaybackLoop() {
   SB_DLOG(INFO) << "alsa::AlsaAudioSink enters playback loop";
 
+  // TODO: Also handle |volume_| here.
   double playback_rate = 1.0;
   for (;;) {
     int delayed_frame = AlsaGetBufferedFrames(playback_handle_);

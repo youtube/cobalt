@@ -93,7 +93,8 @@ struct RoundedCorners {
 
   // Ensure the rounded corners' radii do not exceed the length of the
   // corresponding edge of the given rect.
-  void Normalize(const math::RectF& rect);
+  RoundedCorners Normalize(const math::RectF& rect) const;
+  bool IsNormalized(const math::RectF& rect) const;
 
   bool AreSquares() const {
     return top_left.IsSquare() && top_right.IsSquare() &&

@@ -22,11 +22,10 @@
 extern "C" {
 #endif
 
-// Functions to be called to set callbacks for the updates to video rendering
-// parameters. When the host application is notified that the graphics context
-// has been created, it should install the callbacks within the same call stack
-// of CbLibOnGraphicsContextCreated. Failing to do so will crash the application
-// on debug mode and no-op on production builds.
+// Functions to be called to set callbacks to receive updates to video rendering
+// parameters. By default, this callbacks are not set and warnings will be
+// when an unhandled parameter change happens. To unset them again, any of these
+// setter functions can be called with a null callback function pointer.
 
 typedef enum {
   kCbLibVideoProjectionTypeNone = 0,  // When no offscreen video is playing.

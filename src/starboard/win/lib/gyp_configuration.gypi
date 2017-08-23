@@ -16,6 +16,16 @@
   'variables': {
     'javascript_engine': 'mozjs',
     'cobalt_enable_jit': 0,
+    # TODO: In theory, there are tools that can combine static libraries into
+    # thick static libraries with all their transitive dependencies. Using
+    # shared_library here can have unexpected consequences. Explore building
+    # this into a thick static library instead.
+    'final_executable_type': 'shared_library',
+    'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/rasterizer/lib/lib.gyp:external_rasterizer',
+    'sb_enable_lib': 1,
+    'angle_build_winrt': 0,
+    'winrt': 0,
+    'enable_d3d11_feature_level_11': 1,
   },
   'includes': [
     '../shared/gyp_configuration.gypi',
@@ -23,25 +33,18 @@
   'target_defaults': {
     'default_configuration': 'win-lib_debug',
     'configurations': {
-     'lib_base': {
-       'abstract': 1,
-       'msvs_settings': {
-         'VCLinkerTool': {
-           'SubSystem': '2', # WINDOWS
-         }
-       }
-      },
+
       'win-lib_debug': {
-        'inherit_from': ['msvs_debug', 'lib_base'],
+        'inherit_from': ['win32_base', 'msvs_debug'],
       },
       'win-lib_devel': {
-       'inherit_from': ['msvs_devel', 'lib_base'],
+       'inherit_from': ['win32_base', 'msvs_devel'],
       },
       'win-lib_qa': {
-        'inherit_from': ['msvs_qa', 'lib_base'],
+        'inherit_from': ['win32_base', 'msvs_qa'],
       },
       'win-lib_gold': {
-        'inherit_from': ['msvs_gold', 'lib_base'],
+        'inherit_from': ['win32_base', 'msvs_gold'],
       },
     },  # end of configurations
   },

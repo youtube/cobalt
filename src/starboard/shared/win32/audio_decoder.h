@@ -18,11 +18,13 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
+#include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder_thread.h"
 #include "starboard/shared/win32/media_common.h"
@@ -32,16 +34,14 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-using JobQueue = ::starboard::shared::starboard::player::JobQueue;
-using JobOwner = JobQueue::JobOwner;
-
 class AudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private JobOwner,
+      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
       private AudioDecodedCallback {
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
-               const SbMediaAudioHeader& audio_header);
+               const SbMediaAudioHeader& audio_header,
+               SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
@@ -60,9 +60,13 @@ class AudioDecoder
 
  private:
   class CallbackScheduler;
-  SbMediaAudioHeader audio_header_;
-  SbMediaAudioSampleType sample_type_;
+
+  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+
   SbMediaAudioCodec audio_codec_;
+  SbMediaAudioHeader audio_header_;
+  SbDrmSystem drm_system_;
+  SbMediaAudioSampleType sample_type_;
   bool stream_ended_;
 
   AtomicQueue<DecodedAudioPtr> decoded_data_;
@@ -71,7 +75,7 @@ class AudioDecoder
   scoped_ptr<AudioDecoderThread> decoder_thread_;
   Closure output_cb_;
 
-  ::starboard::Mutex mutex_;
+  Mutex mutex_;
 };
 
 }  // namespace win32
