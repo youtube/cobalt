@@ -199,6 +199,8 @@ void SbSpeechRecognizerImpl::OnResults(const std::vector<std::string>& results,
 
 namespace {
 
+using starboard::android::shared::JniEnvExt;
+
 starboard::Mutex s_speech_recognizer_mutex_;
 SbSpeechRecognizer s_speech_recognizer = kSbSpeechRecognizerInvalid;
 }  // namespace
@@ -269,7 +271,7 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnError(
 
 extern "C" SB_EXPORT_PLATFORM void
 Java_foo_cobalt_coat_VoiceRecognizer_nativeOnResults(
-    JNIEnv* env,
+    JniEnvExt* env,
     jobject unused_this,
     jlong nativeSpeechRecognizerImpl,
     jobjectArray results,
@@ -292,9 +294,8 @@ Java_foo_cobalt_coat_VoiceRecognizer_nativeOnResults(
   for (jint i = 0; i < argc; i++) {
     starboard::android::shared::ScopedLocalJavaRef<jstring> element(
         env->GetObjectArrayElement(results, i));
-    const char* utf_chars = env->GetStringUTFChars(element.Get(), NULL);
-    options.push_back(std::string(utf_chars));
-    env->ReleaseStringUTFChars(element.Get(), utf_chars);
+    std::string utf_str = env->GetStringStandardUTFOrAbort(element.Get());
+    options.push_back(utf_str);
   }
 
   std::vector<float> scores(options.size(), 0.0);
