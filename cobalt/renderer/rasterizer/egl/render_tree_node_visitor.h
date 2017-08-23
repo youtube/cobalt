@@ -81,6 +81,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   void Visit(render_tree::TextNode* text_node) OVERRIDE;
 
  private:
+  void GetScratchTexture(scoped_refptr<render_tree::Node> node, float size,
+                         DrawObject::TextureInfo* out_texture_info);
   void GetOffscreenTarget(scoped_refptr<render_tree::Node> node,
                           bool* out_content_cached,
                           OffscreenTargetManager::TargetInfo* out_target_info,
