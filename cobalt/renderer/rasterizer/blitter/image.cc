@@ -96,7 +96,8 @@ SinglePlaneImage::SinglePlaneImage(
     SubmitOffscreenCallback submit_offscreen_callback, SbBlitterDevice device)
     : size_(static_cast<int>(root->GetBounds().right()),
             static_cast<int>(root->GetBounds().bottom())),
-      is_opaque_(false) {
+      is_opaque_(false),
+      surface_(kSbBlitterInvalidSurface) {
   initialize_image_ = base::Bind(
       &SinglePlaneImage::InitializeImageFromRenderTree, base::Unretained(this),
       root, submit_offscreen_callback, device);
