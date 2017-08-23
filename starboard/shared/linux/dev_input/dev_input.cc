@@ -1062,7 +1062,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
         device_info->touchpad_position_state = kTouchPadPositionNone;
         if (touchpad_position_is_known) {
           // Touch point is released, report last known position as unpress.
-          input_vector.x = device_info->axis_value[ABS_MT_POSITION_X] * 2;
+          input_vector.x = device_info->axis_value[ABS_MT_POSITION_X];
           input_vector.y = device_info->axis_value[ABS_MT_POSITION_Y];
           return CreateTouchPadEvent(window_, kSbInputEventTypeUnpress, key,
                                      location, modifiers, input_vector);
@@ -1079,7 +1079,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
       if (IsTouchpadPositionKnown(device_info)) {
         // For touchpads, the unit range is [-1..1]. Negative values for top
         // left.
-        input_vector.x = axis_value * 2;  // Touch are is twice as wide.
+        input_vector.x = axis_value;
         input_vector.y = device_info->axis_value[ABS_MT_POSITION_Y];
         return CreateTouchPadEvent(window_, type, key, location, modifiers,
                                    input_vector);
@@ -1096,7 +1096,7 @@ DevInput::Event* DevInputImpl::AxisInputToApplicationEvent(
       device_info->touchpad_position_state |= kTouchPadPositionY;
       if (IsTouchpadPositionKnown(device_info)) {
         // For touchpads, the range is [-1..1]. Negative values for top left.
-        input_vector.x = device_info->axis_value[ABS_MT_POSITION_X] * 2;
+        input_vector.x = device_info->axis_value[ABS_MT_POSITION_X];
         input_vector.y = axis_value;
         return CreateTouchPadEvent(window_, type, key, location, modifiers,
                                    input_vector);
