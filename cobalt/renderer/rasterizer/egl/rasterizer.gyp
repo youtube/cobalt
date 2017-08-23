@@ -53,6 +53,8 @@
         'draw_rect_color_texture.cc',
         'draw_rect_linear_gradient.h',
         'draw_rect_linear_gradient.cc',
+        'draw_rect_radial_gradient.h',
+        'draw_rect_radial_gradient.cc',
         'draw_rect_shadow_spread.h',
         'draw_rect_shadow_spread.cc',
         'draw_rect_shadow_blur.h',

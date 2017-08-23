@@ -32,6 +32,7 @@
 #include "cobalt/renderer/rasterizer/egl/draw_rect_border.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_radial_gradient.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
@@ -138,6 +139,10 @@ float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
 
   // Any sub-pixel offset is okay. Return something less than 1.
   return (error_x + error_y) * 0.49f;
+}
+
+float OffscreenTargetErrorFunction1D(float desired, const float& cached) {
+  return std::abs(cached - desired);
 }
 
 }  // namespace
@@ -447,72 +452,99 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   const render_tree::RectNode::Builder& data = rect_node->data();
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
+  math::RectF content_rect(data.rect);
 
-  // Only solid color brushes are supported at this time.
-  const bool brush_supported = !brush ||
-      brush->GetTypeId() == base::GetTypeId<render_tree::SolidColorBrush>() ||
-      brush->GetTypeId() == base::GetTypeId<render_tree::LinearGradientBrush>();
+  // Only solid color brushes are natively supported with rounded corners.
+  if (data.rounded_corners && brush &&
+      brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
+    FallbackRasterize(rect_node);
+    return;
+  }
 
+  // Determine whether the RectNode's border attribute is supported. Update
+  // the content and bounds if so.
   scoped_ptr<DrawRectBorder> draw_border;
   if (data.border) {
     draw_border.reset(new DrawRectBorder(graphics_state_, draw_state_,
         rect_node));
+    if (draw_border->IsValid()) {
+      content_rect = draw_border->GetContentRect();
+      node_bounds = draw_border->GetBounds();
+    }
   }
   const bool border_supported = !data.border || draw_border->IsValid();
 
-  if (data.rounded_corners && brush &&
-      brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
-    FallbackRasterize(rect_node);
-  } else if (!brush_supported) {
-    FallbackRasterize(rect_node);
-  } else if (!border_supported) {
-    FallbackRasterize(rect_node);
-  } else {
-    math::RectF content_rect(data.rect);
-    if (data.border) {
-      content_rect = draw_border->GetContentRect();
-      node_bounds = draw_border->GetBounds();
-      AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
-    }
+  // Determine whether the RectNode's background brush is supported.
+  base::TypeId brush_type = brush ? brush->GetTypeId() :
+      base::GetTypeId<render_tree::Brush>();
+  bool brush_is_solid_and_supported =
+      brush_type == base::GetTypeId<render_tree::SolidColorBrush>();
+  bool brush_is_linear_and_supported =
+      brush_type == base::GetTypeId<render_tree::LinearGradientBrush>();
+  bool brush_is_radial_and_supported =
+      brush_type == base::GetTypeId<render_tree::RadialGradientBrush>();
 
-    // Handle drawing the content.
-    if (brush) {
-      base::TypeId brush_type = brush->GetTypeId();
-      if (brush_type == base::GetTypeId<render_tree::SolidColorBrush>()) {
-        const render_tree::SolidColorBrush* solid_brush =
-            base::polymorphic_downcast<const render_tree::SolidColorBrush*>
-                (brush.get());
-        const render_tree::ColorRGBA& brush_color(solid_brush->color());
-        render_tree::ColorRGBA color(
-            brush_color.r() * brush_color.a(),
-            brush_color.g() * brush_color.a(),
-            brush_color.b() * brush_color.a(),
-            brush_color.a());
-        if (data.rounded_corners) {
-          scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-              draw_state_, content_rect, *data.rounded_corners, color));
-          // Transparency is used for anti-aliasing.
-          AddTransparentDraw(draw.Pass(), node_bounds);
-        } else {
-          scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-              draw_state_, content_rect, color));
-          if (draw_state_.opacity * color.a() == 1.0f) {
-            AddOpaqueDraw(draw.Pass(), node_bounds);
-          } else {
-            AddTransparentDraw(draw.Pass(), node_bounds);
-          }
-        }
+  scoped_ptr<DrawRectRadialGradient> draw_radial;
+  if (brush_is_radial_and_supported) {
+    const render_tree::RadialGradientBrush* radial_brush =
+        base::polymorphic_downcast<const render_tree::RadialGradientBrush*>
+            (brush.get());
+    draw_radial.reset(new DrawRectRadialGradient(graphics_state_, draw_state_,
+        content_rect, *radial_brush,
+        base::Bind(&RenderTreeNodeVisitor::GetScratchTexture,
+                   base::Unretained(this), make_scoped_refptr(rect_node))));
+    brush_is_radial_and_supported = draw_radial->IsValid();
+  }
+
+  const bool brush_supported = !brush || brush_is_solid_and_supported ||
+      brush_is_linear_and_supported || brush_is_radial_and_supported;
+
+  if (!brush_supported || !border_supported) {
+    FallbackRasterize(rect_node);
+    return;
+  }
+
+  if (draw_border) {
+    AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
+  }
+
+  // Handle drawing the content.
+  if (brush_is_solid_and_supported) {
+    const render_tree::SolidColorBrush* solid_brush =
+        base::polymorphic_downcast<const render_tree::SolidColorBrush*>
+            (brush.get());
+    const render_tree::ColorRGBA& brush_color(solid_brush->color());
+    render_tree::ColorRGBA color(
+        brush_color.r() * brush_color.a(),
+        brush_color.g() * brush_color.a(),
+        brush_color.b() * brush_color.a(),
+        brush_color.a());
+    if (data.rounded_corners) {
+      scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
+          draw_state_, content_rect, *data.rounded_corners, color));
+      // Transparency is used for anti-aliasing.
+      AddTransparentDraw(draw.Pass(), node_bounds);
+    } else {
+      scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+          draw_state_, content_rect, color));
+      if (draw_state_.opacity * color.a() == 1.0f) {
+        AddOpaqueDraw(draw.Pass(), node_bounds);
       } else {
-        const render_tree::LinearGradientBrush* linear_brush =
-            base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
-                (brush.get());
-        scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
-            draw_state_, content_rect, *linear_brush));
-        // The draw may use transparent pixels to ensure only pixels in the
-        // specified area are modified.
         AddTransparentDraw(draw.Pass(), node_bounds);
       }
     }
+  } else if (brush_is_linear_and_supported) {
+    const render_tree::LinearGradientBrush* linear_brush =
+        base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
+            (brush.get());
+    scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
+        draw_state_, content_rect, *linear_brush));
+    // The draw may use transparent pixels to ensure only pixels in the
+    // specified area are modified.
+    AddTransparentDraw(draw.Pass(), node_bounds);
+  } else if (brush_is_radial_and_supported) {
+    // The colors in the brush may be transparent.
+    AddTransparentDraw(draw_radial.PassAs<DrawObject>(), node_bounds);
   }
 }
 
@@ -581,6 +613,25 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   }
 
   FallbackRasterize(text_node);
+}
+
+// Get a scratch texture row region for use in rendering |node|.
+void RenderTreeNodeVisitor::GetScratchTexture(
+    scoped_refptr<render_tree::Node> node, float size,
+    DrawObject::TextureInfo* out_texture_info) {
+  // Get the cached texture region or create one.
+  OffscreenTargetManager::TargetInfo target_info;
+  bool cached = offscreen_target_manager_->GetCachedOffscreenTarget(node,
+      base::Bind(&OffscreenTargetErrorFunction1D, size), &target_info);
+  if (!cached) {
+    offscreen_target_manager_->AllocateOffscreenTarget(node, size, size,
+        &target_info);
+  }
+
+  out_texture_info->texture = target_info.framebuffer == nullptr ? nullptr :
+      target_info.framebuffer->GetColorTexture();
+  out_texture_info->region = target_info.region;
+  out_texture_info->is_new = !cached;
 }
 
 // Get an offscreen target to render |node|.
