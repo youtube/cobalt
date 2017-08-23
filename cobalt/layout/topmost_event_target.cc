@@ -296,6 +296,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
           ? base::polymorphic_downcast<const dom::PointerEvent* const>(
                 event.get())
           : NULL;
+  bool is_touchpad_event = false;
 
   // The target override element for the pointer event. This may not be the same
   // as the hit test target, and it also may not be set.
@@ -312,7 +313,22 @@ void TopmostEventTarget::MaybeSendPointerEvents(
   if (pointer_event) {
     pointer_state->SetActiveButtonsState(pointer_event->pointer_id(),
                                          pointer_event->buttons());
-    pointer_state->SetActive(pointer_event->pointer_id());
+    is_touchpad_event = pointer_event->pointer_type() == "touchpad";
+    if (is_touchpad_event) {
+      if (pointer_event->type() == base::Tokens::pointerdown()) {
+        pointer_state->SetActive(pointer_event->pointer_id());
+        // Implicitly capture the pointer to the active element.
+        //   https://www.w3.org/TR/pointerevents/#implicit-pointer-capture
+        scoped_refptr<dom::HTMLElement> html_element =
+            view->document()->active_element()->AsHTMLElement();
+        if (html_element) {
+          pointer_state->SetPendingPointerCaptureTargetOverride(
+              pointer_event->pointer_id(), html_element);
+        }
+      }
+    } else {
+      pointer_state->SetActive(pointer_event->pointer_id());
+    }
     target_override_element = pointer_state->GetPointerCaptureOverrideElement(
         pointer_event->pointer_id(), &event_init);
   }
@@ -333,6 +349,10 @@ void TopmostEventTarget::MaybeSendPointerEvents(
 
   if (pointer_event) {
     if (pointer_event->type() == base::Tokens::pointerup()) {
+      if (is_touchpad_event) {
+        // A touchpad becomes inactive after a pointerup.
+        pointer_state->ClearActive(pointer_event->pointer_id());
+      }
       // Implicit release of pointer capture.
       //   https://www.w3.org/TR/pointerevents/#implicit-release-of-pointer-capture
       pointer_state->ClearPendingPointerCaptureTargetOverride(
@@ -345,7 +365,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
     }
   }
 
-  if (target_element) {
+  if (target_element && !is_touchpad_event) {
     // Send the click event if needed, which is not prevented by canceling the
     // pointerdown event.
     //   https://www.w3.org/TR/uievents/#event-type-click
