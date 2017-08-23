@@ -187,7 +187,17 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
     base::Token type, const system_window::InputEvent* input_event) {
   dom::PointerEventInit pointer_event;
   UpdateMouseEventInit(input_event, &pointer_event);
-  pointer_event.set_pointer_type("mouse");
+
+  switch (input_event->type()) {
+    case system_window::InputEvent::kTouchpadDown:
+    case system_window::InputEvent::kTouchpadUp:
+    case system_window::InputEvent::kTouchpadMove:
+      pointer_event.set_pointer_type("touchpad");
+      break;
+    default:
+      pointer_event.set_pointer_type("mouse");
+      break;
+  }
   pointer_event.set_pointer_id(input_event->device_id());
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
   pointer_event.set_width(value_or(input_event->size().x(), 0.0f));
@@ -256,10 +266,17 @@ void InputDeviceManagerDesktop::HandleInputEvent(const base::Event* event) {
       }
       break;
     }
-    case system_window::InputEvent::kPointerMove: {
+    case system_window::InputEvent::kPointerMove:
+    case system_window::InputEvent::kTouchpadMove: {
       HandlePointerEvent(base::Tokens::pointermove(), input_event);
       break;
     }
+    case system_window::InputEvent::kTouchpadDown:
+      HandlePointerEvent(base::Tokens::pointerdown(), input_event);
+      break;
+    case system_window::InputEvent::kTouchpadUp:
+      HandlePointerEvent(base::Tokens::pointerup(), input_event);
+      break;
     case system_window::InputEvent::kWheel: {
       HandleWheelEvent(input_event);
     }

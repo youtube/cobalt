@@ -2,6 +2,12 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 12
+ - **Add support for touchpad not associated with a pointer**
+
+   This adds support for input of type kSbInputDeviceTypeTouchPad for
+   touchpads not associated with a pointer.
+
 ## Version 11
  - **Splash Screen Customization**
 
