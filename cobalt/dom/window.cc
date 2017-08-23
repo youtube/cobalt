@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/base64.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -287,6 +288,18 @@ scoped_refptr<MediaQueryList> Window::MatchMedia(const std::string& query) {
 const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
+
+std::string Window::Btoa(const std::string& string_to_encode) {
+  std::string output;
+  base::Base64Encode(string_to_encode, &output);
+  return output;
+}
+
+std::string Window::Atob(const std::string& encoded_string) {
+  std::string output;
+  base::Base64Decode(encoded_string, &output);
+  return output;
+}
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
