@@ -110,7 +110,7 @@ void DrmSystem::GenerateSessionUpdateRequest(int ticket,
   ScopedLocalJavaRef<jbyteArray> j_init_data(
       ByteArrayFromRaw(initialization_data, initialization_data_size));
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringUTFOrAbort(type));
+  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(type));
   env->CallVoidMethodOrAbort(
       j_media_drm_bridge_, "createSession", "(I[BLjava/lang/String;)V",
       static_cast<jint>(ticket), j_init_data.Get(), j_mime.Get());

@@ -27,7 +27,7 @@ struct ScopedTrace {
   explicit ScopedTrace(const char* section_name) {
     JniEnvExt* env = JniEnvExt::Get();
     ScopedLocalJavaRef<jstring> j_section_name(
-        env->NewStringUTFOrAbort(section_name));
+        env->NewStringStandardUTFOrAbort(section_name));
     env->CallStaticVoidMethodOrAbort("android/os/Trace", "beginSection",
                                      "(Ljava/lang/String;)V",
                                      j_section_name.Get());
