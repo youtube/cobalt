@@ -223,9 +223,14 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetContainingBlockOffsetFromRoot(
       bool transform_forms_root) const;
 
+  // Returns the offset from the containing block (which can be either the
+  // containing block's content box or padding box) to its content box.
+  Vector2dLayoutUnit GetContainingBlockOffsetFromItsContentBox(
+      const ContainerBox* containing_block) const;
+
   // Used values of "left" and "top" are publicly readable and writable so that
-  // they can be calculated and adjusted by the formatting context of
-  // the parent box.
+  // they can be calculated and adjusted by the formatting context of the parent
+  // box.
   void set_left(LayoutUnit left) {
     margin_box_offset_from_containing_block_.set_x(left);
   }
@@ -320,9 +325,13 @@ class Box : public base::RefCounted<Box> {
   Vector2dLayoutUnit GetContentBoxOffsetFromRoot(
       bool transform_forms_root) const;
   Vector2dLayoutUnit GetContentBoxOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetContentBoxOffsetFromBorderBox() const;
   Vector2dLayoutUnit GetContentBoxOffsetFromPaddingBox() const;
   LayoutUnit GetContentBoxLeftEdgeOffsetFromMarginBox() const;
   LayoutUnit GetContentBoxTopEdgeOffsetFromMarginBox() const;
+  Vector2dLayoutUnit GetContentBoxOffsetFromContainingBlockContentBox(
+      const ContainerBox* containing_block) const;
+  Vector2dLayoutUnit GetContentBoxOffsetFromContainingBlock() const;
   LayoutUnit GetContentBoxLeftEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetContentBoxTopEdgeOffsetFromContainingBlock() const;
   LayoutUnit GetContentBoxStartEdgeOffsetFromContainingBlock(
