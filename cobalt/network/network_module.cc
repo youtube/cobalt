@@ -122,6 +122,7 @@ void NetworkModule::Initialize(base::EventDispatcher* event_dispatcher) {
   base::Thread::Options thread_options;
   thread_options.message_loop_type = MessageLoop::TYPE_IO;
   thread_options.stack_size = 256 * 1024;
+  thread_options.priority = base::kThreadPriority_High;
   thread_->StartWithOptions(thread_options);
 
   base::WaitableEvent creation_event(true, false);
