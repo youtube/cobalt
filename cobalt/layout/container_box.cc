@@ -278,23 +278,34 @@ bool ContainerBox::HasStackingContextChildren() const {
 
 namespace {
 
-Vector2dLayoutUnit GetOffsetFromContainingBlockToParent(Box* child_box) {
-  Vector2dLayoutUnit relative_position;
-  for (Box *ancestor_box = child_box->parent(),
-           *containing_block = child_box->GetContainingBlock();
-       ancestor_box != containing_block;
-       ancestor_box = ancestor_box->parent()) {
-    DCHECK(ancestor_box)
-        << "Unable to find containing block while traversing parents.";
-    // It is not possible for the containing block to be more distant than an
-    // ancestor that is transformed.
-    DCHECK(!ancestor_box->IsTransformed());
+Vector2dLayoutUnit
+GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(
+    const ContainerBox* containing_block, Box* child_box) {
+  DCHECK(child_box->IsAbsolutelyPositioned());
+  DCHECK_EQ(child_box->GetContainingBlock(), containing_block);
 
-    relative_position += ancestor_box->GetContentBoxOffsetFromMarginBox();
-    relative_position +=
-        ancestor_box->margin_box_offset_from_containing_block();
+  Vector2dLayoutUnit offset;
+
+  const ContainerBox* current_box = child_box->parent();
+  while (current_box != containing_block) {
+    DCHECK(current_box->parent());
+    DCHECK(!current_box->IsTransformed());
+    const ContainerBox* next_box = current_box->GetContainingBlock();
+    offset +=
+        current_box->GetContentBoxOffsetFromContainingBlockContentBox(next_box);
+    current_box = next_box;
   }
-  return relative_position;
+
+  // The containing block is formed by the padding box instead of the content
+  // box for absolutely positioned boxes, as described in
+  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
+  // NOTE: While not explicitly stated in the spec, which specifies that
+  // the containing block of a 'fixed' position element must always be the
+  // viewport, all major browsers use the padding box of a transformed ancestor
+  // as the containing block for 'fixed' position elements.
+  offset += containing_block->GetContentBoxOffsetFromPaddingBox();
+
+  return offset;
 }
 
 }  // namespace
@@ -422,15 +433,9 @@ void ContainerBox::UpdateOffsetOfRelativelyPositionedChildBox(
 void ContainerBox::UpdateRectOfAbsolutelyPositionedChildBox(
     Box* child_box, const LayoutParams& child_layout_params) {
   Vector2dLayoutUnit offset_from_containing_block_to_parent =
-      GetOffsetFromContainingBlockToParent(child_box);
-  // The containing block is formed by the padding box instead of the content
-  // box, as described in
-  // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-  // NOTE: While not explicitly stated in the spec, which specifies that
-  // the containing block of a 'fixed' position element must always be the
-  // viewport, all major browsers use the padding box of a transformed ancestor
-  // as the containing block for 'fixed' position elements.
-  offset_from_containing_block_to_parent += GetContentBoxOffsetFromPaddingBox();
+      GetOffsetFromContainingBlockToParentOfAbsolutelyPositionedBox(this,
+                                                                    child_box);
+
   child_box->SetStaticPositionLeftFromContainingBlockToParent(
       offset_from_containing_block_to_parent.x());
   child_box->SetStaticPositionTopFromContainingBlockToParent(
@@ -490,8 +495,10 @@ class RenderAndAnimateStackingContextChildrenCoordinator {
   // it is not empty; otherwise, returns |base_node_builder_|.
   render_tree::CompositionNode::Builder* GetActiveNodeBuilder();
 
-  Vector2dLayoutUnit GetOffsetFromChildContainerToContainingBlock(
-      const Box* containing_block,
+  // Returns the offset from the child container's content box to the containing
+  // block's content box.
+  Vector2dLayoutUnit GetOffsetFromChildContainerToContainingBlockContentBox(
+      const ContainerBox* containing_block,
       const Box::RelationshipToBox
           containing_block_relationship_to_child_container) const;
 
@@ -518,20 +525,11 @@ void RenderAndAnimateStackingContextChildrenCoordinator::RenderAndAnimateChild(
   const ContainerBox* child_containing_block =
       child_info.box->GetContainingBlock();
   Vector2dLayoutUnit position_offset =
-      GetOffsetFromChildContainerToContainingBlock(
+      child_container_offset_from_parent_node_ +
+      GetOffsetFromChildContainerToContainingBlockContentBox(
           child_containing_block, child_info.containing_block_relationship) +
-      child_container_offset_from_parent_node_;
-  if (child_info.box->IsAbsolutelyPositioned()) {
-    // The containing block is formed by the padding box instead of the content
-    // box, as described in
-    // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
-    // NOTE: While not explicitly stated in the spec, which specifies that
-    // the containing block of a 'fixed' position element must always be the
-    // viewport, all major browsers use the padding box of a transformed
-    // ancestor as the containing block for 'fixed' position elements.
-    position_offset -=
-        child_containing_block->GetContentBoxOffsetFromPaddingBox();
-  }
+      child_info.box->GetContainingBlockOffsetFromItsContentBox(
+          child_containing_block);
 
   child_info.box->RenderAndAnimate(GetActiveNodeBuilder(), position_offset,
                                    stacking_context_);
@@ -580,12 +578,11 @@ void RenderAndAnimateStackingContextChildrenCoordinator::
             cssom::KeywordValue::GetHidden());
 
   // Determine the offset from the child container to this containing block's
-  // margin box.
+  // border box.
   Vector2dLayoutUnit containing_block_border_offset =
-      GetOffsetFromChildContainerToContainingBlock(containing_block,
-                                                   Box::kIsBoxAncestor) +
-      Vector2dLayoutUnit(containing_block->margin_left(),
-                         containing_block->margin_top());
+      GetOffsetFromChildContainerToContainingBlockContentBox(
+          containing_block, Box::kIsBoxAncestor) -
+      containing_block->GetContentBoxOffsetFromBorderBox();
 
   // Apply the overflow hidden from this containing block to its composition
   // node; the resulting filter node is added to the next active node builder.
@@ -608,8 +605,8 @@ RenderAndAnimateStackingContextChildrenCoordinator::GetActiveNodeBuilder() {
 }
 
 Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
-    GetOffsetFromChildContainerToContainingBlock(
-        const Box* containing_block,
+    GetOffsetFromChildContainerToContainingBlockContentBox(
+        const ContainerBox* containing_block,
         const Box::RelationshipToBox
             containing_block_relationship_to_child_container) const {
   if (containing_block_relationship_to_child_container == Box::kIsBox) {
@@ -617,12 +614,12 @@ Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
     return Vector2dLayoutUnit();
   }
 
-  Vector2dLayoutUnit relative_position;
-  const Box* current_box =
+  Vector2dLayoutUnit offset;
+  const ContainerBox* current_box =
       containing_block_relationship_to_child_container == Box::kIsBoxAncestor
           ? child_container_
           : containing_block;
-  const Box* end_box =
+  const ContainerBox* end_box =
       containing_block_relationship_to_child_container == Box::kIsBoxAncestor
           ? containing_block
           : child_container_;
@@ -637,13 +634,9 @@ Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
   // box).
   while (current_box != end_box && current_box->parent() &&
          !current_box->IsTransformed()) {
-    relative_position += current_box->GetContentBoxOffsetFromMarginBox();
-    relative_position += current_box->margin_box_offset_from_containing_block();
-
-    const Box* next_box = current_box->GetContainingBlock();
-    if (current_box->IsAbsolutelyPositioned()) {
-      relative_position -= next_box->GetContentBoxOffsetFromPaddingBox();
-    }
+    const ContainerBox* next_box = current_box->GetContainingBlock();
+    offset +=
+        current_box->GetContentBoxOffsetFromContainingBlockContentBox(next_box);
     current_box = next_box;
   }
 
@@ -656,25 +649,20 @@ Vector2dLayoutUnit RenderAndAnimateStackingContextChildrenCoordinator::
   while (current_box != end_box) {
     DCHECK(current_box->parent());
     DCHECK(!current_box->IsTransformed());
-
-    relative_position -= current_box->GetContentBoxOffsetFromMarginBox();
-    relative_position -= current_box->margin_box_offset_from_containing_block();
-
-    const Box* next_box = current_box->GetContainingBlock();
-    if (current_box->IsAbsolutelyPositioned()) {
-      relative_position += next_box->GetContentBoxOffsetFromPaddingBox();
-    }
+    const ContainerBox* next_box = current_box->GetContainingBlock();
+    offset -=
+        current_box->GetContentBoxOffsetFromContainingBlockContentBox(next_box);
     current_box = next_box;
   }
 
   // If the containing block is an ancestor of the child container, then
-  // reverse the relative position now. The earlier calculations were for the
-  // containing block being a descendant of the child container.
+  // reverse the offset now. The earlier calculations were for the containing
+  // block being a descendant of the child container.
   if (containing_block_relationship_to_child_container == Box::kIsBoxAncestor) {
-    relative_position = -relative_position;
+    offset = -offset;
   }
 
-  return relative_position;
+  return offset;
 }
 
 }  // namespace
@@ -849,8 +837,7 @@ void ContainerBox::RenderAndAnimateContent(
     stacking_context->UpdateCrossReferences();
   }
 
-  Vector2dLayoutUnit content_box_offset(border_left_width() + padding_left(),
-                                        border_top_width() + padding_top());
+  Vector2dLayoutUnit content_box_offset(GetContentBoxOffsetFromBorderBox());
 
   // Render all child stacking contexts and positioned children in our stacking
   // context that have negative z-index values.
