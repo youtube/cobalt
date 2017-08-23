@@ -36,6 +36,10 @@
   // the user agent
   readonly attribute Navigator navigator;
 
+  // base64 encoding and decoding
+  DOMString btoa(DOMString string_to_encode);
+  DOMString atob(DOMString encoded_string);
+
   // Custom, not in any spec.
   //
   readonly attribute Console console;
