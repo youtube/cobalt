@@ -105,10 +105,13 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
   float pressure = data.pressure;
   uint32 modifiers = data.key_modifiers;
-  if (data.device_type == kSbInputDeviceTypeTouchScreen) {
+  if (((data.device_type == kSbInputDeviceTypeTouchPad) ||
+       (data.device_type == kSbInputDeviceTypeTouchScreen))) {
     switch (type) {
       case InputEvent::kPointerDown:
       case InputEvent::kPointerMove:
+      case InputEvent::kTouchpadDown:
+      case InputEvent::kTouchpadMove:
         // For touch contact input, ensure that the device button state is also
         // reported as pressed.
         //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#button-states
@@ -141,11 +144,19 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
 void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
   switch (data.type) {
     case kSbInputEventTypePress: {
-      DispatchInputEvent(data, InputEvent::kPointerDown, false /* is_repeat */);
+      InputEvent::Type input_event_type =
+          data.device_type == kSbInputDeviceTypeTouchPad
+              ? InputEvent::kTouchpadDown
+              : InputEvent::kPointerDown;
+      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
       break;
     }
     case kSbInputEventTypeUnpress: {
-      DispatchInputEvent(data, InputEvent::kPointerUp, false /* is_repeat */);
+      InputEvent::Type input_event_type =
+          data.device_type == kSbInputDeviceTypeTouchPad
+              ? InputEvent::kTouchpadUp
+              : InputEvent::kPointerUp;
+      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
       break;
     }
 #if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
@@ -155,7 +166,11 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
     }
 #endif
     case kSbInputEventTypeMove: {
-      DispatchInputEvent(data, InputEvent::kPointerMove, false /* is_repeat */);
+      InputEvent::Type input_event_type =
+          data.device_type == kSbInputDeviceTypeTouchPad
+              ? InputEvent::kTouchpadMove
+              : InputEvent::kPointerMove;
+      DispatchInputEvent(data, input_event_type, false /* is_repeat */);
       break;
     }
     default:
@@ -169,7 +184,8 @@ void SystemWindow::HandleInputEvent(const SbInputData& data) {
 
   // Handle supported pointer device types.
   if ((kSbInputDeviceTypeMouse == data.device_type) ||
-      (kSbInputDeviceTypeTouchScreen == data.device_type)) {
+      (kSbInputDeviceTypeTouchScreen == data.device_type) ||
+      (kSbInputDeviceTypeTouchPad == data.device_type)) {
     HandlePointerInputEvent(data);
     return;
   }
