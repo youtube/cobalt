@@ -40,6 +40,9 @@ AnonymousBlockBox::AnonymousBlockBox(
 Box::Level AnonymousBlockBox::GetLevel() const { return kBlockLevel; }
 
 AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() { return this; }
+const AnonymousBlockBox* AnonymousBlockBox::AsAnonymousBlockBox() const {
+  return this;
+}
 
 void AnonymousBlockBox::SplitBidiLevelRuns() {
   ContainerBox::SplitBidiLevelRuns();

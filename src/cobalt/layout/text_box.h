@@ -43,6 +43,8 @@ class TextBox : public Box {
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
+  TextBox* AsTextBox() OVERRIDE;
+  const TextBox* AsTextBox() const OVERRIDE;
 
   void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
 

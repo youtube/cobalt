@@ -73,7 +73,10 @@ void TopmostEventTarget::ConsiderElement(
       const Boxes& boxes = layout_boxes->boxes();
       if (!boxes.empty()) {
         const Box* box = boxes.front();
-        box->UpdateCoordinateForTransform(&element_coordinate);
+        if (box->computed_style() && box->IsTransformed()) {
+          box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
+                                                &element_coordinate);
+        }
         ConsiderBoxes(html_element, layout_boxes, element_coordinate);
       }
     }
