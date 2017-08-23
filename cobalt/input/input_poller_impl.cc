@@ -63,30 +63,30 @@ void InputPollerImpl::UpdateInputEvent(
       switch (input_event->key_code()) {
         case kSbKeyGamepadLeftStickUp: {
           key_offset_map_[kSbKeyGamepadLeftStickUp] =
-              input_event->position().y();
-          key_offset_map_[kSbKeyGamepadLeftStickDown] =
               -input_event->position().y();
+          key_offset_map_[kSbKeyGamepadLeftStickDown] =
+              input_event->position().y();
           break;
         }
         case kSbKeyGamepadLeftStickLeft: {
           key_offset_map_[kSbKeyGamepadLeftStickLeft] =
-              input_event->position().x();
-          key_offset_map_[kSbKeyGamepadLeftStickRight] =
               -input_event->position().x();
+          key_offset_map_[kSbKeyGamepadLeftStickRight] =
+              input_event->position().x();
           break;
         }
         case kSbKeyGamepadRightStickUp: {
           key_offset_map_[kSbKeyGamepadRightStickUp] =
-              input_event->position().y();
-          key_offset_map_[kSbKeyGamepadRightStickDown] =
               -input_event->position().y();
+          key_offset_map_[kSbKeyGamepadRightStickDown] =
+              input_event->position().y();
           break;
         }
         case kSbKeyGamepadRightStickLeft: {
           key_offset_map_[kSbKeyGamepadRightStickLeft] =
-              input_event->position().x();
-          key_offset_map_[kSbKeyGamepadRightStickRight] =
               -input_event->position().x();
+          key_offset_map_[kSbKeyGamepadRightStickRight] =
+              input_event->position().x();
           break;
         }
         default:
