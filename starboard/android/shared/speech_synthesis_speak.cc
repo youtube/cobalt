@@ -22,7 +22,8 @@ using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbSpeechSynthesisSpeak(const char* text) {
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_text_string(env->NewStringUTFOrAbort(text));
+  ScopedLocalJavaRef<jstring> j_text_string(
+      env->NewStringStandardUTFOrAbort(text));
   env->CallActivityVoidMethodOrAbort(
       "speechSynthesisSpeak", "(Ljava/lang/String;)V", j_text_string.Get());
 }

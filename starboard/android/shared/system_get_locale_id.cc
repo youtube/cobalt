@@ -37,9 +37,7 @@ class LocaleInfo {
 
     ScopedLocalJavaRef<jstring> result(env->CallActivityObjectMethodOrAbort(
         "systemGetLocaleId", "()Ljava/lang/String;"));
-    const char* utf_chars = env->GetStringUTFChars(result.Get(), NULL);
-    locale_id = utf_chars;
-    env->ReleaseStringUTFChars(result.Get(), utf_chars);
+    locale_id = env->GetStringStandardUTFOrAbort(result.Get());
   }
 };
 

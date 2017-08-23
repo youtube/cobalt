@@ -336,11 +336,10 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
 
 extern "C" SB_EXPORT_PLATFORM
 void Java_foo_cobalt_coat_CobaltActivity_nativeHandleDeepLink(
-    JNIEnv* env, jobject unused_this, jstring j_url) {
+    JniEnvExt* env, jobject unused_this, jstring j_url) {
   if (j_url) {
-    const char* utf_chars = env->GetStringUTFChars(j_url, NULL);
-    ApplicationAndroid::Get()->HandleDeepLink(utf_chars);
-    env->ReleaseStringUTFChars(j_url, utf_chars);
+    std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
+    ApplicationAndroid::Get()->HandleDeepLink(utf_str.c_str());
   }
 }
 
@@ -351,9 +350,7 @@ static std::string GetStartIntentUrl() {
   ScopedLocalJavaRef<jstring> j_url(env->CallActivityObjectMethodOrAbort(
       "getStartIntentUrl", "()Ljava/lang/String;"));
   if (j_url) {
-    const char* utf_chars = env->GetStringUTFChars(j_url.Get(), NULL);
-    start_url.assign(utf_chars);
-    env->ReleaseStringUTFChars(j_url.Get(), utf_chars);
+    start_url = env->GetStringStandardUTFOrAbort(j_url.Get());
   }
   return start_url;
 }
@@ -370,9 +367,8 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   for (jint i = 0; i < argc; i++) {
     ScopedLocalJavaRef<jstring> element(
         env->GetObjectArrayElementOrAbort(args_array.Get(), i));
-    const char* utf_chars = env->GetStringUTFChars(element.Get(), NULL);
-    out_args->push_back(SbStringDuplicate(utf_chars));
-    env->ReleaseStringUTFChars(element.Get(), utf_chars);
+    std::string utf_str = env->GetStringStandardUTFOrAbort(element.Get());
+    out_args->push_back(SbStringDuplicate(utf_str.c_str()));
   }
 }
 

@@ -79,9 +79,8 @@ AndroidUserAuthorizer::CreateAccessToken(jobject j_token) {
   ScopedLocalJavaRef<jstring> j_token_string(env->CallObjectMethodOrAbort(
       j_token, "getTokenValue", "()Ljava/lang/String;"));
   if (j_token_string) {
-    const char* utf_chars = env->GetStringUTFChars(j_token_string.Get(), NULL);
-    access_token->token_value.assign(utf_chars);
-    env->ReleaseStringUTFChars(j_token_string.Get(), utf_chars);
+    access_token->token_value =
+        env->GetStringStandardUTFOrAbort(j_token_string.Get());
   }
 
   jlong j_expiry = env->CallLongMethodOrAbort(
