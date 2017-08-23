@@ -223,9 +223,12 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     ScopedLocalJavaRef<jobjectArray> j_artwork;
 
     if (media_metadata) {
-      j_title.Reset(env->NewStringUTF(media_metadata->title().c_str()));
-      j_artist.Reset(env->NewStringUTF(media_metadata->artist().c_str()));
-      j_album.Reset(env->NewStringUTF(media_metadata->album().c_str()));
+      j_title.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata->title().c_str()));
+      j_artist.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata->artist().c_str()));
+      j_album.Reset(
+          env->NewStringStandardUTFOrAbort(media_metadata->album().c_str()));
 
       const MediaImageSequence& artwork(media_metadata->artwork());
       if (!artwork.empty()) {
@@ -245,9 +248,12 @@ class AndroidMediaSessionClient : public MediaSessionClient {
         ScopedLocalJavaRef<jstring> j_type;
         for (MediaImageSequence::size_type i = 0; i < artwork.size(); i++) {
           const MediaImage& media_image(artwork.at(i));
-          j_src.Reset(env->NewStringUTF(media_image.src().c_str()));
-          j_sizes.Reset(env->NewStringUTF(media_image.sizes().c_str()));
-          j_type.Reset(env->NewStringUTF(media_image.type().c_str()));
+          j_src.Reset(
+              env->NewStringStandardUTFOrAbort(media_image.src().c_str()));
+          j_sizes.Reset(
+              env->NewStringStandardUTFOrAbort(media_image.sizes().c_str()));
+          j_type.Reset(
+              env->NewStringStandardUTFOrAbort(media_image.type().c_str()));
 
           ScopedLocalJavaRef<jobject> j_media_image(
               env->NewObject(media_image_class.Get(), media_image_constructor,
