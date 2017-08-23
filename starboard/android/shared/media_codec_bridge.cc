@@ -28,7 +28,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringUTFOrAbort(mime));
+  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
       "(Ljava/lang/String;ZZIILandroid/media/MediaCrypto;)Lfoo/cobalt/media/"
@@ -57,7 +57,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     return scoped_ptr<MediaCodecBridge>(NULL);
   }
   JniEnvExt* env = JniEnvExt::Get();
-  ScopedLocalJavaRef<jstring> j_mime(env->NewStringUTFOrAbort(mime));
+  ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
 
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",

@@ -21,6 +21,7 @@
 #endif  // SB_HAS_SPEECH_API_KEY
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 #include "starboard/log.h"
 #include "starboard/string.h"
 
@@ -29,6 +30,7 @@
 #define STRINGIZE(x) STRINGIZE_NO_EXPANSION(x)
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 namespace {
 
@@ -128,14 +130,13 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
 #endif  // SB_HAS_SPEECH_API_KEY
     case kSbSystemPropertyUserAgentAuxField: {
       JniEnvExt* env = JniEnvExt::Get();
-      jstring aux_string = (jstring)env->CallActivityObjectMethodOrAbort(
-          "getUserAgentAuxField", "()Ljava/lang/String;");
+      ScopedLocalJavaRef<jstring> aux_string(
+          env->CallActivityObjectMethodOrAbort(
+              "getUserAgentAuxField", "()Ljava/lang/String;"));
 
-      const char* utf_chars = env->GetStringUTFChars(aux_string, NULL);
+      std::string utf_str = env->GetStringStandardUTFOrAbort(aux_string.Get());
       bool success =
-          CopyStringAndTestIfSuccess(out_value, value_length, utf_chars);
-      env->ReleaseStringUTFChars(aux_string, utf_chars);
-      env->DeleteLocalRef(aux_string);
+          CopyStringAndTestIfSuccess(out_value, value_length, utf_str.c_str());
       return success;
     }
     default:

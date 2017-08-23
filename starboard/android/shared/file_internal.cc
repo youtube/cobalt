@@ -39,9 +39,8 @@ AAssetManager* g_asset_manager;
 // with the result.
 const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
   SB_DCHECK(j_string);
-  const char* utf_chars = env->GetStringUTFChars(j_string, 0);
-  const char* result = SbStringDuplicate(utf_chars);
-  env->ReleaseStringUTFChars(j_string, utf_chars);
+  std::string utf_str = env->GetStringStandardUTFOrAbort(j_string);
+  const char* result = SbStringDuplicate(utf_str.c_str());
   return result;
 }
 

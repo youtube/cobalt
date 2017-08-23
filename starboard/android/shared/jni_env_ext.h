@@ -19,7 +19,9 @@
 #include <jni.h>
 
 #include <cstdarg>
+#include <string>
 
+#include "base/utf_string_conversions.h"
 #include "starboard/log.h"
 
 namespace starboard {
@@ -102,8 +104,34 @@ struct JniEnvExt : public JNIEnv {
     return result;
   }
 
-  jstring NewStringUTFOrAbort(const char* bytes) {
-    jstring result = NewStringUTF(bytes);
+  // Constructs a new java.lang.String object from an array of characters in
+  // standard UTF-8 encoding. This differs from JNIEnv::NewStringUTF() which
+  // takes JNI modified UTF-8.
+  jstring NewStringStandardUTFOrAbort(const char* bytes) {
+    string16 utf16 = UTF8ToUTF16(std::string(bytes));
+    jstring result = NewString(utf16.data(), utf16.length());
+    AbortOnException();
+    return result;
+  }
+
+  // Returns a std::string representing the jstring in standard UTF-8 encoding.
+  // This differs from JNIEnv::GetStringUTFChars() which returns modified UTF-8.
+  // Also, the buffer of the returned bytes is managed by the std::string object
+  // so it is not necessary to release it with JNIEnv::ReleaseStringUTFChars().
+  std::string GetStringStandardUTFOrAbort(jstring str) {
+    std::string result;
+    if (str == NULL) {
+      return result;
+    }
+    const jsize length = GetStringLength(str);
+    AbortOnException();
+    if (length == 0) {
+      return result;
+    }
+    const jchar* chars = GetStringChars(str, NULL);
+    SB_DCHECK(chars);
+    UTF16ToUTF8(static_cast<const char16*>(chars), length, &result);
+    ReleaseStringChars(str, chars);
     AbortOnException();
     return result;
   }
