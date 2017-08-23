@@ -74,7 +74,9 @@ class FilterNode : public Node {
     base::optional<MapToMeshFilter> map_to_mesh_filter;
   };
 
-  explicit FilterNode(const Builder& builder) : data_(builder) {}
+  explicit FilterNode(const Builder& builder) : data_(builder) {
+    AssertValid();
+  }
 
   FilterNode(const OpacityFilter& opacity_filter,
              const scoped_refptr<render_tree::Node>& source);
@@ -98,6 +100,8 @@ class FilterNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
+  void AssertValid() const;
+
   const Builder data_;
 };
 

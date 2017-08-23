@@ -14,6 +14,11 @@
 
 #include "starboard/storage.h"
 
-bool SbStorageDeleteRecord(SbUser /*user*/) {
+bool SbStorageDeleteRecord(SbUser /*user*/
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+                           ,
+                           const char* /*name*/
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+                           ) {
   return false;
 }

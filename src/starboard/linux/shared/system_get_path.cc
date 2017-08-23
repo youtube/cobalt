@@ -36,14 +36,12 @@ bool GetCacheDirectory(char* out_path, int path_size) {
                          home_path, kMaxPathSize)) {
     return false;
   }
-  int result =
-      SbStringFormatF(out_path, path_size, "%s/.cache/cobalt", home_path);
+  int result = SbStringFormatF(out_path, path_size, "%s/.cache", home_path);
   if (result < 0 || result >= path_size) {
     out_path[0] = '\0';
     return false;
   }
-
-  return true;
+  return SbDirectoryCreate(out_path);
 }
 
 // Places up to |path_size| - 1 characters of the path to the current
@@ -144,7 +142,12 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
       if (!GetCacheDirectory(path, kPathSize)) {
         return false;
       }
-      SbDirectoryCreate(path);
+      if (SbStringConcat(path, "/cobalt", kPathSize) >= kPathSize) {
+        return false;
+      }
+      if (!SbDirectoryCreate(path)) {
+        return false;
+      }
       break;
     case kSbSystemPathDebugOutputDirectory:
       if (!SbSystemGetPath(kSbSystemPathTempDirectory, path, kPathSize)) {

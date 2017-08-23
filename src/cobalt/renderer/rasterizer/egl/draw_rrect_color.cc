@@ -52,7 +52,6 @@ DrawRRectColor::DrawRRectColor(GraphicsState* graphics_state,
       corners_(corners),
       vertex_buffer_(NULL) {
   color_ = GetGLRGBA(color * base_state_.opacity);
-  corners_.Normalize(rect_);
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 

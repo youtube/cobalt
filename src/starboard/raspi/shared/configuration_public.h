@@ -396,6 +396,13 @@
 // The maximum number of users that can be signed in at the same time.
 #define SB_USER_MAX_SIGNED_IN 1
 
+// The Raspberry Pi does not apparently align fields in a heap-allocated struct
+// by over 16 bytes.
+#define SB_HAS_QUIRK_DOES_NOT_ALIGN_FIELDS_IN_HEAP_OVER_16_BYTES 1
+
+// The Raspberry Pi does not apparently align stack variables by over 16 bytes.
+#define SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES 1
+
 // --- Timing API ------------------------------------------------------------
 
 // Whether this platform has an API to retrieve how long the current thread

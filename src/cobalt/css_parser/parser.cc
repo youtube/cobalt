@@ -229,7 +229,6 @@ class ParserImpl {
 };
 
 // TODO: Stop deduplicating warnings.
-#ifdef __LB_SHELL__FORCE_LOGGING__
 namespace {
 
 struct NonTrivialStaticFields {
@@ -242,7 +241,6 @@ base::LazyInstance<NonTrivialStaticFields> non_trivial_static_fields =
     LAZY_INSTANCE_INITIALIZER;
 
 }  // namespace
-#endif  // __LB_SHELL__FORCE_LOGGING__
 
 ParserImpl::ParserImpl(const std::string& input,
                        const base::SourceLocation& input_location,

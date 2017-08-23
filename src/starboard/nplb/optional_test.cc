@@ -16,36 +16,37 @@
 
 #include <set>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
-#include "base/hash_tables.h"
-#include "base/optional.h"
+#include "starboard/common/optional.h"
 
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::InSequence;
 
-typedef base::optional<int> OptionalInt;
+namespace starboard {
+namespace {
 
 TEST(OptionalTest, EnsureDefaultConstructorGivesDisengagedOptional) {
-  OptionalInt test;
+  optional<int> test;
   EXPECT_TRUE(!test);
 }
 
 TEST(OptionalTest, EnsureNullOptConstructorGivesDisengagedOptional) {
-  OptionalInt test(base::nullopt);
+  optional<int> test(nullopt);
   EXPECT_TRUE(!test);
 }
 
 TEST(OptionalTest, InitializeConstructor) {
-  OptionalInt test(2);
+  optional<int> test(2);
   EXPECT_FALSE(!test);
   EXPECT_EQ(2, test.value());
 }
 
 TEST(OptionalTest, BoolCastOperator) {
-  OptionalInt test;
+  optional<int> test;
   EXPECT_FALSE(static_cast<bool>(test));
 
   test = 5;
@@ -53,22 +54,22 @@ TEST(OptionalTest, BoolCastOperator) {
 }
 
 TEST(OptionalTest, InitializeAssign) {
-  OptionalInt test = 2;
+  optional<int> test = 2;
   EXPECT_FALSE(!test);
   EXPECT_EQ(2, test.value());
 }
 
 TEST(OptionalTest, ReassignValue) {
-  OptionalInt test(2);
+  optional<int> test(2);
   test = 5;
   EXPECT_FALSE(!test);
   EXPECT_EQ(5, test.value());
 }
 
 TEST(OptionalTest, CopyAssignment) {
-  OptionalInt a;
-  OptionalInt b = 2;
-  OptionalInt c = 3;
+  optional<int> a;
+  optional<int> b = 2;
+  optional<int> c = 3;
   a = b;
   EXPECT_FALSE(!a);
   EXPECT_EQ(2, a.value());
@@ -79,34 +80,34 @@ TEST(OptionalTest, CopyAssignment) {
 }
 
 TEST(OptionalTest, ClearAssignment) {
-  OptionalInt test(2);
-  test = OptionalInt();
+  optional<int> test(2);
+  test = optional<int>();
   EXPECT_FALSE(test);
 }
 
 TEST(OptionalTest, EnsureAssignmentOfNullOptResultsInDisengagement) {
-  OptionalInt test(2);
-  test = base::nullopt;
+  optional<int> test(2);
+  test = nullopt;
   EXPECT_FALSE(test);
 }
 
 TEST(OptionalTest, EnsureAssignmentOfDefaultOptionalResultsInDisengagement) {
-  OptionalInt test(2);
-  test = OptionalInt();
+  optional<int> test(2);
+  test = optional<int>();
   EXPECT_FALSE(test);
 }
 
 TEST(OptionalTest, CopyConstruction) {
-  OptionalInt test1(2);
-  OptionalInt test2(test1);
+  optional<int> test1(2);
+  optional<int> test2(test1);
 
   EXPECT_FALSE(!test2);
   EXPECT_EQ(2, test2.value());
 }
 
 TEST(OptionalTest, Swap) {
-  OptionalInt test1(1);
-  OptionalInt test2(2);
+  optional<int> test1(1);
+  optional<int> test2(2);
 
   // Swap two engaged optionals.
   test1.swap(test2);
@@ -115,7 +116,7 @@ TEST(OptionalTest, Swap) {
   EXPECT_EQ(1, test2.value());
 
   // Swap two optionals where only one is engaged.
-  test1 = base::nullopt;
+  test1 = nullopt;
   test1.swap(test2);
   EXPECT_FALSE(test2);
   EXPECT_FALSE(!test1);
@@ -128,15 +129,15 @@ TEST(OptionalTest, Swap) {
   EXPECT_EQ(1, test2.value());
 
   // Swap two disengaged optionals.
-  test2 = base::nullopt;
+  test2 = nullopt;
   test1.swap(test2);
   EXPECT_FALSE(test1);
   EXPECT_FALSE(test2);
 }
 
 TEST(OptionalTest, StdSwap) {
-  OptionalInt test1(1);
-  OptionalInt test2(2);
+  optional<int> test1(1);
+  optional<int> test2(2);
 
   // Swap two engaged optionals.
   std::swap(test1, test2);
@@ -145,7 +146,7 @@ TEST(OptionalTest, StdSwap) {
   EXPECT_EQ(1, test2.value());
 
   // Swap two optionals where only one is engaged.
-  test1 = base::nullopt;
+  test1 = nullopt;
   std::swap(test1, test2);
   EXPECT_FALSE(test2);
   EXPECT_FALSE(!test1);
@@ -158,14 +159,14 @@ TEST(OptionalTest, StdSwap) {
   EXPECT_EQ(1, test2.value());
 
   // Swap two disengaged optionals.
-  test2 = base::nullopt;
+  test2 = nullopt;
   std::swap(test1, test2);
   EXPECT_FALSE(test1);
   EXPECT_FALSE(test2);
 }
 
 TEST(OptionalTest, SwapWithSelf) {
-  OptionalInt test(1);
+  optional<int> test(1);
 
   test.swap(test);
   EXPECT_EQ(1, test.value());
@@ -175,35 +176,32 @@ TEST(OptionalTest, SwapWithSelf) {
 }
 
 TEST(OptionalTest, AsteriskDereference) {
-  OptionalInt test(2);
+  optional<int> test(2);
   EXPECT_EQ(2, *test);
 
   *test = 5;
   EXPECT_EQ(5, test.value());
 }
 
-namespace {
 struct TestStruct {
   int foobar;
 };
-}  // namespace
 
 TEST(OptionalTest, ArrowDereference) {
   TestStruct a;
   a.foobar = 2;
 
-  base::optional<TestStruct> test(a);
+  optional<TestStruct> test(a);
   EXPECT_EQ(2, test->foobar);
 
   test->foobar = 5;
   EXPECT_EQ(5, test.value().foobar);
 
   // Test const arrow dereference.
-  const base::optional<TestStruct> test_const(a);
+  const optional<TestStruct> test_const(a);
   EXPECT_EQ(2, test_const->foobar);
 }
 
-namespace {
 class NoDefaultTest {
  public:
   explicit NoDefaultTest(int i) { foobar_ = i; }
@@ -214,48 +212,47 @@ class NoDefaultTest {
 
   int foobar_;
 };
-}  // namespace
 
 TEST(OptionalTest, NoDefaultConstructorIsSupported) {
   // First test with an object passed in upon construction
-  base::optional<NoDefaultTest> test1(NoDefaultTest(2));
+  optional<NoDefaultTest> test1(NoDefaultTest(2));
   EXPECT_EQ(2, test1.value().foobar());
 
   // Now test with an object assignment after construction
-  base::optional<NoDefaultTest> test2;
+  optional<NoDefaultTest> test2;
   test2 = NoDefaultTest(5);
   EXPECT_EQ(5, test2.value().foobar());
 }
 
 TEST(OptionalTest, TestEquivalenceComparisons) {
-  OptionalInt test1 = 1;
-  OptionalInt test2 = 2;
-  OptionalInt test3;
-  OptionalInt test4 = 2;
+  optional<int> test1 = 1;
+  optional<int> test2 = 2;
+  optional<int> test3;
+  optional<int> test4 = 2;
 
-  EXPECT_FALSE(test1 == test2);
-  EXPECT_FALSE(test2 == test1);
-  EXPECT_FALSE(test1 == test3);
-  EXPECT_FALSE(test3 == test1);
-  EXPECT_FALSE(2 == test1);
-  EXPECT_FALSE(test1 == 2);
+  EXPECT_FALSE(test1 == test2);  // NOLINT(readability/check)
+  EXPECT_FALSE(test2 == test1);  // NOLINT(readability/check)
+  EXPECT_FALSE(test1 == test3);  // NOLINT(readability/check)
+  EXPECT_FALSE(test3 == test1);  // NOLINT(readability/check)
+  EXPECT_FALSE(2 == test1);      // NOLINT(readability/check)
+  EXPECT_FALSE(test1 == 2);      // NOLINT(readability/check)
   EXPECT_EQ(1, test1);
   EXPECT_EQ(test1, 1);
   EXPECT_EQ(test4, test2);
   EXPECT_EQ(test2, test4);
 
   // Test nullopt comparisons
-  EXPECT_TRUE(test3 == base::nullopt);
-  EXPECT_TRUE(base::nullopt == test3);
-  EXPECT_FALSE(test1 == base::nullopt);
-  EXPECT_FALSE(base::nullopt == test1);
+  EXPECT_TRUE(test3 == nullopt);
+  EXPECT_TRUE(nullopt == test3);
+  EXPECT_FALSE(test1 == nullopt);
+  EXPECT_FALSE(nullopt == test1);
 }
 
 TEST(OptionalTest, TestLessThanComparisons) {
-  OptionalInt test1 = 1;
-  OptionalInt test2 = 2;
-  OptionalInt test3;
-  OptionalInt test4 = 2;
+  optional<int> test1 = 1;
+  optional<int> test2 = 2;
+  optional<int> test3;
+  optional<int> test4 = 2;
 
   EXPECT_TRUE(test1 < test2);
   EXPECT_FALSE(test2 < test1);
@@ -264,17 +261,17 @@ TEST(OptionalTest, TestLessThanComparisons) {
   EXPECT_FALSE(test1 < test3);
   EXPECT_FALSE(test3 < test3);
 
-  EXPECT_TRUE(base::nullopt < test1);
-  EXPECT_FALSE(test1 < base::nullopt);
+  EXPECT_TRUE(nullopt < test1);
+  EXPECT_FALSE(test1 < nullopt);
 
-  EXPECT_TRUE(test1 < 2);
-  EXPECT_FALSE(2 < test1);
+  EXPECT_TRUE(test1 < 2);   // NOLINT(readability/check)
+  EXPECT_FALSE(2 < test1);  // NOLINT(readability/check)
 }
 
 TEST(OptionalTest, EnsureOptionalWorksWithFunnyAlignments) {
   struct {
     char c;
-    base::optional<uint64_t> number;
+    optional<uint64_t> number;
   } foo;
 
   EXPECT_FALSE(!!foo.number);
@@ -283,39 +280,33 @@ TEST(OptionalTest, EnsureOptionalWorksWithFunnyAlignments) {
   EXPECT_EQ(1, foo.number.value());
 }
 
-namespace {
-
 class DestructorCallTester {
  public:
-  DestructorCallTester() {};
-  DestructorCallTester(const DestructorCallTester&) {};
+  DestructorCallTester() {}
+  DestructorCallTester(const DestructorCallTester&) {}
   ~DestructorCallTester() { Die(); }
   MOCK_METHOD0(Die, void());
 };
 
-}  // namespace
-
 TEST(OptionalTest, EnsureDestructorIsCalled) {
   {
     // Ensure destructor is called upon optional destruction
-    base::optional<DestructorCallTester> test(base::in_place);
+    optional<DestructorCallTester> test(in_place);
     EXPECT_CALL(test.value(), Die());
   }
 
   {
     // Ensure destructor is called upon assignment to null
-    base::optional<DestructorCallTester> test1(base::in_place);
-    base::optional<DestructorCallTester> test2(base::in_place);
+    optional<DestructorCallTester> test1(in_place);
+    optional<DestructorCallTester> test2(in_place);
     {
       InSequence s;
       EXPECT_CALL(test1.value(), Die());
       EXPECT_CALL(test2.value(), Die());
     }
-    test1 = base::nullopt;
+    test1 = nullopt;
   }
 }
-
-namespace {
 
 // This class counts all calls to the set of methods declared in the class.
 // It can be used to verify that certain methods are indeed called.
@@ -333,87 +324,174 @@ class MethodCallCounter {
     ++copy_constructor_calls_;
   }
 
+  MethodCallCounter(MethodCallCounter&& other) {  // NOLINT(build/c++11)
+    // A very non-standard move constructor, since this is a test object
+    // intended to count method calls on this object and only this object.
+    ResetCounts();
+    ++move_constructor_calls_;
+  }
+
   MethodCallCounter& operator=(const MethodCallCounter& other) {
-    ++operator_equals_calls_;
+    ++assignment_calls_;
     return *this;
   }
 
-  int default_constructor_calls() const { return default_constructor_calls_; }
+  // NOLINTNEXTLINE(build/c++11)
+  MethodCallCounter& operator=(MethodCallCounter&& other) {
+    ++move_assignment_calls_;
+    return *this;
+  }
+
+  int assignment_calls() const { return assignment_calls_; }
   int copy_constructor_calls() const { return copy_constructor_calls_; }
-  int operator_equals_calls() const { return operator_equals_calls_; }
+  int default_constructor_calls() const { return default_constructor_calls_; }
+  int move_assignment_calls() const { return move_assignment_calls_; }
+  int move_constructor_calls() const { return move_constructor_calls_; }
 
  private:
   void ResetCounts() {
-    default_constructor_calls_ = 0;
+    assignment_calls_ = 0;
     copy_constructor_calls_ = 0;
-    operator_equals_calls_ = 0;
+    default_constructor_calls_ = 0;
+    move_assignment_calls_ = 0;
+    move_constructor_calls_ = 0;
   }
 
-  int default_constructor_calls_;
+  int assignment_calls_;
   int copy_constructor_calls_;
-  int operator_equals_calls_;
+  int default_constructor_calls_;
+  int move_assignment_calls_;
+  int move_constructor_calls_;
 };
-
-}  // namespace
 
 TEST(OptionalTest, CopyConstructorIsCalledByValueCopyConstructor) {
   MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test(original_counter);
-  EXPECT_EQ(0, test->default_constructor_calls());
+  optional<MethodCallCounter> test(original_counter);
+  EXPECT_EQ(0, test->assignment_calls());
   EXPECT_EQ(1, test->copy_constructor_calls());
-  EXPECT_EQ(0, test->operator_equals_calls());
+  EXPECT_EQ(0, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(0, test->move_constructor_calls());
 }
 
 TEST(OptionalTest, CopyConstructorIsCalledByOptionalCopyConstructor) {
-  MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test1(original_counter);
-  base::optional<MethodCallCounter> test2(test1);
-  EXPECT_EQ(0, test2->default_constructor_calls());
-  EXPECT_EQ(1, test2->copy_constructor_calls());
-  EXPECT_EQ(0, test2->operator_equals_calls());
-}
+  optional<MethodCallCounter> test1(in_place);
+  optional<MethodCallCounter> test2(test1);
 
-TEST(OptionalTest, CopyConstructorIsCalledByValueAssignment) {
-  MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test;
-  test = original_counter;
-  EXPECT_EQ(0, test->default_constructor_calls());
-  EXPECT_EQ(1, test->copy_constructor_calls());
-  EXPECT_EQ(0, test->operator_equals_calls());
+  EXPECT_EQ(0, test2->assignment_calls());
+  EXPECT_EQ(1, test2->copy_constructor_calls());
+  EXPECT_EQ(0, test2->default_constructor_calls());
+  EXPECT_EQ(0, test2->move_assignment_calls());
+  EXPECT_EQ(0, test2->move_constructor_calls());
 }
 
 TEST(OptionalTest, CopyConstructorIsCalledByOptionalAssignment) {
-  MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test1(original_counter);
-  base::optional<MethodCallCounter> test2;
+  optional<MethodCallCounter> test1(in_place);
+  optional<MethodCallCounter> test2;
   test2 = test1;
-  EXPECT_EQ(0, test2->default_constructor_calls());
+
+  EXPECT_EQ(0, test2->assignment_calls());
   EXPECT_EQ(1, test2->copy_constructor_calls());
-  EXPECT_EQ(0, test2->operator_equals_calls());
+  EXPECT_EQ(0, test2->default_constructor_calls());
+  EXPECT_EQ(0, test2->move_assignment_calls());
+  EXPECT_EQ(0, test2->move_constructor_calls());
 }
 
 TEST(OptionalTest, AssignmentIsCalledByValueAssignment) {
   MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test(original_counter);
+  optional<MethodCallCounter> test(in_place);
   test = original_counter;
-  EXPECT_EQ(0, test->default_constructor_calls());
-  EXPECT_EQ(1, test->copy_constructor_calls());
-  EXPECT_EQ(1, test->operator_equals_calls());
+
+  EXPECT_EQ(1, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(1, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(0, test->move_constructor_calls());
 }
 
 TEST(OptionalTest, AssignmentIsCalledByOptionalAssignment) {
-  MethodCallCounter original_counter;
-  base::optional<MethodCallCounter> test1(original_counter);
-  base::optional<MethodCallCounter> test2(original_counter);
+  optional<MethodCallCounter> test1(in_place);
+  optional<MethodCallCounter> test2(in_place);
   test2 = test1;
-  EXPECT_EQ(0, test2->default_constructor_calls());
-  EXPECT_EQ(1, test2->copy_constructor_calls());
-  EXPECT_EQ(1, test2->operator_equals_calls());
+
+  EXPECT_EQ(1, test2->assignment_calls());
+  EXPECT_EQ(0, test2->copy_constructor_calls());
+  EXPECT_EQ(1, test2->default_constructor_calls());
+  EXPECT_EQ(0, test2->move_assignment_calls());
+  EXPECT_EQ(0, test2->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveConstructorIsCalledOnOptionalMoveConstructor) {
+  optional<MethodCallCounter> test(
+      std::move(optional<MethodCallCounter>(in_place)));
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(0, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(1, test->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveConstructorIsCalledOnUnengagedOptionalMoveAssignment) {
+  optional<MethodCallCounter> test;
+  test = std::move(optional<MethodCallCounter>(in_place));
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(0, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(1, test->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveAssignmentIsCalledOnEngagedMoveOptionalAssignment) {
+  optional<MethodCallCounter> test(in_place);
+  test = std::move(optional<MethodCallCounter>(in_place));
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(1, test->default_constructor_calls());
+  EXPECT_EQ(1, test->move_assignment_calls());
+  EXPECT_EQ(0, test->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveConstructorIsCalledOnUnengagedMoveValueConstructor) {
+  MethodCallCounter original_counter;
+  optional<MethodCallCounter> test(std::move(original_counter));
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(0, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(1, test->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveConstructorIsCalledOnUnengagedMoveValueAssignment) {
+  MethodCallCounter original_counter;
+  optional<MethodCallCounter> test;
+  test = std::move(original_counter);
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(0, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(1, test->move_constructor_calls());
+}
+
+TEST(OptionalTest, MoveAssignmentIsCalledOnEngagedMoveValueAssignment) {
+  MethodCallCounter original_counter;
+  optional<MethodCallCounter> test(in_place);
+  test = std::move(original_counter);
+
+  EXPECT_EQ(0, test->assignment_calls());
+  EXPECT_EQ(0, test->copy_constructor_calls());
+  EXPECT_EQ(1, test->default_constructor_calls());
+  EXPECT_EQ(1, test->move_assignment_calls());
+  EXPECT_EQ(0, test->move_constructor_calls());
 }
 
 TEST(OptionalTest, EnsureSelfAssignmentIsOkay) {
   // Ensure that values are as we expect them to be.
-  OptionalInt test1(5);
+  optional<int> test1(5);
 
   test1 = test1;
 
@@ -421,21 +499,21 @@ TEST(OptionalTest, EnsureSelfAssignmentIsOkay) {
   EXPECT_EQ(5, test1.value());
 
   // Ensure that the methods we expect to be called are actually called.
-  base::optional<MethodCallCounter> test2(base::in_place);
+  optional<MethodCallCounter> test2(in_place);
 
   test2 = test2;
 
-  EXPECT_EQ(1, test2->default_constructor_calls());
+  EXPECT_EQ(1, test2->assignment_calls());
   EXPECT_EQ(0, test2->copy_constructor_calls());
-  EXPECT_EQ(1, test2->operator_equals_calls());
+  EXPECT_EQ(1, test2->default_constructor_calls());
+  EXPECT_EQ(0, test2->move_assignment_calls());
+  EXPECT_EQ(0, test2->move_constructor_calls());
 }
-
-namespace {
 
 // Helper classes to ensure that we can assign different values to optionals
 // so long as the wrapped value can be assigned and constructed from the other.
 struct XType {
-  XType(int number) { number_ = number; }
+  explicit XType(int number) { number_ = number; }
 
   int number_;
 };
@@ -453,11 +531,9 @@ struct YType {
   int number_;
 };
 
-}  // namespace
-
 TEST(OptionalTest, CopyConstructorIsCalledByValueAssignmentFromOtherType) {
   XType x_type(1);
-  base::optional<YType> test;
+  optional<YType> test;
   test = x_type;
   EXPECT_FALSE(!test);
   EXPECT_EQ(1, test->number_);
@@ -465,21 +541,21 @@ TEST(OptionalTest, CopyConstructorIsCalledByValueAssignmentFromOtherType) {
 
 TEST(OptionalTest, AssignmentIsCalledByValueAssignmentFromOtherType) {
   XType x_type(1);
-  base::optional<YType> test(base::in_place, 2);
+  optional<YType> test(in_place, 2);
   test = x_type;
   EXPECT_FALSE(!test);
   EXPECT_EQ(1, test->number_);
 }
 
 TEST(OptionalTest, TestMakeOptional) {
-  OptionalInt test = base::make_optional(5);
+  optional<int> test = make_optional(5);
 
   EXPECT_FALSE(!test);
   EXPECT_EQ(5, test.value());
 }
 
 TEST(OptionalTest, ValueOrTest) {
-  OptionalInt test;
+  optional<int> test;
 
   EXPECT_EQ(4, test.value_or(4));
 
@@ -489,19 +565,19 @@ TEST(OptionalTest, ValueOrTest) {
 }
 
 TEST(OptionalTest, ConstOptionalsTest) {
-  const OptionalInt test1(5);
+  const optional<int> test1(5);
 
   EXPECT_FALSE(!test1);
   EXPECT_EQ(5, test1.value());
   EXPECT_EQ(5, *test1);
 
-  const OptionalInt test2(test1);
+  const optional<int> test2(test1);
 
   EXPECT_FALSE(!test2);
   EXPECT_EQ(5, test2.value());
   EXPECT_EQ(5, *test2);
 
-  OptionalInt test3;
+  optional<int> test3;
   test3 = test2;
 
   EXPECT_FALSE(!test3);
@@ -510,7 +586,7 @@ TEST(OptionalTest, ConstOptionalsTest) {
 }
 
 TEST(OptionalTest, EmplaceInt) {
-  OptionalInt test;
+  optional<int> test;
 
   test.emplace(5);
   EXPECT_FALSE(!test);
@@ -518,16 +594,16 @@ TEST(OptionalTest, EmplaceInt) {
 }
 
 TEST(OptionalTest, EmplaceWithDefaultConstructor) {
-  base::optional<MethodCallCounter> test;
+  optional<MethodCallCounter> test;
   test.emplace();
 
   EXPECT_FALSE(!test);
-  EXPECT_EQ(1, test->default_constructor_calls());
+  EXPECT_EQ(0, test->assignment_calls());
   EXPECT_EQ(0, test->copy_constructor_calls());
-  EXPECT_EQ(0, test->operator_equals_calls());
+  EXPECT_EQ(1, test->default_constructor_calls());
+  EXPECT_EQ(0, test->move_assignment_calls());
+  EXPECT_EQ(0, test->move_constructor_calls());
 }
-
-namespace {
 
 class NoDefaultOrCopyConstructor {
  public:
@@ -547,17 +623,13 @@ class NoDefaultOrCopyConstructor {
   int y_;
 };
 
-}  // namespace
-
 TEST(OptionalTest, EmplaceObjectWithNoDefaultOrCopyConstructor) {
-  base::optional<NoDefaultOrCopyConstructor> test;
+  optional<NoDefaultOrCopyConstructor> test;
   test.emplace(1, 2);
   EXPECT_FALSE(!test);
   EXPECT_EQ(1, test->x());
   EXPECT_EQ(2, test->y());
 }
-
-namespace {
 
 class NonConstPointerInConstructor {
  public:
@@ -569,32 +641,30 @@ class NonConstPointerInConstructor {
   int* param_;
 };
 
-}  // namespace
-
 TEST(OptionalTest, EmplaceObjectWithNonConstPointer) {
   int value = 0;
-  base::optional<NonConstPointerInConstructor> test;
+  optional<NonConstPointerInConstructor> test;
   test.emplace(&value);
   test->SetParam(5);
   EXPECT_EQ(5, value);
 }
 
 TEST(OptionalTest, ForwardingConstructorInt) {
-  OptionalInt test(base::in_place, 5);
+  optional<int> test(in_place, 5);
   EXPECT_FALSE(!test);
   EXPECT_EQ(5, test.value());
 }
 
 TEST(OptionalTest, ForwardingConstructorWithDefaultConstructor) {
-  base::optional<MethodCallCounter> test(base::in_place);
+  optional<MethodCallCounter> test(in_place);
   EXPECT_FALSE(!test);
   EXPECT_EQ(1, test->default_constructor_calls());
   EXPECT_EQ(0, test->copy_constructor_calls());
-  EXPECT_EQ(0, test->operator_equals_calls());
+  EXPECT_EQ(0, test->assignment_calls());
 }
 
 TEST(OptionalTest, ForwardingConstructorObjectWithNoDefaultOrCopyConstructor) {
-  base::optional<NoDefaultOrCopyConstructor> test(base::in_place, 1, 2);
+  optional<NoDefaultOrCopyConstructor> test(in_place, 1, 2);
   EXPECT_FALSE(!test);
   EXPECT_EQ(1, test->x());
   EXPECT_EQ(2, test->y());
@@ -602,18 +672,14 @@ TEST(OptionalTest, ForwardingConstructorObjectWithNoDefaultOrCopyConstructor) {
 
 TEST(OptionalTest, ForwardingConstructorObjectWithNonConstPointer) {
   int value = 0;
-  base::optional<NonConstPointerInConstructor> test(base::in_place, &value);
+  optional<NonConstPointerInConstructor> test(in_place, &value);
   test->SetParam(5);
   EXPECT_EQ(5, value);
 }
 
-namespace {
-typedef base::optional<std::string> OptionalString;
-}  // namespace
-
 TEST(OptionalTest, OptionalStringTest) {
   {
-    OptionalString test;
+    optional<std::string> test;
     EXPECT_TRUE(!test);
 
     test = std::string("foo");
@@ -621,18 +687,18 @@ TEST(OptionalTest, OptionalStringTest) {
   }
 
   {
-    OptionalString test(std::string("foo"));
+    optional<std::string> test(std::string("foo"));
     EXPECT_FALSE(!test);
 
     EXPECT_STREQ("foo", test->c_str());
-    OptionalString test2(test);
+    optional<std::string> test2(test);
     EXPECT_STREQ("foo", test2->c_str());
   }
 }
 
 TEST(OptionalTest, OptionalStringInSetTest) {
   // Optional strings in map test
-  std::set<OptionalString> optional_string_set;
+  std::set<optional<std::string>> optional_string_set;
 
   optional_string_set.insert(std::string("foo"));
   optional_string_set.insert(std::string("bar"));
@@ -641,38 +707,36 @@ TEST(OptionalTest, OptionalStringInSetTest) {
               optional_string_set.end());
   EXPECT_TRUE(optional_string_set.find(std::string("bar")) !=
               optional_string_set.end());
-  EXPECT_FALSE(optional_string_set.find(OptionalString()) !=
+  EXPECT_FALSE(optional_string_set.find(optional<std::string>()) !=
                optional_string_set.end());
 
-  optional_string_set.insert(OptionalString());
+  optional_string_set.insert(optional<std::string>());
 
   EXPECT_TRUE(optional_string_set.find(std::string("foo")) !=
               optional_string_set.end());
   EXPECT_TRUE(optional_string_set.find(std::string("bar")) !=
               optional_string_set.end());
-  EXPECT_TRUE(optional_string_set.find(OptionalString()) !=
+  EXPECT_TRUE(optional_string_set.find(optional<std::string>()) !=
               optional_string_set.end());
 }
 
 TEST(OptionalTest, StdVectorOfOptionalsWorksFine) {
-  std::vector<OptionalInt> test_vector;
+  std::vector<optional<int>> test_vector;
 
   test_vector.reserve(test_vector.capacity() + 1);
   test_vector.resize(test_vector.capacity());
 
   // Make sure all current optionals are disengaged.
-  for (std::vector<OptionalInt>::const_iterator iter = test_vector.begin();
-       iter != test_vector.end();
-       ++iter) {
+  for (std::vector<optional<int>>::const_iterator iter = test_vector.begin();
+       iter != test_vector.end(); ++iter) {
     EXPECT_TRUE(!*iter);
   }
   EXPECT_TRUE(!test_vector[0]);
 
   test_vector.clear();
   test_vector.resize(test_vector.capacity() + 1, 5);
-  for (std::vector<OptionalInt>::const_iterator iter = test_vector.begin();
-       iter != test_vector.end();
-       ++iter) {
+  for (std::vector<optional<int>>::const_iterator iter = test_vector.begin();
+       iter != test_vector.end(); ++iter) {
     ASSERT_FALSE(!*iter);
     EXPECT_EQ(5, **iter);
   }
@@ -684,47 +748,83 @@ TEST(OptionalTest, StdVectorOfOptionalsWorksFine) {
   EXPECT_EQ(8, *test_vector.back());
 }
 
-TEST(OptionalTest, OptionalStringInHashSetTest) {
-  // Optional strings in map test
-  base::hash_set<OptionalString> optional_string_set;
+TEST(OptionalTest, OptionalStringInUnorderedSet) {
+  std::unordered_set<optional<std::string>> optional_string_set;
 
-  optional_string_set.insert(std::string("foo"));
-  optional_string_set.insert(std::string("bar"));
+  optional_string_set.insert(std::string());
+  optional_string_set.insert(std::string("7"));
+  optional_string_set.insert(std::string("123456"));
 
-  EXPECT_TRUE(optional_string_set.find(std::string("foo")) !=
+  EXPECT_TRUE(optional_string_set.find(std::string("7")) !=
               optional_string_set.end());
-  EXPECT_TRUE(optional_string_set.find(std::string("bar")) !=
+  EXPECT_TRUE(optional_string_set.find(std::string("123456")) !=
               optional_string_set.end());
-  EXPECT_FALSE(optional_string_set.find(OptionalString()) !=
+  EXPECT_TRUE(optional_string_set.find(std::string()) !=
+              optional_string_set.end());
+  EXPECT_FALSE(optional_string_set.find(optional<std::string>()) !=
                optional_string_set.end());
 
-  optional_string_set.insert(OptionalString());
+  optional_string_set.insert(optional<std::string>());
 
-  EXPECT_TRUE(optional_string_set.find(std::string("foo")) !=
+  EXPECT_TRUE(optional_string_set.find(std::string("7")) !=
               optional_string_set.end());
-  EXPECT_TRUE(optional_string_set.find(std::string("bar")) !=
+  EXPECT_TRUE(optional_string_set.find(std::string("123456")) !=
               optional_string_set.end());
-  EXPECT_TRUE(optional_string_set.find(OptionalString()) !=
+  EXPECT_TRUE(optional_string_set.find(std::string()) !=
+              optional_string_set.end());
+  EXPECT_TRUE(optional_string_set.find(optional<std::string>()) !=
+              optional_string_set.end());
+
+  optional_string_set.erase(std::string());
+
+  EXPECT_FALSE(optional_string_set.find(std::string()) !=
+               optional_string_set.end());
+  EXPECT_TRUE(optional_string_set.find(optional<std::string>()) !=
               optional_string_set.end());
 }
 
-namespace {
+TEST(OptionalTest, OptionalIntInUnorderedSet) {
+  std::unordered_set<optional<int>> optional_int_set;
 
-OptionalInt ConditionallyMakeOptional(bool should_make, int value) {
+  optional_int_set.insert(0);
+  optional_int_set.insert(7);
+  optional_int_set.insert(123456);
+
+  EXPECT_TRUE(optional_int_set.find(7) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(123456) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(0) != optional_int_set.end());
+  EXPECT_FALSE(optional_int_set.find(optional<int>()) !=
+               optional_int_set.end());
+
+  optional_int_set.insert(optional<int>());
+
+  EXPECT_TRUE(optional_int_set.find(7) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(123456) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(0) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(optional<int>()) != optional_int_set.end());
+
+  optional_int_set.erase(0);
+
+  EXPECT_FALSE(optional_int_set.find(0) != optional_int_set.end());
+  EXPECT_TRUE(optional_int_set.find(optional<int>()) != optional_int_set.end());
+}
+
+optional<int> ConditionallyMakeOptional(bool should_make, int value) {
   if (should_make) {
-    return OptionalInt(value);
+    return optional<int>(value);
   } else {
-    return base::nullopt;
+    return nullopt;
   }
 }
 
-}  // namespace
-
 TEST(OptionalTest, OptionalCanBeReturnedFromFunction) {
-  OptionalInt test1 = ConditionallyMakeOptional(true, 5);
+  optional<int> test1 = ConditionallyMakeOptional(true, 5);
   ASSERT_FALSE(!test1);
   EXPECT_EQ(5, test1.value());
 
-  OptionalInt test2 = ConditionallyMakeOptional(false, 5);
+  optional<int> test2 = ConditionallyMakeOptional(false, 5);
   EXPECT_TRUE(!test2);
 }
+
+}  // namespace
+}  // namespace starboard

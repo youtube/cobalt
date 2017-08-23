@@ -26,6 +26,9 @@ class ArrayBufferView;
 typedef script::UnionType2<scoped_refptr<ArrayBufferView>,
                            scoped_refptr<ArrayBuffer> > BufferSource;
 
+void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
+                      int* buffer_size);
+
 }  // namespace dom
 }  // namespace cobalt
 

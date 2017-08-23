@@ -14,6 +14,7 @@
 
 // Sunny Day cases tested in the read/write tests.
 
+#include "starboard/nplb/file_helpers.h"
 #include "starboard/storage.h"
 #include "starboard/user.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,9 +23,24 @@ namespace starboard {
 namespace nplb {
 namespace {
 
+#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+
+TEST(SbStorageDeleteRecordTest, RainyDayInvalidUserValidName) {
+  EXPECT_FALSE(SbStorageDeleteRecord(
+      kSbUserInvalid, ScopedRandomFile::MakeRandomFilename().c_str()));
+}
+
+TEST(SbStorageDeleteRecordTest, RainyDayInvalidUserNullName) {
+  EXPECT_FALSE(SbStorageDeleteRecord(kSbUserInvalid, NULL));
+}
+
+#else  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+
 TEST(SbStorageDeleteRecordTest, RainyDayInvalidUser) {
   EXPECT_FALSE(SbStorageDeleteRecord(kSbUserInvalid));
 }
+
+#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
 
 }  // namespace
 }  // namespace nplb

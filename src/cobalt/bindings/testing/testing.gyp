@@ -50,6 +50,7 @@
         'global_interface_parent.idl',
         'indexed_getter_interface.idl',
         'interface_with_any.idl',
+        'interface_with_any_dictionary.idl',
         'interface_with_unsupported_properties.idl',
         'named_constructor_interface.idl',
         'named_getter_interface.idl',
@@ -142,6 +143,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'any_bindings_test.cc',
+        'any_dictionary_bindings_test.cc',
         'boolean_type_bindings_test.cc',
         'callback_function_test.cc',
         'callback_interface_test.cc',

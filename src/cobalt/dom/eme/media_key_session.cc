@@ -14,6 +14,8 @@
 
 #include "cobalt/dom/eme/media_key_session.h"
 
+#include <type_traits>
+
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/array_buffer_view.h"
 #include "cobalt/dom/dom_exception.h"
@@ -32,15 +34,23 @@ MediaKeySession::MediaKeySession(
     const scoped_refptr<media::DrmSystem>& drm_system,
     script::ScriptValueFactory* script_value_factory,
     const ClosedCallback& closed_callback)
-    : drm_system_(drm_system),
-      drm_system_session_(drm_system->CreateSession()),
+    : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
+      drm_system_(drm_system),
+      drm_system_session_(drm_system->CreateSession(
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+          base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
+                     base::AsWeakPtr(this))
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+              )),
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
+      key_status_map_(new MediaKeyStatusMap),
       closed_callback_(closed_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(closed_promise_reference_(
           this, script_value_factory->CreateBasicPromise<void>())),
-      initiated_by_generate_request_(false) {}
+      initiated_by_generate_request_(false) {
+}
 
 // According to the step 3.1 of
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeys-createsession,
@@ -55,6 +65,20 @@ const MediaKeySession::VoidPromiseValue* MediaKeySession::closed() const {
   return &closed_promise_reference_.referenced_value();
 }
 
+const scoped_refptr<MediaKeyStatusMap>& MediaKeySession::key_statuses() const {
+  return key_status_map_;
+}
+
+const EventTarget::EventListenerScriptValue*
+MediaKeySession::onkeystatuseschange() const {
+  return GetAttributeEventListener(base::Tokens::keystatuseschange());
+}
+
+void MediaKeySession::set_onkeystatuseschange(
+    const EventListenerScriptValue& event_listener) {
+  SetAttributeEventListener(base::Tokens::keystatuseschange(), event_listener);
+}
+
 const EventTarget::EventListenerScriptValue* MediaKeySession::onmessage()
     const {
   return GetAttributeEventListener(base::Tokens::message());
@@ -64,27 +88,6 @@ void MediaKeySession::set_onmessage(
     const EventListenerScriptValue& event_listener) {
   SetAttributeEventListener(base::Tokens::message(), event_listener);
 }
-
-namespace {
-
-void GetBufferAndSize(const BufferSource& buffer_source, const uint8** buffer,
-                      int* buffer_size) {
-  if (buffer_source.IsType<scoped_refptr<ArrayBufferView> >()) {
-    scoped_refptr<ArrayBufferView> array_buffer_view =
-        buffer_source.AsType<scoped_refptr<ArrayBufferView> >();
-    *buffer = static_cast<const uint8*>(array_buffer_view->base_address());
-    *buffer_size = array_buffer_view->byte_length();
-  } else if (buffer_source.IsType<scoped_refptr<ArrayBuffer> >()) {
-    scoped_refptr<ArrayBuffer> array_buffer =
-        buffer_source.AsType<scoped_refptr<ArrayBuffer> >();
-    *buffer = array_buffer->data();
-    *buffer_size = array_buffer->byte_length();
-  } else {
-    NOTREACHED();
-  }
-}
-
-}  // namespace
 
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
@@ -252,7 +255,7 @@ void MediaKeySession::OnSessionUpdateRequestGenerated(
   //
   // TODO: Implement Event.isTrusted as per
   //       https://www.w3.org/TR/dom/#dom-event-istrusted and set it to true.
-  DispatchEvent(
+  event_queue_.Enqueue(
       new MediaKeyMessageEvent("message", media_key_message_event_init));
 
   // 10.5. Resolve promise.
@@ -304,6 +307,60 @@ void MediaKeySession::OnSessionDidNotUpdate(
   //
   // TODO: Introduce Starboard API that allows CDM to propagate error codes.
   promise_reference->value().Reject(new DOMException(DOMException::kNone));
+}
+
+// See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
+void MediaKeySession::OnSessionUpdateKeyStatuses(
+    const std::vector<std::string>& key_ids,
+    const std::vector<SbDrmKeyStatus>& key_statuses) {
+#define CHECK_KEY_STATUS_ENUM(starboard_value, dom_value)                  \
+  static_assert(static_cast<MediaKeyStatus>(starboard_value) == dom_value, \
+                "key status enum value mismatch");
+
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusUsable, kMediaKeyStatusUsable);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusExpired, kMediaKeyStatusExpired);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusReleased, kMediaKeyStatusReleased);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusRestricted,
+                        kMediaKeyStatusOutputRestricted);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusDownscaled,
+                        kMediaKeyStatusOutputDownscaled);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusPending, kMediaKeyStatusStatusPending);
+  CHECK_KEY_STATUS_ENUM(kSbDrmKeyStatusError, kMediaKeyStatusInternalError);
+
+  DCHECK_EQ(key_ids.size(), key_statuses.size());
+
+  // 1. Let the session be the associated MediaKeySession object.
+  // 2. Let the input statuses be the sequence of pairs key ID and associated
+  //    MediaKeyStatus pairs.
+  // 3. Let the statuses be session's keyStatuses attribute.
+  // 4. Run the following steps to replace the contents of statuses:
+  // 4.1. Empty statuses.
+  key_status_map_->Clear();
+
+  // 4.2. For each pair in input statuses.
+  for (size_t i = 0; i < key_ids.size(); ++i) {
+    // 4.2.1. Let pair be the pair.
+    // 4.2.2. Insert an entry for pair's key ID into statuses with the value of
+    //        pair's MediaKeyStatus value.
+    DCHECK_GE(key_statuses[i], kSbDrmKeyStatusUsable);
+    DCHECK_LE(key_statuses[i], kSbDrmKeyStatusError);
+
+    if (key_statuses[i] < kSbDrmKeyStatusUsable ||
+        key_statuses[i] > kSbDrmKeyStatusError) {
+      key_status_map_->Add(key_ids[i], kMediaKeyStatusInternalError);
+    } else {
+      key_status_map_->Add(key_ids[i],
+                           static_cast<MediaKeyStatus>(key_statuses[i]));
+    }
+  }
+
+  // 5. Queue a task to fire a simple event named keystatuseschange at the
+  //    session.
+  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
+
+  // 6. Queue a task to run the Attempt to Resume Playback If Necessary
+  //    algorithm on each of the media element(s) whose mediaKeys attribute is
+  //    the MediaKeys object that created the session.
 }
 
 // See https://www.w3.org/TR/encrypted-media/#session-closed.

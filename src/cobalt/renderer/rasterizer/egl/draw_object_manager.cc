@@ -130,7 +130,7 @@ void DrawObjectManager::ExecuteUpdateVertexBuffer(
     draw->draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
-  graphics_state->UpdateVertexData();
+  graphics_state->UpdateVertexBuffers();
 }
 
 void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,

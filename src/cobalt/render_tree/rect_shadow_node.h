@@ -60,14 +60,16 @@ class RectShadowNode : public Node {
     float spread;
   };
 
-  explicit RectShadowNode(const Builder& builder) : data_(builder) {}
+  explicit RectShadowNode(const Builder& builder) : data_(builder) {
+    AssertValid();
+  }
 
   RectShadowNode(const math::RectF& rect, const Shadow& shadow)
-      : data_(rect, shadow) {}
+      : data_(rect, shadow) { AssertValid(); }
 
   RectShadowNode(const math::RectF& rect, const Shadow& shadow, bool inset,
                  float spread)
-      : data_(rect, shadow, inset, spread) {}
+      : data_(rect, shadow, inset, spread) { AssertValid(); }
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;
@@ -79,6 +81,8 @@ class RectShadowNode : public Node {
   const Builder& data() const { return data_; }
 
  private:
+  void AssertValid() const;
+
   const Builder data_;
 };
 

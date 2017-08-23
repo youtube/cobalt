@@ -208,6 +208,8 @@
         '../xhr/xml_http_request.idl',
         '../xhr/xml_http_request_event_target.idl',
         '../xhr/xml_http_request_upload.idl',
+
+        '<@(cobalt_webapi_extension_source_idl_files)',
     ],
 
     # IDL files that will end up generating a .h that will be #included in
@@ -242,6 +244,7 @@
         '../web_animations/animation_fill_mode.idl',
         '../web_animations/animation_playback_direction.idl',
         '../websocket/close_event_init.idl',
+        '<@(cobalt_webapi_extension_generated_header_idl_files)',
     ],
 
     # Partial interfaces and the right-side of "implements". Also includes
@@ -290,6 +293,7 @@
             '../dom/eme/media_encrypted_event.idl',
             '../dom/eme/media_key_message_event.idl',
             '../dom/eme/media_key_session.idl',
+            '../dom/eme/media_key_status_map.idl',
             '../dom/eme/media_key_system_access.idl',
             '../dom/eme/media_keys.idl',
         ],
@@ -298,6 +302,7 @@
             '../dom/eme/media_key_message_event_init.idl',
             '../dom/eme/media_key_message_type.idl',
             '../dom/eme/media_key_session_type.idl',
+            '../dom/eme/media_key_status.idl',
             '../dom/eme/media_key_system_configuration.idl',
             '../dom/eme/media_key_system_media_capability.idl',
             '../dom/eme/media_keys_requirement.idl',

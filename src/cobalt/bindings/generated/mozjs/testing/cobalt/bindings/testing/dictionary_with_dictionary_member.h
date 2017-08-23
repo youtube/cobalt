@@ -25,7 +25,9 @@
 #include <string>
 
 #include "base/optional.h"
+#include "cobalt/script/script_value.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
 
 using cobalt::bindings::testing::TestDictionary;
@@ -39,6 +41,17 @@ class DictionaryWithDictionaryMember {
   DictionaryWithDictionaryMember() {
     has_nested_dictionary_ = false;
     nested_dictionary_ = TestDictionary();
+  }
+
+  DictionaryWithDictionaryMember(const DictionaryWithDictionaryMember& other) {
+    has_nested_dictionary_ = other.has_nested_dictionary_;
+    nested_dictionary_ = other.nested_dictionary_;
+  }
+
+  DictionaryWithDictionaryMember& operator=(const DictionaryWithDictionaryMember& other) {
+    has_nested_dictionary_ = other.has_nested_dictionary_;
+    nested_dictionary_ = other.nested_dictionary_;
+    return *this;
   }
 
   bool has_nested_dictionary() const {

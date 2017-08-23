@@ -2,14 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/state_machine_shell.h"
+#include "starboard/common/state_machine.h"
 
-#include <list>
 #include <iostream>
+#include <list>
 
-#include "base/logging.h"
+#include "starboard/log.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
+// Enables some verbose logging for debugging the state machine test and
+// implementation.
+#define STATE_MACHINE_TEST_DEBUG 0
+
+namespace starboard {
+namespace {
 namespace hsm {
 
 // Constant to represent no version for TestHsm::Expect.
@@ -42,17 +48,13 @@ enum TestEvent {
 
 // An enumeration of things that the HSM does that we can sense and then
 // assert about.
-enum HsmEvent {
-  kHsmEnter,
-  kHsmExit,
-  kHsmHandled
-};
+enum HsmEvent { kHsmEnter, kHsmExit, kHsmHandled };
 
-} // namespace hsm
+}  // namespace hsm
 
 // --- Test Subclass ---
 
-// StateMachineShell is an abstract class, so we must subclass it to test it.
+// StateMachine is an abstract class, so we must subclass it to test it.
 // This class uses the sample test state machine specified by Miro Samek in his
 // Practical Statecharts book. It covers the interesting transitions and
 // topologies, so if it's fully exercised, it should represent a
@@ -64,24 +66,23 @@ enum HsmEvent {
 // This version has:
 //  - A new event, I, in state S11, to test reentrant event handling.
 //  - A new event, J, and new state T0, to test the no top state case.
-class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
+class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
  public:
-
   // --- Some types to aid sensing ---
 
   struct ResultEvent {
     // The state the HSM was in when it handled the event.
-    const StateEnumN state;
+    const optional<hsm::TestState> state;
 
     // The data passed into the event, if any.
-    const void *data;
+    const void* data;
 
     // The state that actually handled the event (could be an ancestor of the
     // current state.
-    const StateEnumN event_state;
+    const optional<hsm::TestState> event_state;
 
     // The event that was handled.
-    const EventEnumN event;
+    const optional<hsm::TestEvent> event;
 
     // The "HSM Event" that occurred causing this to be recorded.
     const hsm::HsmEvent hsm_event;
@@ -104,32 +105,32 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
   std::list<ResultEvent> results;
 
   TestHsm()
-      : base::StateMachineShell<hsm::TestState, hsm::TestEvent>("TestHsm"),
+      : StateMachine<hsm::TestState, hsm::TestEvent>("TestHsm"),
         foo_(true),
         event_i_count_(0) {
-    if (VLOG_IS_ON(1)) {
-      EnableLogging();
-    }
+#if STATE_MACHINE_TEST_DEBUG
+    EnableLogging();
+#endif
   }
-  virtual ~TestHsm() { }
+  virtual ~TestHsm() {}
 
   // Clears the results list, so nothing bleeds between test cases.
-  void ClearResults() {
-    results.clear();
-  }
+  void ClearResults() { results.clear(); }
 
   // Consumes and validates a ResultEvent from the results list.
   void Expect(hsm::HsmEvent hsm_event,
-              StateEnumN event_state = StateEnumN(),
-              EventEnumN event = EventEnumN(),
-              StateEnumN current_state = StateEnumN(),
-              void *data = NULL,
+              optional<hsm::TestState> event_state = nullopt,
+              optional<hsm::TestEvent> event = nullopt,
+              optional<hsm::TestState> current_state = nullopt,
+              void* data = NULL,
               uint64_t version = hsm::kNoVersion) {
-    VLOG(1) << __FUNCTION__ << ": hsm_event=" << hsm_event
-            << ", event_state=" << GetStateString(event_state)
-            << ", event=" << GetEventString(event)
-            << ", current_state=" << GetStateString(current_state)
-            << ", data=0x" << std::hex << data << ", version=" << version;
+#if STATE_MACHINE_TEST_DEBUG
+    SB_DLOG(INFO) << __FUNCTION__ << ": hsm_event=" << hsm_event
+                  << ", event_state=" << GetStateString(event_state)
+                  << ", event=" << GetEventString(event)
+                  << ", current_state=" << GetStateString(current_state)
+                  << ", data=0x" << std::hex << data << ", version=" << version;
+#endif  // STATE_MACHINE_TEST_DEBUG
 
     EXPECT_FALSE(results.empty());
     TestHsm::ResultEvent result = results.front();
@@ -156,10 +157,10 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-
-  // --- StateMachineShell Implementation ---
+  // --- StateMachine Implementation ---
  protected:
-  virtual StateEnumN GetUserParentState(hsm::TestState state) const OVERRIDE {
+  virtual optional<hsm::TestState> GetUserParentState(
+      hsm::TestState state) const SB_OVERRIDE {
     switch (state) {
       case hsm::kStateS1:
       case hsm::kStateS2:
@@ -171,11 +172,12 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
       case hsm::kStateS211:
         return hsm::kStateS21;
       default:
-        return StateEnumN();
+        return nullopt;
     }
   }
 
-  virtual StateEnumN GetUserInitialSubstate(hsm::TestState state) const OVERRIDE {
+  virtual optional<hsm::TestState> GetUserInitialSubstate(
+      hsm::TestState state) const SB_OVERRIDE {
     switch (state) {
       case hsm::kStateS0:
         return hsm::kStateS1;
@@ -186,15 +188,16 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
       case hsm::kStateS21:
         return hsm::kStateS211;
       default:
-        return StateEnumN();
+        return nullopt;
     }
   }
 
-  virtual hsm::TestState GetUserInitialState() const OVERRIDE {
+  virtual hsm::TestState GetUserInitialState() const SB_OVERRIDE {
     return hsm::kStateS0;
   }
 
-  virtual const char *GetUserStateString(hsm::TestState state) const OVERRIDE {
+  virtual const char* GetUserStateString(hsm::TestState state) const
+      SB_OVERRIDE {
     switch (state) {
       case hsm::kStateS0:
         return "S0";
@@ -215,7 +218,8 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-  virtual const char *GetUserEventString(hsm::TestEvent event) const OVERRIDE {
+  virtual const char* GetUserEventString(hsm::TestEvent event) const
+      SB_OVERRIDE {
     switch (event) {
       case hsm::kEventA:
         return "A";
@@ -244,9 +248,12 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
 
   virtual Result HandleUserStateEvent(hsm::TestState state,
                                       hsm::TestEvent event,
-                                      void *data) OVERRIDE {
-    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", "
-            << GetEventString(event) << ", 0x" << std::hex << data << ");";
+                                      void* data) SB_OVERRIDE {
+#if STATE_MACHINE_TEST_DEBUG
+    SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", "
+                  << GetEventString(event) << ", 0x" << std::hex << data
+                  << ");";
+#endif  // STATE_MACHINE_TEST_DEBUG
 
     Result result(kNotHandled);
     switch (state) {
@@ -388,37 +395,41 @@ class TestHsm : public base::StateMachineShell<hsm::TestState, hsm::TestEvent> {
     return result;
   }
 
-  virtual void HandleUserStateEnter(hsm::TestState state) OVERRIDE {
-    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", ENTER);";
+  virtual void HandleUserStateEnter(hsm::TestState state) SB_OVERRIDE {
+#if STATE_MACHINE_TEST_DEBUG
+    SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state)
+                  << ", ENTER);";
+#endif  // STATE_MACHINE_TEST_DEBUG
 
-    AddEvent(state, EventEnumN(), NULL, hsm::kHsmEnter);
+    AddEvent(state, nullopt, NULL, hsm::kHsmEnter);
   }
 
-  virtual void HandleUserStateExit(hsm::TestState state) OVERRIDE {
-    VLOG(1) << __FUNCTION__ << "(" << GetStateString(state) << ", EXIT);";
+  virtual void HandleUserStateExit(hsm::TestState state) SB_OVERRIDE {
+#if STATE_MACHINE_TEST_DEBUG
+    SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", EXIT);";
+#endif  // STATE_MACHINE_TEST_DEBUG
 
-    AddEvent(state, EventEnumN(), NULL, hsm::kHsmExit);
+    AddEvent(state, nullopt, NULL, hsm::kHsmExit);
   }
 
  private:
   // Adds a new record to the result list.
   void AddEvent(hsm::TestState state,
-                EventEnumN event,
-                void *data,
+                optional<hsm::TestEvent> event,
+                void* data,
                 hsm::HsmEvent hsm_event) {
-    ResultEvent result_event = { this->state(), data, state, event, hsm_event,
-                                 this->version() };
+    ResultEvent result_event = {this->state(), data,      state,
+                                event,         hsm_event, this->version()};
     results.push_back(result_event);
   }
 };
-
 
 // --- Test Definitions ---
 
 // This test validates that a state machine will initialize itself when it
 // handles its first event, even if the user has not explicitly called
 // initialize.
-TEST(StateMachineShellTest, AutoInit) {
+TEST(StateMachineTest, AutoInit) {
   TestHsm hsm;
 
   hsm.ClearResults();
@@ -440,12 +451,11 @@ TEST(StateMachineShellTest, AutoInit) {
   EXPECT_EQ(hsm::kStateS11, hsm.state());
 }
 
-
 // This test validates that if Handle() is called from within an event handler,
 // it queues the event rather than trying to Handle the next event
 // reentrantly. This behavior, or something like it, is required to make the
 // state machine truly run-to-completion.
-TEST(StateMachineShellTest, ReentrantHandle) {
+TEST(StateMachineTest, ReentrantHandle) {
   TestHsm hsm;
   hsm.Initialize();
   EXPECT_EQ(0, hsm.version());
@@ -469,7 +479,7 @@ TEST(StateMachineShellTest, ReentrantHandle) {
 // state machine behaves as expected. This should cover all normal operation of
 // the state machine framework, except what is extracted into their own test
 // cases above.
-TEST(StateMachineShellTest, KitNKaboodle) {
+TEST(StateMachineTest, KitNKaboodle) {
   TestHsm hsm;
 
   // Test the initial state
@@ -713,7 +723,7 @@ TEST(StateMachineShellTest, KitNKaboodle) {
 
   // Test that event data gets passed through to the handler
   hsm.ClearResults();
-  void *data = reinterpret_cast<void *>(7);
+  void* data = reinterpret_cast<void*>(7);
   hsm.Handle(hsm::kEventC, data);
   hsm.Expect(hsm::kHsmHandled, hsm::kStateS1, hsm::kEventC, hsm::kStateS11,
              data);
@@ -725,3 +735,6 @@ TEST(StateMachineShellTest, KitNKaboodle) {
   EXPECT_EQ(0, hsm.results.size());
   EXPECT_EQ(hsm::kStateS211, hsm.state());
 }
+
+}  // namespace
+}  // namespace starboard

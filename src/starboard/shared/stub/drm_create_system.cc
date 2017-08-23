@@ -14,6 +14,24 @@
 
 #include "starboard/drm.h"
 
+#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+
+SbDrmSystem SbDrmCreateSystem(
+    const char* key_system,
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback) {
+  SB_UNREFERENCED_PARAMETER(context);
+  SB_UNREFERENCED_PARAMETER(key_system);
+  SB_UNREFERENCED_PARAMETER(update_request_callback);
+  SB_UNREFERENCED_PARAMETER(session_updated_callback);
+  SB_UNREFERENCED_PARAMETER(key_statuses_changed_callback);
+  return kSbDrmSystemInvalid;
+}
+
+#else  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
     void* context,
@@ -21,3 +39,5 @@ SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdatedFunc session_updated_callback) {
   return kSbDrmSystemInvalid;
 }
+
+#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION

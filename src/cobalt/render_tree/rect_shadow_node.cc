@@ -31,5 +31,11 @@ math::RectF RectShadowNode::GetBounds() const {
   }
 }
 
+void RectShadowNode::AssertValid() const {
+  if (data_.rounded_corners) {
+    DCHECK(data_.rounded_corners->IsNormalized(data_.rect));
+  }
+}
+
 }  // namespace render_tree
 }  // namespace cobalt

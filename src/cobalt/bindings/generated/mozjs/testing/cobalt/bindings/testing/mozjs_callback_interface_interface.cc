@@ -265,7 +265,7 @@ JSBool set_callbackAttribute(
       WrapperPrivate::GetFromObject(context, object);
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
-  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
   FromJSValue(context, vp, (kConversionFlagNullable), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
@@ -323,7 +323,7 @@ JSBool fcn_registerCallback(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(

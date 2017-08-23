@@ -265,7 +265,7 @@ bool set_callbackAttribute(
       WrapperPrivate::GetFromObject(context, object);
   CallbackInterfaceInterface* impl =
       wrapper_private->wrappable<CallbackInterfaceInterface>().get();
-  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
@@ -327,7 +327,7 @@ bool fcn_registerCallback(
     return false;
   }
   // Non-optional arguments
-  TypeTraits<CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
+  TypeTraits<::cobalt::script::CallbackInterfaceTraits<SingleOperationInterface > >::ConversionType callback_interface;
 
   DCHECK_LT(0, args.length());
   JS::RootedValue non_optional_value0(
