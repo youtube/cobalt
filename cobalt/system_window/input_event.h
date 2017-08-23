@@ -31,6 +31,9 @@ class InputEvent : public base::Event {
     kPointerDown,
     kPointerUp,
     kPointerMove,
+    kTouchpadDown,
+    kTouchpadUp,
+    kTouchpadMove,
     kWheel,
   };
 
