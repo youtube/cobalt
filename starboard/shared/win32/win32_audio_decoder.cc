@@ -17,19 +17,17 @@
 #include <algorithm>
 
 #include "starboard/shared/win32/atomic_queue.h"
+#include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 
 namespace starboard {
 namespace shared {
 namespace win32 {
 
 namespace {
-using Microsoft::WRL::ComPtr;
-using ::starboard::shared::win32::CheckResult;
 
-const int kStreamId = 0;
+using Microsoft::WRL::ComPtr;
 
 std::vector<ComPtr<IMFMediaType>> Filter(
     GUID subtype_guid, const std::vector<ComPtr<IMFMediaType>>& input) {
@@ -42,23 +40,6 @@ std::vector<ComPtr<IMFMediaType>> Filter(
     if (subtype_guid == guid_value) {
       output.push_back(curr);
     }
-  }
-
-  return output;
-}
-
-std::vector<ComPtr<IMFMediaType>> GetAvailableTypes(IMFTransform* decoder) {
-  std::vector<ComPtr<IMFMediaType>> output;
-  for (DWORD i = 0; ; ++i) {
-    ComPtr<IMFMediaType> curr_type;
-    HRESULT input_hr_success = decoder->GetInputAvailableType(
-        kStreamId,
-        i,
-        curr_type.GetAddressOf());
-    if (!SUCCEEDED(input_hr_success)) {
-      break;
-    }
-    output.push_back(curr_type);
   }
 
   return output;
@@ -102,8 +83,7 @@ class WinAudioFormat {
   uint8_t full_structure[sizeof(WAVEFORMATEX) + kAudioExtraFormatBytes];
 };
 
-class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
-                                      public MediaBufferConsumerInterface {
+class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
  public:
   AbstractWin32AudioDecoderImpl(SbMediaAudioCodec codec,
                                 SbMediaAudioFrameStorageType audio_frame_fmt,
@@ -113,10 +93,9 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
       : codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
-        audio_header_(audio_header) {
-    MediaBufferConsumerInterface* media_cb = this;
-    impl_.reset(new DecoderImpl("audio", media_cb, drm_system));
-    EnsureAudioDecoderCreated();
+        audio_header_(audio_header),
+        impl_("audio", CLSID_MSAACDecMFT, drm_system) {
+    Configure();
   }
 
   static GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
@@ -131,11 +110,25 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     return MFAudioFormat_PCM;
   }
 
-  virtual void Consume(ComPtr<IMFMediaBuffer> media_buffer,
-                       int64_t win32_timestamp) {
+  void Consume(ComPtr<IMFSample> sample) {
+    DWORD buff_count = 0;
+    HRESULT hr = sample->GetBufferCount(&buff_count);
+    CheckResult(hr);
+    SB_DCHECK(buff_count == 1);
+
+    ComPtr<IMFMediaBuffer> media_buffer;
+    hr = sample->GetBufferByIndex(0, &media_buffer);
+    if (FAILED(hr)) {
+      return;
+    }
+
+    LONGLONG win32_timestamp = 0;
+    hr = sample->GetSampleTime(&win32_timestamp);
+    CheckResult(hr);
+
     BYTE* buffer;
     DWORD length;
-    HRESULT hr = media_buffer->Lock(&buffer, NULL, &length);
+    hr = media_buffer->Lock(&buffer, NULL, &length);
     CheckResult(hr);
     SB_DCHECK(length);
 
@@ -152,9 +145,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     media_buffer->Unlock();
   }
 
-  void OnNewOutputType(const ComPtr<IMFMediaType>& /*type*/) override {}
-
-  ComPtr<IMFMediaType> Configure(IMFTransform* decoder) {
+  void Configure() {
     ComPtr<IMFMediaType> input_type;
     HRESULT hr = MFCreateMediaType(&input_type);
     CheckResult(hr);
@@ -174,11 +165,11 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
     hr = input_type->SetGUID(MF_MT_SUBTYPE, subtype);
     CheckResult(hr);
 
+    MediaTransform& decoder = impl_.GetDecoder();
     std::vector<ComPtr<IMFMediaType>> available_types =
-        GetAvailableTypes(decoder);
+        decoder.GetAvailableInputTypes();
 
-    GUID audio_fmt_guid = ConvertToWin32AudioCodec(codec_);
-    available_types = Filter(audio_fmt_guid, available_types);
+    available_types = Filter(subtype, available_types);
     SB_DCHECK(available_types.size());
     ComPtr<IMFMediaType> selected = available_types[0];
 
@@ -193,45 +184,11 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
       CopyUint32Property(*it, input_type.Get(), selected.Get());
     }
 
-    hr = decoder->SetInputType(0, selected.Get(), 0);
-
-    CheckResult(hr);
-    return selected;
-  }
-
-  void EnsureAudioDecoderCreated() SB_OVERRIDE {
-    if (impl_->has_decoder()) {
-      return;
-    }
-
-    ComPtr<IMFTransform> decoder =
-        DecoderImpl::CreateDecoder(CLSID_MSAACDecMFT);
-
-    ComPtr<IMFMediaType> media_type = Configure(decoder.Get());
-
-    SB_DCHECK(decoder);
-
-    impl_->set_decoder(decoder);
-
-    // TODO: MFWinAudioFormat_PCM?
-    ComPtr<IMFMediaType> output_type =
-        FindMediaType(MFAudioFormat_Float, decoder.Get());
-
-    SB_DCHECK(output_type);
-
-    HRESULT hr = decoder->SetOutputType(0, output_type.Get(), 0);
-    CheckResult(hr);
-
-    decoder->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0);
-    decoder->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
+    decoder.SetInputType(selected);
+    decoder.SetOutputTypeBySubType(MFAudioFormat_Float);
   }
 
   bool TryWrite(const InputBuffer& buff) SB_OVERRIDE {
-    EnsureAudioDecoderCreated();
-    if (!impl_->has_decoder()) {
-      return false;  // TODO: Signal an error.
-    }
-
     const void* data = buff.data();
     const int size = buff.size();
     const int64_t media_timestamp = buff.pts();
@@ -271,25 +228,38 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
       subsamples[0].clear_bytes = 0;
     }
 
-    const bool write_ok = impl_->TryWriteInputBuffer(
+    const bool write_ok = impl_.TryWriteInputBuffer(
         audio_start, audio_size, win32_time_stamp, key_id, iv, subsamples);
-    impl_->DeliverOutputOnAllTransforms();
+    ComPtr<IMFSample> sample;
+    ComPtr<IMFMediaType> media_type;
+    while (impl_.ProcessAndRead(&sample, &media_type)) {
+      if (sample) {
+        Consume(sample);
+      }
+    }
     return write_ok;
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
-    if (impl_->has_decoder()) {
-      impl_->DrainDecoder();
-      impl_->DeliverOutputOnAllTransforms();
-      output_queue_.PushBack(new DecodedAudio);
-    } else {
-      // Don't call DrainDecoder() if input data is never queued.
-      // TODO: Send EOS.
+    impl_.Drain();
+    ComPtr<IMFSample> sample;
+    ComPtr<IMFMediaType> media_type;
+    while (impl_.ProcessAndRead(&sample, &media_type)) {
+      if (sample) {
+        Consume(sample);
+      }
     }
+    output_queue_.PushBack(new DecodedAudio);
   }
 
   scoped_refptr<DecodedAudio> ProcessAndRead() SB_OVERRIDE {
-    impl_->DeliverOutputOnAllTransforms();
+    ComPtr<IMFSample> sample;
+    ComPtr<IMFMediaType> media_type;
+    while (impl_.ProcessAndRead(&sample, &media_type)) {
+      if (sample) {
+        Consume(sample);
+      }
+    }
     scoped_refptr<DecodedAudio> output = output_queue_.PopFront();
     return output;
   }
@@ -298,9 +268,10 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder,
   SbMediaAudioHeader audio_header_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType audio_frame_fmt_;
-  scoped_ptr<DecoderImpl> impl_;
+  DecryptingDecoder impl_;
   AtomicQueue<DecodedAudioPtr> output_queue_;
 };
+
 }  // anonymous namespace.
 
 scoped_ptr<AbstractWin32AudioDecoder> AbstractWin32AudioDecoder::Create(

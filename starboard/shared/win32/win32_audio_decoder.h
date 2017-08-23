@@ -42,16 +42,11 @@ class AbstractWin32AudioDecoder {
 
   // INPUT:
   //
-  // ZACH: Note that this deviates from Xiaoming's AudioDecoder as this does
-  // not have the encrypted parameters. This will be added later.
   virtual bool TryWrite(const InputBuffer& buff) = 0;
   virtual void WriteEndOfStream() = 0;
   // OUTPUT
   //
   virtual DecodedAudioPtr ProcessAndRead() = 0;
-
- private:
-  virtual void EnsureAudioDecoderCreated() = 0;
 };
 
 }  // namespace win32

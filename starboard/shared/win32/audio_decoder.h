@@ -28,7 +28,6 @@
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder_thread.h"
 #include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 
 namespace starboard {
 namespace shared {
