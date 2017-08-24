@@ -117,14 +117,14 @@ void AudioDecoder::Reset() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
 
   decoder_thread_.reset(nullptr);
-  decoder_impl_.reset(nullptr);
-  decoder_impl_ = AbstractWin32AudioDecoder::Create(
-      audio_codec_, GetStorageType(), GetSampleType(), audio_header_,
-      drm_system_);
-  decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
+  decoder_impl_->Reset();
+
   decoded_data_.Clear();
   stream_ended_ = false;
+  callback_scheduler_.reset(new CallbackScheduler());
   CancelPendingJobs();
+
+  decoder_thread_.reset(new AudioDecoderThread(decoder_impl_.get(), this));
 }
 
 SbMediaAudioSampleType AudioDecoder::GetSampleType() const {

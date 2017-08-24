@@ -62,10 +62,10 @@ class AudioDecoder
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
-  SbMediaAudioCodec audio_codec_;
-  SbMediaAudioHeader audio_header_;
-  SbDrmSystem drm_system_;
-  SbMediaAudioSampleType sample_type_;
+  const SbMediaAudioCodec audio_codec_;
+  const SbMediaAudioHeader audio_header_;
+  SbDrmSystem const drm_system_;
+  const SbMediaAudioSampleType sample_type_;
   bool stream_ended_;
 
   AtomicQueue<DecodedAudioPtr> decoded_data_;

@@ -72,6 +72,9 @@ class MediaTransform {
 
   void SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data = 0);
 
+  // Reset the media transform to its original state.
+  void Reset();
+
  private:
   enum State { kCanAcceptInput, kCanProvideOutput, kDraining, kDrained };
 

@@ -111,10 +111,7 @@ DecryptingDecoder::DecryptingDecoder(const std::string& type,
 }
 
 DecryptingDecoder::~DecryptingDecoder() {
-  if (decryptor_) {
-    decryptor_->SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
-  }
-  decoder_.SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
+  Reset();
 }
 
 bool DecryptingDecoder::TryWriteInputBuffer(
@@ -282,6 +279,13 @@ void DecryptingDecoder::ActivateDecryptor() {
       return;
     }
   }
+}
+
+void DecryptingDecoder::Reset() {
+  if (decryptor_) {
+    decryptor_->Reset();
+  }
+  decoder_.Reset();
 }
 
 }  // namespace win32

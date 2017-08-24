@@ -69,6 +69,7 @@ class DecryptingDecoder {
   bool ProcessAndRead(ComPtr<IMFSample>* output,
                       ComPtr<IMFMediaType>* new_type);
   void Drain();
+  void Reset();
 
  private:
   void ActivateDecryptor();

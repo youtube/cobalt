@@ -47,6 +47,8 @@ class AbstractWin32AudioDecoder {
   // OUTPUT
   //
   virtual DecodedAudioPtr ProcessAndRead() = 0;
+  // Reset
+  virtual void Reset() = 0;
 };
 
 }  // namespace win32

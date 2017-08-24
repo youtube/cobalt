@@ -62,7 +62,7 @@ class VideoDecoder
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  SbDrmSystem drm_system_;
+  SbDrmSystem const drm_system_;
   Host* host_;
 
   // Decode-to-texture related state.

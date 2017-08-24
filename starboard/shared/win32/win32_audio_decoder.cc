@@ -264,10 +264,15 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     return output;
   }
 
-  SbMediaAudioCodec codec_;
-  SbMediaAudioHeader audio_header_;
-  SbMediaAudioSampleType sample_type_;
-  SbMediaAudioFrameStorageType audio_frame_fmt_;
+  void Reset() SB_OVERRIDE {
+    impl_.Reset();
+    output_queue_.Clear();
+  }
+
+  const SbMediaAudioCodec codec_;
+  const SbMediaAudioHeader audio_header_;
+  const SbMediaAudioSampleType sample_type_;
+  const SbMediaAudioFrameStorageType audio_frame_fmt_;
   DecryptingDecoder impl_;
   AtomicQueue<DecodedAudioPtr> output_queue_;
 };

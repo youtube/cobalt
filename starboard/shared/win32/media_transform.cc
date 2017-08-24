@@ -116,13 +116,16 @@ ComPtr<IMFSample> MediaTransform::TryRead(ComPtr<IMFMediaType>* new_type) {
     return NULL;
   }
 
-  CheckResult(hr);
-  SB_DCHECK(sample);
-
-  // TODO: Check this
   if (FAILED(hr)) {
+    // Sometimes the decryptor refuse to emit output after shutting down.
+    SB_DCHECK(hr == MF_E_INVALIDREQUEST);
+    if (state_ == kDraining) {
+      state_ = kDrained;
+    }
     return NULL;
   }
+
+  SB_DCHECK(sample);
 
   if (discontinuity_) {
     sample->SetUINT32(MFSampleExtension_Discontinuity, TRUE);
@@ -279,6 +282,14 @@ void MediaTransform::GetStreamCount(DWORD* input_stream_count,
 void MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data /*= 0*/) {
   HRESULT hr = transform_->ProcessMessage(msg, data);
   CheckResult(hr);
+}
+
+void MediaTransform::Reset() {
+  SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
+  thread_checker_.Detach();
+  state_ = kCanAcceptInput;
+  stream_begun_ = false;
+  discontinuity_ = true;
 }
 
 void MediaTransform::PrepareOutputDataBuffer(
