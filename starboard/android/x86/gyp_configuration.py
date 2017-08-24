@@ -14,13 +14,8 @@
 """Starboard Android X86 platform configuration for gyp_cobalt."""
 
 import logging
-import os
-import sys
-
 # Import the shared Android platform configuration.
-sys.path.append(os.path.realpath(os.path.join(os.path.dirname(__file__),
-                                              os.pardir, 'shared')))
-import gyp_configuration
+from starboard.android.shared import gyp_configuration
 
 
 def CreatePlatformConfig():
