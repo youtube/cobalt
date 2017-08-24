@@ -15,6 +15,9 @@
 
 from __future__ import print_function
 
+import os
+import imp
+
 import config.starboard
 import gyp_utils
 import sdk_utils
@@ -69,3 +72,10 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
     env_variables.update(self.host_compiler_environment)
     return env_variables
+
+  def GetLauncher(self):
+    """Gets the module used to launch applications on this platform."""
+    module_path = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), 'launcher.py'))
+    launcher_module = imp.load_source('launcher', module_path)
+    return launcher_module
