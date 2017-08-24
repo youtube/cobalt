@@ -803,7 +803,7 @@ TEST(OptionalTest, OptionalIntInUnorderedSet) {
   EXPECT_TRUE(optional_int_set.find(0) != optional_int_set.end());
   EXPECT_TRUE(optional_int_set.find(optional<int>()) != optional_int_set.end());
 
-  optional_int_set.erase(0);
+  optional_int_set.erase(make_optional(0));
 
   EXPECT_FALSE(optional_int_set.find(0) != optional_int_set.end());
   EXPECT_TRUE(optional_int_set.find(optional<int>()) != optional_int_set.end());
