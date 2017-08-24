@@ -365,8 +365,8 @@ Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromBorderBox() const {
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromRoot(
     bool transform_forms_root) const {
-  return GetPaddingBoxOffsetFromRoot(transform_forms_root) +
-         GetContentBoxOffsetFromPaddingBox();
+  return GetMarginBoxOffsetFromRoot(transform_forms_root) +
+         GetContentBoxOffsetFromMarginBox();
 }
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromMarginBox() const {
