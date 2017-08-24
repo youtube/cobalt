@@ -32,6 +32,8 @@ class ThreadChecker {
     SB_UNREFERENCED_PARAMETER(type);
   }
 
+  void Detach() {}
+
   bool CalledOnValidThread() const { return true; }
 };
 
@@ -46,6 +48,16 @@ class ThreadChecker {
       thread_id_ = SbThreadGetId();
     else
       thread_id_ = kSbThreadInvalidId;
+  }
+
+  // Detached the thread checker from its current thread.  The thread checker
+  // will re-attach to a thread when CalledOnValidThread() is called again.
+  // This essentially reset the thread checker to a status just like that it
+  // was created with 'kSetThreadIdOnFirstCheck'.
+  void Detach() {
+    // This is safe as when this function is called, it is expected that it
+    // won't be called on its current thread.
+    thread_id_ = kSbThreadInvalidId;
   }
 
   bool CalledOnValidThread() const {
