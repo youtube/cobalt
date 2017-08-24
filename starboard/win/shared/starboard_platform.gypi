@@ -15,17 +15,6 @@
   'variables': {
     'sb_pedantic_warnings': 1,
     'winrt%': 1,
-    'stub_media_player': [
-    ],
-
-    'stub_drm_system': [
-      '<(DEPTH)/starboard/shared/stub/drm_close_session.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_create_system.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_destroy_system.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_generate_session_update_request.cc',
-      '<(DEPTH)/starboard/shared/stub/drm_system_internal.h',
-      '<(DEPTH)/starboard/shared/stub/drm_update_session.cc',
-    ],
 
     # TODO: Move this and the win32 dependencies below to a shared/win32/starboard_platform.gypi?
     'uwp_incompatible_win32': [
@@ -47,6 +36,20 @@
       '<(DEPTH)/starboard/shared/win32/window_internal.cc',
       '<(DEPTH)/starboard/shared/win32/window_intsdfdsfernal.h',
       '<(DEPTH)/starboard/shared/win32/window_set_default_options.cc',
+    ],
+    'win32_shared_drm_files': [
+      '<(DEPTH)/starboard/shared/starboard/drm/drm_close_session.cc',
+      '<(DEPTH)/starboard/shared/starboard/drm/drm_destroy_system.cc',
+      '<(DEPTH)/starboard/shared/starboard/drm/drm_generate_session_update_request.cc',
+      '<(DEPTH)/starboard/shared/starboard/drm/drm_system_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/drm/drm_update_session.cc',
+
+      '<(DEPTH)/starboard/shared/win32/drm_create_system.cc',
+      '<(DEPTH)/starboard/shared/win32/drm_system_playready.cc',
+      '<(DEPTH)/starboard/shared/win32/drm_system_playready.h',
+      '<(DEPTH)/starboard/shared/win32/playready_license.cc',
+      '<(DEPTH)/starboard/shared/win32/wrm_header.cc',
+      '<(DEPTH)/starboard/shared/win32/wrm_header.h',
     ],
     'win32_media_player_files': [
       '<(DEPTH)/starboard/shared/win32/atomic_queue.h',
@@ -127,6 +130,7 @@
     ],
     'starboard_platform_dependent_files': [
       '<@(win32_media_player_files)',
+      '<@(win32_shared_drm_files)',
       '<@(win32_shared_media_player_files)',
     ]
   },

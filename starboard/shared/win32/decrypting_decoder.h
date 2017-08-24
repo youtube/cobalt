@@ -27,12 +27,10 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
+#include "starboard/shared/win32/drm_system_playready.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_transform.h"
 #include "starboard/types.h"
-
-// TODO: Win32 code shouldn't depend on Xb1 code.  Refactor this.
-#include "starboard/xb1/shared/playready/drm_system_playready.h"
 
 namespace starboard {
 namespace shared {
@@ -77,7 +75,7 @@ class DecryptingDecoder {
 
   // TODO: Clarify the thread pattern of this class.
   const std::string type_;  // For debugging purpose.
-  ::starboard::xb1::shared::playready::SbDrmSystemPlayready* drm_system_;
+  SbDrmSystemPlayready* drm_system_;
 
   scoped_ptr<MediaTransform> decryptor_;
   MediaTransform decoder_;

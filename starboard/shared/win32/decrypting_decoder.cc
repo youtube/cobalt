@@ -27,8 +27,6 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-using ::starboard::xb1::shared::playready::PlayreadyLicense;
-
 namespace {
 
 ComPtr<IMFSample> CreateSample(const void* data,
@@ -109,9 +107,7 @@ DecryptingDecoder::DecryptingDecoder(const std::string& type,
                                      CLSID clsid,
                                      SbDrmSystem drm_system)
     : type_(type), decoder_(clsid) {
-  drm_system_ =
-      static_cast<::starboard::xb1::shared::playready::SbDrmSystemPlayready*>(
-          drm_system);
+  drm_system_ = static_cast<SbDrmSystemPlayready*>(drm_system);
 }
 
 DecryptingDecoder::~DecryptingDecoder() {
@@ -150,8 +146,9 @@ bool DecryptingDecoder::TryWriteInputBuffer(
         return false;
       }
       decoder_.ResetFromDrained();
-      scoped_refptr<PlayreadyLicense> license = drm_system_->GetLicense(
-          key_id.data(), static_cast<int>(key_id.size()));
+      scoped_refptr<SbDrmSystemPlayready::License> license =
+          drm_system_->GetLicense(key_id.data(),
+                                  static_cast<int>(key_id.size()));
       if (license && license->usable()) {
         decryptor_.reset(new MediaTransform(license->decryptor()));
         ActivateDecryptor();
