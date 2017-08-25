@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/path_service.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/threading/platform_thread.h"
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/storage/savegame_fake.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -58,6 +59,7 @@ class CallbackWaiter {
   bool TimedWait() {
     return was_called_event_.TimedWait(base::TimeDelta::FromSeconds(5));
   }
+  bool IsSignaled() { return was_called_event_.IsSignaled(); }
 
  protected:
   void Signal() { was_called_event_.Signal(); }
@@ -158,17 +160,6 @@ TEST_F(StorageManagerTest, ObtainConnection) {
   EXPECT_EQ(true, waiter.TimedWait());
 }
 
-TEST_F(StorageManagerTest, FlushNow) {
-  // Ensure the Flush callback is called.
-  Init<StorageManager>();
-  storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
-  message_loop_.RunUntilIdle();
-  FlushWaiter waiter;
-  storage_manager_->FlushNow(
-      base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
-  EXPECT_EQ(true, waiter.TimedWait());
-}
-
 TEST_F(StorageManagerTest, QuerySchemaVersion) {
   Init<StorageManager>(false /* delete_savegame */);
   storage_manager_->GetSqlContext(base::Bind(&QuerySchemaCallback));
@@ -185,9 +176,20 @@ TEST_F(StorageManagerTest, QuerySchemaVersion) {
   message_loop_.RunUntilIdle();
 }
 
-TEST_F(StorageManagerTest, Flush) {
-  // Test that the Flush callback is called once (and only once, despite us
-  // calling Flush() multiple times).
+TEST_F(StorageManagerTest, FlushNow) {
+  // Ensure the Flush callback is called.
+  Init<StorageManager>();
+  storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
+  message_loop_.RunUntilIdle();
+  FlushWaiter waiter;
+  storage_manager_->FlushNow(
+      base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
+  EXPECT_EQ(true, waiter.TimedWait());
+}
+
+TEST_F(StorageManagerTest, FlushNowWithFlushOnChange) {
+  // Test that the Flush callback is called exactly once, despite calling both
+  // FlushOnChange() and FlushNow().
   Init<MockStorageManager>();
 
   storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
@@ -197,16 +199,72 @@ TEST_F(StorageManagerTest, Flush) {
   MockStorageManager& storage_manager =
       *dynamic_cast<MockStorageManager*>(storage_manager_.get());
 
-  // When QueueFlush() is called, have it also call
-  // FlushWaiter::OnFlushDone(). We will wait for this in TimedWait().
+  // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
+  // We will wait for this in TimedWait().
+  ON_CALL(storage_manager, QueueFlush(_))
+      .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
+  EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
+
+  storage_manager_->FlushOnChange();
+  storage_manager_->FlushNow(
+      base::Bind(&FlushWaiter::OnFlushDone, base::Unretained(&waiter)));
+
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(3000));
+
+  EXPECT_EQ(true, waiter.IsSignaled());
+}
+
+TEST_F(StorageManagerTest, FlushOnChange) {
+  // Test that the Flush callback is called exactly once, despite calling
+  // FlushOnChange() multiple times.
+  Init<MockStorageManager>();
+
+  storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
+  message_loop_.RunUntilIdle();
+
+  FlushWaiter waiter;
+  MockStorageManager& storage_manager =
+      *dynamic_cast<MockStorageManager*>(storage_manager_.get());
+
+  // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
+  // We will wait for this in TimedWait().
   ON_CALL(storage_manager, QueueFlush(_))
       .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
   EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
 
   for (int i = 0; i < 10; ++i) {
-    storage_manager_->Flush();
+    storage_manager_->FlushOnChange();
   }
+
+  base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(3000));
+
   EXPECT_EQ(true, waiter.TimedWait());
+}
+
+TEST_F(StorageManagerTest, FlushOnChangeMaxDelay) {
+  // Test that the Flush callback is called once from hitting the max delay when
+  // there are constant calls to FlushOnChange().
+  Init<MockStorageManager>();
+
+  storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
+  message_loop_.RunUntilIdle();
+
+  FlushWaiter waiter;
+  MockStorageManager& storage_manager =
+      *dynamic_cast<MockStorageManager*>(storage_manager_.get());
+
+  // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
+  // We will wait for this in TimedWait().
+  ON_CALL(storage_manager, QueueFlush(_))
+      .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
+  EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
+
+  for (int i = 0; i < 30; ++i) {
+    base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
+    storage_manager_->FlushOnChange();
+  }
+
+  EXPECT_EQ(true, waiter.IsSignaled());
 }
 
 TEST_F(StorageManagerTest, Upgrade) {
