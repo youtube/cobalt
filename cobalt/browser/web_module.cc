@@ -341,8 +341,7 @@ class WebModule::Impl {
   // Used for DOM node highlighting and overlay messages.
   scoped_ptr<debug::RenderOverlay> debug_overlay_;
 
-  // The core of the debugging system, described here:
-  // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
+  // The core of the debugging system.
   // Created lazily when accessed via |GetDebugServer|.
   scoped_ptr<debug::DebugServerModule> debug_server_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
