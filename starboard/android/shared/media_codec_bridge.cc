@@ -191,6 +191,14 @@ void MediaCodecBridge::ReleaseOutputBuffer(jint index, jboolean render) {
       j_media_codec_bridge_, "releaseOutputBuffer", "(IZ)V", index, render);
 }
 
+void MediaCodecBridge::ReleaseOutputBufferAtTimestamp(
+    jint index,
+    jlong render_timestamp_ns) {
+  JniEnvExt::Get()->CallVoidMethodOrAbort(j_media_codec_bridge_,
+                                          "releaseOutputBuffer", "(IJ)V", index,
+                                          render_timestamp_ns);
+}
+
 jint MediaCodecBridge::Flush() {
   return JniEnvExt::Get()->CallIntMethodOrAbort(j_media_codec_bridge_, "flush",
                                                 "()I");
