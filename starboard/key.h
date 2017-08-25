@@ -208,7 +208,7 @@ typedef enum SbKey {
   kSbKeyMediaRewind = 0xE3,
   kSbKeyMediaFastForward = 0xE4,
 
-#if SB_API_VESRION >= SB_COLOR_KEYCODES_API_VERSION
+#if SB_API_VERSION >= SB_COLOR_KEYCODES_API_VERSION
   // The colored keys found on most contemporary TV remotes.
   kSbKeyRed = 0x193,
   kSbKeyGreen = 0x194,
