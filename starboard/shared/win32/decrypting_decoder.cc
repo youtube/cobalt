@@ -20,6 +20,7 @@
 #include "starboard/byte_swap.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
 
@@ -62,21 +63,22 @@ ComPtr<IMFSample> CreateSample(const void* data,
 
 void AttachDrmDataToSample(ComPtr<IMFSample> sample,
                            int sample_size,
-                           const std::vector<std::uint8_t>& key_id,
-                           const std::vector<std::uint8_t>& iv,
-                           const std::vector<Subsample>& subsamples) {
-  size_t iv_size = iv.size();
-  const char kEightZeros[8] = {0};
-  if (iv_size == 16 && SbMemoryCompare(iv.data() + 8, kEightZeros, 8) == 0) {
+                           const uint8_t* key_id,
+                           int key_id_size,
+                           const uint8_t* iv,
+                           int iv_size,
+                           const SbDrmSubSampleMapping* subsample_mapping,
+                           int subsample_count) {
+  if (iv_size == 16 && SbMemoryIsZero(iv + 8, 8)) {
     // For iv that is 16 bytes long but the the last 8 bytes is 0, we treat
     // it as an 8 bytes iv.
     iv_size = 8;
   }
   sample->SetBlob(MFSampleExtension_Encryption_SampleID,
-                  reinterpret_cast<const UINT8*>(iv.data()),
+                  reinterpret_cast<const UINT8*>(iv),
                   static_cast<UINT32>(iv_size));
-  SB_DCHECK(key_id.size() == sizeof(GUID));
-  GUID guid = *reinterpret_cast<const GUID*>(key_id.data());
+  SB_DCHECK(key_id_size == sizeof(GUID));
+  GUID guid = *reinterpret_cast<const GUID*>(key_id);
 
   guid.Data1 = SbByteSwapU32(guid.Data1);
   guid.Data2 = SbByteSwapU16(guid.Data2);
@@ -84,21 +86,17 @@ void AttachDrmDataToSample(ComPtr<IMFSample> sample,
 
   sample->SetGUID(MFSampleExtension_Content_KeyID, guid);
 
-  std::vector<DWORD> subsamples_data;
-  if (!subsamples.empty()) {
-    for (auto& subsample : subsamples) {
-      subsamples_data.push_back(subsample.clear_bytes);
-      subsamples_data.push_back(subsample.encrypted_bytes);
-    }
-    SB_DCHECK(std::accumulate(subsamples_data.begin(), subsamples_data.end(),
-                              0) == sample_size);
-  } else {
-    subsamples_data.push_back(0);
-    subsamples_data.push_back(sample_size);
+  SB_DCHECK(sizeof(DWORD) * 2 == sizeof(SbDrmSubSampleMapping));
+
+  SbDrmSubSampleMapping default_subsample = {0, sample_size};
+  if (subsample_count == 0) {
+    subsample_mapping = &default_subsample;
+    subsample_count = 1;
   }
-  sample->SetBlob(MFSampleExtension_Encryption_SubSampleMappingSplit,
-                  reinterpret_cast<UINT8*>(&subsamples_data[0]),
-                  static_cast<UINT32>(subsamples_data.size() * sizeof(DWORD)));
+  sample->SetBlob(
+      MFSampleExtension_Encryption_SubSampleMappingSplit,
+      reinterpret_cast<const UINT8*>(subsample_mapping),
+      static_cast<UINT32>(subsample_count * sizeof(SbDrmSubSampleMapping)));
 }
 
 }  // namespace
@@ -118,9 +116,12 @@ bool DecryptingDecoder::TryWriteInputBuffer(
     const void* data,
     int size,
     std::int64_t win32_timestamp,
-    const std::vector<std::uint8_t>& key_id,
-    const std::vector<std::uint8_t>& iv,
-    const std::vector<Subsample>& subsamples) {
+    const uint8_t* key_id,
+    int key_id_size,
+    const uint8_t* iv,
+    int iv_size,
+    const SbDrmSubSampleMapping* subsample_mapping,
+    int subsample_count) {
   // MFSampleExtension_CleanPoint is a key-frame for the video + audio. It is
   // not set here because the win32 system is smart enough to figure this out.
   // It will probably be totally ok to not set this at all. Resolution: If
@@ -130,9 +131,7 @@ bool DecryptingDecoder::TryWriteInputBuffer(
   // (which will receive an InputBuffer).
   ComPtr<IMFSample> input = CreateSample(data, size, win32_timestamp);
 
-  // Has to check both as sometimes the sample can contain an invalid key id.
-  // Better check the key id size is 16 and iv size is 8 or 16.
-  bool encrypted = !key_id.empty() && !iv.empty();
+  bool encrypted = key_id_size == 16 && (iv_size == 8 || iv_size == 16);
   if (encrypted) {
     if (!decryptor_) {
       if (decoder_.draining()) {
@@ -144,8 +143,7 @@ bool DecryptingDecoder::TryWriteInputBuffer(
       }
       decoder_.ResetFromDrained();
       scoped_refptr<SbDrmSystemPlayready::License> license =
-          drm_system_->GetLicense(key_id.data(),
-                                  static_cast<int>(key_id.size()));
+          drm_system_->GetLicense(key_id, key_id_size);
       if (license && license->usable()) {
         decryptor_.reset(new MediaTransform(license->decryptor()));
         ActivateDecryptor();
@@ -155,7 +153,8 @@ bool DecryptingDecoder::TryWriteInputBuffer(
       SB_NOTREACHED();
       return false;
     }
-    AttachDrmDataToSample(input, size, key_id, iv, subsamples);
+    AttachDrmDataToSample(input, size, key_id, key_id_size, iv, iv_size,
+                          subsample_mapping, subsample_count);
   }
 
   if (encrypted) {

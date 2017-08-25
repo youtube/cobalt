@@ -36,11 +36,6 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-struct Subsample {
-  uint32_t clear_bytes;
-  uint32_t encrypted_bytes;
-};
-
 // This class maintains a MediaTransform based decoding stream.  When the
 // stream is encrypted, it also contains a MediaTransform based decryptor and
 // manages the interaction between the decryptor and the decoder.
@@ -53,14 +48,15 @@ class DecryptingDecoder {
 
   MediaTransform& GetDecoder() { return decoder_; }
 
-  // TODO: Remove Subsample structure and all the std::vector<>s to minimize
-  //       memory allocation.
   bool TryWriteInputBuffer(const void* data,
                            int size,
                            std::int64_t win32_timestamp,
-                           const std::vector<uint8_t>& key_id,
-                           const std::vector<uint8_t>& iv,
-                           const std::vector<Subsample>& subsamples);
+                           const uint8_t* key_id,
+                           int key_id_size,
+                           const uint8_t* iv,
+                           int iv_size,
+                           const SbDrmSubSampleMapping* subsamples,
+                           int subsample_count);
   // Return true if there is any internal actions succeeded, this implies that
   // the caller can call this function again to process further.
   // |output| contains the decrypted and decoded output if there is any.

@@ -189,47 +189,51 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   }
 
   bool TryWrite(const InputBuffer& buff) SB_OVERRIDE {
-    const void* data = buff.data();
-    const int size = buff.size();
+    // The incoming audio is in ADTS format which has a 7 bytes header.  But
+    // the audio decoder is configured to accept raw AAC.  So we have to adjust
+    // the data, size, and subsample mapping to skip the ADTS header.
+    const int kADTSHeaderSize = 7;
+
+    if (buff.size() < kADTSHeaderSize) {
+      SB_NOTREACHED();
+      return false;
+    }
+
+    const uint8_t* data = buff.data() + kADTSHeaderSize;
+    int size = buff.size() - kADTSHeaderSize;
     const int64_t media_timestamp = buff.pts();
 
-    std::vector<uint8_t> key_id;
-    std::vector<uint8_t> iv;
-    std::vector<Subsample> subsamples;
+    const uint8_t* key_id = NULL;
+    int key_id_size = 0;
+    const uint8_t* iv = NULL;
+    int iv_size = 0;
 
     const SbDrmSampleInfo* drm_info = buff.drm_info();
 
     if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
-      key_id.assign(drm_info->identifier,
-                    drm_info->identifier + drm_info->identifier_size);
-      iv.assign(drm_info->initialization_vector,
-                drm_info->initialization_vector +
-                    drm_info->initialization_vector_size);
-      subsamples.reserve(drm_info->subsample_count);
-      for (int32_t i = 0; i < drm_info->subsample_count; ++i) {
-        Subsample subsample = {
-            static_cast<uint32_t>(
-                drm_info->subsample_mapping[i].clear_byte_count),
-            static_cast<uint32_t>(
-                drm_info->subsample_mapping[i].encrypted_byte_count)};
-        subsamples.push_back(subsample);
+      if (drm_info->subsample_count != 0 && drm_info->subsample_count != 1) {
+        return false;
       }
+      if (drm_info->subsample_count == 1) {
+        if (drm_info->subsample_mapping[0].clear_byte_count !=
+            kADTSHeaderSize) {
+          return false;
+        }
+      }
+
+      key_id = drm_info->identifier;
+      key_id_size = drm_info->identifier_size;
+      iv = drm_info->initialization_vector;
+      iv_size = drm_info->initialization_vector_size;
     }
 
     const std::int64_t win32_time_stamp = ConvertToWin32Time(media_timestamp);
-
-    // Adjust the offset for 7 bytes to remove the ADTS header.
-    const int kADTSHeaderSize = 7;
-    const uint8_t* audio_start =
-        static_cast<const uint8_t*>(data) + kADTSHeaderSize;
-    const int audio_size = size - kADTSHeaderSize;
-    if (!subsamples.empty()) {
-      SB_DCHECK(subsamples[0].clear_bytes == kADTSHeaderSize);
-      subsamples[0].clear_bytes = 0;
-    }
+    const SbDrmSubSampleMapping* subsample_mapping = NULL;
+    const int subsample_count = 0;
 
     const bool write_ok = impl_.TryWriteInputBuffer(
-        audio_start, audio_size, win32_time_stamp, key_id, iv, subsamples);
+        data, size, win32_time_stamp, key_id, key_id_size, iv, iv_size,
+        subsample_mapping, subsample_count);
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
     while (impl_.ProcessAndRead(&sample, &media_type)) {
