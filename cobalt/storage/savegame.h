@@ -89,6 +89,9 @@ class Savegame {
  private:
   base::ThreadChecker thread_checker_;
 
+  // Caching of last written bytes, which is used to prevent duplicate writes.
+  ByteVector last_bytes_;
+
   DISALLOW_COPY_AND_ASSIGN(Savegame);
 };
 

@@ -94,6 +94,13 @@ void StorageArea::SetItem(const std::string& key, const std::string& value) {
   Init();
 
   base::optional<std::string> old_value = GetItem(key);
+
+  // If the previous value is equal to value, then the method must do nothing.
+  // https://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
+  if (old_value == value) {
+    return;
+  }
+
   // TODO: Implement quota handling.
   size_bytes_ +=
       static_cast<int>(value.length() - old_value.value_or("").length());
@@ -107,13 +114,17 @@ void StorageArea::SetItem(const std::string& key, const std::string& value) {
 void StorageArea::RemoveItem(const std::string& key) {
   Init();
 
-  base::optional<std::string> old_value;
   StorageMap::iterator it = storage_map_->find(key);
-  if (it != storage_map_->end()) {
-    size_bytes_ -= static_cast<int>(it->second.length());
-    old_value = it->second;
-    storage_map_->erase(it);
+
+  // If no item with this key exists, the method must do nothing.
+  // https://www.w3.org/TR/2015/CR-webstorage-20150609/#storage-0
+  if (it == storage_map_->end()) {
+    return;
   }
+
+  size_bytes_ -= static_cast<int>(it->second.length());
+  std::string old_value = it->second;
+  storage_map_->erase(it);
   storage_node_->DispatchEvent(key, old_value, base::nullopt);
   if (db_interface_) {
     db_interface_->Delete(identifier_, key);

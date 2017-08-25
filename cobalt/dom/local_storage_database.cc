@@ -156,20 +156,20 @@ void LocalStorageDatabase::Write(const std::string& id, const std::string& key,
   TRACK_MEMORY_SCOPE("Storage");
   Init();
   storage_->GetSqlContext(base::Bind(&SqlWrite, id, key, value));
-  storage_->Flush();
+  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Delete(const std::string& id,
                                   const std::string& key) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlDelete, id, key));
-  storage_->Flush();
+  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Clear(const std::string& id) {
   Init();
   storage_->GetSqlContext(base::Bind(&SqlClear, id));
-  storage_->Flush();
+  storage_->FlushOnChange();
 }
 
 void LocalStorageDatabase::Flush(const base::Closure& callback) {
