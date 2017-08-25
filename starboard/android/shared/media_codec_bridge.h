@@ -106,6 +106,7 @@ class MediaCodecBridge {
   // jobject that |GetOutputBuffer| returns.
   jobject GetOutputBuffer(jint index);
   void ReleaseOutputBuffer(jint index, jboolean render);
+  void ReleaseOutputBufferAtTimestamp(jint index, jlong render_timestamp_ns);
 
   jint Flush();
   SurfaceDimensions GetOutputDimensions();
