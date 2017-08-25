@@ -20,6 +20,10 @@
 namespace cobalt {
 namespace storage {
 
+// An arbitrary max size for |last_bytes_| to prevent it from growing larger
+// than desired.
+size_t kMaxLastBytesSize = 128 * 1024;
+
 Savegame::Savegame(const Options& options) : options_(options) {}
 
 Savegame::~Savegame() {}
@@ -34,7 +38,21 @@ bool Savegame::Read(std::vector<uint8>* bytes, size_t max_to_read) {
 bool Savegame::Write(const std::vector<uint8>& bytes) {
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::storage", "Savegame::Write()");
+  if (bytes == last_bytes_) {
+    return true;
+  }
+
   bool ret = PlatformWrite(bytes);
+
+  if (bytes.size() <= kMaxLastBytesSize) {
+    last_bytes_ = bytes;
+  } else {
+    DLOG(WARNING) << "Unable to cache last savegame, which is used to prevent "
+                     "duplicate saves, because it is too large: "
+                  << bytes.size() << " bytes";
+    last_bytes_.clear();
+  }
+
   return ret;
 }
 
