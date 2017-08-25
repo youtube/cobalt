@@ -47,7 +47,7 @@ DrawRectColorTexture::DrawRectColorTexture(GraphicsState* graphics_state,
       vertex_buffer_(NULL),
       clamp_texcoords_(clamp_texcoords),
       tile_texture_(false) {
-  color_ = GetGLRGBA(color * base_state_.opacity);
+  color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
   graphics_state->ReserveVertexData(4 * sizeof(VertexAttributes));
 }
 

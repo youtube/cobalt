@@ -220,10 +220,7 @@ void DrawRectLinearGradient::AddRectWithAngledGradient(
 
 uint32_t DrawRectLinearGradient::GetGLColor(
     const render_tree::ColorStop& color_stop) {
-  const render_tree::ColorRGBA& color = color_stop.color;
-  float alpha = base_state_.opacity * color.a();
-  return GetGLRGBA(color.r() * alpha, color.g() * alpha, color.b() * alpha,
-                   alpha);
+  return GetGLRGBA(GetDrawColor(color_stop.color) * base_state_.opacity);
 }
 
 void DrawRectLinearGradient::AddVertex(float x, float y, uint32_t color) {
