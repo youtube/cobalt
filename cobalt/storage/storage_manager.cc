@@ -32,9 +32,10 @@ namespace storage {
 
 namespace {
 
-// Flush() delays for a while to avoid spamming writes to disk.
-// We often get a bunch of Flush() calls in a row.
-const int kDatabaseFlushDelayMs = 100;
+// FlushOnChange() delays for a while to avoid spamming writes to disk; we often
+// get several FlushOnChange() calls in a row.
+const int kDatabaseFlushOnLastChangeDelayMs = 500;
+const int kDatabaseFlushOnChangeMaxDelayMs = 2000;
 
 const char kDefaultSaveFile[] = "cobalt_save.bin";
 
@@ -143,7 +144,7 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
       loaded_database_version_(0),
       initialized_(false),
       flush_processing_(false),
-      flush_requested_(false),
+      flush_pending_(false),
       no_flushes_pending_(true /* manual reset */,
                           true /* initially signalled */) {
   DCHECK(upgrade_handler_);
@@ -152,6 +153,10 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
   // Start the savegame load immediately.
   sql_thread_->Start();
   sql_message_loop_ = sql_thread_->message_loop_proxy();
+
+  flush_on_last_change_timer_.reset(new base::OneShotTimer<StorageManager>());
+  flush_on_change_max_delay_timer_.reset(
+      new base::OneShotTimer<StorageManager>());
 }
 
 StorageManager::~StorageManager() {
@@ -176,18 +181,31 @@ void StorageManager::GetSqlContext(const SqlCallback& callback) {
                               base::Bind(callback, sql_context_.get()));
 }
 
-void StorageManager::Flush() {
+void StorageManager::FlushOnChange() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   // Make sure this runs on the correct thread.
   if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
     sql_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&StorageManager::Flush, base::Unretained(this)));
+        FROM_HERE,
+        base::Bind(&StorageManager::FlushOnChange, base::Unretained(this)));
     return;
   }
 
-  flush_timer_->Start(FROM_HERE,
-                      base::TimeDelta::FromMilliseconds(kDatabaseFlushDelayMs),
-                      this, &StorageManager::OnFlushTimerFired);
+  // Only start the timers if there isn't already a flush pending.
+  if (!flush_pending_) {
+    // The last change timer is always re-started on any change.
+    flush_on_last_change_timer_->Start(
+        FROM_HERE,
+        base::TimeDelta::FromMilliseconds(kDatabaseFlushOnLastChangeDelayMs),
+        this, &StorageManager::OnFlushOnChangeTimerFired);
+    // The max delay timer is never re-started after it starts running.
+    if (!flush_on_change_max_delay_timer_->IsRunning()) {
+      flush_on_change_max_delay_timer_->Start(
+          FROM_HERE,
+          base::TimeDelta::FromMilliseconds(kDatabaseFlushOnChangeMaxDelayMs),
+          this, &StorageManager::OnFlushOnChangeTimerFired);
+    }
+  }
 }
 
 void StorageManager::FlushNow(const base::Closure& callback) {
@@ -200,6 +218,7 @@ void StorageManager::FlushNow(const base::Closure& callback) {
     return;
   }
 
+  StopFlushOnChangeTimers();
   QueueFlush(callback);
 }
 
@@ -249,7 +268,6 @@ void StorageManager::FinishInit() {
 
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
-  flush_timer_.reset(new base::OneShotTimer<StorageManager>());
   // Savegame has finished loading. Now initialize the database connection.
   // Check if this is upgrade data, if so, handle it, otherwise:
   // Check if the savegame data contains a VFS header.
@@ -316,10 +334,20 @@ void StorageManager::FinishInit() {
   initialized_ = true;
 }
 
-void StorageManager::OnFlushTimerFired() {
+void StorageManager::StopFlushOnChangeTimers() {
+  if (flush_on_last_change_timer_->IsRunning()) {
+    flush_on_last_change_timer_->Stop();
+  }
+  if (flush_on_change_max_delay_timer_->IsRunning()) {
+    flush_on_change_max_delay_timer_->Stop();
+  }
+}
+
+void StorageManager::OnFlushOnChangeTimerFired() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
 
+  StopFlushOnChangeTimers();
   QueueFlush(base::Closure());
 }
 
@@ -342,11 +370,11 @@ void StorageManager::OnFlushIOCompletedSQLCallback() {
   }
   flush_processing_callbacks_.clear();
 
-  if (flush_requested_) {
+  if (flush_pending_) {
     // If another flush has been requested while we were processing the one that
     // just completed, start that next flush now.
-    flush_processing_callbacks_.swap(flush_requested_callbacks_);
-    flush_requested_ = false;
+    flush_processing_callbacks_.swap(flush_pending_callbacks_);
+    flush_pending_ = false;
     FlushInternal();
     DCHECK(flush_processing_);
   } else {
@@ -368,9 +396,9 @@ void StorageManager::QueueFlush(const base::Closure& callback) {
   } else {
     // Otherwise, indicate that we would like to re-flush as soon as the
     // current one completes.
-    flush_requested_ = true;
+    flush_pending_ = true;
     if (!callback.is_null()) {
-      flush_requested_callbacks_.push_back(callback);
+      flush_pending_callbacks_.push_back(callback);
     }
   }
 }
@@ -431,7 +459,8 @@ void StorageManager::OnDestroy() {
   savegame_thread_.reset();
 
   // Ensure these objects are destroyed on the proper thread.
-  flush_timer_.reset(NULL);
+  flush_on_last_change_timer_.reset(NULL);
+  flush_on_change_max_delay_timer_.reset(NULL);
   sql_vfs_.reset(NULL);
   vfs_.reset(NULL);
 }
