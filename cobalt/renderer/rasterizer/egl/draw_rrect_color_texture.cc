@@ -58,7 +58,7 @@ DrawRRectColorTexture::DrawRRectColorTexture(GraphicsState* graphics_state,
       clamp_texcoords_(clamp_texcoords),
       tile_texture_(false) {
   DCHECK(base_state_.rounded_scissor_corners);
-  color_ = color * base_state_.opacity;
+  color_ = GetDrawColor(color) * base_state_.opacity;
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }
 

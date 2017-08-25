@@ -31,7 +31,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
     : DrawObject(base_state),
       vertex_buffer_(NULL) {
   attributes_.reserve(4);
-  AddRect(rect, GetGLRGBA(color * base_state_.opacity));
+  AddRect(rect, GetGLRGBA(GetDrawColor(color) * base_state_.opacity));
   graphics_state->ReserveVertexData(
       attributes_.size() * sizeof(VertexAttributes));
 }
