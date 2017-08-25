@@ -15,8 +15,10 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/android/shared/audio_decoder.h"
+#include "starboard/android/shared/audio_renderer.h"
 #include "starboard/android/shared/video_decoder.h"
 #include "starboard/android/shared/video_renderer.h"
+#include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
 
 namespace starboard {
@@ -30,6 +32,10 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const AudioParameters& audio_parameters,
     const VideoParameters& video_parameters) {
   using AudioDecoderImpl = ::starboard::android::shared::AudioDecoder;
+  using AudioRendererImpl = ::starboard::android::shared::AudioRenderer;
+  using MediaSynchronizer = ::starboard::android::shared::MediaSynchronizer;
+  using ThreadSafeAudioFrameTracker =
+      ::starboard::android::shared::ThreadSafeAudioFrameTracker;
   using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
   using VideoRendererImpl = ::starboard::android::shared::VideoRenderer;
 
@@ -51,12 +57,16 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                            audio_parameters.audio_header);
+  scoped_ptr<AudioFrameTracker> audio_frame_tracker(
+      new ThreadSafeAudioFrameTracker());
+
+  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+      scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
+      audio_parameters.audio_header, audio_frame_tracker.Pass());
 
   VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass());
+      new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass(),
+                            static_cast<MediaSynchronizer*>(audio_renderer));
 
   return scoped_ptr<PlayerComponents>(
       new PlayerComponents(audio_renderer, video_renderer));
