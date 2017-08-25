@@ -43,7 +43,7 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
       offset_scale_(1.0f),
       vertex_buffer_(nullptr),
       vertex_count_(0) {
-  color_ = GetGLRGBA(color * base_state_.opacity);
+  color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
   if (inner_corners_ || outer_corners_) {
     // If using rounded corners, then both inner and outer rects must have
     // rounded corner definitions.
