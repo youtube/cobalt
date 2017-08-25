@@ -80,7 +80,7 @@ any time.
 
 ### The "Release Candidate" Starboard Version
 
-At any given time, zero or one versions of Starboard will be denoted as the
+At any given time, zero or more versions of Starboard will be denoted as the
 "release candidate" version, as defined by the
 `SB_RELEASE_CANDIDATE_API_VERSION` macro in `starboard/configuration.h`. The
 "release candidate" version is a set of API changes that have been considered
@@ -88,7 +88,8 @@ and tested together. It is reasonable to port against this version, it has gone
 through some stabilization and may become frozen as it currently is. But, be
 aware that it is possible that minor incompatible changes may be made to this
 version if an unexpected situation arises. `SB_RELEASE_CANDIDATE_API_VERSION` is
-not defined if there is no "release candidate" version.
+not defined if there is no "release candidate" version. Every API version
+greater than `SB_RELEASE_CANDIDATE_API_VERSION` but less than `SB_EXPERIMENTAL_API_VERSION` is also considered a release candidate.
 
 ### "Frozen" Starboard versions
 
