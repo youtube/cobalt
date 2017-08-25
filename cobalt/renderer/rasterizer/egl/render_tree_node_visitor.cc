@@ -51,6 +51,10 @@ namespace {
 const render_tree::ColorRGBA kOpaqueWhite(1.0f, 1.0f, 1.0f, 1.0f);
 const render_tree::ColorRGBA kTransparentBlack(0.0f, 0.0f, 0.0f, 0.0f);
 
+bool IsOpaque(float opacity) {
+  return opacity >= 0.999f;
+}
+
 math::Rect RoundRectFToInt(const math::RectF& input) {
   int left = static_cast<int>(input.x() + 0.5f);
   int right = static_cast<int>(input.right() + 0.5f);
@@ -293,11 +297,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
         // The content rect is already in screen space, so reset the transform.
         math::Matrix3F old_transform = draw_state_.transform;
+        float old_opacity = draw_state_.opacity;
         draw_state_.transform = math::Matrix3F::Identity();
+        draw_state_.opacity *= filter_opacity;
         scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-            draw_state_, content_rect, kOpaqueWhite * filter_opacity, texture,
+            draw_state_, content_rect, kOpaqueWhite, texture,
             texcoord_transform, false /* clamp_texcoords */));
         AddTransparentDraw(draw.Pass(), content_rect);
+        draw_state_.opacity = old_opacity;
         draw_state_.transform = old_transform;
         return;
       }
@@ -350,7 +357,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
   bool clamp_texcoords = false;
-  bool is_opaque = skia_image->IsOpaque() && draw_state_.opacity == 1.0f;
+  bool is_opaque = skia_image->IsOpaque() && IsOpaque(draw_state_.opacity);
 
   // Ensure any required backend processing is done to create the necessary
   // GPU resource.
@@ -513,21 +520,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     const render_tree::SolidColorBrush* solid_brush =
         base::polymorphic_downcast<const render_tree::SolidColorBrush*>
             (brush.get());
-    const render_tree::ColorRGBA& brush_color(solid_brush->color());
-    render_tree::ColorRGBA color(
-        brush_color.r() * brush_color.a(),
-        brush_color.g() * brush_color.a(),
-        brush_color.b() * brush_color.a(),
-        brush_color.a());
     if (data.rounded_corners) {
       scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-          draw_state_, content_rect, *data.rounded_corners, color));
+          draw_state_, content_rect, *data.rounded_corners,
+          solid_brush->color()));
       // Transparency is used for anti-aliasing.
       AddTransparentDraw(draw.Pass(), node_bounds);
     } else {
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-          draw_state_, content_rect, color));
-      if (draw_state_.opacity * color.a() == 1.0f) {
+          draw_state_, content_rect, solid_brush->color()));
+      if (IsOpaque(draw_state_.opacity * solid_brush->color().a())) {
         AddOpaqueDraw(draw.Pass(), node_bounds);
       } else {
         AddTransparentDraw(draw.Pass(), node_bounds);
@@ -559,11 +561,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
       data.rounded_corners;
 
   scoped_ptr<DrawObject> draw;
-  render_tree::ColorRGBA shadow_color(
-      data.shadow.color.r() * data.shadow.color.a(),
-      data.shadow.color.g() * data.shadow.color.a(),
-      data.shadow.color.b() * data.shadow.color.a(),
-      data.shadow.color.a());
+  render_tree::ColorRGBA shadow_color(data.shadow.color);
 
   math::RectF spread_rect(data.rect);
   spread_rect.Offset(data.shadow.offset);
@@ -746,7 +744,7 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   // opacity is 100% because the contents may have transparency.
   backend::TextureEGL* texture = target_info.framebuffer->GetColorTexture();
   math::Matrix3F texcoord_transform = GetTexcoordTransform(target_info);
-  if (draw_state_.opacity == 1.0f) {
+  if (IsOpaque(draw_state_.opacity)) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
         draw_state_, content_rect, texture, texcoord_transform));
     AddTransparentDraw(draw.Pass(), content_rect);

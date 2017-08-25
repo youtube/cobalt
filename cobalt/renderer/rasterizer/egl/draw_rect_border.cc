@@ -67,9 +67,7 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
       const render_tree::SolidColorBrush* solid_brush =
           base::polymorphic_downcast<const render_tree::SolidColorBrush*>
               (node->data().background_brush.get());
-      float alpha = solid_brush->color().a() * base_state_.opacity;
-      content_color = solid_brush->color() * alpha;
-      content_color.set_a(alpha);
+      content_color = GetDrawColor(solid_brush->color()) * base_state_.opacity;
     }
   }
 
@@ -82,9 +80,8 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
     if (border.left.style == render_tree::kBorderStyleSolid) {
       attributes_.reserve(kVertexCount);
       indices_.reserve(kIndexCount);
-      float alpha = border.left.color.a() * base_state_.opacity;
-      render_tree::ColorRGBA border_color = border.left.color * alpha;
-      border_color.set_a(alpha);
+      render_tree::ColorRGBA border_color =
+          GetDrawColor(border.left.color) * base_state_.opacity;
       is_valid_ = SetSquareBorder(border, node->data().rect, content_rect_,
                                   border_color, content_color);
       if (is_valid_ && attributes_.size() > 0) {
