@@ -342,6 +342,11 @@ class Window : public EventTarget,
   int height_;
   float device_pixel_ratio_;
 
+  // A resize event can be pending if a resize occurs and the current visibility
+  // state is not visible. In this case, the resize event will run when the
+  // visibility state changes to visible.
+  bool is_resize_event_pending_;
+
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;
 #endif  // ENABLE_TEST_RUNNER
