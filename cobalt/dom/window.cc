@@ -110,6 +110,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
     : width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
+      is_resize_event_pending_(false),
 #if defined(ENABLE_TEST_RUNNER)
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
@@ -448,7 +449,12 @@ void Window::SetSize(int width, int height, float device_pixel_ratio) {
   // This will cause layout invalidation.
   document_->SetViewport(math::Size(width, height));
 
-  PostToDispatchEvent(FROM_HERE, base::Tokens::resize());
+  if (html_element_context_->page_visibility_state()->GetVisibilityState() ==
+      page_visibility::kVisibilityStateVisible) {
+    DispatchEvent(new Event(base::Tokens::resize()));
+  } else {
+    is_resize_event_pending_ = true;
+  }
 }
 
 void Window::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
@@ -463,7 +469,11 @@ void Window::OnWindowFocusChanged(bool has_focus) {
 
 void Window::OnVisibilityStateChanged(
     page_visibility::VisibilityState visibility_state) {
-  UNREFERENCED_PARAMETER(visibility_state);
+  if (is_resize_event_pending_ &&
+      visibility_state == page_visibility::kVisibilityStateVisible) {
+    is_resize_event_pending_ = false;
+    DispatchEvent(new Event(base::Tokens::resize()));
+  }
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {
