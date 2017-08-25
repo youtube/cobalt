@@ -1234,8 +1234,6 @@ void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Start,
                             base::Unretained(impl_.get()), resource_provider));
@@ -1256,8 +1254,6 @@ void WebModule::Unpause() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::Unpause, base::Unretained(impl_.get())));
@@ -1286,8 +1282,6 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
