@@ -371,7 +371,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
     //   https://www.w3.org/TR/uievents/#event-type-click
     //   https://www.w3.org/TR/pointerevents/#compatibility-mapping-with-mouse-events
     if (event_init.button() == 0 &&
-        ((pointer_event->type() == base::Tokens::pointerup()) ||
+        ((mouse_event->type() == base::Tokens::pointerup()) ||
          (mouse_event->type() == base::Tokens::mouseup()))) {
       target_element->DispatchEvent(
           new dom::MouseEvent(base::Tokens::click(), view, event_init));
