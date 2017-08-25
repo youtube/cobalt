@@ -39,12 +39,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 7
+#define SB_MAXIMUM_API_VERSION 8
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 7
+#define SB_EXPERIMENTAL_API_VERSION 8
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
@@ -64,16 +64,8 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// SbDecodeTargetInfoPlane's now can specify color plane information.
-// Previously: Planes of type kSbDecodeTargetFormat2PlaneYUVNV12
-// were assumed to have the luma mapped to the alpha channel (GL_ALPHA)
-// and the chroma mapped to blue and alpha (GL_LUMINANCE_ALPHA). However,
-// some graphics systems require that luma is on GL_RED_EXT and the chroma
-// is on GL_RG_EXT.
-
-#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_EXPERIMENTAL_API_VERSION
-
 // --- Release Candidate Feature Defines -------------------------------------
+#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION 7
 
 #define SB_POINTER_INPUT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER SB_RELEASE_CANDIDATE_API_VERSION
@@ -81,14 +73,11 @@
 #define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_PRELOAD_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_PLATFORM_ERROR_CLEANUP_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION \
-  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_COLOR_KEYCODES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_LOW_MEMORY_EVENT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION \
-  SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION \
-  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_STORAGE_NAMES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
