@@ -281,6 +281,7 @@ TEST_P(WebPlatformTest, Run) {
   std::string json_results = RunWebPlatformTest(test_url, &got_results);
   EXPECT_TRUE(got_results);
   std::vector<TestResult> results = ParseResults(json_results);
+  bool failed_at_least_once = false;
   for (size_t i = 0; i < results.size(); ++i) {
     const WebPlatformTestInfo& test_info = GetParam();
     const TestResult& test_result = results[i];
@@ -289,6 +290,15 @@ TEST_P(WebPlatformTest, Run) {
         test_info.exceptions.find(test_result.name);
     if (it != test_info.exceptions.end()) {
       should_pass = !should_pass;
+    }
+    // If expected to fail but current subtest did not fail, wait to report
+    // the entire test failed after the last subtest passed and none failed.
+    if (!should_pass && test_result.status == WebPlatformTestInfo::kPass &&
+        (i != results.size() - 1 || failed_at_least_once)) {
+      should_pass = true;
+    } else {
+      failed_at_least_once = failed_at_least_once ||
+                             test_result.status == WebPlatformTestInfo::kFail;
     }
     EXPECT_PRED_FORMAT2(CheckResult, should_pass, test_result);
   }
