@@ -48,8 +48,12 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   // exceeds kPrerollTime or if EOS is reached.
   static const size_t kPrerollTime = kSbTimeSecond / 4;
 
-  AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                    const SbMediaAudioHeader& audio_header);
+  AudioRendererImpl(
+      scoped_ptr<AudioDecoder> decoder,
+      const SbMediaAudioHeader& audio_header,
+      scoped_ptr<AudioFrameTracker> audio_frame_tracker =
+          scoped_ptr<AudioFrameTracker>(new SingleThreadedAudioFrameTracker())
+              .Pass());
   ~AudioRendererImpl() SB_OVERRIDE;
 
   void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
@@ -70,6 +74,21 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   bool CanAcceptMoreData() const SB_OVERRIDE;
   bool IsSeekingInProgress() const SB_OVERRIDE;
   SbMediaTime GetCurrentTime() SB_OVERRIDE;
+
+ protected:
+  atomic_bool paused_;
+  atomic_bool seeking_;
+  SbMediaTime seeking_to_pts_;
+  scoped_ptr<AudioFrameTracker> audio_frame_tracker_;
+
+  atomic_int64_t frames_sent_to_sink_;
+  atomic_int64_t frames_consumed_by_sink_;
+  atomic_int32_t frames_consumed_by_sink_since_last_get_current_time_;
+
+  scoped_ptr<AudioDecoder> decoder_;
+
+  atomic_int64_t frames_consumed_set_at_;
+  double playback_rate_;
 
  private:
   enum EOSState {
@@ -117,25 +136,14 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
 
   scoped_ptr<AudioResampler> resampler_;
   AudioTimeStretcher time_stretcher_;
-  double playback_rate_;
   double volume_;
-
-  atomic_bool paused_;
-  atomic_bool seeking_;
-  SbMediaTime seeking_to_pts_;
 
   std::vector<uint8_t> frame_buffer_;
   uint8_t* frame_buffers_[1];
-  atomic_int64_t frames_sent_to_sink_;
-  atomic_int64_t frames_consumed_by_sink_;
-  atomic_int32_t frames_consumed_by_sink_since_last_get_current_time_;
 
   int32_t pending_decoder_outputs_;
-  AudioFrameTracker audio_frame_tracker_;
-  atomic_int64_t frames_consumed_set_at_;
   Closure log_frames_consumed_closure_;
 
-  scoped_ptr<AudioDecoder> decoder_;
   SbAudioSink audio_sink_;
 
   bool can_accept_more_data_;

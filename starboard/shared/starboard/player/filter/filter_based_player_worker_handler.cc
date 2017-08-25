@@ -354,8 +354,6 @@ void FilterBasedPlayerWorkerHandler::Update() {
 void FilterBasedPlayerWorkerHandler::Stop() {
   job_queue_->Remove(update_closure_);
 
-  audio_renderer_.reset();
-
   scoped_ptr<VideoRenderer> video_renderer;
   {
     // Set |video_renderer_| to null with the lock, but we actually destroy
@@ -366,6 +364,8 @@ void FilterBasedPlayerWorkerHandler::Stop() {
     video_renderer = video_renderer_.Pass();
   }
   video_renderer.reset();
+
+  audio_renderer_.reset();
 
 #if SB_API_VERSION >= 4
   if (output_mode_ == kSbPlayerOutputModePunchOut)

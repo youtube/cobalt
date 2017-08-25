@@ -17,6 +17,7 @@
 
 #include <queue>
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
@@ -36,21 +37,18 @@ namespace filter {
 class AudioFrameTracker {
  public:
   AudioFrameTracker() { Reset(); }
+  virtual ~AudioFrameTracker() {}
 
   // Reset the class to its initial state.  In this state there is no frames
   // tracked and the playback frames is 0.
-  void Reset() {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
+  virtual void Reset() {
     while (!frame_records_.empty()) {
       frame_records_.pop();
     }
     frames_played_adjusted_to_playback_rate_ = 0;
   }
 
-  void AddFrames(int number_of_frames, double playback_rate) {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
+  virtual void AddFrames(int number_of_frames, double playback_rate) {
     if (number_of_frames == 0) {
       return;
     }
@@ -65,9 +63,7 @@ class AudioFrameTracker {
     }
   }
 
-  void RecordPlayedFrames(int number_of_frames) {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
+  virtual void RecordPlayedFrames(int number_of_frames) {
     while (number_of_frames > 0 && !frame_records_.empty()) {
       FrameRecord& record = frame_records_.front();
       if (record.number_of_frames > number_of_frames) {
@@ -86,21 +82,48 @@ class AudioFrameTracker {
         << number_of_frames << " " << frame_records_.size();
   }
 
-  SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-
+  virtual SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const {
     return frames_played_adjusted_to_playback_rate_;
   }
 
- private:
+ protected:
   struct FrameRecord {
     int number_of_frames;
     double playback_rate;
   };
 
-  ThreadChecker thread_checker_;
   std::queue<FrameRecord> frame_records_;
   int frames_played_adjusted_to_playback_rate_;
+};
+
+// A specialization of |AudioFrameTracker| that can only be called from the
+// thread that it was created on, and will assert this in debug builds.
+class SingleThreadedAudioFrameTracker : public AudioFrameTracker {
+ public:
+  // Reset the class to its initial state.  In this state there is no frames
+  // tracked and the playback frames is 0.
+  void Reset() SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    AudioFrameTracker::Reset();
+  }
+
+  void AddFrames(int number_of_frames, double playback_rate) SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    AudioFrameTracker::AddFrames(number_of_frames, playback_rate);
+  }
+
+  void RecordPlayedFrames(int number_of_frames) SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    AudioFrameTracker::RecordPlayedFrames(number_of_frames);
+  }
+
+  SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    return AudioFrameTracker::GetFramesPlayedAdjustedToPlaybackRate();
+  }
+
+ private:
+  ThreadChecker thread_checker_;
 };
 
 }  // namespace filter
