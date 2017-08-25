@@ -47,6 +47,7 @@
         'atomic_public.h',
         'audio_decoder.cc',
         'audio_decoder.h',
+        'audio_renderer.h',
         'audio_sink_get_max_channels.cc',
         'audio_sink_get_nearest_supported_sample_frequency.cc',
         'audio_sink_is_audio_frame_storage_type_supported.cc',
