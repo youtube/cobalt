@@ -105,8 +105,9 @@ int SbThreadPriorityToWin32Priority(SbThreadPriority priority) {
     case kSbThreadPriorityHigh:
       return THREAD_PRIORITY_ABOVE_NORMAL;
     case kSbThreadPriorityHighest:
-    case kSbThreadPriorityRealTime:
       return THREAD_PRIORITY_HIGHEST;
+    case kSbThreadPriorityRealTime:
+      return THREAD_PRIORITY_TIME_CRITICAL;
   }
   SB_NOTREACHED() << "Invalid priority " << priority;
   return 0;
