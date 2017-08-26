@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -42,7 +43,7 @@ class AbstractWin32AudioDecoder {
 
   // INPUT:
   //
-  virtual bool TryWrite(const InputBuffer& buff) = 0;
+  virtual bool TryWrite(const scoped_refptr<InputBuffer>& buff) = 0;
   virtual void WriteEndOfStream() = 0;
   // OUTPUT
   //

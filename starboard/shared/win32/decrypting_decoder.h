@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -48,15 +49,9 @@ class DecryptingDecoder {
 
   MediaTransform& GetDecoder() { return decoder_; }
 
-  bool TryWriteInputBuffer(const void* data,
-                           int size,
-                           std::int64_t win32_timestamp,
-                           const uint8_t* key_id,
-                           int key_id_size,
-                           const uint8_t* iv,
-                           int iv_size,
-                           const SbDrmSubSampleMapping* subsamples,
-                           int subsample_count);
+  bool TryWriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
+                           int bytes_to_skip_in_sample);
+
   // Return true if there is any internal actions succeeded, this implies that
   // the caller can call this function again to process further.
   // |output| contains the decrypted and decoded output if there is any.
@@ -76,6 +71,9 @@ class DecryptingDecoder {
 
   scoped_ptr<MediaTransform> decryptor_;
   MediaTransform decoder_;
+
+  scoped_refptr<InputBuffer> last_input_buffer_;
+  ComPtr<IMFSample> last_input_sample_;
 
   ComPtr<IMFSample> pending_decryptor_output_;
 };

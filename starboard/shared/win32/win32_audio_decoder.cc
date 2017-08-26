@@ -15,7 +15,9 @@
 #include "starboard/shared/win32/win32_audio_decoder.h"
 
 #include <algorithm>
+#include <queue>
 
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
@@ -28,6 +30,7 @@ namespace win32 {
 namespace {
 
 using Microsoft::WRL::ComPtr;
+using ::starboard::shared::starboard::ThreadChecker;
 
 std::vector<ComPtr<IMFMediaType>> Filter(
     GUID subtype_guid, const std::vector<ComPtr<IMFMediaType>>& input) {
@@ -141,7 +144,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 
     std::copy(data, data + data_size, data_ptr->buffer());
 
-    output_queue_.PushBack(data_ptr);
+    output_queue_.push(data_ptr);
     media_buffer->Unlock();
   }
 
@@ -188,63 +191,20 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     decoder.SetOutputTypeBySubType(MFAudioFormat_Float);
   }
 
-  bool TryWrite(const InputBuffer& buff) SB_OVERRIDE {
+  bool TryWrite(const scoped_refptr<InputBuffer>& buff) SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+
     // The incoming audio is in ADTS format which has a 7 bytes header.  But
     // the audio decoder is configured to accept raw AAC.  So we have to adjust
     // the data, size, and subsample mapping to skip the ADTS header.
     const int kADTSHeaderSize = 7;
-
-    if (buff.size() < kADTSHeaderSize) {
-      SB_NOTREACHED();
-      return false;
-    }
-
-    const uint8_t* data = buff.data() + kADTSHeaderSize;
-    int size = buff.size() - kADTSHeaderSize;
-    const int64_t media_timestamp = buff.pts();
-
-    const uint8_t* key_id = NULL;
-    int key_id_size = 0;
-    const uint8_t* iv = NULL;
-    int iv_size = 0;
-
-    const SbDrmSampleInfo* drm_info = buff.drm_info();
-
-    if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
-      if (drm_info->subsample_count != 0 && drm_info->subsample_count != 1) {
-        return false;
-      }
-      if (drm_info->subsample_count == 1) {
-        if (drm_info->subsample_mapping[0].clear_byte_count !=
-            kADTSHeaderSize) {
-          return false;
-        }
-      }
-
-      key_id = drm_info->identifier;
-      key_id_size = drm_info->identifier_size;
-      iv = drm_info->initialization_vector;
-      iv_size = drm_info->initialization_vector_size;
-    }
-
-    const std::int64_t win32_time_stamp = ConvertToWin32Time(media_timestamp);
-    const SbDrmSubSampleMapping* subsample_mapping = NULL;
-    const int subsample_count = 0;
-
-    const bool write_ok = impl_.TryWriteInputBuffer(
-        data, size, win32_time_stamp, key_id, key_id_size, iv, iv_size,
-        subsample_mapping, subsample_count);
-    ComPtr<IMFSample> sample;
-    ComPtr<IMFMediaType> media_type;
-    while (impl_.ProcessAndRead(&sample, &media_type)) {
-      if (sample) {
-        Consume(sample);
-      }
-    }
+    const bool write_ok = impl_.TryWriteInputBuffer(buff, kADTSHeaderSize);
     return write_ok;
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+
     impl_.Drain();
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
@@ -253,10 +213,12 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         Consume(sample);
       }
     }
-    output_queue_.PushBack(new DecodedAudio);
+    output_queue_.push(new DecodedAudio);
   }
 
   scoped_refptr<DecodedAudio> ProcessAndRead() SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
     while (impl_.ProcessAndRead(&sample, &media_type)) {
@@ -264,21 +226,28 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         Consume(sample);
       }
     }
-    scoped_refptr<DecodedAudio> output = output_queue_.PopFront();
+    if (output_queue_.empty()) {
+      return NULL;
+    }
+    scoped_refptr<DecodedAudio> output = output_queue_.front();
+    output_queue_.pop();
     return output;
   }
 
   void Reset() SB_OVERRIDE {
     impl_.Reset();
-    output_queue_.Clear();
+    std::queue<DecodedAudioPtr> empty;
+    output_queue_.swap(empty);
+    thread_checker_.Detach();
   }
 
+  ::starboard::shared::starboard::ThreadChecker thread_checker_;
   const SbMediaAudioCodec codec_;
   const SbMediaAudioHeader audio_header_;
   const SbMediaAudioSampleType sample_type_;
   const SbMediaAudioFrameStorageType audio_frame_fmt_;
   DecryptingDecoder impl_;
-  AtomicQueue<DecodedAudioPtr> output_queue_;
+  std::queue<DecodedAudioPtr> output_queue_;
 };
 
 }  // anonymous namespace.

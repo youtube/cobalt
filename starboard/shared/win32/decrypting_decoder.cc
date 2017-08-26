@@ -113,25 +113,81 @@ DecryptingDecoder::~DecryptingDecoder() {
 }
 
 bool DecryptingDecoder::TryWriteInputBuffer(
-    const void* data,
-    int size,
-    std::int64_t win32_timestamp,
-    const uint8_t* key_id,
-    int key_id_size,
-    const uint8_t* iv,
-    int iv_size,
-    const SbDrmSubSampleMapping* subsample_mapping,
-    int subsample_count) {
-  // MFSampleExtension_CleanPoint is a key-frame for the video + audio. It is
-  // not set here because the win32 system is smart enough to figure this out.
-  // It will probably be totally ok to not set this at all. Resolution: If
-  // there are problems with win32 video decoding, come back to this and see
-  // if setting this will fix it. THis will be used if
-  // SbMediaVideoSampleInfo::is_key_frame is true inside of the this function
-  // (which will receive an InputBuffer).
-  ComPtr<IMFSample> input = CreateSample(data, size, win32_timestamp);
+    const scoped_refptr<InputBuffer>& input_buffer,
+    int bytes_to_skip_in_sample) {
+  SB_DCHECK(input_buffer);
+  SB_DCHECK(bytes_to_skip_in_sample > 0);
 
-  bool encrypted = key_id_size == 16 && (iv_size == 8 || iv_size == 16);
+  ComPtr<IMFSample> input_sample;
+
+  const SbDrmSampleInfo* drm_info = input_buffer->drm_info();
+  const uint8_t* key_id = NULL;
+  int key_id_size = 0;
+  bool encrypted = false;
+
+  if (drm_info != NULL && drm_info->identifier_size == 16 &&
+      (drm_info->initialization_vector_size == 8 ||
+       drm_info->initialization_vector_size == 16)) {
+    key_id = drm_info->identifier;
+    key_id_size = drm_info->identifier_size;
+    encrypted = true;
+  }
+
+  if (input_buffer == last_input_buffer_) {
+    SB_DCHECK(last_input_sample_);
+    input_sample = last_input_sample_;
+  } else {
+    if (input_buffer->size() < bytes_to_skip_in_sample) {
+      SB_NOTREACHED();
+      return false;
+    }
+
+    const void* data = input_buffer->data() + bytes_to_skip_in_sample;
+    int size = input_buffer->size() - bytes_to_skip_in_sample;
+
+    std::int64_t win32_timestamp = ConvertToWin32Time(input_buffer->pts());
+    const uint8_t* iv = NULL;
+    int iv_size = 0;
+    const SbDrmSubSampleMapping* subsample_mapping = NULL;
+    int subsample_count = 0;
+
+    if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
+      if (bytes_to_skip_in_sample != 0) {
+        if (drm_info->subsample_count != 0 && drm_info->subsample_count != 1) {
+          return false;
+        }
+        if (drm_info->subsample_count == 1) {
+          if (drm_info->subsample_mapping[0].clear_byte_count !=
+              bytes_to_skip_in_sample) {
+            return false;
+          }
+        }
+      } else {
+        subsample_mapping = drm_info->subsample_mapping;
+        subsample_count = drm_info->subsample_count;
+      }
+
+      iv = drm_info->initialization_vector;
+      iv_size = drm_info->initialization_vector_size;
+    }
+
+    // MFSampleExtension_CleanPoint is a key-frame for the video + audio. It is
+    // not set here because the win32 system is smart enough to figure this out.
+    // It will probably be totally ok to not set this at all. Resolution: If
+    // there are problems with win32 video decoding, come back to this and see
+    // if setting this will fix it. THis will be used if
+    // SbMediaVideoSampleInfo::is_key_frame is true inside of the this function
+    // (which will receive an InputBuffer).
+    input_sample = CreateSample(data, size, win32_timestamp);
+
+    if (encrypted) {
+      AttachDrmDataToSample(input_sample, size, key_id, key_id_size, iv,
+                            iv_size, subsample_mapping, subsample_count);
+    }
+    last_input_buffer_ = input_buffer;
+    last_input_sample_ = input_sample;
+  }
+
   if (encrypted) {
     if (!decryptor_) {
       if (decoder_.draining()) {
@@ -153,14 +209,12 @@ bool DecryptingDecoder::TryWriteInputBuffer(
       SB_NOTREACHED();
       return false;
     }
-    AttachDrmDataToSample(input, size, key_id, key_id_size, iv, iv_size,
-                          subsample_mapping, subsample_count);
   }
 
   if (encrypted) {
-    return decryptor_->TryWrite(input);
+    return decryptor_->TryWrite(input_sample);
   }
-  return decoder_.TryWrite(input);
+  return decoder_.TryWrite(input_sample);
 }
 
 bool DecryptingDecoder::ProcessAndRead(ComPtr<IMFSample>* output,
@@ -285,6 +339,9 @@ void DecryptingDecoder::Reset() {
     decryptor_->Reset();
   }
   decoder_.Reset();
+
+  last_input_buffer_ = nullptr;
+  last_input_sample_ = nullptr;
 }
 
 }  // namespace win32
