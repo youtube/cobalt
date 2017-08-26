@@ -262,7 +262,6 @@
         '<(DEPTH)/starboard/shared/stub/system_symbolize.cc',
         '<(DEPTH)/starboard/shared/stub/time_zone_get_dst_name.cc',
         '<(DEPTH)/starboard/shared/win32/audio_sink.cc',
-        '<(DEPTH)/starboard/shared/win32/audio_sink.h',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.cc',
         '<(DEPTH)/starboard/shared/win32/adapter_utils.h',
         '<(DEPTH)/starboard/shared/win32/atomic_public.h',
