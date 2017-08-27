@@ -103,6 +103,10 @@ void CSSStyleSheet::AttachToStyleSheetList(StyleSheetList* style_sheet_list) {
   parent_style_sheet_list_ = style_sheet_list;
 }
 
+void CSSStyleSheet::DetachFromStyleSheetList() {
+  parent_style_sheet_list_ = NULL;
+}
+
 void CSSStyleSheet::set_css_rules(
     const scoped_refptr<CSSRuleList>& css_rule_list) {
   DCHECK(css_rule_list);
