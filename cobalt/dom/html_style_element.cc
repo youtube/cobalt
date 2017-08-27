@@ -39,6 +39,17 @@ void HTMLStyleElement::OnInsertedIntoDocument() {
   }
 }
 
+void HTMLStyleElement::OnRemovedFromDocument() {
+  HTMLElement::OnRemovedFromDocument();
+
+  if (style_sheet_) {
+    Document* document = node_document();
+    if (document) {
+      document->OnStyleSheetsModified();
+    }
+  }
+}
+
 void HTMLStyleElement::OnParserStartTag(
     const base::SourceLocation& opening_tag_location) {
   inline_style_location_ = opening_tag_location;
@@ -71,15 +82,21 @@ void HTMLStyleElement::Process() {
   if (bypass_csp || text.empty() ||
       csp_delegate->AllowInline(CspDelegate::kStyle, inline_style_location_,
                                 text)) {
-    scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+    style_sheet_ =
         document->html_element_context()->css_parser()->ParseStyleSheet(
             text, inline_style_location_);
-    style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
-    document->style_sheets()->Append(style_sheet);
-    style_sheet_ = style_sheet;
+    style_sheet_->SetLocationUrl(GURL(inline_style_location_.file_path));
+    document->OnStyleSheetsModified();
   } else {
     // Report a violation.
     PostToDispatchEvent(FROM_HERE, base::Tokens::error());
+  }
+}
+
+void HTMLStyleElement::CollectStyleSheet(
+    cssom::StyleSheetVector* style_sheets) const {
+  if (style_sheet_) {
+    style_sheets->push_back(style_sheet_);
   }
 }
 

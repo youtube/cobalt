@@ -623,6 +623,16 @@ void Element::RemoveStyleAttribute() {
   attribute_map_.erase(kStyleAttributeName);
 }
 
+void Element::CollectStyleSheetsOfElementAndDescendants(
+    cssom::StyleSheetVector* style_sheets) const {
+  CollectStyleSheet(style_sheets);
+
+  for (Element* child = first_element_child(); child;
+       child = child->next_element_sibling()) {
+    child->CollectStyleSheetsOfElementAndDescendants(style_sheets);
+  }
+}
+
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() { --(element_count_log.Get().count); }

@@ -47,17 +47,17 @@ class MockMutationObserver : public MutationObserver {
 
 class CSSFontFaceRuleTest : public ::testing::Test {
  protected:
-  CSSFontFaceRuleTest()
-      : style_sheet_list_(new StyleSheetList(&mutation_observer_)),
-        css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
-    css_style_sheet_->AttachToStyleSheetList(style_sheet_list_);
+  CSSFontFaceRuleTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
+    StyleSheetVector style_sheets;
+    style_sheets.push_back(css_style_sheet_);
+    style_sheet_list_ = new StyleSheetList(style_sheets, &mutation_observer_);
   }
   ~CSSFontFaceRuleTest() OVERRIDE {}
 
-  const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
-  testing::MockCSSParser css_parser_;
+  scoped_refptr<StyleSheetList> style_sheet_list_;
   MockMutationObserver mutation_observer_;
+  testing::MockCSSParser css_parser_;
 };
 
 TEST_F(CSSFontFaceRuleTest, PropertyValueSetter) {
