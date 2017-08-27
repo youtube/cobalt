@@ -28,13 +28,16 @@ namespace cssom {
 
 class StyleSheet;
 
+typedef std::vector<scoped_refptr<StyleSheet> > StyleSheetVector;
+
 // The StyleSheetList interface represents an ordered collection of CSS
 // style sheets.
 //   https://www.w3.org/TR/2013/WD-cssom-20131205/#the-stylesheetlist-interface
 class StyleSheetList : public script::Wrappable, public MutationObserver {
  public:
-  // If no layout mutation reporting needed, |observer| can be null.
-  explicit StyleSheetList(MutationObserver* observer);
+  StyleSheetList();
+  StyleSheetList(const StyleSheetVector& style_sheets,
+                 MutationObserver* observer);
 
   // Web API: StyleSheetList
   //
@@ -51,8 +54,6 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
   // From MutationObserver.
   void OnCSSMutation() OVERRIDE;
 
-  void Append(const scoped_refptr<StyleSheet>& style_sheet);
-
   MutationObserver* mutation_observer() const { return mutation_observer_; }
 
   DEFINE_WRAPPABLE_TYPE(StyleSheetList);
@@ -60,7 +61,7 @@ class StyleSheetList : public script::Wrappable, public MutationObserver {
  private:
   ~StyleSheetList();
 
-  std::vector<scoped_refptr<StyleSheet> > style_sheets_;
+  const StyleSheetVector style_sheets_;
   MutationObserver* const mutation_observer_;
 
   DISALLOW_COPY_AND_ASSIGN(StyleSheetList);

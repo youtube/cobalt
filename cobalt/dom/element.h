@@ -23,6 +23,7 @@
 #include "base/optional.h"
 #include "base/string_piece.h"
 #include "cobalt/base/token.h"
+#include "cobalt/cssom/style_sheet_list.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/node.h"
 #include "cobalt/script/exception_state.h"
@@ -165,6 +166,12 @@ class Element : public Node {
   virtual void SetStyleAttribute(const std::string& value);
   virtual void RemoveStyleAttribute();
 
+  // Adds all style sheets contained within the this element and its descendants
+  // to the style sheet vector. The style sheets are added in depth-first
+  // pre-order.
+  void CollectStyleSheetsOfElementAndDescendants(
+      cssom::StyleSheetVector* style_sheets) const;
+
   virtual scoped_refptr<HTMLElement> AsHTMLElement();
 
   const scoped_refptr<web_animations::AnimationSet>& animations() {
@@ -192,6 +199,12 @@ class Element : public Node {
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}
   virtual void OnRemoveAttribute(const std::string& /* name */) {}
+
+  // Adds this element's style sheet to the style sheet vector. By default, this
+  // function does nothing, but is implemented by element subclasses that
+  // generate style sheets (HTMLStyleElement and HTMLLinkElement).
+  virtual void CollectStyleSheet(
+      cssom::StyleSheetVector* /*style_sheets*/) const {}
 
   // Callback for error when parsing inner / outer HTML.
   void HTMLParseError(const std::string& error);
