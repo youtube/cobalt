@@ -206,9 +206,7 @@ class Document : public Node,
 
   // Web API: CSS Object Model (partial interface)
   //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
-  const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
-    return style_sheets_;
-  }
+  const scoped_refptr<cssom::StyleSheetList>& style_sheets();
 
   // Web Animations API
   // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
@@ -294,6 +292,9 @@ class Document : public Node,
   // Called when the focus changes. This should be called only once when the
   // focus is shifted from one element to another.
   void OnFocusChange();
+
+  // Called when the DOM style sheets changed.
+  void OnStyleSheetsModified();
 
   // From cssom::MutationObserver.
   void OnCSSMutation() OVERRIDE;
@@ -405,6 +406,9 @@ class Document : public Node,
  private:
   void DispatchOnLoadEvent();
 
+  // Updates the style sheets in the document.
+  void UpdateStyleSheets();
+
   // Updates the media rules in all the style sheets in the document.
   void UpdateMediaRules();
 
@@ -431,6 +435,9 @@ class Document : public Node,
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.
   bool should_dispatch_load_event_;
+  // Indicates if the document's style sheets need to be re-collected before
+  // the next layout.
+  bool are_style_sheets_dirty_;
   // Indicates if rule matching/computed style is dirty and needs to be
   // recomputed before the next layout.
   bool is_selector_tree_dirty_;
