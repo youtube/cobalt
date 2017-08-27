@@ -20,6 +20,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/cssom/style_sheet.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
@@ -57,6 +58,7 @@ class HTMLLinkElement : public HTMLElement {
 
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 
@@ -74,6 +76,9 @@ class HTMLLinkElement : public HTMLElement {
   void OnStylesheetLoaded(Document* document, const std::string& content);
   void ReleaseLoader();
 
+  // Add this element's style sheet to the style sheet vector.
+  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const OVERRIDE;
+
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.
   base::ThreadChecker thread_checker_;
@@ -82,6 +87,9 @@ class HTMLLinkElement : public HTMLElement {
 
   // Absolute link url.
   GURL absolute_url_;
+
+  // The style sheet associated with this element.
+  scoped_refptr<cssom::StyleSheet> style_sheet_;
 };
 
 }  // namespace dom

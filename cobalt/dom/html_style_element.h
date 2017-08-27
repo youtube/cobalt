@@ -50,6 +50,7 @@ class HTMLStyleElement : public HTMLElement {
   //
   // From Node.
   void OnInsertedIntoDocument() OVERRIDE;
+  void OnRemovedFromDocument() OVERRIDE;
 
   // From Element.
   void OnParserStartTag(
@@ -64,14 +65,18 @@ class HTMLStyleElement : public HTMLElement {
  private:
   ~HTMLStyleElement() OVERRIDE {}
 
-  scoped_refptr<cssom::StyleSheet> style_sheet_;
-
   void Process();
+
+  // Add this element's style sheet to the style sheet vector.
+  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const OVERRIDE;
 
   // Whether the style element is inserted by parser.
   bool is_parser_inserted_;
   // SourceLocation for inline style.
   base::SourceLocation inline_style_location_;
+
+  // The style sheet associated with this element.
+  scoped_refptr<cssom::StyleSheet> style_sheet_;
 };
 
 }  // namespace dom

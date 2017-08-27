@@ -48,7 +48,7 @@ class FakeCSSGroupingRule : public CSSGroupingRule {
 class CSSGroupingRuleTest : public ::testing::Test {
  protected:
   CSSGroupingRuleTest()
-      : style_sheet_list_(new StyleSheetList(NULL)),
+      : style_sheet_list_(new StyleSheetList()),
         css_style_sheet_(new CSSStyleSheet(&css_parser_)),
         css_grouping_rule_(new FakeCSSGroupingRule()) {
     css_style_sheet_->AttachToStyleSheetList(style_sheet_list_);

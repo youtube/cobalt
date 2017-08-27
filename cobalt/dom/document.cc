@@ -69,10 +69,10 @@ Document::Document(HTMLElementContext* html_element_context,
       html_element_context_(html_element_context),
       window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          style_sheets_(new cssom::StyleSheetList(this))),
+      style_sheets_(new cssom::StyleSheetList()),
       loading_counter_(0),
       should_dispatch_load_event_(true),
+      are_style_sheets_dirty_(true),
       is_selector_tree_dirty_(true),
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
@@ -365,6 +365,11 @@ scoped_refptr<HTMLElement> Document::indicated_element() const {
   return indicated_element_.get();
 }
 
+const scoped_refptr<cssom::StyleSheetList>& Document::style_sheets() {
+  UpdateStyleSheets();
+  return style_sheets_;
+}
+
 void Document::set_cookie(const std::string& cookie) {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   UNREFERENCED_PARAMETER(cookie);
@@ -494,6 +499,11 @@ void Document::OnFocusChange() {
   is_computed_style_dirty_ = true;
   RecordMutation();
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
+}
+
+void Document::OnStyleSheetsModified() {
+  are_style_sheets_dirty_ = true;
+  OnCSSMutation();
 }
 
 void Document::OnCSSMutation() {
@@ -773,6 +783,7 @@ void Document::UpdateSelectorTree() {
   if (is_selector_tree_dirty_) {
     TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
 
+    UpdateStyleSheets();
     UpdateMediaRules();
 
     if (user_agent_style_sheet_) {
@@ -884,6 +895,25 @@ void Document::DispatchOnLoadEvent() {
   // After all JavaScript OnLoad event handlers have executed, signal to let
   // any Document observers know that a load event has occurred.
   SignalOnLoadToObservers();
+}
+
+void Document::UpdateStyleSheets() {
+  if (are_style_sheets_dirty_) {
+    // "Each Document has an associated list of zero or more CSS style sheets,
+    // named the document CSS style sheets. This is an ordered list that
+    // contains all CSS style sheets associated with the Document, in tree
+    // order..."
+    // https://drafts.csswg.org/cssom/#document-css-style-sheets
+    // See also:
+    //   https://www.w3.org/TR/html4/present/styles.html#h-14.4
+    cssom::StyleSheetVector style_sheet_vector;
+    for (Element* child = first_element_child(); child;
+         child = child->next_element_sibling()) {
+      child->CollectStyleSheetsOfElementAndDescendants(&style_sheet_vector);
+    }
+    style_sheets_ = new cssom::StyleSheetList(style_sheet_vector, this);
+    are_style_sheets_dirty_ = false;
+  }
 }
 
 void Document::UpdateMediaRules() {
