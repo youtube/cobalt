@@ -222,6 +222,7 @@ void AudioTrackAudioSink::AudioThreadFunc() {
     int frames_consumed = playback_head_position - last_playback_head_position_;
     last_playback_head_position_ = playback_head_position;
     if (frames_consumed != 0) {
+      SB_DCHECK(frames_consumed >= 0);
       consume_frame_func_(frames_consumed, context_);
       written_frames_ -= frames_consumed;
     }
