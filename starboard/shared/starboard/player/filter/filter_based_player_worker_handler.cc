@@ -386,8 +386,9 @@ void FilterBasedPlayerWorkerHandler::Stop() {
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
 
-  if (video_renderer_) {
-    return video_renderer_->GetCurrentDecodeTarget();
+  if (audio_renderer_ && video_renderer_) {
+    return video_renderer_->GetCurrentDecodeTarget(
+        audio_renderer_->GetCurrentTime());
   } else {
     return kSbDecodeTargetInvalid;
   }
