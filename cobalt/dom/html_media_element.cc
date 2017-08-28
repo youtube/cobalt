@@ -1528,7 +1528,7 @@ void HTMLMediaElement::ReadyStateChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
-void HTMLMediaElement::TimeChanged() {
+void HTMLMediaElement::TimeChanged(bool eos_played) {
   DCHECK(player_);
   if (!player_) {
     return;
@@ -1554,8 +1554,9 @@ void HTMLMediaElement::TimeChanged() {
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
-  if (!SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur &&
-      playback_rate_ > 0) {
+  eos_played |=
+      !SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
+  if (eos_played) {
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
