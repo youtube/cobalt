@@ -59,9 +59,8 @@ class VideoRendererImpl : public VideoRenderer,
   bool CanAcceptMoreData() const SB_OVERRIDE;
   bool IsSeekingInProgress() const SB_OVERRIDE;
 
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
-
-  scoped_refptr<VideoFrame> GetLastDisplayedFrame();
+  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time,
+                                        bool audio_eos_reached) SB_OVERRIDE;
 
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;
