@@ -14,11 +14,6 @@
  * limitations under the License.
  */
 
-interface DictionaryInterface {
-  void dictionaryOperation(TestDictionary dictionary);
-  void derivedDictionaryOperation(DerivedDictionary dictionary);
-  attribute sequence<TestDictionary> dictionarySequence;
-
-  // Dictionary with dictionary member.
-  void testOperation(DictionaryWithDictionaryMember dict);
+dictionary DerivedDictionary : TestDictionary {
+  boolean additionalMember = false;
 };
