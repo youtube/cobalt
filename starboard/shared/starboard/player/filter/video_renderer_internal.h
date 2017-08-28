@@ -45,7 +45,11 @@ class VideoRenderer {
   virtual bool CanAcceptMoreData() const = 0;
   virtual bool IsSeekingInProgress() const = 0;
 #if SB_API_VERSION >= 4
-  virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+  // |media_time| is the current position of the video being played.  This
+  // allows GetCurrentDecodeTarget() to accurately produce the decode target
+  // at the current playback position without relying on GetCurrentFrame()
+  // being called periodically.
+  virtual SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) = 0;
 #endif  // SB_API_VERSION >= 4
 };
 

@@ -152,21 +152,16 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
 }
 
 #if SB_API_VERSION >= 4
-SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
+SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget(
+    SbMediaTime media_time) {
   if (decoder_) {
-    return decoder_->GetCurrentDecodeTarget();
+    return decoder_->GetCurrentDecodeTarget(media_time);
   } else {
     return kSbDecodeTargetInvalid;
   }
 }
 
 #endif  // SB_API_VERSION >= 4
-
-::starboard::scoped_refptr<VideoFrame>
-VideoRendererImpl::GetLastDisplayedFrame() {
-  ScopedLock lock(mutex_);
-  return last_displayed_frame_;
-}
 
 }  // namespace filter
 }  // namespace player

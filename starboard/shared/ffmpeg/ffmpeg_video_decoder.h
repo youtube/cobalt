@@ -76,7 +76,7 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   bool DecodePacket(AVPacket* packet);
   void InitializeCodec();
   void TeardownCodec();
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) SB_OVERRIDE;
 
   bool UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame);
 

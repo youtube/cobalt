@@ -472,8 +472,10 @@ void SetDecodeTargetContentRegionFromMatrix(
 }  // namespace
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget(SbMediaTime media_time) {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
+  SB_UNREFERENCED_PARAMETER(media_time);
+
   // We must take a lock here since this function can be called from a
   // separate thread.
   starboard::ScopedLock lock(decode_target_mutex_);
