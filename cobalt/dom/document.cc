@@ -34,6 +34,7 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/custom_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -240,6 +241,8 @@ scoped_refptr<Event> Document::CreateEvent(
   } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
+    return new CustomEvent(Event::Uninitialized);
   }
 
   DOMException::Raise(
