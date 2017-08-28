@@ -93,6 +93,10 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  {{class_name}}* out_dictionary) {
   DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  {% if parent %}
+  FromJSValue(context, value, conversion_flags, exception_state,
+      static_cast<{{parent}}*>(out_dictionary));
+  {% endif %}
   // https://heycam.github.io/webidl/#es-dictionary
 
   if (value.isUndefined() || value.isNull()) {
@@ -115,8 +119,8 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     exception_state->SetSimpleException(kSimpleError);
     return;
   }
-{% if not member.is_script_value %}
   if (!{{member.name}}.isUndefined()) {
+  {% if not member.is_script_value %}
     {{member.type}} converted_value;
     FromJSValue(context,
                 {{member.name}},
@@ -127,8 +131,19 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
       return;
     }
     out_dictionary->set_{{member.name}}(converted_value);
+  {% else %}
+    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    FromJSValue(context,
+                {{member.name}},
+                {{member.conversion_flags}},
+                exception_state,
+                &converted_value);
+    if (context->isExceptionPending()) {
+      return;
+    }
+    out_dictionary->set_{{member.name}}(&converted_value);
+  {% endif %}
   }
-{% endif %}
 {% endfor %}
 }
 
