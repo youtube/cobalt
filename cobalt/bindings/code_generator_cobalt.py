@@ -246,7 +246,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     cc_text = self.render_template(cpp_template_filename, template_context)
     header_path = self.path_builder.BindingsHeaderFullPath(interface_name)
     cc_path = self.path_builder.BindingsImplementationPath(interface_name)
-    return ((header_path, header_text), (cc_path, cc_text),)
+    return (
+        (header_path, header_text),
+        (cc_path, cc_text),)
 
   def generate_dictionary_code(self, definitions, dictionary_name, dictionary):
     header_template_filename = 'dictionary.h.template'
@@ -265,8 +267,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     conversion_impl_path = (
         self.path_builder.DictionaryConversionImplementationPath(
             dictionary_name))
-    return ((header_path, header_text), (conversion_impl_path,
-                                         conversion_text),)
+    return (
+        (header_path, header_text),
+        (conversion_impl_path, conversion_text),)
 
   def generate_enum_code(self, definitions, enumeration_name, enumeration):
     header_template_filename = 'enumeration.h.template'
@@ -290,8 +293,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
     conversion_impl_path = (
         self.path_builder.EnumConversionImplementationFullPath(enumeration_name)
     )
-    return ((header_path, header_text), (conversion_impl_path,
-                                         conversion_text),)
+    return (
+        (header_path, header_text),
+        (conversion_impl_path, conversion_text),)
 
   def generate_conversion_code(self):
     enumerations = list(self.info_provider.enumerations.keys())
@@ -433,7 +437,9 @@ class CodeGeneratorCobalt(CodeGeneratorBase):
                                                     dictionary.members))
     if dictionary.parent:
       referenced_interface_names.add(dictionary.parent)
-      context['parent'] = dictionary.parent
+      parent_namespace = '::'.join(
+          self.path_builder.NamespaceComponents(dictionary.parent))
+      context['parent'] = '%s::%s' % (parent_namespace, dictionary.parent)
 
     referenced_class_contexts = self.referenced_class_contexts(
         referenced_interface_names, for_conversion)
