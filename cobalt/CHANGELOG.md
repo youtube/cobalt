@@ -111,3 +111,24 @@ This document records all notable changes made to Cobalt since the last release.
    Support for preloading an application with no graphics resources. See the
    new [Application Lifecycle Integration](doc/lifecycle.md) guide for more
    details.
+
+ - **Improvements and Bug Fixes**
+   - Fixed position elements given correct draw order without requiring z-index.
+   - Overflow-hidden correctly applied when z-index is used.
+   - Padding box forms containing block for fixed position elements within
+     transforms.
+   - Determine whether a font is bold in more cases, so synthetic bolding isn't
+     incorrectly applied.
+   - Fix bug where decoding images with large headers would fail.
+   - Include missing CSS transforms in `GetClientRects()` calculations.
+   - CSS Transitions and Animations not resetting properly when adjusting
+     `display: none` on an element.
+   - `offset_left` and similar properties are no longer cause many expensive
+     re-layouts to query.
+   - Fix bug where pseudo-elements were "inheriting" the inline style of their
+     parent elements as if it were their own inline style.
+
+## Version 9
+ - **Improvements and Bug Fixes**
+   - Non-fixed position elements given correct draw order without requiring
+     z-index.
