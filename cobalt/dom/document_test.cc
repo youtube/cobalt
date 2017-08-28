@@ -19,6 +19,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/custom_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -170,6 +171,19 @@ TEST_F(DocumentTest, CreateEventEvent) {
   event = document->CreateEvent("HtMlEvEnTs", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
+}
+
+TEST_F(DocumentTest, CreateEventCustomEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("CuStOmEvEnT", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<CustomEvent*>(event.get()));
 }
 
 TEST_F(DocumentTest, CreateEventUIEvent) {
