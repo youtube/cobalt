@@ -76,6 +76,7 @@
     ],
 
     'generated_header_idl_files': [
+        'derived_dictionary.idl',
         'dictionary_with_dictionary_member.idl',
         'test_dictionary.idl',
         'test_enum.idl'

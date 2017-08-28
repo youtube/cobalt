@@ -334,12 +334,36 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
     exception_state->SetSimpleException(kSimpleError);
     return;
   }
+  if (!any_member_with_default.isUndefined()) {
+    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    FromJSValue(context,
+                any_member_with_default,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
+    if (context->isExceptionPending()) {
+      return;
+    }
+    out_dictionary->set_any_member_with_default(&converted_value);
+  }
   JS::RootedValue any_member(context);
   if (!JS_GetProperty(context, dictionary_object,
                       "anyMember",
                       &any_member)) {
     exception_state->SetSimpleException(kSimpleError);
     return;
+  }
+  if (!any_member.isUndefined()) {
+    TypeTraits<::cobalt::script::ValueHandle >::ConversionType converted_value;
+    FromJSValue(context,
+                any_member,
+                kNoConversionFlags,
+                exception_state,
+                &converted_value);
+    if (context->isExceptionPending()) {
+      return;
+    }
+    out_dictionary->set_any_member(&converted_value);
   }
 }
 
