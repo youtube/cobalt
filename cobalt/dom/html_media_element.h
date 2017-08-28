@@ -231,7 +231,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // WebMediaPlayerClient methods
   void NetworkStateChanged() OVERRIDE;
   void ReadyStateChanged() OVERRIDE;
-  void TimeChanged() OVERRIDE;
+  void TimeChanged(bool eos_played) OVERRIDE;
   void DurationChanged() OVERRIDE;
   void OutputModeChanged() OVERRIDE;
   void PlaybackStateChanged() OVERRIDE;
