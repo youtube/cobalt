@@ -59,10 +59,8 @@ class VideoRendererImpl : public VideoRenderer,
   bool IsSeekingInProgress() const SB_OVERRIDE;
 
 #if SB_API_VERSION >= 4
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) SB_OVERRIDE;
 #endif  // SB_API_VERSION >= 4
-
-  scoped_refptr<VideoFrame> GetLastDisplayedFrame();
 
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;
