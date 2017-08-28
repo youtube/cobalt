@@ -22,7 +22,6 @@
     #'starboard_path%': 'starboard/linux/x64x11',
 
     'in_app_dial%': 1,
-    'gl_type%': 'system_gles3',
 
     # This should have a default value in cobalt/base.gypi. See the comment
     # there for acceptable values for this variable.
