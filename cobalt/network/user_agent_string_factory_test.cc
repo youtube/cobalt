@@ -82,23 +82,35 @@ TEST(UserAgentStringFactoryTest, WithArchitectureTokens) {
 class UserAgentStringFactoryWithYouTubeTVInfo : public UserAgentStringFactory {
  public:
   UserAgentStringFactoryWithYouTubeTVInfo() {
+    // There are deliberately a variety of underscores, commas, slashes, and
+    // parentheses in the strings below to ensure they get sanitized.
     os_name_and_version_ = "GLaDOS 3.11";
     youtube_tv_info_ = YouTubeTVInfo();
-    youtube_tv_info_->network_operator = "ApertureLaboratories";
+    youtube_tv_info_->network_operator = "Aperture_Science_Innovators";
     youtube_tv_info_->device_type = YouTubeTVInfo::kOverTheTopBox;
-    youtube_tv_info_->chipset_model_number = "Wheatley";
-    youtube_tv_info_->firmware_version = "0.01";
-    youtube_tv_info_->brand = "Aperture Science";
+    youtube_tv_info_->chipset_model_number = "P-body/Orange_Atlas/Blue";
+    youtube_tv_info_->firmware_version = "0,01";
+    youtube_tv_info_->brand = "Aperture Science (Labs)";
     youtube_tv_info_->model = "GLaDOS";
   }
 };
 
+// Look-alike replacements expected from sanitizing fields
+#define COMMA  u8"\uFF0C"  // fullwidth comma
+#define UNDER  u8"\u2E0F"  // paragraphos
+#define SLASH  u8"\u2215"  // division slash
+#define LPAREN u8"\uFF08"  // fullwidth left paren
+#define RPAREN u8"\uFF09"  // fullwidth right paren
+
 TEST(UserAgentStringFactoryTest, WithYouTubeTVInfo) {
   std::string user_agent_string =
       UserAgentStringFactoryWithYouTubeTVInfo().CreateUserAgentString();
-  EXPECT_NE(std::string::npos,
-            user_agent_string.find("ApertureLaboratories_OTT_Wheatley/0.01 "
-                                   "(Aperture Science, GLaDOS, )"));
+  const char* tv_info_str =
+      "Aperture" UNDER "Science" UNDER "Innovators"
+      "_OTT_"
+      "P-body" SLASH "Orange" UNDER "Atlas" SLASH "Blue"
+      "/0" COMMA "01 (Aperture Science " LPAREN "Labs" RPAREN ", GLaDOS, )";
+  EXPECT_NE(std::string::npos, user_agent_string.find(tv_info_str));
 }
 
 class UserAgentStringFactoryWithWiredConnection
