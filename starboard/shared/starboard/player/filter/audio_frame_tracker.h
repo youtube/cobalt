@@ -20,6 +20,7 @@
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -36,94 +37,66 @@ namespace filter {
 // the adjusted played frame will be 40.
 class AudioFrameTracker {
  public:
-  AudioFrameTracker() { Reset(); }
-  virtual ~AudioFrameTracker() {}
-
   // Reset the class to its initial state.  In this state there is no frames
   // tracked and the playback frames is 0.
-  virtual void Reset() {
-    while (!frame_records_.empty()) {
-      frame_records_.pop();
-    }
-    frames_played_adjusted_to_playback_rate_ = 0;
+  void Reset() {
+    ScopedLock lock(mutex_);
+    impl_.Reset();
   }
 
-  virtual void AddFrames(int number_of_frames, double playback_rate) {
+  void AddFrames(int number_of_frames, double playback_rate) {
     if (number_of_frames == 0) {
       return;
     }
-    SB_DCHECK(playback_rate > 0);
 
-    if (frame_records_.empty() ||
-        frame_records_.back().playback_rate != playback_rate) {
-      FrameRecord record = {number_of_frames, playback_rate};
-      frame_records_.push(record);
-    } else {
-      frame_records_.back().number_of_frames += number_of_frames;
+    ScopedLock lock(mutex_);
+    impl_.AddFrames(number_of_frames, playback_rate);
+  }
+
+  void RecordPlayedFrames(int number_of_frames) {
+    if (number_of_frames == 0) {
+      return;
     }
+    ScopedLock lock(mutex_);
+    impl_.RecordPlayedFrames(number_of_frames);
   }
 
-  virtual void RecordPlayedFrames(int number_of_frames) {
-    while (number_of_frames > 0 && !frame_records_.empty()) {
-      FrameRecord& record = frame_records_.front();
-      if (record.number_of_frames > number_of_frames) {
-        frames_played_adjusted_to_playback_rate_ +=
-            static_cast<int>(number_of_frames * record.playback_rate);
-        record.number_of_frames -= number_of_frames;
-        number_of_frames = 0;
-      } else {
-        number_of_frames -= record.number_of_frames;
-        frames_played_adjusted_to_playback_rate_ +=
-            static_cast<int>(record.number_of_frames * record.playback_rate);
-        frame_records_.pop();
-      }
+  int64_t GetFutureFramesPlayedAdjustedToPlaybackRate(
+      int number_of_frames) const {
+    Impl impl_copy;
+    {
+      ScopedLock lock(mutex_);
+      impl_copy = impl_;
     }
-    SB_DCHECK(number_of_frames == 0)
-        << number_of_frames << " " << frame_records_.size();
-  }
 
-  virtual SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const {
-    return frames_played_adjusted_to_playback_rate_;
-  }
+    impl_copy.RecordPlayedFrames(number_of_frames);
 
- protected:
-  struct FrameRecord {
-    int number_of_frames;
-    double playback_rate;
-  };
-
-  std::queue<FrameRecord> frame_records_;
-  int frames_played_adjusted_to_playback_rate_;
-};
-
-// A specialization of |AudioFrameTracker| that can only be called from the
-// thread that it was created on, and will assert this in debug builds.
-class SingleThreadedAudioFrameTracker : public AudioFrameTracker {
- public:
-  // Reset the class to its initial state.  In this state there is no frames
-  // tracked and the playback frames is 0.
-  void Reset() SB_OVERRIDE {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-    AudioFrameTracker::Reset();
-  }
-
-  void AddFrames(int number_of_frames, double playback_rate) SB_OVERRIDE {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-    AudioFrameTracker::AddFrames(number_of_frames, playback_rate);
-  }
-
-  void RecordPlayedFrames(int number_of_frames) SB_OVERRIDE {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-    AudioFrameTracker::RecordPlayedFrames(number_of_frames);
-  }
-
-  SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const SB_OVERRIDE {
-    SB_DCHECK(thread_checker_.CalledOnValidThread());
-    return AudioFrameTracker::GetFramesPlayedAdjustedToPlaybackRate();
+    return impl_copy.GetFramesPlayedAdjustedToPlaybackRate();
   }
 
  private:
-  ThreadChecker thread_checker_;
+  // Impl carries the core functionalities of AudioFrameTracker.  It doesn't
+  // have any synchronization.
+  class Impl {
+   public:
+    Impl();
+    void Reset();
+    void AddFrames(int number_of_frames, double playback_rate);
+    void RecordPlayedFrames(int number_of_frames);
+    int64_t GetFramesPlayedAdjustedToPlaybackRate() const;
+
+   private:
+    struct FrameRecord {
+      int number_of_frames;
+      double playback_rate;
+    };
+
+    std::queue<FrameRecord> frame_records_;
+    int64_t frames_played_adjusted_to_playback_rate_;
+  };
+
+  Mutex mutex_;
+  Impl impl_;
 };
 
 }  // namespace filter

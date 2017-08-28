@@ -481,6 +481,7 @@ source_set("starboard_platform") {
     "//starboard/shared/starboard/player/decoded_audio_internal.cc",
     "//starboard/shared/starboard/player/decoded_audio_internal.h",
     "//starboard/shared/starboard/player/filter/audio_decoder_internal.h",
+    "//starboard/shared/starboard/player/filter/audio_frame_tracker.cc",
     "//starboard/shared/starboard/player/filter/audio_frame_tracker.h",
     "//starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc",
     "//starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h",
