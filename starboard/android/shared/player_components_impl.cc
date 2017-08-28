@@ -34,8 +34,6 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
   using AudioDecoderImpl = ::starboard::android::shared::AudioDecoder;
   using AudioRendererImpl = ::starboard::android::shared::AudioRenderer;
   using MediaSynchronizer = ::starboard::android::shared::MediaSynchronizer;
-  using ThreadSafeAudioFrameTracker =
-      ::starboard::android::shared::ThreadSafeAudioFrameTracker;
   using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
   using VideoRendererImpl = ::starboard::android::shared::VideoRenderer;
 
@@ -57,12 +55,9 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  scoped_ptr<AudioFrameTracker> audio_frame_tracker(
-      new ThreadSafeAudioFrameTracker());
-
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
-      scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-      audio_parameters.audio_header, audio_frame_tracker.Pass());
+  AudioRendererImpl* audio_renderer =
+      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
+                            audio_parameters.audio_header);
 
   VideoRendererImpl* video_renderer =
       new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass(),

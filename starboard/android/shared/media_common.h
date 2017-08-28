@@ -104,69 +104,6 @@ class EventQueue {
   std::deque<E> deque_;
 };
 
-// A specialization of |AudioFrameTracker| that can be called from any thread.
-class ThreadSafeAudioFrameTracker
-    : public ::starboard::shared::starboard::player::filter::AudioFrameTracker {
- public:
-  void Reset() SB_OVERRIDE {
-    ScopedLock lock(mutex_);
-    AudioFrameTracker::Reset();
-  }
-
-  void AddFrames(int number_of_frames, double playback_rate) SB_OVERRIDE {
-    ScopedLock lock(mutex_);
-    AudioFrameTracker::AddFrames(number_of_frames, playback_rate);
-  }
-
-  void RecordPlayedFrames(int number_of_frames) SB_OVERRIDE {
-    ScopedLock lock(mutex_);
-    AudioFrameTracker::RecordPlayedFrames(number_of_frames);
-  }
-
-  SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const SB_OVERRIDE {
-    ScopedLock lock(mutex_);
-    return AudioFrameTracker::GetFramesPlayedAdjustedToPlaybackRate();
-  }
-
-  // Perform the same computation that |RecordPlayedFrames| and then
-  // |GetFramesPlayedAdjustedToPlaybackRate| would have done, without actually
-  // saving it.
-  SbMediaTime GetFutureFramesPlayedAdjustedToPlaybackRate(
-      int number_of_frames) const {
-    // Copy |frame_records_| and |frames_played_adjusted_to_playback_rate|
-    std::queue<FrameRecord> frame_records;
-    int frames_played_adjusted_to_playback_rate;
-    {
-      ScopedLock lock(mutex_);
-      frame_records = frame_records_;
-      frames_played_adjusted_to_playback_rate =
-          frames_played_adjusted_to_playback_rate_;
-    }
-
-    while (number_of_frames > 0 && !frame_records.empty()) {
-      FrameRecord& record = frame_records.front();
-      if (record.number_of_frames > number_of_frames) {
-        frames_played_adjusted_to_playback_rate +=
-            static_cast<int>(number_of_frames * record.playback_rate);
-        record.number_of_frames -= number_of_frames;
-        number_of_frames = 0;
-      } else {
-        number_of_frames -= record.number_of_frames;
-        frames_played_adjusted_to_playback_rate +=
-            static_cast<int>(record.number_of_frames * record.playback_rate);
-        frame_records.pop();
-      }
-    }
-    SB_DCHECK(number_of_frames == 0)
-        << number_of_frames << " " << frame_records.size();
-
-    return frames_played_adjusted_to_playback_rate;
-  }
-
- private:
-  ::starboard::Mutex mutex_;
-};
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

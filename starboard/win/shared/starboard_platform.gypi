@@ -101,6 +101,8 @@
       '<(DEPTH)/starboard/shared/starboard/media/media_util.cc',
       '<(DEPTH)/starboard/shared/starboard/media/media_util.h',
       '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_resampler_impl.cc',
       '<(DEPTH)/starboard/shared/starboard/player/filter/audio_time_stretcher.cc',

@@ -41,6 +41,7 @@
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/decoded_audio_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_decoder_internal.h',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_frame_tracker.h',
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h',

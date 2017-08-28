@@ -209,8 +209,6 @@ TEST_F(AudioRendererImplTest, SunnyDay) {
   while (!audio_renderer_->IsEndOfStreamPlayed()) {
     SbThreadSleep(kSbTimeMillisecond);
     SbMediaTime new_media_time = audio_renderer_->GetCurrentTime();
-    // TODO: Replace it with EXPECT_GT once audio time reporting is more
-    //       accurate.
     EXPECT_GE(new_media_time, media_time);
     media_time = new_media_time;
   }
@@ -252,8 +250,6 @@ TEST_F(AudioRendererImplTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   while (!audio_renderer_->IsEndOfStreamPlayed()) {
     SbThreadSleep(kSbTimeMillisecond);
     SbMediaTime new_media_time = audio_renderer_->GetCurrentTime();
-    // TODO: Replace it with EXPECT_GT once audio time reporting is more
-    //       accurate.
     EXPECT_GE(new_media_time, media_time);
     media_time = new_media_time;
   }
@@ -285,8 +281,6 @@ TEST_F(AudioRendererImplTest, StartPlayBeforePreroll) {
   while (!audio_renderer_->IsEndOfStreamPlayed()) {
     SbThreadSleep(kSbTimeMillisecond);
     SbMediaTime new_media_time = audio_renderer_->GetCurrentTime();
-    // TODO: Replace it with EXPECT_GT once audio time reporting is more
-    //       accurate.
     EXPECT_GE(new_media_time, media_time);
     media_time = new_media_time;
   }
@@ -373,8 +367,6 @@ TEST_F(AudioRendererImplTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   while (!audio_renderer_->IsEndOfStreamPlayed()) {
     SbThreadSleep(kSbTimeMillisecond);
     SbMediaTime new_media_time = audio_renderer_->GetCurrentTime();
-    // TODO: Replace it with EXPECT_GT once audio time reporting is more
-    //       accurate.
     EXPECT_GE(new_media_time, media_time);
     media_time = new_media_time;
   }
@@ -415,8 +407,6 @@ TEST_F(AudioRendererImplTest, LessNumberOfOuputBuffersThanInputBuffers) {
   while (!audio_renderer_->IsEndOfStreamPlayed()) {
     SbThreadSleep(kSbTimeMillisecond);
     SbMediaTime new_media_time = audio_renderer_->GetCurrentTime();
-    // TODO: Replace it with EXPECT_GT once audio time reporting is more
-    //       accurate.
     EXPECT_GE(new_media_time, media_time);
     media_time = new_media_time;
   }
