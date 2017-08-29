@@ -17,6 +17,7 @@
 import importlib
 import os
 import sys
+import tempfile
 
 if 'environment' in sys.modules:
   environment = sys.modules['environment']
@@ -26,6 +27,7 @@ else:
     sys.path.append(env_path)
   environment = importlib.import_module('environment')
 
+import hashlib
 import Queue
 import re
 import signal
@@ -71,9 +73,11 @@ _QUEUE_CODE_CRASHED = 'crashed'
 # Args to ***REMOVED***crow, which is started if no other device is attached.
 _CROW_COMMANDLINE = ['/***REMOVED***/teams/mobile_eng_prod/crow/crow.par',
                      '--api_level', '24', '--device', 'tv', '--open_gl',
-                     '--', '--noenable_g3_monitor']
+                     '--noenable_g3_monitor']
 
 _DEV_NULL = open('/dev/null')
+
+_RE_CHECKSUM = re.compile(r'Checksum=(.*)')
 
 
 def TargetOsPathJoin(*path_elements):
@@ -164,9 +168,6 @@ class AdbAmMonitorWatcher(object):
 class Launcher(abstract_launcher.AbstractLauncher):
   """Run an application on Android."""
 
-  # Do this only once per process
-  initial_install = False
-
   def __init__(self, platform, target_name, config, device_id, args):
 
     super(Launcher, self).__init__(platform, target_name, config, device_id,
@@ -174,7 +175,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     self.adb_builder = AdbCommandBuilder(self.device_id)
 
-    self.executable_dir_name = "{}_{}".format(self.platform, self.config)
+    self.executable_dir_name = '{}_{}'.format(self.platform, self.config)
     self.executable_out_path = os.path.abspath(
         os.path.join(os.path.dirname(__file__), os.pardir,
                      os.pardir, os.pardir, 'out', self.executable_dir_name))
@@ -203,8 +204,31 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # each time anyway.
     self._CheckCall(*_CROW_COMMANDLINE)
 
+  def _IsAppInstalled(self):
+    """Determines if an app is present on the target device.
+
+    Returns:
+      True if the app is installed on the device, False otherwise.
+    """
+    p = self._PopenAdb(
+        'shell', 'cmd',
+        'package', 'list',
+        'packages', '|', 'grep',
+        _APP_PACKAGE_NAME,
+        stdout=subprocess.PIPE,
+        stderr=_DEV_NULL)
+
+    return p.wait() == 0
+
   def _GetInstalledAppDataDir(self):
-    """Returns the "dataDir" for the installed android app."""
+    """Returns the "dataDir" for the installed android app.
+
+    Returns:
+      Location of the installed app's data.
+
+    Raises:
+      Exception: The "dataDir" is not accessible.
+    """
     p = self._PopenAdb(
         'shell',
         'pm',
@@ -237,6 +261,91 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _PopenAdb(self, *args, **kwargs):
     return subprocess.Popen(self.adb_builder.Build(*args), **kwargs)
 
+  def _CalculateAppChecksum(self):
+    """Calculates a checksum using metadata from local Android app files.
+
+    This checksum is used to verify if the application or extra data has changed
+    since it was last installed on the target device.
+
+    The metadata used to construct the hash is the name, size, and modification
+    time of each file.
+
+    Returns:
+      A string representation of a checksum.
+    """
+    app_checksum = hashlib.sha256()
+
+    apk_metadata = os.stat(self.apk_path)
+    apk_hash_input = '{}{}{}'.format(self.apk_path,
+                                     apk_metadata.st_size,
+                                     apk_metadata.st_mtime)
+    app_checksum.update(apk_hash_input)
+
+    for root, dirs, files in os.walk(self.host_content_path):
+      for content_file in files:
+        file_path = os.path.join(root, content_file)
+        file_metadata = os.stat(file_path)
+        file_hash_input = '{}{}{}'.format(file_path, file_metadata.st_size,
+                                          file_metadata.st_mtime)
+        app_checksum.update(file_hash_input)
+
+    return app_checksum.hexdigest()
+
+  def _ReadAppChecksumFile(self, target_checksum_path):
+    """Reads the checksum file on the target device.
+
+    Args:
+      target_checksum_path: The path on the target device where the checksum
+        file is located.
+
+    Returns:
+      The checksum on the device, or None if there isn't one.
+    """
+    p = subprocess.Popen(
+        self.adb_builder.Build('shell', 'cat', target_checksum_path),
+        stdout=subprocess.PIPE,
+        stderr=_DEV_NULL)
+
+    for line in p.stdout:
+      checksum_result = re.search(_RE_CHECKSUM, line)
+      if checksum_result:
+        return checksum_result.group(1).rstrip('\n')
+
+    if p.wait() != 0:
+      return None
+
+  def _AppNeedsUpdate(self, local_checksum_value, target_checksum_path):
+    """Determines if the application needs to be re-initialized.
+
+    Compares the checksum values locally and on the target device.
+    If there is no checksum on the device, or the checksums are different,
+    then the updated apk and extra content must be pushed to the device
+    before launching.
+
+    Args:
+      local_checksum_value:  Value of the checksum calculated locally.
+      target_checksum_path:  Location of the checksum file on the target device.
+
+    Returns:
+      True if the application needs to be re-initialized, False if not.
+    """
+
+    app_checksum_value = self._ReadAppChecksumFile(target_checksum_path)
+    if not app_checksum_value:
+      return True
+    else:
+      return local_checksum_value != app_checksum_value
+
+  def _PushChecksum(self, local_checksum_value, target_checksum_path):
+    """Pushes the calculated checksum to the target device.
+
+    Args:
+      local_checksum_value: Value of the locally calculated checksum.
+      target_checksum_path: Location to store the checksum on the target device.
+    """
+    checksum_str = 'Checksum={}'.format(local_checksum_value)
+    self._CheckCallAdb('shell', 'echo', checksum_str, '>', target_checksum_path)
+
   def _SetupEnvironment(self):
     self._LaunchCrowIfNecessary()
     self._CheckCallAdb('wait-for-device')
@@ -244,9 +353,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('wait-for-device')
     self.Kill()
 
-    do_initial_install = not Launcher.initial_install
+    # This flag is set if the app needs to be installed.
+    needs_install = False
 
-    if do_initial_install:
+    # This flag is set if the apk or content files have changed since the last
+    # install.
+    needs_update = False
+
+    if not self._IsAppInstalled():
+      needs_install = True
+
+    if needs_install:
       self._CheckCallAdb('uninstall', _APP_PACKAGE_NAME)
       self._CheckCallAdb('install', self.apk_path)
 
@@ -258,6 +375,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     android_files_path = TargetOsPathJoin(self.data_dir, 'files')
     android_content_path = TargetOsPathJoin(android_files_path,
                                             'dir_source_root')
+    android_checksum_path = TargetOsPathJoin(android_files_path, 'checksum')
 
     # We're going to directly upload our new .so file over
     # the .so file that was originally in the APK.
@@ -266,16 +384,26 @@ class Launcher(abstract_launcher.AbstractLauncher):
     host_lib_path = os.path.join(self.executable_dir_path,
                                  'lib{}.so'.format(self.target_name))
 
-    self._CheckCallAdb('push', host_lib_path, android_lib_path)
+    local_checksum = self._CalculateAppChecksum()
 
-    if do_initial_install:
-      # TODO:  Implement checksum methods for verifying application contents.
-      # If nothing has changed about the application since the last install,
-      # we should not need to do this again.
+    needs_update = self._AppNeedsUpdate(local_checksum, android_checksum_path)
+
+    if needs_update:
+      # If the app has not already been installed this run, re-install it.
+      if not needs_install:
+        self._CheckCallAdb('uninstall', _APP_PACKAGE_NAME)
+        self._CheckCallAdb('install', self.apk_path)
+
       self._CheckCallAdb('push', self.host_content_path, android_content_path)
+
       # Without this, the 'files' dir won't be writable by the app
       self._CheckCallAdb('shell', 'chmod', 'a+rwx', android_files_path)
-      Launcher.initial_install = True
+
+      self._PushChecksum(local_checksum, android_checksum_path)
+
+    # Regardless of whether the apk or extra data needed to be copied, we still
+    # push the shared libary containing the test binary.
+    self._CheckCallAdb('push', host_lib_path, android_lib_path)
 
   def Run(self):
 
@@ -346,7 +474,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     finally:
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
-      return return_code
+
+    return return_code
 
   # TODO:  This doesn't seem to handle CTRL + C cleanly.  Need to fix.
   def Kill(self):
