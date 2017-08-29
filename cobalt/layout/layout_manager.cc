@@ -24,7 +24,9 @@
 #include "base/timer.h"
 #include "cobalt/cssom/cascade_precedence.h"
 #include "cobalt/dom/camera_3d.h"
+#include "cobalt/dom/html_body_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/html_head_element.h"
 #include "cobalt/dom/html_html_element.h"
 #include "cobalt/layout/benchmark_stat_names.h"
 #include "cobalt/layout/block_formatting_block_container_box.h"
@@ -76,6 +78,8 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   const OnRenderTreeProducedCallback on_render_tree_produced_callback_;
   const OnLayoutCallback on_layout_callback_;
   const LayoutTrigger layout_trigger_;
+
+  bool produced_render_tree_;
 
   // Setting these flags triggers an update of the layout box tree and the
   // generation of a new render tree at a regular interval (e.g. 60Hz). Events
@@ -167,6 +171,7 @@ LayoutManager::Impl::Impl(
       on_render_tree_produced_callback_(on_render_tree_produced),
       on_layout_callback_(on_layout),
       layout_trigger_(layout_trigger),
+      produced_render_tree_(false),
       are_computed_styles_and_box_tree_dirty_(true),
       is_render_tree_pending_(
           StringPrintf("%s.Layout.IsRenderTreePending", name.c_str()), true,
@@ -366,11 +371,32 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       are_computed_styles_and_box_tree_dirty_ = false;
     }
 
+    // If no render tree has been produced yet, check if html, head, and
+    // body display should block the first render tree.
+    if (!produced_render_tree_) {
+      bool displayed_html = document->html()->IsDisplayed();
+      if (!displayed_html) {
+        return;
+      }
+      bool displayed_head = true;
+      if (document->head()) {
+        displayed_head = document->head();
+      }
+      bool displayed_body = true;
+      if (document->body()) {
+        displayed_body = document->body();
+      }
+      if (!displayed_head && !displayed_body) {
+        return;
+      }
+    }
+
     scoped_refptr<render_tree::Node> render_tree_root =
         layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
                                               layout_stat_tracker_,
                                               &initial_containing_block_);
     bool run_on_render_tree_produced_callback = true;
+    produced_render_tree_ = true;
 #if defined(ENABLE_TEST_RUNNER)
     if (layout_trigger_ == kTestRunnerMode &&
         window_->test_runner()->should_wait()) {
