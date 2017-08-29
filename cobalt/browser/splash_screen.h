@@ -61,6 +61,8 @@ class SplashScreen : public LifecycleObserver {
     web_module_->Resume(resource_provider);
   }
 
+  void ReduceMemory() { web_module_->ReduceMemory(); }
+
   // Block the caller until the splash screen is ready to be rendered.
   void WaitUntilReady();
 
