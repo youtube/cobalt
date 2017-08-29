@@ -209,6 +209,9 @@ class Application {
   // external thread.
   void Link(const char* link_data);
 
+  // Injects an event of type kSbEventTypeLowMemory to the application.
+  void InjectLowMemoryEvent();
+
   // Schedules an event into the event queue.  May be called from an external
   // thread.
   SbEventId Schedule(SbEventCallback callback,
