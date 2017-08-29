@@ -196,6 +196,8 @@ class WebModule::Impl {
   void Unpause();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  void ReduceMemory();
+
   void ReportScriptError(const base::SourceLocation& source_location,
                          const std::string& error_message);
 
@@ -924,6 +926,22 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   SetApplicationState(base::kApplicationStatePaused);
 }
 
+void WebModule::Impl::ReduceMemory() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::ReduceMemory()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!is_running_) {
+    return;
+  }
+
+  PurgeResourceCaches();
+  window_->document()->PurgeCachedResources();
+
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
+}
+
 void WebModule::Impl::ReportScriptError(
     const base::SourceLocation& source_location,
     const std::string& error_message) {
@@ -1284,6 +1302,17 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
+}
+
+void WebModule::ReduceMemory() {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  // We block here so that we block the Low Memory event handler until we have
+  // reduced our memory consumption.
+  message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::ReduceMemory,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::Impl::HandlePointerEvents() {

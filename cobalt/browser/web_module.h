@@ -262,6 +262,10 @@ class WebModule : public LifecycleObserver {
   void Suspend() OVERRIDE;
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
 
+  // Attempt to reduce overall memory consumption. Called in response to a
+  // system indication that memory usage is nearing a critical level.
+  void ReduceMemory();
+
  private:
   // Data required to construct a WebModule, initialized in the constructor and
   // passed to |Initialize|.

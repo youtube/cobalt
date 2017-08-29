@@ -722,6 +722,9 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+    case kSbEventTypeLowMemory:
+#endif  // SB_API_VERSION >= 4
       OnApplicationEvent(starboard_event->type);
       break;
     case kSbEventTypeNetworkConnect:
@@ -813,6 +816,13 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Resume();
       DLOG(INFO) << "Finished resuming.";
       break;
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+    case kSbEventTypeLowMemory:
+      DLOG(INFO) << "Got low memory event.";
+      browser_module_->ReduceMemory();
+      DLOG(INFO) << "Finished reducing memory usage.";
+      break;
+#endif  // SB_API_VERSION >= 4
     default:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;

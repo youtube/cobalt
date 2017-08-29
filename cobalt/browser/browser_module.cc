@@ -912,6 +912,22 @@ void BrowserModule::Resume() {
   application_state_ = base::kApplicationStatePaused;
 }
 
+void BrowserModule::ReduceMemory() {
+  if (splash_screen_) {
+    splash_screen_->ReduceMemory();
+  }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (debug_console_) {
+    debug_console_->ReduceMemory();
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  if (web_module_) {
+    web_module_->ReduceMemory();
+  }
+}
+
 void BrowserModule::CheckMemory(
     const int64_t& used_cpu_memory,
     const base::optional<int64_t>& used_gpu_memory) {
