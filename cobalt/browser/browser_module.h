@@ -142,6 +142,10 @@ class BrowserModule {
   void Suspend();
   void Resume();
 
+  // Attempt to reduce overall memory consumption. Called in response to a
+  // system indication that memory usage is nearing a critical level.
+  void ReduceMemory();
+
   void CheckMemory(const int64_t& used_cpu_memory,
                    const base::optional<int64_t>& used_gpu_memory);
 
