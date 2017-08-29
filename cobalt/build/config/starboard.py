@@ -81,9 +81,6 @@ class PlatformConfigStarboard(PlatformConfigBase):
         # Cobalt uses OpenSSL on all platforms.
         'use_openssl': 1,
         'clang': use_clang,
-        # Cobalt relies on the Starboard implementation for DRM on all Starboard
-        # platforms.
-        'use_widevine': 0,
         # Whether to build with clang's Address Sanitizer instrumentation.
         'use_asan': use_asan,
         # Whether to build with clang's Thread Sanitizer instrumentation.
