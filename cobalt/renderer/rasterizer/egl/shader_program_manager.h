@@ -44,6 +44,9 @@ class ShaderProgramManager {
   ShaderProgramBase* FindProgram(base::TypeId program_type_id);
   void AddProgram(base::TypeId program_type_id, ShaderProgramBase* program);
 
+  template <typename VertextShaderT, typename FragmentShaderT>
+  void Preload();
+
   typedef base::linked_hash_map<base::TypeId, ShaderProgramBase*> ProgramMap;
   ProgramMap program_map_;
 };
@@ -57,6 +60,12 @@ inline void ShaderProgramManager::GetProgram(ShaderProgramType** out_program) {
     AddProgram(program_type_id, program);
   }
   *out_program = base::polymorphic_downcast<ShaderProgramType*>(program);
+}
+
+template <typename VertextShaderT, typename FragmentShaderT>
+inline void ShaderProgramManager::Preload() {
+  ShaderProgram<VertextShaderT, FragmentShaderT>* program;
+  GetProgram(&program);
 }
 
 }  // namespace egl
