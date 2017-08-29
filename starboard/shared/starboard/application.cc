@@ -135,6 +135,12 @@ void Application::Link(const char *link_data) {
                    SbMemoryDeallocate));
 }
 
+void Application::InjectLowMemoryEvent() {
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+  Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+}
+
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 SbTimeMonotonic delay) {
