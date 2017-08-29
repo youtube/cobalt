@@ -86,7 +86,7 @@ class AudioFrameTracker {
         << number_of_frames << " " << frame_records_.size();
   }
 
-  SbMediaTime GetFramePlayedAdjustedToPlaybackRate() const {
+  SbMediaTime GetFramesPlayedAdjustedToPlaybackRate() const {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
     return frames_played_adjusted_to_playback_rate_;
