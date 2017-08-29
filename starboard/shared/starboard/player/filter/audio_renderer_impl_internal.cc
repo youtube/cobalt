@@ -256,7 +256,7 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
       frames_consumed_by_sink_since_last_get_current_time_.exchange(0));
 
   return seeking_to_pts_ +
-         audio_frame_tracker_.GetFramePlayedAdjustedToPlaybackRate() *
+         audio_frame_tracker_.GetFramesPlayedAdjustedToPlaybackRate() *
              kSbMediaTimeSecond / decoder_->GetSamplesPerSecond();
 }
 
