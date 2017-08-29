@@ -31,17 +31,15 @@ void CompileShader(GLuint handle, const GLchar* source) {
   GL_CALL(glShaderSource(handle, 1, &source, &source_length));
   GL_CALL(glCompileShader(handle));
 
-  GLint is_compiled = GL_FALSE;
-  GL_CALL(glGetShaderiv(handle, GL_COMPILE_STATUS, &is_compiled));
-  if (is_compiled != GL_TRUE) {
-    const GLsizei kMaxLogLength = 2048;
-    GLsizei log_length = 0;
-    GLchar log[kMaxLogLength];
-    glGetShaderInfoLog(handle, kMaxLogLength, &log_length, log);
-    DLOG(ERROR) << "shader error: " << log;
+  GLint compiled = GL_FALSE;
+  GL_CALL(glGetShaderiv(handle, GL_COMPILE_STATUS, &compiled));
+  if (compiled != GL_TRUE) {
+    GLchar log[2048] = { 0 };
+    glGetShaderInfoLog(handle, arraysize(log) - 1, NULL, log);
+    DLOG(ERROR) << "shader compile error:\n" << log;
     DLOG(ERROR) << "shader source:\n" << source;
   }
-  DCHECK_EQ(is_compiled, GL_TRUE);
+  DCHECK(compiled == GL_TRUE);
 }
 
 }  // namespace
@@ -57,30 +55,43 @@ void ShaderProgramBase::Create(ShaderBase* vertex_shader,
                                ShaderBase* fragment_shader) {
   handle_ = glCreateProgram();
 
-  vertex_shader->handle_ = glCreateShader(GL_VERTEX_SHADER);
-  CompileShader(vertex_shader->handle_, vertex_shader->GetSource());
-  GL_CALL(glAttachShader(handle_, vertex_shader->handle_));
+  GLuint vertex_shader_handle = glCreateShader(GL_VERTEX_SHADER);
+  CompileShader(vertex_shader_handle, vertex_shader->GetSource());
+  GL_CALL(glAttachShader(handle_, vertex_shader_handle));
 
-  fragment_shader->handle_ = glCreateShader(GL_FRAGMENT_SHADER);
-  CompileShader(fragment_shader->handle_, fragment_shader->GetSource());
-  GL_CALL(glAttachShader(handle_, fragment_shader->handle_));
+  GLuint fragment_shader_handle = glCreateShader(GL_FRAGMENT_SHADER);
+  CompileShader(fragment_shader_handle, fragment_shader->GetSource());
+  GL_CALL(glAttachShader(handle_, fragment_shader_handle));
 
   vertex_shader->InitializePreLink(handle_);
   fragment_shader->InitializePreLink(handle_);
   GL_CALL(glLinkProgram(handle_));
+
+  GLint linked = GL_FALSE;
+  GL_CALL(glGetProgramiv(handle_, GL_LINK_STATUS, &linked));
+  if (linked != GL_TRUE) {
+    GLchar log[2048] = { 0 };
+    glGetProgramInfoLog(handle_, arraysize(log) - 1, NULL, log);
+    DLOG(ERROR) << "shader link error:\n" << log;
+    DLOG(ERROR) << "vertex source:\n" << vertex_shader->GetSource();
+    DLOG(ERROR) << "fragment source:\n" << fragment_shader->GetSource();
+  }
+  DCHECK(linked == GL_TRUE);
+
   vertex_shader->InitializePostLink(handle_);
   fragment_shader->InitializePostLink(handle_);
   GL_CALL(glUseProgram(handle_));
   vertex_shader->InitializePostUse();
   fragment_shader->InitializePostUse();
+
+  GL_CALL(glDeleteShader(vertex_shader_handle));
+  GL_CALL(glDeleteShader(fragment_shader_handle));
 }
 
 void ShaderProgramBase::Destroy(ShaderBase* vertex_shader,
                                 ShaderBase* fragment_shader) {
   DCHECK_NE(handle_, 0);
   GL_CALL(glDeleteProgram(handle_));
-  GL_CALL(glDeleteShader(vertex_shader->handle_));
-  GL_CALL(glDeleteShader(fragment_shader->handle_));
   handle_ = 0;
 }
 

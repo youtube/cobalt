@@ -34,9 +34,7 @@ size_t WriteAsMuchAsPossible(
     data_queue->pop_front();
 
     if (buff) {
-      const bool write_ok = audio_decoder->TryWrite(*buff);
-
-      if (!write_ok) {
+      if (!audio_decoder->TryWrite(buff)) {
         data_queue->push_front(buff);
         break;
       }
@@ -91,11 +89,16 @@ void AudioDecoderThread::Run() {
   std::deque<scoped_refptr<InputBuffer> > local_queue;
 
   while (!join_called()) {
-    TransferPendingInputTo(&local_queue);
-    bool work_done = !local_queue.empty();
+    if (local_queue.empty()) {
+      TransferPendingInputTo(&local_queue);
+    }
+    bool work_done = false;
     size_t number_written =
         WriteAsMuchAsPossible(&local_queue, win32_audio_decoder_);
-    processing_elements_.fetch_sub(static_cast<int32_t>(number_written));
+    if (number_written > 0) {
+      processing_elements_.fetch_sub(static_cast<int32_t>(number_written));
+      work_done = true;
+    }
 
     std::vector<DecodedAudioPtr> decoded_audio =
         ReadAllDecodedAudioSamples(win32_audio_decoder_);

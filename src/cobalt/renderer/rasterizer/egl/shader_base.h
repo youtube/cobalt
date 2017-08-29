@@ -29,10 +29,8 @@ class ShaderProgramBase;
 // be used as part of the ShaderProgram template class.
 class ShaderBase {
  public:
-  ShaderBase() : handle_(0) {}
   virtual ~ShaderBase() {}
 
-  GLuint GetHandle() const { return handle_; }
   virtual const char* GetSource() const = 0;
 
  protected:
@@ -47,8 +45,6 @@ class ShaderBase {
   virtual void InitializePreLink(GLuint program) = 0;
   virtual void InitializePostLink(GLuint program) = 0;
   virtual void InitializePostUse() = 0;
-
-  GLuint handle_;
 };
 
 }  // namespace egl

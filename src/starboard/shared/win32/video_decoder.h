@@ -28,7 +28,6 @@
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/video_decoder_thread.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 
 namespace starboard {
 namespace shared {
@@ -63,7 +62,7 @@ class VideoDecoder
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  SbDrmSystem drm_system_;
+  SbDrmSystem const drm_system_;
   Host* host_;
 
   // Decode-to-texture related state.

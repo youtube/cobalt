@@ -29,8 +29,10 @@
 #include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 #include "cobalt/renderer/rasterizer/egl/draw_clear.h"
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_border.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_color_texture.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_linear_gradient.h"
+#include "cobalt/renderer/rasterizer/egl/draw_rect_radial_gradient.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_blur.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_shadow_spread.h"
 #include "cobalt/renderer/rasterizer/egl/draw_rect_texture.h"
@@ -48,6 +50,10 @@ namespace {
 
 const render_tree::ColorRGBA kOpaqueWhite(1.0f, 1.0f, 1.0f, 1.0f);
 const render_tree::ColorRGBA kTransparentBlack(0.0f, 0.0f, 0.0f, 0.0f);
+
+bool IsOpaque(float opacity) {
+  return opacity >= 0.999f;
+}
 
 math::Rect RoundRectFToInt(const math::RectF& input) {
   int left = static_cast<int>(input.x() + 0.5f);
@@ -137,6 +143,10 @@ float OffscreenTargetErrorFunction(const math::RectF& desired_bounds,
 
   // Any sub-pixel offset is okay. Return something less than 1.
   return (error_x + error_y) * 0.49f;
+}
+
+float OffscreenTargetErrorFunction1D(float desired, const float& cached) {
+  return std::abs(cached - desired);
 }
 
 }  // namespace
@@ -287,11 +297,14 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
 
         // The content rect is already in screen space, so reset the transform.
         math::Matrix3F old_transform = draw_state_.transform;
+        float old_opacity = draw_state_.opacity;
         draw_state_.transform = math::Matrix3F::Identity();
+        draw_state_.opacity *= filter_opacity;
         scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
-            draw_state_, content_rect, kOpaqueWhite * filter_opacity, texture,
+            draw_state_, content_rect, kOpaqueWhite, texture,
             texcoord_transform, false /* clamp_texcoords */));
         AddTransparentDraw(draw.Pass(), content_rect);
+        draw_state_.opacity = old_opacity;
         draw_state_.transform = old_transform;
         return;
       }
@@ -344,7 +357,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   skia::Image* skia_image =
       base::polymorphic_downcast<skia::Image*>(data.source.get());
   bool clamp_texcoords = false;
-  bool is_opaque = skia_image->IsOpaque() && draw_state_.opacity == 1.0f;
+  bool is_opaque = skia_image->IsOpaque() && IsOpaque(draw_state_.opacity);
 
   // Ensure any required backend processing is done to create the necessary
   // GPU resource.
@@ -439,74 +452,101 @@ void RenderTreeNodeVisitor::Visit(
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
-  if (!IsVisible(rect_node->GetBounds())) {
+  math::RectF node_bounds(rect_node->GetBounds());
+  if (!IsVisible(node_bounds)) {
     return;
   }
 
   const render_tree::RectNode::Builder& data = rect_node->data();
   const scoped_ptr<render_tree::Brush>& brush = data.background_brush;
+  math::RectF content_rect(data.rect);
 
-  // Only solid color brushes are supported at this time.
-  const bool brush_supported = !brush ||
-      brush->GetTypeId() == base::GetTypeId<render_tree::SolidColorBrush>() ||
-      brush->GetTypeId() == base::GetTypeId<render_tree::LinearGradientBrush>();
-
-  // Borders are not supported natively by this rasterizer at this time. The
-  // difficulty lies in getting anti-aliased borders and minimizing state
-  // switches (due to anti-aliased borders requiring transparency). However,
-  // by using the fallback rasterizer, both can be accomplished -- sort to
-  // minimize state switches while rendering anti-aliased borders to the
-  // offscreen target, then use a single shader to render those.
-  const bool border_supported = !data.border;
-
+  // Only solid color brushes are natively supported with rounded corners.
   if (data.rounded_corners && brush &&
       brush->GetTypeId() != base::GetTypeId<render_tree::SolidColorBrush>()) {
     FallbackRasterize(rect_node);
-  } else if (!brush_supported) {
-    FallbackRasterize(rect_node);
-  } else if (!border_supported) {
-    FallbackRasterize(rect_node);
-  } else {
-    DCHECK(!data.border);
+    return;
+  }
 
-    // Handle drawing the content.
-    if (brush) {
-      base::TypeId brush_type = brush->GetTypeId();
-      if (brush_type == base::GetTypeId<render_tree::SolidColorBrush>()) {
-        const render_tree::SolidColorBrush* solid_brush =
-            base::polymorphic_downcast<const render_tree::SolidColorBrush*>
-                (brush.get());
-        const render_tree::ColorRGBA& brush_color(solid_brush->color());
-        render_tree::ColorRGBA color(
-            brush_color.r() * brush_color.a(),
-            brush_color.g() * brush_color.a(),
-            brush_color.b() * brush_color.a(),
-            brush_color.a());
-        if (data.rounded_corners) {
-          scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
-              draw_state_, data.rect, *data.rounded_corners, color));
-          // Transparency is used for anti-aliasing.
-          AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
-        } else {
-          scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
-              draw_state_, data.rect, color));
-          if (draw_state_.opacity * color.a() == 1.0f) {
-            AddOpaqueDraw(draw.Pass(), rect_node->GetBounds());
-          } else {
-            AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
-          }
-        }
+  // Determine whether the RectNode's border attribute is supported. Update
+  // the content and bounds if so.
+  scoped_ptr<DrawRectBorder> draw_border;
+  if (data.border) {
+    draw_border.reset(new DrawRectBorder(graphics_state_, draw_state_,
+        rect_node));
+    if (draw_border->IsValid()) {
+      content_rect = draw_border->GetContentRect();
+      node_bounds = draw_border->GetBounds();
+    }
+  }
+  const bool border_supported = !data.border || draw_border->IsValid();
+
+  // Determine whether the RectNode's background brush is supported.
+  base::TypeId brush_type = brush ? brush->GetTypeId() :
+      base::GetTypeId<render_tree::Brush>();
+  bool brush_is_solid_and_supported =
+      brush_type == base::GetTypeId<render_tree::SolidColorBrush>();
+  bool brush_is_linear_and_supported =
+      brush_type == base::GetTypeId<render_tree::LinearGradientBrush>();
+  bool brush_is_radial_and_supported =
+      brush_type == base::GetTypeId<render_tree::RadialGradientBrush>();
+
+  scoped_ptr<DrawRectRadialGradient> draw_radial;
+  if (brush_is_radial_and_supported) {
+    const render_tree::RadialGradientBrush* radial_brush =
+        base::polymorphic_downcast<const render_tree::RadialGradientBrush*>
+            (brush.get());
+    draw_radial.reset(new DrawRectRadialGradient(graphics_state_, draw_state_,
+        content_rect, *radial_brush,
+        base::Bind(&RenderTreeNodeVisitor::GetScratchTexture,
+                   base::Unretained(this), make_scoped_refptr(rect_node))));
+    brush_is_radial_and_supported = draw_radial->IsValid();
+  }
+
+  const bool brush_supported = !brush || brush_is_solid_and_supported ||
+      brush_is_linear_and_supported || brush_is_radial_and_supported;
+
+  if (!brush_supported || !border_supported) {
+    FallbackRasterize(rect_node);
+    return;
+  }
+
+  if (draw_border) {
+    AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
+  }
+
+  // Handle drawing the content.
+  if (brush_is_solid_and_supported) {
+    const render_tree::SolidColorBrush* solid_brush =
+        base::polymorphic_downcast<const render_tree::SolidColorBrush*>
+            (brush.get());
+    if (data.rounded_corners) {
+      scoped_ptr<DrawObject> draw(new DrawRRectColor(graphics_state_,
+          draw_state_, content_rect, *data.rounded_corners,
+          solid_brush->color()));
+      // Transparency is used for anti-aliasing.
+      AddTransparentDraw(draw.Pass(), node_bounds);
+    } else {
+      scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
+          draw_state_, content_rect, solid_brush->color()));
+      if (IsOpaque(draw_state_.opacity * solid_brush->color().a())) {
+        AddOpaqueDraw(draw.Pass(), node_bounds);
       } else {
-        const render_tree::LinearGradientBrush* linear_brush =
-            base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
-                (brush.get());
-        scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
-            draw_state_, data.rect, *linear_brush));
-        // The draw may use transparent pixels to ensure only pixels in the
-        // specified area are modified.
-        AddTransparentDraw(draw.Pass(), rect_node->GetBounds());
+        AddTransparentDraw(draw.Pass(), node_bounds);
       }
     }
+  } else if (brush_is_linear_and_supported) {
+    const render_tree::LinearGradientBrush* linear_brush =
+        base::polymorphic_downcast<const render_tree::LinearGradientBrush*>
+            (brush.get());
+    scoped_ptr<DrawObject> draw(new DrawRectLinearGradient(graphics_state_,
+        draw_state_, content_rect, *linear_brush));
+    // The draw may use transparent pixels to ensure only pixels in the
+    // specified area are modified.
+    AddTransparentDraw(draw.Pass(), node_bounds);
+  } else if (brush_is_radial_and_supported) {
+    // The colors in the brush may be transparent.
+    AddTransparentDraw(draw_radial.PassAs<DrawObject>(), node_bounds);
   }
 }
 
@@ -521,11 +561,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
       data.rounded_corners;
 
   scoped_ptr<DrawObject> draw;
-  render_tree::ColorRGBA shadow_color(
-      data.shadow.color.r() * data.shadow.color.a(),
-      data.shadow.color.g() * data.shadow.color.a(),
-      data.shadow.color.b() * data.shadow.color.a(),
-      data.shadow.color.a());
+  render_tree::ColorRGBA shadow_color(data.shadow.color);
 
   math::RectF spread_rect(data.rect);
   spread_rect.Offset(data.shadow.offset);
@@ -575,6 +611,25 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   }
 
   FallbackRasterize(text_node);
+}
+
+// Get a scratch texture row region for use in rendering |node|.
+void RenderTreeNodeVisitor::GetScratchTexture(
+    scoped_refptr<render_tree::Node> node, float size,
+    DrawObject::TextureInfo* out_texture_info) {
+  // Get the cached texture region or create one.
+  OffscreenTargetManager::TargetInfo target_info;
+  bool cached = offscreen_target_manager_->GetCachedOffscreenTarget(node,
+      base::Bind(&OffscreenTargetErrorFunction1D, size), &target_info);
+  if (!cached) {
+    offscreen_target_manager_->AllocateOffscreenTarget(node, size, size,
+        &target_info);
+  }
+
+  out_texture_info->texture = target_info.framebuffer == nullptr ? nullptr :
+      target_info.framebuffer->GetColorTexture();
+  out_texture_info->region = target_info.region;
+  out_texture_info->is_new = !cached;
 }
 
 // Get an offscreen target to render |node|.
@@ -689,7 +744,7 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   // opacity is 100% because the contents may have transparency.
   backend::TextureEGL* texture = target_info.framebuffer->GetColorTexture();
   math::Matrix3F texcoord_transform = GetTexcoordTransform(target_info);
-  if (draw_state_.opacity == 1.0f) {
+  if (IsOpaque(draw_state_.opacity)) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
         draw_state_, content_rect, texture, texcoord_transform));
     AddTransparentDraw(draw.Pass(), content_rect);

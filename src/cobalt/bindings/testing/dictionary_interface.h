@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "cobalt/bindings/testing/derived_dictionary.h"
 #include "cobalt/bindings/testing/dictionary_with_dictionary_member.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
 #include "cobalt/script/sequence.h"
@@ -33,6 +34,8 @@ class DictionaryInterface : public script::Wrappable {
  public:
   MOCK_METHOD1(DictionaryOperation,
                void(const TestDictionary& test_dictionary));
+  MOCK_METHOD1(DerivedDictionaryOperation,
+               void(const DerivedDictionary& derived_dictionary));
 
   MOCK_METHOD0(dictionary_sequence, TestDictionary());
   MOCK_METHOD1(set_dictionary_sequence,

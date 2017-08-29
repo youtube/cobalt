@@ -59,6 +59,8 @@ int64_t ConvertToWin32Time(SbMediaTime input);
 // Convert the other way around.
 SbMediaTime ConvertToMediaTime(int64_t input);
 
+// TODO: Remove the following functions once all of them are moved into
+//       MediaTransform.
 std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(IMFTransform* decoder);
 
 std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(

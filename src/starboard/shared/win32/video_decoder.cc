@@ -77,8 +77,8 @@ void VideoDecoder::Reset() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(host_);
   video_decoder_thread_.reset(nullptr);
-  impl_.reset(nullptr);
-  impl_ = AbstractWin32VideoDecoder::Create(video_codec_, drm_system_);
+  impl_->Reset();
+  decoded_data_.Clear();
   video_decoder_thread_.reset(new VideoDecoderThread(impl_.get(), this));
 }
 

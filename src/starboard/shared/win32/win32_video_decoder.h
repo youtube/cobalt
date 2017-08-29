@@ -40,10 +40,8 @@ class AbstractWin32VideoDecoder {
 
   virtual bool TryWrite(const scoped_refptr<InputBuffer>& buff) = 0;
   virtual void WriteEndOfStream() = 0;
-  virtual VideoFramePtr ProcessAndRead() = 0;
-
- private:
-  virtual void EnsureVideoDecoderCreated() = 0;
+  virtual VideoFramePtr ProcessAndRead(bool* too_many_outstanding_frames) = 0;
+  virtual void Reset() = 0;
 };
 
 }  // namespace win32

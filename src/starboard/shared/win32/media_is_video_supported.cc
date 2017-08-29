@@ -36,6 +36,6 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
     return false;
   }
 
-  // If this is changed then so should win32_decoder_impl.cc
+  // TODO: Re-implement this based on new static function of the video decoder.
   return (video_codec == kSbMediaVideoCodecH264);
 }

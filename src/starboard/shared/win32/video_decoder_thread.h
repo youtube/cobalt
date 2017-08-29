@@ -28,7 +28,6 @@
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/simple_thread.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 #include "starboard/shared/win32/win32_video_decoder.h"
 
 namespace starboard {

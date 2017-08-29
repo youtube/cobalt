@@ -21,6 +21,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/optional.h"
@@ -39,12 +40,14 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/node.h"
+#include "cobalt/dom/pointer_state.h"
 #include "cobalt/math/size.h"
 #include "cobalt/network_bridge/cookie_jar.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/page_visibility/visibility_state.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/wrappable.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -203,9 +206,7 @@ class Document : public Node,
 
   // Web API: CSS Object Model (partial interface)
   //   http://dev.w3.org/csswg/cssom/#extensions-to-the-document-interface
-  const scoped_refptr<cssom::StyleSheetList>& style_sheets() const {
-    return style_sheets_;
-  }
+  const scoped_refptr<cssom::StyleSheetList>& style_sheets();
 
   // Web Animations API
   // https://www.w3.org/TR/2015/WD-web-animations-1-20150707/#extensions-to-the-document-interface
@@ -291,6 +292,9 @@ class Document : public Node,
   // Called when the focus changes. This should be called only once when the
   // focus is shifted from one element to another.
   void OnFocusChange();
+
+  // Called when the DOM style sheets changed.
+  void OnStyleSheetsModified();
 
   // From cssom::MutationObserver.
   void OnCSSMutation() OVERRIDE;
@@ -384,11 +388,7 @@ class Document : public Node,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  // Queue up pointer related events.
-  void QueuePointerEvent(const scoped_refptr<Event>& event);
-
-  // Get the next queued pointer event.
-  scoped_refptr<Event> GetNextQueuedPointerEvent();
+  PointerState* pointer_state() { return &pointer_state_; }
 
   DEFINE_WRAPPABLE_TYPE(Document);
 
@@ -405,6 +405,9 @@ class Document : public Node,
 
  private:
   void DispatchOnLoadEvent();
+
+  // Updates the style sheets in the document.
+  void UpdateStyleSheets();
 
   // Updates the media rules in all the style sheets in the document.
   void UpdateMediaRules();
@@ -432,6 +435,9 @@ class Document : public Node,
   int loading_counter_;
   // Whether the load event should be dispatched when loading counter hits zero.
   bool should_dispatch_load_event_;
+  // Indicates if the document's style sheets need to be re-collected before
+  // the next layout.
+  bool are_style_sheets_dirty_;
   // Indicates if rule matching/computed style is dirty and needs to be
   // recomputed before the next layout.
   bool is_selector_tree_dirty_;
@@ -482,7 +488,8 @@ class Document : public Node,
   // The max depth of elements that are guaranteed to be rendered.
   int dom_max_element_depth_;
 
-  std::queue<scoped_refptr<Event> > pointer_events_;
+  // Various state related to pointer and mouse support.
+  PointerState pointer_state_;
 };
 
 }  // namespace dom

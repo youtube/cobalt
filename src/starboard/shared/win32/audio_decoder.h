@@ -28,7 +28,6 @@
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder_thread.h"
 #include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 
 namespace starboard {
 namespace shared {
@@ -63,10 +62,10 @@ class AudioDecoder
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
-  SbMediaAudioCodec audio_codec_;
-  SbMediaAudioHeader audio_header_;
-  SbDrmSystem drm_system_;
-  SbMediaAudioSampleType sample_type_;
+  const SbMediaAudioCodec audio_codec_;
+  const SbMediaAudioHeader audio_header_;
+  SbDrmSystem const drm_system_;
+  const SbMediaAudioSampleType sample_type_;
   bool stream_ended_;
 
   AtomicQueue<DecodedAudioPtr> decoded_data_;

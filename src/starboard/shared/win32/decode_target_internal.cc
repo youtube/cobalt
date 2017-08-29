@@ -16,6 +16,7 @@
 
 #include <D3D11.h>
 #include <Mfidl.h>
+#include <Mfobjects.h>
 #include <wrl\client.h>  // For ComPtr.
 
 #include "starboard/configuration.h"
@@ -48,11 +49,15 @@ static const GUID kCobaltDxgiBuffer = {
 
 SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   SbMemorySet(&info, 0, sizeof(info));
-  ComPtr<IMFMediaBuffer> media_buffer =
-      static_cast<IMFMediaBuffer*>(frame->native_texture());
+
+  ComPtr<IMFSample> sample = static_cast<IMFSample*>(frame->native_texture());
+
+  ComPtr<IMFMediaBuffer> media_buffer;
+  HRESULT hr = sample->GetBufferByIndex(0, &media_buffer);
+  CheckResult(hr);
 
   ComPtr<IMFDXGIBuffer> dxgi_buffer;
-  HRESULT hr = media_buffer.As(&dxgi_buffer);
+  hr = media_buffer.As(&dxgi_buffer);
   CheckResult(hr);
   SB_DCHECK(dxgi_buffer.Get());
 

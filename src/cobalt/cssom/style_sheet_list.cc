@@ -21,8 +21,18 @@
 namespace cobalt {
 namespace cssom {
 
-StyleSheetList::StyleSheetList(MutationObserver* observer)
-    : mutation_observer_(observer) {}
+StyleSheetList::StyleSheetList() : mutation_observer_(NULL) {}
+
+StyleSheetList::StyleSheetList(const StyleSheetVector& style_sheets,
+                               MutationObserver* observer)
+    : style_sheets_(style_sheets), mutation_observer_(observer) {
+  for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
+       iter != style_sheets_.end(); ++iter) {
+    StyleSheet* style_sheet = *iter;
+    style_sheet->AttachToStyleSheetList(this);
+    style_sheet->set_index(static_cast<int>(style_sheets_.size()));
+  }
+}
 
 scoped_refptr<StyleSheet> StyleSheetList::Item(unsigned int index) const {
   return index < style_sheets_.size() ? style_sheets_[index] : NULL;
@@ -39,16 +49,15 @@ void StyleSheetList::OnCSSMutation() {
   }
 }
 
-void StyleSheetList::Append(const scoped_refptr<StyleSheet>& style_sheet) {
-  style_sheet->AttachToStyleSheetList(this);
-  style_sheet->set_index(static_cast<int>(style_sheets_.size()));
-  style_sheets_.push_back(style_sheet);
-  if (mutation_observer_) {
-    mutation_observer_->OnCSSMutation();
+StyleSheetList::~StyleSheetList() {
+  for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
+       iter != style_sheets_.end(); ++iter) {
+    StyleSheet* style_sheet = *iter;
+    if (style_sheet->ParentStyleSheetList() == this) {
+      style_sheet->DetachFromStyleSheetList();
+    }
   }
 }
-
-StyleSheetList::~StyleSheetList() {}
 
 }  // namespace cssom
 }  // namespace cobalt

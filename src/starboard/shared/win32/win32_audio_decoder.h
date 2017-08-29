@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/drm.h"
 #include "starboard/media.h"
@@ -42,16 +43,13 @@ class AbstractWin32AudioDecoder {
 
   // INPUT:
   //
-  // ZACH: Note that this deviates from Xiaoming's AudioDecoder as this does
-  // not have the encrypted parameters. This will be added later.
-  virtual bool TryWrite(const InputBuffer& buff) = 0;
+  virtual bool TryWrite(const scoped_refptr<InputBuffer>& buff) = 0;
   virtual void WriteEndOfStream() = 0;
   // OUTPUT
   //
   virtual DecodedAudioPtr ProcessAndRead() = 0;
-
- private:
-  virtual void EnsureAudioDecoderCreated() = 0;
+  // Reset
+  virtual void Reset() = 0;
 };
 
 }  // namespace win32

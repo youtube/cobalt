@@ -15,20 +15,24 @@
 #include "starboard/shared/win32/win32_video_decoder.h"
 
 #include <Codecapi.h>
+
+#include <queue>
 #include <utility>
 
+#include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/atomic_queue.h"
+#include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
-#include "starboard/shared/win32/win32_decoder_impl.h"
 
 namespace starboard {
 namespace shared {
 namespace win32 {
 
 using Microsoft::WRL::ComPtr;
+using ::starboard::shared::starboard::ThreadChecker;
 using ::starboard::shared::win32::CheckResult;
 
 namespace {
@@ -47,22 +51,30 @@ const GUID CLSID_VideoDecoder = {0x62CE7E72, 0x4C71, 0x4d20, 0xB1, 0x5D, 0x45,
 
 class VideoFrameFactory {
  public:
-  static VideoFramePtr Construct(SbMediaTime timestamp,
-                                 ComPtr<IMFMediaBuffer> media_buffer,
+  static VideoFramePtr Construct(ComPtr<IMFSample> sample,
                                  uint32_t width,
                                  uint32_t height) {
+    ComPtr<IMFMediaBuffer> media_buffer;
+    HRESULT hr = sample->GetBufferByIndex(0, &media_buffer);
+    CheckResult(hr);
+
+    LONGLONG win32_timestamp = 0;
+    hr = sample->GetSampleTime(&win32_timestamp);
+    CheckResult(hr);
+
     VideoFramePtr out(new VideoFrame(width, height,
-                                     timestamp, media_buffer.Detach(),
-                                     nullptr, DeleteTextureFn));
+                                     ConvertToMediaTime(win32_timestamp),
+                                     sample.Detach(),
+                                     nullptr, DeleteSample));
     frames_in_flight_.increment();
     return out;
   }
   static int frames_in_flight() { return frames_in_flight_.load(); }
 
  private:
-  static void DeleteTextureFn(void* context, void* texture) {
+  static void DeleteSample(void* context, void* sample) {
     SB_UNREFERENCED_PARAMETER(context);
-    IMFMediaBuffer* data_ptr = static_cast<IMFMediaBuffer*>(texture);
+    IMFSample* data_ptr = static_cast<IMFSample*>(sample);
     data_ptr->Release();
     frames_in_flight_.decrement();
   }
@@ -72,26 +84,27 @@ class VideoFrameFactory {
 
 atomic_int32_t VideoFrameFactory::frames_in_flight_;
 
-class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
-                                    public MediaBufferConsumerInterface {
+class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
  public:
   AbstractWin32VideoDecoderImpl(SbMediaVideoCodec codec, SbDrmSystem drm_system)
-      : codec_(codec), surface_width_(0), surface_height_(0) {
-    MediaBufferConsumerInterface* media_cb = this;
-    impl_.reset(new DecoderImpl("video", media_cb, drm_system));
-    EnsureVideoDecoderCreated();
+      : thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
+        codec_(codec),
+        impl_("video", CLSID_VideoDecoder, drm_system),
+        surface_width_(0),
+        surface_height_(0) {
+    Configure();
   }
 
-  virtual void Consume(ComPtr<IMFMediaBuffer> media_buffer,
-                       int64_t win32_timestamp) {
-    const SbMediaTime media_timestamp = ConvertToMediaTime(win32_timestamp);
+  void Consume(ComPtr<IMFSample> sample) {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
     VideoFramePtr frame_output =
-        VideoFrameFactory::Construct(media_timestamp, media_buffer,
-            surface_width_, surface_height_);
-    output_queue_.PushBack(frame_output);
+        VideoFrameFactory::Construct(sample, surface_width_, surface_height_);
+    output_queue_.push(frame_output);
   }
 
-  void OnNewOutputType(const ComPtr<IMFMediaType>& type) override {
+  void OnNewOutputType(const ComPtr<IMFMediaType>& type) {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+
     MFVideoArea aperture;
     HRESULT hr = type->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE,
         reinterpret_cast<UINT8*>(&aperture), sizeof(MFVideoArea), nullptr);
@@ -112,7 +125,7 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
     }
   }
 
-  ComPtr<IMFMediaType> Configure(IMFTransform* decoder) {
+  void Configure() {
     ComPtr<IMFMediaType> input_type;
     HRESULT hr = MFCreateMediaType(&input_type);
     SB_DCHECK(SUCCEEDED(hr));
@@ -142,48 +155,21 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
 
     hr = input_type->SetGUID(MF_MT_SUBTYPE, selected_guid);
     SB_DCHECK(SUCCEEDED(hr));
-    hr = decoder->SetInputType(0, input_type.Get(), 0);
-    return input_type;
-  }
 
-  void EnsureVideoDecoderCreated() SB_OVERRIDE {
-    if (impl_->has_decoder()) {
-      return;
-    }
-
-    ComPtr<IMFTransform> decoder =
-        DecoderImpl::CreateDecoder(CLSID_VideoDecoder);
-
-    ComPtr<IMFMediaType> media_type = Configure(decoder.Get());
-
-    SB_DCHECK(decoder);
-
-    impl_->set_decoder(decoder);
+    MediaTransform& decoder = impl_.GetDecoder();
+    decoder.SetInputType(input_type);
 
     dx_decoder_ctx_ = GetDirectXForHardwareDecoding();
-    SB_UNREFERENCED_PARAMETER(dx_decoder_ctx_);
-
-    HRESULT hr = S_OK;
 
     DWORD input_stream_count = 0;
     DWORD output_stream_count = 0;
-    hr = decoder->GetStreamCount(&input_stream_count, &output_stream_count);
-    CheckResult(hr);
-
+    decoder.GetStreamCount(&input_stream_count, &output_stream_count);
     SB_DCHECK(1 == input_stream_count);
     SB_DCHECK(1 == output_stream_count);
 
-    ComPtr<IMFMediaType> output_type =
-        FindMediaType(MFVideoFormat_YV12, decoder.Get());
+    decoder.SetOutputTypeBySubType(MFVideoFormat_YV12);
 
-    SB_DCHECK(output_type);
-
-    hr = decoder->SetOutputType(0, output_type.Get(), 0);
-    CheckResult(hr);
-
-    ComPtr<IMFAttributes> attributes;
-    hr = decoder->GetAttributes(attributes.GetAddressOf());
-    CheckResult(hr);
+    ComPtr<IMFAttributes> attributes = decoder.GetAttributes();
 
     hr = attributes->SetUINT32(MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT,
                                kMinimumOutputSampleCount);
@@ -197,106 +183,95 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder,
     // SB_DCHECK(value == TRUE);
 
     // Enables DirectX video acceleration for video decoding.
-    hr = decoder->ProcessMessage(
-        MFT_MESSAGE_SET_D3D_MANAGER,
-        ULONG_PTR(dx_decoder_ctx_.dxgi_device_manager_out.Get()));
-    CheckResult(hr);
+    decoder.SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
+                        reinterpret_cast<ULONG_PTR>(
+                            dx_decoder_ctx_.dxgi_device_manager_out.Get()));
 
     // Only allowed to set once.
     SB_DCHECK(0 == surface_width_);
     SB_DCHECK(0 == surface_height_);
 
+    ComPtr<IMFMediaType> output_type = decoder.GetCurrentOutputType();
+    SB_DCHECK(output_type);
+
     hr = MFGetAttributeSize(output_type.Get(), MF_MT_FRAME_SIZE,
                             &surface_width_, &surface_height_);
-
     if (FAILED(hr)) {
       SB_NOTREACHED() << "could not get width & height, hr = " << hr;
       return;
     }
 
-    ComPtr<IMFAttributes> output_attributes;
-    hr = decoder->GetOutputStreamAttributes(0, &output_attributes);
-    SB_DCHECK(SUCCEEDED(hr));
+    ComPtr<IMFAttributes> output_attributes =
+        decoder.GetOutputStreamAttributes();
     // The decoder must output textures that are bound to shader resources,
     // or we can't draw them later via ANGLE.
     hr = output_attributes->SetUINT32(
         MF_SA_D3D11_BINDFLAGS, D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_DECODER);
     SB_DCHECK(SUCCEEDED(hr));
-
-    decoder->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0);
-    decoder->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0);
   }
 
   bool TryWrite(const scoped_refptr<InputBuffer>& buff) {
-    std::pair<int, int> width_height(buff->video_sample_info()->frame_width,
-                                     buff->video_sample_info()->frame_height);
-    EnsureVideoDecoderCreated();
-    if (!impl_->has_decoder()) {
-      SB_NOTREACHED();
-      return false;  // TODO: Signal an error.
-    }
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-    if (!output_queue_.IsEmpty()) {
-      return false;  // Wait for more data.
-    }
-
-    std::vector<uint8_t> key_id;
-    std::vector<uint8_t> iv;
-    std::vector<Subsample> subsamples;
-
-    // TODO: Merge this with similar code in the audio decoder.
-    const SbDrmSampleInfo* drm_info = buff->drm_info();
-
-    if (drm_info != NULL && drm_info->initialization_vector_size != 0) {
-      key_id.assign(drm_info->identifier,
-                    drm_info->identifier + drm_info->identifier_size);
-      iv.assign(drm_info->initialization_vector,
-                drm_info->initialization_vector +
-                    drm_info->initialization_vector_size);
-      subsamples.reserve(drm_info->subsample_count);
-      for (int32_t i = 0; i < drm_info->subsample_count; ++i) {
-        Subsample subsample = {
-            static_cast<uint32_t>(
-                drm_info->subsample_mapping[i].clear_byte_count),
-            static_cast<uint32_t>(
-                drm_info->subsample_mapping[i].encrypted_byte_count)};
-        subsamples.push_back(subsample);
-      }
-    }
-
-    const SbMediaTime media_timestamp = buff->pts();
-    const int64_t win32_timestamp = ConvertToWin32Time(media_timestamp);
-
-    const bool write_ok = impl_->TryWriteInputBuffer(
-        buff->data(), buff->size(), win32_timestamp, key_id, iv, subsamples);
-
+    const bool write_ok = impl_.TryWriteInputBuffer(buff, 0);
     return write_ok;
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
-    if (impl_->has_decoder()) {
-      impl_->DrainDecoder();
-      while (VideoFrameFactory::frames_in_flight() <
-                 kSampleAllocatorFramesMax &&
-             impl_->DeliverOneOutputOnAllTransforms()) {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+
+    impl_.Drain();
+
+    ComPtr<IMFSample> sample;
+    ComPtr<IMFMediaType> media_type;
+    while (VideoFrameFactory::frames_in_flight() < kSampleAllocatorFramesMax &&
+           impl_.ProcessAndRead(&sample, &media_type)) {
+      if (media_type) {
+        OnNewOutputType(media_type);
       }
-    } else {
-      // Don't call DrainDecoder() if input data is never queued.
-      // TODO: Send EOS.
+      if (sample) {
+        Consume(sample);
+      }
     }
   }
 
-  VideoFramePtr ProcessAndRead() SB_OVERRIDE {
-    if (VideoFrameFactory::frames_in_flight() < kSampleAllocatorFramesMax) {
-      impl_->DeliverOneOutputOnAllTransforms();
+  VideoFramePtr ProcessAndRead(bool* too_many_outstanding_frames) SB_OVERRIDE {
+    SB_DCHECK(thread_checker_.CalledOnValidThread());
+    SB_DCHECK(too_many_outstanding_frames);
+
+    *too_many_outstanding_frames =
+        VideoFrameFactory::frames_in_flight() >= kSampleAllocatorFramesMax;
+
+    if (!*too_many_outstanding_frames) {
+      ComPtr<IMFSample> sample;
+      ComPtr<IMFMediaType> media_type;
+      impl_.ProcessAndRead(&sample, &media_type);
+      if (media_type) {
+        OnNewOutputType(media_type);
+      }
+      if (sample) {
+        Consume(sample);
+      }
     }
-    VideoFramePtr output = output_queue_.PopFront();
+    if (output_queue_.empty()) {
+      return NULL;
+    }
+    VideoFramePtr output = output_queue_.front();
+    output_queue_.pop();
     return output;
   }
 
-  AtomicQueue<VideoFramePtr> output_queue_;
-  SbMediaVideoCodec codec_;
-  scoped_ptr<DecoderImpl> impl_;
+  void Reset() SB_OVERRIDE {
+    impl_.Reset();
+    std::queue<VideoFramePtr> empty;
+    output_queue_.swap(empty);
+    thread_checker_.Detach();
+  }
+
+  ::starboard::shared::starboard::ThreadChecker thread_checker_;
+  std::queue<VideoFramePtr> output_queue_;
+  const SbMediaVideoCodec codec_;
+  DecryptingDecoder impl_;
 
   uint32_t surface_width_;
   uint32_t surface_height_;

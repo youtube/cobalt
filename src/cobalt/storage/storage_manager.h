@@ -85,10 +85,10 @@ class StorageManager {
   void GetSqlContext(const SqlCallback& callback);
 
   // Schedule a write of our database to disk to happen at some point in the
-  // future. Multiple calls to Flush() do not necessarily result in multiple
-  // writes to disk.
+  // future after a change occurs. Multiple calls to Flush() do not necessarily
+  // result in multiple writes to disk.
   // This call returns immediately.
-  void Flush();
+  void FlushOnChange();
 
   // Triggers a write to disk to happen immediately.  Each call to FlushNow()
   // will result in a write to disk.
@@ -121,8 +121,11 @@ class StorageManager {
   // complete.
   void FinishInit();
 
+  // Stops any timers that are currently running.
+  void StopFlushOnChangeTimers();
+
   // Callback when flush timer has elapsed.
-  void OnFlushTimerFired();
+  void OnFlushOnChangeTimerFired();
 
   // Logic to be executed on the SQL thread when a flush completes.  Will
   // dispatch |flush_processing_callbacks_| callbacks and execute a new flush
@@ -171,10 +174,17 @@ class StorageManager {
   // until we can initialize the database on the correct thread.
   scoped_ptr<Savegame::ByteVector> loaded_raw_bytes_;
 
-  // Timer that starts running when Flush() is called. When the time elapses,
-  // we actually perform the write. This is a simple form of rate limiting
-  // for I/O writes.
-  scoped_ptr<base::OneShotTimer<StorageManager> > flush_timer_;
+  // Timers that start running when FlushOnChange() is called. When the time
+  // elapses, we actually perform the write. This is a simple form of rate
+  // limiting I/O writes.
+  // |flush_on_last_change_timer_| is re-started on each change, enabling
+  // changes to collect if several happen within a short period of time.
+  // |flush_on_change_max_delay_timer_| starts on the first change and is never
+  // re-started, ensuring that the flush always occurs within its delay and
+  // cannot be pushed back indefinitely.
+  scoped_ptr<base::OneShotTimer<StorageManager> > flush_on_last_change_timer_;
+  scoped_ptr<base::OneShotTimer<StorageManager> >
+      flush_on_change_max_delay_timer_;
 
   // See comments for for kDatabaseUserVersion.
   int loaded_database_version_;
@@ -193,12 +203,12 @@ class StorageManager {
 
   // True if |flush_processing_| is true, but we would like to perform a new
   // flush as soon as it completes.
-  bool flush_requested_;
+  bool flush_pending_;
 
   // The queue of callbacks that will be called when the flush that follows
-  // the current flush completes.  If this is non-empty, then |flush_requested_|
+  // the current flush completes.  If this is non-empty, then |flush_pending_|
   // must be true.
-  std::vector<base::Closure> flush_requested_callbacks_;
+  std::vector<base::Closure> flush_pending_callbacks_;
 
   base::WaitableEvent no_flushes_pending_;
 
@@ -236,7 +246,7 @@ class SqlContext {
     return storage_manager_->UpdateSchemaVersion(table_name, version);
   }
 
-  void Flush() { storage_manager_->Flush(); }
+  void FlushOnChange() { storage_manager_->FlushOnChange(); }
 
   void FlushNow(const base::Closure& callback) {
     storage_manager_->FlushNow(callback);

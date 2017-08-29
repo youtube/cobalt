@@ -317,12 +317,12 @@ class Window : public EventTarget,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  DEFINE_WRAPPABLE_TYPE(Window);
-
   const base::Callback<bool(const std::string&)> splash_screen_cache_callback()
       const {
     return splash_screen_cache_callback_;
   }
+
+  DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
   void StartDocumentLoad(
@@ -341,6 +341,11 @@ class Window : public EventTarget,
   int width_;
   int height_;
   float device_pixel_ratio_;
+
+  // A resize event can be pending if a resize occurs and the current visibility
+  // state is not visible. In this case, the resize event will run when the
+  // visibility state changes to visible.
+  bool is_resize_event_pending_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

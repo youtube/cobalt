@@ -109,23 +109,19 @@ std::vector<std::string> ParseStarboardUri(const std::string& uri) {
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
 std::unique_ptr<Application::Event> MakeDeepLinkEvent(
-    const std::string& uri_string) {
-  size_t index = uri_string.find(':');
-  SB_DCHECK(index != std::string::npos);
-
-  std::string uri_protocol_stripped = uri_string.substr(index + 1);
-  SB_LOG(INFO) << "Navigate to: [" << uri_protocol_stripped << "]";
+  const std::string& uri_string) {
+  SB_LOG(INFO) << "Navigate to: [" << uri_string << "]";
   const size_t kMaxDeepLinkSize = 128 * 1024;
-  const std::size_t uri_size = uri_protocol_stripped.size();
+  const std::size_t uri_size = uri_string.size();
   if (uri_size > kMaxDeepLinkSize) {
     SB_NOTREACHED() << "App launch data too big: " << uri_size;
     return nullptr;
   }
 
-  const int kBufferSize = static_cast<int>(uri_protocol_stripped.size()) + 1;
+  const int kBufferSize = static_cast<int>(uri_string.size()) + 1;
   char* deep_link = new char[kBufferSize];
   SB_DCHECK(deep_link);
-  SbStringCopy(deep_link, uri_protocol_stripped.c_str(), kBufferSize);
+  SbStringCopy(deep_link, uri_string.c_str(), kBufferSize);
 
   return std::unique_ptr<Application::Event>(
       new Application::Event(kSbEventTypeLink, deep_link,
@@ -300,6 +296,13 @@ ref class App sealed : public IFrameworkView {
       if (uri->SchemeName->Equals("youtube") ||
           uri->SchemeName->Equals("ms-xbl-07459769")) {
         std::string uri_string = sbwin32::platformStringToString(uri->RawUri);
+
+        // Strip the protocol from the uri.
+        size_t index = uri_string.find(':');
+        if (index != std::string::npos) {
+          uri_string = uri_string.substr(index + 1);
+        }
+
         ProcessDeepLinkUri(&uri_string);
       }
     } else if (args->Kind == ActivationKind::DialReceiver) {
@@ -312,11 +315,13 @@ ref class App sealed : public IFrameworkView {
           kDialParamPrefix + sbwin32::platformStringToString(arguments);
         ProcessDeepLinkUri(&uri_string);
       } else {
-        const char kYouTubeTVurl[] = "--url=https://www.youtube.com/tv/?";
+        const char kYouTubeTVurl[] = "--url=https://www.youtube.com/tv?";
         std::string activation_args =
             kYouTubeTVurl + sbwin32::platformStringToString(arguments);
         SB_DLOG(INFO) << "Dial Activation url: " << activation_args;
+        args_.push_back(GetArgvZero());
         args_.push_back(activation_args);
+        argv_.push_back(args_.front().c_str());
         argv_.push_back(args_.back().c_str());
         ApplicationUwp::Get()->SetCommandLine(static_cast<int>(argv_.size()),
           argv_.data());
@@ -469,11 +474,16 @@ void ApplicationUwp::InjectTimedEvent(Application::TimedEvent* timed_event) {
   ThreadPoolTimer^ timer = ThreadPoolTimer::CreateTimer(
     ref new TimerElapsedHandler([this, timed_event](ThreadPoolTimer^ timer) {
       RunInMainThreadAsync([this, timed_event]() {
-        timed_event->callback(timed_event->context);
-        ScopedLock lock(mutex_);
-        auto it = timer_event_map_.find(timed_event->id);
-        if (it != timer_event_map_.end()) {
-          timer_event_map_.erase(it);
+        // Even if the event is canceled, the callback can still fire.
+        // Thus, the existence of event in timer_event_map_ is used
+        // as a source of truth.
+        std::size_t number_erased = 0;
+        {
+          ScopedLock lock(mutex_);
+          number_erased = timer_event_map_.erase(timed_event->id);
+        }
+        if (number_erased > 0) {
+          timed_event->callback(timed_event->context);
         }
       });
     }), timespan);

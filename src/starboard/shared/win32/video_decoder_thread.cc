@@ -92,9 +92,10 @@ void VideoDecoderThread::TransferPendingInputTo(
 void VideoDecoderThread::Run() {
   std::deque<scoped_refptr<InputBuffer> > local_queue;
   while (!join_called()) {
-    // Transfer input buffer to local thread.
-    TransferPendingInputTo(&local_queue);
-    bool work_done = !local_queue.empty();
+    if (local_queue.empty()) {
+      TransferPendingInputTo(&local_queue);
+    }
+    bool work_done = false;
     bool is_end_of_stream = false;
     const size_t number_written =
         WriteAsMuchAsPossible(&local_queue, win32_video_decoder_,
@@ -105,8 +106,9 @@ void VideoDecoderThread::Run() {
       callback_->OnVideoDecoded(NULL);
     }
 
-    while (VideoFramePtr decoded_datum =
-             win32_video_decoder_->ProcessAndRead()) {
+    bool too_many_outstanding_frames;
+    while (VideoFramePtr decoded_datum = win32_video_decoder_->ProcessAndRead(
+               &too_many_outstanding_frames)) {
       if (decoded_datum.get()) {
         callback_->OnVideoDecoded(decoded_datum);
       }
@@ -116,6 +118,10 @@ void VideoDecoderThread::Run() {
     if (is_end_of_stream) {
       callback_->OnVideoDecoded(VideoFrame::CreateEOSFrame());
       work_done = true;
+    }
+
+    if (too_many_outstanding_frames) {
+      SbThreadSleep(10 * kSbTimeMillisecond);
     }
 
     if (!work_done) {

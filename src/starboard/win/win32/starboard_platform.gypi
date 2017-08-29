@@ -35,8 +35,6 @@
       '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
       '<(DEPTH)/starboard/win/shared/system_get_path.cc',
       '<@(uwp_incompatible_win32)',
-      '<@(stub_media_player)',
-      '<@(stub_drm_system)' ,
     ],
   },
 }

@@ -16,10 +16,10 @@
 // https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-mouseevent-interface
 
 dictionary MouseEventInit : EventModifierInit {
-  long screenX = 0;
-  long screenY = 0;
-  long clientX = 0;
-  long clientY = 0;
+  double screenX = 0;
+  double screenY = 0;
+  double clientX = 0;
+  double clientY = 0;
 
   short button = 0;
   unsigned short buttons = 0;
