@@ -65,6 +65,11 @@ void Resume(int signal_id) {
   starboard::Application::Get()->Unpause(NULL, NULL);
 }
 
+void LowMemory(int signal_id) {
+  LogSignalCaught(signal_id);
+  starboard::Application::Get()->InjectLowMemoryEvent();
+}
+
 void Ignore(int signal_id) {
   LogSignalCaught(signal_id);
   SbLogRawDumpStack(1);
@@ -91,6 +96,8 @@ void InstallSuspendSignalHandlers() {
 #endif
   SetSignalHandler(SIGUSR1, &Suspend);
   UnblockSignal(SIGUSR1);
+  SetSignalHandler(SIGUSR2, &LowMemory);
+  UnblockSignal(SIGUSR2);
   SetSignalHandler(SIGCONT, &Resume);
 }
 
@@ -99,6 +106,7 @@ void UninstallSuspendSignalHandlers() {
   SetSignalHandler(SIGPIPE, SIG_DFL);
 #endif
   SetSignalHandler(SIGUSR1, SIG_DFL);
+  SetSignalHandler(SIGUSR2, SIG_DFL);
   SetSignalHandler(SIGCONT, SIG_DFL);
 }
 
