@@ -207,6 +207,12 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
+  if (!html_element_context()->can_play_type_handler()) {
+    DLOG(ERROR) << __FUNCTION__ << "(" << mime_type << ", " << key_system
+                << "): Media playback in PRELOADING is not supported.";
+    return "";
+  }
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
   DLOG_IF(ERROR, !key_system.empty())
       << "CanPlayType() only accepts one parameter but (" << key_system
@@ -730,6 +736,11 @@ void HTMLMediaElement::CreateMediaPlayer() {
     if (*html_element_context()->resource_provider()) {
       (*html_element_context()->resource_provider())->Finish();
     }
+  }
+
+  if (!html_element_context()->web_media_player_factory()) {
+    DLOG(ERROR) << "Media playback in PRELOADING is not supported.";
+    return;
   }
 
   player_ =
