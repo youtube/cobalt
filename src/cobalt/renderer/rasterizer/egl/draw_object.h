@@ -17,12 +17,14 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/callback.h"
 #include "base/optional.h"
 #include "cobalt/base/type_id.h"
 #include "cobalt/math/matrix3_f.h"
 #include "cobalt/math/rect.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/render_tree/rounded_corners.h"
+#include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/egl/graphics_state.h"
 #include "cobalt/renderer/rasterizer/egl/shader_program_manager.h"
 
@@ -35,6 +37,21 @@ namespace egl {
 class DrawObject {
  public:
   typedef base::optional<render_tree::RoundedCorners> OptionalRoundedCorners;
+
+  // Callback to get a scratch "1D" texture of the given |size|. If such a
+  // request was previously fulfilled for the relevant render tree node, then
+  // the cached |texture| and |region| will be returned, and |is_new| will be
+  // false; this is a hint as to whether the texture region needs to be
+  // initialized. If the request succeeded, then |texture| will point to a 2D
+  // texture whose |region| is a row meeting the size requirement; otherwise,
+  // |texture| will be nullptr.
+  struct TextureInfo {
+    const backend::TextureEGL* texture;
+    math::RectF region;
+    bool is_new;
+  };
+  typedef base::Callback<void(float size, TextureInfo* out_texture_info)>
+      GetScratchTextureFunction;
 
   // Structure containing the common attributes for all DrawObjects.
   struct BaseState {
@@ -75,6 +92,14 @@ class DrawObject {
  protected:
   DrawObject() {}
   explicit DrawObject(const BaseState& base_state);
+
+  // Utility function to get the render color for the blend modes that will
+  // be used. These modes expect alpha to be pre-multiplied.
+  static render_tree::ColorRGBA GetDrawColor(
+      const render_tree::ColorRGBA& color) {
+    return render_tree::ColorRGBA(color.r() * color.a(), color.g() * color.a(),
+                                  color.b() * color.a(), color.a());
+  }
 
   // Return a uint32_t suitable to be transferred as 4 unsigned bytes
   // representing color to a GL shader.

@@ -33,6 +33,7 @@
 #include "cobalt/dom/mutation_reporter.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/parser.h"
+#include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/serializer.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/math/rect_f.h"
@@ -553,6 +554,32 @@ void Element::set_outer_html(const std::string& outer_html,
   }
 }
 
+void Element::SetPointerCapture(int pointer_id,
+                                script::ExceptionState* exception_state) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->SetPointerCapture(pointer_id, this,
+                                                 exception_state);
+  }
+}
+
+void Element::ReleasePointerCapture(int pointer_id,
+                                    script::ExceptionState* exception_state) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->ReleasePointerCapture(pointer_id, this,
+                                                     exception_state);
+  }
+}
+
+bool Element::HasPointerCapture(int pointer_id) {
+  Document* document = node_document();
+  if (document) {
+    document->pointer_state()->HasPointerCapture(pointer_id, this);
+  }
+  return false;
+}
+
 void Element::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 void Element::Accept(ConstNodeVisitor* visitor) const { visitor->Visit(this); }
@@ -594,6 +621,16 @@ void Element::SetStyleAttribute(const std::string& value) {
 
 void Element::RemoveStyleAttribute() {
   attribute_map_.erase(kStyleAttributeName);
+}
+
+void Element::CollectStyleSheetsOfElementAndDescendants(
+    cssom::StyleSheetVector* style_sheets) const {
+  CollectStyleSheet(style_sheets);
+
+  for (Element* child = first_element_child(); child;
+       child = child->next_element_sibling()) {
+    child->CollectStyleSheetsOfElementAndDescendants(style_sheets);
+  }
 }
 
 scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }

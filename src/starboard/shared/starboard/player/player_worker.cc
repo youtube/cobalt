@@ -269,6 +269,11 @@ void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
 }
 #endif  // SB_API_VERSION >= 4
 
+void PlayerWorker::DoSetVolume(double volume) {
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+  handler_->SetVolume(volume);
+}
+
 void PlayerWorker::DoStop() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 

@@ -19,6 +19,7 @@
 #include "cobalt/cssom/css_style_sheet.h"
 #include "cobalt/dom/attr.h"
 #include "cobalt/dom/comment.h"
+#include "cobalt/dom/custom_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/dom_stat_tracker.h"
@@ -170,6 +171,19 @@ TEST_F(DocumentTest, CreateEventEvent) {
   event = document->CreateEvent("HtMlEvEnTs", &exception_state);
   EXPECT_TRUE(event);
   EXPECT_FALSE(event->initialized_flag());
+}
+
+TEST_F(DocumentTest, CreateEventCustomEvent) {
+  StrictMock<MockExceptionState> exception_state;
+  scoped_refptr<script::ScriptException> exception;
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  // Create an Event, the name is case insensitive.
+  scoped_refptr<Event> event =
+      document->CreateEvent("CuStOmEvEnT", &exception_state);
+  EXPECT_TRUE(event);
+  EXPECT_FALSE(event->initialized_flag());
+  EXPECT_TRUE(base::polymorphic_downcast<CustomEvent*>(event.get()));
 }
 
 TEST_F(DocumentTest, CreateEventUIEvent) {
@@ -335,7 +349,7 @@ TEST_F(DocumentTest, StyleSheets) {
   EXPECT_TRUE(document->style_sheets()->Item(1));
   EXPECT_TRUE(document->style_sheets()->Item(2));
 
-  // Each style sheet shoult represent the one from the corresponding style
+  // Each style sheet should represent the one from the corresponding style
   // element.
   EXPECT_EQ(document->style_sheets()->Item(0),
             element1->AsHTMLStyleElement()->sheet());
@@ -343,6 +357,51 @@ TEST_F(DocumentTest, StyleSheets) {
             element2->AsHTMLStyleElement()->sheet());
   EXPECT_EQ(document->style_sheets()->Item(2),
             element3->AsHTMLStyleElement()->sheet());
+
+  // Each style sheet should be unique.
+  EXPECT_NE(document->style_sheets()->Item(0),
+            document->style_sheets()->Item(1));
+  EXPECT_NE(document->style_sheets()->Item(0),
+            document->style_sheets()->Item(2));
+  EXPECT_NE(document->style_sheets()->Item(1),
+            document->style_sheets()->Item(2));
+}
+
+TEST_F(DocumentTest, StyleSheetsAddedToFront) {
+  scoped_refptr<Document> document = new Document(&html_element_context_);
+
+  scoped_refptr<HTMLElement> element1 =
+      html_element_context_.html_element_factory()->CreateHTMLElement(
+          document, base::Token(HTMLStyleElement::kTagName));
+  element1->set_text_content(std::string("body { background-color: #D3D3D3 }"));
+  document->AppendChild(element1);
+
+  scoped_refptr<HTMLElement> element2 =
+      html_element_context_.html_element_factory()->CreateHTMLElement(
+          document, base::Token(HTMLStyleElement::kTagName));
+  element2->set_text_content(std::string("h1 { color: #00F }"));
+  document->InsertBefore(element2, element1);
+
+  scoped_refptr<HTMLElement> element3 =
+      html_element_context_.html_element_factory()->CreateHTMLElement(
+          document, base::Token(HTMLStyleElement::kTagName));
+  element3->set_text_content(std::string("p { color: #008000 }"));
+  document->InsertBefore(element3, element2);
+
+  EXPECT_TRUE(document->style_sheets());
+  EXPECT_EQ(3, document->style_sheets()->length());
+  EXPECT_TRUE(document->style_sheets()->Item(0));
+  EXPECT_TRUE(document->style_sheets()->Item(1));
+  EXPECT_TRUE(document->style_sheets()->Item(2));
+
+  // Each style sheet should represent the one from the corresponding style
+  // element.
+  EXPECT_EQ(document->style_sheets()->Item(0),
+            element3->AsHTMLStyleElement()->sheet());
+  EXPECT_EQ(document->style_sheets()->Item(1),
+            element2->AsHTMLStyleElement()->sheet());
+  EXPECT_EQ(document->style_sheets()->Item(2),
+            element1->AsHTMLStyleElement()->sheet());
 
   // Each style sheet should be unique.
   EXPECT_NE(document->style_sheets()->Item(0),

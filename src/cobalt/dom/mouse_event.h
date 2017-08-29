@@ -55,13 +55,14 @@ class MouseEvent : public UIEventWithKeyState {
                       uint16 button,
                       const scoped_refptr<EventTarget>& related_target);
 
-  int32_t screen_x() const { return screen_x_; }
-  int32_t screen_y() const { return screen_y_; }
-  int32_t client_x() const { return client_x_; }
-  int32_t client_y() const { return client_y_; }
+  float screen_x() const { return screen_x_; }
+  float screen_y() const { return screen_y_; }
+  float client_x() const { return client_x_; }
+  float client_y() const { return client_y_; }
 
   // Web API: CSSOM View Module: Extensions to the MouseEvent Interface
-  // (partial interface)
+  // (partial interface). This also changes screen_* and client_* above from
+  // long to double.
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-mouseevent-interface
   float page_x() const;
   float page_y() const;
@@ -92,10 +93,10 @@ class MouseEvent : public UIEventWithKeyState {
   ~MouseEvent() OVERRIDE {}
 
  private:
-  int32_t screen_x_;
-  int32_t screen_y_;
-  int32_t client_x_;
-  int32_t client_y_;
+  float screen_x_;
+  float screen_y_;
+  float client_x_;
+  float client_y_;
   int16_t button_;
   uint16_t buttons_;
 

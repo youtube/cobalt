@@ -148,7 +148,7 @@ void SqlAddCookie(const net::CanonicalCookie& cc,
   insert_cookie.BindBool(11, cc.IsHttpOnly());
   bool ok = insert_cookie.Run();
   DCHECK(ok);
-  sql_context->Flush();
+  sql_context->FlushOnChange();
 }
 
 void SqlUpdateCookieAccessTime(const net::CanonicalCookie& cc,
@@ -171,7 +171,7 @@ void SqlUpdateCookieAccessTime(const net::CanonicalCookie& cc,
   touch_cookie.BindString(3, cc.Path());
   bool ok = touch_cookie.Run();
   DCHECK(ok);
-  sql_context->Flush();
+  sql_context->FlushOnChange();
 }
 
 void SqlDeleteCookie(const net::CanonicalCookie& cc,
@@ -185,7 +185,7 @@ void SqlDeleteCookie(const net::CanonicalCookie& cc,
   delete_cookie.BindString(2, cc.Path());
   bool ok = delete_cookie.Run();
   DCHECK(ok);
-  sql_context->Flush();
+  sql_context->FlushOnChange();
 }
 
 void SqlSendEmptyCookieList(

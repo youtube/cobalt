@@ -133,7 +133,8 @@ void SbPlayerPrivate::SetPlaybackRate(double playback_rate) {
 #endif  // SB_API_VERSION >= 4
 
 void SbPlayerPrivate::SetVolume(double volume) {
-  SB_NOTIMPLEMENTED();
+  volume_ = volume;
+  worker_->SetVolume(volume_);
 }
 
 void SbPlayerPrivate::UpdateMediaTime(SbMediaTime media_time, int ticket) {

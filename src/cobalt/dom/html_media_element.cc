@@ -207,6 +207,12 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
+  if (!html_element_context()->can_play_type_handler()) {
+    DLOG(ERROR) << __FUNCTION__ << "(" << mime_type << ", " << key_system
+                << "): Media playback in PRELOADING is not supported.";
+    return "";
+  }
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
   DLOG_IF(ERROR, !key_system.empty())
       << "CanPlayType() only accepts one parameter but (" << key_system
@@ -730,6 +736,11 @@ void HTMLMediaElement::CreateMediaPlayer() {
     if (*html_element_context()->resource_provider()) {
       (*html_element_context()->resource_provider())->Finish();
     }
+  }
+
+  if (!html_element_context()->web_media_player_factory()) {
+    DLOG(ERROR) << "Media playback in PRELOADING is not supported.";
+    return;
   }
 
   player_ =
@@ -1641,24 +1652,21 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::PreferDecodeToTexture()");
 
 #if defined(ENABLE_MAP_TO_MESH)
-  if (!node_document()->UpdateComputedStyleOnElementAndAncestor(this)) {
-    LOG(WARNING) << "Could not update computed style.";
-    NOTREACHED();
-    return false;
-  }
-
-  if (!computed_style()) {
-    // This has been found to occur when HTMLMediaElement::OnLoadTimer() is on
-    // the callstack, though the visual inspection of the display shows that
-    // we are in the settings menu.
-    LOG(WARNING) << "PreferDecodeToTexture() could not get the computed style.";
-    NOTREACHED();
-    return false;
+  cssom::PropertyValue* filter = NULL;
+  if (node_document()->UpdateComputedStyleOnElementAndAncestor(this) &&
+      computed_style()) {
+    filter = computed_style()->filter();
+  } else {
+    LOG(WARNING) << "PreferDecodeToTexture() could not get the computed style "
+                    "in order to know if map-to-mesh is applied to the "
+                    "HTMLMediaElement or not. Perhaps the HTMLMediaElement is "
+                    "not attached to the document?  Falling back to checking "
+                    "the inline style instead.";
+    filter = style()->data()->GetPropertyValue(cssom::kFilterProperty);
   }
 
   const cssom::MapToMeshFunction* map_to_mesh_filter =
-      cssom::MapToMeshFunction::ExtractFromFilterList(
-          computed_style()->filter());
+      cssom::MapToMeshFunction::ExtractFromFilterList(filter);
 
   return map_to_mesh_filter;
 #else  // defined(ENABLE_MAP_TO_MESH)

@@ -128,7 +128,7 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
     offset_center_ = spread_rect_.CenterPoint();
   }
 
-  color_ = GetGLRGBA(color * base_state_.opacity);
+  color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
 }
 
 void DrawRectShadowBlur::ExecuteRasterize(

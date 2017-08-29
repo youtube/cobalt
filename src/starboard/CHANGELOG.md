@@ -6,6 +6,16 @@ be updated each time a new Starboard version is released.  Each section in
 this file describes the changes made to the Starboard interface since the
 version previous to it.
 
+## Version 7
+
+### `SbDecodeTargetInfoPlane` can specify color plane information
+
+Previously: Planes of type `kSbDecodeTargetFormat2PlaneYUVNV12`
+were assumed to have the luma mapped to the alpha channel (`GL_ALPHA`)
+and the chroma mapped to blue and alpha (`GL_LUMINANCE_ALPHA`). However,
+some graphics systems require that luma is on `GL_RED_EXT` and the chroma
+is on `GL_RG_EXT`.
+
 ## Version 6
 
 ### Named `SbStorageRecord`s
@@ -68,6 +78,11 @@ availability.
 ### Support key status change
 Add `key_statuses_changed_callback` parameter to `SbDrmCreateSystem()` to
 support MediaKeySession::keyStatuses and MediaKeySession::onkeystatuseschange.
+
+### Changes thumbstick direction
+
+Change the meaning of negative values for thumbstick position from bottom
+right to upper left.
 
 ## Version 5
 

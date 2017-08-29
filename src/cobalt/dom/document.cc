@@ -34,6 +34,7 @@
 #include "cobalt/dom/comment.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/custom_event.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/dom_implementation.h"
 #include "cobalt/dom/element.h"
@@ -54,10 +55,8 @@
 #include "cobalt/dom/mouse_event.h"
 #include "cobalt/dom/named_node_map.h"
 #include "cobalt/dom/node_descendants_iterator.h"
-#include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
-#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "nb/memory_scope.h"
@@ -71,10 +70,10 @@ Document::Document(HTMLElementContext* html_element_context,
       html_element_context_(html_element_context),
       window_(options.window),
       implementation_(new DOMImplementation(html_element_context)),
-      ALLOW_THIS_IN_INITIALIZER_LIST(
-          style_sheets_(new cssom::StyleSheetList(this))),
+      style_sheets_(new cssom::StyleSheetList()),
       loading_counter_(0),
       should_dispatch_load_event_(true),
+      are_style_sheets_dirty_(true),
       is_selector_tree_dirty_(true),
       is_computed_style_dirty_(true),
       are_font_faces_dirty_(true),
@@ -242,6 +241,8 @@ scoped_refptr<Event> Document::CreateEvent(
   } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
+    return new CustomEvent(Event::Uninitialized);
   }
 
   DOMException::Raise(
@@ -365,6 +366,11 @@ scoped_refptr<Element> Document::active_element() const {
 // https://www.w3.org/TR/2016/REC-html51-20161101/matching-html-elements-using-selectors.html#selectordef-hover
 scoped_refptr<HTMLElement> Document::indicated_element() const {
   return indicated_element_.get();
+}
+
+const scoped_refptr<cssom::StyleSheetList>& Document::style_sheets() {
+  UpdateStyleSheets();
+  return style_sheets_;
 }
 
 void Document::set_cookie(const std::string& cookie) {
@@ -496,6 +502,11 @@ void Document::OnFocusChange() {
   is_computed_style_dirty_ = true;
   RecordMutation();
   FOR_EACH_OBSERVER(DocumentObserver, observers_, OnFocusChanged());
+}
+
+void Document::OnStyleSheetsModified() {
+  are_style_sheets_dirty_ = true;
+  OnCSSMutation();
 }
 
 void Document::OnCSSMutation() {
@@ -775,6 +786,7 @@ void Document::UpdateSelectorTree() {
   if (is_selector_tree_dirty_) {
     TRACE_EVENT0("cobalt::dom", kBenchmarkStatUpdateSelectorTree);
 
+    UpdateStyleSheets();
     UpdateMediaRules();
 
     if (user_agent_style_sheet_) {
@@ -858,43 +870,6 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(initial_computed_style_declaration_);
 }
 
-void Document::QueuePointerEvent(const scoped_refptr<Event>& event) {
-  // Only accept this for event types that are MouseEvents or known derivatives.
-  SB_DCHECK(event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
-            event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
-            event->GetWrappableType() == base::GetTypeId<WheelEvent>());
-
-  // Queue the event to be handled on the next layout.
-  pointer_events_.push(event);
-}
-
-scoped_refptr<Event> Document::GetNextQueuedPointerEvent() {
-  scoped_refptr<Event> event;
-  if (pointer_events_.empty()) {
-    return event;
-  }
-
-  // Ignore pointer move events when they are succeeded by additional pointer
-  // move events.
-  bool next_event_is_move_event =
-      pointer_events_.front()->type() == base::Tokens::pointermove() ||
-      pointer_events_.front()->type() == base::Tokens::mousemove();
-  bool current_event_is_move_event;
-  do {
-    current_event_is_move_event = next_event_is_move_event;
-    event = pointer_events_.front();
-    pointer_events_.pop();
-    if (!current_event_is_move_event) {
-      break;
-    }
-    next_event_is_move_event =
-        !pointer_events_.empty() &&
-        (pointer_events_.front()->type() == base::Tokens::pointermove() ||
-         pointer_events_.front()->type() == base::Tokens::mousemove());
-  } while (next_event_is_move_event);
-  return event;
-}
-
 void Document::DispatchOnLoadEvent() {
   TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
 
@@ -923,6 +898,25 @@ void Document::DispatchOnLoadEvent() {
   // After all JavaScript OnLoad event handlers have executed, signal to let
   // any Document observers know that a load event has occurred.
   SignalOnLoadToObservers();
+}
+
+void Document::UpdateStyleSheets() {
+  if (are_style_sheets_dirty_) {
+    // "Each Document has an associated list of zero or more CSS style sheets,
+    // named the document CSS style sheets. This is an ordered list that
+    // contains all CSS style sheets associated with the Document, in tree
+    // order..."
+    // https://drafts.csswg.org/cssom/#document-css-style-sheets
+    // See also:
+    //   https://www.w3.org/TR/html4/present/styles.html#h-14.4
+    cssom::StyleSheetVector style_sheet_vector;
+    for (Element* child = first_element_child(); child;
+         child = child->next_element_sibling()) {
+      child->CollectStyleSheetsOfElementAndDescendants(&style_sheet_vector);
+    }
+    style_sheets_ = new cssom::StyleSheetList(style_sheet_vector, this);
+    are_style_sheets_dirty_ = false;
+  }
 }
 
 void Document::UpdateMediaRules() {

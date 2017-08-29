@@ -55,6 +55,8 @@ class OffscreenTargetManager {
   // this criteria, then the entry with the lowest error is chosen.
   typedef math::RectF ErrorData;
   typedef base::Callback<float(const ErrorData&)> CacheErrorFunction;
+  typedef float ErrorData1D;
+  typedef base::Callback<float(const ErrorData1D&)> CacheErrorFunction1D;
 
   OffscreenTargetManager(backend::GraphicsContextEGL* graphics_context,
       const CreateFallbackSurfaceFunction& create_fallback_surface,
@@ -72,28 +74,37 @@ class OffscreenTargetManager {
   // available. If a cache does exist, then the output parameters are set,
   // otherwise, they are untouched.
   // The returned values are only valid until the next call to Update().
-  bool GetCachedOffscreenTarget(
-      const render_tree::Node* node, const CacheErrorFunction& error_function,
-      TargetInfo* out_target_info);
+  bool GetCachedOffscreenTarget(const render_tree::Node* node,
+      const CacheErrorFunction& error_function, TargetInfo* out_target_info);
+  bool GetCachedOffscreenTarget(const render_tree::Node* node,
+      const CacheErrorFunction1D& error_function, TargetInfo* out_target_info);
 
   // Allocate an offscreen target of the specified size.
   // The returned values are only valid until the next call to Update().
-  void AllocateOffscreenTarget(
-      const render_tree::Node* node, const math::SizeF& size,
-      const ErrorData& error_data, TargetInfo* out_target_info);
+  void AllocateOffscreenTarget(const render_tree::Node* node,
+      const math::SizeF& size, const ErrorData& error_data,
+      TargetInfo* out_target_info);
+  void AllocateOffscreenTarget(const render_tree::Node* node,
+      float size, const ErrorData1D& error_data, TargetInfo* out_target_info);
 
  private:
   // Use an atlas for offscreen targets.
   struct OffscreenAtlas;
 
   void InitializeTargets(const math::Size& frame_size);
-  OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size);
+  OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size,
+      bool create_canvas);
+  void SelectAtlasCache(ScopedVector<OffscreenAtlas>* atlases,
+      scoped_ptr<OffscreenAtlas>* cache);
 
   backend::GraphicsContextEGL* graphics_context_;
   CreateFallbackSurfaceFunction create_fallback_surface_;
 
   ScopedVector<OffscreenAtlas> offscreen_atlases_;
   scoped_ptr<OffscreenAtlas> offscreen_cache_;
+
+  ScopedVector<OffscreenAtlas> offscreen_atlases_1d_;
+  scoped_ptr<OffscreenAtlas> offscreen_cache_1d_;
 
   // Align offscreen targets to a particular size to more efficiently use the
   // offscreen target atlas. Use a power of 2 for the alignment so that a bit

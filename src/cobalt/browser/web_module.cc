@@ -340,8 +340,7 @@ class WebModule::Impl {
   // Used for DOM node highlighting and overlay messages.
   scoped_ptr<debug::RenderOverlay> debug_overlay_;
 
-  // The core of the debugging system, described here:
-  // https://docs.google.com/document/d/1lZhrBTusQZJsacpt21J3kPgnkj7pyQObhFqYktvm40Y
+  // The core of the debugging system.
   // Created lazily when accessed via |GetDebugServer|.
   scoped_ptr<debug::DebugServerModule> debug_server_module_;
 #endif  // ENABLE_DEBUG_CONSOLE
@@ -1234,8 +1233,6 @@ void WebModule::Start(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Start,
                             base::Unretained(impl_.get()), resource_provider));
@@ -1256,8 +1253,6 @@ void WebModule::Unpause() {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE,
       base::Bind(&WebModule::Impl::Unpause, base::Unretained(impl_.get())));
@@ -1286,8 +1281,6 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   // Must only be called by a thread external from the WebModule thread.
   DCHECK_NE(MessageLoop::current(), message_loop());
 
-  // We must block here so that the call doesn't return until the web
-  // application has had a chance to process the whole event.
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
@@ -1298,7 +1291,7 @@ void WebModule::Impl::HandlePointerEvents() {
   const scoped_refptr<dom::Document>& document = window_->document();
   scoped_refptr<dom::Event> event;
   do {
-    event = document->GetNextQueuedPointerEvent();
+    event = document->pointer_state()->GetNextQueuedPointerEvent();
     if (event) {
       SB_DCHECK(
           window_ ==

@@ -14,8 +14,7 @@
 
 #include "cobalt/layout/topmost_event_target.h"
 
-#include <string>
-
+#include "base/optional.h"
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/cssom/keyword_value.h"
@@ -27,6 +26,7 @@
 #include "cobalt/dom/mouse_event_init.h"
 #include "cobalt/dom/pointer_event.h"
 #include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/dom/pointer_state.h"
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/wheel_event.h"
 #include "cobalt/layout/container_box.h"
@@ -37,57 +37,63 @@
 namespace cobalt {
 namespace layout {
 
-void TopmostEventTarget::FindTopmostEventTarget(
+scoped_refptr<dom::HTMLElement> TopmostEventTarget::FindTopmostEventTarget(
     const scoped_refptr<dom::Document>& document,
     const math::Vector2dF& coordinate) {
-  const scoped_refptr<dom::HTMLElement>& html_element = document->html();
+  DCHECK(document);
   DCHECK(!box_);
   DCHECK(render_sequence_.empty());
-  html_element_ = html_element;
-  if (html_element) {
-    dom::LayoutBoxes* boxes = html_element->layout_boxes();
-    if (boxes && boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
-      LayoutBoxes* layout_boxes = base::polymorphic_downcast<LayoutBoxes*>(
-          html_element->layout_boxes());
-      if (!layout_boxes->boxes().empty()) {
-        ConsiderElement(html_element, coordinate);
-      }
-    }
-  }
+  html_element_ = document->html();
+  ConsiderElement(html_element_, coordinate);
   box_ = NULL;
   render_sequence_.clear();
+  document->SetIndicatedElement(html_element_);
+  scoped_refptr<dom::HTMLElement> topmost_element;
+  topmost_element.swap(html_element_);
+  DCHECK(!html_element_);
+  return topmost_element;
 }
 
-void TopmostEventTarget::ConsiderElement(
-    const scoped_refptr<dom::HTMLElement>& html_element,
-    const math::Vector2dF& coordinate) {
-  if (!html_element) return;
-  math::Vector2dF element_coordinate(coordinate);
-  if (html_element->CanbeDesignatedByPointerIfDisplayed()) {
+namespace {
+
+LayoutBoxes* GetLayoutBoxesIfNotEmpty(dom::Element* element) {
+  dom::HTMLElement* html_element = element->AsHTMLElement();
+  if (html_element && html_element->computed_style()) {
     dom::LayoutBoxes* dom_layout_boxes = html_element->layout_boxes();
     if (dom_layout_boxes &&
         dom_layout_boxes->type() == dom::LayoutBoxes::kLayoutLayoutBoxes) {
-      DCHECK(html_element->computed_style());
       LayoutBoxes* layout_boxes =
           base::polymorphic_downcast<LayoutBoxes*>(dom_layout_boxes);
-      const Boxes& boxes = layout_boxes->boxes();
-      if (!boxes.empty()) {
-        const Box* box = boxes.front();
-        if (box->computed_style() && box->IsTransformed()) {
-          box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
-                                                &element_coordinate);
-        }
-        ConsiderBoxes(html_element, layout_boxes, element_coordinate);
+      if (!layout_boxes->boxes().empty()) {
+        return layout_boxes;
       }
     }
   }
+  return NULL;
+}
 
-  for (dom::Element* element = html_element->first_element_child(); element;
-       element = element->next_element_sibling()) {
-    dom::HTMLElement* child_html_element = element->AsHTMLElement();
-    if (child_html_element && child_html_element->computed_style()) {
-      ConsiderElement(child_html_element, element_coordinate);
+}  // namespace
+void TopmostEventTarget::ConsiderElement(dom::Element* element,
+                                         const math::Vector2dF& coordinate) {
+  if (!element) return;
+  math::Vector2dF element_coordinate(coordinate);
+  LayoutBoxes* layout_boxes = GetLayoutBoxesIfNotEmpty(element);
+  if (layout_boxes) {
+    const Box* box = layout_boxes->boxes().front();
+    if (box->computed_style() && box->IsTransformed()) {
+      box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
+                                            &element_coordinate);
     }
+
+    scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();
+    if (html_element && html_element->CanbeDesignatedByPointerIfDisplayed()) {
+      ConsiderBoxes(html_element, layout_boxes, element_coordinate);
+    }
+  }
+
+  for (dom::Element* child_element = element->first_element_child();
+       child_element; child_element = child_element->next_element_sibling()) {
+    ConsiderElement(child_element, element_coordinate);
   }
 }
 
@@ -114,152 +120,256 @@ void TopmostEventTarget::ConsiderBoxes(
   }
 }
 
+namespace {
+void SendStateChangeEvents(bool is_pointer_event,
+                           scoped_refptr<dom::HTMLElement> previous_element,
+                           scoped_refptr<dom::HTMLElement> target_element,
+                           dom::PointerEventInit* event_init) {
+  // Send enter/leave/over/out (status change) events when needed.
+  if (previous_element != target_element) {
+    const scoped_refptr<dom::Window>& view = event_init->view();
+
+    // The enter/leave status change events apply to all ancestors up to the
+    // nearest common ancestor between the previous and current element.
+    scoped_refptr<dom::Element> nearest_common_ancestor;
+
+    // Send out and leave events.
+    if (previous_element) {
+      event_init->set_related_target(target_element);
+      if (is_pointer_event) {
+        previous_element->DispatchEvent(new dom::PointerEvent(
+            base::Tokens::pointerout(), view, *event_init));
+      }
+      previous_element->DispatchEvent(
+          new dom::MouseEvent(base::Tokens::mouseout(), view, *event_init));
+
+      // Find the nearest common ancestor, if there is any.
+      dom::Document* previous_document = previous_element->node_document();
+      if (previous_document) {
+        if (target_element &&
+            previous_document == target_element->node_document()) {
+          // The nearest ancestor of the current element that is already
+          // designated is the nearest common ancestor of it and the previous
+          // element.
+          nearest_common_ancestor = target_element;
+          while (nearest_common_ancestor &&
+                 nearest_common_ancestor->AsHTMLElement() &&
+                 !nearest_common_ancestor->AsHTMLElement()->IsDesignated()) {
+            nearest_common_ancestor = nearest_common_ancestor->parent_element();
+          }
+        }
+
+        for (scoped_refptr<dom::Element> element = previous_element;
+             element && element != nearest_common_ancestor;
+             element = element->parent_element()) {
+          if (is_pointer_event) {
+            element->DispatchEvent(new dom::PointerEvent(
+                base::Tokens::pointerleave(), dom::Event::kNotBubbles,
+                dom::Event::kNotCancelable, view, *event_init));
+          }
+          element->DispatchEvent(new dom::MouseEvent(
+              base::Tokens::mouseleave(), dom::Event::kNotBubbles,
+              dom::Event::kNotCancelable, view, *event_init));
+        }
+
+        if (!target_element ||
+            previous_document != target_element->node_document()) {
+          previous_document->SetIndicatedElement(NULL);
+        }
+      }
+    }
+
+    // Send over and enter events.
+    if (target_element) {
+      event_init->set_related_target(previous_element);
+      if (is_pointer_event) {
+        target_element->DispatchEvent(new dom::PointerEvent(
+            base::Tokens::pointerover(), view, *event_init));
+      }
+      target_element->DispatchEvent(
+          new dom::MouseEvent(base::Tokens::mouseover(), view, *event_init));
+
+      for (scoped_refptr<dom::Element> element = target_element;
+           element != nearest_common_ancestor;
+           element = element->parent_element()) {
+        if (is_pointer_event) {
+          element->DispatchEvent(new dom::PointerEvent(
+              base::Tokens::pointerenter(), dom::Event::kNotBubbles,
+              dom::Event::kNotCancelable, view, *event_init));
+        }
+        element->DispatchEvent(new dom::MouseEvent(
+            base::Tokens::mouseenter(), dom::Event::kNotBubbles,
+            dom::Event::kNotCancelable, view, *event_init));
+      }
+    }
+  }
+}
+
+void SendCompatibilityMappingMouseEvent(
+    const scoped_refptr<dom::HTMLElement>& target_element,
+    const scoped_refptr<dom::Event>& event,
+    const dom::PointerEvent* pointer_event,
+    const dom::PointerEventInit& event_init,
+    std::set<std::string>* mouse_event_prevent_flags) {
+  // Send compatibility mapping mouse event if needed.
+  //   https://www.w3.org/TR/2015/REC-pointerevents-20150224/#compatibility-mapping-with-mouse-events
+  bool has_compatibility_mouse_event = true;
+  base::Token type = pointer_event->type();
+  if (type == base::Tokens::pointerdown()) {
+    // If the pointer event dispatched was pointerdown and the event was
+    // canceled, then set the PREVENT MOUSE EVENT flag for this pointerType.
+    if (event->default_prevented()) {
+      mouse_event_prevent_flags->insert(pointer_event->pointer_type());
+      has_compatibility_mouse_event = false;
+    } else {
+      type = base::Tokens::mousedown();
+    }
+  } else {
+    has_compatibility_mouse_event =
+        mouse_event_prevent_flags->find(pointer_event->pointer_type()) ==
+        mouse_event_prevent_flags->end();
+    if (type == base::Tokens::pointerup()) {
+      // If the pointer event dispatched was pointerup, clear the PREVENT
+      // MOUSE EVENT flag for this pointerType.
+      mouse_event_prevent_flags->erase(pointer_event->pointer_type());
+      type = base::Tokens::mouseup();
+    } else if (type == base::Tokens::pointermove()) {
+      type = base::Tokens::mousemove();
+    } else {
+      has_compatibility_mouse_event = false;
+    }
+  }
+  if (has_compatibility_mouse_event) {
+    target_element->DispatchEvent(
+        new dom::MouseEvent(type, event_init.view(), event_init));
+  }
+}
+
+void InitializePointerEventInitFromEvent(
+    const dom::MouseEvent* const mouse_event,
+    const dom::PointerEvent* pointer_event, dom::PointerEventInit* event_init) {
+  // For EventInit
+  event_init->set_bubbles(mouse_event->bubbles());
+  event_init->set_cancelable(mouse_event->cancelable());
+
+  // For UIEventInit
+  event_init->set_view(mouse_event->view());
+  event_init->set_detail(mouse_event->detail());
+  event_init->set_which(mouse_event->which());
+
+  // For EventModifierInit
+  event_init->set_ctrl_key(mouse_event->ctrl_key());
+  event_init->set_shift_key(mouse_event->shift_key());
+  event_init->set_alt_key(mouse_event->alt_key());
+  event_init->set_meta_key(mouse_event->meta_key());
+
+  // For MouseEventInit
+  event_init->set_screen_x(mouse_event->screen_x());
+  event_init->set_screen_y(mouse_event->screen_y());
+  event_init->set_client_x(mouse_event->screen_x());
+  event_init->set_client_y(mouse_event->screen_y());
+  event_init->set_button(mouse_event->button());
+  event_init->set_buttons(mouse_event->buttons());
+  event_init->set_related_target(mouse_event->related_target());
+  if (pointer_event) {
+    // For PointerEventInit
+    event_init->set_pointer_id(pointer_event->pointer_id());
+    event_init->set_width(pointer_event->width());
+    event_init->set_height(pointer_event->height());
+    event_init->set_pressure(pointer_event->pressure());
+    event_init->set_tilt_x(pointer_event->tilt_x());
+    event_init->set_tilt_y(pointer_event->tilt_y());
+    event_init->set_pointer_type(pointer_event->pointer_type());
+    event_init->set_is_primary(pointer_event->is_primary());
+  }
+}
+}  // namespace
+
 void TopmostEventTarget::MaybeSendPointerEvents(
     const scoped_refptr<dom::Event>& event) {
   const dom::MouseEvent* const mouse_event =
       base::polymorphic_downcast<const dom::MouseEvent* const>(event.get());
   DCHECK(mouse_event);
   DCHECK(!html_element_);
-  scoped_refptr<dom::Window> view = mouse_event->view();
+  const dom::PointerEvent* pointer_event =
+      (event->GetWrappableType() == base::GetTypeId<dom::PointerEvent>())
+          ? base::polymorphic_downcast<const dom::PointerEvent* const>(
+                event.get())
+          : NULL;
 
-  math::Vector2dF coordinate(static_cast<float>(mouse_event->client_x()),
-                             static_cast<float>(mouse_event->client_y()));
-  FindTopmostEventTarget(view->document(), coordinate);
+  // The target override element for the pointer event. This may not be the same
+  // as the hit test target, and it also may not be set.
+  scoped_refptr<dom::HTMLElement> target_override_element;
 
-  if (html_element_) {
-    html_element_->DispatchEvent(event);
+  // Store the data for the status change and pointer capture event(s).
+  dom::PointerEventInit event_init;
+  InitializePointerEventInitFromEvent(mouse_event, pointer_event, &event_init);
+  const scoped_refptr<dom::Window>& view = event_init.view();
+  if (!view) {
+    return;
   }
-  if (event->GetWrappableType() == base::GetTypeId<dom::PointerEvent>()) {
-    const dom::PointerEvent* const pointer_event =
-        base::polymorphic_downcast<const dom::PointerEvent* const>(event.get());
+  dom::PointerState* pointer_state = view->document()->pointer_state();
+  if (pointer_event) {
+    pointer_state->SetActiveButtonsState(pointer_event->pointer_id(),
+                                         pointer_event->buttons());
+    pointer_state->SetActive(pointer_event->pointer_id());
+    target_override_element = pointer_state->GetPointerCaptureOverrideElement(
+        pointer_event->pointer_id(), &event_init);
+  }
 
-    // Send compatibility mapping mouse events if needed.
-    //  https://www.w3.org/TR/2015/REC-pointerevents-20150224/#compatibility-mapping-with-mouse-events
-    if (html_element_) {
-      bool has_compatibility_mouse_event = false;
-      base::Token type;
-      if (pointer_event->type() == base::Tokens::pointerdown()) {
-        type = base::Tokens::mousedown();
-        has_compatibility_mouse_event = true;
-      } else if (pointer_event->type() == base::Tokens::pointerup()) {
-        type = base::Tokens::mouseup();
-        has_compatibility_mouse_event = true;
-      } else if (pointer_event->type() == base::Tokens::pointermove()) {
-        type = base::Tokens::mousemove();
-        has_compatibility_mouse_event = true;
-      }
-      if (has_compatibility_mouse_event) {
-        dom::MouseEventInit mouse_event_init;
-        mouse_event_init.set_screen_x(pointer_event->screen_x());
-        mouse_event_init.set_screen_y(pointer_event->screen_y());
-        mouse_event_init.set_client_x(pointer_event->screen_x());
-        mouse_event_init.set_client_y(pointer_event->screen_y());
-        mouse_event_init.set_button(pointer_event->button());
-        mouse_event_init.set_buttons(pointer_event->buttons());
-        html_element_->DispatchEvent(
-            new dom::MouseEvent(type, view, mouse_event_init));
-        if (pointer_event->type() == base::Tokens::pointerup()) {
-          type = base::Tokens::click();
-          html_element_->DispatchEvent(
-              new dom::MouseEvent(type, view, mouse_event_init));
-        }
-      }
+  scoped_refptr<dom::HTMLElement> target_element;
+  if (target_override_element) {
+    target_element = target_override_element;
+  } else {
+    // Do a hit test if there is no target override element.
+    math::Vector2dF coordinate(static_cast<float>(event_init.client_x()),
+                               static_cast<float>(event_init.client_y()));
+    target_element = FindTopmostEventTarget(view->document(), coordinate);
+  }
+
+  if (target_element) {
+    target_element->DispatchEvent(event);
+  }
+
+  if (pointer_event) {
+    if (pointer_event->type() == base::Tokens::pointerup()) {
+      // Implicit release of pointer capture.
+      //   https://www.w3.org/TR/pointerevents/#implicit-release-of-pointer-capture
+      pointer_state->ClearPendingPointerCaptureTargetOverride(
+          pointer_event->pointer_id());
     }
-
-    scoped_refptr<dom::HTMLElement> previous_html_element(
-        previous_html_element_weak_);
-
-    // Send enter/leave/over/out (status change) events when needed.
-    if (previous_html_element != html_element_) {
-      // Store the data for the status change event(s).
-      dom::PointerEventInit event_init;
-      event_init.set_related_target(previous_html_element);
-      event_init.set_screen_x(mouse_event->screen_x());
-      event_init.set_screen_y(mouse_event->screen_y());
-      event_init.set_client_x(mouse_event->screen_x());
-      event_init.set_client_y(mouse_event->screen_y());
-      if (event->GetWrappableType() == base::GetTypeId<dom::PointerEvent>()) {
-        event_init.set_pointer_id(pointer_event->pointer_id());
-        event_init.set_width(pointer_event->width());
-        event_init.set_height(pointer_event->height());
-        event_init.set_pressure(pointer_event->pressure());
-        event_init.set_tilt_x(pointer_event->tilt_x());
-        event_init.set_tilt_y(pointer_event->tilt_y());
-        event_init.set_pointer_type(pointer_event->pointer_type());
-        event_init.set_is_primary(pointer_event->is_primary());
-      }
-
-      // The enter/leave status change events apply to all ancestors up to the
-      // nearest common ancestor between the previous and current element.
-      scoped_refptr<dom::Element> nearest_common_ancestor;
-
-      if (previous_html_element) {
-        previous_html_element->DispatchEvent(new dom::PointerEvent(
-            base::Tokens::pointerout(), view, event_init));
-        previous_html_element->DispatchEvent(
-            new dom::MouseEvent(base::Tokens::mouseout(), view, event_init));
-
-        // Find the nearest common ancestor, if there is any.
-        dom::Document* previous_document =
-            previous_html_element->node_document();
-        if (previous_document) {
-          if (html_element_ &&
-              previous_document == html_element_->node_document()) {
-            // The nearest ancestor of the current element that is already
-            // designated is the nearest common ancestor of it and the previous
-            // element.
-            nearest_common_ancestor = html_element_;
-            while (nearest_common_ancestor &&
-                   nearest_common_ancestor->AsHTMLElement() &&
-                   !nearest_common_ancestor->AsHTMLElement()->IsDesignated()) {
-              nearest_common_ancestor =
-                  nearest_common_ancestor->parent_element();
-            }
-          }
-
-          for (scoped_refptr<dom::Element> element = previous_html_element;
-               element != nearest_common_ancestor;
-               element = element->parent_element()) {
-            element->DispatchEvent(new dom::PointerEvent(
-                base::Tokens::pointerleave(), dom::Event::kNotBubbles,
-                dom::Event::kNotCancelable, view, event_init));
-            element->DispatchEvent(new dom::MouseEvent(
-                base::Tokens::mouseleave(), dom::Event::kNotBubbles,
-                dom::Event::kNotCancelable, view, event_init));
-          }
-
-          if (!html_element_ ||
-              previous_document != html_element_->node_document()) {
-            previous_document->SetIndicatedElement(NULL);
-          }
-        }
-      }
-      if (html_element_) {
-        html_element_->DispatchEvent(new dom::PointerEvent(
-            base::Tokens::pointerover(), view, event_init));
-        html_element_->DispatchEvent(
-            new dom::MouseEvent(base::Tokens::mouseover(), view, event_init));
-
-        for (scoped_refptr<dom::Element> element = html_element_;
-             element != nearest_common_ancestor;
-             element = element->parent_element()) {
-          element->DispatchEvent(new dom::PointerEvent(
-              base::Tokens::pointerenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, view, event_init));
-          element->DispatchEvent(new dom::MouseEvent(
-              base::Tokens::mouseenter(), dom::Event::kNotBubbles,
-              dom::Event::kNotCancelable, view, event_init));
-        }
-
-        dom::Document* document = html_element_->node_document();
-        if (document) {
-          document->SetIndicatedElement(html_element_);
-        }
-      }
-      previous_html_element_weak_ = base::AsWeakPtr(html_element_.get());
+    if (target_element) {
+      SendCompatibilityMappingMouseEvent(target_element, event, pointer_event,
+                                         event_init,
+                                         &mouse_event_prevent_flags_);
     }
   }
-  html_element_ = NULL;
+
+  if (target_element) {
+    // Send the click event if needed, which is not prevented by canceling the
+    // pointerdown event.
+    //   https://www.w3.org/TR/uievents/#event-type-click
+    //   https://www.w3.org/TR/pointerevents/#compatibility-mapping-with-mouse-events
+    if (event_init.button() == 0 &&
+        ((mouse_event->type() == base::Tokens::pointerup()) ||
+         (mouse_event->type() == base::Tokens::mouseup()))) {
+      target_element->DispatchEvent(
+          new dom::MouseEvent(base::Tokens::click(), view, event_init));
+    }
+  }
+
+  scoped_refptr<dom::HTMLElement> previous_html_element(
+      previous_html_element_weak_);
+
+  SendStateChangeEvents(pointer_event, previous_html_element, target_element,
+                        &event_init);
+
+  if (target_element) {
+    previous_html_element_weak_ = base::AsWeakPtr(target_element.get());
+  } else {
+    previous_html_element_weak_.reset();
+  }
+  DCHECK(!html_element_);
 }
 
 }  // namespace layout

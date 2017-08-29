@@ -45,16 +45,16 @@ class MockMutationObserver : public MutationObserver {
 
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
-  CSSStyleSheetTest()
-      : style_sheet_list_(new StyleSheetList(&mutation_observer_)),
-        css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
-    css_style_sheet_->AttachToStyleSheetList(style_sheet_list_);
+  CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
+    StyleSheetVector style_sheets;
+    style_sheets.push_back(css_style_sheet_);
+    style_sheet_list_ = new StyleSheetList(style_sheets, &mutation_observer_);
   }
   ~CSSStyleSheetTest() OVERRIDE {}
 
-  MockMutationObserver mutation_observer_;
-  const scoped_refptr<StyleSheetList> style_sheet_list_;
   const scoped_refptr<CSSStyleSheet> css_style_sheet_;
+  scoped_refptr<StyleSheetList> style_sheet_list_;
+  MockMutationObserver mutation_observer_;
   testing::MockCSSParser css_parser_;
 };
 

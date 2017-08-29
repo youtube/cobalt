@@ -23,8 +23,9 @@
     "own risk!  We don't recommend this for third parties.")
 #endif
 
-#if SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION
+#if SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
+    SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 #pragma message( \
-    "Your platform's SB_API_VERSION == SB_RELEASE_CANDIDATE_API_VERSION. " \
+    "Your platform's SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION. " \
     "Note that the RC version of Starboard is still subject to change.")
 #endif

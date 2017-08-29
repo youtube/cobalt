@@ -66,6 +66,17 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
   }
 }
 
+void HTMLLinkElement::OnRemovedFromDocument() {
+  HTMLElement::OnRemovedFromDocument();
+
+  if (style_sheet_) {
+    Document* document = node_document();
+    if (document) {
+      document->OnStyleSheetsModified();
+    }
+  }
+}
+
 void HTMLLinkElement::ResolveAndSetAbsoluteURL() {
   // Resolve the URL given by the href attribute, relative to the element.
   const GURL& base_url = node_document()->url_as_gurl();
@@ -204,17 +215,24 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
                                          const std::string& content) {
-  scoped_refptr<cssom::CSSStyleSheet> style_sheet =
+  style_sheet_ =
       document->html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
-  style_sheet->SetLocationUrl(absolute_url_);
-  document->style_sheets()->Append(style_sheet);
+  style_sheet_->SetLocationUrl(absolute_url_);
+  document->OnStyleSheetsModified();
 }
 
 void HTMLLinkElement::ReleaseLoader() {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(loader_);
   loader_.reset();
+}
+
+void HTMLLinkElement::CollectStyleSheet(
+    cssom::StyleSheetVector* style_sheets) const {
+  if (style_sheet_) {
+    style_sheets->push_back(style_sheet_);
+  }
 }
 
 }  // namespace dom

@@ -144,6 +144,18 @@ void Box::InvalidateUpdateSizeInputsOfBoxAndAncestors() {
 
 Vector2dLayoutUnit Box::GetContainingBlockOffsetFromRoot(
     bool transform_forms_root) const {
+  if (!parent_) {
+    return Vector2dLayoutUnit();
+  }
+
+  const ContainerBox* containing_block = GetContainingBlock();
+  return containing_block->GetContentBoxOffsetFromRoot(transform_forms_root) +
+         GetContainingBlockOffsetFromItsContentBox(containing_block);
+}
+
+Vector2dLayoutUnit Box::GetContainingBlockOffsetFromItsContentBox(
+    const ContainerBox* containing_block) const {
+  DCHECK(containing_block == GetContainingBlock());
   // If the box is absolutely positioned, then its containing block is formed by
   // the padding box instead of the content box, as described in
   // http://www.w3.org/TR/CSS21/visudet.html#containing-block-details.
@@ -151,12 +163,9 @@ Vector2dLayoutUnit Box::GetContainingBlockOffsetFromRoot(
   // containing block of a 'fixed' position element must always be the viewport,
   // all major browsers use the padding box of a transformed ancestor as the
   // containing block for 'fixed' position elements.
-  return parent_ ? IsAbsolutelyPositioned()
-                       ? GetContainingBlock()->GetPaddingBoxOffsetFromRoot(
-                             transform_forms_root)
-                       : GetContainingBlock()->GetContentBoxOffsetFromRoot(
-                             transform_forms_root)
-                 : Vector2dLayoutUnit();
+  return IsAbsolutelyPositioned()
+             ? -containing_block->GetContentBoxOffsetFromPaddingBox()
+             : Vector2dLayoutUnit();
 }
 
 void Box::SetStaticPositionLeftFromParent(LayoutUnit left) {
@@ -356,13 +365,18 @@ Vector2dLayoutUnit Box::GetPaddingBoxOffsetFromBorderBox() const {
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromRoot(
     bool transform_forms_root) const {
-  return GetPaddingBoxOffsetFromRoot(transform_forms_root) +
-         GetContentBoxOffsetFromPaddingBox();
+  return GetMarginBoxOffsetFromRoot(transform_forms_root) +
+         GetContentBoxOffsetFromMarginBox();
 }
 
 Vector2dLayoutUnit Box::GetContentBoxOffsetFromMarginBox() const {
   return Vector2dLayoutUnit(GetContentBoxLeftEdgeOffsetFromMarginBox(),
                             GetContentBoxTopEdgeOffsetFromMarginBox());
+}
+
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromBorderBox() const {
+  return Vector2dLayoutUnit(border_left_width() + padding_left(),
+                            border_top_width() + padding_top());
 }
 
 LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromMarginBox() const {
@@ -371,6 +385,17 @@ LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromMarginBox() const {
 
 LayoutUnit Box::GetContentBoxTopEdgeOffsetFromMarginBox() const {
   return margin_top() + border_top_width() + padding_top();
+}
+
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromContainingBlockContentBox(
+    const ContainerBox* containing_block) const {
+  return GetContainingBlockOffsetFromItsContentBox(containing_block) +
+         GetContentBoxOffsetFromContainingBlock();
+}
+
+Vector2dLayoutUnit Box::GetContentBoxOffsetFromContainingBlock() const {
+  return Vector2dLayoutUnit(GetContentBoxLeftEdgeOffsetFromContainingBlock(),
+                            GetContentBoxTopEdgeOffsetFromContainingBlock());
 }
 
 LayoutUnit Box::GetContentBoxLeftEdgeOffsetFromContainingBlock() const {

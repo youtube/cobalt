@@ -16,6 +16,7 @@
 
 interface DictionaryInterface {
   void dictionaryOperation(TestDictionary dictionary);
+  void derivedDictionaryOperation(DerivedDictionary dictionary);
   attribute sequence<TestDictionary> dictionarySequence;
 
   // Dictionary with dictionary member.
