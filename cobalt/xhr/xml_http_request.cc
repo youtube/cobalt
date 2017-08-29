@@ -163,7 +163,8 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       error_(false),
       sent_(false),
       stop_timeout_(false),
-      upload_complete_(false) {
+      upload_complete_(false),
+      active_requests_count_(0) {
   DCHECK(settings_);
   dom::GlobalStats::GetInstance()->Add(this);
   xhr_id_ = ++s_xhr_sequence_num_;
@@ -365,8 +366,9 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   // Step 9
   sent_ = true;
   // Now that a send is happening, prevent this object
-  // from being collected until it's complete or aborted.
-  PreventGarbageCollection();
+  // from being collected until it's complete or aborted
+  // if no currently active request has called it before.
+  IncrementActiveRequests();
   FireProgressEvent(this, base::Tokens::loadstart());
   if (!upload_complete_) {
     FireProgressEvent(upload_, base::Tokens::loadstart());
@@ -677,7 +679,7 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
     ChangeState(kDone);
     UpdateProgress();
     // Undo the ref we added in Send()
-    AllowGarbageCollection();
+    DecrementActiveRequests();
   } else {
     HandleRequestError(kNetworkError);
   }
@@ -775,7 +777,7 @@ void XMLHttpRequest::HandleRequestError(
   FireProgressEvent(this, base::Tokens::loadend());
 
   fetch_callback_.reset();
-  AllowGarbageCollection();
+  DecrementActiveRequests();
 }
 
 void XMLHttpRequest::OnTimeout() {
@@ -853,6 +855,21 @@ void XMLHttpRequest::UpdateProgress() {
     FireProgressEvent(this, base::Tokens::progress(),
                       static_cast<uint64>(received_length), total,
                       length_computable);
+  }
+}
+
+void XMLHttpRequest::IncrementActiveRequests() {
+  if (active_requests_count_ == 0) {
+    PreventGarbageCollection();
+  }
+  active_requests_count_++;
+}
+
+void XMLHttpRequest::DecrementActiveRequests() {
+  DCHECK_GT(active_requests_count_, 0);
+  active_requests_count_--;
+  if (active_requests_count_ == 0) {
+    AllowGarbageCollection();
   }
 }
 
