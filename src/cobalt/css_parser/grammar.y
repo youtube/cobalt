@@ -6257,7 +6257,6 @@ maybe_declaration:
     std::string property_name = $1.ToString();
     DCHECK_GT(property_name.size(), 0U);
 
-#ifdef __LB_SHELL__FORCE_LOGGING__
     // Do not warn about non-standard or non-WebKit properties.
     if (property_name[0] != '-') {
       base::AutoLock lock(non_trivial_static_fields.Get().lock);
@@ -6270,7 +6269,6 @@ maybe_declaration:
         parser_impl->LogWarning(@1, "unsupported property " + property_name);
       }
     }
-#endif  // __LB_SHELL__FORCE_LOGGING__
 
     $$ = NULL;
   }

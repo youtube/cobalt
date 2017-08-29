@@ -80,21 +80,11 @@ base::optional<FilePath> AppendIndexFile(const FilePath& directory) {
   return base::nullopt;
 }
 
-std::string GetLocalIpAddress() {
+base::optional<std::string> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
-#if defined(__LB_SHELL__)
-  struct sockaddr_in addr = {0};
-  addr.sin_family = AF_INET;
-  lb_get_local_ip_address(&addr.sin_addr);
-  bool result =
-      ip_addr.FromSockAddr(reinterpret_cast<sockaddr*>(&addr), sizeof(addr));
-  DCHECK(result);
-#elif defined(OS_STARBOARD)
-
-#if SB_API_VERSION >= 4
   SbSocketAddress local_ip;
-  SbMemorySet(&(local_ip.address), 0, sizeof(local_ip.address));
-
+  SbMemorySet(&local_ip, 0, sizeof(local_ip));
+#if SB_API_VERSION >= 4
   bool result = false;
 
   // Prefer IPv4 addresses, as they're easier to type for debugging.
@@ -115,17 +105,24 @@ std::string GetLocalIpAddress() {
     }
   }
 
-  DCHECK(result);
+  if (!result) {
+    DLOG(WARNING) << "Unable to get a local interface address.";
+    return base::nullopt;
+  }
 #else
-  SbSocketAddress sb_address;
-  bool result = SbSocketGetLocalInterfaceAddress(&sb_address);
-  DCHECK(result);
-  result = ip_addr.FromSbSocketAddress(&sb_address);
+  bool result = SbSocketGetLocalInterfaceAddress(&local_ip);
+  if (!result) {
+    DLOG(WARNING) << "Unable to get a local interface address.";
+    return base::nullopt;
+  }
+
+  result = ip_addr.FromSbSocketAddress(&local_ip);
+  if (!result) {
+    LOG(WARNING) << "Got invalid local interface address.";
+    return base::nullopt;
+  }
 #endif  // SB_API_VERSION >= 4
 
-#else
-#error "Not Implemented."
-#endif
   return ip_addr.ToStringWithoutPort();
 }
 
@@ -339,8 +336,13 @@ void DebugWebServer::StartServer(int port) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // Create http server
-  const std::string ip_addr = GetLocalIpAddress();
-  factory_.reset(new net::TCPListenSocketFactory(ip_addr, port));
+  const base::optional<std::string> ip_addr = GetLocalIpAddress();
+  if (!ip_addr) {
+    DLOG(WARNING)
+        << "Could not get a local IP address for the debug web server.";
+    return;
+  }
+  factory_.reset(new net::TCPListenSocketFactory(*ip_addr, port));
   server_ = new net::HttpServer(*factory_, this);
 
   std::string address;
