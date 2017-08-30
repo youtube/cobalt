@@ -31,9 +31,7 @@
       # building 'all'.
       'target_name': 'all_engines',
       'type': 'none',
-      'dependencies': [
-        'mozjs/mozjs.gyp:*',
-      ],
+      'dependencies': [],
     },
   ],
 }
