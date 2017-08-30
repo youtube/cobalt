@@ -650,10 +650,10 @@ void Box::RenderAndAnimate(
           RenderAndAnimateOverflow(padding_rounded_corners, border_node,
                                    &animate_node_builder, border_box_offset);
     }
-    border_node = RenderAndAnimateOpacity(border_node, &animate_node_builder,
-                                          opacity, opacity_animated);
     border_node = RenderAndAnimateTransform(border_node, &animate_node_builder,
                                             border_box_offset);
+    border_node = RenderAndAnimateOpacity(border_node, &animate_node_builder,
+                                          opacity, opacity_animated);
 
     cached_render_tree_node_info_->node_ =
         animate_node_builder.empty()
