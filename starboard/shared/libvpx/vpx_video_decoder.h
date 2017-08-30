@@ -83,7 +83,7 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   void TeardownCodec();
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
 
-  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
   bool UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame);
 

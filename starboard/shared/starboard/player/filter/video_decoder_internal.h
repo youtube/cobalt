@@ -16,7 +16,6 @@
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_VIDEO_DECODER_INTERNAL_H_
 
 #include "starboard/common/ref_counted.h"
-#include "starboard/configuration.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -52,8 +51,7 @@ class VideoDecoder {
 
 #if SB_API_VERSION >= 3
   // May be called from an arbitrary thread (e.g. a renderer thread).
-  virtual SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) {
-    SB_UNREFERENCED_PARAMETER(media_time);
+  virtual SbDecodeTarget GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
 #endif  // SB_API_VERSION >= 3
