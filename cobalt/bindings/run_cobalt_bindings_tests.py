@@ -29,7 +29,6 @@ import sys
 import bootstrap_path  # pylint: disable=unused-import
 
 from cobalt.bindings.idl_compiler_cobalt import IdlCompilerCobalt
-from cobalt.bindings.mozjs.code_generator_mozjs import CodeGeneratorMozjs
 from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
 from webkitpy.bindings.bindings_tests import run_bindings_tests
 
@@ -41,9 +40,7 @@ def main(argv):
   parser.add_argument('engine')
   args = parser.parse_args(argv[1:])
 
-  if args.engine.lower() == 'mozjs':
-    generator = CodeGeneratorMozjs
-  elif args.engine.lower() == 'mozjs45':
+  if args.engine.lower() == 'mozjs45':
     generator = CodeGeneratorMozjs45
   else:
     raise RuntimeError('Unsupported JavaScript engine: ' + args.engine)
