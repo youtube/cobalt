@@ -170,7 +170,7 @@ send-redirect.htm,PASS
 send-redirect-infinite.htm,PASS
 send-redirect-infinite-sync.htm,FAIL
 send-redirect-no-location.htm,FAIL
-send-redirect-to-cors.htm,DISABLE
+send-redirect-to-cors.htm,PASS
 send-redirect-to-non-cors.htm,FAIL
 send-response-event-order.htm,FAIL
 send-response-upload-event-loadend.htm,PASS
