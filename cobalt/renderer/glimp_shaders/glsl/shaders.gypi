@@ -78,6 +78,7 @@
       'fragment_skia_texture_domain.glsl',
       'fragment_skia_texture_domain_masked_texture_domain.glsl',
       'fragment_skia_texture_masked_texture.glsl',
+      'fragment_skia_texture_masked_texture_domain.glsl',
       'fragment_skia_yuv.glsl',
       'fragment_textured_vbo_rgba.glsl',
       'fragment_textured_vbo_uyvy_1plane.glsl',
