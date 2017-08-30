@@ -59,7 +59,7 @@ class VideoDecoder
       SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time) SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
   void SetHost(VideoRenderer* host);
   bool is_valid() const { return media_codec_bridge_ != NULL; }
