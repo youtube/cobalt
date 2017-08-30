@@ -32,7 +32,10 @@ SbSystemConnectionType FindConnectionType(PIP_ADAPTER_ADDRESSES adapter) {
         !sbwin32::IsIfTypeEthernet(adapter->IfType)) {
       continue;
     }
-    if (adapter->IfType == IF_TYPE_IEEE80211) {
+    // Some devices do not report IfType correctly.
+    // So, an extra attempt at determining if an interface is wireless is made.
+    if (adapter->IfType == IF_TYPE_IEEE80211 ||
+      (wcsstr(adapter->Description, L"WiFi") != nullptr)) {
       return kSbSystemConnectionTypeWireless;
     }
     return kSbSystemConnectionTypeWired;
