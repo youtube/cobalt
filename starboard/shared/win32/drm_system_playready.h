@@ -47,6 +47,7 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
     virtual std::string license_challenge() const = 0;
     virtual Microsoft::WRL::ComPtr<IMFTransform> decryptor() = 0;
     virtual void UpdateLicense(const void* license, int license_size) = 0;
+    virtual bool IsHDCPRequired() = 0;
   };
 
   SbDrmSystemPlayready(

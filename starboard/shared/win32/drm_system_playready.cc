@@ -180,6 +180,15 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
   ScopedLock lock(mutex_);
   for (auto& item : successful_requests_) {
     if (item.second->key_id() == key_id) {
+      if (buffer->sample_type() == kSbMediaTypeAudio) {
+        return kSuccess;
+      }
+
+      if (item.second->IsHDCPRequired()) {
+        // TODO: Enforce HDCP
+        // if (!is_hdcp_enabled()) { return kFailure; }
+      }
+
       return kSuccess;
     }
   }

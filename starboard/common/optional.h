@@ -215,6 +215,8 @@ class SB_EXPORT optional {
   explicit operator bool() const { return engaged_; }
 #endif
 
+  bool has_engaged() const { return engaged_; }
+
   // Dereferences the internal object.
   const T* operator->() const { return &(value()); }
 
