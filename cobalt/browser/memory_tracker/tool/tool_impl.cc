@@ -30,7 +30,6 @@
 #include "cobalt/browser/memory_tracker/tool/params.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
 #include "cobalt/browser/memory_tracker/tool/util.h"
-#include "cobalt/script/mozjs/util/stack_trace_helpers.h"
 #include "nb/analytics/memory_tracker.h"
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "nb/concurrent_map.h"
