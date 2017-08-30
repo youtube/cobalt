@@ -24,6 +24,7 @@
             'evrpc.c',
             'evutil.c',
             'http.c',
+            'kqueue.c',
             'log.c',
             'poll.c',
             'select.c',
@@ -54,10 +55,22 @@
               'include_dirs': [ 'starboard' ],
               'conditions': [
                 [ 'sb_libevent_method == "epoll"', {
-                  'sources!': [ 'poll.c' ],
+                  'sources!': [
+                    'kqueue.c',
+                    'poll.c',
+                  ],
                 }],
                 [ 'sb_libevent_method == "poll"', {
-                  'sources!': [ 'epoll.c' ],
+                  'sources!': [
+                    'epoll.c',
+                    'kqueue.c',
+                  ],
+                }],
+                [ 'sb_libevent_method == "kqueue"', {
+                  'sources!': [
+                    'epoll.c',
+                    'poll.c',
+                  ],
                 }],
                 [ 'target_os == "linux"', {
                   'sources': [ 'epoll_sub.c' ],
@@ -72,6 +85,10 @@
                 [ 'target_os == "android"', {
                   'sources': [ 'epoll_sub.c' ],
                   'include_dirs': [ 'starboard/linux' ],
+                  }
+                ],
+                [ 'target_os == "ios"', {
+                  'include_dirs': [ 'starboard/darwin' ],
                   }
                 ],
                 [ 'target_os == "orbis"', {
