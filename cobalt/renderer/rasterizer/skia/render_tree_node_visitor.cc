@@ -949,6 +949,11 @@ void DrawRectWithBrush(RenderTreeNodeVisitorDrawState* draw_state,
   SkiaBrushVisitor brush_visitor(&paint, *draw_state);
   brush->Accept(&brush_visitor);
 
+  if (!draw_state->render_target->getTotalMatrix().preservesAxisAlignment()) {
+    // Enable anti-aliasing if we're rendering a rotated or skewed box.
+    paint.setAntiAlias(true);
+  }
+
   draw_state->render_target->drawRect(
       SkRect::MakeXYWH(rect.x(), rect.y(), rect.width(), rect.height()), paint);
 }
