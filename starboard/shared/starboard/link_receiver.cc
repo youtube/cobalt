@@ -294,6 +294,10 @@ void LinkReceiver::Impl::Run() {
   listen_socket_ =
       CreateListeningSocket(kSbSocketAddressTypeIpv4, specified_port_);
   if (!listen_socket_ || !listen_socket_->IsValid()) {
+      listen_socket_ = CreateListeningSocket(kSbSocketAddressTypeIpv6,
+                                             specified_port_);
+  }
+  if (!listen_socket_ || !listen_socket_->IsValid()) {
     SB_LOG(WARNING) << "Unable to start LinkReceiver on port "
                     << specified_port_ << ".";
     SbSocketWaiterDestroy(waiter_);
