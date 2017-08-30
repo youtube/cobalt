@@ -30,6 +30,22 @@
 #include "config.h"
 #endif
 
+#ifdef STARBOARD
+#include "libevent-starboard.h"
+
+#include <assert.h>
+#include <sys/types.h>
+#include <sys/event.h>
+#include <sys/socket.h>
+
+// Use libevent's local compatibility  versions of these.
+#include "third_party/libevent/compat/sys/queue.h"
+#include "third_party/libevent/compat/sys/_libevent_time.h"
+
+// Include Starboard poems after all system headers.
+#include "starboard/client_porting/poem/stdio_poem.h"
+#include "starboard/client_porting/poem/string_poem.h"
+#else  // STARBOARD
 #define _GNU_SOURCE 1
 
 #include <sys/types.h>
@@ -50,6 +66,7 @@
 #ifdef HAVE_INTTYPES_H
 #include <inttypes.h>
 #endif
+#endif  // STARBOARD
 
 /* Some platforms apparently define the udata field of struct kevent as
  * intptr_t, whereas others define it as void*.  There doesn't seem to be an
@@ -62,6 +79,9 @@
 
 #include "event.h"
 #include "event-internal.h"
+#ifndef STARBOARD
+#include "evsignal.h"
+#endif  // STARBOARD
 #include "log.h"
 
 #define EVLIST_X_KQINKERNEL	0x1000
@@ -148,11 +168,12 @@ kq_init(struct event_base *base)
 	 * stick an error in events[0].  If kqueue is broken, then
 	 * kevent will fail.
 	 */
+   // https://github.com/azat/libevent/commit/a9f6f32e7773347334149d89bc58bf9b984e1714
 	if (kevent(kq,
 		kqueueop->changes, 1, kqueueop->events, NEVENT, NULL) != 1 ||
 	    kqueueop->events[0].ident != -1 ||
-	    kqueueop->events[0].flags != EV_ERROR) {
-		event_warn("%s: detected broken kqueue; not using.", __func__);
+	    !(kqueueop->events[0].flags & EV_ERROR)) {
+    event_warn("%s: detected broken kqueue; not using.", __func__);
 		free(kqueueop->changes);
 		free(kqueueop->events);
 		free(kqueueop);
@@ -234,7 +255,6 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 	kqop->nchanges = 0;
 	if (res == -1) {
 		if (errno != EINTR) {
-                        event_warn("kevent");
 			return (-1);
 		}
 
