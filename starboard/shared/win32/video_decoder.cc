@@ -83,8 +83,7 @@ void VideoDecoder::Reset() {
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
-SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget(SbMediaTime media_time) {
-  SB_UNREFERENCED_PARAMETER(media_time);
+SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   SB_NOTIMPLEMENTED()
       << "VideoRendererImpl::GetCurrentDecodeTarget() should be used instead.";
   return kSbDecodeTargetInvalid;
