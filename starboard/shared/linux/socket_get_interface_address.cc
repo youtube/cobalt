@@ -16,18 +16,11 @@
 
 #if SB_API_VERSION >= 4
 
-#if SB_HAS_QUIRK(SOCKET_BSD_HEADERS)
-#include <errno.h>
-#include <net/if.h>
-#include <net/if_dl.h>
-#else
+#include <arpa/inet.h>
+#include <ifaddrs.h>
 #include <linux/if.h>
 #include <linux/if_addr.h>
 #include <netdb.h>
-#endif
-
-#include <arpa/inet.h>
-#include <ifaddrs.h>
 #include <netinet/in.h>
 #include <string.h>
 #include <sys/socket.h>
