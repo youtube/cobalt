@@ -61,10 +61,13 @@ Removes `SbSystemPlatformErrorType` values specific to user status.
 Add support for UYVY decode targets (e.g. YUV 422) via the
 `kSbDecodeTargetFormat1PlaneUYVY` enum.
 
-### Add Color Remote Keys
+### Add More Remote Keys
 
-This adds SbKey codes for the colored keys found on most contemporary TV
-remotes.
+This adds SbKey codes for:
+
+  * Color keys
+  * Closed Caption key
+  * Application launch key
 
 ### `kSbEventTypeLowMemory`
 

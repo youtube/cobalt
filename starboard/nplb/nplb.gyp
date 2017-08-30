@@ -114,6 +114,7 @@
         'flat_map_test.cc',
         'include_all.c',
         'include_all_too.c',
+        'key_test.cc',
         'log_flush_test.cc',
         'log_format_test.cc',
         'log_is_tty_test.cc',
