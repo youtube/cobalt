@@ -41,6 +41,15 @@ DrawObject::BaseState::BaseState(const BaseState& other)
 DrawObject::DrawObject(const BaseState& base_state)
     : base_state_(base_state) {}
 
+math::Vector2dF DrawObject::GetScale() const {
+  float m00 = base_state_.transform(0, 0);
+  float m01 = base_state_.transform(0, 1);
+  float m10 = base_state_.transform(1, 0);
+  float m11 = base_state_.transform(1, 1);
+  return math::Vector2dF(std::sqrt(m00 * m00 + m10 * m10),
+                         std::sqrt(m01 * m01 + m11 * m11));
+}
+
 // static
 uint32_t DrawObject::GetGLRGBA(float r, float g, float b, float a) {
   // Ensure color bytes represent RGBA, regardless of endianness.
