@@ -121,26 +121,18 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
     const math::RectF& border_rect, const math::RectF& content_rect,
     const render_tree::ColorRGBA& border_color,
     const render_tree::ColorRGBA& content_color) {
-  // Extract scale from the transform matrix. This can be reliably done if no
-  // rotations are involved.
-  const float kEpsilon = 0.0001f;
-  if (std::abs(base_state_.transform(0, 1)) >= kEpsilon ||
-      std::abs(base_state_.transform(1, 0)) >= kEpsilon) {
-    return false;
-  }
-
-  // If the scale is 0 in either direction, then there's nothing to render.
-  float scale_x = std::abs(base_state_.transform(0, 0));
-  float scale_y = std::abs(base_state_.transform(1, 1));
-  if (scale_x <= kEpsilon || scale_y <= kEpsilon) {
+  // If the scaled border rect is too small, then don't bother rendering.
+  math::Vector2dF scale = GetScale();
+  if (border_rect.width() * scale.x() < 1.0f ||
+      border_rect.height() * scale.y() < 1.0f) {
     return true;
   }
 
   // Antialiased subpixel borders are not supported at this time. It can be
   // done by attenuating the alpha, but this can get complicated if the borders
   // are of different widths.
-  float pixel_size_x = 1.0f / scale_x;
-  float pixel_size_y = 1.0f / scale_y;
+  float pixel_size_x = 1.0f / scale.x();
+  float pixel_size_y = 1.0f / scale.y();
   if (border.left.width < pixel_size_x || border.right.width < pixel_size_x ||
       border.top.width < pixel_size_y || border.bottom.width < pixel_size_y) {
     return false;
