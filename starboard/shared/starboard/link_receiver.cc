@@ -276,20 +276,42 @@ LinkReceiver::Impl::Impl(Application* application, int port)
 LinkReceiver::Impl::~Impl() {
   SB_DCHECK(!SbThreadIsEqual(thread_, SbThreadGetCurrent()));
   quit_.store(true);
-  SbSocketWaiterWakeUp(waiter_);
+  if (SbSocketWaiterIsValid(waiter_)) {
+    SbSocketWaiterWakeUp(waiter_);
+  }
   destroy_waiter_.Put();
   SbThreadJoin(thread_, NULL);
 }
 
 void LinkReceiver::Impl::Run() {
   waiter_ = SbSocketWaiterCreate();
-  SB_DCHECK(SbSocketWaiterIsValid(waiter_));
+  if (!SbSocketWaiterIsValid(waiter_)) {
+    SB_LOG(WARNING) << "Unable to create SbSocketWaiter.";
+    waiter_initialized_.Put();
+    return;
+  }
+
   listen_socket_ =
       CreateListeningSocket(kSbSocketAddressTypeIpv4, specified_port_);
-  SB_DCHECK(listen_socket_);
+  if (!listen_socket_ || !listen_socket_->IsValid()) {
+    SB_LOG(WARNING) << "Unable to start LinkReceiver on port "
+                    << specified_port_ << ".";
+    SbSocketWaiterDestroy(waiter_);
+    waiter_ = kSbSocketWaiterInvalid;
+    waiter_initialized_.Put();
+    return;
+  }
+
   actual_port_ = 0;
   bool result = GetBoundPort(listen_socket_.get(), &actual_port_);
-  SB_DCHECK(result);
+  if (!result) {
+    SB_LOG(WARNING) << "Unable to get LinkReceiver bound port.";
+    SbSocketWaiterDestroy(waiter_);
+    waiter_ = kSbSocketWaiterInvalid;
+    waiter_initialized_.Put();
+    return;
+  }
+
   SB_LOG(INFO) << "LinkReceiver port: " << actual_port_;
 
   char port_string[32] = {0};
