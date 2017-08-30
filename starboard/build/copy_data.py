@@ -85,8 +85,14 @@ def CopyFiles(files_to_copy, output_basedir):
       # paths (especially on build machines) such that shutil.copy fails.
       filename = win32api.GetShortPathName(filename)
       output_basedir = win32api.GetShortPathName(output_basedir)
-    output_filename = posixpath.join(output_basedir, relative_filename)
-    output_dir = posixpath.dirname(output_filename)
+
+    # In certain cases, files would fail to open on windows if relative paths
+    # were provided.  Using absolute paths fixes this.
+    filename = os.path.abspath(filename)
+    output_basedir = os.path.abspath(output_basedir)
+    output_filename = os.path.abspath(os.path.join(output_basedir,
+                                                   relative_filename))
+    output_dir = os.path.dirname(output_filename)
 
     # In cases where a directory has turned into a file or vice versa, delete it
     # before copying it below.
@@ -97,6 +103,7 @@ def CopyFiles(files_to_copy, output_basedir):
 
     if not os.path.exists(output_dir):
       os.makedirs(output_dir)
+
     shutil.copy(filename, output_filename)
 
 
