@@ -44,11 +44,22 @@ DrawRectShadowSpread::DrawRectShadowSpread(GraphicsState* graphics_state,
       vertex_buffer_(nullptr),
       vertex_count_(0) {
   color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
+
+  // Extract scale from the transform and move it into the vertex attributes
+  // so that the anti-aliased edges remain 1 pixel wide.
+  math::Vector2dF scale = RemoveScaleFromTransform();
+  inner_rect_.Scale(scale.x(), scale.y());
+  outer_rect_.Scale(scale.x(), scale.y());
+
   if (inner_corners_ || outer_corners_) {
     // If using rounded corners, then both inner and outer rects must have
     // rounded corner definitions.
     DCHECK(inner_corners_);
     DCHECK(outer_corners_);
+    inner_corners_ = inner_corners_->Scale(scale.x(), scale.y());
+    outer_corners_ = outer_corners_->Scale(scale.x(), scale.y());
+    inner_corners_ = inner_corners_->Normalize(inner_rect_);
+    outer_corners_ = outer_corners_->Normalize(outer_rect_);
   }
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 }

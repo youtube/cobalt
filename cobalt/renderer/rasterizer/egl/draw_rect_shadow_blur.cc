@@ -90,27 +90,48 @@ DrawRectShadowBlur::DrawRectShadowBlur(GraphicsState* graphics_state,
       spread_corners_(spread_corners),
       blur_sigma_(blur_sigma),
       is_inset_(inset) {
-  const float kBlurExtentInPixels = kBlurExtentInSigmas * blur_sigma;
+  // Extract scale from the transform and move it into the vertex attributes
+  // so that the anti-aliased edges remain 1 pixel wide.
+  math::Vector2dF scale = RemoveScaleFromTransform();
+  math::RectF scaled_base_rect(base_rect);
+  scaled_base_rect.Scale(scale.x(), scale.y());
+  OptionalRoundedCorners scaled_base_corners(base_corners);
+  if (scaled_base_corners) {
+    scaled_base_corners = scaled_base_corners->Scale(scale.x(), scale.y());
+    scaled_base_corners = scaled_base_corners->Normalize(scaled_base_rect);
+  }
+  spread_rect_.Scale(scale.x(), scale.y());
+  if (spread_corners_) {
+    spread_corners_ = spread_corners_->Scale(scale.x(), scale.y());
+    spread_corners_ = spread_corners_->Normalize(spread_rect_);
+  }
+
+  // The blur algorithms used by the shaders do not produce good results with
+  // separate x and y blur sigmas. Select a single blur sigma to approximate
+  // the desired blur.
+  blur_sigma_ *= std::sqrt(scale.x() * scale.y());
+
+  const float kBlurExtentInPixels = kBlurExtentInSigmas * blur_sigma_;
 
   if (inset) {
-    outer_rect_ = base_rect;
-    outer_corners_ = base_corners;
-    inner_rect_ = spread_rect;
+    outer_rect_ = scaled_base_rect;
+    outer_corners_ = scaled_base_corners;
+    inner_rect_ = spread_rect_;
     inner_rect_.Inset(kBlurExtentInPixels, kBlurExtentInPixels);
     if (inner_rect_.IsEmpty()) {
-      inner_rect_.set_origin(spread_rect.CenterPoint());
+      inner_rect_.set_origin(spread_rect_.CenterPoint());
     }
-    if (spread_corners) {
-      inner_corners_ = spread_corners->Inset(kBlurExtentInPixels,
+    if (spread_corners_) {
+      inner_corners_ = spread_corners_->Inset(kBlurExtentInPixels,
           kBlurExtentInPixels, kBlurExtentInPixels, kBlurExtentInPixels);
     }
   } else {
-    inner_rect_ = base_rect;
-    inner_corners_ = base_corners;
-    outer_rect_ = spread_rect;
+    inner_rect_ = scaled_base_rect;
+    inner_corners_ = scaled_base_corners;
+    outer_rect_ = spread_rect_;
     outer_rect_.Outset(kBlurExtentInPixels, kBlurExtentInPixels);
-    if (spread_corners) {
-      outer_corners_ = spread_corners->Inset(-kBlurExtentInPixels,
+    if (spread_corners_) {
+      outer_corners_ = spread_corners_->Inset(-kBlurExtentInPixels,
           -kBlurExtentInPixels, -kBlurExtentInPixels, -kBlurExtentInPixels);
     }
   }
