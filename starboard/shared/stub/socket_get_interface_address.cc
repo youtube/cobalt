@@ -14,12 +14,8 @@
 
 #include "starboard/socket.h"
 
-#if SB_API_VERSION >= 4
-
 bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
                                  SbSocketAddress* /*out_source_address*/,
                                  SbSocketAddress* /*out_netmask*/) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 4

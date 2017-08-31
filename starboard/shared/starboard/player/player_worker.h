@@ -80,9 +80,7 @@ class PlayerWorker {
                              bool* written) = 0;
     virtual bool WriteEndOfStream(SbMediaType sample_type) = 0;
     virtual bool SetPause(bool pause) = 0;
-#if SB_API_VERSION >= 4
     virtual bool SetPlaybackRate(double playback_rate) = 0;
-#endif  // SB_API_VERSION >= 4
     virtual void SetVolume(double volume) = 0;
 
     virtual bool SetBounds(const Bounds& bounds) = 0;
@@ -92,9 +90,7 @@ class PlayerWorker {
     // after and is no longer safe to access.
     virtual void Stop() = 0;
 
-#if SB_API_VERSION >= 4
     virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
-#endif  // SB_API_VERSION >= 4
   };
 
   PlayerWorker(Host* host,
@@ -120,17 +116,14 @@ class PlayerWorker {
         Bind(&PlayerWorker::DoWriteEndOfStream, this, sample_type));
   }
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void SetBounds(Bounds bounds) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetBounds, this, bounds));
   }
-#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
   void SetPause(bool pause) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetPause, this, pause));
   }
 
-#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) {
     // Arbitrary values to give the playback rate a valid range.  A particular
     // implementation may have stricter or looser requirement, or even only
@@ -147,7 +140,6 @@ class PlayerWorker {
     job_queue_->Schedule(
         Bind(&PlayerWorker::DoSetPlaybackRate, this, playback_rate));
   }
-#endif  // SB_API_VERSION >= 4
 
   void SetVolume(double volume) {
     job_queue_->Schedule(Bind(&PlayerWorker::DoSetVolume, this, volume));
@@ -157,11 +149,9 @@ class PlayerWorker {
     host_->UpdateDroppedVideoFrames(dropped_video_frames);
   }
 
-#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() {
     return handler_->GetCurrentDecodeTarget();
   }
-#endif  // SB_API_VERSION >= 4
 
  private:
   void UpdateMediaTime(SbMediaTime time);
@@ -176,13 +166,9 @@ class PlayerWorker {
   void DoWriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void DoWritePendingSamples();
   void DoWriteEndOfStream(SbMediaType sample_type);
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetBounds(Bounds bounds);
-#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   void DoSetPause(bool pause);
-#if SB_API_VERSION >= 4
   void DoSetPlaybackRate(double rate);
-#endif  // SB_API_VERSION >= 4
   void DoSetVolume(double volume);
   void DoStop();
 

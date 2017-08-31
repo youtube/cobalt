@@ -17,10 +17,6 @@
 #include "starboard/shared/starboard/cryptography/cryptography_internal.h"
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 
-#if SB_API_VERSION < 4
-#error "SbCryptography requires SB_API_VERSION >= 4."
-#endif
-
 using starboard::shared::starboard::cryptography::AES_cbc_encrypt;
 using starboard::shared::starboard::cryptography::AES_ctr128_encrypt;
 using starboard::shared::starboard::cryptography::AES_decrypt;

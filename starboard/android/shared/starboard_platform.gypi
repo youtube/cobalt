@@ -110,7 +110,6 @@
         'player_set_playback_rate.cc',
         'sanitizer_options.cc',
         'socket_get_interface_address.cc',
-        'socket_get_local_interface_address.cc',
         'speech_recognizer_impl.cc',
         'speech_synthesis_cancel.cc',
         'speech_synthesis_speak.cc',

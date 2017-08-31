@@ -16,10 +16,6 @@
 
 #include "starboard/shared/starboard/application.h"
 
-#if SB_API_VERSION < 4
-#error "SbSystemRequestPause requires SB_API_VERSION >= 4."
-#endif
-
 void SbSystemRequestPause() {
   starboard::shared::starboard::Application::Get()->Pause(NULL, NULL);
 }

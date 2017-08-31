@@ -114,11 +114,7 @@ TEST_P(SbSocketBindTest, RainyDayBadInterface) {
 
 TEST_F(SbSocketBindTest, SunnyDayLocalInterface) {
   SbSocketAddress address = {0};
-#if SB_API_VERSION < 4
-  EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&address));
-#else
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &address, NULL));
-#endif  // SB_API_VERSION < 4
   SbSocket server_socket = CreateServerTcpSocket(address.type);
   ASSERT_TRUE(SbSocketIsValid(server_socket));
 
