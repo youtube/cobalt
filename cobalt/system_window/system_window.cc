@@ -211,51 +211,6 @@ void SystemWindow::HandleInputEvent(const SbInputData& data) {
   }
 }
 
-void OnDialogClose(SbSystemPlatformErrorResponse response, void* user_data) {
-  DCHECK(user_data);
-  SystemWindow* system_window = static_cast<SystemWindow*>(user_data);
-  system_window->HandleDialogClose(response);
-}
-
-void SystemWindow::ShowDialog(const SystemWindow::DialogOptions& options) {
-  SbSystemPlatformErrorType error_type =
-      kSbSystemPlatformErrorTypeConnectionError;
-  switch (options.message_code) {
-    case kDialogConnectionError:
-      error_type = kSbSystemPlatformErrorTypeConnectionError;
-      break;
-    default:
-      NOTREACHED();
-      break;
-  }
-
-  SbSystemPlatformError handle =
-      SbSystemRaisePlatformError(error_type, OnDialogClose, this);
-  if (SbSystemPlatformErrorIsValid(handle)) {
-    current_dialog_callback_ = options.callback;
-  } else {
-    DLOG(WARNING) << "Failed to notify user of error: " << options.message_code;
-  }
-}
-
-void SystemWindow::HandleDialogClose(SbSystemPlatformErrorResponse response) {
-  DCHECK(!current_dialog_callback_.is_null());
-  switch (response) {
-    case kSbSystemPlatformErrorResponsePositive:
-      current_dialog_callback_.Run(kDialogPositiveResponse);
-      break;
-    case kSbSystemPlatformErrorResponseNegative:
-      current_dialog_callback_.Run(kDialogNegativeResponse);
-      break;
-    case kSbSystemPlatformErrorResponseCancel:
-      current_dialog_callback_.Run(kDialogCancelResponse);
-      break;
-    default:
-      DLOG(WARNING) << "Unrecognized dialog response: " << response;
-      break;
-  }
-}
-
 void HandleInputEvent(const SbEvent* event) {
   if (event->type != kSbEventTypeInput) {
     return;
