@@ -66,7 +66,7 @@ class CompositionNode : public Node {
     Builder() {}
     explicit Builder(const math::Vector2dF& offset) : offset_(offset) {}
 
-    explicit Builder(const Builder& other)
+    Builder(const Builder& other)
         : offset_(other.offset_), children_(other.children_) {}
     explicit Builder(Moved moved) : offset_(moved->offset_) {
       children_.swap(moved->children_);
