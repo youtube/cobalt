@@ -344,6 +344,12 @@ void MozjsGlobalEnvironment::SetReportEvalCallback(
   report_eval_ = report_eval;
 }
 
+void MozjsGlobalEnvironment::SetReportErrorCallback(
+    const ReportErrorCallback& report_error_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  report_error_callback_ = report_error_callback;
+}
+
 void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   TRACK_MEMORY_SCOPE("Javascript");
