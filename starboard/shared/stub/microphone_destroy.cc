@@ -14,8 +14,8 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to build this file."
+#endif
 
 void SbMicrophoneDestroy(SbMicrophone microphone) {}
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

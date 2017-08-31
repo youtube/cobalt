@@ -96,10 +96,8 @@ SbDrmSystemWidevine::SbDrmSystemWidevine(
 #if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
       key_statuses_changed_callback_(key_statuses_changed_callback),
 #endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
-#if SB_API_VERSION >= 4
       ticket_(kSbDrmTicketInvalid),
       ticket_thread_id_(SbThreadGetId()),
-#endif  // SB_API_VERSION >= 4
       buffer_(new BufferImpl()),
       cdm_(static_cast<cdm::ContentDecryptionModule*>(
           CreateCdmInstance(cdm::kCdmInterfaceVersion,
@@ -130,20 +128,16 @@ SbDrmSystemWidevine::~SbDrmSystemWidevine() {
 }
 
 void SbDrmSystemWidevine::GenerateSessionUpdateRequest(
-#if SB_API_VERSION >= 4
     int ticket,
-#endif  // SB_API_VERSION >= 4
     const char* type,
     const void* initialization_data,
     int initialization_data_size) {
-#if SB_API_VERSION >= 4
   // We assume that CDM is called from one thread and that CDM calls host's
   // methods synchronously on the same thread, so it shouldn't be possible
   // to request multiple concurrent session updates.
   SB_DCHECK(GetTicket() == kSbDrmTicketInvalid)
       << "Another session update request is already pending.";
   SetTicket(ticket);
-#endif  // SB_API_VERSION >= 4
 
   cdm::Status status = cdm_->GenerateKeyRequest(
       type, SbStringGetLength(type),
@@ -151,26 +145,20 @@ void SbDrmSystemWidevine::GenerateSessionUpdateRequest(
       initialization_data_size);
 
   if (status != cdm::kSuccess) {
-#if SB_API_VERSION >= 4
     // Reset ticket before invoking user-provided callback to indicate that
     // no session update request is pending.
     SetTicket(kSbDrmTicketInvalid);
-#endif  // SB_API_VERSION >= 4
 
     SB_DLOG(ERROR) << "GenerateKeyRequest status " << status;
     // Send an empty request to signal an error.
     session_update_request_callback_(this, context_,
-#if SB_API_VERSION >= 4
                                      ticket,
-#endif  // SB_API_VERSION >= 4
                                      NULL, 0, NULL, 0, NULL);
   }
 }
 
 void SbDrmSystemWidevine::UpdateSession(
-#if SB_API_VERSION >= 4
     int ticket,
-#endif  // SB_API_VERSION >= 4
     const void* key,
     int key_size,
     const void* session_id,
@@ -181,9 +169,7 @@ void SbDrmSystemWidevine::UpdateSession(
   bool succeeded = status == cdm::kSuccess;
   SB_DLOG_IF(ERROR, !succeeded) << "AddKey status " << status;
   session_updated_callback_(this, context_,
-#if SB_API_VERSION >= 4
                             ticket,
-#endif  // SB_API_VERSION >= 4
                             session_id, session_id_size, succeeded);
 
 #if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
@@ -304,19 +290,15 @@ void SbDrmSystemWidevine::SendKeyMessage(const char* web_session_id,
                                          int32_t default_url_length) {
   SB_DCHECK(SbStringGetLength(default_url) == default_url_length);
 
-#if SB_API_VERSION >= 4
   int ticket = GetTicket();
   if (SbDrmTicketIsValid(ticket)) {
     // Reset ticket before invoking user-provided callback to indicate that
     // no session update request is pending.
     SetTicket(kSbDrmTicketInvalid);
   }
-#endif  // SB_API_VERSION >= 4
 
   session_update_request_callback_(this, context_,
-#if SB_API_VERSION >= 4
                                    ticket,
-#endif  // SB_API_VERSION >= 4
                                    web_session_id, web_session_id_length,
                                    message, message_length, default_url);
 }
@@ -449,8 +431,6 @@ void* SbDrmSystemWidevine::TimerThreadFunc(void* context) {
   return NULL;
 }
 
-#if SB_API_VERSION >= 4
-
 void SbDrmSystemWidevine::SetTicket(int ticket) {
   SB_DCHECK(SbThreadGetId() == ticket_thread_id_)
       << "Ticket should only be set from the constructor thread.";
@@ -462,8 +442,6 @@ int SbDrmSystemWidevine::GetTicket() const {
   // called spontaneously by CDM, potentially from the timer thread.
   return SbThreadGetId() == ticket_thread_id_ ? ticket_ : kSbDrmTicketInvalid;
 }
-
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace widevine
 }  // namespace shared

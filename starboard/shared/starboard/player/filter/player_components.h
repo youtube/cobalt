@@ -38,11 +38,9 @@ struct VideoParameters {
   SbMediaVideoCodec video_codec;
   SbDrmSystem drm_system;
   JobQueue* job_queue;
-#if SB_API_VERSION >= 4
   SbPlayerOutputMode output_mode;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider;
-#endif  // SB_API_VERSION >= 4
 };
 
 // All the platform specific components that a

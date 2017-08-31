@@ -18,9 +18,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
 #include "starboard/shared/media_session/playback_state.h"
-#if SB_API_VERSION >= 4
 #include "starboard/shared/starboard/media/media_support_internal.h"
-#endif  // SB_API_VERSION >= 4
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 #include "starboard/shared/starboard/player/player_worker.h"
@@ -41,19 +39,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
                         SbPlayerDeallocateSampleFunc sample_deallocate_func,
                         SbPlayerDecoderStatusFunc decoder_status_func,
                         SbPlayerStatusFunc player_status_func,
-                        void* context
-#if SB_API_VERSION >= 4
-                        ,
+                        void* context,
                         SbPlayerOutputMode output_mode,
-                        SbDecodeTargetGraphicsContextProvider* provider
-#elif SB_API_VERSION >= 3
-                        ,
-                        SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 4
-                        ) {
+                        SbDecodeTargetGraphicsContextProvider* provider) {
   SB_UNREFERENCED_PARAMETER(window);
 
-#if SB_API_VERSION >= 4
   const int64_t kDefaultBitRate = 0;
   if (!SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
@@ -69,45 +59,22 @@ SbPlayer SbPlayerCreate(SbWindow window,
     SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
     return kSbPlayerInvalid;
   }
-#else   // SB_API_VERSION >= 4
-  if (audio_codec != kSbMediaAudioCodecAac) {
-    SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
-    return kSbPlayerInvalid;
-  }
-
-  if (video_codec != kSbMediaVideoCodecH264) {
-    SB_LOG(ERROR) << "Unsupported video codec " << video_codec;
-    return kSbPlayerInvalid;
-  }
-#endif  // SB_API_VERSION >= 4
 
   if (!audio_header) {
     SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
     return kSbPlayerInvalid;
   }
 
-#if SB_API_VERSION >= 4
   if (!SbPlayerOutputModeSupported(output_mode, video_codec, drm_system)) {
     SB_LOG(ERROR) << "Unsupported player output mode " << output_mode;
     return kSbPlayerInvalid;
   }
-#endif  // SB_API_VERSION >= 4
 
   UpdateActiveSessionPlatformPlaybackState(kPlaying);
 
-#if SB_API_VERSION >= 4
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
                                          *audio_header, output_mode, provider));
-#elif SB_API_VERSION >= 3
-  starboard::scoped_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         *audio_header, provider));
-#else   // SB_API_VERSION >= 4
-  starboard::scoped_ptr<PlayerWorker::Handler> handler(
-      new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         *audio_header));
-#endif  // SB_API_VERSION >= 4
 
   return new SbPlayerPrivate(duration_pts, sample_deallocate_func,
                              decoder_status_func, player_status_func, context,

@@ -14,7 +14,7 @@
 
 #include "starboard/speech_synthesis.h"
 
-#if !SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
+#if !SB_HAS(SPEECH_SYNTHESIS)
 #error If speech synthesis not enabled on this platform, please exclude it\
        from the build
 #endif

@@ -352,27 +352,6 @@
 // supported composition methods below.
 #define SB_HAS_PLAYER 1
 
-#if SB_API_VERSION < 4
-// Specifies whether this platform's player will produce an OpenGL texture that
-// the client must draw every frame with its graphics rendering. It may be that
-// we get a texture handle, but cannot perform operations like GlReadPixels on
-// it if it is DRM-protected.
-#define SB_IS_PLAYER_PRODUCING_TEXTURE 0
-
-// Specifies whether this platform's player is composited with a formal
-// compositor, where the client must specify how video is to be composited into
-// the graphicals scene.
-#define SB_IS_PLAYER_COMPOSITED 0
-
-// Specifies whether this platform's player uses a "punch-out" model, where
-// video is rendered to the far background, and the graphics plane is
-// automatically composited on top of the video by the platform. The client must
-// punch an alpha hole out of the graphics plane for video to show through.  In
-// this case, changing the video bounds must be tightly synchronized between the
-// player and the graphics plane.
-#define SB_IS_PLAYER_PUNCHED_OUT 1
-#endif  // SB_API_VERSION < 4
-
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the
 // seek time because usually all audio frames are key frames.  On platforms that
@@ -386,8 +365,6 @@
 // not available should define the following quirk.
 #undef SB_HAS_QUIRK_NO_FFS
 
-#if SB_API_VERSION >= 4
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.
@@ -397,8 +374,6 @@
 // equals to 25M bytes per seconds which is more than enough for compressed
 // video.
 #define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND (200 * 1024 * 1024)
-
-#endif  // SB_API_VERSION >= 4
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.

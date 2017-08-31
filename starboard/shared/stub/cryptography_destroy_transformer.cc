@@ -15,10 +15,6 @@
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
 
-#if SB_API_VERSION < 4
-#error "SbCryptography requires SB_API_VERSION >= 4."
-#endif
-
 void SbCryptographyDestroyTransformer(SbCryptographyTransformer transformer) {
   SB_UNREFERENCED_PARAMETER(transformer);
 }

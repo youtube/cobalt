@@ -18,12 +18,12 @@
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER)
-
 namespace starboard {
 namespace nplb {
+namespace {
 
-#if SB_API_VERSION >= 4
+#if SB_HAS(PLAYER)
+
 #if SB_HAS(GLES2)
 void GlesContextRunner(
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
@@ -34,16 +34,6 @@ void GlesContextRunner(
   SB_UNREFERENCED_PARAMETER(target_function_context);
 }
 #endif  // SB_HAS(GLES2)
-#elif SB_API_VERSION >= 3
-SbDecodeTarget SbDecodeTargetAcquireStub(void* /*context*/,
-                                         SbDecodeTargetFormat /*format*/,
-                                         int /*width*/,
-                                         int /*height*/) {
-  return kSbDecodeTargetInvalid;
-}
-void SbDecodeTargetReleaseStub(void* /*context*/,
-                               SbDecodeTarget /*decode_target*/) {}
-#endif  // SB_API_VERSION >= 3
 
 TEST(SbPlayerTest, SunnyDay) {
   SbWindowOptions window_options;
@@ -70,7 +60,6 @@ TEST(SbPlayerTest, SunnyDay) {
   SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
   SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
 
-#if SB_API_VERSION >= 4
   SbPlayerOutputMode output_modes[] = {kSbPlayerOutputModeDecodeToTexture,
                                        kSbPlayerOutputModePunchOut};
 
@@ -79,9 +68,7 @@ TEST(SbPlayerTest, SunnyDay) {
     if (!SbPlayerOutputModeSupported(output_mode, kVideoCodec, kDrmSystem)) {
       continue;
     }
-#endif  // SB_API_VERSION >= 4
 
-#if SB_API_VERSION >= 4
     SbDecodeTargetGraphicsContextProvider
         decode_target_graphics_context_provider;
 #if SB_HAS(BLITTER)
@@ -93,44 +80,25 @@ TEST(SbPlayerTest, SunnyDay) {
         &GlesContextRunner;
     decode_target_graphics_context_provider.gles_context_runner_context = NULL;
 #endif  // SB_HAS(BLITTER)
-#elif SB_API_VERSION >= 3
-    SbDecodeTargetProvider decode_target_provider;
-    decode_target_provider.acquire = &SbDecodeTargetAcquireStub;
-    decode_target_provider.release = &SbDecodeTargetReleaseStub;
-    decode_target_provider.context = NULL;
-#endif  // SB_API_VERSION >= 3
 
-    SbPlayer player =
-        SbPlayerCreate(window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
-                       SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid,
-                       &audio_header, NULL, NULL, NULL, NULL
-#if SB_API_VERSION >= 4
-                       ,
-                       output_mode,
-                       &decode_target_graphics_context_provider
-#elif SB_API_VERSION >= 3
-                       ,
-                       &decode_target_provider
-#endif
-                       );  // NOLINT
+    SbPlayer player = SbPlayerCreate(
+        window, kSbMediaVideoCodecH264, kSbMediaAudioCodecAac,
+        SB_PLAYER_NO_DURATION, kSbDrmSystemInvalid, &audio_header, NULL, NULL,
+        NULL, NULL, output_mode, &decode_target_graphics_context_provider);
     EXPECT_TRUE(SbPlayerIsValid(player));
 
-#if SB_API_VERSION >= 4
     if (output_mode == kSbPlayerOutputModeDecodeToTexture) {
       SbDecodeTarget current_frame = SbPlayerGetCurrentFrame(player);
     }
-#endif  // SB_API_VERSION >= 4
 
     SbPlayerDestroy(player);
-
-#if SB_API_VERSION >= 4
   }
-#endif  // SB_API_VERSION >= 4
 
   SbWindowDestroy(window);
 }
 
+#endif  // SB_HAS(PLAYER)
+
+}  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER)

@@ -14,14 +14,14 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
-
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
+
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to build this file."
+#endif
 
 int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                              int info_array_size) {
   return SbMicrophonePrivate::GetAvailableMicrophones(out_info_array,
                                                       info_array_size);
 }
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

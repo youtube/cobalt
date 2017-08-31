@@ -18,8 +18,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 4
-
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -28,5 +26,3 @@ SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player) {
 
   return player->GetCurrentDecodeTarget();
 }
-
-#endif  // SB_API_VERSION >= 4

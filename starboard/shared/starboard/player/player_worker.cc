@@ -243,14 +243,12 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 }
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 void PlayerWorker::DoSetBounds(Bounds bounds) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
   if (!handler_->SetBounds(bounds)) {
     UpdatePlayerState(kSbPlayerStateError);
   }
 }
-#endif  // SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 
 void PlayerWorker::DoSetPause(bool pause) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -260,7 +258,6 @@ void PlayerWorker::DoSetPause(bool pause) {
   }
 }
 
-#if SB_API_VERSION >= 4
 void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -268,7 +265,6 @@ void PlayerWorker::DoSetPlaybackRate(double playback_rate) {
     UpdatePlayerState(kSbPlayerStateError);
   }
 }
-#endif  // SB_API_VERSION >= 4
 
 void PlayerWorker::DoSetVolume(double volume) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());

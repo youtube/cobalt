@@ -19,8 +19,6 @@
 #include "starboard/nplb/cryptography_helpers.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 4
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -225,5 +223,3 @@ INSTANTIATE_TEST_CASE_P(SbCryptographyTransform,
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 4
