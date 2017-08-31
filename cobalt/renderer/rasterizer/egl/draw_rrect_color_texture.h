@@ -44,6 +44,12 @@ class DrawRRectColorTexture : public DrawObject {
   base::TypeId GetTypeId() const OVERRIDE;
 
  private:
+  struct VertexAttributes {
+    float position[2];
+    float texcoord[2];
+    RCorner rcorner;
+  };
+
   math::Matrix3F texcoord_transform_;
   math::RectF rect_;
   render_tree::ColorRGBA color_;
