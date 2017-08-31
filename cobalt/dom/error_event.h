@@ -17,6 +17,7 @@
 
 #include <string>
 
+#include "base/memory/scoped_ptr.h"
 #include "cobalt/dom/error_event_init.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/script/value_handle.h"
@@ -38,10 +39,15 @@ class ErrorEvent : public Event {
         filename_(init_dict.filename()),
         lineno_(init_dict.lineno()),
         colno_(init_dict.colno()) {
-    const script::ValueHandleHolder* error = init_dict.error();
-    if (error) {
-      error_.reset(new script::ValueHandleHolder::Reference(this, *error));
-    }
+    InitError(init_dict);
+  }
+  ErrorEvent(base::Token type, const ErrorEventInit& init_dict)
+      : Event(type, init_dict),
+        message_(init_dict.message()),
+        filename_(init_dict.filename()),
+        lineno_(init_dict.lineno()),
+        colno_(init_dict.colno()) {
+    InitError(init_dict);
   }
 
   // Web API: ErrorEvent
@@ -62,6 +68,14 @@ class ErrorEvent : public Event {
 
  protected:
   ~ErrorEvent() OVERRIDE {}
+
+ private:
+  void InitError(const ErrorEventInit& init_dict) {
+    const script::ValueHandleHolder* error = init_dict.error();
+    if (error) {
+      error_.reset(new script::ValueHandleHolder::Reference(this, *error));
+    }
+  }
 
   std::string message_;
   std::string filename_;
