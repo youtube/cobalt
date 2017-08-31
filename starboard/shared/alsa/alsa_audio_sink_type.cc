@@ -92,12 +92,10 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
 
-#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
     ScopedLock lock(mutex_);
     playback_rate_ = playback_rate;
   }
-#endif  // SB_API_VERSION >= 4
 
   void SetVolume(double volume) SB_OVERRIDE {
     ScopedLock lock(mutex_);

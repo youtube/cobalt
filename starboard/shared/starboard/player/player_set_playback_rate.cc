@@ -23,8 +23,6 @@ using starboard::shared::media_session::kPlaying;
 using starboard::shared::media_session::
     UpdateActiveSessionPlatformPlaybackState;
 
-#if SB_API_VERSION >= 4
-
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -40,5 +38,3 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   UpdateActiveSessionPlatformPlaybackState(paused ? kPaused : kPlaying);
   return true;
 }
-
-#endif  // SB_API_VERSION >= 4

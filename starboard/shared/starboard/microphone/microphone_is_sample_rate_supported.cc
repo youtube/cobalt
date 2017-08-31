@@ -14,14 +14,14 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
-
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
+
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to build this file."
+#endif
 
 bool SbMicrophoneIsSampleRateSupported(SbMicrophoneId id,
                                        int sample_rate_in_hz) {
   return SbMicrophonePrivate::IsMicrophoneSampleRateSupported(
       id, sample_rate_in_hz);
 }
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

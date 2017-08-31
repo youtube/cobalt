@@ -40,21 +40,17 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
       ,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
 #endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
-      );
+      );  // NOLINT(whitespace/parens)
   ~SbDrmSystemWidevine() SB_OVERRIDE;
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(
-#if SB_API_VERSION >= 4
       int ticket,
-#endif  // SB_API_VERSION >= 4
       const char* type,
       const void* initialization_data,
       int initialization_data_size) SB_OVERRIDE;
   void UpdateSession(
-#if SB_API_VERSION >= 4
       int ticket,
-#endif  // SB_API_VERSION >= 4
       const void* key,
       int key_size,
       const void* session_id,
@@ -104,10 +100,8 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
   void TimerThread();
   static void* TimerThreadFunc(void* context);
 
-#if SB_API_VERSION >= 4
   void SetTicket(int ticket);
   int GetTicket() const;
-#endif  // SB_API_VERSION >= 4
 
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
@@ -116,7 +110,6 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
   const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 #endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
 
-#if SB_API_VERSION >= 4
   // Ticket is is expected to be set before each call to |GenerateKeyRequest|
   // and |AddKey|, so that it can be passed back through
   // |session_update_request_callback_| and |session_updated_callback_|
@@ -127,7 +120,6 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
   // spontaneously from the timer thread. In that case |GetTicket| need to
   // return |kSbDrmTicketInvalid|.
   const SbThreadId ticket_thread_id_;
-#endif  // SB_API_VERSION >= 4
 
   BufferImpl* const buffer_;
   cdm::ContentDecryptionModule* const cdm_;

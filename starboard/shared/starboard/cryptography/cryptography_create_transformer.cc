@@ -20,10 +20,6 @@
 #include "starboard/shared/starboard/cryptography/software_aes.h"
 #include "starboard/string.h"
 
-#if SB_API_VERSION < 4
-#error "SbCryptography requires SB_API_VERSION >= 4."
-#endif
-
 using starboard::shared::starboard::cryptography::AES_KEY;
 using starboard::shared::starboard::cryptography::AES_gcm128_init;
 using starboard::shared::starboard::cryptography::Algorithm;

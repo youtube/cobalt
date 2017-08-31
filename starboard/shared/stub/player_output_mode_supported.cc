@@ -14,12 +14,12 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 4
+#if !SB_HAS(PLAYER)
+#error "This file requires SB_HAS(PLAYER)."
+#endif
 
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
                                  SbMediaVideoCodec /*codec*/,
                                  SbDrmSystem /*drm_system*/) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 4

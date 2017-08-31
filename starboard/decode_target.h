@@ -96,15 +96,8 @@
 #include "starboard/log.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 3
-
 #if SB_HAS(BLITTER)
 #include "starboard/blitter.h"
-#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
-#if SB_API_VERSION < 4
-#include <EGL/egl.h>
-#include <GLES2/gl2.h>
-#endif  // SB_API_VERSION < 4
 #endif  // SB_HAS(BLITTER)
 
 #ifdef __cplusplus
@@ -180,7 +173,6 @@ typedef enum SbDecodeTargetPlane {
   kSbDecodeTargetPlaneV = 2,
 } SbDecodeTargetPlane;
 
-#if SB_API_VERSION >= 4
 #if SB_HAS(GLES2)
 struct SbDecodeTargetGraphicsContextProvider;
 
@@ -235,35 +227,6 @@ typedef struct SbDecodeTargetGraphicsContextProvider {
   char dummy;
 #endif  // SB_HAS(BLITTER)
 } SbDecodeTargetGraphicsContextProvider;
-
-#else   // SB_API_VERSION >= 4
-// A function that can produce an SbDecodeTarget of the given |format|, |width|,
-// and |height|.
-typedef SbDecodeTarget (*SbDecodeTargetAcquireFunction)(
-    void* context,
-    SbDecodeTargetFormat format,
-    int width,
-    int height);
-
-// A function that can reclaim an SbDecodeTarget allocated with an
-// SbDecodeTargetAcquireFunction.
-typedef void (*SbDecodeTargetReleaseFunction)(void* context,
-                                              SbDecodeTarget decode_target);
-
-// An object that can acquire and release SbDecodeTarget instances.
-typedef struct SbDecodeTargetProvider {
-  // The function to acquire a new SbDecodeTarget from the provider.
-  SbDecodeTargetAcquireFunction acquire;
-
-  // The function to release an acquired SbDecodeTarget back to the provider.
-  SbDecodeTargetReleaseFunction release;
-
-  // |context| will be passed into every call to |acquire| and |release|.
-  void* context;
-} SbDecodeTargetProvider;
-#endif  // SB_API_VERSION >= 4
-
-#if SB_API_VERSION >= 4
 
 // Defines a rectangular content region within a SbDecodeTargetInfoPlane
 // structure.
@@ -342,8 +305,6 @@ typedef struct SbDecodeTargetInfo {
   SbDecodeTargetInfoPlane planes[3];
 } SbDecodeTargetInfo;
 
-#endif  // SB_API_VERSION >= 4
-
 // --- Constants -------------------------------------------------------------
 
 // Well-defined value for an invalid decode target handle.
@@ -384,111 +345,12 @@ static SB_C_INLINE int SbDecodeTargetNumberOfPlanesForFormat(
 }
 #endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
 
-#if SB_API_VERSION < 4
-
-#if SB_HAS(BLITTER)
-
-// Creates a new SbBlitter-compatible SbDecodeTarget from one or more |planes|
-// created from |display|.
-//
-// |format|: The format of the decode target being created.
-// |planes|: An array of SbBlitterSurface handles to be bundled into an
-// SbDecodeTarget. Must not be NULL. Is expected to have the same number of
-// entries as the number of planes for |format|, in the order and size expected
-// by that format.
-SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(SbDecodeTargetFormat format,
-                                              SbBlitterSurface* planes);
-
-// Gets the surface that represents the given plane.
-SB_EXPORT SbBlitterSurface SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                                                  SbDecodeTargetPlane plane);
-
-#elif SB_HAS(GLES2)  // SB_HAS(BLITTER)
-
-// Creates a new EGL/GLES2-compatible SbDecodeTarget from one or more |planes|
-// owned by |context|, created from |display|. Must be called from a thread
-// where |context| is current.
-//
-// |display|: The EGLDisplay being targeted.
-// |context|: The EGLContext used for this operation, or EGL_NO_CONTEXT if a
-// context is not required.
-// |format|: The format of the decode target being created.
-// |planes|: An array of GLES Texture handles to be bundled into an
-// SbDecodeTarget. Must not be NULL. Is expected to have the same number of
-// entries as the number of planes for |format|, in the order and size expected
-// by that format.
-SB_EXPORT SbDecodeTarget SbDecodeTargetCreate(EGLDisplay display,
-                                              EGLContext context,
-                                              SbDecodeTargetFormat format,
-                                              GLuint* planes);
-
-// Gets the texture that represents the given plane.
-SB_EXPORT GLuint SbDecodeTargetGetPlane(SbDecodeTarget decode_target,
-                                        SbDecodeTargetPlane plane);
-
-#else  // SB_HAS(BLITTER)
-
-// Stub function for when graphics aren't enabled.  Always creates
-// kSbDecodeTargetInvalid.
-// TODO: Who is calling this when graphics aren't enabled?
-static SB_C_INLINE SbDecodeTarget
-SbDecodeTargetCreate(SbDecodeTargetFormat format) {
-  SB_UNREFERENCED_PARAMETER(format);
-  return kSbDecodeTargetInvalid;
-}
-
-#endif  // SB_HAS(BLITTER)
-
-// Destroys the given SbDecodeTarget and all its associated surfaces.
-SB_EXPORT void SbDecodeTargetDestroy(SbDecodeTarget decode_target);
-
-// Gets the format that |decode_target| was created with.
-SB_EXPORT SbDecodeTargetFormat
-SbDecodeTargetGetFormat(SbDecodeTarget decode_target);
-
-// Gets whether |decode_target| is opaque or not.  The underlying source of
-// this value is expected to be properly maintained by the Starboard
-// implementation.  So, for example, if an opaque only image type were decoded
-// into an SbDecodeTarget, then the implementation would configure things in
-// such a way that this function would return true.  By opaque, it is meant
-// that all alpha values are guaranteed to be 255, if |decode_target| is of a
-// format that has alpha values.  If |decode_target| is of a format that does
-// not have alpha values, then this function should return |true|.
-SB_EXPORT bool SbDecodeTargetIsOpaque(SbDecodeTarget decode_target);
-
-// Inline convenience function to acquire an SbDecodeTarget of type |format|,
-// |width|, and |height| from |provider|.
-static SB_C_INLINE SbDecodeTarget
-SbDecodeTargetAcquireFromProvider(SbDecodeTargetProvider* provider,
-                                  SbDecodeTargetFormat format,
-                                  int width,
-                                  int height) {
-  return provider->acquire(provider->context, format, width, height);
-}
-
-// Inline convenience function to release |decode_target| back to |provider|.
-static SB_C_INLINE void SbDecodeTargetReleaseToProvider(
-    SbDecodeTargetProvider* provider,
-    SbDecodeTarget decode_target) {
-  provider->release(provider->context, decode_target);
-}
-
-#else  // SB_API_VERSION < 4
-
-// SBCHANGELOG: Rename SbDecodeTargetDestroy() to SbDecodeTargetRelease() to
-//              more accurately reflect its potential semantics as a reference
-//              count decrementer.
-
 // Returns ownership of |decode_target| to the Starboard implementation.
 // This function will likely result in the destruction of the SbDecodeTarget and
 // all its associated surfaces, though in some cases, platforms may simply
 // adjust a reference count.  In the case where SB_HAS(GLES2), this function
 // must be called on a thread with the context
 SB_EXPORT void SbDecodeTargetRelease(SbDecodeTarget decode_target);
-
-// SBCHANGELOG: Remove all SbDecodeTarget "get" functions and replace them with
-//              a SbDecodeTargetGetInfo() function that returns all information
-//              about a decode target at once.
 
 // Writes all information about |decode_target| into |out_info|.  Returns false
 // if the provided |out_info| structure is not zero initialized.
@@ -525,12 +387,8 @@ static SB_C_INLINE void SbDecodeTargetReleaseInGlesContext(
 
 #endif  // SB_HAS(GLES2)
 
-#endif  // SB_API_VERSION < 4
-
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 3
 
 #endif  // STARBOARD_DECODE_TARGET_H_

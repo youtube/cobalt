@@ -45,7 +45,6 @@ typedef enum SbSystemPathId {
   // screenshots) can be written into.
   kSbSystemPathDebugOutputDirectory,
 
-#if SB_API_VERSION >= 4
   // Path to a directory where system font files can be found. Should only be
   // specified on platforms that provide fonts usable by Starboard applications.
   kSbSystemPathFontDirectory,
@@ -55,7 +54,6 @@ typedef enum SbSystemPathId {
   // necessarily. Should only be specified on platforms that provide fonts
   // usable by Starboard applications.
   kSbSystemPathFontConfigurationDirectory,
-#endif  // SB_API_VERSION >= 4
 
   // Path to the directory containing the root of the source tree.
   kSbSystemPathSourceDirectory,
@@ -109,13 +107,12 @@ typedef enum SbSystemPropertyId {
   // A universally-unique ID for the current user.
   kSbSystemPropertyPlatformUuid,
 
-#if SB_API_VERSION >= 2
   // The Google Speech API key. The platform manufacturer is responsible
   // for registering a Google Speech API key for their products. In the API
   // Console (http://developers.google.com/console), you can enable the
   // Speech APIs and generate a Speech API key.
   kSbSystemPropertySpeechApiKey,
-#endif  // SB_VERSION(2)
+
 #if SB_API_VERSION >= 5
   // A field that, if available, is appended to the user agent
   kSbSystemPropertyUserAgentAuxField,
@@ -145,10 +142,8 @@ typedef enum SbSystemDeviceType {
   // Desktop PC.
   kSbSystemDeviceTypeDesktopPC,
 
-#if SB_API_VERSION >= 4
   // An Android TV Device.
   kSbSystemDeviceTypeAndroidTV,
-#endif  // SB_API_VERSION >= 4
 
   // Unknown device.
   kSbSystemDeviceTypeUnknown,
@@ -281,10 +276,7 @@ typedef int (*SbSystemComparator)(const void* a, const void* b);
 
 // Breaks the current program into the debugger, if a debugger is attached.
 // If a debugger is not attached, this function aborts the program.
-#if SB_API_VERSION >= 4
-SB_NORETURN
-#endif
-SB_EXPORT void SbSystemBreakIntoDebugger();
+SB_NORETURN SB_EXPORT void SbSystemBreakIntoDebugger();
 
 // Attempts to determine whether the current program is running inside or
 // attached to a debugger. The function returns |false| if neither of those
@@ -454,7 +446,6 @@ SB_EXPORT bool SbSystemSymbolize(const void* address,
                                  char* out_buffer,
                                  int buffer_size);
 
-#if SB_API_VERSION >= 4
 // Requests that the application move into the Paused state at the next
 // convenient point. This should roughly correspond to "unfocused application"
 // in a traditional window manager, where the application may be partially
@@ -489,7 +480,6 @@ SB_EXPORT void SbSystemRequestUnpause();
 // running. The expectation is that an external system event will bring the
 // application out of the Suspended state.
 SB_EXPORT void SbSystemRequestSuspend();
-#endif  // SB_API_VERSION >= 4
 
 // Requests that the application be terminated gracefully at the next
 // convenient point. In the meantime, some work may continue to be done, and

@@ -18,13 +18,9 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-#if SB_API_VERSION >= 4
-
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                  SbMediaVideoCodec codec,
                                  SbDrmSystem drm_system) {
   return starboard::shared::starboard::player::filter::VideoDecoder::
       OutputModeSupported(output_mode, codec, drm_system);
 }
-
-#endif  // SB_API_VERSION >= 4
