@@ -31,7 +31,7 @@ ShaderProgramManager::ShaderProgramManager() {
   // These shaders are generated from egl/generated_shader_impl.h
   Preload<ShaderVertexColorOffset, ShaderFragmentColorBlurRrects>();
   Preload<ShaderVertexColorOffset, ShaderFragmentColorInclude>();
-  Preload<ShaderVertexOffsetTexcoord, ShaderFragmentTexcoordColorRrect>();
+  Preload<ShaderVertexRcornerTexcoord, ShaderFragmentRcornerTexcoordColor>();
 }
 
 ShaderProgramManager::~ShaderProgramManager() {

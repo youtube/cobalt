@@ -26,21 +26,7 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
-const int kVertexCount = 4;
-
-struct VertexAttributes {
-  float position[2];
-  float offset[2];
-  uint32_t color;
-};
-
-void SetVertex(VertexAttributes* vertex, float x, float y, uint32_t color) {
-  vertex->position[0] = x;
-  vertex->position[1] = y;
-  vertex->offset[0] = x;
-  vertex->offset[1] = y;
-  vertex->color = color;
-}
+const int kVertexCount = 4 * 6;
 }  // namespace
 
 DrawRRectColor::DrawRRectColor(GraphicsState* graphics_state,
@@ -51,7 +37,7 @@ DrawRRectColor::DrawRRectColor(GraphicsState* graphics_state,
       rect_(rect),
       corners_(corners),
       vertex_buffer_(NULL) {
-  color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
+  color_ = GetDrawColor(color) * base_state_.opacity;
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
 
   // Extract scale from the transform and move it into the vertex attributes
@@ -59,7 +45,6 @@ DrawRRectColor::DrawRRectColor(GraphicsState* graphics_state,
   math::Vector2dF scale = RemoveScaleFromTransform();
   rect_.Scale(scale.x(), scale.y());
   corners_ = corners_.Scale(scale.x(), scale.y());
-  corners_ = corners_.Normalize(rect_);
 }
 
 void DrawRRectColor::ExecuteUpdateVertexBuffer(
@@ -70,10 +55,27 @@ void DrawRRectColor::ExecuteUpdateVertexBuffer(
   VertexAttributes attributes[kVertexCount];
   math::RectF outer_rect(rect_);
   outer_rect.Outset(1.0f, 1.0f);
-  SetVertex(&attributes[0], outer_rect.x(), outer_rect.y(), color_);
-  SetVertex(&attributes[1], outer_rect.right(), outer_rect.y(), color_);
-  SetVertex(&attributes[2], outer_rect.right(), outer_rect.bottom(), color_);
-  SetVertex(&attributes[3], outer_rect.x(), outer_rect.bottom(), color_);
+
+  RRectAttributes rrect[4];
+  GetRRectAttributes(outer_rect, rect_, corners_, rrect);
+  for (int r = 0, v = 0; r < arraysize(rrect); ++r) {
+    attributes[v  ].position[0] = rrect[r].bounds.x();
+    attributes[v  ].position[1] = rrect[r].bounds.y();
+    attributes[v  ].rcorner = rrect[r].rcorner;
+    attributes[v+1].position[0] = rrect[r].bounds.right();
+    attributes[v+1].position[1] = rrect[r].bounds.y();
+    attributes[v+1].rcorner = rrect[r].rcorner;
+    attributes[v+2].position[0] = rrect[r].bounds.x();
+    attributes[v+2].position[1] = rrect[r].bounds.bottom();
+    attributes[v+2].rcorner = rrect[r].rcorner;
+    attributes[v+3].position[0] = rrect[r].bounds.right();
+    attributes[v+3].position[1] = rrect[r].bounds.bottom();
+    attributes[v+3].rcorner = rrect[r].rcorner;
+    attributes[v+4] = attributes[v+1];
+    attributes[v+5] = attributes[v+2];
+    v += 6;
+  }
+
   vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 }
@@ -81,8 +83,8 @@ void DrawRRectColor::ExecuteUpdateVertexBuffer(
 void DrawRRectColor::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  ShaderProgram<ShaderVertexColorOffset,
-                ShaderFragmentColorRrect>* program;
+  ShaderProgram<ShaderVertexRcorner,
+                ShaderFragmentRcornerColor>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());
   graphics_state->UpdateClipAdjustment(
@@ -97,23 +99,19 @@ void DrawRRectColor::ExecuteRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_color(), 4, GL_UNSIGNED_BYTE, GL_TRUE,
+      program->GetVertexShader().a_rcorner(), 4, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, color));
-  graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
-      sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, offset));
+      offsetof(VertexAttributes, rcorner));
   graphics_state->VertexAttribFinish();
-  SetRRectUniforms(program->GetFragmentShader().u_rect(),
-                   program->GetFragmentShader().u_corners(),
-                   rect_, corners_, 0.5f);
-  GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, kVertexCount));
+
+  GL_CALL(glUniform4f(program->GetFragmentShader().u_color(),
+                      color_.r(), color_.g(), color_.b(), color_.a()));
+  GL_CALL(glDrawArrays(GL_TRIANGLES, 0, kVertexCount));
 }
 
 base::TypeId DrawRRectColor::GetTypeId() const {
-  return ShaderProgram<ShaderVertexColorOffset,
-                       ShaderFragmentColorRrect>::GetTypeId();
+  return ShaderProgram<ShaderVertexRcorner,
+                       ShaderFragmentRcornerColor>::GetTypeId();
 }
 
 }  // namespace egl
