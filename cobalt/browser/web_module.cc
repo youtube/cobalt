@@ -53,6 +53,7 @@
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/page_visibility/visibility_state.h"
+#include "cobalt/script/error_report.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
@@ -198,8 +199,8 @@ class WebModule::Impl {
 
   void ReduceMemory();
 
-  void ReportScriptError(const base::SourceLocation& source_location,
-                         const std::string& error_message);
+  void LogScriptError(const base::SourceLocation& source_location,
+                      const std::string& error_message);
 
  private:
   class DocumentLoadedObserver;
@@ -233,6 +234,10 @@ class WebModule::Impl {
   void OnError(const std::string& error) {
     error_callback_.Run(window_->location()->url(), error);
   }
+
+  // Report an error encountered while running JS.
+  // Returns whether or not the error was handled.
+  bool ReportScriptError(const script::ErrorReport& error_report);
 
   // Inject the DOM event object into the window or the element.
   void InjectInputEvent(scoped_refptr<dom::Element> element,
@@ -476,7 +481,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
   script::JavaScriptEngine::ErrorHandler error_handler =
-      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this));
+      base::Bind(&WebModule::Impl::LogScriptError, base::Unretained(this));
   javascript_engine_->RegisterErrorHandler(error_handler);
 #endif
 
@@ -579,6 +584,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&dom::CspDelegate::ReportEval,
                  base::Unretained(window_->document()->csp_delegate())));
 
+  global_environment_->SetReportErrorCallback(
+      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this)));
+
   InjectCustomWindowAttributes(data.options.injected_window_attributes);
 
   if (!data.options.loaded_callbacks.empty()) {
@@ -595,6 +603,8 @@ WebModule::Impl::~Impl() {
   DCHECK(is_running_);
   is_running_ = false;
   global_environment_->SetReportEvalCallback(base::Closure());
+  global_environment_->SetReportErrorCallback(
+      script::GlobalEnvironment::ReportErrorCallback());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
   media_session_client_.reset();
@@ -749,6 +759,14 @@ void WebModule::Impl::OnCspPolicyChanged() {
   } else {
     global_environment_->DisableEval(eval_disabled_message);
   }
+}
+
+bool WebModule::Impl::ReportScriptError(
+    const script::ErrorReport& error_report) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  return window_->ReportScriptError(error_report);
 }
 
 #if defined(ENABLE_WEBDRIVER)
@@ -942,7 +960,7 @@ void WebModule::Impl::ReduceMemory() {
   }
 }
 
-void WebModule::Impl::ReportScriptError(
+void WebModule::Impl::LogScriptError(
     const base::SourceLocation& source_location,
     const std::string& error_message) {
   std::string file_name =

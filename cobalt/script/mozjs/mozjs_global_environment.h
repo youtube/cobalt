@@ -74,6 +74,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   void SetReportEvalCallback(const base::Closure& report_eval) OVERRIDE;
 
+  void SetReportErrorCallback(
+      const ReportErrorCallback& report_error_callback) OVERRIDE;
+
   void Bind(const std::string& identifier,
             const scoped_refptr<Wrappable>& impl) OVERRIDE;
 
@@ -181,6 +184,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   bool eval_enabled_;
   base::optional<std::string> eval_disabled_message_;
   base::Closure report_eval_;
+  ReportErrorCallback report_error_callback_;
 
   friend class GlobalObjectProxy;
 };
