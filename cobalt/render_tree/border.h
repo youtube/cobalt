@@ -32,7 +32,7 @@ enum BorderStyle {
 
 // Style properties for one of four sides of a border around a rectangle.
 struct BorderSide {
-  explicit BorderSide(const BorderSide& that);
+  BorderSide(const BorderSide& that);
   BorderSide(float width, BorderStyle style, const ColorRGBA& color);
 
   bool operator==(const BorderSide& rhs) const {
