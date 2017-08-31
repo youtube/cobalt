@@ -29,6 +29,7 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
+#include "cobalt/renderer/rasterizer/skia/shader_preload_tree.h"
 #include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
@@ -139,9 +140,18 @@ class HardwareRasterizer::Impl {
   // or not since Skia does not let us pull that information out of the
   // SkCanvas object (which Skia would internally use to get this information).
   base::optional<GrSurfaceOrigin> current_surface_origin_;
+  bool shaders_preloaded_;
 };
 
 namespace {
+
+bool SkiaAllowsShaderPreload() {
+#ifdef SKIA_PRELOAD_SHADERS
+  return true;
+#else
+  return false;
+#endif
+}
 
 SkSurfaceProps GetRenderTargetSurfaceProps() {
   return SkSurfaceProps(SkSurfaceProps::kUseDistanceFieldFonts_Flag,
@@ -542,7 +552,8 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                bool purge_skia_font_caches_on_destruction)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
-              graphics_context)) {
+              graphics_context)),
+      shaders_preloaded_(false) {
   TRACE_EVENT0("cobalt::renderer", "HardwareRasterizer::Impl::Impl()");
 
   DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
@@ -705,7 +716,6 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   SkSurface* sk_output_surface =
       CreateSkiaRenderTargetSurface(skia_render_target);
   SkCanvas* canvas = sk_output_surface->getCanvas();
-
   canvas->clear(SkColorSetARGB(0, 0, 0, 0));
 
   // Render to the canvas and clean up.
@@ -824,6 +834,35 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
 
   base::optional<GrSurfaceOrigin> old_origin = current_surface_origin_;
   current_surface_origin_.emplace(origin);
+
+  // Generate a shader preload tree. This tree will be constructed
+  // in such as way that no pixels will be modified.
+  if (!shaders_preloaded_ && SkiaAllowsShaderPreload()) {
+    shaders_preloaded_ = true;
+
+    // Create a separate render tree visitor to avoid dirtying the visitor
+    // used for the actual render tree.
+    RenderTreeNodeVisitor::CreateScratchSurfaceFunction
+        create_scratch_surface_function =
+            base::Bind(&HardwareRasterizer::Impl::CreateScratchSurface,
+                       base::Unretained(this));
+    RenderTreeNodeVisitor visitor(
+        canvas, &create_scratch_surface_function,
+        base::Bind(&HardwareRasterizer::Impl::ResetSkiaState,
+                   base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
+                   base::Unretained(this)),
+        base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
+                   base::Unretained(this)),
+        surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
+        surface_cache_ ? &surface_cache_.value() : NULL);
+
+    scoped_refptr<render_tree::Node> preload_tree =
+        GenerateShaderPreloadTree(GetResourceProvider());
+
+    preload_tree->Accept(&visitor);
+    canvas->clear(SK_ColorTRANSPARENT);
+  }
 
   RenderTreeNodeVisitor::CreateScratchSurfaceFunction
       create_scratch_surface_function =
