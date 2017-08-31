@@ -18,6 +18,7 @@
 
 #include "base/bind.h"
 #include "cobalt/browser/browser_module.h"
+#include "cobalt/browser/system_platform_error_handler.h"
 
 namespace cobalt {
 namespace browser {
@@ -75,12 +76,10 @@ const char kNetworkFailure[] = "network-failure";
 const char kRetryParam[] = "retry-url";
 }  // namespace
 
-H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module,
-                                 system_window::SystemWindow* system_window)
+H5vccURLHandler::H5vccURLHandler(BrowserModule* browser_module)
     : ALLOW_THIS_IN_INITIALIZER_LIST(URLHandler(
           browser_module,
-          base::Bind(&H5vccURLHandler::HandleURL, base::Unretained(this)))),
-      system_window_(system_window) {}
+          base::Bind(&H5vccURLHandler::HandleURL, base::Unretained(this)))) {}
 
 bool H5vccURLHandler::HandleURL(const GURL& url) {
   bool was_handled = false;
@@ -97,20 +96,21 @@ bool H5vccURLHandler::HandleURL(const GURL& url) {
 }
 
 bool H5vccURLHandler::HandleNetworkFailure() {
-  system_window::SystemWindow::DialogOptions dialog_options;
-  dialog_options.message_code =
-      system_window::SystemWindow::kDialogConnectionError;
-  dialog_options.callback = base::Bind(
-      &H5vccURLHandler::OnNetworkFailureDialogResponse, base::Unretained(this));
-  system_window_->ShowDialog(dialog_options);
+  SystemPlatformErrorHandler::SystemPlatformErrorOptions options;
+  options.error_type = kSbSystemPlatformErrorTypeConnectionError;
+  options.callback =
+      base::Bind(&H5vccURLHandler::OnNetworkFailureSystemPlatformResponse,
+                 base::Unretained(this));
+  browser_module()->system_platform_error_handler()->RaiseSystemPlatformError(
+      options);
   return true;
 }
 
-void H5vccURLHandler::OnNetworkFailureDialogResponse(
-    system_window::SystemWindow::DialogResponse response) {
+void H5vccURLHandler::OnNetworkFailureSystemPlatformResponse(
+    SbSystemPlatformErrorResponse response) {
   const std::string retry_url = GetH5vccUrlQueryParam(url_, kRetryParam);
   // A positive response means we should retry.
-  if (response == system_window::SystemWindow::kDialogPositiveResponse &&
+  if (response == kSbSystemPlatformErrorResponsePositive &&
       retry_url.length() > 0) {
     GURL url(retry_url);
     if (url.is_valid()) {
