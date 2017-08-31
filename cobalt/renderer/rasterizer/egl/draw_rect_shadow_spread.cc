@@ -138,10 +138,10 @@ void DrawRectShadowSpread::ExecuteRasterize(
 
     SetRRectUniforms(program->GetFragmentShader().u_inner_rect(),
                      program->GetFragmentShader().u_inner_corners(),
-                     inner_rect_, *inner_corners_, 0.5f);
+                     inner_rect_, *inner_corners_);
     SetRRectUniforms(program->GetFragmentShader().u_outer_rect(),
                      program->GetFragmentShader().u_outer_corners(),
-                     outer_rect_, *outer_corners_, 0.5f);
+                     outer_rect_, *outer_corners_);
   } else {
     ShaderProgram<CommonVertexShader, ShaderFragmentColorInclude>* program;
     program_manager->GetProgram(&program);
