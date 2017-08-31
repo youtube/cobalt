@@ -15,11 +15,19 @@
 #include "starboard/speech_synthesis.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
+namespace starboard {
+namespace nplb {
+namespace {
+
+#if SB_HAS(SPEECH_SYNTHESIS)
 
 TEST(SbSpeechSynthesisBasicTest, Basic) {
   SbSpeechSynthesisSpeak("Hello");
   SbSpeechSynthesisCancel();
 }
 
-#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
+
+}  // namespace
+}  // namespace nplb
+}  // namespace starboard

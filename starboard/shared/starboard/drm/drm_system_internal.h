@@ -27,16 +27,12 @@ struct SbDrmSystemPrivate {
   virtual ~SbDrmSystemPrivate() {}
 
   virtual void GenerateSessionUpdateRequest(
-#if SB_API_VERSION >= 4
       int ticket,
-#endif  // SB_API_VERSION >= 4
       const char* type,
       const void* initialization_data,
       int initialization_data_size) = 0;
   virtual void UpdateSession(
-#if SB_API_VERSION >= 4
       int ticket,
-#endif  // SB_API_VERSION >= 4
       const void* key,
       int key_size,
       const void* session_id,

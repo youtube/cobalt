@@ -17,9 +17,7 @@
 
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
-#if SB_API_VERSION >= 3
 #include "starboard/decode_target.h"
-#endif
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/closure.h"
@@ -38,19 +36,13 @@ namespace filter {
 
 class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
  public:
-  FilterBasedPlayerWorkerHandler(SbMediaVideoCodec video_codec,
-                                 SbMediaAudioCodec audio_codec,
-                                 SbDrmSystem drm_system,
-                                 const SbMediaAudioHeader& audio_header
-#if SB_API_VERSION >= 4
-                                 ,
-                                 SbPlayerOutputMode output_mode,
-                                 SbDecodeTargetGraphicsContextProvider* provider
-#elif SB_API_VERSION >= 3
-                                 ,
-                                 SbDecodeTargetProvider* provider
-#endif                               // SB_API_VERSION >= 4
-                                 );  // NOLINT(whitespace/parens)
+  FilterBasedPlayerWorkerHandler(
+      SbMediaVideoCodec video_codec,
+      SbMediaAudioCodec audio_codec,
+      SbDrmSystem drm_system,
+      const SbMediaAudioHeader& audio_header,
+      SbPlayerOutputMode output_mode,
+      SbDecodeTargetGraphicsContextProvider* provider);
 
  private:
   bool IsPunchoutMode() const;
@@ -65,18 +57,14 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
                    bool* written) SB_OVERRIDE;
   bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
   bool SetPause(bool pause) SB_OVERRIDE;
-#if SB_API_VERSION >= 4
   bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-#endif  // SB_API_VERSION >= 4
   void SetVolume(double volume) SB_OVERRIDE;
   bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
   void Stop() SB_OVERRIDE;
 
   void Update();
 
-#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
-#endif  // SB_API_VERSION >= 4
 
   PlayerWorker* player_worker_;
   JobQueue* job_queue_;
@@ -99,9 +87,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   scoped_ptr<VideoRenderer> video_renderer_;
 
   bool paused_;
-#if SB_API_VERSION >= 4
   double playback_rate_;
-#endif  // SB_API_VERSION >= 4
   double volume_;
   PlayerWorker::Bounds bounds_;
   Closure update_closure_;
@@ -116,13 +102,9 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   // accesses are happening from the same thread.
   ::starboard::Mutex video_renderer_existence_mutex_;
 
-#if SB_API_VERSION >= 4
   SbPlayerOutputMode output_mode_;
   SbDecodeTargetGraphicsContextProvider*
       decode_target_graphics_context_provider_;
-#elif SB_API_VERSION >= 3
-  SbDecodeTargetProvider* decode_target_provider_;
-#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace filter

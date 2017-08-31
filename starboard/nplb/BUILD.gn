@@ -164,7 +164,6 @@ test("nplb") {
     "socket_get_interface_address_test.cc",
     "socket_get_last_error_test.cc",
     "socket_get_local_address_test.cc",
-    "socket_get_local_interface_address_test.cc",
     "socket_helpers.cc",
     "socket_is_connected_and_idle_test.cc",
     "socket_is_connected_test.cc",

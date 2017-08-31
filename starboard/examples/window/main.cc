@@ -47,11 +47,9 @@ void SbEventHandle(const SbEvent* event) {
       g_window = SbWindowCreate(NULL);
       SB_CHECK(SbWindowIsValid(g_window));
 
-#if SB_API_VERSION >= 4
       SB_LOG(INFO) << "    F1 - Pause";
       SB_LOG(INFO) << "    F2 - Unpause";
       SB_LOG(INFO) << "    F3 - Suspend";
-#endif  // SB_API_VERSION >= 4
       SB_LOG(INFO) << "    F5 - Stop";
       break;
     }
@@ -91,7 +89,6 @@ void SbEventHandle(const SbEvent* event) {
       }
 
       switch (data->key) {
-#if SB_API_VERSION >= 4
         case kSbKeyF1:
           SbSystemRequestPause();
           break;
@@ -101,7 +98,6 @@ void SbEventHandle(const SbEvent* event) {
         case kSbKeyF3:
           SbSystemRequestSuspend();
           break;
-#endif  // SB_API_VERSION >= 4
         case kSbKeyF5:
           SbSystemRequestStop(0);
           break;

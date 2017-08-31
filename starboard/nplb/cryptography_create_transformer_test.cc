@@ -16,8 +16,6 @@
 
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_API_VERSION >= 4
-
 namespace starboard {
 namespace nplb {
 namespace {
@@ -48,5 +46,3 @@ TEST(SbCryptographyCreateTransformer, SunnyDay) {
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_API_VERSION >= 4

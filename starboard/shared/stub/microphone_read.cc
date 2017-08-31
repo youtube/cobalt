@@ -14,12 +14,12 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to build this file."
+#endif
 
 int SbMicrophoneRead(SbMicrophone microphone,
                      void* out_audio_data,
                      int audio_data_size) {
   return -1;
 }
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

@@ -29,20 +29,10 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
+#if SB_HAS(SPEECH_SYNTHESIS)
 
 #ifdef __cplusplus
 extern "C" {
-#endif
-
-#if SB_API_VERSION < 4
-// DEPRECATED IN API VERSION 4
-// Must be called before any other function in this module,
-// or subsequent calls are allowed to fail silently.
-//
-// |lang| should be a BCP 47 language string, eg "en-US".
-// Return true if language is supported, false if not.
-SB_EXPORT bool SbSpeechSynthesisSetLanguage(const char* lang);
 #endif
 
 // Enqueues |text|, a UTF-8 string, to be spoken.
@@ -64,6 +54,6 @@ SB_EXPORT void SbSpeechSynthesisCancel();
 }  // extern "C"
 #endif
 
-#endif  // SB_HAS(SPEECH_SYNTHESIS) && SB_API_VERSION >= 3
+#endif  // SB_HAS(SPEECH_SYNTHESIS)
 
 #endif  // STARBOARD_SPEECH_SYNTHESIS_H_

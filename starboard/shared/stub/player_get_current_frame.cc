@@ -14,10 +14,10 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 4
+#if !SB_HAS(PLAYER)
+#error "This file requires SB_HAS(PLAYER)."
+#endif
 
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer /*player*/) {
   return kSbDecodeTargetInvalid;
 }
-
-#endif  // SB_API_VERSION >= 4
