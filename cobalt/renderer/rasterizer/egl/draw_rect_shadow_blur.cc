@@ -175,14 +175,14 @@ void DrawRectShadowBlur::ExecuteRasterize(
       // Set the outer rect to be an inclusive scissor, and invert the shadow.
       SetRRectUniforms(program->GetFragmentShader().u_scissor_rect(),
                        program->GetFragmentShader().u_scissor_corners(),
-                       outer_rect_, *outer_corners_, 0.5f);
+                       outer_rect_, *outer_corners_);
       GL_CALL(glUniform2f(program->GetFragmentShader().u_scale_add(),
                           -1.0f, 1.0f));
     } else {
       // Set the inner rect to be an exclusive scissor.
       SetRRectUniforms(program->GetFragmentShader().u_scissor_rect(),
                        program->GetFragmentShader().u_scissor_corners(),
-                       inner_rect_, *inner_corners_, 0.5f);
+                       inner_rect_, *inner_corners_);
       GL_CALL(glUniform2f(program->GetFragmentShader().u_scale_add(),
                           1.0f, 0.0f));
     }
