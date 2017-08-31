@@ -41,9 +41,14 @@ class DrawRRectColor : public DrawObject {
   base::TypeId GetTypeId() const OVERRIDE;
 
  private:
+  struct VertexAttributes {
+    float position[2];
+    RCorner rcorner;
+  };
+
   math::RectF rect_;
   render_tree::RoundedCorners corners_;
-  uint32_t color_;
+  render_tree::ColorRGBA color_;
 
   uint8_t* vertex_buffer_;
 };

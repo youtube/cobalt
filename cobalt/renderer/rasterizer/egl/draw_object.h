@@ -90,6 +90,16 @@ class DrawObject {
   virtual base::TypeId GetTypeId() const = 0;
 
  protected:
+  // Structures describing vertex data for rendering rounded rectangles.
+  struct RCorner {
+    float x, y;
+    float rx, ry;
+  };
+  struct RRectAttributes {
+    math::RectF bounds;   // The region in which to use the rcorner data.
+    RCorner rcorner;
+  };
+
   DrawObject() {}
   explicit DrawObject(const BaseState& base_state);
 
@@ -114,12 +124,14 @@ class DrawObject {
     return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
   }
 
-  // Set shader uniforms for a rounded rect. Specify a non-zero inset if
-  // the rect will be used with anti-aliasing (e.g. 0.5 inset for a 1-pixel
-  // anti-aliasing border).
+  // Set shader uniforms for a rounded rect.
   static void SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
-      const math::RectF& rect, const render_tree::RoundedCorners& corners,
-      float inset);
+      math::RectF rect, render_tree::RoundedCorners corners);
+
+  // Get the vertex attributes to use to draw the given rounded rect. Each
+  // corner uses a different attribute.
+  static void GetRRectAttributes(const math::RectF& bounds, math::RectF rect,
+      render_tree::RoundedCorners corners, RRectAttributes out_attributes[4]);
 
   BaseState base_state_;
 };
