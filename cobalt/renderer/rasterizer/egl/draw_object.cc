@@ -78,73 +78,117 @@ uint32_t DrawObject::GetGLRGBA(float r, float g, float b, float a) {
 
 // static
 void DrawObject::SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
-    const math::RectF& rect, const render_tree::RoundedCorners& corners,
-    float inset) {
-  math::RectF inset_rect(rect);
-  inset_rect.Inset(inset, inset);
-  render_tree::RoundedCorners inset_corners =
-      corners.Inset(inset, inset, inset, inset);
-
-  // Tweak corners that are square-ish so they have values that play
-  // nicely with the shader. Interpolating x^2 / a^2 + y^2 / b^2 does not
-  // work well when |a| or |b| are very small.
-  if (inset_corners.top_left.horizontal <= 0.5f ||
-      inset_corners.top_left.vertical <= 0.5f) {
-    inset_corners.top_left.horizontal = 0.0f;
-    inset_corners.top_left.vertical = 0.0f;
-  }
-  if (inset_corners.top_right.horizontal <= 0.5f ||
-      inset_corners.top_right.vertical <= 0.5f) {
-    inset_corners.top_right.horizontal = 0.0f;
-    inset_corners.top_right.vertical = 0.0f;
-  }
-  if (inset_corners.bottom_left.horizontal <= 0.5f ||
-      inset_corners.bottom_left.vertical <= 0.5f) {
-    inset_corners.bottom_left.horizontal = 0.0f;
-    inset_corners.bottom_left.vertical = 0.0f;
-  }
-  if (inset_corners.bottom_right.horizontal <= 0.5f ||
-      inset_corners.bottom_right.vertical <= 0.5f) {
-    inset_corners.bottom_right.horizontal = 0.0f;
-    inset_corners.bottom_right.vertical = 0.0f;
-  }
-
+    math::RectF rect, render_tree::RoundedCorners corners) {
   // Ensure corner sizes are non-zero to allow generic handling of square and
   // rounded corners.
   const float kMinCornerSize = 0.01f;
-  inset_rect.Outset(kMinCornerSize, kMinCornerSize);
-  inset_corners = inset_corners.Inset(-kMinCornerSize, -kMinCornerSize,
-      -kMinCornerSize, -kMinCornerSize);
-  inset_corners = inset_corners.Normalize(inset_rect);
+  rect.Outset(kMinCornerSize, kMinCornerSize);
+  corners = corners.Inset(-kMinCornerSize, -kMinCornerSize, -kMinCornerSize,
+                          -kMinCornerSize);
 
   // The rect data is a vec4 representing (min.xy, max.xy).
-  float rect_data[4] = {
-    inset_rect.x(), inset_rect.y(), inset_rect.right(), inset_rect.bottom(),
-  };
-  GL_CALL(glUniform4fv(rect_uniform, 1, rect_data));
+  GL_CALL(glUniform4f(rect_uniform, rect.x(), rect.y(), rect.right(),
+                      rect.bottom()));
 
   // The corners data is a mat4 with each vector representing a corner
   // (ordered top left, top right, bottom left, bottom right). Each corner
-  // vec4 represents (start.xy, radius.xy).
+  // vec4 represents (start.xy, 1 / radius.xy).
   float corners_data[16] = {
-    inset_rect.x() + inset_corners.top_left.horizontal,
-    inset_rect.y() + inset_corners.top_left.vertical,
-    inset_corners.top_left.horizontal,
-    inset_corners.top_left.vertical,
-    inset_rect.right() - inset_corners.top_right.horizontal,
-    inset_rect.y() + inset_corners.top_right.vertical,
-    inset_corners.top_right.horizontal,
-    inset_corners.top_right.vertical,
-    inset_rect.x() + inset_corners.bottom_left.horizontal,
-    inset_rect.bottom() - inset_corners.bottom_left.vertical,
-    inset_corners.bottom_left.horizontal,
-    inset_corners.bottom_left.vertical,
-    inset_rect.right() - inset_corners.bottom_right.horizontal,
-    inset_rect.bottom() - inset_corners.bottom_right.vertical,
-    inset_corners.bottom_right.horizontal,
-    inset_corners.bottom_right.vertical,
+    rect.x() + corners.top_left.horizontal,
+    rect.y() + corners.top_left.vertical,
+    1.0f / corners.top_left.horizontal,
+    1.0f / corners.top_left.vertical,
+    rect.right() - corners.top_right.horizontal,
+    rect.y() + corners.top_right.vertical,
+    1.0f / corners.top_right.horizontal,
+    1.0f / corners.top_right.vertical,
+    rect.x() + corners.bottom_left.horizontal,
+    rect.bottom() - corners.bottom_left.vertical,
+    1.0f / corners.bottom_left.horizontal,
+    1.0f / corners.bottom_left.vertical,
+    rect.right() - corners.bottom_right.horizontal,
+    rect.bottom() - corners.bottom_right.vertical,
+    1.0f / corners.bottom_right.horizontal,
+    1.0f / corners.bottom_right.vertical,
   };
   GL_CALL(glUniformMatrix4fv(corners_uniform, 1, false, corners_data));
+}
+
+// static
+void DrawObject::GetRRectAttributes(const math::RectF& bounds,
+    math::RectF rect, render_tree::RoundedCorners corners,
+    RRectAttributes out_attributes[4]) {
+  // Ensure corner sizes are non-zero to allow generic handling of square and
+  // rounded corners. Corner radii must be at least 1 pixel for antialiasing
+  // to work well.
+  const float kMinCornerSize = 1.0f;
+
+  // First inset to make room for the minimum corner size. Then outset to
+  // enforce the minimum corner size.
+  rect.Inset(std::min(rect.width() * 0.5f, kMinCornerSize),
+             std::min(rect.height() * 0.5f, kMinCornerSize));
+  corners = corners.Inset(kMinCornerSize, kMinCornerSize, kMinCornerSize,
+                          kMinCornerSize);
+  corners = corners.Normalize(rect);
+  rect.Outset(kMinCornerSize, kMinCornerSize);
+  corners = corners.Inset(-kMinCornerSize, -kMinCornerSize, -kMinCornerSize,
+                          -kMinCornerSize);
+
+  // |rcorner| describes (start.xy, 1 / radius.xy) for the relevant corner.
+  // The sign of the radius component is used to facilitate the calculation:
+  //   vec2 scaled_offset = (position - corner.xy) * corner.zw
+  // Such that |scaled_offset| is in the first quadrant when the pixel is
+  // in the given rounded corner.
+  COMPILE_ASSERT(sizeof(RCorner) == sizeof(float) * 4, struct_should_be_vec4);
+  out_attributes[0].rcorner.x = rect.x() + corners.top_left.horizontal;
+  out_attributes[0].rcorner.y = rect.y() + corners.top_left.vertical;
+  out_attributes[0].rcorner.rx = -1.0f / corners.top_left.horizontal;
+  out_attributes[0].rcorner.ry = -1.0f / corners.top_left.vertical;
+
+  out_attributes[1].rcorner.x = rect.right() - corners.top_right.horizontal;
+  out_attributes[1].rcorner.y = rect.y() + corners.top_right.vertical;
+  out_attributes[1].rcorner.rx = 1.0f / corners.top_right.horizontal;
+  out_attributes[1].rcorner.ry = -1.0f / corners.top_right.vertical;
+
+  out_attributes[2].rcorner.x = rect.x() + corners.bottom_left.horizontal;
+  out_attributes[2].rcorner.y = rect.bottom() - corners.bottom_left.vertical;
+  out_attributes[2].rcorner.rx = -1.0f / corners.bottom_left.horizontal;
+  out_attributes[2].rcorner.ry = 1.0f / corners.bottom_left.vertical;
+
+  out_attributes[3].rcorner.x = rect.right() - corners.bottom_right.horizontal;
+  out_attributes[3].rcorner.y = rect.bottom() - corners.bottom_right.vertical;
+  out_attributes[3].rcorner.rx = 1.0f / corners.bottom_right.horizontal;
+  out_attributes[3].rcorner.ry = 1.0f / corners.bottom_right.vertical;
+
+  // Calculate the bounds for each patch. A normalized rounded rect should have
+  // a center point which none of the corners cross.
+  math::PointF center(
+    0.5f * (std::max(out_attributes[0].rcorner.x,
+                     out_attributes[2].rcorner.x) +
+            std::min(out_attributes[1].rcorner.x,
+                     out_attributes[3].rcorner.x)),
+    0.5f * (std::max(out_attributes[0].rcorner.y,
+                     out_attributes[1].rcorner.y) +
+            std::min(out_attributes[2].rcorner.y,
+                     out_attributes[3].rcorner.y)));
+
+  // The bounds may not fully contain the rounded rect.
+  out_attributes[0].bounds.SetRect(
+      bounds.x(), bounds.y(),
+      std::max(center.x() - bounds.x(), 0.0f),
+      std::max(center.y() - bounds.y(), 0.0f));
+  out_attributes[1].bounds.SetRect(
+      center.x(), bounds.y(),
+      std::max(bounds.right() - center.x(), 0.0f),
+      std::max(center.y() - bounds.y(), 0.0f));
+  out_attributes[2].bounds.SetRect(
+      bounds.x(), center.y(),
+      std::max(center.x() - bounds.x(), 0.0f),
+      std::max(bounds.bottom() - center.y(), 0.0f));
+  out_attributes[3].bounds.SetRect(
+      center.x(), center.y(),
+      std::max(bounds.right() - center.x(), 0.0f),
+      std::max(bounds.bottom() - center.y(), 0.0f));
 }
 
 }  // namespace egl
