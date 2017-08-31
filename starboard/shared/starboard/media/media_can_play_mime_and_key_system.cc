@@ -16,84 +16,11 @@
 
 #include "starboard/character.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/media/mime_type.h"
-#include "starboard/string.h"
-
-#if SB_API_VERSION < 4
-
-using starboard::shared::starboard::media::MimeType;
-
-namespace {
-bool HasMultiChannelOutput() {
-  int count = SbMediaGetAudioOutputCount();
-  for (int output_index = 0; output_index < count; ++output_index) {
-    SbMediaAudioConfiguration configuration;
-    if (!SbMediaGetAudioConfiguration(output_index, &configuration)) {
-      continue;
-    }
-
-    if (configuration.number_of_channels >= 6) {
-      return true;
-    }
-  }
-
-  return false;
-}
-}  // namespace
-
-SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
-                                                  const char* key_system) {
-  if (mime == NULL) {
-    SB_DLOG(WARNING) << "mime cannot be NULL";
-    return kSbMediaSupportTypeNotSupported;
-  }
-  if (key_system == NULL) {
-    SB_DLOG(WARNING) << "key_system cannot be NULL";
-    return kSbMediaSupportTypeNotSupported;
-  }
-  if (SbStringGetLength(key_system) != 0) {
-    if (!SbMediaIsSupported(kSbMediaVideoCodecNone, kSbMediaAudioCodecNone,
-                            key_system)) {
-      return kSbMediaSupportTypeNotSupported;
-    }
-  }
-  MimeType mime_type(mime);
-  if (!mime_type.is_valid()) {
-    SB_DLOG(WARNING) << mime << " is not a valid mime type";
-    return kSbMediaSupportTypeNotSupported;
-  }
-
-  if (mime_type.type() == "audio" && mime_type.subtype() == "mp4") {
-    // TODO: Base this on the "channels" param, not the codecs param.
-    if (mime_type.GetParamStringValue("codecs", "") == "aac51") {
-      if (!HasMultiChannelOutput()) {
-        return kSbMediaSupportTypeNotSupported;
-      }
-    }
-    return kSbMediaSupportTypeProbably;
-  }
-  if (mime_type.type() == "video" && mime_type.subtype() == "mp4") {
-    return kSbMediaSupportTypeProbably;
-  }
-#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
-  if (mime_type.type() == "video" && mime_type.subtype() == "webm") {
-    if (mime_type.GetCodecs().empty()) {
-      return kSbMediaSupportTypeMaybe;
-    }
-    if (mime_type.GetParamStringValue(0) == "vp9") {
-      return kSbMediaSupportTypeProbably;
-    }
-    return kSbMediaSupportTypeNotSupported;
-  }
-#endif  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
-  return kSbMediaSupportTypeNotSupported;
-}
-
-#else  // SB_API_VERSION < 4
-
 #include "starboard/shared/starboard/media/codec_util.h"
 #include "starboard/shared/starboard/media/media_support_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/media/mime_type.h"
+#include "starboard/string.h"
 
 using starboard::shared::starboard::media::GetAudioCodecFromString;
 using starboard::shared::starboard::media::GetTransferIdFromString;
@@ -313,5 +240,3 @@ SbMediaSupportType SbMediaCanPlayMimeAndKeySystem(const char* mime,
 
   return CanPlayMimeAndKeySystem(mime_type, key_system);
 }
-
-#endif  // SB_API_VERSION < 4

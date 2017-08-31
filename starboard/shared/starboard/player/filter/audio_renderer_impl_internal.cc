@@ -168,7 +168,6 @@ void AudioRendererImpl::Pause() {
   paused_.store(true);
 }
 
-#if SB_API_VERSION >= 4
 void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -180,7 +179,6 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
     audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
   }
 }
-#endif  // SB_API_VERSION >= 4
 
 void AudioRendererImpl::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -294,11 +292,9 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
       &AudioRendererImpl::ConsumeFramesFunc, this);
   SB_DCHECK(SbAudioSinkIsValid(audio_sink_));
 
-#if SB_API_VERSION >= 4
   // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
-#endif  // SB_API_VERSION >= 4
   audio_sink_->SetVolume(volume_);
 }
 

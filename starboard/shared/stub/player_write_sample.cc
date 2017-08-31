@@ -14,7 +14,9 @@
 
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 4
+#if !SB_HAS(PLAYER)
+#error "This file requires SB_HAS(PLAYER)."
+#endif
 
 void SbPlayerWriteSample(SbPlayer /*player*/,
                          SbMediaType /*sample_type*/,
@@ -30,15 +32,3 @@ void SbPlayerWriteSample(SbPlayer /*player*/,
                          const SbMediaVideoSampleInfo* /*video_sample_info*/,
                          const SbDrmSampleInfo* /*sample_drm_info*/) {
 }
-
-#else  // SB_API_VERSION >= 4
-
-void SbPlayerWriteSample(SbPlayer /*player*/,
-                         SbMediaType /*sample_type*/,
-                         const void* /*sample_buffer*/,
-                         int /*sample_buffer_size*/,
-                         SbMediaTime /*sample_pts*/,
-                         const SbMediaVideoSampleInfo* /*video_sample_info*/,
-                         const SbDrmSampleInfo* /*sample_drm_info*/) {}
-
-#endif  // SB_API_VERSION >= 4

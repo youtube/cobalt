@@ -6,6 +6,8 @@ be updated each time a new Starboard version is released.  Each section in
 this file describes the changes made to the Starboard interface since the
 version previous to it.
 
+**NOTE: Starboard versions 3 and below are no longer supported.**
+
 ## Version 7
 
 ### `SbDecodeTargetInfoPlane` can specify color plane information

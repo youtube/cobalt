@@ -297,7 +297,6 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-#if SB_API_VERSION >= 4
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
@@ -307,7 +306,6 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
 
   return output_mode == kSbPlayerOutputModePunchOut;
 }
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace filter
 }  // namespace player

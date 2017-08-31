@@ -52,8 +52,6 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 3
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -88,11 +86,7 @@ SB_EXPORT bool SbImageIsDecodeSupported(const char* mime_type,
 // kSbDecodeTargetInvalid will be returned, with any intermediate allocations
 // being cleaned up in the implementation.
 SB_EXPORT SbDecodeTarget SbImageDecode(
-#if SB_API_VERSION >= 4
     SbDecodeTargetGraphicsContextProvider* context_provider,
-#else
-    SbDecodeTargetProvider* provider,
-#endif
     void* data,
     int data_size,
     const char* mime_type,
@@ -101,7 +95,5 @@ SB_EXPORT SbDecodeTarget SbImageDecode(
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 3
 
 #endif  // STARBOARD_IMAGE_H_

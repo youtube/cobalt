@@ -15,10 +15,6 @@
 #include "starboard/configuration.h"
 #include "starboard/cryptography.h"
 
-#if SB_API_VERSION < 4
-#error "SbCryptography requires SB_API_VERSION >= 4."
-#endif
-
 SbCryptographyTransformer SbCryptographyCreateTransformer(
     const char* algorithm,
     int block_size_bits,
