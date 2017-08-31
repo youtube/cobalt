@@ -60,6 +60,17 @@ DrawRRectColorTexture::DrawRRectColorTexture(GraphicsState* graphics_state,
   DCHECK(base_state_.rounded_scissor_corners);
   color_ = GetDrawColor(color) * base_state_.opacity;
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+
+  // Extract scale from the transform and move it into the vertex attributes
+  // so that the anti-aliased edges remain 1 pixel wide.
+  math::Vector2dF scale = RemoveScaleFromTransform();
+  rect_.Scale(scale.x(), scale.y());
+  base_state_.rounded_scissor_rect.Scale(scale.x(), scale.y());
+  base_state_.rounded_scissor_corners =
+      base_state_.rounded_scissor_corners->Scale(scale.x(), scale.y());
+  base_state_.rounded_scissor_corners =
+      base_state_.rounded_scissor_corners->Normalize(
+          base_state_.rounded_scissor_rect);
 }
 
 void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(

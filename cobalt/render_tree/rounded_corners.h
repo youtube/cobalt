@@ -91,6 +91,8 @@ struct RoundedCorners {
     return Inset(insets.left(), insets.top(), insets.right(), insets.bottom());
   }
 
+  RoundedCorners Scale(float sx, float sy) const;
+
   // Ensure the rounded corners' radii do not exceed the length of the
   // corresponding edge of the given rect.
   RoundedCorners Normalize(const math::RectF& rect) const;
