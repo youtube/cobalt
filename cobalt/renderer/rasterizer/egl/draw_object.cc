@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <limits>
 
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 
 namespace cobalt {
@@ -48,6 +49,17 @@ math::Vector2dF DrawObject::GetScale() const {
   float m11 = base_state_.transform(1, 1);
   return math::Vector2dF(std::sqrt(m00 * m00 + m10 * m10),
                          std::sqrt(m01 * m01 + m11 * m11));
+}
+
+math::Vector2dF DrawObject::RemoveScaleFromTransform() {
+  // Avoid division by zero.
+  const float kEpsilon = 0.00001f;
+
+  math::Vector2dF scale = GetScale();
+  base_state_.transform = base_state_.transform *
+      math::ScaleMatrix(1.0f / std::max(scale.x(), kEpsilon),
+                        1.0f / std::max(scale.y(), kEpsilon));
+  return scale;
 }
 
 // static
