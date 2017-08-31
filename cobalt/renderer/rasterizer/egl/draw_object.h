@@ -96,6 +96,9 @@ class DrawObject {
   // Extract the scale vector from this object's transform.
   math::Vector2dF GetScale() const;
 
+  // Remove scale from the transform, and return the scale vector.
+  math::Vector2dF RemoveScaleFromTransform();
+
   // Utility function to get the render color for the blend modes that will
   // be used. These modes expect alpha to be pre-multiplied.
   static render_tree::ColorRGBA GetDrawColor(
