@@ -47,20 +47,16 @@ class VideoDecoder {
   // is called again.
   virtual void Reset() = 0;
 
-#if SB_API_VERSION >= 3
   // May be called from an arbitrary thread (e.g. a renderer thread).
   virtual SbDecodeTarget GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
-#endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= 4
   // Individual implementations must implement this function to indicate which
   // output modes they support.
   static bool OutputModeSupported(SbPlayerOutputMode output_mode,
                                   SbMediaVideoCodec codec,
                                   SbDrmSystem drm_system);
-#endif  // SB_API_VERSION >= 3
 };
 
 // An extended |VideoDecoder| that is capable of providing |VideoFrame|s to

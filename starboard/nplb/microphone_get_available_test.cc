@@ -18,8 +18,9 @@
 
 namespace starboard {
 namespace nplb {
+namespace {
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+#if SB_HAS(MICROPHONE)
 
 TEST(SbMicrophoneGetAvailableTest, SunnyDay) {
   SbMicrophoneInfo info_array[kMaxNumberOfMicrophone];
@@ -53,7 +54,8 @@ TEST(SbMicrophoneGetAvailableTest, RainyDayNULLInfoArray) {
   }
 }
 
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+#endif  // SB_HAS(MICROPHONE)
 
+}  // namespace
 }  // namespace nplb
 }  // namespace starboard

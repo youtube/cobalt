@@ -26,8 +26,6 @@
 extern "C" {
 #endif
 
-#if SB_API_VERSION >= 4
-
 // A group of settings related to text-to-speech functionality, for platforms
 // that expose system settings for text-to-speech.
 typedef struct SbAccessibilityTextToSpeechSettings {
@@ -64,8 +62,6 @@ typedef struct SbAccessibilityDisplaySettings {
 //    SbAccessibilityDisplaySettings* struct.
 SB_EXPORT bool SbAccessibilityGetDisplaySettings(
     SbAccessibilityDisplaySettings* out_settings);
-
-#endif  // SB_API_VERSION >= 4
 
 #ifdef __cplusplus
 }  // extern "C"

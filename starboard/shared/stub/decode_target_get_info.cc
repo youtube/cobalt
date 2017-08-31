@@ -14,11 +14,7 @@
 
 #include "starboard/decode_target.h"
 
-#if SB_API_VERSION >= 4
-
 bool SbDecodeTargetGetInfo(SbDecodeTarget /*decode_target*/,
                            SbDecodeTargetInfo* /*out_info*/) {
   return false;
 }
-
-#endif  // SB_API_VERSION >= 4

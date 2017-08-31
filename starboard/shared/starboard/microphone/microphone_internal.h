@@ -18,7 +18,9 @@
 #include "starboard/microphone.h"
 #include "starboard/shared/internal_only.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to include this file."
+#endif
 
 struct SbMicrophonePrivate {
   virtual ~SbMicrophonePrivate() {}
@@ -35,7 +37,5 @@ struct SbMicrophonePrivate {
                                        int buffer_size_bytes);
   static void DestroyMicrophone(SbMicrophone microphone);
 };
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
 
 #endif  // STARBOARD_SHARED_STARBOARD_MICROPHONE_MICROPHONE_INTERNAL_H_

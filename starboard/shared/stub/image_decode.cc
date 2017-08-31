@@ -15,11 +15,10 @@
 #include "starboard/configuration.h"
 #include "starboard/image.h"
 
-#if !(SB_API_VERSION >= 3 && SB_HAS(GRAPHICS))
-#error "SbImageDecode requires SB_API_VERSION >= 3 and SB_HAS(GRAPHICS)."
+#if !SB_HAS(GRAPHICS)
+#error "SbImageDecode requires SB_HAS(GRAPHICS)."
 #endif
 
-#if SB_API_VERSION >= 4
 SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
                              void* data,
                              int data_size,
@@ -32,17 +31,3 @@ SbDecodeTarget SbImageDecode(SbDecodeTargetGraphicsContextProvider* provider,
   SB_UNREFERENCED_PARAMETER(provider);
   return kSbDecodeTargetInvalid;
 }
-#else   // SB_API_VERSION >= 4
-SbDecodeTarget SbImageDecode(SbDecodeTargetProvider* provider,
-                             void* data,
-                             int data_size,
-                             const char* mime_type,
-                             SbDecodeTargetFormat format) {
-  SB_UNREFERENCED_PARAMETER(data);
-  SB_UNREFERENCED_PARAMETER(data_size);
-  SB_UNREFERENCED_PARAMETER(format);
-  SB_UNREFERENCED_PARAMETER(mime_type);
-  SB_UNREFERENCED_PARAMETER(provider);
-  return kSbDecodeTargetInvalid;
-}
-#endif  // SB_API_VERSION >= 4

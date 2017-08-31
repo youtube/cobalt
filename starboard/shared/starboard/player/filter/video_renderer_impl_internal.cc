@@ -149,7 +149,6 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
-#if SB_API_VERSION >= 4
 SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
   if (decoder_) {
     return decoder_->GetCurrentDecodeTarget();
@@ -157,8 +156,6 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
 }
-#endif  // SB_API_VERSION >= 4
-
 }  // namespace filter
 }  // namespace player
 }  // namespace starboard

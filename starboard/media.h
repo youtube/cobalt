@@ -131,7 +131,6 @@ typedef enum SbMediaAudioFrameStorageType {
   kSbMediaAudioFrameStorageTypePlanar,
 } SbMediaAudioFrameStorageType;
 
-#if SB_API_VERSION >= 4
 // SMPTE 2086 mastering data
 //   http://ieeexplore.ieee.org/document/7291707/
 // This standard specifies the metadata items to specify the color
@@ -379,7 +378,6 @@ typedef struct SbMediaColorMetadata {
   // completed as (0, 0, 0, 1).
   float custom_primary_matrix[12];
 } SbMediaColorMetadata;
-#endif  // SB_API_VERSION >= 4
 
 // The set of information required by the decoder or player for each video
 // sample.
@@ -398,7 +396,6 @@ typedef struct SbMediaVideoSampleInfo {
   // key frames, but may change on any key frame.
   int frame_height;
 
-#if SB_API_VERSION >= 4
   // HDR metadata common for HDR10 and WebM/VP9-based HDR formats as
   // well as the Color Space, and Color elements: MatrixCoefficients,
   // BitsPerChannel, ChromaSubsamplingHorz, ChromaSubsamplingVert,
@@ -408,7 +405,6 @@ typedef struct SbMediaVideoSampleInfo {
   // This will only be specified on frames where the HDR metadata and
   // color / color space might have changed (e.g. keyframes).
   SbMediaColorMetadata* color_metadata;
-#endif
 } SbMediaVideoSampleInfo;
 
 // A structure describing the audio configuration parameters of a single audio
@@ -493,38 +489,6 @@ typedef struct SbMediaAudioHeader {
 SB_EXPORT bool SbMediaIsSupported(SbMediaVideoCodec video_codec,
                                   SbMediaAudioCodec audio_codec,
                                   const char* key_system);
-
-#if SB_API_VERSION < 4
-
-// Indicates whether a given combination of
-// (|frame_width| x |frame_height|) frames at |bitrate| and |fps| is supported
-// on this platform with |video_codec|. If |video_codec| is not supported under
-// any condition, this function returns |false|.
-//
-// Setting any of the parameters to |0| indicates that they shouldn't be
-// considered.
-//
-// |video_codec|: The video codec used in the media content.
-// |frame_width|: The frame width of the media content.
-// |frame_height|: The frame height of the media content.
-// |bitrate|: The bitrate of the media content.
-// |fps|: The number of frames per second in the media content.
-SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
-                                       int frame_width,
-                                       int frame_height,
-                                       int64_t bitrate,
-                                       int fps);
-
-// Indicates whether this platform supports |audio_codec| at |bitrate|.
-// If |audio_codec| is not supported under any condition, this function
-// returns |false|.
-//
-// |audio_codec|: The media's audio codec (|SbMediaAudioCodec|).
-// |bitrate|: The media's bitrate.
-SB_EXPORT bool SbMediaIsAudioSupported(SbMediaVideoCodec audio_codec,
-                                       int64_t bitrate);
-
-#endif  // SB_API_VERSION < 4
 
 // Returns information about whether the playback of the specific media
 // described by |mime| and encrypted using |key_system| can be played.
