@@ -118,7 +118,6 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
   }
   iter->second->UpdateLicense(key, key_size);
 
-  SB_DCHECK(iter->second->usable());
   if (iter->second->usable()) {
     SB_LOG_IF(INFO, kEnablePlayreadyLog)
         << "Successfully add key for key id "
