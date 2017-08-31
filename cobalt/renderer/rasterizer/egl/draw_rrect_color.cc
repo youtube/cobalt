@@ -53,6 +53,13 @@ DrawRRectColor::DrawRRectColor(GraphicsState* graphics_state,
       vertex_buffer_(NULL) {
   color_ = GetGLRGBA(GetDrawColor(color) * base_state_.opacity);
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+
+  // Extract scale from the transform and move it into the vertex attributes
+  // so that the anti-aliased edges remain 1 pixel wide.
+  math::Vector2dF scale = RemoveScaleFromTransform();
+  rect_.Scale(scale.x(), scale.y());
+  corners_ = corners_.Scale(scale.x(), scale.y());
+  corners_ = corners_.Normalize(rect_);
 }
 
 void DrawRRectColor::ExecuteUpdateVertexBuffer(
