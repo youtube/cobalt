@@ -15,6 +15,8 @@
 #include "starboard/system.h"
 
 #include <android/native_activity.h>
+#include <stdio.h>
+#include <string>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/file.h"
@@ -39,8 +41,14 @@ void SbSystemRequestStop(int error_level) {
     // Since we cannot reliably flush the exit code in the log,
     // we write a file to our app files directory.
 
+    // We are going to make a temporary file here and rename it
+    // to the actual exitcode file.  This is so that tools searching for
+    // the exitcode file don't find it until it has been written to.
+    std::string temp_path = path;
+    temp_path.append(".tmp");
+
     SbFile exitcode_file = SbFileOpen(
-      path.c_str(),
+      temp_path.c_str(),
       kSbFileCreateAlways | kSbFileRead | kSbFileWrite, NULL, NULL);
 
     if (exitcode_file != NULL) {
@@ -50,6 +58,7 @@ void SbSystemRequestStop(int error_level) {
       SbFileWrite(exitcode_file, exit_stream.str().c_str(),
                   exit_stream.str().size());
       SbFileClose(exitcode_file);
+      rename(temp_path.c_str(), path.c_str());
     }
   }
 
