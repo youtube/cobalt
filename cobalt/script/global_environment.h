@@ -19,6 +19,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
+#include "cobalt/script/error_report.h"
 #include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
@@ -35,6 +36,9 @@ class SourceCode;
 // Manages a handle to a JavaScript engine's global object.
 class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
  public:
+  typedef base::Callback<bool(const ErrorReport& error_report)>
+      ReportErrorCallback;
+
   // Create a new global object with bindings as defined for the definition of
   // the GlobalInterface type. The IDL for this interface must have the
   // PrimaryGlobal or Global extended attribute.
@@ -94,6 +98,10 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // Set a callback that will be fired whenever eval() or a Function()
   // constructor is used.
   virtual void SetReportEvalCallback(const base::Closure& report_eval) = 0;
+
+  // Set a callback that will be fired whenever a JavaScript error occurs.
+  virtual void SetReportErrorCallback(
+      const ReportErrorCallback& report_error) = 0;
 
   // Dynamically bind a cpp object to the javascript global object with the
   // supplied identifier.

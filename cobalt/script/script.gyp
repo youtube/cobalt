@@ -21,6 +21,7 @@
       'type': 'static_library',
       'sources': [
         'call_frame.h',
+        'error_report.h',
         'exception_message.cc',
         'exception_message.h',
         'execution_state.cc',
