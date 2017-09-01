@@ -13,11 +13,12 @@
 // limitations under the License.
 
 precision mediump float;
+
+uniform vec4 u_color;
 uniform vec4 u_blur_rect;
 uniform vec2 u_scale_add;
 
 varying vec2 v_offset;
-varying vec4 v_color;
 
 #include "function_gaussian_integral.inc"
 
@@ -27,5 +28,5 @@ void main() {
   float integral = GaussianIntegral(u_blur_rect.xz - v_offset.xx) *
                    GaussianIntegral(u_blur_rect.yw - v_offset.yy);
   float blur_scale = integral * u_scale_add.x + u_scale_add.y;
-  gl_FragColor = v_color * blur_scale;
+  gl_FragColor = u_color * blur_scale;
 }
