@@ -42,7 +42,6 @@ bool ShouldForceTextToSpeech() {
 
 #if SB_HAS(SPEECH_SYNTHESIS)
 bool IsTextToSpeechEnabled() {
-#if SB_API_VERSION >= 4
   // Check if the tts feature is enabled in Starboard.
   SbAccessibilityTextToSpeechSettings tts_settings = {0};
   // Check platform settings.
@@ -50,7 +49,7 @@ bool IsTextToSpeechEnabled() {
     return tts_settings.has_text_to_speech_setting &&
            tts_settings.is_text_to_speech_enabled;
   }
-#endif  // SB_API_VERSION >= 4
+
   return false;
 }
 #endif  // SB_HAS(SPEECH_SYNTHESIS)
@@ -102,7 +101,6 @@ void H5vccAccessibility::set_built_in_screen_reader(bool value) {
 }
 
 bool H5vccAccessibility::high_contrast_text() const {
-#if SB_API_VERSION >= 4
   SbAccessibilityDisplaySettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
@@ -111,13 +109,9 @@ bool H5vccAccessibility::high_contrast_text() const {
   }
 
   return settings.is_high_contrast_text_enabled;
-#else   // SB_API_VERSION >= 4
-  return  false;
-#endif  // SB_API_VERSION >= 4
 }
 
 bool H5vccAccessibility::text_to_speech() const {
-#if SB_API_VERSION >= 4
   SbAccessibilityTextToSpeechSettings settings;
   SbMemorySet(&settings, 0, sizeof(settings));
 
@@ -127,9 +121,6 @@ bool H5vccAccessibility::text_to_speech() const {
 
   return settings.has_text_to_speech_setting &&
       settings.is_text_to_speech_enabled;
-#else   // SB_API_VERSION >= 4
-  return  false;
-#endif  // SB_API_VERSION >= 4
 }
 
 void H5vccAccessibility::AddHighContrastTextListener(

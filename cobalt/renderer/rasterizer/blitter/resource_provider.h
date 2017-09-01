@@ -43,21 +43,15 @@ class ResourceProvider : public render_tree::ResourceProvider {
 
   void Finish() OVERRIDE {}
 
-#if SB_API_VERSION >= 3
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
 
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
-#endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
     return &decode_target_graphics_context_provider_;
   }
-#elif SB_API_VERSION >= 3
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-#endif  // SB_API_VERSION >= 4
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
   bool AlphaFormatSupported(render_tree::AlphaFormat alpha_format) OVERRIDE;
@@ -123,10 +117,8 @@ class ResourceProvider : public render_tree::ResourceProvider {
 
   SubmitOffscreenCallback submit_offscreen_callback_;
 
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace blitter

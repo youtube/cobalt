@@ -60,7 +60,7 @@ HardwareResourceProvider::HardwareResourceProvider(
   // on multiple threads simultaneously later.
   SkSafeUnref(SkFontMgr::RefDefault());
 
-#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
   decode_target_graphics_context_provider_.egl_display =
       cobalt_context_->system_egl()->GetDisplay();
   decode_target_graphics_context_provider_.egl_context =
@@ -68,7 +68,7 @@ HardwareResourceProvider::HardwareResourceProvider(
   decode_target_graphics_context_provider_.gles_context_runner =
       &HardwareResourceProvider::GraphicsContextRunner;
   decode_target_graphics_context_provider_.gles_context_runner_context = this;
-#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+#endif  // SB_HAS(GRAPHICS)
 }
 
 HardwareResourceProvider::~HardwareResourceProvider() {
@@ -146,7 +146,7 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
       self_message_loop_));
 }
 
-#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
 namespace {
 
 #if SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
@@ -378,7 +378,7 @@ void HardwareResourceProvider::GraphicsContextRunner(
   }
 }
 
-#endif  // SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+#endif  // SB_HAS(GRAPHICS)
 
 scoped_ptr<RawImageMemory> HardwareResourceProvider::AllocateRawImageMemory(
     size_t size_in_bytes, size_t alignment) {
