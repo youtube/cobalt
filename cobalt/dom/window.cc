@@ -158,6 +158,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
       ALLOW_THIS_IN_INITIALIZER_LIST(
           session_storage_(new Storage(this, Storage::kSessionStorage, NULL))),
       screen_(new Screen(width, height)),
+      preflight_cache_(new loader::CORSPreflightCache()),
       ran_animation_frame_callbacks_callback_(
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
