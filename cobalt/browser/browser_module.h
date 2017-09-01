@@ -177,6 +177,13 @@ class BrowserModule {
   void OnRenderTreeProduced(
       const browser::WebModule::LayoutResults& layout_results);
 
+  // Glue function to deal with the production of the splash screen render tree,
+  // and will manage handing it off to the renderer.
+  void QueueOnSplashScreenRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
+  void OnSplashScreenRenderTreeProduced(
+      const browser::WebModule::LayoutResults& layout_results);
+
   // Saves/loads the debug console mode to/from local storage so we can
   // persist the user's preference.
   void SaveDebugConsoleMode();
@@ -361,8 +368,11 @@ class BrowserModule {
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
 
-  // Manages the two render trees, combines and renders them.
+  // Manages the three render trees, combines and renders them.
   scoped_ptr<RenderTreeCombiner> render_tree_combiner_;
+  scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
+  scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
+  scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
 
 #if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
@@ -463,6 +473,9 @@ class BrowserModule {
 
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
+
+  // Whether or not the main WebModule has produced any render trees yet.
+  bool produced_render_tree_;
 };
 
 }  // namespace browser
