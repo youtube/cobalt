@@ -14,6 +14,7 @@
 
 #include "cobalt/loader/fetcher_factory.h"
 
+#include <sstream>
 #include <string>
 
 #include "base/bind.h"
@@ -25,6 +26,7 @@
 #include "cobalt/loader/blob_fetcher.h"
 #include "cobalt/loader/cache_fetcher.h"
 #include "cobalt/loader/embedded_fetcher.h"
+#include "cobalt/loader/error_fetcher.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/network/network_module.h"
@@ -37,6 +39,7 @@ namespace {
 const char kAboutScheme[] = "about";
 #endif
 
+#if defined(COBALT_ENABLE_FILE_SCHEME)
 bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   DCHECK(url.is_valid() && url.SchemeIsFile());
   std::string path = url.path();
@@ -45,6 +48,7 @@ bool FileURLToFilePath(const GURL& url, FilePath* file_path) {
   *file_path = FilePath(path);
   return !file_path->empty();
 }
+#endif
 
 std::string ClipUrl(const GURL& url, size_t length) {
   const std::string& spec = url.possibly_invalid_spec();
@@ -94,59 +98,67 @@ scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
 scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     Fetcher::Handler* handler) {
+  DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
+
   if (!url.is_valid()) {
-    LOG(ERROR) << "URL is invalid: " << url;
-    return scoped_ptr<Fetcher>(NULL);
+    std::stringstream error_message;
+    error_message << "URL is invalid: " << url;
+    return scoped_ptr<Fetcher>(new ErrorFetcher(handler, error_message.str()));
   }
 
-  DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
-  scoped_ptr<Fetcher> fetcher;
+  if ((url.SchemeIs("https") || url.SchemeIs("http") ||
+       url.SchemeIs("data")) &&
+      network_module_) {
+    NetFetcher::Options options;
+    return scoped_ptr<Fetcher>(new NetFetcher(url, url_security_callback,
+                                              handler, network_module_,
+                                              options));
+  }
+
+  if (url.SchemeIs("blob") && !blob_resolver_.is_null()) {
+    return scoped_ptr<Fetcher>(new BlobFetcher(url, handler, blob_resolver_));
+  }
+
   if (url.SchemeIs(kEmbeddedScheme)) {
     EmbeddedFetcher::Options options;
-    fetcher.reset(
-        new EmbeddedFetcher(url, url_security_callback, handler, options));
-  } else if (url.SchemeIsFile()) {
+    return scoped_ptr<Fetcher>(new EmbeddedFetcher(url, url_security_callback,
+                                                   handler, options));
+  }
+
+  // h5vcc-cache: scheme requires read_cache_callback_ which is not available
+  // in the main WebModule.
+  if (url.SchemeIs(kCacheScheme) && !read_cache_callback_.is_null()) {
+    return scoped_ptr<Fetcher>(new CacheFetcher(url, url_security_callback,
+                                                handler,
+                                                read_cache_callback_));
+  }
+
+#if defined(COBALT_ENABLE_FILE_SCHEME)
+  if (url.SchemeIsFile()) {
     FilePath file_path;
-    if (FileURLToFilePath(url, &file_path)) {
-      FileFetcher::Options options;
-      options.message_loop_proxy = file_thread_.message_loop_proxy();
-      options.extra_search_dir = extra_search_dir_;
-      fetcher.reset(new FileFetcher(file_path, handler, options));
-    } else {
-      LOG(ERROR) << "File URL cannot be converted to file path: " << url;
-    }
-  }
-#if defined(ENABLE_ABOUT_SCHEME)
-  else if (url.SchemeIs(kAboutScheme)) {  // NOLINT(readability/braces)
-    fetcher.reset(new AboutFetcher(handler));
-  }
-#endif
-  else if (url.SchemeIs("blob")) {  // NOLINT(readability/braces)
-    if (!blob_resolver_.is_null()) {
-      fetcher.reset(new BlobFetcher(url, handler, blob_resolver_));
-    } else {
-      LOG(ERROR) << "Fetcher factory not provided the blob registry, "
-                    "could not fetch the URL: "
-                 << url;
-    }
-  } else if (url.SchemeIs(kCacheScheme)) {
-    if (read_cache_callback_.is_null()) {
-      LOG(ERROR) << "read_cache_callback_ must be provided to CacheFetcher for "
-                    "accessing h5vcc-cache:// . This is not available in the "
-                    "main WebModule.";
-      DCHECK(!read_cache_callback_.is_null());
-      return fetcher.Pass();
+    if (!FileURLToFilePath(url, &file_path)) {
+      std::stringstream error_message;
+      error_message << "File URL cannot be converted to file path: " << url;
+      return scoped_ptr<Fetcher>(new ErrorFetcher(handler,
+                                                  error_message.str()));
     }
 
-    fetcher.reset(new CacheFetcher(url, url_security_callback, handler,
-                                   read_cache_callback_));
-  } else {  // NOLINT(readability/braces)
-    DCHECK(network_module_) << "Network module required.";
-    NetFetcher::Options options;
-    fetcher.reset(new NetFetcher(url, url_security_callback, handler,
-                                 network_module_, options));
+    FileFetcher::Options options;
+    options.message_loop_proxy = file_thread_.message_loop_proxy();
+    options.extra_search_dir = extra_search_dir_;
+    return scoped_ptr<Fetcher>(new FileFetcher(file_path, handler, options));
   }
-  return fetcher.Pass();
+#endif
+
+#if defined(ENABLE_ABOUT_SCHEME)
+  if (url.SchemeIs(kAboutScheme)) {
+    return scoped_ptr<Fetcher>(new AboutFetcher(handler));
+  }
+#endif
+
+  std::stringstream error_message;
+  error_message << "Scheme " << url.scheme() << ": is not supported";
+  return scoped_ptr<Fetcher>(new ErrorFetcher(handler, error_message.str()));
 }
 
 }  // namespace loader

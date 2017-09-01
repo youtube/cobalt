@@ -14,6 +14,7 @@
 
 #include <string>
 
+#include "base/optional.h"
 #include "base/run_loop.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/file_fetcher.h"
@@ -26,32 +27,32 @@ namespace {
 class StubFetcherHandler : public Fetcher::Handler {
  public:
   explicit StubFetcherHandler(base::RunLoop* run_loop)
-      : fetcher_(NULL), run_loop_(run_loop) {}
+      : run_loop_(run_loop), fetcher_(NULL) {}
 
   // From Fetcher::Handler.
   void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
     UNREFERENCED_PARAMETER(data);
     UNREFERENCED_PARAMETER(size);
-    CheckFetcher(fetcher);
+    CheckSameFetcher(fetcher);
   }
   void OnDone(Fetcher* fetcher) OVERRIDE {
-    CheckFetcher(fetcher);
-    if (run_loop_) {
-      MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
-    }
+    CheckSameFetcher(fetcher);
+    MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
-    UNREFERENCED_PARAMETER(error);
-    CheckFetcher(fetcher);
-    if (run_loop_) {
-      MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
-    }
+  void OnError(Fetcher* fetcher, const std::string& error_message) OVERRIDE {
+    CheckSameFetcher(fetcher);
+    error_message_ = error_message;
+    MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
 
   Fetcher* fetcher() const { return fetcher_; }
 
+  const base::optional<std::string>& error_message() const {
+    return error_message_;
+  }
+
  private:
-  void CheckFetcher(Fetcher* fetcher) {
+  void CheckSameFetcher(Fetcher* fetcher) {
     EXPECT_TRUE(fetcher);
     if (fetcher_ == NULL) {
       fetcher_ = fetcher;
@@ -60,8 +61,9 @@ class StubFetcherHandler : public Fetcher::Handler {
     EXPECT_EQ(fetcher_, fetcher);
   }
 
-  Fetcher* fetcher_;
   base::RunLoop* run_loop_;
+  Fetcher* fetcher_;
+  base::optional<std::string> error_message_;
 };
 
 }  // namespace
@@ -79,27 +81,42 @@ class FetcherFactoryTest : public ::testing::Test {
 };
 
 TEST_F(FetcherFactoryTest, InvalidURL) {
-  StubFetcherHandler stub_fetcher_handler(NULL);
+  base::RunLoop run_loop;
+  StubFetcherHandler stub_fetcher_handler(&run_loop);
+
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("invalid-url"),
                                             &stub_fetcher_handler);
-  EXPECT_FALSE(fetcher_.get());
-  EXPECT_FALSE(stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(fetcher_);
+
+  run_loop.Run();
+  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
 }
 
 TEST_F(FetcherFactoryTest, EmptyFileURL) {
-  StubFetcherHandler stub_fetcher_handler(NULL);
+  base::RunLoop run_loop;
+  StubFetcherHandler stub_fetcher_handler(&run_loop);
+
   fetcher_ =
       fetcher_factory_.CreateFetcher(GURL("file:///"), &stub_fetcher_handler);
-  EXPECT_FALSE(fetcher_.get());
-  EXPECT_FALSE(stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(fetcher_);
+
+  run_loop.Run();
+  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
 }
 
 TEST_F(FetcherFactoryTest, FileURLCannotConvertToFilePath) {
-  StubFetcherHandler stub_fetcher_handler(NULL);
+  base::RunLoop run_loop;
+  StubFetcherHandler stub_fetcher_handler(&run_loop);
+
   fetcher_ = fetcher_factory_.CreateFetcher(GURL("file://file.txt"),
                                             &stub_fetcher_handler);
-  EXPECT_FALSE(fetcher_.get());
-  EXPECT_FALSE(stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(fetcher_);
+
+  run_loop.Run();
+  EXPECT_EQ(fetcher_.get(), stub_fetcher_handler.fetcher());
+  EXPECT_TRUE(stub_fetcher_handler.error_message().has_engaged());
 }
 
 TEST_F(FetcherFactoryTest, MultipleCreations) {
