@@ -96,11 +96,9 @@ StarboardPlayer::StarboardPlayer(
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
 
-#if SB_API_VERSION >= 4
   output_mode_ = ComputeSbPlayerOutputMode(
       MediaVideoCodecToSbMediaVideoCodec(video_config.codec()), drm_system,
       prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= 4
 
   CreatePlayer();
 
@@ -118,11 +116,9 @@ StarboardPlayer::~StarboardPlayer() {
 
   ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
       ShellVideoFrameProvider::kOutputModeInvalid);
-#if SB_API_VERSION >= 4
   ShellMediaPlatform::Instance()
       ->GetVideoFrameProvider()
       ->ResetGetCurrentSbDecodeTargetFunction();
-#endif  // SB_API_VERSION >= 4
 
   if (SbPlayerIsValid(player_)) {
     SbPlayerDestroy(player_);
@@ -211,13 +207,9 @@ void StarboardPlayer::SetBounds(const gfx::Rect& rect) {
   }
 
   DCHECK(SbPlayerIsValid(player_));
-#if SB_API_VERSION >= 4
   const int kZIndex = 0;
   SbPlayerSetBounds(player_, kZIndex, rect.x(), rect.y(), rect.width(),
                     rect.height());
-#else   // SB_API_VERSION >= 4
-  SbPlayerSetBounds(player_, rect.x(), rect.y(), rect.width(), rect.height());
-#endif  // SB_API_VERSION >= 4
 }
 
 void StarboardPlayer::PrepareForSeek() {
@@ -231,11 +223,7 @@ void StarboardPlayer::PrepareForSeek() {
   }
 
   ++ticket_;
-#if SB_API_VERSION < 4
-  SbPlayerSetPause(player_, true);
-#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, 0.f);
-#endif  // SB_API_VERSION < 4
 }
 
 void StarboardPlayer::Seek(base::TimeDelta time) {
@@ -260,11 +248,7 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   ++ticket_;
   SbPlayerSeek(player_, TimeDeltaToSbMediaTime(time), ticket_);
   seek_pending_ = false;
-#if SB_API_VERSION < 4
-  SbPlayerSetPause(player_, playback_rate_ == 0.0);
-#else  // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, playback_rate_);
-#endif  // SB_API_VERSION < 4
 }
 
 void StarboardPlayer::SetVolume(float volume) {
@@ -295,11 +279,7 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
     return;
   }
 
-#if SB_API_VERSION < 4
-  SbPlayerSetPause(player_, playback_rate == 0.0);
-#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, playback_rate);
-#endif  // SB_API_VERSION < 4
 }
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
@@ -349,11 +329,7 @@ void StarboardPlayer::Suspend() {
 
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION < 4
-  SbPlayerSetPause(player_, true);
-#else   // SB_API_VERSION < 4
   SbPlayerSetPlaybackRate(player_, 0.0);
-#endif  // SB_API_VERSION < 4
 
   base::AutoLock auto_lock(lock_);
 
@@ -391,7 +367,6 @@ void StarboardPlayer::Resume() {
 }
 
 namespace {
-#if SB_API_VERSION >= 4
 ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
     SbPlayerOutputMode output_mode) {
   switch (output_mode) {
@@ -406,7 +381,6 @@ ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
   NOTREACHED();
   return ShellVideoFrameProvider::kOutputModeInvalid;
 }
-#endif  // #if SB_API_VERSION >= 4
 }  // namespace
 
 void StarboardPlayer::CreatePlayer() {
@@ -446,26 +420,17 @@ void StarboardPlayer::CreatePlayer() {
   SbMediaVideoCodec video_codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
 
-#if SB_API_VERSION >= 4
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
-#endif  // SB_API_VERSION >= 4
 
-  player_ = SbPlayerCreate(
-      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
-      &audio_header, &StarboardPlayer::DeallocateSampleCB,
-      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this
-#if SB_API_VERSION >= 4
-      ,
-      output_mode_,
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetGraphicsContextProvider()
-#elif SB_API_VERSION >= 3
-      ,
-      ShellMediaPlatform::Instance()->GetSbDecodeTargetProvider()  // provider
-#endif  // SB_API_VERSION >= 3
-          );
+  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
+                           SB_PLAYER_NO_DURATION, drm_system_, &audio_header,
+                           &StarboardPlayer::DeallocateSampleCB,
+                           &StarboardPlayer::DecoderStatusCB,
+                           &StarboardPlayer::PlayerStatusCB, this, output_mode_,
+                           ShellMediaPlatform::Instance()
+                               ->GetSbDecodeTargetGraphicsContextProvider());
   DCHECK(SbPlayerIsValid(player_));
 
-#if SB_API_VERSION >= 4
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     // If the player is setup to decode to texture, then provide Cobalt with
     // a method of querying that texture.
@@ -477,10 +442,6 @@ void StarboardPlayer::CreatePlayer() {
   }
   ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
       ToVideoFrameProviderOutputMode(output_mode_));
-#else   // SB_API_VERSION >= 4
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
-      ShellVideoFrameProvider::kOutputModePunchOut);
-#endif  // SB_API_VERSION >= 4
 
   set_bounds_helper_->SetPlayer(this);
 
@@ -490,14 +451,13 @@ void StarboardPlayer::CreatePlayer() {
   }
 }
 
-#if SB_API_VERSION >= 4
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
 }
+
 SbPlayerOutputMode StarboardPlayer::GetSbPlayerOutputMode() {
   return output_mode_;
 }
-#endif  // SB_API_VERSION >= 4
 
 void StarboardPlayer::ClearDecoderBufferCache() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -572,11 +532,7 @@ void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
     }
     SbPlayerSeek(player_, TimeDeltaToSbMediaTime(preroll_timestamp_), ticket_);
     SetVolume(volume_);
-#if SB_API_VERSION < 4
-    SbPlayerSetPause(player_, playback_rate_ == 0.0);
-#else  // SB_API_VERSION < 4
     SbPlayerSetPlaybackRate(player_, playback_rate_);
-#endif  // SB_API_VERSION < 4
     return;
   }
   host_->OnPlayerStatus(state);
@@ -628,7 +584,6 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                  helper->callback_helper_, sample_buffer));
 }
 
-#if SB_API_VERSION >= 4
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     SbMediaVideoCodec codec, SbDrmSystem drm_system,
@@ -650,7 +605,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace media
 }  // namespace cobalt

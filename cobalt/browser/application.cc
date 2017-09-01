@@ -724,7 +724,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeResume:
 #if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
     case kSbEventTypeLowMemory:
-#endif  // SB_API_VERSION >= 4
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
       OnApplicationEvent(starboard_event->type);
       break;
     case kSbEventTypeNetworkConnect:
@@ -740,11 +740,9 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::DeepLinkEvent(link));
       break;
     }
-#if SB_API_VERSION >= 4
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
-#endif  // SB_API_VERSION >= 4
     default:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
@@ -822,7 +820,7 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->ReduceMemory();
       DLOG(INFO) << "Finished reducing memory usage.";
       break;
-#endif  // SB_API_VERSION >= 4
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
     default:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;

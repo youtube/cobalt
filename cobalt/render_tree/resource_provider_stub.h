@@ -215,30 +215,22 @@ class ResourceProviderStub : public ResourceProvider {
     return make_scoped_refptr(new ImageStub(skia_source_data.Pass()));
   }
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
-#if SB_API_VERSION < 4
-    SbDecodeTargetDestroy(decode_target);
-#else   // 4
     SbDecodeTargetRelease(decode_target);
-#endif  // 4
     return NULL;
   }
 
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#endif  // SB_HAS(GRAPHICS)
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
     return NULL;
   }
-#elif SB_API_VERSION >= 3
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-#endif  // SB_API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<RawImageMemory> AllocateRawImageMemory(size_t size_in_bytes,

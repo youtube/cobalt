@@ -211,9 +211,7 @@ BrowserModule::BrowserModule(const GURL& url,
       storage_manager_(make_scoped_ptr(new StorageUpgradeHandler(url))
                            .PassAs<storage::StorageManager::UpgradeHandler>(),
                        options_.storage_manager_options),
-#if defined(OS_STARBOARD)
       is_rendered_(false),
-#endif  // OS_STARBOARD
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
       array_buffer_allocator_(
           new ResourceProviderArrayBufferAllocator(GetResourceProvider())),
@@ -296,9 +294,7 @@ BrowserModule::BrowserModule(const GURL& url,
     OnFuzzerToggle(std::string());
   }
   if (command_line->HasSwitch(switches::kSuspendFuzzer)) {
-#if SB_API_VERSION >= 4
     suspend_fuzzer_.emplace();
-#endif
   }
 #endif  // ENABLE_DEBUG_CONSOLE && ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
@@ -530,10 +526,8 @@ void BrowserModule::OnRenderTreeProduced(
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
-#if defined(OS_STARBOARD)
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-#endif  // OS_STARBOARD
   render_tree_combiner_->UpdateMainRenderTree(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
@@ -549,11 +543,7 @@ void BrowserModule::OnWindowClose() {
   }
 #endif
 
-#if defined(OS_STARBOARD)
   SbSystemRequestStop(0);
-#else
-  LOG(WARNING) << "window.close() is not supported on this platform.";
-#endif
 }
 
 void BrowserModule::OnWindowMinimize() {
@@ -563,11 +553,7 @@ void BrowserModule::OnWindowMinimize() {
   }
 #endif
 
-#if defined(OS_STARBOARD) && SB_API_VERSION >= 4
   SbSystemRequestSuspend();
-#else
-  LOG(WARNING) << "window.minimize() is not supported on this platform.";
-#endif
 }
 
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -939,7 +925,6 @@ void BrowserModule::CheckMemory(
                                      used_gpu_memory);
 }
 
-#if defined(OS_STARBOARD)
 void BrowserModule::OnRendererSubmissionRasterized() {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnRendererSubmissionRasterized()");
@@ -949,7 +934,6 @@ void BrowserModule::OnRendererSubmissionRasterized() {
     SbSystemHideSplashScreen();
   }
 }
-#endif  // OS_STARBOARD
 
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
 void BrowserModule::OnPollForRenderTimeout(const GURL& url) {

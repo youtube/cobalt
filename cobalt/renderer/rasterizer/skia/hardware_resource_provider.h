@@ -56,7 +56,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= 4
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE;
@@ -71,24 +70,6 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
   // Whether SbDecodeTargetIsSupported or not.
   bool SupportsSbDecodeTarget() OVERRIDE { return true; }
 
-#elif SB_API_VERSION >= 3
-
-  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
-      SbDecodeTarget decode_target) OVERRIDE {
-    NOTREACHED()
-        << "CreateImageFromSbDecodeTarget is not supported on EGL yet.";
-    SbDecodeTargetDestroy(decode_target);
-    return NULL;
-  }
-
-  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
-  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-
-  // Whether SbDecodeTargetIsSupported or not.
-  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-
-#endif  // SB_API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(
@@ -146,7 +127,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   TextShaper text_shaper_;
 
-#if SB_API_VERSION >= 4 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
   static void GraphicsContextRunner(
       SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
       SbDecodeTargetGlesContextRunnerTarget target_function,
@@ -154,8 +135,7 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
 
   SbDecodeTargetGraphicsContextProvider
       decode_target_graphics_context_provider_;
-#endif  // SB_API_VERSION >= 4 && \
-           SB_HAS(GRAPHICS)
+#endif  // SB_HAS(GRAPHICS)
 
   // We keep a handle to the message loop that this resource provider was
   // created on.  This message loop is used whenever we need to issue graphics

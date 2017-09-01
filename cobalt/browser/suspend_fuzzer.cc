@@ -43,20 +43,13 @@ SuspendFuzzer::~SuspendFuzzer() { thread_.Stop(); }
 
 void SuspendFuzzer::DoStep() {
   DCHECK(MessageLoop::current() == thread_.message_loop());
-#if SB_API_VERSION < 4
-  NOTREACHED() << "Cannot run suspend_fuzzer on SB_API_VERSION < 4.";
-#endif
   if (step_type_ == kShouldRequestSuspend) {
     SB_DLOG(INFO) << "suspend_fuzzer: Requesting suspend.";
-#if SB_API_VERSION >= 4
     SbSystemRequestSuspend();
-#endif
     step_type_ = kShouldRequestUnpause;
   } else if (step_type_ == kShouldRequestUnpause) {
     SB_DLOG(INFO) << "suspend_fuzzer: Requesting unpause.";
-#if SB_API_VERSION >= 4
     SbSystemRequestUnpause();
-#endif
     step_type_ = kShouldRequestSuspend;
   } else {
     NOTREACHED();
