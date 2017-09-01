@@ -100,12 +100,6 @@ void SpeechSynthesis::Speak(
     return;
   }
 
-#if SB_API_VERSION < 4
-  // DEPRECATED IN API VERSION 4
-  std::string language =
-      utterance->lang().empty() ? navigator_->language() : utterance->lang();
-  SbSpeechSynthesisSetLanguage(language.c_str());
-#endif
   SB_DLOG(INFO) << "Speaking: \"" << utterance->text() << "\" "
                 << utterance->lang();
   SbSpeechSynthesisSpeak(utterance->text().c_str());
