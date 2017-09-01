@@ -78,6 +78,9 @@ class EventTarget : public script::Wrappable,
       const tracked_objects::Location& location, base::Token event_name,
       const base::Closure& dispatched_callback);
 
+  // Check if target has event listener (atrtibute or not attribute).
+  bool HasEventListener(base::Token type);
+
   // Web API: GlobalEventHandlers (implements)
   // Many objects can have event handlers specified. These act as non-capture
   // event listeners for the object on which they are specified.
@@ -336,6 +339,20 @@ class EventTarget : public script::Wrappable,
   }
   void set_ontimeupdate(const EventListenerScriptValue& event_listener) {
     SetAttributeEventListener(base::Tokens::timeupdate(), event_listener);
+  }
+
+  const EventListenerScriptValue* onbeforeunload() {
+    return GetAttributeEventListener(base::Tokens::beforeunload());
+  }
+  void set_onbeforeunload(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::beforeunload(), event_listener);
+  }
+
+  const EventListenerScriptValue* ontransitionend() {
+    return GetAttributeEventListener(base::Tokens::transitionend());
+  }
+  void set_ontransitionend(const EventListenerScriptValue& event_listener) {
+    SetAttributeEventListener(base::Tokens::transitionend(), event_listener);
   }
 
   const EventListenerScriptValue* onunload() {

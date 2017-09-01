@@ -144,6 +144,12 @@ class WebModule::Impl {
   void InjectWheelEvent(scoped_refptr<dom::Element> element, base::Token type,
                         const dom::WheelEventInit& event);
 
+  // Called to inject a beforeunload event into the web module. If
+  // this event is not handled by the web application,
+  // on_before_unload_fired_but_not_handled will be called. The event
+  // is not directed at a specific element.
+  void InjectBeforeUnloadEvent();
+
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
@@ -365,6 +371,8 @@ class WebModule::Impl {
   scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 
   scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
+
+  base::Closure on_before_unload_fired_but_not_handled;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -428,6 +436,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
         base::Bind(&browser::SplashScreenCache::ReadCachedSplashScreen,
                    base::Unretained(data.options.splash_screen_cache));
   }
+
+  on_before_unload_fired_but_not_handled =
+      data.options.on_before_unload_fired_but_not_handled;
 
   fetcher_factory_.reset(new loader::FetcherFactory(
       data.network_module, data.options.extra_web_file_dir,
@@ -980,6 +991,15 @@ void WebModule::Impl::LogScriptError(
   SbLogRaw(ss.str().c_str());
 }
 
+void WebModule::Impl::InjectBeforeUnloadEvent() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (window_ && window_->HasEventListener(base::Tokens::beforeunload())) {
+    window_->DispatchEvent(new dom::Event(base::Tokens::beforeunload()));
+  } else if (!on_before_unload_fired_but_not_handled.is_null()) {
+    on_before_unload_fired_but_not_handled.Run();
+  }
+}
+
 void WebModule::Impl::PurgeResourceCaches() {
   image_cache_->Purge();
   remote_typeface_cache_->Purge();
@@ -1131,6 +1151,15 @@ void WebModule::InjectWheelEvent(base::Token type,
       FROM_HERE, base::Bind(&WebModule::Impl::InjectWheelEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
+}
+
+void WebModule::InjectBeforeUnloadEvent() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::InjectBeforeUnloadEvent()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::InjectBeforeUnloadEvent,
+                                      base::Unretained(impl_.get())));
 }
 
 std::string WebModule::ExecuteJavascript(
