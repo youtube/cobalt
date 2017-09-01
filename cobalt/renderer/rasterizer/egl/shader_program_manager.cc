@@ -29,7 +29,7 @@ ShaderProgramManager::ShaderProgramManager() {
   // users starts interacting with the transport controls. They are preloaded
   // to prevent UI-hiccups.
   // These shaders are generated from egl/generated_shader_impl.h
-  Preload<ShaderVertexColorOffset, ShaderFragmentColorBlurRrects>();
+  Preload<ShaderVertexOffsetRcorner, ShaderFragmentColorBlurRrects>();
   Preload<ShaderVertexColorOffset, ShaderFragmentColorInclude>();
   Preload<ShaderVertexRcornerTexcoord, ShaderFragmentRcornerTexcoordColor>();
 }

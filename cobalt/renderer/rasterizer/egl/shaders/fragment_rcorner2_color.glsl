@@ -11,15 +11,16 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 precision mediump float;
 
 uniform vec4 u_color;
-varying vec4 v_rcorner;
+varying vec4 v_rcorner_inner;
+varying vec4 v_rcorner_outer;
 
 #include "function_is_outside_rcorner.inc"
 
 void main() {
-  float scale = IsOutsideRCorner(v_rcorner);
-  gl_FragColor = u_color * (1.0 - scale);
+  float inner_scale = IsOutsideRCorner(v_rcorner_inner);
+  float outer_scale = 1.0 - IsOutsideRCorner(v_rcorner_outer);
+  gl_FragColor = u_color * (inner_scale * outer_scale);
 }
