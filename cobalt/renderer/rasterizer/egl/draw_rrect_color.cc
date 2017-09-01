@@ -61,16 +61,20 @@ void DrawRRectColor::ExecuteUpdateVertexBuffer(
   for (int r = 0, v = 0; r < arraysize(rrect); ++r) {
     attributes[v  ].position[0] = rrect[r].bounds.x();
     attributes[v  ].position[1] = rrect[r].bounds.y();
-    attributes[v  ].rcorner = rrect[r].rcorner;
+    attributes[v  ].rcorner =
+        RCorner(attributes[v  ].position, rrect[r].rcorner);
     attributes[v+1].position[0] = rrect[r].bounds.right();
     attributes[v+1].position[1] = rrect[r].bounds.y();
-    attributes[v+1].rcorner = rrect[r].rcorner;
+    attributes[v+1].rcorner =
+        RCorner(attributes[v+1].position, rrect[r].rcorner);
     attributes[v+2].position[0] = rrect[r].bounds.x();
     attributes[v+2].position[1] = rrect[r].bounds.bottom();
-    attributes[v+2].rcorner = rrect[r].rcorner;
+    attributes[v+2].rcorner =
+        RCorner(attributes[v+2].position, rrect[r].rcorner);
     attributes[v+3].position[0] = rrect[r].bounds.right();
     attributes[v+3].position[1] = rrect[r].bounds.bottom();
-    attributes[v+3].rcorner = rrect[r].rcorner;
+    attributes[v+3].rcorner =
+        RCorner(attributes[v+3].position, rrect[r].rcorner);
     attributes[v+4] = attributes[v+1];
     attributes[v+5] = attributes[v+2];
     v += 6;
