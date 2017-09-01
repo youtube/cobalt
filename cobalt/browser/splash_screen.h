@@ -33,16 +33,17 @@ namespace browser {
 //
 class SplashScreen : public LifecycleObserver {
  public:
-  SplashScreen(base::ApplicationState initial_application_state,
-               const WebModule::OnRenderTreeProducedCallback&
-                   render_tree_produced_callback,
-               network::NetworkModule* network_module,
-               const math::Size& window_dimensions,
-               render_tree::ResourceProvider* resource_provider,
-               float layout_refresh_rate,
-               const GURL& fallback_splash_screen_url,
-               const GURL& initial_main_web_module_url,
-               cobalt::browser::SplashScreenCache* splash_screen_cache);
+  SplashScreen(
+      base::ApplicationState initial_application_state,
+      const WebModule::OnRenderTreeProducedCallback&
+          render_tree_produced_callback,
+      network::NetworkModule* network_module,
+      const math::Size& window_dimensions,
+      render_tree::ResourceProvider* resource_provider,
+      float layout_refresh_rate, const GURL& fallback_splash_screen_url,
+      const GURL& initial_main_web_module_url,
+      cobalt::browser::SplashScreenCache* splash_screen_cache,
+      const base::Callback<void()>& on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
@@ -63,29 +64,30 @@ class SplashScreen : public LifecycleObserver {
 
   void ReduceMemory() { web_module_->ReduceMemory(); }
 
-  // Block the caller until the splash screen is ready to be rendered.
-  void WaitUntilReady();
+  // This dispatches event beforeunload in the WebModule. If
+  // beforeunload has any handlers or listeners, Shutdown waits for
+  // window.close to be called or a maximum of kSplashShutdownSeconds
+  // before running |on_splash_screen_shutdown_complete_|. If beforeunload has
+  // no handlers, |on_splash_screen_shutdown_complete_| is run immediately.
+  void Shutdown();
 
  private:
-  void OnRenderTreeProduced(
-      const browser::WebModule::LayoutResults& layout_results);
-
-  void OnError(const GURL& /* url */, const std::string& error) {
-    is_ready_.Signal();
-    LOG(ERROR) << error;
-  }
-
+  // Run when window.close() is called by the WebModule.
   void OnWindowClosed();
+  void OnWindowClosedInternal();
 
   media::MediaModuleStub stub_media_module_;
 
   WebModule::OnRenderTreeProducedCallback render_tree_produced_callback_;
 
-  // Signalled once the splash screen has produced its first render tree or
-  // an error occurred.
-  base::WaitableEvent is_ready_;
-
   scoped_ptr<WebModule> web_module_;
+
+  // The splash screen runs on this message loop.
+  MessageLoop* const self_message_loop_;
+
+  // This is called by Shutdown (via window.close) or after
+  // the time limit has been exceeded.
+  base::CancelableClosure on_splash_screen_shutdown_complete_;
 };
 
 }  // namespace browser
