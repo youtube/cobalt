@@ -40,9 +40,6 @@ static const SchemeToFactory kBuiltinFactories[] = {
   {"https", URLRequestHttpJob::Factory},
   {"data", URLRequestDataJob::Factory},
   { "http", URLRequestHttpJob::Factory },
-#if defined(COBALT_ENABLE_FILE_SCHEME)
-  { "file", URLRequestFileJob::Factory },
-#endif
 };
 #else
 static const SchemeToFactory kBuiltinFactories[] = {
