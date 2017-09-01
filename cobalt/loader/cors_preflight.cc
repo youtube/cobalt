@@ -39,6 +39,7 @@ const char* kAccessControlAllowOrigin = "Access-Control-Allow-Origin";
 const char* kAccessControlAllowMethod = "Access-Control-Allow-Methods";
 const char* kAccessControlAllowHeaders = "Access-Control-Allow-Headers";
 const char* kAccessControlAllowCredentials = "Access-Control-Allow-Credentials";
+const char* kAccessControlMaxAge = "Access-Control-Max-Age";
 // https://fetch.spec.whatwg.org/#http-access-control-expose-headers
 const char* kAccessControlExposeHeaders = "Access-Control-Expose-Headers";
 
@@ -96,6 +97,10 @@ const char* RequestTypeToMethodName(net::URLFetcher::RequestType request_type) {
     return "";
   }
 }
+// This constant is an imposed limit on the time an entry can be alive in
+// the preflight cache if the provided max-age value is even greater.
+// The number is the same as the limit in WebKit.
+const int kPreflightCacheMaxAgeLimit = 600;
 
 // This helper function checks if 'input_str' is in 'array' up to 'size'.
 bool IsInArray(const char* input_str, const char* array[], size_t size) {
@@ -130,7 +135,8 @@ bool HasFieldValue(const std::vector<std::string>& field_values,
 CORSPreflight::CORSPreflight(GURL url, net::URLFetcher::RequestType method,
                              const network::NetworkModule* network_module,
                              base::Closure success_callback, std::string origin,
-                             base::Closure error_callback)
+                             base::Closure error_callback,
+                             scoped_refptr<CORSPreflightCache> preflight_cache)
     : credentials_mode_is_include_(false),
       force_preflight_(false),
       url_(url),
@@ -138,8 +144,10 @@ CORSPreflight::CORSPreflight(GURL url, net::URLFetcher::RequestType method,
       network_module_(network_module),
       origin_(origin),
       error_callback_(error_callback),
-      success_callback_(success_callback) {
+      success_callback_(success_callback),
+      preflight_cache_(preflight_cache) {
   DCHECK(!url_.is_empty());
+  DCHECK(preflight_cache);
 }
 
 // https://fetch.spec.whatwg.org/#cors-safelisted-request-header
@@ -180,7 +188,7 @@ bool CORSPreflight::IsSafeRequestHeader(const std::string& name,
 // https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
 bool CORSPreflight::IsSafeResponseHeader(
     const std::string& name,
-    std::vector<std::string>& CORS_exposed_header_name_list,
+    const std::vector<std::string>& CORS_exposed_header_name_list,
     bool credentials_mode_is_include) {
   // Every check in this function is case-insensitive comparison.
   // Header is safe if it's CORS-safelisted repsonse-header name.
@@ -229,20 +237,23 @@ bool CORSPreflight::IsPreflightNeeded() {
   }
   // Preflight is not needed if the request method is CORS-safelisted request
   // method and all headers are CORS-safelisted request-header.
+  std::vector<std::string> unsafe_headers;
   if (method_ == net::URLFetcher::GET || method_ == net::URLFetcher::HEAD ||
       method_ == net::URLFetcher::POST) {
     net::HttpRequestHeaders::Iterator it(headers_);
     while (it.GetNext()) {
-      if (IsSafeRequestHeader(it.name(), it.value())) {
-        continue;
-      } else {
-        return true;
+      if (!IsSafeRequestHeader(it.name(), it.value())) {
+        unsafe_headers.push_back(it.name());
       }
     }
-  } else {
-    return true;
+    if (unsafe_headers.empty()) {
+      return false;
+    }
   }
-  return false;
+  // Check preflight cache for match.
+  return !preflight_cache_->HaveEntry(url_.spec(), origin_,
+                                      credentials_mode_is_include_, method_,
+                                      unsafe_headers);
 }
 
 bool CORSPreflight::Send() {
@@ -365,11 +376,22 @@ void CORSPreflight::OnURLFetchComplete(const net::URLFetcher* source) {
         return;
       }
     }
+    // step 10-18 for adding entry to preflight cache.
+    std::string max_age_str;
+    int max_age = 0;
+    if (response_headers->GetNormalizedHeader(kAccessControlMaxAge,
+                                              &max_age_str)) {
+      max_age = std::min(SbStringAToI(max_age_str.c_str()),
+                         kPreflightCacheMaxAgeLimit);
+    }
+    preflight_cache_->AppendEntry(source->GetURL().spec(), origin_, max_age,
+                                  credentials_mode_is_include_, methods_vec,
+                                  headernames_vec);
   } else {
     DLOG(ERROR) << "CORS preflight did not get response headers";
     error_callback_.Run();
   }
-  // step 10-18 are omitted as we haven't implemented preflight cache.
+
   success_callback_.Run();
 }
 
