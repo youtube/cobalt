@@ -111,7 +111,12 @@ const float kLayoutMaxRefreshFrequencyInHz = 60.0f;
 
 // TODO: Subscribe to viewport size changes.
 
+const int kMainWebModuleZIndex = 1;
+const int kSplashScreenZIndex = 2;
+
 #if defined(ENABLE_DEBUG_CONSOLE)
+
+const int kDebugConsoleZIndex = 3;
 
 const char kFuzzerToggleCommand[] = "fuzzer_toggle";
 const char kFuzzerToggleCommandShortHelp[] = "Toggles the input fuzzer on/off.";
@@ -249,7 +254,8 @@ BrowserModule::BrowserModule(const GURL& url,
 #endif
       will_quit_(false),
       application_state_(initial_application_state),
-      splash_screen_cache_(new SplashScreenCache()) {
+      splash_screen_cache_(new SplashScreenCache()),
+      produced_render_tree_(false) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -399,13 +405,18 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (fallback_splash_screen_url_ ||
       (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+    // Create the splash screen layer.
+    splash_screen_layer_ =
+        render_tree_combiner_->CreateLayer(kSplashScreenZIndex);
+
     splash_screen_.reset(new SplashScreen(
         application_state_,
-        base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
+        base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                    base::Unretained(this)),
         &network_module_, viewport_size, GetResourceProvider(),
         kLayoutMaxRefreshFrequencyInHz, *fallback_splash_screen_url_, url,
-        splash_screen_cache_.get()));
+        splash_screen_cache_.get(),
+        base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
     lifecycle_observers_.AddObserver(splash_screen_.get());
   }
 
@@ -469,8 +480,6 @@ void BrowserModule::OnLoad() {
     return;
   }
 
-  DestroySplashScreen();
-
   // This log is relied on by the webdriver benchmark tests, so it shouldn't be
   // changed unless the corresponding benchmark logic is changed as well.
   LOG(INFO) << "Loaded WebModule";
@@ -515,12 +524,52 @@ void BrowserModule::QueueOnRenderTreeProduced(
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
 }
 
+void BrowserModule::QueueOnSplashScreenRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::QueueOnSplashScreenRenderTreeProduced()");
+  render_tree_submission_queue_.AddMessage(
+      base::Bind(&BrowserModule::OnSplashScreenRenderTreeProduced,
+                 base::Unretained(this), layout_results));
+  self_message_loop_->PostTask(
+      FROM_HERE,
+      base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
+}
+
 void BrowserModule::OnRenderTreeProduced(
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  if (splash_screen_ && !produced_render_tree_) {
+    splash_screen_->Shutdown();
+  }
+  produced_render_tree_ = true;
+
   if (application_state_ == base::kApplicationStatePreloading ||
-      !render_tree_combiner_) {
+      !render_tree_combiner_ || !main_web_module_layer_) {
+    return;
+  }
+  renderer::Submission renderer_submission(layout_results.render_tree,
+                                           layout_results.layout_time);
+  renderer_submission.on_rasterized_callback = base::Bind(
+      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
+  main_web_module_layer_->Submit(renderer_submission, true /* receive_time */);
+
+#if defined(ENABLE_SCREENSHOT)
+  screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
+      layout_results.render_tree, layout_results.layout_time));
+#endif
+}
+
+void BrowserModule::OnSplashScreenRenderTreeProduced(
+    const browser::WebModule::LayoutResults& layout_results) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnSplashScreenRenderTreeProduced()");
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  if (application_state_ == base::kApplicationStatePreloading ||
+      !render_tree_combiner_ || !splash_screen_layer_) {
     return;
   }
 
@@ -528,11 +577,14 @@ void BrowserModule::OnRenderTreeProduced(
                                            layout_results.layout_time);
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  render_tree_combiner_->UpdateMainRenderTree(renderer_submission);
+  splash_screen_layer_->Submit(renderer_submission, false /* receive_time */);
 
 #if defined(ENABLE_SCREENSHOT)
-  screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
-      layout_results.render_tree, layout_results.layout_time));
+// TODO: write screen shot using render_tree_combinder_ (to combine
+// splash screen and main web_module). Consider when the splash
+// screen is overlaid on top of the main web module render tree, and
+// a screenshot is taken : there will be a race condition on which
+// web module update their render tree last.
 #endif
 }
 
@@ -618,16 +670,16 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   if (application_state_ == base::kApplicationStatePreloading ||
-      !render_tree_combiner_) {
+      !render_tree_combiner_ || !debug_console_layer_) {
     return;
   }
 
   if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
-    render_tree_combiner_->UpdateDebugConsoleRenderTree(base::nullopt);
+    debug_console_layer_->Submit(base::nullopt);
     return;
   }
 
-  render_tree_combiner_->UpdateDebugConsoleRenderTree(renderer::Submission(
+  debug_console_layer_->Submit(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
 }
 
@@ -790,9 +842,15 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
 
 void BrowserModule::DestroySplashScreen() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::DestroySplashScreen, weak_this_));
+    return;
+  }
   if (splash_screen_) {
     lifecycle_observers_.RemoveObserver(splash_screen_.get());
   }
+  splash_screen_layer_.reset(NULL);
   splash_screen_.reset(NULL);
 }
 
@@ -1021,11 +1079,14 @@ void BrowserModule::InitializeSystemWindow() {
 
   render_tree_combiner_.reset(
       new RenderTreeCombiner(renderer_module_.get(), GetViewportSize()));
-
-  // Always render the debug console. It will draw nothing if disabled.
-  // This setting is ignored if ENABLE_DEBUG_CONSOLE is not defined.
-  // TODO: Render tree combiner should probably be refactored.
-  render_tree_combiner_->set_render_debug_console(true);
+  // Create the main web module layer.
+  main_web_module_layer_ =
+      render_tree_combiner_->CreateLayer(kMainWebModuleZIndex);
+// Create the debug console layer.
+#if defined(ENABLE_DEBUG_CONSOLE)
+  debug_console_layer_ =
+      render_tree_combiner_->CreateLayer(kDebugConsoleZIndex);
+#endif
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
@@ -1085,8 +1146,14 @@ void BrowserModule::SuspendInternal(bool is_start) {
 
   // Clear out the render tree combiner so that it doesn't hold on to any
   // render tree resources either.
-  if (render_tree_combiner_) {
-    render_tree_combiner_->Reset();
+  if (main_web_module_layer_) {
+    main_web_module_layer_->Reset();
+  }
+  if (splash_screen_layer_) {
+    splash_screen_layer_->Reset();
+  }
+  if (debug_console_layer_) {
+    debug_console_layer_->Reset();
   }
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
