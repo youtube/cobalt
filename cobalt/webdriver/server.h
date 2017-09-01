@@ -22,7 +22,9 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread.h"
 #include "base/values.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/webdriver/protocol/server_status.h"
+#include "googleurl/src/gurl.h"
 #include "net/base/stream_listen_socket.h"
 #include "net/server/http_server.h"
 
@@ -92,10 +94,13 @@ class WebDriverServer : private net::HttpServer::Delegate {
   void OnClose(int) OVERRIDE {}  // NOLINT(readability/casting)
 
  private:
+  int GetLocalAddress(GURL* out) const;
+
   base::ThreadChecker thread_checker_;
   HandleRequestCallback handle_request_callback_;
   scoped_ptr<net::StreamListenSocketFactory> factory_;
   scoped_refptr<net::HttpServer> server_;
+  base::CVal<std::string> server_address_;
 };
 
 }  // namespace webdriver
