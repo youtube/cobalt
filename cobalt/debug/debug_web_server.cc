@@ -30,12 +30,7 @@
 #include "net/base/net_errors.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
-
-#if defined(__LB_SHELL__)
-#include "lb_network_helpers.h"  // NOLINT[build/include]
-#elif defined(OS_STARBOARD)
 #include "starboard/socket.h"
-#endif
 
 namespace cobalt {
 namespace debug {
@@ -84,7 +79,6 @@ base::optional<std::string> GetLocalIpAddress() {
   net::IPEndPoint ip_addr;
   SbSocketAddress local_ip;
   SbMemorySet(&local_ip, 0, sizeof(local_ip));
-#if SB_API_VERSION >= 4
   bool result = false;
 
   // Prefer IPv4 addresses, as they're easier to type for debugging.
@@ -109,19 +103,6 @@ base::optional<std::string> GetLocalIpAddress() {
     DLOG(WARNING) << "Unable to get a local interface address.";
     return base::nullopt;
   }
-#else
-  bool result = SbSocketGetLocalInterfaceAddress(&local_ip);
-  if (!result) {
-    DLOG(WARNING) << "Unable to get a local interface address.";
-    return base::nullopt;
-  }
-
-  result = ip_addr.FromSbSocketAddress(&local_ip);
-  if (!result) {
-    LOG(WARNING) << "Got invalid local interface address.";
-    return base::nullopt;
-  }
-#endif  // SB_API_VERSION >= 4
 
   return ip_addr.ToStringWithoutPort();
 }

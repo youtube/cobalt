@@ -23,7 +23,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/image.h"
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_TRUE && SB_HAS(GRAPHICS)
 
 namespace cobalt {
 namespace loader {
@@ -35,11 +35,11 @@ ImageDecoderStarboard::ImageDecoderStarboard(
     : ImageDataDecoder(resource_provider),
       mime_type_(mime_type),
       format_(format),
-#if SB_API_VERSION >= 4
+#if SB_TRUE
       provider_(resource_provider->GetSbDecodeTargetGraphicsContextProvider()),
-#else   // #if SB_API_VERSION >= 4
+#else   // #if SB_TRUE
       provider_(resource_provider->GetSbDecodeTargetProvider()),
-#endif  // #if SB_API_VERSION >= 4
+#endif  // #if SB_TRUE
       target_(kSbDecodeTargetInvalid) {
   TRACE_EVENT0("cobalt::loader::image",
                "ImageDecoderStarboard::ImageDecoderStarboard()");
@@ -75,6 +75,6 @@ void ImageDecoderStarboard::FinishInternal() {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#endif  // SB_TRUE && SB_HAS(GRAPHICS)
 
 #endif  // #if defined(STARBOARD)

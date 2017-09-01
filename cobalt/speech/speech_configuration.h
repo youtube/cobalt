@@ -16,15 +16,14 @@
 #define COBALT_SPEECH_SPEECH_CONFIGURATION_H_
 
 #include "build/build_config.h"
-
-#if defined(OS_STARBOARD)
 #include "starboard/configuration.h"
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
+
+#if SB_HAS(MICROPHONE)
 #define SB_USE_SB_MICROPHONE 1
-#endif  // SB_HAS(MICROPHONE) && SB_VERSION(2)
+#endif  // SB_HAS(MICROPHONE)
+
 #if SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
 #define SB_USE_SB_SPEECH_RECOGNIZER 1
 #endif  // SB_HAS(SPEECH_RECOGNIZER) && SB_API_VERSION >= 5
-#endif  // defined(OS_STARBOARD)
 
 #endif  // COBALT_SPEECH_SPEECH_CONFIGURATION_H_

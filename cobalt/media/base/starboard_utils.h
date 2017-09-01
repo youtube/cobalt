@@ -39,10 +39,8 @@ void FillDrmSampleInfo(const scoped_refptr<DecoderBuffer>& buffer,
                        SbDrmSampleInfo* drm_info,
                        SbDrmSubSampleMapping* subsample_mapping);
 
-#if SB_API_VERSION >= 4
 SbMediaColorMetadata MediaToSbMediaColorMetadata(
     const WebMColorMetadata& webm_color_metadata);
-#endif
 
 }  // namespace media
 }  // namespace cobalt

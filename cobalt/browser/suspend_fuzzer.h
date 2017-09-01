@@ -22,7 +22,7 @@ namespace cobalt {
 namespace browser {
 
 // Repeatedly switch off between calling |SbSystemRequestSuspend| and
-// |SbSystemRequestUnpause|, or just no-op if on an SB_API_VERSION < 4.
+// |SbSystemRequestUnpause|.
 class SuspendFuzzer {
  public:
   SuspendFuzzer();

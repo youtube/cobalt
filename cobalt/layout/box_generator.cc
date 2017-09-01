@@ -64,7 +64,6 @@ namespace {
 scoped_refptr<render_tree::Image> GetVideoFrame(
     const scoped_refptr<ShellVideoFrameProvider>& frame_provider,
     render_tree::ResourceProvider* resource_provider) {
-#if SB_API_VERSION >= 4
   SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
   if (SbDecodeTargetIsValid(decode_target)) {
 #if SB_HAS(GRAPHICS)
@@ -72,12 +71,8 @@ scoped_refptr<render_tree::Image> GetVideoFrame(
 #else  // SB_HAS(GRAPHICS)
     UNREFERENCED_PARAMETER(resource_provider);
     return NULL;
-#endif
+#endif  // SB_HAS(GRAPHICS)
   } else {
-#else  // SB_API_VERSION >= 4
-  UNREFERENCED_PARAMETER(resource_provider);
-  {
-#endif
     DCHECK(frame_provider);
     scoped_refptr<VideoFrame> video_frame = frame_provider->GetCurrentFrame();
     if (video_frame && video_frame->texture_id()) {
