@@ -14,15 +14,24 @@
 
 // Return 0 if the given position is inside the rounded corner, or scale
 // towards 1 as it goes outside a 1-pixel anti-aliasing border.
-// |corner| is a vec4 representing (start.xy, 1 / radius.xy) with the sign of
-//   the radius component used to translate offset into the first quadrant.
-float IsOutsideRCorner(vec2 pos, vec4 corner) {
+// |rcorner| is a vec4 representing (scaled.xy, 1 / radius.xy) with scaled.xy
+//   representing the offset of the current position in terms of radius.xy
+//   (i.e. offset.xy / radius.xy). The scaled.xy values can be negative if the
+//   current position is outside the corner start.
+float IsOutsideRCorner(vec4 rcorner) {
   // Estimate the distance to an implicit function using
   //   dist = f(x,y) / length(gradient(f(x,y)))
   // For an ellipse, f(x,y) = x^2 / a^2 + y^2 / b^2 - 1.
-  vec2 scaled = max((pos - corner.xy) * corner.zw, 0.0);
+  vec2 scaled = max(rcorner.xy, 0.0);
   float implicit = dot(scaled, scaled) - 1.0;
-  vec2 gradient = 2.0 * scaled * corner.zw;
-  float inv_gradient = inversesqrt(max(dot(gradient, gradient), 0.0001));
+
+  // NOTE: To accommodate large radius values using mediump floats, rcorner.zw
+  //   was scaled by kRCornerGradientScale in the vertex attribute data.
+  //   Multiply inv_gradient by kRCornerGradientScale to undo that scaling.
+  const float kRCornerGradientScale = 16.0;
+  vec2 gradient = 2.0 * scaled * rcorner.zw;
+  float inv_gradient = kRCornerGradientScale *
+      inversesqrt(max(dot(gradient, gradient), 0.0001));
+
   return clamp(0.5 + implicit * inv_gradient, 0.0, 1.0);
 }
