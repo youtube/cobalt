@@ -1106,7 +1106,8 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
                    base::Unretained(this)),
         origin_.SerializedOrigin(),
         base::Bind(&XMLHttpRequest::CORSPreflightErrorCallback,
-                   base::Unretained(this))));
+                   base::Unretained(this)),
+        settings_->window()->get_preflight_cache()));
     corspreflight_->set_headers(request_headers_);
     // For cross-origin requests, don't send or save auth data / cookies unless
     // withCredentials was set.
@@ -1136,8 +1137,12 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  DCHECK(url_fetcher_);
-  url_fetcher_->Start();
+  if (!url_fetcher_) {
+    HandleRequestError(XMLHttpRequest::kNetworkError);
+  } else {
+    DCHECK(url_fetcher_);
+    url_fetcher_->Start();
+  }
 }
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {

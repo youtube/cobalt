@@ -40,6 +40,7 @@
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/window_timers.h"
 #include "cobalt/input/camera_3d.h"
+#include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
@@ -340,6 +341,10 @@ class Window : public EventTarget,
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content);
 
+  const scoped_refptr<loader::CORSPreflightCache> get_preflight_cache() {
+    return preflight_cache_;
+  }
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -394,6 +399,9 @@ class Window : public EventTarget,
   scoped_refptr<Storage> session_storage_;
 
   scoped_refptr<Screen> screen_;
+
+  // Global preflight cache.
+  scoped_refptr<loader::CORSPreflightCache> preflight_cache_;
 
   const base::Closure ran_animation_frame_callbacks_callback_;
   const CloseCallback window_close_callback_;
