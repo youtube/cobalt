@@ -23,7 +23,6 @@ namespace network {
 
 namespace {
 
-#if SB_API_VERSION >= 4
 bool CompareNBytesOfAddress(const SbSocketAddress& ip,
                             const SbSocketAddress& source_address,
                             const SbSocketAddress& netmask,
@@ -57,22 +56,15 @@ bool IsLocalIP(const SbSocketAddress& ip, const SbSocketAddress& source_address,
   }
 }
 
-#endif  // SB_API_VERSION >= 4
-
 }  // namespace
 
 bool IsIPInLocalNetwork(const SbSocketAddress& destination) {
-#if SB_API_VERSION >= 4
   SbSocketAddress source_address;
   SbSocketAddress netmask;
   if (!(SbSocketGetInterfaceAddress(&destination, &source_address, &netmask))) {
     return false;
   }
   return IsLocalIP(destination, source_address, netmask);
-#else
-  UNREFERENCED_PARAMETER(destination);
-  return false;
-#endif
 }
 
 bool IsIPInPrivateRange(const SbSocketAddress& ip) {
