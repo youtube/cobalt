@@ -14,13 +14,6 @@
 
 precision mediump float;
 
-// A rounded rect is represented by a vec4 specifying (min.xy, max.xy)
-// and a matrix of corners. Each vector in the matrix represents a corner
-// (order: top left, top right, bottom left, bottom right). Each corner vec4
-// represents (start.xy, radius.xy).
-uniform vec4 u_scissor_rect;
-uniform mat4 u_scissor_corners;
-
 // The rounded spread rect is represented in a way to optimize calculation of
 // the extents. Each element of a vec4 represents a corner's value -- order
 // is top left, top right, bottom left, bottom right. Extents for each corner
@@ -49,14 +42,16 @@ uniform vec2 u_gaussian_scale;
 // inset shadow with scissor rect behaving as an inclusive scissor.
 uniform vec2 u_scale_add;
 
+uniform vec4 u_color;
+
 // Blur calculations happen in terms in sigma distances. Use sigma_scale to
 // translate pixel distances into sigma distances.
 uniform vec2 u_sigma_scale;
 
 varying vec2 v_offset;
-varying vec4 v_color;
+varying vec4 v_rcorner;
 
-#include "function_is_outside_rrect.inc"
+#include "function_is_outside_rcorner.inc"
 #include "function_gaussian_integral.inc"
 
 vec2 GetXExtents(float y) {
@@ -126,8 +121,7 @@ float GetBlur(vec2 pos) {
 
 void main() {
   float scissor_scale =
-      IsOutsideRRect(v_offset, u_scissor_rect, u_scissor_corners) *
-      u_scale_add.x + u_scale_add.y;
+      IsOutsideRCorner(v_rcorner) * u_scale_add.x + u_scale_add.y;
   float blur_scale = GetBlur(v_offset) * u_scale_add.x + u_scale_add.y;
-  gl_FragColor = v_color * (blur_scale * scissor_scale);
+  gl_FragColor = u_color * (blur_scale * scissor_scale);
 }
