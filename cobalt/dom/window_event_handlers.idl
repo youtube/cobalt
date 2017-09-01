@@ -17,4 +17,5 @@
 [NoInterfaceObject]
 interface WindowEventHandlers {
   attribute EventHandler onunload;
+  attribute EventHandler onbeforeunload;
 };

@@ -14,99 +14,97 @@
 
 #include "cobalt/browser/render_tree_combiner.h"
 
+#include <map>
+
+#include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
+#include "base/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
+#include "cobalt/renderer/renderer_module.h"
+#include "cobalt/renderer/submission.h"
 
 namespace cobalt {
 namespace browser {
 
-#if defined(ENABLE_DEBUG_CONSOLE)
+RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
+    : render_tree_combiner_(render_tree_combiner),
+      render_tree_(base::nullopt),
+      receipt_time_(base::nullopt) {}
+
+RenderTreeCombiner::Layer::~Layer() {
+  DCHECK(render_tree_combiner_);
+  render_tree_combiner_->RemoveLayer(this);
+}
+
+void RenderTreeCombiner::Layer::Submit(
+    const base::optional<renderer::Submission>& render_tree_submission,
+    bool receive_time) {
+  render_tree_ = render_tree_submission;
+  if (receive_time) {
+    receipt_time_ = base::TimeTicks::HighResNow();
+  } else {
+    receipt_time_ = base::nullopt;
+  }
+  DCHECK(render_tree_combiner_);
+  render_tree_combiner_->SubmitToRenderer();
+}
+
 RenderTreeCombiner::RenderTreeCombiner(
     renderer::RendererModule* renderer_module, const math::Size& viewport_size)
-    : render_debug_console_(true),
-      renderer_module_(renderer_module),
-      viewport_size_(viewport_size) {}
+    : renderer_module_(renderer_module), viewport_size_(viewport_size) {}
 
-RenderTreeCombiner::~RenderTreeCombiner() {}
+scoped_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
+    int z_index) {
+  if (layers_.count(z_index) > 0) {
+    return scoped_ptr<RenderTreeCombiner::Layer>(NULL);
+  }
+  RenderTreeCombiner::Layer* layer = new Layer(this);
+  layers_[z_index] = layer;
 
-void RenderTreeCombiner::Reset() {
-  main_render_tree_ = base::nullopt;
-  debug_console_render_tree_ = base::nullopt;
-  main_render_tree_receipt_time_ = base::nullopt;
+  return scoped_ptr<RenderTreeCombiner::Layer>(layers_[z_index]);
 }
 
-void RenderTreeCombiner::UpdateMainRenderTree(
-    const renderer::Submission& render_tree_submission) {
-  main_render_tree_ = render_tree_submission;
-  main_render_tree_receipt_time_ = base::TimeTicks::HighResNow();
-  SubmitToRenderer();
-}
-
-void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const base::optional<renderer::Submission>& render_tree_submission) {
-  debug_console_render_tree_ = render_tree_submission;
-  SubmitToRenderer();
+void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
+  for (auto it = layers_.begin(); it != layers_.end(); /* no increment */) {
+    if (it->second == layer) {
+      it = layers_.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 
 void RenderTreeCombiner::SubmitToRenderer() {
-  if (render_debug_console_ && debug_console_render_tree_) {
-    if (main_render_tree_) {
-      render_tree::CompositionNode::Builder builder;
-      builder.AddChild(main_render_tree_->render_tree);
-      builder.AddChild(debug_console_render_tree_->render_tree);
-      scoped_refptr<render_tree::Node> combined_tree =
-          new render_tree::CompositionNode(builder);
+  render_tree::CompositionNode::Builder builder;
 
-      // Setup time to be based off of the main submitted tree only.
-      // TODO: Setup a "layers" interface on the Pipeline so that
-      // trees can be combined and animated there, properly.
-      renderer::Submission combined_submission(*main_render_tree_);
-      combined_submission.render_tree = combined_tree;
-      combined_submission.time_offset =
-          main_render_tree_->time_offset +
-          (base::TimeTicks::HighResNow() - *main_render_tree_receipt_time_);
-
-      renderer_module_->pipeline()->Submit(combined_submission);
-    } else {
-      // If we are rendering the debug console by itself, give it a solid black
-      // background to it.
-      render_tree::CompositionNode::Builder builder;
-      builder.AddChild(new render_tree::RectNode(
-          math::RectF(viewport_size_),
-          scoped_ptr<render_tree::Brush>(new render_tree::SolidColorBrush(
-              render_tree::ColorRGBA(0.0f, 0.0f, 0.0f, 1.0f)))));
-      builder.AddChild(debug_console_render_tree_->render_tree);
-
-      renderer::Submission combined_submission(*debug_console_render_tree_);
-      combined_submission.render_tree =
-          new render_tree::CompositionNode(builder);
-      renderer_module_->pipeline()->Submit(combined_submission);
+  // Add children for all layers in order.
+  base::optional<renderer::Submission> first_tree = base::nullopt;
+  base::optional<renderer::Submission> combined_submission = base::nullopt;
+  for (auto it = layers_.begin(); it != layers_.end(); ++it) {
+    RenderTreeCombiner::Layer* layer = it->second;
+    if (layer->render_tree_) {
+      builder.AddChild(layer->render_tree_->render_tree);
+      first_tree = layer->render_tree_;
+      // Make the combined submission with the first receipt_time_ we find.
+      if (!combined_submission && layer->receipt_time_) {
+        combined_submission = renderer::Submission(*layer->render_tree_);
+        combined_submission->time_offset =
+            layer->render_tree_->time_offset +
+            (base::TimeTicks::HighResNow() - *layer->receipt_time_);
+      }
     }
-  } else if (main_render_tree_) {
-    renderer_module_->pipeline()->Submit(*main_render_tree_);
   }
+  if (!first_tree) {
+    return;
+  }
+  if (!combined_submission) {
+    // None of the layers store the time.
+    combined_submission = renderer::Submission(*first_tree);
+  }
+
+  combined_submission->render_tree = new render_tree::CompositionNode(builder);
+  renderer_module_->pipeline()->Submit(*combined_submission);
 }
-#else   // ENABLE_DEBUG_CONSOLE
-RenderTreeCombiner::RenderTreeCombiner(
-    renderer::RendererModule* renderer_module, const math::Size& viewport_size)
-    : renderer_module_(renderer_module) {
-  UNREFERENCED_PARAMETER(viewport_size);
-}
-
-RenderTreeCombiner::~RenderTreeCombiner() {}
-
-void RenderTreeCombiner::Reset() {}
-
-void RenderTreeCombiner::UpdateMainRenderTree(
-    const renderer::Submission& render_tree_submission) {
-  renderer_module_->pipeline()->Submit(render_tree_submission);
-}
-
-void RenderTreeCombiner::UpdateDebugConsoleRenderTree(
-    const base::optional<renderer::Submission>& render_tree_submission) {
-  UNREFERENCED_PARAMETER(render_tree_submission);
-}
-#endif  // ENABLE_DEBUG_CONSOLE
-
 }  // namespace browser
 }  // namespace cobalt

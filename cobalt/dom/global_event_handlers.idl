@@ -44,6 +44,8 @@ interface GlobalEventHandlers {
 
   attribute EventHandler onresize;
 
+  attribute EventHandler ontransitionend;
+
   // Extensions for the Pointer Events recommendation.
   //  https://www.w3.org/TR/2015/REC-pointerevents-20150224/#extensions-to-the-globaleventhandlers-interface
   attribute EventHandler ongotpointercapture;
