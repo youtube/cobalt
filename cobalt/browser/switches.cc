@@ -83,8 +83,7 @@ const char kShutdownAfter[] = "shutdown_after";
 const char kStubImageDecoder[] = "stub_image_decoder";
 
 // If this flag is set, alternating calls to |SbSystemRequestSuspend| and
-// |SbSystemRequestUnpause| will be made periodically. Requires
-// SB_API_VERSION >= 4, and will otherwise just no-op.
+// |SbSystemRequestUnpause| will be made periodically.
 const char kSuspendFuzzer[] = "suspend_fuzzer";
 
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on

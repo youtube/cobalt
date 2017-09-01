@@ -94,23 +94,17 @@ class MockResourceProvider : public ResourceProvider {
 
 #if SB_HAS(GRAPHICS)
 
-#if SB_API_VERSION >= 3
   scoped_refptr<Image> CreateImageFromSbDecodeTarget(SbDecodeTarget target) {
     UNREFERENCED_PARAMETER(target);
     return NULL;
   }
 
   bool SupportsSbDecodeTarget() { return false; }
-#endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
     return NULL;
   }
-#elif SB_API_VERSION >= 3
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
-#endif  // SB_API_VERSION >= 4
 
 #endif  // SB_HAS(GRAPHICS)
 

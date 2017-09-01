@@ -29,9 +29,7 @@
 #include "cobalt/loader/image/webp_image_decoder.h"
 #include "net/base/mime_util.h"
 #include "net/http/http_status_code.h"
-#if defined(STARBOARD)
 #include "starboard/image.h"
-#endif
 
 namespace cobalt {
 namespace loader {
@@ -161,14 +159,12 @@ void ImageDecoder::Finish() {
       DCHECK(decoder_);
       if (decoder_->FinishWithSuccess()) {
         if (!decoder_->has_animation()) {
-#if defined(STARBOARD)
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
           SbDecodeTarget target = decoder_->RetrieveSbDecodeTarget();
           if (SbDecodeTargetIsValid(target)) {
             success_callback_.Run(new StaticImage(
                 resource_provider_->CreateImageFromSbDecodeTarget(target)));
           } else  // NOLINT
-#endif
 #endif
           {
             scoped_ptr<render_tree::ImageData> image_data =
@@ -271,8 +267,7 @@ void ImageDecoder::DecodeChunkInternal(const uint8* input_bytes, size_t size) {
 }
 
 namespace {
-#if defined(STARBOARD)
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
 const char* GetMimeTypeFromImageType(ImageDecoder::ImageType image_type) {
   switch (image_type) {
     case ImageDecoder::kImageTypeJPEG:
@@ -331,8 +326,7 @@ scoped_ptr<ImageDataDecoder> MaybeCreateStarboardDecoder(
   }
   return scoped_ptr<ImageDataDecoder>();
 }
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_HAS(GRAPHICS)
 
 scoped_ptr<ImageDataDecoder> CreateImageDecoderFromImageType(
     ImageDecoder::ImageType image_type,
@@ -383,12 +377,10 @@ bool ImageDecoder::InitializeInternalDecoder(const uint8* input_bytes,
     image_type_ = DetermineImageType(signature_cache_.data);
   }
 
-#if defined(STARBOARD)
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
   decoder_ =
       MaybeCreateStarboardDecoder(mime_type_, image_type_, resource_provider_);
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
-#endif  // defined(STARBOARD)
+#endif  // SB_HAS(GRAPHICS)
 
   if (!decoder_) {
     decoder_ = CreateImageDecoderFromImageType(image_type_, resource_provider_);
