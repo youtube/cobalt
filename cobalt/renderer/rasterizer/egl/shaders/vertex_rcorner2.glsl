@@ -11,15 +11,18 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-precision mediump float;
-
-uniform vec4 u_color;
-varying vec4 v_rcorner;
-
-#include "function_is_outside_rcorner.inc"
+uniform vec4 u_clip_adjustment;
+uniform mat3 u_view_matrix;
+attribute vec2 a_position;
+attribute vec4 a_rcorner_inner;
+attribute vec4 a_rcorner_outer;
+varying vec4 v_rcorner_inner;
+varying vec4 v_rcorner_outer;
 
 void main() {
-  float scale = IsOutsideRCorner(v_rcorner);
-  gl_FragColor = u_color * (1.0 - scale);
+  vec3 pos2d = u_view_matrix * vec3(a_position, 1);
+  gl_Position = vec4(pos2d.xy * u_clip_adjustment.xy +
+                     u_clip_adjustment.zw, 0, pos2d.z);
+  v_rcorner_inner = a_rcorner_inner;
+  v_rcorner_outer = a_rcorner_outer;
 }

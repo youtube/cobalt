@@ -18,14 +18,13 @@ uniform vec4 u_color;
 uniform vec4 u_texcoord_clamp;
 uniform sampler2D u_texture;
 
-varying vec2 v_position;
 varying vec4 v_rcorner;
 varying vec2 v_texcoord;
 
 #include "function_is_outside_rcorner.inc"
 
 void main() {
-  float scale = IsOutsideRCorner(v_position, v_rcorner);
+  float scale = IsOutsideRCorner(v_rcorner);
   gl_FragColor = u_color * (1.0 - scale) * texture2D(u_texture,
       clamp(v_texcoord, u_texcoord_clamp.xy, u_texcoord_clamp.zw));
 }

@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_SPREAD_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_RECT_SHADOW_SPREAD_H_
 
+#include <vector>
+
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
@@ -58,31 +60,43 @@ class DrawRectShadowSpread : public DrawObject {
       ShaderProgramManager* program_manager) OVERRIDE;
   base::TypeId GetTypeId() const OVERRIDE;
 
- protected:
-  typedef ShaderVertexColorOffset CommonVertexShader;
-
-  struct VertexAttributes {
+ private:
+  struct VertexAttributesSquare {
+    VertexAttributesSquare(float x, float y, uint32_t color);
     float position[2];
-    float offset[2];
     uint32_t color;
   };
 
-  DrawRectShadowSpread(GraphicsState* graphics_state,
-                       const BaseState& base_state);
-  void SetupShader(const CommonVertexShader& shader,
-                   GraphicsState* graphics_state);
-  void SetVertex(VertexAttributes* vertex, float x, float y);
+  struct VertexAttributesRound {
+    VertexAttributesRound(float x, float y,
+        const RCorner& inner, const RCorner& outer);
+    float position[2];
+    RCorner rcorner_inner;
+    RCorner rcorner_outer;
+  };
 
-  math::RectF inner_rect_;
-  math::RectF outer_rect_;
-  OptionalRoundedCorners inner_corners_;
-  OptionalRoundedCorners outer_corners_;
-  math::PointF offset_center_;
-  float offset_scale_;
-  uint32_t color_;
+  void SetupVertexShader(GraphicsState* graphics_state,
+                         const ShaderVertexColor& shader);
+  void SetupVertexShader(GraphicsState* graphics_state,
+                         const ShaderVertexRcorner2& shader);
+
+  void SetGeometry(GraphicsState* graphics_state,
+                   const math::RectF& inner_rect,
+                   const math::RectF& outer_rect);
+  void SetGeometry(GraphicsState* graphics_state,
+                   const math::RectF& inner_rect,
+                   const render_tree::RoundedCorners& inner_corners,
+                   const math::RectF& outer_rect,
+                   const render_tree::RoundedCorners& outer_corners);
+
+  render_tree::ColorRGBA color_;
+
+  std::vector<VertexAttributesSquare> attributes_square_;
+  std::vector<VertexAttributesRound> attributes_round_;
+  std::vector<uint16_t> indices_;
 
   uint8_t* vertex_buffer_;
-  int vertex_count_;
+  uint16_t* index_buffer_;
 };
 
 }  // namespace egl
