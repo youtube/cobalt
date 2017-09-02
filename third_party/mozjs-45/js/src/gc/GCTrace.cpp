@@ -4,7 +4,155 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-#ifdef JS_GC_TRACE
+#if defined(COBALT) && defined(COBALT_JS_GC_TRACE)
+
+#include "gc/GCTrace.h"
+#include "jscntxt.h"
+#include "jsfriendapi.h"
+#include "vm/Runtime.h"
+
+#include "nb/thread_local_object.h"
+#include "starboard/log.h"
+
+#include <unordered_map>
+
+namespace js {
+namespace gc {
+
+namespace {
+
+// A simple struct to bundle up both when and where a |GCThing| was allocated.
+struct AllocationInfo {
+  std::string stack;
+  SbTimeMonotonic time;
+};
+
+// A simple struct to bundle up all information relevant to the current thread
+// that we are tracing allocations for, which includes a mapping from |Cell|s
+// to their corresponding |AllocationInfo|, as well as the last time that we
+// dumped |thing2info|.
+struct TraceData {
+  std::unordered_map<Cell*, AllocationInfo> thing2info;
+  SbTimeMonotonic last_dump_time;
+};
+nb::ThreadLocalObject<TraceData> tlo_trace_data;
+
+const SbTimeMonotonic kDumpInterval = 15 * 60 * 1000 * 1000;
+const int kStackSize = 10;
+
+// Return the top first |n| stack frames of |cx| as a single string.  |cx|
+// must not be NULL.
+std::string DumpBacktrace(JSContext* cx, int n) {
+  SB_DCHECK(cx != NULL);
+
+  Sprinter sprinter(cx);
+  sprinter.init();
+  size_t depth = 0;
+
+  for (AllFramesIter it(cx); !it.done(); ++it, ++depth) {
+    if (depth > n) {
+      break;
+    }
+
+    const char* filename = JS_GetScriptFilename(it.script());
+    unsigned column = 0;
+    unsigned line = PCToLineNumber(it.script(), it.pc(), &column);
+
+    if (depth != 0) {
+      sprinter.printf(" ");
+    }
+
+    sprinter.printf("#%d %s:%d:%d", depth, filename, line, column);
+  }
+
+  return std::string(sprinter.string(),
+                     sprinter.string() + sprinter.getOffset());
+}
+
+// Add |thing| and its corresponding |AllocationInfo| to |thing2info|.
+void StartTrackingThing(Cell* thing) {
+  if (!thing) {
+    return;
+  }
+
+  auto* rt = thing->runtimeFromMainThread();
+  auto* cx = rt->contextList.getFirst();
+  // JavaScript allocations can still happen during the brief period of time
+  // in between when we destroy the sole |JSContext| and then finally destroy
+  // the entire |JSRuntime|.  They should be counted as having had no stack.
+  auto stack = cx ? DumpBacktrace(cx, kStackSize) : "";
+  auto& thing2info = tlo_trace_data.GetOrCreate()->thing2info;
+  thing2info[thing] = {stack, SbTimeGetMonotonicNow()};
+}
+
+// Remove |thing| from |tlo_thing2info|.  |tlo_thing2info| is expected to
+// actually contain |thing|, and will error if it does not.
+void StopTrackingThing(Cell* thing) {
+  if (!thing) {
+    return;
+  }
+
+  auto& thing2info = tlo_trace_data.GetOrCreate()->thing2info;
+  auto erased_count = thing2info.erase(thing);
+  SB_DCHECK(erased_count == 1);
+}
+
+// Dump the current state of the heap if |kDumpInterval| time has passed since
+// the last dump.
+void MaybeDump() {
+  auto& trace_data = *tlo_trace_data.GetOrCreate();
+  auto now = SbTimeGetMonotonicNow();
+  auto diff = now - trace_data.last_dump_time;
+  if (diff > kDumpInterval) {
+    trace_data.last_dump_time = now;
+    auto thread_id = SbThreadGetId();
+    SB_LOG(INFO) << "BEGIN_HEAP_DUMP: " << thread_id << " " << now;
+    for (const auto& pair : trace_data.thing2info) {
+      SB_LOG(INFO) << "HEAP_DUMP: " << thread_id << " "
+                   << static_cast<void*>(pair.first) << " "
+                   << pair.second.time << " " << pair.second.stack;
+    }
+    SB_LOG(INFO) << "END_HEAP_DUMP: " << thread_id << " " << now;
+  }
+}
+
+}  // namespace
+
+bool InitTrace(GCRuntime& gc) { return true; }
+
+void FinishTrace() {}
+
+bool TraceEnabled() { return true; }
+
+void TraceNurseryAlloc(Cell* thing, size_t size) {
+  // Don't do anything.  We will trace |thing| if it ends up getting
+  // tenured.
+}
+
+void TraceTenuredAlloc(Cell* thing, AllocKind kind) {
+  StartTrackingThing(thing);
+}
+
+void TraceCreateObject(JSObject* object) {}
+
+void TraceMinorGCStart() {}
+
+void TracePromoteToTenured(Cell* src, Cell* dst) { StartTrackingThing(dst); }
+
+void TraceMinorGCEnd() { MaybeDump(); }
+
+void TraceMajorGCStart() {}
+
+void TraceTenuredFinalize(Cell* thing) { StopTrackingThing(thing); }
+
+void TraceMajorGCEnd() { MaybeDump(); }
+
+void TraceTypeNewScript(js::ObjectGroup* group) {}
+
+}  // namespace gc
+}  // namespace js
+
+#elif defined(JS_GC_TRACE)
 
 #include "gc/GCTrace.h"
 
