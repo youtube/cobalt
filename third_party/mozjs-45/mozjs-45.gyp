@@ -34,6 +34,9 @@
       # See vm/Probes.h for different values. This was the value set by the
       # configure script when building for linux-release.
       'JS_DEFAULT_JITREPORT_GRANULARITY=3',
+      # |COBALT_JS_GC_TRACE| can be set here to enable the JSGCThingTracer,
+      # which logs GCThings that are alive in the JavaScript heap, along with
+      # where each thing was allocated, every 15 minutes.
     ],
     'common_include_dirs': [
       '<(DEPTH)/third_party/mozjs-45/js/src',
