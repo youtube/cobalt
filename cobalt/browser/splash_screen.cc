@@ -23,13 +23,25 @@
 #include "base/time.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/loader/cache_fetcher.h"
-#include "media/base/bind_to_loop.h"
 
 namespace cobalt {
 namespace browser {
 namespace {
 
 const int kSplashShutdownSeconds = 2;
+
+void PostCallbackToMessageLoop(const base::Closure& callback,
+                               MessageLoop* message_loop) {
+  DCHECK(message_loop);
+  message_loop->PostTask(FROM_HERE, callback);
+}
+
+// TODO: consolidate definitions of BindToLoop / BindToCurrentLoop
+// from here and media in base.
+base::Closure BindToLoop(const base::Closure& callback,
+                         MessageLoop* message_loop) {
+  return base::Bind(&PostCallbackToMessageLoop, callback, message_loop);
+}
 
 void OnError(const GURL& /* url */, const std::string& error) {
   LOG(ERROR) << error;
@@ -72,7 +84,7 @@ SplashScreen::SplashScreen(
   }
 
   base::Callback<void()> on_window_close(
-      ::media::BindToCurrentLoop(on_splash_screen_shutdown_complete));
+      BindToLoop(on_splash_screen_shutdown_complete, self_message_loop_));
 
   web_module_options.on_before_unload_fired_but_not_handled = on_window_close;
 
