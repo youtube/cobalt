@@ -1,19 +1,27 @@
 <!DOCTYPE html>
-<html style="display: none">
+<html>
 
 <head>
   <meta http-equiv="Content-Security-Policy" content="
     default-src 'unsafe-inline';
     style-src 'unsafe-inline';
     script-src 'unsafe-inline';">
+  <script>
+    window.onload = function () {
+      console.log('renderPostponed = ' + String(document.renderPostponed));
+      document.renderPostponed = true;
+      console.log('Calling renderPostponed = true')
+      document.renderPostponed = true;
+      console.log('...waiting 5s')
+      window.setTimeout(function() {
+        console.log('Calling renderPostponed = false')
+        document.renderPostponed = false;
+      }, 5000);
+    }
+    </script>
 </head>
 
-<script>
-  window.setTimeout(function() {
-    console.log('Changing html style to block');
-    document.getElementsByTagName('html')[0].style.display = 'block';
-  }, 5000);
-</script>
+
 <body style="background-color: #1f52a5;">
 <h1>Heading</h1>
 
