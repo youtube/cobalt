@@ -91,7 +91,8 @@ Document::Document(HTMLElementContext* html_element_context,
       user_agent_style_sheet_(options.user_agent_style_sheet),
       initial_computed_style_declaration_(
           new cssom::CSSComputedStyleDeclaration()),
-      dom_max_element_depth_(options.dom_max_element_depth) {
+      dom_max_element_depth_(options.dom_max_element_depth),
+      render_postponed_(false) {
   DCHECK(html_element_context_);
   DCHECK(options.url.is_empty() || options.url.is_valid());
   html_element_context_->page_visibility_state()->AddObserver(this);
@@ -898,6 +899,14 @@ void Document::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(location_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
+}
+
+void Document::set_render_postponed(bool render_postponed) {
+  bool unpostponed = render_postponed_ && !render_postponed;
+  render_postponed_ = render_postponed;
+  if (unpostponed) {
+    RecordMutation();
+  }
 }
 
 void Document::DispatchOnLoadEvent() {
