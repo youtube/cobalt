@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/debug/trace_event.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/cssom/computed_style.h"
 #include "cobalt/cssom/css_computed_style_declaration.h"
@@ -64,6 +65,7 @@ namespace {
 scoped_refptr<render_tree::Image> GetVideoFrame(
     const scoped_refptr<ShellVideoFrameProvider>& frame_provider,
     render_tree::ResourceProvider* resource_provider) {
+  TRACE_EVENT0("cobalt::layout", "GetVideoFrame()");
   SbDecodeTarget decode_target = frame_provider->GetCurrentSbDecodeTarget();
   if (SbDecodeTargetIsValid(decode_target)) {
 #if SB_HAS(GRAPHICS)
