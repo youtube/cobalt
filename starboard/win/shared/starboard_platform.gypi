@@ -246,7 +246,6 @@
         '<(DEPTH)/starboard/shared/stub/cryptography_transform.cc',
         '<(DEPTH)/starboard/shared/stub/image_decode.cc',
         '<(DEPTH)/starboard/shared/stub/image_is_decode_supported.cc',
-        '<(DEPTH)/starboard/shared/stub/media_set_output_protection.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_stack.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_total_gpu_memory.cc',
         '<(DEPTH)/starboard/shared/stub/system_get_used_gpu_memory.cc',

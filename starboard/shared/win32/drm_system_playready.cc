@@ -184,8 +184,9 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
       }
 
       if (item.second->IsHDCPRequired()) {
-        // TODO: Enforce HDCP
-        // if (!is_hdcp_enabled()) { return kFailure; }
+        if (!SbMediaSetOutputProtection(true)) {
+          return kFailure;
+        }
       }
 
       return kSuccess;
