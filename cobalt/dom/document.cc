@@ -81,6 +81,8 @@ Document::Document(HTMLElementContext* html_element_context,
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
       partial_layout_is_enabled_(true),
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
+      selector_tree_(new cssom::SelectorTree()),
+      should_recreate_selector_tree_(false),
       navigation_start_clock_(options.navigation_start_clock
                                   ? options.navigation_start_clock
                                   : new base::SystemMonotonicClock()),
@@ -550,28 +552,30 @@ void Document::OnElementInlineStyleMutation() {
 namespace {
 
 void RemoveRulesFromCSSRuleListFromSelectorTree(
-    cssom::SelectorTree* selector_tree,
-    const scoped_refptr<cssom::CSSRuleList>& css_rule_list) {
+    const scoped_refptr<cssom::CSSRuleList>& css_rule_list,
+    cssom::SelectorTree* maybe_selector_tree) {
   for (unsigned int i = 0; i < css_rule_list->length(); ++i) {
     cssom::CSSRule* rule = css_rule_list->Item(i);
 
     cssom::CSSStyleRule* css_style_rule = rule->AsCSSStyleRule();
     if (css_style_rule && css_style_rule->added_to_selector_tree()) {
-      selector_tree->RemoveRule(css_style_rule);
+      if (maybe_selector_tree) {
+        maybe_selector_tree->RemoveRule(css_style_rule);
+      }
       css_style_rule->set_added_to_selector_tree(false);
     }
 
     cssom::CSSMediaRule* css_media_rule = rule->AsCSSMediaRule();
     if (css_media_rule) {
-      RemoveRulesFromCSSRuleListFromSelectorTree(selector_tree,
-                                                 css_media_rule->css_rules());
+      RemoveRulesFromCSSRuleListFromSelectorTree(css_media_rule->css_rules(),
+                                                 maybe_selector_tree);
     }
   }
 }
 
 void AppendRulesFromCSSRuleListToSelectorTree(
-    cssom::SelectorTree* selector_tree,
-    const scoped_refptr<cssom::CSSRuleList>& css_rule_list) {
+    const scoped_refptr<cssom::CSSRuleList>& css_rule_list,
+    cssom::SelectorTree* selector_tree) {
   for (unsigned int i = 0; i < css_rule_list->length(); ++i) {
     cssom::CSSRule* rule = css_rule_list->Item(i);
 
@@ -584,21 +588,26 @@ void AppendRulesFromCSSRuleListToSelectorTree(
     cssom::CSSMediaRule* css_media_rule = rule->AsCSSMediaRule();
     if (css_media_rule) {
       if (css_media_rule->condition_value()) {
-        AppendRulesFromCSSRuleListToSelectorTree(selector_tree,
-                                                 css_media_rule->css_rules());
+        AppendRulesFromCSSRuleListToSelectorTree(css_media_rule->css_rules(),
+                                                 selector_tree);
       } else {
-        RemoveRulesFromCSSRuleListFromSelectorTree(selector_tree,
-                                                   css_media_rule->css_rules());
+        RemoveRulesFromCSSRuleListFromSelectorTree(css_media_rule->css_rules(),
+                                                   selector_tree);
       }
     }
   }
 }
 
-void UpdateSelectorTreeFromCSSStyleSheet(
-    cssom::SelectorTree* selector_tree,
+void AppendRulesFromCSSStyleSheetToSelectorTree(
+    const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
+    cssom::SelectorTree* selector_tree) {
+  AppendRulesFromCSSRuleListToSelectorTree(style_sheet->css_rules(),
+                                           selector_tree);
+}
+
+void ClearAddedToSelectorTreeFromCSSStyleSheetRules(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
-  AppendRulesFromCSSRuleListToSelectorTree(selector_tree,
-                                           style_sheet->css_rules());
+  RemoveRulesFromCSSRuleListFromSelectorTree(style_sheet->css_rules(), NULL);
 }
 
 }  // namespace
@@ -789,16 +798,37 @@ void Document::UpdateSelectorTree() {
     UpdateStyleSheets();
     UpdateMediaRules();
 
+    // If the selector tree is being recreated, then clear the added state from
+    // the document's style sheets. This will cause them to be added to the new
+    // selector tree.
+    if (should_recreate_selector_tree_) {
+      DLOG(WARNING) << "A style sheet was removed from the document or the "
+                       "document's style sheets have been reordered. This "
+                       "triggers a recreation of the selector tree and should "
+                       "be avoided if possible.";
+      if (user_agent_style_sheet_) {
+        ClearAddedToSelectorTreeFromCSSStyleSheetRules(user_agent_style_sheet_);
+      }
+      for (unsigned int style_sheet_index = 0;
+           style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
+        scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
+            style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
+        ClearAddedToSelectorTreeFromCSSStyleSheetRules(css_style_sheet);
+      }
+      selector_tree_.reset(new cssom::SelectorTree());
+      should_recreate_selector_tree_ = false;
+    }
+
     if (user_agent_style_sheet_) {
-      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_,
-                                          user_agent_style_sheet_);
+      AppendRulesFromCSSStyleSheetToSelectorTree(user_agent_style_sheet_,
+                                                 selector_tree_.get());
     }
     for (unsigned int style_sheet_index = 0;
          style_sheet_index < style_sheets_->length(); ++style_sheet_index) {
       scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
           style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet();
-
-      UpdateSelectorTreeFromCSSStyleSheet(&selector_tree_, css_style_sheet);
+      AppendRulesFromCSSStyleSheetToSelectorTree(css_style_sheet,
+                                                 selector_tree_.get());
     }
     scoped_refptr<HTMLHtmlElement> current_html = html();
     if (current_html) {
@@ -914,6 +944,22 @@ void Document::UpdateStyleSheets() {
          child = child->next_element_sibling()) {
       child->CollectStyleSheetsOfElementAndDescendants(&style_sheet_vector);
     }
+
+    // Check for the removal or reordering of any of the pre-existing style
+    // sheets. In either of these cases, the selector tree must be recreated.
+    if (style_sheets_->length() > style_sheet_vector.size()) {
+      should_recreate_selector_tree_ = true;
+    }
+    for (unsigned int style_sheet_index = 0;
+         !should_recreate_selector_tree_ &&
+         style_sheet_index < style_sheets_->length();
+         ++style_sheet_index) {
+      if (style_sheets_->Item(style_sheet_index)->AsCSSStyleSheet().get() !=
+          style_sheet_vector[style_sheet_index]->AsCSSStyleSheet().get()) {
+        should_recreate_selector_tree_ = true;
+      }
+    }
+
     style_sheets_ = new cssom::StyleSheetList(style_sheet_vector, this);
     are_style_sheets_dirty_ = false;
   }
