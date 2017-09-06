@@ -19,14 +19,18 @@
 #include <string>
 
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/log_file_impl.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/command_line.h"
 
 using starboard::android::shared::ApplicationAndroid;
 using starboard::shared::starboard::CommandLine;
+using starboard::android::shared::CloseLogFile;
 
 namespace {
+
 const char kExitFilePathSwitch[] = "android_exit_file";
+
 }
 
 void SbSystemRequestStop(int error_level) {
@@ -61,6 +65,8 @@ void SbSystemRequestStop(int error_level) {
       rename(temp_path.c_str(), path.c_str());
     }
   }
+
+  CloseLogFile();
 
   ANativeActivity_finish(ApplicationAndroid::Get()->GetActivity());
 }
