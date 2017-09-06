@@ -73,8 +73,10 @@ class DrawRectShadowBlur : public DrawObject {
   };
 
   struct VertexAttributesRound {
-    VertexAttributesRound(float x, float y, const RCorner& init);
+    VertexAttributesRound(float x, float y, float offset_scale,
+                          const RCorner& rcorner);
     float position[2];
+    float offset[2];
     RCorner rcorner_scissor;
   };
 
@@ -95,6 +97,7 @@ class DrawRectShadowBlur : public DrawObject {
   void SetGeometry(GraphicsState* graphics_state,
                    const RRectAttributes (&rrect_outer)[4],
                    const RRectAttributes (&rrect_inner)[8]);
+  void AddQuad(const math::RectF& rect, float scale, const RCorner& rcorner);
 
   math::RectF spread_rect_;
   OptionalRoundedCorners spread_corners_;
