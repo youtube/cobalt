@@ -7,7 +7,7 @@ varying vec4 vColor;
 varying vec2 vMatrixCoord_Stage0;
 varying vec2 vMatrixCoord_Stage1;
 
-void main() 
+void main()
 {
   vec4 output_Stage0;
   {
