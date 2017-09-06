@@ -244,11 +244,14 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   head_->set_inner_html("<style>:focus {}</style>");
   body_->set_inner_html("<div tabIndex=\"-1\"/>");
   body_->first_element_child()->AsHTMLElement()->Focus();
+  // This is required because RunFocusingSteps() earlies out as a result of the
+  // document not having a browsing context.
+  root_->InvalidateMatchingRulesRecursively();
   UpdateAllMatchingRules();
 
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
-  ASSERT_EQ(2, matching_rules->size());
+  ASSERT_EQ(1, matching_rules->size());
   EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
             (*matching_rules)[0].first);
 }
@@ -703,6 +706,104 @@ TEST_F(RuleMatchingTest, QuerySelectorAllShouldReturnAllMatches) {
 
   node_list = QuerySelectorAll(document_, "span", css_parser_.get());
   EXPECT_EQ(0, node_list->length());
+}
+
+TEST_F(RuleMatchingTest, StyleElementRemoval) {
+  head_->set_inner_html("<style>* {}</style>");
+  body_->set_inner_html("<div/>");
+  UpdateAllMatchingRules();
+  head_->set_inner_html("<style/>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(0, matching_rules->size());
+}
+
+TEST_F(RuleMatchingTest, StyleElementAddition) {
+  head_->set_inner_html("<style/>");
+  body_->set_inner_html("<div/>");
+  UpdateAllMatchingRules();
+  head_->set_inner_html("<style>* {}</style>");
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      body_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+}
+
+TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
+  scoped_refptr<HTMLElement> div1 =
+      document_->CreateElement("div")->AsHTMLElement();
+  div1->set_inner_html("<style/>");
+
+  scoped_refptr<HTMLElement> div2 =
+      document_->CreateElement("div")->AsHTMLElement();
+  div2->set_inner_html("<style>* {}</style>");
+
+  body_->set_inner_html("<div/>");
+  head_->AppendChild(div1);
+  head_->AppendChild(div2);
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      head_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_NE(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+  EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+
+  head_->RemoveChild(div2);
+  head_->InsertBefore(div2, div1);
+
+  UpdateAllMatchingRules();
+
+  matching_rules =
+      head_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(1, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+}
+
+TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
+  scoped_refptr<HTMLElement> div1 =
+      document_->CreateElement("div")->AsHTMLElement();
+  div1->set_inner_html("<style>* {}</style>");
+
+  scoped_refptr<HTMLElement> div2 =
+      document_->CreateElement("div")->AsHTMLElement();
+  div2->set_inner_html("<style>* {}</style>");
+
+  body_->set_inner_html("<div/>");
+  head_->AppendChild(div1);
+  head_->AppendChild(div2);
+
+  UpdateAllMatchingRules();
+
+  cssom::RulesWithCascadePrecedence* matching_rules =
+      head_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(2, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+
+  head_->RemoveChild(div2);
+  head_->InsertBefore(div2, div1);
+
+  UpdateAllMatchingRules();
+
+  matching_rules =
+      head_->first_element_child()->AsHTMLElement()->matching_rules();
+  ASSERT_EQ(2, matching_rules->size());
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+            (*matching_rules)[0].first);
 }
 
 }  // namespace dom

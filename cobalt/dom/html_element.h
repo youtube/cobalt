@@ -190,8 +190,8 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   }
   // Returns the rule matching state of this element.
   RuleMatchingState* rule_matching_state() { return &rule_matching_state_; }
-  // Invalidates the matching rules and rule matching state in this element and
-  // its descendants.
+  // Invalidates the matching rules and rule matching state in this element,
+  // its descendants and its siblings.
   void InvalidateMatchingRulesRecursively();
 
   // Computed style related methods.
@@ -263,6 +263,7 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return descendant_computed_styles_valid_;
   }
   bool matching_rules_valid() const { return matching_rules_valid_; }
+  void set_matching_rules_valid() { matching_rules_valid_ = true; }
 
   // Returns whether the element has been designated.
   //   https://www.w3.org/TR/selectors4/#hover-pseudo
@@ -316,6 +317,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // determining directionality of elements. As a result of this, setting the
   // directionality does not invalidate the computed style.
   void SetDirectionality(const std::string& value);
+
+  // Invalidates the matching rules and rule matching state in this element and
+  // its descendants. In the case where this is the the initial invalidation,
+  // it will also invalidate the rule matching state of its siblings.
+  void InvalidateMatchingRulesRecursivelyInternal(bool is_initial_invalidation);
 
   // Clear the list of active background images, and notify the animated image
   // tracker to stop the animations.
@@ -374,11 +380,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   cssom::RulesWithCascadePrecedence old_matching_rules_;
   cssom::RulesWithCascadePrecedence matching_rules_;
   RuleMatchingState rule_matching_state_;
+  bool matching_rules_valid_;
 
   // This contains information about the boxes generated from the element.
   scoped_ptr<LayoutBoxes> layout_boxes_;
-
-  bool matching_rules_valid_;
 
   scoped_ptr<PseudoElement> pseudo_elements_[kMaxPseudoElementType];
   base::WeakPtr<DOMStringMap> dataset_;
