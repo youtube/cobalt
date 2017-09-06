@@ -151,7 +151,7 @@ bool AudioSinkTestEnvironment::WaitUntilSomeFramesAreConsumed() {
 bool AudioSinkTestEnvironment::WaitUntilAllFramesAreConsumed() {
   ScopedLock lock(mutex_);
   SbTimeMonotonic start = SbTimeGetMonotonicNow();
-  while (frames_appended_ == frames_consumed_) {
+  while (frames_appended_ != frames_consumed_) {
     SbTime time_elapsed = SbTimeGetMonotonicNow() - start;
     if (time_elapsed >= kTimeToTry) {
       return false;
