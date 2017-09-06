@@ -14,15 +14,20 @@
 
 #include <android/log.h>
 #include <stdio.h>
+#include <string>
 
+#include "starboard/android/shared/log_file_impl.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/string.h"
 
+using starboard::android::shared::WriteToLogFile;
+
 namespace {
-std::stringstream log_line;
 SbMutex log_line_mutex = SB_MUTEX_INITIALIZER;
+std::stringstream log_line;
 const int kFormatBufferSizeBytes = 16 * 1024;
+
 }  // namespace
 
 void SbLogFormat(const char* format, va_list arguments) {
@@ -46,6 +51,8 @@ void SbLogFormat(const char* format, va_list arguments) {
 
     // TODO what's the correct priority for SbLogFormat?
     __android_log_write(ANDROID_LOG_INFO, "starboard", log_line.str().c_str());
+
+    WriteToLogFile(log_line.str().c_str());
 
     log_line.str("");
     log_line.clear();

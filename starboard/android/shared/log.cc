@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/log.h"
-
 #include <android/log.h>
-
-#include <string.h>
 #include <stdio.h>
 #include <unistd.h>
+
+#include <string>
+
+#include "starboard/android/shared/log_file_impl.h"
+#include "starboard/log.h"
+#include "starboard/mutex.h"
+
+using starboard::android::shared::WriteToLogFile;
 
 void SbLog(SbLogPriority priority, const char* message) {
   int android_priority;
@@ -43,4 +47,8 @@ void SbLog(SbLogPriority priority, const char* message) {
       break;
   }
   __android_log_write(android_priority, "starboard", message);
+
+  std::string message_str(message);
+
+  WriteToLogFile(message_str.c_str());
 }

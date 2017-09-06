@@ -24,10 +24,12 @@
 #include <vector>
 
 #include "starboard/accessibility.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/log_file_impl.h"
 #include "starboard/android/shared/window_internal.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
@@ -39,6 +41,8 @@
 namespace starboard {
 namespace android {
 namespace shared {
+
+using ::starboard::shared::starboard::CommandLine;
 
 namespace {
 
@@ -79,6 +83,8 @@ void ProcessKeyboardInject(struct android_app* app,
                            struct android_poll_source* source) {
   ToApplication(app)->OnKeyboardInject();
 }
+
+const char kLogPathSwitch[] = "android_log_file";
 
 }  // namespace
 
@@ -384,6 +390,12 @@ extern "C" void android_main(struct android_app* state) {
   GetArgs(state, &args);
 
   ApplicationAndroid application(state);
+
+  CommandLine* cl = new CommandLine(args.size(), args.data());
+  if (cl->HasSwitch(kLogPathSwitch)) {
+    std::string switch_val = cl->GetSwitchValue(kLogPathSwitch);
+    OpenLogFile(switch_val.c_str());
+  }
 
   std::string start_url(GetStartIntentUrl());
   if (!start_url.empty()) {
