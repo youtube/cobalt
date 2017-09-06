@@ -39,7 +39,8 @@ class VideoRenderer {
   virtual void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) = 0;
   virtual void WriteEndOfStream() = 0;
   virtual void Seek(SbMediaTime seek_to_pts) = 0;
-  virtual scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time) = 0;
+  virtual scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time,
+                                                    bool audio_eos_reached) = 0;
   virtual bool IsEndOfStreamWritten() const = 0;
   virtual bool IsEndOfStreamPlayed() const = 0;
   virtual bool CanAcceptMoreData() const = 0;
