@@ -90,7 +90,7 @@ TEST_P(LayoutTest, LayoutTest) {
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =
       new render_tree::animations::AnimateNode(layout_results.render_tree);
   scoped_refptr<render_tree::Node> animated_tree =
-      animate_node->Apply(layout_results.layout_time).animated;
+      animate_node->Apply(layout_results.layout_time).animated->source();
 
   bool results =
       pixel_tester.TestTree(animated_tree, GetParam().base_file_path);
