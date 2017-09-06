@@ -87,7 +87,8 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
 }
 
 scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
-    SbMediaTime media_time) {
+    SbMediaTime media_time,
+    bool audio_eos_reached) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(mutex_);
 
@@ -101,6 +102,12 @@ scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
       ++dropped_frames_;
     }
     frames_.pop_front();
+  }
+
+  if (audio_eos_reached) {
+    while (frames_.size() > 1) {
+      frames_.pop_back();
+    }
   }
 
   last_displayed_frame_ = frames_.front();
