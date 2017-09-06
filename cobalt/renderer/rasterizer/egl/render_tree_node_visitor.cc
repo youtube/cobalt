@@ -64,8 +64,12 @@ math::Rect RoundRectFToInt(const math::RectF& input) {
 }
 
 bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
-  return matrix(2, 0) == 0 && matrix(2, 1) == 0 && matrix(2, 2) == 1 &&
-         matrix(0, 1) == 0 && matrix(1, 0) == 0;
+  const float kEpsilon = 0.0001f;
+  return std::abs(matrix(0, 1)) < kEpsilon &&
+         std::abs(matrix(1, 0)) < kEpsilon &&
+         std::abs(matrix(2, 0)) < kEpsilon &&
+         std::abs(matrix(2, 1)) < kEpsilon &&
+         std::abs(matrix(2, 2) - 1.0f) < kEpsilon;
 }
 
 math::Matrix3F GetTexcoordTransform(
@@ -672,15 +676,28 @@ void RenderTreeNodeVisitor::GetOffscreenTarget(
   // Get a suitable cache of the render tree node if one exists, or allocate
   // a new offscreen target if possible. The OffscreenTargetErrorFunction will
   // determine whether any caches are fit for use.
-  *out_content_cached = offscreen_target_manager_->GetCachedOffscreenTarget(
-      node, base::Bind(&OffscreenTargetErrorFunction, mapped_bounds),
-      out_target_info);
-  if (!(*out_content_cached)) {
-    offscreen_target_manager_->AllocateOffscreenTarget(node,
-        content_size, mapped_bounds, out_target_info);
+
+  // Do not cache rotating nodes since these will result in inappropriate
+  // reuse of offscreen targets. Transforms that are rotations of angles in
+  // the first quadrant will produce the same mapped rect sizes as angles in
+  // the other 3 quadrants. Also avoid caching reflections.
+  bool allow_caching = IsOnlyScaleAndTranslate(draw_state_.transform) &&
+                       draw_state_.transform(0, 0) > 0.0f &&
+                       draw_state_.transform(1, 1) > 0.0f;
+  if (allow_caching) {
+    *out_content_cached = offscreen_target_manager_->GetCachedOffscreenTarget(
+        node, base::Bind(&OffscreenTargetErrorFunction, mapped_bounds),
+        out_target_info);
+    if (!(*out_content_cached)) {
+      offscreen_target_manager_->AllocateOffscreenTarget(node,
+          content_size, mapped_bounds, out_target_info);
+    } else {
+      // Maintain the size of the cached contents to avoid scaling artifacts.
+      content_size = out_target_info->region.size();
+    }
   } else {
-    // Maintain the size of the cached contents to avoid scaling artifacts.
-    content_size = out_target_info->region.size();
+    *out_content_cached = false;
+    out_target_info->framebuffer = nullptr;
   }
 
   // If no offscreen target could be allocated, then the render tree node will
