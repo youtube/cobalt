@@ -432,6 +432,18 @@ TEST(AutoMem, MaxGpuIsEnabledWhenReduceCpuMemoryIsExplicitlyDisabled) {
   EXPECT_LE(memory_consumption, kSmallEngineGpuMemorySize);
 }
 
+// Tests that if the gpu memory could not be queried then the resulting
+// max_gpu_bytes will not be valid.
+TEST(AutoMem, NoDefaultGpuMemory) {
+  AutoMemSettings command_line_settings(AutoMemSettings::kTypeCommandLine);
+  AutoMemSettings build_settings(AutoMemSettings::kTypeBuild);
+
+  AutoMem auto_mem(kResolution1080p, command_line_settings,
+                   build_settings);
+
+  EXPECT_FALSE(auto_mem.max_gpu_bytes()->valid());
+}
+
 }  // namespace memory_settings
 }  // namespace browser
 }  // namespace cobalt
