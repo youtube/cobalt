@@ -76,9 +76,6 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   // get the port information
   int ret = http_server_->GetLocalAddress(addr);
 
-#if defined(OS_STARBOARD)
-
-#if SB_API_VERSION >= 4
   if (ret != 0) {
     return ERR_FAILED;
   }
@@ -101,24 +98,6 @@ int DialHttpServer::GetLocalAddress(IPEndPoint* addr) {
   }
 
   return ERR_FAILED;
-#else
-  SbSocketAddress address;
-  ret |= SbSocketGetLocalInterfaceAddress(&address) ? 0 : -1;
-  address.port = addr->port();
-  return (ret == 0 && addr->FromSbSocketAddress(&address)) ? OK : ERR_FAILED;
-#endif  // SB_API_VERSION >= 4
-
-#else
-  // Now get the IPAddress of the network card.
-  SockaddrStorage sock_addr;
-  struct sockaddr_in *in = (struct sockaddr_in *)sock_addr.addr;
-  ret |= lb_get_local_ip_address(&in->sin_addr);
-  in->sin_family = AF_INET;
-  in->sin_port = htons(addr->port());
-
-  return (ret == 0 && addr->FromSockAddr(sock_addr.addr, sock_addr.addr_len))
-      ? OK : ERR_FAILED;
-#endif
 }
 
 void DialHttpServer::OnHttpRequest(int conn_id,
