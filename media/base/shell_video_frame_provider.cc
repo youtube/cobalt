@@ -17,9 +17,7 @@
 #include "media/base/shell_video_frame_provider.h"
 
 #include "base/logging.h"
-#if SB_API_VERSION >= 4
 #include "starboard/decode_target.h"
-#endif  // #if SB_API_VERSION >= 4
 
 namespace media {
 
@@ -113,8 +111,6 @@ ShellVideoFrameProvider::OutputMode ShellVideoFrameProvider::GetOutputMode()
   return output_mode_;
 }
 
-#if SB_API_VERSION >= 4
-
 void ShellVideoFrameProvider::SetGetCurrentSbDecodeTargetFunction(
     GetCurrentSbDecodeTargetFunction function) {
   base::AutoLock auto_lock(frames_lock_);
@@ -134,8 +130,6 @@ SbDecodeTarget ShellVideoFrameProvider::GetCurrentSbDecodeTarget() const {
     return get_current_sb_decode_target_function_.Run();
   }
 }
-
-#endif  // #if SB_API_VERSION >= 4
 
 void ShellVideoFrameProvider::AddFrame(const scoped_refptr<VideoFrame>& frame) {
   base::AutoLock auto_lock(frames_lock_);
