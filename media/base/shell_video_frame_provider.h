@@ -37,9 +37,7 @@ namespace media {
 class ShellVideoFrameProvider
     : public base::RefCountedThreadSafe<ShellVideoFrameProvider> {
  public:
-#if SB_API_VERSION >= 4
   typedef base::Callback<SbDecodeTarget()> GetCurrentSbDecodeTargetFunction;
-#endif  // SB_API_VERSION >= 4
 
   enum OutputMode {
     kOutputModePunchOut,
@@ -72,7 +70,6 @@ class ShellVideoFrameProvider
   void SetOutputMode(OutputMode output_mode);
   OutputMode GetOutputMode() const;
 
-#if SB_API_VERSION >= 4
   // For Starboard platforms that have a decode-to-texture player, we enable
   // this ShellVideoFrameProvider to act as a bridge for Cobalt code to query
   // for the current SbDecodeTarget.  In effect, we bypass all of
@@ -85,7 +82,6 @@ class ShellVideoFrameProvider
   void ResetGetCurrentSbDecodeTargetFunction();
 
   SbDecodeTarget GetCurrentSbDecodeTarget() const;
-#endif  // SB_API_VERSION >= 4
 
   void AddFrame(const scoped_refptr<VideoFrame>& frame);
   // Flush will clear all cached frames except the current frame. So the current
@@ -120,9 +116,7 @@ class ShellVideoFrameProvider
 #endif  // !defined(__LB_SHELL__FOR_RELEASE__)
 
   OutputMode output_mode_;
-#if SB_API_VERSION >= 4
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;
-#endif  // SB_API_VERSION >= 4
 
   DISALLOW_COPY_AND_ASSIGN(ShellVideoFrameProvider);
 };
