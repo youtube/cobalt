@@ -251,7 +251,7 @@ class Document : public Node,
     return &scripts_to_be_executed_;
   }
 
-  cssom::SelectorTree* selector_tree() { return &selector_tree_; }
+  cssom::SelectorTree* selector_tree() { return selector_tree_.get(); }
 
   // Returns a mapping from keyframes name to CSSKeyframesRule.  This can be
   // used to quickly lookup the @keyframes rule given a string identifier.
@@ -465,7 +465,12 @@ class Document : public Node,
   // List of document observers.
   ObserverList<DocumentObserver> observers_;
   // Selector Tree.
-  cssom::SelectorTree selector_tree_;
+  scoped_ptr<cssom::SelectorTree> selector_tree_;
+  // This is set when the document has a style sheet removed or the order of its
+  // style sheets changed. In this case, it is more straightforward to simply
+  // recreate the selector tree than to attempt to manage updating all of its
+  // internal state.
+  bool should_recreate_selector_tree_;
   // The document's latest sample from the global clock, used for updating
   // animations.
   const scoped_refptr<base::Clock> navigation_start_clock_;
