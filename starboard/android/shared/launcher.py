@@ -17,7 +17,6 @@
 import importlib
 import os
 import sys
-import tempfile
 
 if 'environment' in sys.modules:
   environment = sys.modules['environment']
@@ -32,8 +31,8 @@ import Queue
 import re
 import signal
 import subprocess
-import threading
 import time
+import threading
 
 import starboard.tools.abstract_launcher as abstract_launcher
 
@@ -118,7 +117,17 @@ class ExitFileWatch(object):
   def Shutdown(self):
     self.shutdown_event.set()
 
+  def Restart(self):
+    self.thread = threading.Thread(target=self._Run)
+    self.thread.start()
+
   def _Run(self):
+    """Continually checks if the launcher's executable has exited.
+
+    This process can seemingly detect the existance of the exit file
+    before it actually exists.  If this is the case, this class'
+    Restart() function can be used to start the search process again.
+    """
     while not self.shutdown_event.is_set():
       p = subprocess.Popen(
           self.adb_builder.Build('shell', 'cat', self.exitcode_path),
@@ -251,7 +260,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return result
 
   def _CheckCall(self, *args):
-    sys.stderr.write('{}'.format(' '.join(args)))
+    sys.stderr.write('{}\n'.format(' '.join(args)))
     subprocess.check_call(args, stdout=_DEV_NULL, stderr=_DEV_NULL)
 
   def _CheckCallAdb(self, *in_args):
@@ -414,10 +423,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('logcat', '-c')
 
     logcat_process = self._PopenAdb(
-        'logcat', '-s', 'starboard:*', '*:W', stdout=subprocess.PIPE)
+        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE)
 
     exit_code_path = TargetOsPathJoin(self.data_dir, 'files', 'exitcode')
+    log_file_path = TargetOsPathJoin(self.data_dir, 'files', 'log')
     self._CheckCallAdb('shell', 'rm', '-f', exit_code_path)
+    self._CheckCallAdb('shell', 'rm', '-f', log_file_path)
 
     queue = Queue.Queue()
     am_monitor = AdbAmMonitorWatcher(self.adb_builder, queue)
@@ -431,14 +442,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
     try:
       args = [_APP_START_INTENT]
 
-      extra_args = ['--android_exit_file={}'.format(exit_code_path)]
+      extra_args = ['--android_exit_file={}'.format(exit_code_path),
+                    '--android_log_file={}'.format(log_file_path)]
       extra_args += self.target_command_line_params
 
       extra_args_string = ','.join(extra_args)
       args = ['shell', 'am', 'start', '--esa', 'args', extra_args_string] + args
 
       self._CheckCallAdb(*args)
-      self.time_started = time.time()
+
+      # We need to know that the executable has completed in order to
+      # get the full information off of the device's log file.
+      executable_complete = False
 
       # Note we cannot use "for line in logcat_process.stdout" because
       # that uses a large buffer which will cause us to deadlock.
@@ -454,21 +469,30 @@ class Launcher(abstract_launcher.AbstractLauncher):
           if queue_code == _QUEUE_CODE_CRASHED:
             print '***Application Crashed***'
           else:
-            p = self._PopenAdb(
-                'shell', 'cat', exit_code_path, stdout=subprocess.PIPE)
-
-            lines = p.stdout.readlines()
-            p.wait()
-            print 'Exiting with return code {}'.format(lines[0])
-            return_code = int(lines[0])
+            # Occasionally, the exit file watcher will detect an exitcode file
+            # when it has not actually been generated yet.  The reason for this
+            # is unknown, but the try/except below will restart the exit code
+            # watcher if there is a false alarm.
+            try:
+              p = self._PopenAdb(
+                  'shell', 'cat', exit_code_path, stdout=subprocess.PIPE,
+                  stderr=_DEV_NULL)
+              p.wait()
+              lines = p.stdout.readlines()
+              if lines:
+                return_code = int(lines[0])
+                executable_complete = True
+              else:
+                exit_watcher.Restart()
+                continue
+            except IndexError:  # Output was not the expected exit code
+              # If something failed, restart the exit file watcher
+              exit_watcher.Restart()
+              continue
           break
 
-        # Trim header from log lines with the "starboard" logcat tag so
-        # that downstream log processing tools can recognize them.
-        # Leave the prefixes on the non-starboard log lines to help
-        # identify the source later.
-        line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
-        self._WriteLine(line)
+      if executable_complete:
+        self._DumpLogFile(log_file_path)
 
       logcat_process.kill()
     finally:
@@ -480,6 +504,30 @@ class Launcher(abstract_launcher.AbstractLauncher):
   # TODO:  This doesn't seem to handle CTRL + C cleanly.  Need to fix.
   def Kill(self):
     self._CheckCallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
+
+  def _DumpLogFile(self, path):
+    """Writes all info in target device's log file to stdout.
+
+    Args:
+      path: The path to the log file on the target device.
+    """
+    p = self._PopenAdb(
+        'shell', 'cat', path, stdout=subprocess.PIPE,
+        stderr=_DEV_NULL)
+
+    # Popen.communicate() must be used here because attempting to
+    # read from the stdout pipe directly will cause the read to block.
+    p_stdout, p_stderr = p.communicate()
+
+    stdout_lines = p_stdout.split('\n')
+
+    for line in stdout_lines:
+      # Trim header from log lines with the "starboard" logcat tag so
+      # that downstream log processing tools can recognize them.
+      # Leave the prefixes on the non-starboard log lines to help
+      # identify the source later.
+      line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
+      self._WriteLine(line)
 
   def _WriteLine(self, line):
     """Write log output to stdout."""
