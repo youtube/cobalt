@@ -91,25 +91,21 @@ bool PathProviderStarboard(int key, FilePath *result) {
       return PathProviderStarboard(base::DIR_CACHE, result);
 
     case base::DIR_SYSTEM_FONTS:
-#if SB_API_VERSION >= 4
       if (SbSystemGetPath(kSbSystemPathFontDirectory, path,
                           SB_ARRAY_SIZE_INT(path))) {
         *result = FilePath(path);
         return true;
       }
       DLOG(INFO) << "DIR_SYSTEM_FONTS not defined.";
-#endif  // SB_API_VERSION >= 4
       return false;
 
     case base::DIR_SYSTEM_FONTS_CONFIGURATION:
-#if SB_API_VERSION >= 4
       if (SbSystemGetPath(kSbSystemPathFontConfigurationDirectory, path,
                           SB_ARRAY_SIZE_INT(path))) {
         *result = FilePath(path);
         return true;
       }
       DLOG(INFO) << "DIR_SYSTEM_FONTS_CONFIGURATION not defined.";
-#endif  // SB_API_VERSION >= 4
       return false;
   }
 
