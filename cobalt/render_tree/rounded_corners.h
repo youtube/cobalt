@@ -80,6 +80,12 @@ struct RoundedCorners {
         bottom_right(bottom_right),
         bottom_left(bottom_left) {}
 
+  bool operator==(const RoundedCorners& other) const {
+    return top_left == other.top_left && top_right == other.top_right &&
+           bottom_right == other.bottom_right &&
+           bottom_left == other.bottom_left;
+  }
+
   RoundedCorners Inset(float left, float top, float right, float bottom) const {
     return RoundedCorners(
         top_left.Inset(left, top), top_right.Inset(right, top),

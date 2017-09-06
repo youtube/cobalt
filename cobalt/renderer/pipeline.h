@@ -109,9 +109,16 @@ class Pipeline {
 
   // Rasterize the animated |render_tree_submission| to |render_target|,
   // applying the time_offset in the submission to the animations.
-  void RasterizeSubmissionToRenderTarget(
+  // Returns true only if a rasterization actually took place.
+  bool RasterizeSubmissionToRenderTarget(
       const Submission& render_tree_submission,
       const scoped_refptr<backend::RenderTarget>& render_target);
+
+  // Updates the rasterizer timer stats according to the |start_time| and
+  // |end_time| of the most recent rasterize call.
+  void UpdateRasterizeStats(bool did_rasterize, bool are_animations_active,
+                            bool is_new_render_tree, base::TimeTicks start_time,
+                            base::TimeTicks end_time);
 
   // This method is executed on the rasterizer thread and is responsible for
   // constructing the rasterizer.
@@ -179,6 +186,10 @@ class Pipeline {
 
   // Keeps track of the last rendered animated render tree.
   scoped_refptr<render_tree::Node> last_render_tree_;
+
+  scoped_refptr<render_tree::animations::AnimateNode>
+      last_animated_render_tree_;
+
   // Keeps track of the area of the screen that animations previously existed
   // within, so that we can know which regions of the screens would be dirty
   // next frame.
@@ -187,17 +198,27 @@ class Pipeline {
   base::optional<base::TimeDelta> last_render_time_;
   // Keep track of whether the last rendered tree had active animations. This
   // allows us to skip rasterizing that render tree if we see it again and it
-  // did not have active animations.
-  bool last_render_animations_active_;
+  // did have expired animations.
+  bool last_animations_expired_;
+
+  // Did a rasterization take place in the last frame?
+  bool last_did_rasterize_;
 
   // Timer tracking the amount of time spent in
   // |RasterizeSubmissionToRenderTarget| when the render tree has changed.
   // The tracking is flushed when the max count is hit.
   base::CValCollectionTimerStats<base::CValPublic> rasterize_periodic_timer_;
+
+  // Accumulates render tree rasterization interval times but does not flush
+  // them until the maximum number of samples is gathered.
+  base::CValCollectionTimerStats<base::CValPublic>
+  rasterize_periodic_interval_timer_;
+
   // Timer tracking the amount of time spent in
   // |RasterizeSubmissionToRenderTarget| while animations are active. The
   // tracking is flushed when the animations expire.
-  base::CValCollectionTimerStats<base::CValDebug> rasterize_animations_timer_;
+  base::CValCollectionTimerStats<base::CValPublic>
+      rasterize_animations_interval_timer_;
 
   // The total number of new render trees that have been rasterized.
   base::CVal<int> new_render_tree_rasterize_count_;

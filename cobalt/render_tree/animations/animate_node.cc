@@ -208,7 +208,7 @@ void AnimateNode::TraverseListBuilder::ProcessNode(Node* node,
 void AnimateNode::TraverseListBuilder::AddToTraverseList(
     Node* node, AnimateNode::Builder::InternalMap::const_iterator found) {
   if (found != animation_map_.end()) {
-    traverse_list_->push_back(TraverseListEntry(node, found->second));
+    traverse_list_->push_back(TraverseListEntry(node, found->second, false));
     expiry_ = std::max(expiry_, found->second->GetExpiry());
   } else {
     traverse_list_->push_back(TraverseListEntry(node));
@@ -304,7 +304,9 @@ AnimateNode::BoundsVisitor::VisitNode(T* node) {
   TraverseListEntry current_entry = AdvanceIterator(node);
 
   DCHECK(current_entry.animations);
-  ProcessAnimatedNodeBounds(current_entry, node);
+  if (current_entry.did_animate_previously) {
+    ProcessAnimatedNodeBounds(current_entry, node);
+  }
 }
 
 template <typename T>
@@ -336,7 +338,7 @@ AnimateNode::BoundsVisitor::VisitNode(T* node) {
   }
   transform_ = old_transform;
 
-  if (current_entry.animations) {
+  if (current_entry.did_animate_previously) {
     ProcessAnimatedNodeBounds(current_entry, node);
   }
 }
@@ -376,7 +378,8 @@ void AnimateNode::BoundsVisitor::ApplyTransform(MatrixTransformNode* node) {
 // tree.
 class AnimateNode::ApplyVisitor : public NodeVisitor {
  public:
-  ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset);
+  ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
+               const base::optional<base::TimeDelta>& snapshot_time);
 
   void Visit(animations::AnimateNode* /* animate */) OVERRIDE {
     // An invariant of AnimateNodes is that they should never contain descendant
@@ -405,7 +408,9 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   // As we compute the animated nodes, we create a new traverse list that leads
   // to the newly created animated nodes.  This can be used afterwards to
   // calculate the bounding boxes around the active animated nodes.
-  TraverseList* animated_traverse_list() { return &animated_traverse_list_; }
+  const TraverseList& animated_traverse_list() const {
+    return animated_traverse_list_;
+  }
 
  private:
   template <typename T>
@@ -415,8 +420,8 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   typename base::enable_if<ChildIterator<T>::has_children>::type VisitNode(
       T* node);
   template <typename T>
-  scoped_refptr<Node> ApplyAnimations(const TraverseListEntry& entry,
-                                      typename T::Builder* builder);
+  scoped_refptr<T> ApplyAnimations(const TraverseListEntry& entry,
+                                   typename T::Builder* builder);
   TraverseListEntry AdvanceIterator(Node* node);
 
   // The time offset to be passed in to individual animations.
@@ -435,11 +440,18 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
 
   // An iterator pointing to the next valid render tree node to visit.
   TraverseList::const_iterator iterator_;
+
+  // Time at which the existing source render tree was created/last animated
+  // at.
+  base::optional<base::TimeDelta> snapshot_time_;
 };
 
-AnimateNode::ApplyVisitor::ApplyVisitor(const TraverseList& traverse_list,
-                                        base::TimeDelta time_offset)
-    : time_offset_(time_offset), traverse_list_(traverse_list) {
+AnimateNode::ApplyVisitor::ApplyVisitor(
+    const TraverseList& traverse_list, base::TimeDelta time_offset,
+    const base::optional<base::TimeDelta>& snapshot_time)
+    : time_offset_(time_offset),
+      traverse_list_(traverse_list),
+      snapshot_time_(snapshot_time) {
   animated_traverse_list_.reserve(traverse_list.size());
   iterator_ = traverse_list_.begin();
 }
@@ -452,9 +464,18 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
   // have animations.
   DCHECK(current_entry.animations);
   typename T::Builder builder(node->data());
-  animated_ = ApplyAnimations<T>(current_entry, &builder);
+  scoped_refptr<T> animated = ApplyAnimations<T>(current_entry, &builder);
+  // If nothing ends up getting animated, then just re-use the existing node.
+  bool did_animate = false;
+  if (animated->data() == node->data()) {
+    animated_ = node;
+  } else {
+    animated_ = animated.get();
+    did_animate = true;
+  }
+
   animated_traverse_list_.push_back(
-      TraverseListEntry(animated_, current_entry.animations));
+      TraverseListEntry(animated_, current_entry.animations, did_animate));
 }
 
 template <typename T>
@@ -464,7 +485,7 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
 
   size_t animated_traverse_list_index = animated_traverse_list_.size();
   animated_traverse_list_.push_back(
-      TraverseListEntry(NULL, current_entry.animations));
+      TraverseListEntry(NULL, current_entry.animations, false));
 
   // Traverse the child nodes, but only the ones that are on the
   // |traverse_list_|.  In particular, the next node we are allowed to visit
@@ -482,41 +503,60 @@ AnimateNode::ApplyVisitor::VisitNode(T* node) {
       // If one of our children is next up on the path to animation, traverse
       // into it.
       child->Accept(this);
-      // Traversing into the child means that it was animated, and so replaced
-      // by an animated node while it was visited.  Thus, replace it in the
-      // current node's child list with its animated version.
-      child_iterator.ReplaceCurrent(animated_);
-      children_modified = true;
+      if (animated_ != child) {
+        // Traversing into the child and seeing |animated_| emerge from the
+        // traversal equal to something other than |child| means that the child
+        // was animated, and so replaced by an animated node while it was
+        // visited.  Thus, replace it in the current node's child list with its
+        // animated version.
+        child_iterator.ReplaceCurrent(animated_);
+        children_modified = true;
+      }
     }
 
     child_iterator.Next();
   }
 
+  base::optional<typename T::Builder> builder;
+  if (children_modified) {
+    // Reuse the modified Builder object from child traversal if one of
+    // our children was animated.
+    builder.emplace(child_iterator.TakeReplacedChildrenBuilder());
+  }
+
+  bool did_animate = false;
   if (current_entry.animations) {
-    base::optional<typename T::Builder> builder;
-    if (children_modified) {
-      // Reuse the modified Builder object from child traversal if one of
-      // our children was animated.
-      builder.emplace(child_iterator.TakeReplacedChildrenBuilder());
-    } else {
+    if (!builder) {
       // Create a fresh copy of the Builder object for this animated node, to
       // be passed into the animations.
       builder.emplace(node->data());
     }
-    animated_ = ApplyAnimations<T>(current_entry, &(*builder));
+    typename T::Builder original_builder(*builder);
+    scoped_refptr<T> animated = ApplyAnimations<T>(current_entry, &(*builder));
+    if (!(original_builder == *builder)) {
+      did_animate = true;
+    }
+    // If the data didn't actually change, then no animation took place and
+    // so we should note this by not modifying the original render tree node.
+    animated_ = animated->data() == node->data() ? node : animated.get();
   } else {
-    // If there were no animations targeting this node directly, then its
-    // children must have been modified since otherwise it wouldn't be in
-    // the traverse list.
-    DCHECK(children_modified);
-    animated_ = new T(child_iterator.TakeReplacedChildrenBuilder());
+    // If there were no animations targeting this node directly, it may still
+    // need to be animated if its children are animated, which will be the
+    // case if |builder| is populated.
+    if (builder) {
+      animated_ = new T(*builder);
+    } else {
+      animated_ = node;
+    }
   }
 
   animated_traverse_list_[animated_traverse_list_index].node = animated_;
+  animated_traverse_list_[animated_traverse_list_index].did_animate_previously =
+      did_animate;
 }
 
 template <typename T>
-scoped_refptr<Node> AnimateNode::ApplyVisitor::ApplyAnimations(
+scoped_refptr<T> AnimateNode::ApplyVisitor::ApplyAnimations(
     const TraverseListEntry& entry, typename T::Builder* builder) {
   TRACE_EVENT0("cobalt::renderer",
                "AnimateNode::ApplyVisitor::ApplyAnimations()");
@@ -525,11 +565,16 @@ scoped_refptr<Node> AnimateNode::ApplyVisitor::ApplyAnimations(
       base::polymorphic_downcast<const AnimationList<T>*>(
           entry.animations.get());
 
-  // Iterate through each animation applying them one at a time.
-  for (typename AnimationList<T>::InternalList::const_iterator iter =
-           typed_node_animations->data().animations.begin();
-       iter != typed_node_animations->data().animations.end(); ++iter) {
-    iter->Run(builder, time_offset_);
+  // Only execute the animation updates on nodes that have not expired.
+  if (!snapshot_time_ ||
+      typed_node_animations->data().expiry >= *snapshot_time_) {
+    TRACE_EVENT0("cobalt::renderer", "Running animation callbacks");
+    // Iterate through each animation applying them one at a time.
+    for (typename AnimationList<T>::InternalList::const_iterator iter =
+             typed_node_animations->data().animations.begin();
+         iter != typed_node_animations->data().animations.end(); ++iter) {
+      iter->Run(builder, time_offset_);
+    }
   }
 
   return new T(*builder);
@@ -559,9 +604,9 @@ AnimateNode::AnimateNode(const scoped_refptr<Node>& source) {
 class AnimateNode::RefCountedTraversalList
     : public base::RefCounted<RefCountedTraversalList> {
  public:
-  explicit RefCountedTraversalList(TraverseList* to_swap_in) {
-    traverse_list_.swap(*to_swap_in);
-  }
+  explicit RefCountedTraversalList(const TraverseList& traverse_list)
+      : traverse_list_(traverse_list) {}
+
   const TraverseList& traverse_list() const { return traverse_list_; }
 
  private:
@@ -594,24 +639,41 @@ math::RectF ReturnTrivialEmptyRectBound(base::TimeDelta since) {
 
 AnimateNode::AnimateResults AnimateNode::Apply(base::TimeDelta time_offset) {
   TRACE_EVENT0("cobalt::renderer", "AnimateNode::Apply()");
+  if (snapshot_time_) {
+    // Assume we are always animating forward.
+    DCHECK_LE(*snapshot_time_, time_offset);
+  }
+
   AnimateResults results;
   if (traverse_list_.empty()) {
-    results.animated = source_;
+    results.animated = this;
     // There are no animations, so there is no bounding rectangle, so setup the
     // bounding box function to trivially return an empty rectangle.
     results.get_animation_bounds_since =
         base::Bind(&ReturnTrivialEmptyRectBound);
   } else {
-    ApplyVisitor apply_visitor(traverse_list_, time_offset);
+    ApplyVisitor apply_visitor(traverse_list_, time_offset, snapshot_time_);
     source_->Accept(&apply_visitor);
-    results.animated = apply_visitor.animated();
 
-    // Setup a function for returning
+    // Setup a function for returning the bounds on the regions modified by
+    // animations given a specific starting point in time ("since").  This
+    // can be used by rasterizers to determine which regions need to be
+    // re-drawn or not.
     results.get_animation_bounds_since = base::Bind(
         &GetAnimationBoundsSince,
         scoped_refptr<RefCountedTraversalList>(new RefCountedTraversalList(
             apply_visitor.animated_traverse_list())),
-        time_offset, results.animated);
+        time_offset, apply_visitor.animated());
+
+    if (apply_visitor.animated() == source()) {
+      // If no animations were actually applied, indicate this by returning
+      // this exact node as the animated node.
+      results.animated = this;
+    } else {
+      results.animated =
+          new AnimateNode(apply_visitor.animated_traverse_list(),
+                          apply_visitor.animated(), expiry_, time_offset);
+    }
   }
   return results;
 }
