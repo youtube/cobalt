@@ -88,6 +88,8 @@
         'jni_env_ext.h',
         'jni_utils.h',
         'log.cc',
+        'log_file_impl.cc',
+        'log_file_impl.h',
         'log_flush.cc',
         'log_format.cc',
         'log_is_tty.cc',
