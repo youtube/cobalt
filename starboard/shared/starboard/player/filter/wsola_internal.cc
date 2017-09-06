@@ -33,6 +33,12 @@
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
 
+// TODO: Detect Neon on ARM platform and enable SIMD.
+#if SB_IS(ARCH_X86)
+#define USE_SIMD 1
+#include <xmmintrin.h>
+#endif  // SB_IS(ARCH_X86)
+
 namespace starboard {
 namespace shared {
 namespace starboard {
@@ -68,9 +74,54 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   SB_DCHECK(frame_offset_a + num_frames <= a->frames());
   SB_DCHECK(frame_offset_b + num_frames <= b->frames());
 
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
   const float* a_frames = reinterpret_cast<const float*>(a->buffer());
   const float* b_frames = reinterpret_cast<const float*>(b->buffer());
+
+// SIMD optimized variants can provide a massive speedup to this operation.
+#if defined(USE_SIMD)
+  const int rem = num_frames % 4;
+  const int last_index = num_frames - rem;
+  const int channels = a->channels();
+  for (int ch = 0; ch < channels; ++ch) {
+    const float* a_src = a_frames + frame_offset_a * a->channels() + ch;
+    const float* b_src = b_frames + frame_offset_b * b->channels() + ch;
+
+#if SB_IS(ARCH_X86)
+    // First sum all components.
+    __m128 m_sum = _mm_setzero_ps();
+    for (int s = 0; s < last_index; s += 4) {
+      m_sum = _mm_add_ps(
+          m_sum, _mm_mul_ps(_mm_loadu_ps(a_src + s), _mm_loadu_ps(b_src + s)));
+    }
+
+    // Reduce to a single float for this channel. Sadly, SSE1,2 doesn't have a
+    // horizontal sum function, so we have to condense manually.
+    m_sum = _mm_add_ps(_mm_movehl_ps(m_sum, m_sum), m_sum);
+    _mm_store_ss(dot_product + ch,
+                 _mm_add_ss(m_sum, _mm_shuffle_ps(m_sum, m_sum, 1)));
+#elif SB_IS(ARCH_ARM)
+    // First sum all components.
+    float32x4_t m_sum = vmovq_n_f32(0);
+    for (int s = 0; s < last_index; s += 4)
+      m_sum = vmlaq_f32(m_sum, vld1q_f32(a_src + s), vld1q_f32(b_src + s));
+
+    // Reduce to a single float for this channel.
+    float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
+    dot_product[ch] = vget_lane_f32(vpadd_f32(m_half, m_half), 0);
+#endif  // SB_IS(ARCH_X86)
+  }
+
+  if (!rem) {
+    return;
+  }
+  num_frames = rem;
+  frame_offset_a += last_index;
+  frame_offset_b += last_index;
+#else   // defined(USE_SIMD)
+  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
+#endif  // defined(USE_SIMD)
+
+  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
   for (int k = 0; k < a->channels(); ++k) {
     const float* ch_a = a_frames + frame_offset_a * a->channels() + k;
     const float* ch_b = b_frames + frame_offset_b * b->channels() + k;
