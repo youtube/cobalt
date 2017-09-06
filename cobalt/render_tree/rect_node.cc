@@ -84,6 +84,23 @@ RectNode::Builder::Builder(Moved moved)
       border(moved->border.Pass()),
       rounded_corners(moved->rounded_corners.Pass()) {}
 
+bool RectNode::Builder::operator==(const Builder& other) const {
+  bool brush_equals = !background_brush && !other.background_brush;
+  if (background_brush && other.background_brush) {
+    EqualsBrushVisitor brush_equals_visitor(background_brush.get());
+    other.background_brush->Accept(&brush_equals_visitor);
+    brush_equals = brush_equals_visitor.result();
+  }
+  bool border_equals = (!border && !other.border) ||
+                       (border && other.border && *border == *other.border);
+  bool rounded_corners_equals = (!rounded_corners && !other.rounded_corners) ||
+                                (rounded_corners && other.rounded_corners &&
+                                 *rounded_corners == *other.rounded_corners);
+
+  return rect == other.rect && brush_equals && border_equals &&
+         rounded_corners_equals;
+}
+
 void RectNode::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
 
 math::RectF RectNode::GetBounds() const { return data_.rect; }
