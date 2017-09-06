@@ -419,6 +419,13 @@ void AudioRendererImpl::ProcessAudioData() {
     }
   }
 
+  if (seeking_.load() || playback_rate_ == 0.0) {
+    process_audio_data_scheduled_ = true;
+    Schedule(Bind(&AudioRendererImpl::ProcessAudioData, this),
+             5 * kSbTimeMillisecond);
+    return;
+  }
+
   int64_t frames_in_buffer =
       frames_sent_to_sink_.load() - frames_consumed_by_sink_.load();
   if (kMaxCachedFrames - frames_in_buffer < kFrameAppendUnit &&
@@ -438,6 +445,14 @@ void AudioRendererImpl::ProcessAudioData() {
 bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   SB_DCHECK(BelongsToCurrentThread());
 
+  if (seeking_.load() && time_stretcher_.IsQueueFull()) {
+    seeking_.store(false);
+  }
+
+  if (seeking_.load() || playback_rate_ == 0.0) {
+    return false;
+  }
+
   int frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
                                           frames_consumed_by_sink_.load());
 
@@ -447,18 +462,13 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
 
   int offset_to_append = frames_sent_to_sink_.load() % kMaxCachedFrames;
 
-  // When |playback_rate_| is 0, try to fill the buffer with playback rate as 1.
-  // Otherwise the preroll will never finish.
-  float playback_rate_to_fill =
-      playback_rate_ == 0.0 ? 1.f : static_cast<float>(playback_rate_);
   scoped_refptr<DecodedAudio> decoded_audio =
-      time_stretcher_.Read(kFrameAppendUnit, playback_rate_to_fill);
+      time_stretcher_.Read(kFrameAppendUnit, playback_rate_);
   SB_DCHECK(decoded_audio);
   if (decoded_audio->frames() == 0 && eos_state_.load() == kEOSDecoded) {
     eos_state_.store(kEOSSentToSink);
   }
-  audio_frame_tracker_->AddFrames(decoded_audio->frames(),
-                                  playback_rate_to_fill);
+  audio_frame_tracker_->AddFrames(decoded_audio->frames(), playback_rate_);
   // TODO: Support kSbMediaAudioFrameStorageTypePlanar.
   decoded_audio->SwitchFormatTo(sink_sample_type_,
                                 kSbMediaAudioFrameStorageTypeInterleaved);
@@ -481,12 +491,6 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   frames_appended += frames_to_append;
 
   frames_sent_to_sink_.fetch_add(frames_appended);
-
-  int64_t preroll_frames =
-      decoder_->GetSamplesPerSecond() * kPrerollTime / kSbTimeSecond;
-  if (seeking_.load() && frames_sent_to_sink_.load() > preroll_frames) {
-    seeking_.store(false);
-  }
 
   return frames_appended > 0;
 }
