@@ -33,6 +33,11 @@ class ViewportFilter {
                           const RoundedCorners& rounded_corners)
       : viewport_(viewport), rounded_corners_(rounded_corners) {}
 
+  bool operator==(const ViewportFilter& other) const {
+    return viewport_ == other.viewport_ &&
+           rounded_corners_ == other.rounded_corners_;
+  }
+
   const math::RectF& viewport() const { return viewport_; }
 
   bool has_rounded_corners() const { return !!rounded_corners_; }
