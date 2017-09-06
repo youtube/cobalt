@@ -255,7 +255,7 @@ BrowserModule::BrowserModule(const GURL& url,
       will_quit_(false),
       application_state_(initial_application_state),
       splash_screen_cache_(new SplashScreenCache()),
-      produced_render_tree_(false) {
+      navigation_produced_main_render_tree_(false) {
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -402,6 +402,7 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   const math::Size& viewport_size = GetViewportSize();
 
   DestroySplashScreen();
+  navigation_produced_main_render_tree_ = false;
   base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (fallback_splash_screen_url_ ||
       (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
@@ -541,15 +542,16 @@ void BrowserModule::OnRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
-  if (splash_screen_ && !produced_render_tree_) {
+  if (splash_screen_ && !navigation_produced_main_render_tree_) {
     splash_screen_->Shutdown();
   }
-  produced_render_tree_ = true;
-
   if (application_state_ == base::kApplicationStatePreloading ||
       !render_tree_combiner_ || !main_web_module_layer_) {
     return;
   }
+
+  navigation_produced_main_render_tree_ = true;
+
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
   renderer_submission.on_rasterized_callback = base::Bind(
