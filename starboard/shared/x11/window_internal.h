@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
 #define STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
 
+#include <X11/extensions/Xrender.h>
 #include <X11/Xlib.h>
 
 #include "starboard/configuration.h"
@@ -22,18 +23,12 @@
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/window.h"
 
-#if SB_TRUE || SB_IS(PLAYER_PUNCHED_OUT)
-#include <X11/extensions/Xrender.h>
-#endif  // SB_TRUE ||
-        // SB_IS(PLAYER_PUNCHED_OUT)
-
 struct SbWindowPrivate {
   SbWindowPrivate(Display* display, const SbWindowOptions* options);
   ~SbWindowPrivate();
 
   Window window;
 
-#if SB_TRUE || SB_IS(PLAYER_PUNCHED_OUT)
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
   // Composites graphics and the given video frame video for this window. In
@@ -80,8 +75,6 @@ struct SbWindowPrivate {
 
   // A cached XRender Picture wrapper for |gl_window|.
   Picture gl_picture;
-#endif  // SB_TRUE ||
-        // SB_IS(PLAYER_PUNCHED_OUT)
 
   // The display that this window was created from.
   Display* display;
