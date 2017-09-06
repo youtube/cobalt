@@ -474,8 +474,9 @@ class BrowserModule {
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
-  // Whether or not the main WebModule has produced any render trees yet.
-  bool produced_render_tree_;
+  // Whether or not the main WebModule has produced any render trees yet for the
+  // current navigation.
+  bool navigation_produced_main_render_tree_;
 };
 
 }  // namespace browser
