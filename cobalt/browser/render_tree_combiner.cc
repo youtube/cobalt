@@ -35,6 +35,7 @@ RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
 RenderTreeCombiner::Layer::~Layer() {
   DCHECK(render_tree_combiner_);
   render_tree_combiner_->RemoveLayer(this);
+  render_tree_combiner_->SubmitToRenderer();
 }
 
 void RenderTreeCombiner::Layer::Submit(
