@@ -81,8 +81,26 @@ class AnimateNode : public Node {
     }
 
     template <typename T>
+    void Add(
+        const scoped_refptr<T>& target_node,
+        const typename Animation<T>::TimeIndependentFunction& single_animation,
+        base::TimeDelta expiry) {
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(
+                      new AnimationList<T>(single_animation, expiry)));
+    }
+
+    template <typename T>
     void Add(const scoped_refptr<T>& target_node,
              const typename Animation<T>::Function& single_animation) {
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(new AnimationList<T>(
+                      single_animation, base::TimeDelta::Max())));
+    }
+    template <typename T>
+    void Add(const scoped_refptr<T>& target_node,
+             const typename Animation<T>::TimeIndependentFunction&
+                 single_animation) {
       AddInternal(target_node,
                   scoped_refptr<AnimationListBase>(new AnimationList<T>(
                       single_animation, base::TimeDelta::Max())));
@@ -170,6 +188,12 @@ class AnimateNode : public Node {
   // all x, y >= expiry().
   const base::TimeDelta& expiry() const { return expiry_; }
 
+  // Similar to |expiry()|, but returns the expiration for all animations whose
+  // callback function actually depends on the time parameter passed into them.
+  const base::TimeDelta& depends_on_time_expiry() const {
+    return depends_on_time_expiry_;
+  }
+
  private:
   // The compiled node animation list is a sequence of nodes that are either
   // animated themselves, or on the path to an animated node.  Only nodes in
@@ -210,10 +234,12 @@ class AnimateNode : public Node {
   // AnimateNode that matches the resulting animated render tree.
   AnimateNode(const TraverseList& traverse_list, scoped_refptr<Node> source,
               const base::TimeDelta& expiry,
+              const base::TimeDelta& depends_on_time_expiry,
               const base::TimeDelta& snapshot_time)
       : traverse_list_(traverse_list),
         source_(source),
         expiry_(expiry),
+        depends_on_time_expiry_(depends_on_time_expiry),
         snapshot_time_(snapshot_time) {}
 
   void CommonInit(const Builder::InternalMap& node_animation_map,
@@ -229,6 +255,7 @@ class AnimateNode : public Node {
   TraverseList traverse_list_;
   scoped_refptr<Node> source_;
   base::TimeDelta expiry_;
+  base::TimeDelta depends_on_time_expiry_;
   // Time when the |source_| render tree was last animated, if known.  This
   // will get set when Apply() is called to produce a new AnimateNode that can
   // then be Apply()d again.  It can be used during the second apply to check
