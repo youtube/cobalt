@@ -146,6 +146,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
 
   bool can_accept_more_data_;
   bool process_audio_data_scheduled_;
+  Closure process_audio_data_closure_;
 
   // Our owner will attempt to seek to pts 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on
