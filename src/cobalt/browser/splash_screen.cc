@@ -17,25 +17,51 @@
 #include <string>
 
 #include "base/bind.h"
+#include "base/callback.h"
+#include "base/cancelable_callback.h"
 #include "base/threading/platform_thread.h"
+#include "base/time.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/loader/cache_fetcher.h"
 
 namespace cobalt {
 namespace browser {
+namespace {
 
-SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
-                           const WebModule::OnRenderTreeProducedCallback&
-                               render_tree_produced_callback,
-                           network::NetworkModule* network_module,
-                           const math::Size& window_dimensions,
-                           render_tree::ResourceProvider* resource_provider,
-                           float layout_refresh_rate,
-                           const GURL& fallback_splash_screen_url,
-                           const GURL& initial_main_web_module_url,
-                           SplashScreenCache* splash_screen_cache)
+const int kSplashShutdownSeconds = 2;
+
+void PostCallbackToMessageLoop(const base::Closure& callback,
+                               MessageLoop* message_loop) {
+  DCHECK(message_loop);
+  message_loop->PostTask(FROM_HERE, callback);
+}
+
+// TODO: consolidate definitions of BindToLoop / BindToCurrentLoop
+// from here and media in base.
+base::Closure BindToLoop(const base::Closure& callback,
+                         MessageLoop* message_loop) {
+  return base::Bind(&PostCallbackToMessageLoop, callback, message_loop);
+}
+
+void OnError(const GURL& /* url */, const std::string& error) {
+  LOG(ERROR) << error;
+}
+
+}  // namespace
+
+SplashScreen::SplashScreen(
+    base::ApplicationState initial_application_state,
+    const WebModule::OnRenderTreeProducedCallback&
+        render_tree_produced_callback,
+    network::NetworkModule* network_module, const math::Size& window_dimensions,
+    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
+    const GURL& fallback_splash_screen_url,
+    const GURL& initial_main_web_module_url,
+    SplashScreenCache* splash_screen_cache,
+    const base::Callback<void()>& on_splash_screen_shutdown_complete)
     : render_tree_produced_callback_(render_tree_produced_callback),
-      is_ready_(true, false) {
+      self_message_loop_(MessageLoop::current()),
+      on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete) {
   WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
@@ -57,11 +83,14 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
     web_module_options.splash_screen_cache = splash_screen_cache;
   }
 
+  base::Callback<void()> on_window_close(
+      BindToLoop(on_splash_screen_shutdown_complete, self_message_loop_));
+
+  web_module_options.on_before_unload_fired_but_not_handled = on_window_close;
+
   web_module_.reset(new WebModule(
-      url_to_pass, initial_application_state,
-      base::Bind(&SplashScreen::OnRenderTreeProduced, base::Unretained(this)),
-      base::Bind(&SplashScreen::OnError, base::Unretained(this)),
-      base::Bind(&SplashScreen::OnWindowClosed, base::Unretained(this)),
+      url_to_pass, initial_application_state, render_tree_produced_callback_,
+      base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
       &stub_media_module_, network_module, window_dimensions,
       1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
@@ -69,23 +98,23 @@ SplashScreen::SplashScreen(base::ApplicationState initial_application_state,
 }
 
 SplashScreen::~SplashScreen() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   // Destroy the web module first to prevent our callbacks from being called
   // (from another thread) while member objects are being destroyed.
   web_module_.reset();
+  // Cancel any pending run of the splash screen shutdown callback.
+  on_splash_screen_shutdown_complete_.Cancel();
 }
 
-void SplashScreen::WaitUntilReady() {
-  is_ready_.Wait();
-}
-
-void SplashScreen::OnRenderTreeProduced(
-    const browser::WebModule::LayoutResults& layout_results) {
-  is_ready_.Signal();
-  render_tree_produced_callback_.Run(layout_results);
-}
-
-void SplashScreen::OnWindowClosed() {
-  is_ready_.Signal();
+void SplashScreen::Shutdown() {
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(web_module_);
+  if (!on_splash_screen_shutdown_complete_.callback().is_null()) {
+    MessageLoop::current()->PostDelayedTask(
+        FROM_HERE, on_splash_screen_shutdown_complete_.callback(),
+        base::TimeDelta::FromSeconds(kSplashShutdownSeconds));
+  }
+  web_module_->InjectBeforeUnloadEvent();
 }
 
 }  // namespace browser

@@ -80,11 +80,8 @@ TEST_P(SbSocketGetLocalAddressTest, SunnyDayBoundUnspecified) {
 
 TEST_F(SbSocketGetLocalAddressTest, SunnyDayBoundSpecified) {
   SbSocketAddress interface_address = {0};
-#if SB_API_VERSION < 4
-  EXPECT_TRUE(SbSocketGetLocalInterfaceAddress(&interface_address));
-#else
   EXPECT_TRUE(SbSocketGetInterfaceAddress(NULL, &interface_address, NULL));
-#endif
+
   SbSocket server_socket = CreateServerTcpSocket(interface_address.type);
   ASSERT_TRUE(SbSocketIsValid(server_socket));
 

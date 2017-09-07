@@ -18,10 +18,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 
-#if SB_API_VERSION < 4
-#error "Incorrect SB_API_VERSION to include media_support_internal.h"
-#endif  // SB_API_VERSION < 4
-
 #ifdef __cplusplus
 extern "C" {
 #endif

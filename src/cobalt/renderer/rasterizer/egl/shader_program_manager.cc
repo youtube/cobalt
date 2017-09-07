@@ -17,6 +17,7 @@
 #include <GLES2/gl2.h>
 
 #include "cobalt/renderer/backend/egl/utils.h"
+#include "egl/generated_shader_impl.h"
 
 namespace cobalt {
 namespace renderer {
@@ -24,6 +25,13 @@ namespace rasterizer {
 namespace egl {
 
 ShaderProgramManager::ShaderProgramManager() {
+  // These are shaders that get instantiated during video playback when the
+  // users starts interacting with the transport controls. They are preloaded
+  // to prevent UI-hiccups.
+  // These shaders are generated from egl/generated_shader_impl.h
+  Preload<ShaderVertexOffsetRcorner, ShaderFragmentColorBlurRrects>();
+  Preload<ShaderVertexColorOffset, ShaderFragmentColorInclude>();
+  Preload<ShaderVertexRcornerTexcoord, ShaderFragmentRcornerTexcoordColor>();
 }
 
 ShaderProgramManager::~ShaderProgramManager() {

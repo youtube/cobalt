@@ -26,10 +26,6 @@
 #include "base/optional.h"
 #include "starboard/drm.h"
 
-#if SB_API_VERSION < 4
-#error "Cobalt media stack requires Starboard 4 or above."
-#endif  // SB_API_VERSION < 4
-
 namespace cobalt {
 namespace media {
 
@@ -97,7 +93,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
             ,
             SessionUpdateKeyStatusesCallback update_key_statuses_callback
 #endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
-            );
+            );  // NOLINT(whitespace/parens)
     void set_id(const std::string& id) { id_ = id; }
     const SessionUpdateRequestGeneratedCallback&
     update_request_generated_callback() const {
@@ -133,7 +129,7 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
 #if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
       SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
 #endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
-      );
+      );  // NOLINT(whitespace/parens)
 
  private:
   // Stores context of |GenerateSessionUpdateRequest|.

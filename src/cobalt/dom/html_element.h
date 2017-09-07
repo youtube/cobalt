@@ -272,6 +272,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   //   https://www.w3.org/TR/SVG11/interact.html#PointerEventsProperty
   bool CanbeDesignatedByPointerIfDisplayed() const;
 
+  // Returns true if this node and all of its ancestors do NOT have display set
+  // to 'none'.
+  bool IsDisplayed() const;
+
   DEFINE_WRAPPABLE_TYPE(HTMLElement);
 
  protected:
@@ -329,10 +333,6 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
   // Purge the cached background images on only this node.
   void PurgeCachedBackgroundImages();
-
-  // Returns true if this node and all of its ancestors do NOT have display set
-  // to 'none'.
-  bool IsDisplayed() const;
 
   bool locked_for_focus_;
 

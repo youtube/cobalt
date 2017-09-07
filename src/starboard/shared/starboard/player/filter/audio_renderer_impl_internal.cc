@@ -64,8 +64,10 @@ SbMediaAudioSampleType GetSinkAudioSampleType() {
 
 }  // namespace
 
-AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                                     const SbMediaAudioHeader& audio_header)
+AudioRendererImpl::AudioRendererImpl(
+    scoped_ptr<AudioDecoder> decoder,
+    const SbMediaAudioHeader& audio_header,
+    scoped_ptr<AudioFrameTracker> audio_frame_tracker)
     : eos_state_(kEOSNotReceived),
       channels_(audio_header.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType()),
@@ -84,7 +86,8 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
       audio_sink_(kSbAudioSinkInvalid),
       can_accept_more_data_(true),
       process_audio_data_scheduled_(false),
-      decoder_needs_full_reset_(false) {
+      decoder_needs_full_reset_(false),
+      audio_frame_tracker_(audio_frame_tracker.Pass()) {
   SB_DCHECK(decoder_ != NULL);
 
   frame_buffers_[0] = &frame_buffer_[0];
@@ -165,7 +168,6 @@ void AudioRendererImpl::Pause() {
   paused_.store(true);
 }
 
-#if SB_API_VERSION >= 4
 void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -177,7 +179,6 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
     audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
   }
 }
-#endif  // SB_API_VERSION >= 4
 
 void AudioRendererImpl::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
@@ -209,7 +210,7 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   frames_consumed_by_sink_.store(0);
   frames_consumed_by_sink_since_last_get_current_time_.store(0);
   pending_decoder_outputs_ = 0;
-  audio_frame_tracker_.Reset();
+  audio_frame_tracker_->Reset();
   frames_consumed_set_at_.store(SbTimeGetMonotonicNow());
   can_accept_more_data_ = true;
   process_audio_data_scheduled_ = false;
@@ -252,11 +253,11 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
     return seeking_to_pts_;
   }
 
-  audio_frame_tracker_.RecordPlayedFrames(
+  audio_frame_tracker_->RecordPlayedFrames(
       frames_consumed_by_sink_since_last_get_current_time_.exchange(0));
 
   return seeking_to_pts_ +
-         audio_frame_tracker_.GetFramePlayedAdjustedToPlaybackRate() *
+         audio_frame_tracker_->GetFramesPlayedAdjustedToPlaybackRate() *
              kSbMediaTimeSecond / decoder_->GetSamplesPerSecond();
 }
 
@@ -291,11 +292,9 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
       &AudioRendererImpl::ConsumeFramesFunc, this);
   SB_DCHECK(SbAudioSinkIsValid(audio_sink_));
 
-#if SB_API_VERSION >= 4
   // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
   // support play/pause.
   audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
-#endif  // SB_API_VERSION >= 4
   audio_sink_->SetVolume(volume_);
 }
 
@@ -458,8 +457,8 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   if (decoded_audio->frames() == 0 && eos_state_.load() == kEOSDecoded) {
     eos_state_.store(kEOSSentToSink);
   }
-  audio_frame_tracker_.AddFrames(decoded_audio->frames(),
-                                 playback_rate_to_fill);
+  audio_frame_tracker_->AddFrames(decoded_audio->frames(),
+                                  playback_rate_to_fill);
   // TODO: Support kSbMediaAudioFrameStorageTypePlanar.
   decoded_audio->SwitchFormatTo(sink_sample_type_,
                                 kSbMediaAudioFrameStorageTypeInterleaved);

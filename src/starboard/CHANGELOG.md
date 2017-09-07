@@ -6,6 +6,8 @@ be updated each time a new Starboard version is released.  Each section in
 this file describes the changes made to the Starboard interface since the
 version previous to it.
 
+**NOTE: Starboard versions 3 and below are no longer supported.**
+
 ## Version 7
 
 ### `SbDecodeTargetInfoPlane` can specify color plane information
@@ -61,10 +63,13 @@ Removes `SbSystemPlatformErrorType` values specific to user status.
 Add support for UYVY decode targets (e.g. YUV 422) via the
 `kSbDecodeTargetFormat1PlaneUYVY` enum.
 
-### Add Color Remote Keys
+### Add More Remote Keys
 
-This adds SbKey codes for the colored keys found on most contemporary TV
-remotes.
+This adds SbKey codes for:
+
+  * Color keys
+  * Closed Caption key
+  * Application launch key
 
 ### `kSbEventTypeLowMemory`
 

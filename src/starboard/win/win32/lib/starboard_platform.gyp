@@ -18,6 +18,9 @@
   'variables': {
     'starboard_platform_dependent_files': [
       '<@(base_win32_starboard_platform_dependent_files)',
+      '<@(win32_media_player_files)',
+      '<@(win32_shared_drm_files)',
+      '<@(win32_shared_media_player_files)',
     ]
   },
 }

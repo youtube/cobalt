@@ -70,9 +70,7 @@ TEST(SbSystemGetPropertyTest, ReturnsRequired) {
   BasicTest(kSbSystemPropertyChipsetModelNumber, false, true, __LINE__);
   BasicTest(kSbSystemPropertyFirmwareVersion, false, true, __LINE__);
   BasicTest(kSbSystemPropertyNetworkOperatorName, false, true, __LINE__);
-#if SB_API_VERSION >= 2
   BasicTest(kSbSystemPropertySpeechApiKey, false, true, __LINE__);
-#endif  // SB_API_VERSION >= 2
 
   if (IsCEDevice(SbSystemGetDeviceType())) {
     BasicTest(kSbSystemPropertyBrandName, true, true, __LINE__);

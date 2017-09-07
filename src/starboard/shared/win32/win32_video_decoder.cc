@@ -268,6 +268,16 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
     thread_checker_.Detach();
   }
 
+  // The object is single-threaded and is driven by a dedicated thread.
+  // However the thread may gets destroyed and re-created over the life time of
+  // this object.  We enforce that certain member functions can only called
+  // from one thread while still allows this object to be driven by different
+  // threads by:
+  // 1. The |thread_checker_| is initially created without attaching to any
+  //    thread.
+  // 2. When a thread is destroyed, Reset() will be called which in turn calls
+  //    Detach() on the |thread_checker_| to allow the object to attach to a
+  //    new thread.
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
   std::queue<VideoFramePtr> output_queue_;
   const SbMediaVideoCodec codec_;

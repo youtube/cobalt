@@ -37,12 +37,10 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ~StubAudioSink() SB_OVERRIDE;
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
-#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
     SB_UNREFERENCED_PARAMETER(playback_rate);
     SB_NOTIMPLEMENTED();
   }
-#endif  // SB_API_VERSION >= 4
 
   void SetVolume(double volume) SB_OVERRIDE {
     SB_UNREFERENCED_PARAMETER(volume);

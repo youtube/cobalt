@@ -50,14 +50,10 @@ struct SbPlayerPrivate
 
   void GetInfo(SbPlayerInfo* out_player_info);
   void SetPause(bool pause);
-#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate);
-#endif  // SB_API_VERSION >= 4
   void SetVolume(double volume);
 
-#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentDecodeTarget();
-#endif  // SB_API_VERSION >= 4
 
  private:
   // PlayerWorker::Host methods.
@@ -75,9 +71,7 @@ struct SbPlayerPrivate
   int frame_width_;
   int frame_height_;
   bool is_paused_;
-#if SB_API_VERSION >= 4
   double playback_rate_;
-#endif  // SB_API_VERSION >= 4
   double volume_;
   int total_video_frames_;
   int dropped_video_frames_;

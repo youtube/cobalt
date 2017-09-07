@@ -93,7 +93,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
                                 SbMediaAudioSampleType sample_type,
                                 const SbMediaAudioHeader& audio_header,
                                 SbDrmSystem drm_system)
-      : codec_(codec),
+      : thread_checker_(ThreadChecker::kSetThreadIdOnFirstCheck),
+        codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
         audio_header_(audio_header),
@@ -241,6 +242,16 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     thread_checker_.Detach();
   }
 
+  // The object is single-threaded and is driven by a dedicated thread.
+  // However the thread may gets destroyed and re-created over the life time of
+  // this object.  We enforce that certain member functions can only called
+  // from one thread while still allows this object to be driven by different
+  // threads by:
+  // 1. The |thread_checker_| is initially created without attaching to any
+  //    thread.
+  // 2. When a thread is destroyed, Reset() will be called which in turn calls
+  //    Detach() on the |thread_checker_| to allow the object to attach to a
+  //    new thread.
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
   const SbMediaAudioCodec codec_;
   const SbMediaAudioHeader audio_header_;

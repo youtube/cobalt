@@ -47,7 +47,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
       scoped_ptr<render_tree::ImageData> pixel_data) OVERRIDE;
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= 4
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
       SbDecodeTarget decode_target) OVERRIDE {
     NOTREACHED();
@@ -61,18 +60,6 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   }
 
   bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-#elif SB_API_VERSION >= 3
-  scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(
-      SbDecodeTarget decode_target) OVERRIDE {
-    NOTREACHED();
-    SbDecodeTargetDestroy(decode_target);
-    return NULL;
-  }
-
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE { return NULL; }
-
-  bool SupportsSbDecodeTarget() OVERRIDE { return false; }
-#endif  // SB_API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   scoped_ptr<render_tree::RawImageMemory> AllocateRawImageMemory(

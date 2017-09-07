@@ -54,6 +54,7 @@
 #include "cobalt/loader/image/animated_image_tracker.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/page_visibility/visibility_state.h"
+#include "cobalt/script/error_report.h"
 #include "cobalt/script/javascript_engine.h"
 #include "cobalt/storage/storage_manager.h"
 #include "starboard/accessibility.h"
@@ -143,6 +144,12 @@ class WebModule::Impl {
   void InjectWheelEvent(scoped_refptr<dom::Element> element, base::Token type,
                         const dom::WheelEventInit& event);
 
+  // Called to inject a beforeunload event into the web module. If
+  // this event is not handled by the web application,
+  // on_before_unload_fired_but_not_handled will be called. The event
+  // is not directed at a specific element.
+  void InjectBeforeUnloadEvent();
+
   // Called to execute JavaScript in this WebModule. Sets the |result|
   // output parameter and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
@@ -197,8 +204,10 @@ class WebModule::Impl {
   void Unpause();
   void Resume(render_tree::ResourceProvider* resource_provider);
 
-  void ReportScriptError(const base::SourceLocation& source_location,
-                         const std::string& error_message);
+  void ReduceMemory();
+
+  void LogScriptError(const base::SourceLocation& source_location,
+                      const std::string& error_message);
 
  private:
   class DocumentLoadedObserver;
@@ -232,6 +241,10 @@ class WebModule::Impl {
   void OnError(const std::string& error) {
     error_callback_.Run(window_->location()->url(), error);
   }
+
+  // Report an error encountered while running JS.
+  // Returns whether or not the error was handled.
+  bool ReportScriptError(const script::ErrorReport& error_report);
 
   // Inject the DOM event object into the window or the element.
   void InjectInputEvent(scoped_refptr<dom::Element> element,
@@ -358,6 +371,8 @@ class WebModule::Impl {
   scoped_ptr<media_session::MediaSessionClient> media_session_client_;
 
   scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
+
+  base::Closure on_before_unload_fired_but_not_handled;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -422,6 +437,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
                    base::Unretained(data.options.splash_screen_cache));
   }
 
+  on_before_unload_fired_but_not_handled =
+      data.options.on_before_unload_fired_but_not_handled;
+
   fetcher_factory_.reset(new loader::FetcherFactory(
       data.network_module, data.options.extra_web_file_dir,
       dom::URL::MakeBlobResolverCallback(blob_registry_.get()),
@@ -475,7 +493,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
   script::JavaScriptEngine::ErrorHandler error_handler =
-      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this));
+      base::Bind(&WebModule::Impl::LogScriptError, base::Unretained(this));
   javascript_engine_->RegisterErrorHandler(error_handler);
 #endif
 
@@ -578,6 +596,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&dom::CspDelegate::ReportEval,
                  base::Unretained(window_->document()->csp_delegate())));
 
+  global_environment_->SetReportErrorCallback(
+      base::Bind(&WebModule::Impl::ReportScriptError, base::Unretained(this)));
+
   InjectCustomWindowAttributes(data.options.injected_window_attributes);
 
   if (!data.options.loaded_callbacks.empty()) {
@@ -594,6 +615,8 @@ WebModule::Impl::~Impl() {
   DCHECK(is_running_);
   is_running_ = false;
   global_environment_->SetReportEvalCallback(base::Closure());
+  global_environment_->SetReportErrorCallback(
+      script::GlobalEnvironment::ReportErrorCallback());
   window_->DispatchEvent(new dom::Event(base::Tokens::unload()));
   document_load_observer_.reset();
   media_session_client_.reset();
@@ -748,6 +771,14 @@ void WebModule::Impl::OnCspPolicyChanged() {
   } else {
     global_environment_->DisableEval(eval_disabled_message);
   }
+}
+
+bool WebModule::Impl::ReportScriptError(
+    const script::ErrorReport& error_report) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  return window_->ReportScriptError(error_report);
 }
 
 #if defined(ENABLE_WEBDRIVER)
@@ -925,7 +956,23 @@ void WebModule::Impl::Resume(render_tree::ResourceProvider* resource_provider) {
   SetApplicationState(base::kApplicationStatePaused);
 }
 
-void WebModule::Impl::ReportScriptError(
+void WebModule::Impl::ReduceMemory() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::ReduceMemory()");
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (!is_running_) {
+    return;
+  }
+
+  PurgeResourceCaches();
+  window_->document()->PurgeCachedResources();
+
+  // Force garbage collection in |javascript_engine_|.
+  if (javascript_engine_) {
+    javascript_engine_->CollectGarbage();
+  }
+}
+
+void WebModule::Impl::LogScriptError(
     const base::SourceLocation& source_location,
     const std::string& error_message) {
   std::string file_name =
@@ -942,6 +989,15 @@ void WebModule::Impl::ReportScriptError(
      << source_location.line_number << ","
      << source_location.column_number << "): " << error_message << "\n";
   SbLogRaw(ss.str().c_str());
+}
+
+void WebModule::Impl::InjectBeforeUnloadEvent() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  if (window_ && window_->HasEventListener(base::Tokens::beforeunload())) {
+    window_->DispatchEvent(new dom::Event(base::Tokens::beforeunload()));
+  } else if (!on_before_unload_fired_but_not_handled.is_null()) {
+    on_before_unload_fired_but_not_handled.Run();
+  }
 }
 
 void WebModule::Impl::PurgeResourceCaches() {
@@ -1095,6 +1151,15 @@ void WebModule::InjectWheelEvent(base::Token type,
       FROM_HERE, base::Bind(&WebModule::Impl::InjectWheelEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
+}
+
+void WebModule::InjectBeforeUnloadEvent() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::InjectBeforeUnloadEvent()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(FROM_HERE,
+                           base::Bind(&WebModule::Impl::InjectBeforeUnloadEvent,
+                                      base::Unretained(impl_.get())));
 }
 
 std::string WebModule::ExecuteJavascript(
@@ -1285,6 +1350,17 @@ void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::Resume,
                             base::Unretained(impl_.get()), resource_provider));
+}
+
+void WebModule::ReduceMemory() {
+  // Must only be called by a thread external from the WebModule thread.
+  DCHECK_NE(MessageLoop::current(), message_loop());
+
+  // We block here so that we block the Low Memory event handler until we have
+  // reduced our memory consumption.
+  message_loop()->PostBlockingTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::ReduceMemory,
+                            base::Unretained(impl_.get())));
 }
 
 void WebModule::Impl::HandlePointerEvents() {

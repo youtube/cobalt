@@ -42,16 +42,9 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
     SbMediaVideoCodec video_codec,
     SbMediaAudioCodec audio_codec,
     SbDrmSystem drm_system,
-    const SbMediaAudioHeader& audio_header
-#if SB_API_VERSION >= 4
-    ,
+    const SbMediaAudioHeader& audio_header,
     SbPlayerOutputMode output_mode,
-    SbDecodeTargetGraphicsContextProvider* provider
-#elif SB_API_VERSION >= 3
-    ,
-    SbDecodeTargetProvider* provider
-#endif  // SB_API_VERSION >= 4
-    )
+    SbDecodeTargetGraphicsContextProvider* provider)
     : player_worker_(NULL),
       job_queue_(NULL),
       player_(kSbPlayerInvalid),
@@ -63,19 +56,10 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       drm_system_(drm_system),
       audio_header_(audio_header),
       paused_(false),
-#if SB_API_VERSION >= 4
       playback_rate_(1.0),
-#endif  // SB_API_VERSION >= 4
-      volume_(1.0)
-#if SB_API_VERSION >= 4
-      ,
+      volume_(1.0),
       output_mode_(output_mode),
-      decode_target_graphics_context_provider_(provider)
-#elif SB_API_VERSION >= 3
-      ,
-      decode_target_provider_(provider)
-#endif  // SB_API_VERSION >= 4
-{
+      decode_target_graphics_context_provider_(provider) {
 #if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
   if (audio_header_.audio_specific_config_size > 0) {
     audio_specific_config_.reset(
@@ -92,11 +76,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
 }
 
 bool FilterBasedPlayerWorkerHandler::IsPunchoutMode() const {
-#if SB_API_VERSION >= 4
   return (output_mode_ == kSbPlayerOutputModePunchOut);
-#else
-  return true;
-#endif  // SB_API_VERSION >= 4
 }
 
 bool FilterBasedPlayerWorkerHandler::Init(
@@ -127,16 +107,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   AudioParameters audio_parameters = {audio_codec_, audio_header_, drm_system_,
                                       job_queue_};
-  VideoParameters video_parameters = {
-    video_codec_,
-    drm_system_,
-    job_queue_
-#if SB_API_VERSION >= 4
-    ,
-    output_mode_,
-    decode_target_graphics_context_provider_
-#endif  // SB_API_VERSION >= 4
-  };    // NOLINT(whitespace/parens)
+  VideoParameters video_parameters = {video_codec_, drm_system_, job_queue_,
+                                      output_mode_,
+                                      decode_target_graphics_context_provider_};
 
   scoped_ptr<PlayerComponents> media_components =
       PlayerComponents::Create(audio_parameters, video_parameters);
@@ -148,9 +121,7 @@ bool FilterBasedPlayerWorkerHandler::Init(
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
   media_components->GetRenderers(&audio_renderer_, &video_renderer_);
 
-#if SB_API_VERSION >= 4
   audio_renderer_->SetPlaybackRate(playback_rate_);
-#endif  // SB_API_VERSION >= 4
   audio_renderer_->SetVolume(volume_);
 
   job_queue_->Schedule(update_closure_, kUpdateInterval);
@@ -281,7 +252,6 @@ bool FilterBasedPlayerWorkerHandler::SetPause(bool pause) {
   return true;
 }
 
-#if SB_API_VERSION >= 4
 bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
 
@@ -294,7 +264,6 @@ bool FilterBasedPlayerWorkerHandler::SetPlaybackRate(double playback_rate) {
   audio_renderer_->SetPlaybackRate(playback_rate_);
   return true;
 }
-#endif  // SB_API_VERSION >= 4
 
 void FilterBasedPlayerWorkerHandler::SetVolume(double volume) {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
@@ -362,8 +331,6 @@ void FilterBasedPlayerWorkerHandler::Update() {
 void FilterBasedPlayerWorkerHandler::Stop() {
   job_queue_->Remove(update_closure_);
 
-  audio_renderer_.reset();
-
   scoped_ptr<VideoRenderer> video_renderer;
   {
     // Set |video_renderer_| to null with the lock, but we actually destroy
@@ -375,6 +342,8 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   }
   video_renderer.reset();
 
+  audio_renderer_.reset();
+
   if (IsPunchoutMode()) {
     // Clear the video frame as we terminate.
     shared::starboard::Application::Get()->HandleFrame(
@@ -382,7 +351,6 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   }
 }
 
-#if SB_API_VERSION >= 4
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
 
@@ -392,7 +360,6 @@ SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
     return kSbDecodeTargetInvalid;
   }
 }
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace filter
 }  // namespace player

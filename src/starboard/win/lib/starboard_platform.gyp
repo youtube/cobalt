@@ -32,10 +32,10 @@
       '<(DEPTH)/starboard/shared/starboard/system_request_suspend.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_unpause.cc',
-      '<(DEPTH)/starboard/shared/stub/decode_target_get_info.cc',
-      '<(DEPTH)/starboard/shared/stub/decode_target_release.cc',
       '<@(uwp_incompatible_win32)',
-      '<@(stub_media_player)'
+      '<@(win32_media_player_files)',
+      '<@(win32_shared_drm_files)',
+      '<@(win32_shared_media_player_files)',
     ],
   },
 }

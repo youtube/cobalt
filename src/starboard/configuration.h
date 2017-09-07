@@ -31,11 +31,14 @@
 #error "You must define STARBOARD in Starboard builds."
 #endif
 
+#define SB_TRUE 1
+#define SB_FALSE 0
+
 // --- Common Defines --------------------------------------------------------
 
 // The minimum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MINIMUM_API_VERSION 1
+#define SB_MINIMUM_API_VERSION 4
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
@@ -73,11 +76,14 @@
 #define SB_DECODE_TARGET_PLANES_FOR_FORMAT SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_PRELOAD_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_PLATFORM_ERROR_CLEANUP_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_COLOR_KEYCODES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_NEW_KEYCODES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_LOW_MEMORY_EVENT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
-#define SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
+#define SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION \
+  SB_RELEASE_CANDIDATE_API_VERSION
 #define SB_STORAGE_NAMES_API_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
@@ -105,11 +111,6 @@
 // Determines at compile-time whether this platform has a quirk.
 #define SB_HAS_QUIRK(SB_FEATURE) \
   ((defined SB_HAS_QUIRK_##SB_FEATURE) && SB_HAS_QUIRK_##SB_FEATURE)
-
-// Determines at compile-time if this platform implements a given Starboard API
-// version number (or above).
-// This macro is deprecated, please instead use the expanded form directly.
-#define SB_VERSION(SB_API) (SB_API_VERSION >= SB_API)
 
 // A constant expression that evaluates to the size_t size of a statically-sized
 // array.
@@ -298,7 +299,6 @@ struct CompileAssert {};
 #define SB_DEPRECATED_EXTERNAL(FUNC) SB_DEPRECATED(FUNC)
 #endif
 
-#if SB_API_VERSION >= 4
 // Macro to annotate a function as noreturn, which signals to the compiler
 // that the function cannot return.
 #if !defined(SB_NORETURN)
@@ -311,7 +311,6 @@ struct CompileAssert {};
 #define SB_NORETURN
 #endif
 #endif  // SB_NORETURN
-#endif  // SB_API_VERSION >= 4
 
 // Specifies the alignment for a class, struct, union, enum, class/struct field,
 // or stack variable.
@@ -468,39 +467,18 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MAX_THREAD_NAME_LENGTH."
 #endif
 
-#if SB_API_VERSION >= 2 && !defined(SB_HAS_MICROPHONE)
+#if !defined(SB_HAS_MICROPHONE)
 #error "Your platform must define SB_HAS_MICROPHONE in API versions 2 or later."
 #endif
 
-#if SB_API_VERSION >= 3 && !defined(SB_HAS_TIME_THREAD_NOW)
+#if !defined(SB_HAS_TIME_THREAD_NOW)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
-#if SB_API_VERSION < 4
-#if SB_HAS(PLAYER)
-#if !SB_IS(PLAYER_COMPOSITED) && !SB_IS(PLAYER_PUNCHED_OUT) && \
-    !SB_IS(PLAYER_PRODUCING_TEXTURE)
-#error "Your player must choose a composition method."
-#endif
-#if SB_IS(PLAYER_COMPOSITED) && SB_IS(PLAYER_PUNCHED_OUT)
-#error "Your player can't be both composited and punched-out."
-#elif SB_IS(PLAYER_COMPOSITED) && SB_IS(PLAYER_PRODUCING_TEXTURE)
-#error "Your player can't be both composited and producing a texture."
-#elif SB_IS(PLAYER_PUNCHED_OUT) && SB_IS(PLAYER_PRODUCING_TEXTURE)
-#error "Your player can't be both punched-out and producing a texture."
-#endif
-#else  // SB_HAS(PLAYER)
-#if SB_IS(PLAYER_COMPOSITED) || SB_IS(PLAYER_PUNCHED_OUT) || \
-    SB_IS(PLAYER_PRODUCING_TEXTURE)
-#error "Your player can't have a composition method if it doesn't exist."
-#endif
-#endif  // SB_HAS(PLAYER)
-#else   // SB_API_VERSION < 4
 #if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
-#endif  // // SB_API_VERSION < 4
 
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
@@ -541,8 +519,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_MUST_FREQUENTLY_FLIP_DISPLAY_BUFFER."
 #endif
 
-#if SB_API_VERSION >= 4
-
 #if !defined(SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND)
 #error \
     "Your platform must define SB_MEDIA_MAX_AUDIO_BITRATE_IN_BITS_PER_SECOND."
@@ -552,10 +528,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error \
     "Your platform must define SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND."
 #endif  // !defined(SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND)
-
-#endif  // SB_API_VERSION >= 4
-
-#if SB_API_VERSION >= 4
 
 #if defined(SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT)
 #error "SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT is deprecated."
@@ -575,8 +547,6 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
-
-#endif  // SB_API_VERSION >= 4
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)

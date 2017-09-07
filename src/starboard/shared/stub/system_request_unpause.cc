@@ -14,9 +14,5 @@
 
 #include "starboard/system.h"
 
-#if SB_API_VERSION < 4
-#error "SbSystemRequestUnpause requires SB_API_VERSION >= 4."
-#endif
-
 void SbSystemRequestUnpause() {
 }

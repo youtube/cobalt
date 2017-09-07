@@ -15,49 +15,72 @@
 #ifndef COBALT_BROWSER_RENDER_TREE_COMBINER_H_
 #define COBALT_BROWSER_RENDER_TREE_COMBINER_H_
 
+#include <map>
+
+#include "base/memory/scoped_ptr.h"
+#include "base/optional.h"
+#include "base/time.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
 namespace browser {
 
-// Combines the main and debug console render trees. Caches the individual
-// trees as they are produced. Re-renders when either tree changes.
-// This class is only fully implemented when ENABLE_DEBUG_CONSOLE is defined,
-// otherwise (e.g. in release builds) a stub implementation is used.
+// Combines rendering layers (such as the main, splash screen, and
+// debug console). Caches the individual trees as they are produced.
+// Re-renders when any tree changes.
 class RenderTreeCombiner {
  public:
+  // Layer represents the render layer corresponding to the main web
+  // module, the splash screen, or the debug console and are used to
+  // create and submit a combined tree to the RendererModule's
+  // pipeline. Layers are combined in order of the |z_index| specifed
+  // at the Layers' creation. The RenderTreeCombiner stores pointers
+  // to Layers. The Layers are owned by the caller of
+  // RenderTreeCombiner::CreateLayer.
+  class Layer {
+   public:
+    ~Layer();
+
+    void Reset() {
+      render_tree_ = base::nullopt;
+      receipt_time_ = base::nullopt;
+    }
+
+    // Submit render tree to the layer, and specify whether the time
+    // received should be stored.
+    void Submit(
+        const base::optional<renderer::Submission>& render_tree_submission,
+        bool receive_time = false);
+
+   private:
+    friend class RenderTreeCombiner;
+
+    explicit Layer(RenderTreeCombiner* render_tree_combiner = NULL);
+
+    RenderTreeCombiner* render_tree_combiner_;
+
+    base::optional<renderer::Submission> render_tree_;
+    base::optional<base::TimeTicks> receipt_time_;
+  };
+
   explicit RenderTreeCombiner(renderer::RendererModule* renderer_module,
                               const math::Size& viewport_size);
-  ~RenderTreeCombiner();
+  ~RenderTreeCombiner() {}
 
-  void Reset();
-
-  // Update the main web module render tree.
-  void UpdateMainRenderTree(const renderer::Submission& render_tree_submission);
-
-  // Update the debug console render tree.
-  void UpdateDebugConsoleRenderTree(
-      const base::optional<renderer::Submission>& render_tree_submission);
-
-#if defined(ENABLE_DEBUG_CONSOLE)
-  bool render_debug_console() const { return render_debug_console_; }
-  void set_render_debug_console(bool render_debug_console) {
-    render_debug_console_ = render_debug_console;
-  }
-#else   // ENABLE_DEBUG_CONSOLE
-  bool render_debug_console() const { return false; }
-  void set_render_debug_console(bool render_debug_console) {
-    UNREFERENCED_PARAMETER(render_debug_console);
-  }
-#endif  // ENABLE_DEBUG_CONSOLE
+  // Create a Layer with a given |z_index|. If a Layer already exists
+  // at |z_index|, return NULL, and no Layer is created.
+  scoped_ptr<Layer> CreateLayer(int z_index);
 
  private:
-#if defined(ENABLE_DEBUG_CONSOLE)
-  // Combines the two cached render trees (main/debug) and renders the result.
-  void SubmitToRenderer();
+  // The layers keyed on their z_index.
+  std::map<int, Layer*> layers_;
 
-  bool render_debug_console_;
+  // Removes a layer from |layers_|. Called by the Layer destructor.
+  void RemoveLayer(const Layer* layer);
+
+  // Combines the cached render trees and renders the result.
+  void SubmitToRenderer();
 
   // Local reference to the render pipeline, so we can submit the combined tree.
   // Reference counted pointer not necessary here.
@@ -65,22 +88,6 @@ class RenderTreeCombiner {
 
   // The size of the output viewport.
   math::Size viewport_size_;
-
-  // Local references to the main and debug console render trees/animation maps
-  // so we can combine them.
-  base::optional<renderer::Submission> main_render_tree_;
-
-  // This is the time that we received the last main render tree submission.
-  // used so that we know what time to forward the submission to the pipeline
-  // with.
-  base::optional<base::TimeTicks> main_render_tree_receipt_time_;
-
-  // The debug console render tree submission.
-  base::optional<renderer::Submission> debug_console_render_tree_;
-#else   // ENABLE_DEBUG_CONSOLE
-  // Use this local reference even in release builds to submit the main tree.
-  renderer::RendererModule* renderer_module_;
-#endif  // ENABLE_DEBUG_CONSOLE
 };
 
 }  // namespace browser

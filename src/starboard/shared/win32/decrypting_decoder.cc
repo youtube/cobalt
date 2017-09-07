@@ -116,7 +116,7 @@ bool DecryptingDecoder::TryWriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer,
     int bytes_to_skip_in_sample) {
   SB_DCHECK(input_buffer);
-  SB_DCHECK(bytes_to_skip_in_sample > 0);
+  SB_DCHECK(bytes_to_skip_in_sample >= 0);
 
   ComPtr<IMFSample> input_sample;
 

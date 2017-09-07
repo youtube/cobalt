@@ -17,6 +17,17 @@
 namespace cobalt {
 namespace render_tree {
 
+RoundedCorners RoundedCorners::Scale(float sx, float sy) const {
+  return RoundedCorners(RoundedCorner(top_left.horizontal * sx,
+                                      top_left.vertical * sy),
+                        RoundedCorner(top_right.horizontal * sx,
+                                      top_right.vertical * sy),
+                        RoundedCorner(bottom_right.horizontal * sx,
+                                      bottom_right.vertical * sy),
+                        RoundedCorner(bottom_left.horizontal * sx,
+                                      bottom_left.vertical * sy));
+}
+
 RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {
   float scale = 1.0f;
   float size;
@@ -48,14 +59,7 @@ RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {
     scale = std::min(rect.height() / size, scale);
   }
 
-  return RoundedCorners(RoundedCorner(top_left.horizontal * scale,
-                                      top_left.vertical * scale),
-                        RoundedCorner(top_right.horizontal * scale,
-                                      top_right.vertical * scale),
-                        RoundedCorner(bottom_right.horizontal * scale,
-                                      bottom_right.vertical * scale),
-                        RoundedCorner(bottom_left.horizontal * scale,
-                                      bottom_left.vertical * scale));
+  return Scale(scale, scale);
 }
 
 bool RoundedCorners::IsNormalized(const math::RectF& rect) const {

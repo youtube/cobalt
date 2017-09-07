@@ -50,8 +50,6 @@
 #include "starboard/export.h"
 #include "starboard/types.h"
 
-#if SB_API_VERSION >= 4
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -211,7 +209,5 @@ SB_EXPORT bool SbCryptographyGetTag(
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_API_VERSION >= 4
 
 #endif  // STARBOARD_CRYPTOGRAPHY_H_

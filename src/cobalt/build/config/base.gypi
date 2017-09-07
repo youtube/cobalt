@@ -790,10 +790,9 @@
   # Clients must copy over all content; to avoid having to copy over extra data, we
   # omit the test data
   'conditions': [
-    ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
+    ['cobalt_config != "gold"', {
       'variables' : {
         'cobalt_copy_debug_console': 1,
-        'cobalt_copy_test_data': 1,
         'enable_about_scheme': 1,
         'enable_fake_microphone': 1,
         'enable_file_scheme': 1,
@@ -807,7 +806,6 @@
     {
       'variables' : {
         'cobalt_copy_debug_console': 0,
-        'cobalt_copy_test_data': 0,
         'enable_about_scheme': 0,
         'enable_fake_microphone': 0,
         'enable_file_scheme': 0,
@@ -816,6 +814,16 @@
         'enable_screenshot': 0,
         'enable_webdriver': 0,
         'sb_allows_memory_tracking': 0,
+      },
+    }],
+    ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
+      'variables' : {
+        'cobalt_copy_test_data': 1,
+      },
+    },
+    {
+      'variables' : {
+        'cobalt_copy_test_data': 0,
       },
     }],
   ],

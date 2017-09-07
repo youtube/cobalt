@@ -71,7 +71,6 @@
         '<(DEPTH)/starboard/shared/starboard/player/player_internal.h',
         '<(DEPTH)/starboard/shared/starboard/player/player_seek.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_set_bounds.cc',
-        '<(DEPTH)/starboard/shared/starboard/player/player_set_pause.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_set_playback_rate.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_set_volume.cc',
         '<(DEPTH)/starboard/shared/starboard/player/player_worker.cc',

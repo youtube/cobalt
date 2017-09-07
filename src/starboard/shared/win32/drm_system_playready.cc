@@ -118,7 +118,6 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
   }
   iter->second->UpdateLicense(key, key_size);
 
-  SB_DCHECK(iter->second->usable());
   if (iter->second->usable()) {
     SB_LOG_IF(INFO, kEnablePlayreadyLog)
         << "Successfully add key for key id "
@@ -180,6 +179,15 @@ SbDrmSystemPrivate::DecryptStatus SbDrmSystemPlayready::Decrypt(
   ScopedLock lock(mutex_);
   for (auto& item : successful_requests_) {
     if (item.second->key_id() == key_id) {
+      if (buffer->sample_type() == kSbMediaTypeAudio) {
+        return kSuccess;
+      }
+
+      if (item.second->IsHDCPRequired()) {
+        // TODO: Enforce HDCP
+        // if (!is_hdcp_enabled()) { return kFailure; }
+      }
+
       return kSuccess;
     }
   }

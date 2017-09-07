@@ -180,14 +180,12 @@ class StubVideoDecoder : public HostedVideoDecoder {
   Host* host_;
 };
 
-#if SB_API_VERSION >= 4
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
                                        SbDrmSystem drm_system) {
   return output_mode == kSbPlayerOutputModePunchOut;
 }
-#endif  // SB_API_VERSION >= 4
 
 // static
 scoped_ptr<PlayerComponents> PlayerComponents::Create(

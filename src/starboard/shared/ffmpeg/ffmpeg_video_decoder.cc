@@ -15,7 +15,6 @@
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 
 #include "starboard/linux/shared/decode_target_internal.h"
-
 #include "starboard/memory.h"
 #include "starboard/thread.h"
 
@@ -360,7 +359,6 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-#if SB_API_VERSION >= 4
 // static
 bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
                                        SbMediaVideoCodec codec,
@@ -381,7 +379,6 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
 
   return false;
 }
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace filter
 }  // namespace player

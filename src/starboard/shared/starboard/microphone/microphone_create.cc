@@ -14,9 +14,11 @@
 
 #include "starboard/microphone.h"
 
-#if SB_HAS(MICROPHONE) && SB_API_VERSION >= 2
-
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
+
+#if !SB_HAS(MICROPHONE)
+#error "SB_HAS_MICROPHONE must be set to build this file."
+#endif
 
 SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
                                 int sample_rate_in_hz,
@@ -24,5 +26,3 @@ SbMicrophone SbMicrophoneCreate(SbMicrophoneId id,
   return SbMicrophonePrivate::CreateMicrophone(id, sample_rate_in_hz,
                                                buffer_size);
 }
-
-#endif  // SB_HAS(MICROPHONE) && SB_API_VERSION >= 2

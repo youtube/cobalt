@@ -39,6 +39,28 @@ const char kBuildConfiguration[] = "gold";
 #error Unknown build configuration.
 #endif
 
+struct SanitizeReplacements {
+  const char* replace_chars;
+  const char* replace_with;
+} kSanitizeReplacements[] = {
+  { ",", u8"\uFF0C" },  // fullwidth comma
+  { "_", u8"\u2E0F" },  // paragraphos
+  { "/", u8"\u2215" },  // division slash
+  { "(", u8"\uFF08" },  // fullwidth left paren
+  { ")", u8"\uFF09" },  // fullwidth right paren
+};
+
+// Replace reserved characters with Unicode homoglyphs
+std::string Sanitize(const std::string& str) {
+  std::string clean(str);
+  for (size_t i=0; i < arraysize(kSanitizeReplacements); i++) {
+    const SanitizeReplacements* replacement = kSanitizeReplacements + i;
+    ReplaceChars(
+        clean, replacement->replace_chars, replacement->replace_with, &clean);
+  }
+  return clean;
+}
+
 }  // namespace
 
 std::string UserAgentStringFactory::CreateUserAgentString() {
@@ -66,11 +88,12 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
   if (youtube_tv_info_) {
     base::StringAppendF(
         &user_agent, ", %s_%s_%s/%s (%s, %s, %s)",
-        youtube_tv_info_->network_operator.value_or("").c_str(),
+        Sanitize(youtube_tv_info_->network_operator.value_or("")).c_str(),
         CreateDeviceTypeString().c_str(),
-        youtube_tv_info_->chipset_model_number.value_or("").c_str(),
-        youtube_tv_info_->firmware_version.value_or("").c_str(),
-        youtube_tv_info_->brand.c_str(), youtube_tv_info_->model.c_str(),
+        Sanitize(youtube_tv_info_->chipset_model_number.value_or("")).c_str(),
+        Sanitize(youtube_tv_info_->firmware_version.value_or("")).c_str(),
+        Sanitize(youtube_tv_info_->brand).c_str(),
+        Sanitize(youtube_tv_info_->model).c_str(),
         CreateConnectionTypeString().c_str());
   }
 
@@ -112,10 +135,8 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
       return "STB";
     case YouTubeTVInfo::kTV:
       return "TV";
-#if SB_API_VERSION >= 4
     case YouTubeTVInfo::kAndroidTV:
       return "ATV";
-#endif  // SB_API_VERSION >= 4
     case YouTubeTVInfo::kInvalidDeviceType:
     default:
       NOTREACHED();

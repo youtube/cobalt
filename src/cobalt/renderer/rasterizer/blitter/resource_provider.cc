@@ -41,9 +41,7 @@ ResourceProvider::ResourceProvider(
     : device_(device),
       skia_resource_provider_(skia_resource_provider),
       submit_offscreen_callback_(submit_offscreen_callback) {
-#if SB_API_VERSION >= 4
   decode_target_graphics_context_provider_.device = device;
-#endif  // SB_API_VERSION >= 4
 }
 
 bool ResourceProvider::PixelFormatSupported(PixelFormat pixel_format) {
@@ -83,25 +81,10 @@ scoped_refptr<render_tree::Image> ResourceProvider::CreateImage(
   return make_scoped_refptr(new SinglePlaneImage(blitter_source_data.Pass()));
 }
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
 
 scoped_refptr<render_tree::Image>
 ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
-#if SB_API_VERSION < 4
-  SbDecodeTargetFormat format = SbDecodeTargetGetFormat(decode_target);
-  if (format == kSbDecodeTargetFormat1PlaneRGBA) {
-    SbBlitterSurface surface =
-        SbDecodeTargetGetPlane(decode_target, kSbDecodeTargetPlaneRGBA);
-    DCHECK(SbBlitterIsSurfaceValid(surface));
-    bool is_opaque = SbDecodeTargetIsOpaque(decode_target);
-
-    // Now that we have the surface it contained, we are free to delete
-    // |decode_target|.
-    SbDecodeTargetDestroy(decode_target);
-    return make_scoped_refptr(
-        new SinglePlaneImage(surface, is_opaque, base::Closure()));
-  }
-#else   // SB_API_VERSION < 4
   SbDecodeTargetInfo info;
   SbMemorySet(&info, 0, sizeof(info));
   CHECK(SbDecodeTargetGetInfo(decode_target, &info));
@@ -121,19 +104,14 @@ ResourceProvider::CreateImageFromSbDecodeTarget(SbDecodeTarget decode_target) {
         plane.surface, info.is_opaque,
         base::Bind(&SbDecodeTargetRelease, decode_target)));
   }
-#endif  // SB_API_VERSION < 4
 
   NOTREACHED()
       << "Only format kSbDecodeTargetFormat1PlaneRGBA is currently supported.";
-#if SB_API_VERSION < 4
-  SbDecodeTargetDestroy(decode_target);
-#else   // SB_API_VERSION < 4
   SbDecodeTargetRelease(decode_target);
-#endif  // SB_API_VERSION < 4
   return NULL;
 }
 
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#endif  // SB_HAS(GRAPHICS)
 
 scoped_ptr<render_tree::RawImageMemory>
 ResourceProvider::AllocateRawImageMemory(size_t size_in_bytes,

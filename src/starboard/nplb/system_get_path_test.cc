@@ -80,10 +80,8 @@ TEST(SbSystemGetPathTest, DoesNotBlowUpForDefinedIds) {
   BasicTest(kSbSystemPathTempDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathTestOutputDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathCacheDirectory, false, false, __LINE__);
-#if SB_API_VERSION >= 4
   BasicTest(kSbSystemPathFontDirectory, false, false, __LINE__);
   BasicTest(kSbSystemPathFontConfigurationDirectory, false, false, __LINE__);
-#endif  // SB_API_VERSION >= 4
 }
 
 TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
@@ -113,6 +111,7 @@ TEST(SbSystemGetPathTest, CanCreateAndRemoveDirectoryInCache) {
     EXPECT_FALSE(SbFileExists(path));
   }
 }
+
 TEST(SbSystemGetPathTest, CanWriteAndReadCache) {
   char path[kPathSize];
   SbMemorySet(path, 0xCD, kPathSize);

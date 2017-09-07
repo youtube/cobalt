@@ -17,8 +17,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 4
-
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
 #if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
@@ -57,23 +55,3 @@ void SbPlayerWriteSample(SbPlayer player,
                       number_of_sample_buffers, sample_pts, video_sample_info,
                       sample_drm_info);
 }
-
-#else  // SB_API_VERSION >= 4
-
-void SbPlayerWriteSample(SbPlayer player,
-                         SbMediaType sample_type,
-                         const void* sample_buffer,
-                         int sample_buffer_size,
-                         SbMediaTime sample_pts,
-                         const SbMediaVideoSampleInfo* video_sample_info,
-                         const SbDrmSampleInfo* sample_drm_info) {
-  if (!SbPlayerIsValid(player)) {
-    SB_DLOG(WARNING) << "player is invalid.";
-    return;
-  }
-
-  player->WriteSample(sample_type, sample_buffer, sample_buffer_size,
-                      sample_pts, video_sample_info, sample_drm_info);
-}
-
-#endif  // SB_API_VERSION >= 4

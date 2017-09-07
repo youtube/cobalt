@@ -16,17 +16,12 @@
 #include "starboard/socket.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace {
-
-const unsigned char kInvalidByte = 0xFE;
-
-}  // namespace
-
 namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= 4
+const unsigned char kInvalidByte = 0xFE;
+
 class SbSocketGetInterfaceAddressTest
     : public ::testing::TestWithParam<SbSocketAddressType> {
  public:
@@ -189,8 +184,6 @@ INSTANTIATE_TEST_CASE_P(SbSocketAddressTypes,
                         SbSocketGetInterfaceAddressTest,
                         ::testing::Values(kSbSocketAddressTypeIpv4));
 #endif  // SB_HAS(IPV6)
-
-#endif  // SB_API_VERSION >= 4
 
 }  // namespace
 }  // namespace nplb

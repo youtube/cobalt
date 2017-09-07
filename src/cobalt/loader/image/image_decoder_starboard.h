@@ -15,8 +15,6 @@
 #ifndef COBALT_LOADER_IMAGE_IMAGE_DECODER_STARBOARD_H_
 #define COBALT_LOADER_IMAGE_IMAGE_DECODER_STARBOARD_H_
 
-#if defined(STARBOARD)
-
 #include <string>
 #include <vector>
 
@@ -25,7 +23,7 @@
 #include "cobalt/loader/image/image_data_decoder.h"
 #include "starboard/decode_target.h"
 
-#if SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
+#if SB_HAS(GRAPHICS)
 
 namespace cobalt {
 namespace loader {
@@ -51,11 +49,7 @@ class ImageDecoderStarboard : public ImageDataDecoder {
   const char* mime_type_;
   SbDecodeTargetFormat format_;
   std::vector<uint8> buffer_;
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider* provider_;
-#else   // #if SB_API_VERSION >= 4
-  SbDecodeTargetProvider* provider_;
-#endif  // #if SB_API_VERSION >= 4
   SbDecodeTarget target_;
 };
 
@@ -63,8 +57,6 @@ class ImageDecoderStarboard : public ImageDataDecoder {
 }  // namespace loader
 }  // namespace cobalt
 
-#endif  // SB_API_VERSION >= 3 && SB_HAS(GRAPHICS)
-
-#endif  // defined(STARBOARD)
+#endif  // SB_HAS(GRAPHICS)
 
 #endif  // COBALT_LOADER_IMAGE_IMAGE_DECODER_STARBOARD_H_

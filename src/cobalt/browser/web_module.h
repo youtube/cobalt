@@ -185,6 +185,14 @@ class WebModule : public LifecycleObserver {
     // The splash screen cache object, owned by the BrowserModule.
     SplashScreenCache* splash_screen_cache;
 
+    // The beforeunload event can give a web page a chance to shut
+    // itself down softly and ultimately call window.close(), however
+    // if it is not handled by the web application, we indicate this
+    // situation externally by calling this callback, so that if the
+    // beforeunload event was generated it can be known that there is
+    // no window.close() call pending.
+    base::Closure on_before_unload_fired_but_not_handled;
+
     // Whether or not the WebModule is allowed to fetch from cache via
     // h5vcc-cache://.
     bool can_fetch_cache;
@@ -221,6 +229,11 @@ class WebModule : public LifecycleObserver {
   // Call this to inject a wheel event into the web module. The value for type
   // represents the event name, for example 'wheel'.
   void InjectWheelEvent(base::Token type, const dom::WheelEventInit& event);
+
+  // Call this to inject a beforeunload event into the web module. If
+  // this event is not handled by the web application,
+  // on_before_unload_fired_but_not_handled will be called.
+  void InjectBeforeUnloadEvent();
 
   // Call this to execute Javascript code in this web module.  The calling
   // thread will block until the JavaScript has executed and the output results
@@ -261,6 +274,10 @@ class WebModule : public LifecycleObserver {
   void Unpause() OVERRIDE;
   void Suspend() OVERRIDE;
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+
+  // Attempt to reduce overall memory consumption. Called in response to a
+  // system indication that memory usage is nearing a critical level.
+  void ReduceMemory();
 
  private:
   // Data required to construct a WebModule, initialized in the constructor and

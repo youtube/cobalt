@@ -110,15 +110,24 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName: {
       EasClientDeviceInformation^ current_device_info =
           ref new EasClientDeviceInformation();
-      // TODO: Use SystemSku and map to friendly names instead.
-      std::string product_name =
-          platformStringToString(current_device_info->SystemProductName);
-      product_name.erase(
-          std::remove(product_name.begin(), product_name.end(), ' '),
-          product_name.end());
+      std::string sku =
+        platformStringToString(current_device_info->SystemSku);
+
+      std::string friendly_name;
+
+      // TODO: Move this logic into xb1 specific directory.
+      if (sku == "XBOX_ONE_DU") {
+        friendly_name = "XboxOne";
+      } else if (sku == "XBOX_ONE_ED") {
+        friendly_name = "XboxOne S";
+      } else if (sku == "XBOX_ONE_CH") {
+        friendly_name = "XboxOne X";
+      } else {
+        friendly_name = "XboxOne " + sku;
+      }
 
       return CopyStringAndTestIfSuccess(out_value, value_length,
-                                        product_name.c_str());
+                                        friendly_name.c_str());
     }
     case kSbSystemPropertyFriendlyName: {
       EasClientDeviceInformation^ current_device_info =

@@ -39,9 +39,7 @@ struct SbAudioSinkPrivate {
   };
 
   virtual ~SbAudioSinkPrivate() {}
-#if SB_API_VERSION >= 4
   virtual void SetPlaybackRate(double playback_rate) = 0;
-#endif  // SB_API_VERSION >= 4
 
   virtual void SetVolume(double volume) = 0;
 
