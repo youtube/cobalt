@@ -300,6 +300,8 @@ HardwareRasterizer::HardwareRasterizer(
           purge_skia_font_caches_on_destruction)) {
 }
 
+HardwareRasterizer::~HardwareRasterizer() {}
+
 void HardwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,
     const scoped_refptr<backend::RenderTarget>& render_target,
