@@ -63,7 +63,9 @@ corsFilter(url, "Set-Cookie2", "name=value" , true);
 corsExposeFilter(url, "Age", "27", false);
 corsExposeFilter(url, "Server", "wptServe" , false);
 corsExposeFilter(url, "Warning", "Mind the gap" , false);
-corsExposeFilter(url, "Content-Length", "0" , false);
+// Content-Length is a forbidden cors-response headername.
+// https://fetch.spec.whatwg.org/#forbidden-header-name
+// corsExposeFilter(url, "Content-Length", "0" , false);
 
 corsExposeFilter(url, "Set-Cookie", "name=value" , true);
 corsExposeFilter(url, "Set-Cookie2", "name=value" , true);
