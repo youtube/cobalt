@@ -361,9 +361,7 @@ void AudioRendererImpl::OnDecoderOutput() {
   ++pending_decoder_outputs_;
 
   if (process_audio_data_scheduled_) {
-    // A ProcessAudioData() callback has been scheduled and we should let it
-    // process the output.
-    return;
+    Remove(process_audio_data_closure_);
   }
 
   process_audio_data_scheduled_ = true;

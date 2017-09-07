@@ -44,10 +44,6 @@ namespace filter {
 // |AudioDecoder| interface, rather than a platform specific implementation.
 class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  // Preroll is considered as finished after either the amount of audio caches
-  // exceeds kPrerollTime or if EOS is reached.
-  static const size_t kPrerollTime = kSbTimeSecond / 4;
-
   AudioRendererImpl(
       scoped_ptr<AudioDecoder> decoder,
       const SbMediaAudioHeader& audio_header,
