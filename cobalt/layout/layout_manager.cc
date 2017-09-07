@@ -116,9 +116,7 @@ namespace {
 void UpdateCamera(
     float width_to_height_aspect_ratio, scoped_refptr<input::Camera3D> camera,
     float max_horizontal_fov_rad, float max_vertical_fov_rad,
-    render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
-    base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
+    render_tree::MatrixTransform3DNode::Builder* transform_node_builder) {
   float vertical_fov_rad =
       std::min(max_vertical_fov_rad,
                2 * static_cast<float>(atan(tan(max_horizontal_fov_rad * 0.5f) /
