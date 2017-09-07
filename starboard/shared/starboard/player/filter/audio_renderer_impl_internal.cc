@@ -86,6 +86,8 @@ AudioRendererImpl::AudioRendererImpl(
       audio_sink_(kSbAudioSinkInvalid),
       can_accept_more_data_(true),
       process_audio_data_scheduled_(false),
+      process_audio_data_closure_(
+          Bind(&AudioRendererImpl::ProcessAudioData, this)),
       decoder_needs_full_reset_(false),
       audio_frame_tracker_(audio_frame_tracker.Pass()) {
   SB_DCHECK(decoder_ != NULL);
@@ -177,6 +179,12 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
     // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
     // support play/pause.
     audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
+    if (playback_rate_ > 0.0) {
+      if (process_audio_data_scheduled_) {
+        Remove(process_audio_data_closure_);
+      }
+      ProcessAudioData();
+    }
   }
 }
 
@@ -381,7 +389,7 @@ void AudioRendererImpl::ProcessAudioData() {
       const SbTimeMonotonic delay = kMaxCachedFrames * kSbTimeSecond /
                                     decoder_->GetSamplesPerSecond() / 4;
       process_audio_data_scheduled_ = true;
-      Schedule(Bind(&AudioRendererImpl::ProcessAudioData, this), delay);
+      Schedule(process_audio_data_closure_, delay);
       return;
     }
 
@@ -421,8 +429,7 @@ void AudioRendererImpl::ProcessAudioData() {
 
   if (seeking_.load() || playback_rate_ == 0.0) {
     process_audio_data_scheduled_ = true;
-    Schedule(Bind(&AudioRendererImpl::ProcessAudioData, this),
-             5 * kSbTimeMillisecond);
+    Schedule(process_audio_data_closure_, 5 * kSbTimeMillisecond);
     return;
   }
 
@@ -438,7 +445,7 @@ void AudioRendererImpl::ProcessAudioData() {
       delay = frames_to_delay * kSbTimeSecond / decoder_->GetSamplesPerSecond();
     }
     process_audio_data_scheduled_ = true;
-    Schedule(Bind(&AudioRendererImpl::ProcessAudioData, this), delay);
+    Schedule(process_audio_data_closure_, delay);
   }
 }
 
