@@ -89,8 +89,11 @@ void SubmissionQueue::PushSubmission(const Submission& submission,
         base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
             submission_queue_.front().render_tree.get());
 
-    if (animate_node->expiry() <= submission_time(now) &&
-        animate_node->expiry() <=
+    // Check the expiration of only animations that depend on the time
+    // parameter, since they are the only ones that will be affected by snapping
+    // time.
+    if (animate_node->depends_on_time_expiry() <= submission_time(now) &&
+        animate_node->depends_on_time_expiry() <=
             latest_to_submission_time + render_time(now)) {
       to_submission_time_in_ms_.SnapToTarget();
     }
