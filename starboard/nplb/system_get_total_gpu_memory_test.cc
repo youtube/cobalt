@@ -23,7 +23,7 @@ TEST(SbSystemGetTotalGPUMemoryTest, SunnyDay) {
   if (SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats)) {
     // If we claim to have GPU memory reporting capabilities, then this value
     // should be larger than 0.
-    EXPECT_LT(0, SbSystemGetTotalCPUMemory());
+    EXPECT_LT(0, SbSystemGetTotalGPUMemory());
   }
 }
 
