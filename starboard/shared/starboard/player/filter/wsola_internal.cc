@@ -118,10 +118,9 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   frame_offset_a += last_index;
   frame_offset_b += last_index;
 #else   // defined(USE_SIMD)
-  memset(dot_product, 0, sizeof(*dot_product) * a->channels());
+  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
 #endif  // defined(USE_SIMD)
 
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
   for (int k = 0; k < a->channels(); ++k) {
     const float* ch_a = a_frames + frame_offset_a * a->channels() + k;
     const float* ch_b = b_frames + frame_offset_b * b->channels() + k;
