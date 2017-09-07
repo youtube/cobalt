@@ -52,6 +52,7 @@ class HardwareRasterizer : public Rasterizer {
                               int scratch_surface_cache_size_in_bytes,
                               int offscreen_target_cache_size_in_bytes,
                               bool purge_skia_font_caches_on_destruction);
+  virtual ~HardwareRasterizer();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
