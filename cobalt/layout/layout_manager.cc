@@ -106,9 +106,7 @@ namespace {
 void UpdateCamera(
     float width_to_height_aspect_ratio, scoped_refptr<dom::Camera3DImpl> camera,
     float max_horizontal_fov_rad, float max_vertical_fov_rad,
-    render_tree::MatrixTransform3DNode::Builder* transform_node_builder,
-    base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
+    render_tree::MatrixTransform3DNode::Builder* transform_node_builder) {
   transform_node_builder->transform = camera->QueryViewPerspectiveMatrix(
       width_to_height_aspect_ratio, max_horizontal_fov_rad,
       max_vertical_fov_rad);

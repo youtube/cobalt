@@ -66,7 +66,8 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
                       TraverseList* traverse_list)
       : animation_map_(animation_map),
         traverse_list_(traverse_list),
-        expiry_(-base::TimeDelta::Max()) {}
+        expiry_(-base::TimeDelta::Max()),
+        depends_on_time_expiry_(-base::TimeDelta::Max()) {}
 
   void Visit(animations::AnimateNode* animate) OVERRIDE;
   void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
@@ -117,6 +118,10 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
   // The time after which all animations will have completed and be constant.
   base::TimeDelta expiry_;
 
+  // Similar to |expiry_| but accumulated only for animations whose callback
+  // depends on the time parameter.
+  base::TimeDelta depends_on_time_expiry_;
+
   friend class AnimateNode;
 };
 
@@ -146,6 +151,9 @@ void AnimateNode::TraverseListBuilder::Visit(animations::AnimateNode* animate) {
 
   // Update our expiry in accordance with the sub-AnimateNode's expiry.
   expiry_ = std::max(expiry_, animate->expiry());
+
+  depends_on_time_expiry_ =
+      std::max(depends_on_time_expiry_, animate->depends_on_time_expiry());
 }
 
 template <typename T>
@@ -210,6 +218,8 @@ void AnimateNode::TraverseListBuilder::AddToTraverseList(
   if (found != animation_map_.end()) {
     traverse_list_->push_back(TraverseListEntry(node, found->second, false));
     expiry_ = std::max(expiry_, found->second->GetExpiry());
+    depends_on_time_expiry_ = std::max(depends_on_time_expiry_,
+                                       found->second->GetDependsOnTimeExpiry());
   } else {
     traverse_list_->push_back(TraverseListEntry(node));
   }
@@ -670,9 +680,9 @@ AnimateNode::AnimateResults AnimateNode::Apply(base::TimeDelta time_offset) {
       // this exact node as the animated node.
       results.animated = this;
     } else {
-      results.animated =
-          new AnimateNode(apply_visitor.animated_traverse_list(),
-                          apply_visitor.animated(), expiry_, time_offset);
+      results.animated = new AnimateNode(apply_visitor.animated_traverse_list(),
+                                         apply_visitor.animated(), expiry_,
+                                         depends_on_time_expiry_, time_offset);
     }
   }
   return results;
@@ -700,6 +710,7 @@ void AnimateNode::CommonInit(const Builder::InternalMap& node_animation_map,
   }
 
   expiry_ = traverse_list_builder.expiry_;
+  depends_on_time_expiry_ = traverse_list_builder.depends_on_time_expiry_;
 }
 
 }  // namespace animations

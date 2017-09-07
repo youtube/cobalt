@@ -231,9 +231,7 @@ void AddLetterboxedImageToRenderTree(
 }
 
 void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
-                       ImageNode::Builder* image_node_builder,
-                       base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
+                       ImageNode::Builder* image_node_builder) {
   DCHECK(!replace_image_cb.is_null());
   DCHECK(image_node_builder);
 
@@ -250,9 +248,7 @@ void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
 void AnimateVideoWithLetterboxing(
     const ReplacedBox::ReplaceImageCB& replace_image_cb,
     math::SizeF destination_size,
-    CompositionNode::Builder* composition_node_builder, base::TimeDelta time) {
-  UNREFERENCED_PARAMETER(time);
-
+    CompositionNode::Builder* composition_node_builder) {
   DCHECK(!replace_image_cb.is_null());
   DCHECK(composition_node_builder);
 

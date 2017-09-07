@@ -140,10 +140,7 @@ class AnimatedImage : public Image {
       scoped_refptr<FrameProvider> frame_provider,
       const math::RectF& destination_rect,
       const math::Matrix3F& local_transform,
-      render_tree::ImageNode::Builder* image_node_builder,
-      base::TimeDelta time) {
-    UNREFERENCED_PARAMETER(time);
-
+      render_tree::ImageNode::Builder* image_node_builder) {
     image_node_builder->source = frame_provider->GetFrame();
     image_node_builder->destination_rect = destination_rect;
     image_node_builder->local_transform = local_transform;

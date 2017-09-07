@@ -17,6 +17,7 @@
 
 #include <list>
 
+#include "base/bind.h"
 #include "base/callback.h"
 #include "base/memory/ref_counted.h"
 #include "base/time.h"
@@ -68,6 +69,16 @@ class Animation {
   // and ultimately add that to a AnimateNode::Builder object so that it can be
   // mapped to a specific TextNode that it should be applied to.
   typedef base::Callback<void(typename T::Builder*, base::TimeDelta)> Function;
+  typedef base::Callback<void(typename T::Builder*)> TimeIndependentFunction;
+
+  // Helper function to convert from time independent function to a time
+  // dependent function.
+  static void CallTimeIndependentFunction(
+      const TimeIndependentFunction& time_independent_function,
+      typename T::Builder* builder, base::TimeDelta time) {
+    UNREFERENCED_PARAMETER(time);
+    time_independent_function.Run(builder);
+  }
 };
 
 // The AnimationListBase is used so that we can acquire a non-template handle
@@ -77,6 +88,7 @@ class Animation {
 class AnimationListBase : public base::RefCountedThreadSafe<AnimationListBase> {
  public:
   virtual base::TimeDelta GetExpiry() const = 0;
+  virtual base::TimeDelta GetDependsOnTimeExpiry() const = 0;
 
  protected:
   virtual ~AnimationListBase() {}
@@ -100,18 +112,36 @@ class AnimationList : public AnimationListBase {
   struct Builder {
     DECLARE_AS_MOVABLE(Builder);
 
-    Builder() : expiry(base::TimeDelta::Max()) {}
+    Builder() : expiry(base::TimeDelta::Max()),
+                depends_on_time_expiry(base::TimeDelta::Max()) {}
     explicit Builder(Moved moved) { animations.swap(moved->animations); }
     explicit Builder(const typename Animation<T>::Function& single_animation,
                      base::TimeDelta expiry)
-        : expiry(expiry) {
+        : expiry(expiry), depends_on_time_expiry(expiry) {
       animations.push_back(single_animation);
+    }
+    explicit Builder(
+        const typename Animation<T>::TimeIndependentFunction& single_animation,
+        base::TimeDelta expiry)
+        : expiry(expiry),
+          // Since this animation is time independent, we mark its
+          // time-dependent expiration to be already expired.
+          depends_on_time_expiry(-base::TimeDelta::Max()) {
+      // Transform from a time independent function to a time dependent
+      // function, since we store all functions as time dependent functions.
+      animations.push_back(base::Bind(Animation<T>::CallTimeIndependentFunction,
+                                      single_animation));
     }
 
     InternalList animations;
     // When do the animations expire?  base::TimeDelta::Max() implies that they
     // never expire.
     base::TimeDelta expiry;
+
+    // Similar to |expiry|, but only set for animations that depend on the
+    // time parameter passed into their animation callback functions.
+    // Optimizations can be performed for animations that don't depend on this.
+    base::TimeDelta depends_on_time_expiry;
   };
 
   explicit AnimationList(typename Builder::Moved builder) : data_(builder) {}
@@ -122,10 +152,17 @@ class AnimationList : public AnimationListBase {
       const typename Animation<T>::Function& single_animation,
       base::TimeDelta expiry)
       : data_(single_animation, expiry) {}
+  explicit AnimationList(
+      const typename Animation<T>::TimeIndependentFunction& single_animation,
+      base::TimeDelta expiry)
+      : data_(single_animation, expiry) {}
 
   const Builder& data() const { return data_; }
 
   base::TimeDelta GetExpiry() const OVERRIDE { return data_.expiry; }
+  base::TimeDelta GetDependsOnTimeExpiry() const OVERRIDE {
+    return data_.depends_on_time_expiry;
+  }
 
  private:
   ~AnimationList() OVERRIDE {}
