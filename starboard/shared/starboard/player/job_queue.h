@@ -53,6 +53,7 @@ class JobQueue {
     void Schedule(Closure closure, SbTimeMonotonic delay = 0) {
       job_queue_->Schedule(closure, this, delay);
     }
+    void Remove(Closure closure) { job_queue_->Remove(closure); }
     void CancelPendingJobs() { job_queue_->RemoveJobsByToken(this); }
 
    private:
