@@ -63,14 +63,10 @@ class MEDIA_EXPORT ShellMediaPlatform {
     return NULL;
   }
 
-#if SB_API_VERSION >= 4
   virtual SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() {
     return NULL;
   }
-#elif SB_API_VERSION >= 3
-  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() { return NULL; }
-#endif  // SB_API_VERSION >= 3
 
   // This function is called before the decoder buffer leaves the demuxer and
   // is being sent to the media pipeline for decrypting and decoding. The

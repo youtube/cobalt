@@ -24,10 +24,10 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
 
   switch (property_id) {
     case kSbUserPropertyUserName:
-      return SbStringGetLength(user->name) + 1;
+      return static_cast<int>(SbStringGetLength(user->name) + 1);
 
     case kSbUserPropertyUserId:
-      return SbStringGetLength(user->id) + 1;
+      return static_cast<int>(SbStringGetLength(user->id) + 1);
 
     case kSbUserPropertyHomeDirectory: {
       char path[SB_FILE_MAX_PATH];
@@ -35,7 +35,7 @@ int SbUserGetPropertySize(SbUser user, SbUserPropertyId property_id) {
               user, path, SB_ARRAY_SIZE_INT(path))) {
         return 0;
       }
-      return SbStringGetLength(path);
+      return static_cast<int>(SbStringGetLength(path));
     }
 
     case kSbUserPropertyAvatarUrl:

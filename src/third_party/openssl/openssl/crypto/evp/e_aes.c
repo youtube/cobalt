@@ -112,7 +112,7 @@ typedef struct {
 
 #  define MAXBITCHUNK     ((size_t)1<<(sizeof(size_t)*8-4))
 
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
 static bool sb_translate_mode(int flags, SbCryptographyBlockCipherMode *mode) {
   switch (flags & EVP_CIPH_MODE) {
     case EVP_CIPH_CBC_MODE:
@@ -338,7 +338,7 @@ static inline void sb_gcm_tag(GCM128_CONTEXT *context,
     return 1;                                \
   }
 
-#else  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#else  // defined(OPENSSL_SYS_STARBOARD)
 
 static inline bool sb_has_stream(EVP_CIPHER_CTX *context) {
   return false;
@@ -409,7 +409,7 @@ static inline void sb_gcm_tag(GCM128_CONTEXT *context, unsigned char *tag,
 
 #define SB_TRY_CIPHER(context, out, in, len)
 
-#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 
 #  ifdef VPAES_ASM
 int vpaes_set_encrypt_key(const unsigned char *userKey, int bits,
@@ -963,11 +963,11 @@ BLOCK_CIPHER_generic_pack(NID_aes, 128, EVP_CIPH_FLAG_FIPS)
 static int aes_gcm_cleanup(EVP_CIPHER_CTX *c)
 {
     EVP_AES_GCM_CTX *gctx = c->cipher_data;
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
     SbCryptographyDestroyTransformer(gctx->gcm.gcm_transformer);
     SbCryptographyDestroyTransformer(gctx->gcm.ctr_transformer);
     SbCryptographyDestroyTransformer(gctx->gcm.ecb_transformer);
-#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#endif  // defined(OPENSSL_SYS_STARBOARD)
     OPENSSL_cleanse(&gctx->gcm, sizeof(gctx->gcm));
     if (gctx->iv != c->iv)
         OPENSSL_free(gctx->iv);
@@ -1003,7 +1003,7 @@ static int aes_gcm_ctrl(EVP_CIPHER_CTX *c, int type, int arg, void *ptr)
         gctx->taglen = -1;
         gctx->iv_gen = 0;
         gctx->tls_aad_len = -1;
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
         gctx->ctr = NULL;
         gctx->gcm.gcm_transformer = kSbCryptographyInvalidTransformer;
         gctx->gcm.ctr_transformer = kSbCryptographyInvalidTransformer;

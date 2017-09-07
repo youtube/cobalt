@@ -17,12 +17,8 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
-
 void SbPlayerSetBounds(SbPlayer player,
-#if SB_API_VERSION >= 4
                        int /*z_index*/,
-#endif  // SB_API_VERSION >= 4
                        int x,
                        int y,
                        int width,
@@ -33,6 +29,3 @@ void SbPlayerSetBounds(SbPlayer player,
   }
   player->SetBounds(x, y, width, height);
 }
-
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)

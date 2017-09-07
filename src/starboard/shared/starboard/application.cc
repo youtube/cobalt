@@ -134,6 +134,12 @@ void Application::Link(const char *link_data) {
                    SbMemoryDeallocate));
 }
 
+void Application::InjectLowMemoryEvent() {
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+  Inject(new Event(kSbEventTypeLowMemory, NULL, NULL));
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+}
+
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 SbTimeMonotonic delay) {
@@ -146,7 +152,7 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-#if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#if SB_HAS(PLAYER)
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
                               int x,
@@ -155,7 +161,7 @@ void Application::HandleFrame(SbPlayer player,
                               int height) {
   AcceptFrame(player, frame, x, y, width, height);
 }
-#endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#endif  // SB_HAS(PLAYER)
 
 void Application::SetStartLink(const char* start_link) {
   SB_DCHECK(IsCurrentThread());

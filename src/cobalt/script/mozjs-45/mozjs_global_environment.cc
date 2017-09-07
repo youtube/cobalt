@@ -336,6 +336,12 @@ void MozjsGlobalEnvironment::SetReportEvalCallback(
   report_eval_ = report_eval;
 }
 
+void MozjsGlobalEnvironment::SetReportErrorCallback(
+    const ReportErrorCallback& report_error_callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  report_error_callback_ = report_error_callback;
+}
+
 void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   TRACK_MEMORY_SCOPE("Javascript");
@@ -453,19 +459,54 @@ void MozjsGlobalEnvironment::SetGlobalObjectProxyAndWrapper(
 
 void MozjsGlobalEnvironment::ReportError(const char* message,
                                          JSErrorReport* report) {
-  std::string error_message;
+  JS::RootedValue exception(context_);
+  ::JS_GetPendingException(context_, &exception);
+
+  // Note: we must do this before running any more code on context.
+  ::JS_ClearPendingException(context_);
+
+  // Populate the error report.
+  ErrorReport error_report;
   if (report->errorNumber == JSMSG_CSP_BLOCKED_EVAL) {
-    error_message = eval_disabled_message_.value_or(message);
+    error_report.message = eval_disabled_message_.value_or(message);
   } else {
-    error_message = message;
+    error_report.message = message;
+  }
+  error_report.filename =
+      report->filename ? report->filename : "<internal exception>";
+  error_report.line_number = report->lineno;
+  error_report.column_number = report->column;
+  // Let error object be the object that represents the error: in the case of
+  // an uncaught exception, that would be the object that was thrown; in the
+  // case of a JavaScript error that would be an Error object. If there is no
+  // corresponding object, then the null value must be used instead.
+  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  if (exception.isObject()) {
+    error_report.error.reset(
+        new MozjsValueHandleHolder(exception, context_, wrapper_factory()));
+  }
+  error_report.is_muted = report->isMuted;
+
+  // If this isn't simply a warning, and the error wasn't caused by JS running
+  // out of memory (in which case the callback will fail as well), then run
+  // the callback. In the case that it returns that the script was handled,
+  // simply return; the error should only be reported to the user if it wasn't
+  // handled.
+  if (!JSREPORT_IS_WARNING(report->flags) &&
+      report->errorNumber != JSMSG_OUT_OF_MEMORY &&
+      !report_error_callback_.is_null() &&
+      report_error_callback_.Run(error_report)) {
+    return;
   }
 
+  // If the error is not handled, then the error may be reported to the user.
+  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors-in-documents
   if (last_error_message_) {
-    *last_error_message_ = error_message;
+    *last_error_message_ = error_report.message;
   } else {
-    const char* filename = report->filename ? report->filename : "(none)";
-    LOG(ERROR) << "JS Error: " << filename << ":" << report->lineno << ":"
-               << report->column << ": " << error_message;
+    LOG(ERROR) << "JS Error: " << error_report.filename << ":"
+               << error_report.line_number << ":" << error_report.column_number
+               << ": " << error_report.message;
   }
 }
 

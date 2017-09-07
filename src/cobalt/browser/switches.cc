@@ -34,11 +34,11 @@ const char kCspMode[] = "csp_mode";
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
 
+// Do not create the WebDriver server.
+const char kDisableWebDriver[] = "disable_webdriver";
+
 // Disable webm/vp9.
 const char kDisableWebmVp9[] = "disable_webm_vp9";
-
-// Create WebDriver server.
-const char kEnableWebDriver[] = "enable_webdriver";
 
 // Additional base directory for accessing web files via file://.
 const char kExtraWebFileDir[] = "web_file_path";
@@ -83,8 +83,7 @@ const char kShutdownAfter[] = "shutdown_after";
 const char kStubImageDecoder[] = "stub_image_decoder";
 
 // If this flag is set, alternating calls to |SbSystemRequestSuspend| and
-// |SbSystemRequestUnpause| will be made periodically. Requires
-// SB_API_VERSION >= 4, and will otherwise just no-op.
+// |SbSystemRequestUnpause| will be made periodically.
 const char kSuspendFuzzer[] = "suspend_fuzzer";
 
 // If this is set, then a trace (see base/debug/trace_eventh.h) is started on

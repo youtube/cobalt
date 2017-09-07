@@ -56,29 +56,6 @@ typedef enum SbUserPropertyId {
   kSbUserPropertyUserId,
 } SbUserPropertyId;
 
-#if SB_API_VERSION < 4
-#if SB_HAS(USER_APPLICATION_LINKING_SUPPORT)
-// Information about an application-specific authorization token.
-typedef struct SbUserApplicationTokenResults {
-  // The size of the buffer pointed to by |token_buffer|. Call
-  // SbUserMaxAuthenticationTokenSizeInBytes() to get an appropriate size.
-  // |token_buffer_size| must be set to a value greater than zero.
-  size_t token_buffer_size;
-
-  // Pointer to a buffer into which the token will be copied.
-  // |token_buffer| must not be NULL.
-  char* token_buffer;
-
-  // If true, |expiry| will be set. If false, the token never expires.
-  bool has_expiry;
-
-  // The absolute time that this token expires. It is valid to use the value of
-  // |expiry| only if |has_expiry| is true.
-  SbTime expiry;
-} SbUserApplicationTokenResults;
-#endif
-#endif
-
 // Well-defined value for an invalid user.
 #define kSbUserInvalid (SbUser) NULL
 

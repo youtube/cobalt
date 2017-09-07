@@ -78,7 +78,6 @@ bool EventTarget::DispatchEvent(const scoped_refptr<Event>& event) {
   DCHECK(event->initialized_flag());
   TRACE_EVENT1("cobalt::dom", "EventTarget::DispatchEvent", "event",
                event->type().c_str());
-
   if (!event || event->IsBeingDispatched() || !event->initialized_flag()) {
     return false;
   }
@@ -221,6 +220,18 @@ void EventTarget::AddEventListenerInternal(
 
   event_listener_infos_.push_back(
       new EventListenerInfo(type, this, listener, use_capture, listener_type));
+}
+
+bool EventTarget::HasEventListener(base::Token type) {
+  TRACK_MEMORY_SCOPE("DOM");
+
+  for (EventListenerInfos::iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if ((*iter)->type == type) {
+      return true;
+    }
+  }
+  return false;
 }
 
 EventTarget::EventListenerInfo::EventListenerInfo(

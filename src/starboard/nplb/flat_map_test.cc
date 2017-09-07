@@ -18,6 +18,7 @@
 #include <sstream>
 #include <string>
 
+#include "starboard/system.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -34,11 +35,11 @@ bool FlipCoin() {
   return (std::rand() % 2) == 1;
 }
 
-int Random(int first_includsive, int end_exclusive) {
-  size_t range = static_cast<size_t>(end_exclusive - first_includsive);
-
-  size_t r = rand() % range;
-  return static_cast<int>(r) + first_includsive;
+int Random(int first_inclusive, int end_exclusive) {
+  size_t range = static_cast<size_t>(end_exclusive - first_inclusive);
+  size_t rand = 0;
+  SbSystemGetRandomData(&rand, sizeof(rand));
+  return static_cast<int>(rand % range) + first_inclusive;
 }
 
 template <typename MapA_Type, typename MapB_Type>
@@ -89,7 +90,7 @@ bool CheckMapEquality(const MapA_Type& map_a, const MapB_Type& map_b) {
 }
 
 SbTimeMonotonic GetThreadTimeMonotonicNow() {
-#if SB_API_VERSION >= 3 && SB_HAS(TIME_THREAD_NOW)
+#if SB_HAS(TIME_THREAD_NOW)
   return SbTimeGetMonotonicThreadNow();
 #else
   return SbTimeGetMonotonicNow();

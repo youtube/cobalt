@@ -44,7 +44,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return video_frame_provider_;
   }
 
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
 #if SB_HAS(GRAPHICS)
@@ -53,15 +52,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   }
-#elif SB_API_VERSION >= 3
-  SbDecodeTargetProvider* GetSbDecodeTargetProvider() OVERRIDE {
-#if SB_HAS(GRAPHICS)
-    return resource_provider_->GetSbDecodeTargetProvider();
-#else   // SB_HAS(GRAPHICS)
-    return NULL;
-#endif  // SB_HAS(GRAPHICS)
-  }
-#endif  // SB_API_VERSION >= 4
 
   void Suspend() OVERRIDE { resource_provider_ = NULL; }
   void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
@@ -134,7 +124,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
       const scoped_refptr<DecoderBuffer>& buffer) OVERRIDE;
   bool IsOutputProtected() OVERRIDE;
 
-#if SB_API_VERSION >= 4
   SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
 #if SB_HAS(GRAPHICS)
@@ -143,15 +132,6 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     return NULL;
 #endif  // SB_HAS(GRAPHICS)
   }
-#elif SB_API_VERSION >= 3
-  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() {
-#if SB_HAS(GRAPHICS)
-    return resource_provider_->GetSbDecodeTargetProvider();
-#else   // SB_HAS(GRAPHICS)
-    return NULL;
-#endif  // SB_HAS(GRAPHICS)
-  }
-#endif  // SB_API_VERSION >= 4
 
   void Suspend() OVERRIDE { resource_provider_ = NULL; }
   void Resume(

@@ -128,17 +128,10 @@ typedef enum SbInputEventType {
 } SbInputEventType;
 
 // A 2-dimensional vector used to represent points and motion vectors.
-#if SB_API_VERSION >= 4
 typedef struct SbInputVector {
   float x;
   float y;
 } SbInputVector;
-#else
-typedef struct SbInputVector {
-  int x;
-  int y;
-} SbInputVector;
-#endif
 
 // Event data for |kSbEventTypeInput| events.
 typedef struct SbInputData {

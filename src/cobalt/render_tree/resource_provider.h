@@ -27,9 +27,7 @@
 #include "cobalt/render_tree/mesh.h"
 #include "cobalt/render_tree/node.h"
 #include "cobalt/render_tree/typeface.h"
-#if defined(STARBOARD)
 #include "starboard/decode_target.h"
-#endif  // defined(STARBOARD)
 
 namespace cobalt {
 namespace render_tree {
@@ -76,7 +74,6 @@ class ResourceProvider {
       scoped_ptr<ImageData> pixel_data) = 0;
 
 #if SB_HAS(GRAPHICS)
-#if SB_API_VERSION >= 3
   // This function will consume an SbDecodeTarget object produced by
   // SbDecodeTargetCreate(), wrap it in a render_tree::Image that can be used
   // in a render tree, and return it to the caller.
@@ -85,19 +82,12 @@ class ResourceProvider {
 
   // Whether SbDecodeTargetIsSupported or not.
   virtual bool SupportsSbDecodeTarget() = 0;
-#endif  // SB_API_VERSION >= 3
 
-#if SB_API_VERSION >= 4
   // Return the SbDecodeTargetGraphicsContextProvider associated with the
   // ResourceProvider, if it exists.  Returns NULL if SbDecodeTarget is not
   // supported.
   virtual SbDecodeTargetGraphicsContextProvider*
   GetSbDecodeTargetGraphicsContextProvider() = 0;
-#elif SB_API_VERSION >= 3
-  // Return the associated SbDecodeTargetProvider with the ResourceProvider,
-  // if it exists.  Returns NULL if SbDecodeTarget is not supported.
-  virtual SbDecodeTargetProvider* GetSbDecodeTargetProvider() = 0;
-#endif  // SB__API_VERSION >= 4
 #endif  // SB_HAS(GRAPHICS)
 
   // Returns a raw chunk of memory that can later be passed into a function like

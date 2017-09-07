@@ -17,7 +17,6 @@
 
 #include "cobalt/account/account_manager.h"
 #include "cobalt/browser/url_handler.h"
-#include "cobalt/system_window/system_window.h"
 
 namespace cobalt {
 namespace browser {
@@ -27,19 +26,16 @@ namespace browser {
 // handled separately, e.g. by showing a system dialog.
 class H5vccURLHandler : public URLHandler {
  public:
-  explicit H5vccURLHandler(BrowserModule* browser_module,
-                           system_window::SystemWindow* system_window);
+  explicit H5vccURLHandler(BrowserModule* browser_module);
   ~H5vccURLHandler() {}
 
  private:
   bool HandleURL(const GURL& url);
   bool HandleNetworkFailure();
 
-  // Dialog response handlers.
-  void OnNetworkFailureDialogResponse(
-      system_window::SystemWindow::DialogResponse response);
+  void OnNetworkFailureSystemPlatformResponse(
+      SbSystemPlatformErrorResponse response);
 
-  system_window::SystemWindow* system_window_;
   GURL url_;
 };
 

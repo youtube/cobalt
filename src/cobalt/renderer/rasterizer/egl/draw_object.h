@@ -90,8 +90,31 @@ class DrawObject {
   virtual base::TypeId GetTypeId() const = 0;
 
  protected:
+  // Structures describing vertex data for rendering rounded rectangles.
+  struct RCorner {
+    // Constructor to transform a RCorner value into a format which the
+    // shader function IsOutsideRCorner() expects. This expresses the current
+    // vertex position as a scaled offset relevant for the corner, and provides
+    // scalars to assist in calculating the antialiased edge. For more details,
+    // see function_is_outside_rcorner.inc.
+    RCorner(const float (&position)[2], const RCorner& init);
+    RCorner() {}
+    float x, y;
+    float rx, ry;
+  };
+  struct RRectAttributes {
+    math::RectF bounds;   // The region in which to use the rcorner data.
+    RCorner rcorner;
+  };
+
   DrawObject() {}
   explicit DrawObject(const BaseState& base_state);
+
+  // Extract the scale vector from this object's transform.
+  math::Vector2dF GetScale() const;
+
+  // Remove scale from the transform, and return the scale vector.
+  math::Vector2dF RemoveScaleFromTransform();
 
   // Utility function to get the render color for the blend modes that will
   // be used. These modes expect alpha to be pre-multiplied.
@@ -108,14 +131,28 @@ class DrawObject {
     return GetGLRGBA(color.r(), color.g(), color.b(), color.a());
   }
 
-  // Set shader uniforms for a rounded rect. Specify a non-zero inset if
-  // the rect will be used with anti-aliasing (e.g. 0.5 inset for a 1-pixel
-  // anti-aliasing border).
-  static void SetRRectUniforms(GLint rect_uniform, GLint corners_uniform,
-      const math::RectF& rect, const render_tree::RoundedCorners& corners,
-      float inset);
+  // Get the vertex attributes to use to draw the given rounded rect. Each
+  // corner uses a different attribute. These RCorner values must be transformed
+  // before being passed to the shader. (See RCorner constructor.)
+  static void GetRRectAttributes(const math::RectF& bounds,
+      math::RectF rect, render_tree::RoundedCorners corners,
+      RRectAttributes (&out_attributes)[4]);
+
+  // Get the vertex attributes to draw the given rounded rect excluding the
+  // inscribed rect. These RCorner values must be transformed before being
+  // passed to the shader. (See RCorner constructor.)
+  static void GetRRectAttributes(const math::RectF& bounds,
+      math::RectF rect, render_tree::RoundedCorners corners,
+      RRectAttributes (&out_attributes)[8]);
 
   BaseState base_state_;
+
+ private:
+  // Return the RCorner values for the given rounded rect, and the normalized
+  // rect and corner values used.
+  static void GetRCornerValues(math::RectF* rect,
+      render_tree::RoundedCorners* corners,
+      RRectAttributes out_rcorners[4]);
 };
 
 }  // namespace egl

@@ -209,6 +209,9 @@ class Application {
   // external thread.
   void Link(const char* link_data);
 
+  // Injects an event of type kSbEventTypeLowMemory to the application.
+  void InjectLowMemoryEvent();
+
   // Schedules an event into the event queue.  May be called from an external
   // thread.
   SbEventId Schedule(SbEventCallback callback,
@@ -219,7 +222,7 @@ class Application {
   // external thread.
   void Cancel(SbEventId id);
 
-#if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#if SB_HAS(PLAYER)
   // Handles receiving a new video frame of |player| from the media system. Only
   // used when the application needs to composite video frames with punch-out
   // video manually (should be rare). Will be called from an external thread.
@@ -229,7 +232,7 @@ class Application {
                    int y,
                    int width,
                    int height);
-#endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#endif  // SB_HAS(PLAYER)
 
   // Registers a |callback| function that will be called when |Teardown| is
   // called.
@@ -257,7 +260,7 @@ class Application {
   // processed the Resume event.
   virtual void OnResume() {}
 
-#if SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#if SB_HAS(PLAYER)
   // Subclasses may override this method to accept video frames from the media
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer /* player */,
@@ -266,7 +269,7 @@ class Application {
                            int /* y */,
                            int /* width */,
                            int /* height */) {}
-#endif  // SB_HAS(PLAYER) && (SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT))
+#endif  // SB_HAS(PLAYER)
 
   // Blocks until the next event is available. Subclasses must implement this
   // method to provide events for the platform. Gives ownership to the caller.

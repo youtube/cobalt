@@ -37,11 +37,10 @@ class StubAudioSink : public SbAudioSinkPrivate {
   ~StubAudioSink() SB_OVERRIDE;
 
   bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
-#if SB_API_VERSION >= 4
   void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+    SB_UNREFERENCED_PARAMETER(playback_rate);
     SB_NOTIMPLEMENTED();
   }
-#endif  // SB_API_VERSION >= 4
 
   void SetVolume(double volume) SB_OVERRIDE {
     SB_UNREFERENCED_PARAMETER(volume);
@@ -139,6 +138,12 @@ SbAudioSink StubAudioSinkType::Create(
     SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
     SbAudioSinkConsumeFramesFunc consume_frames_func,
     void* context) {
+  SB_UNREFERENCED_PARAMETER(audio_frame_storage_type);
+  SB_UNREFERENCED_PARAMETER(audio_sample_type);
+  SB_UNREFERENCED_PARAMETER(channels);
+  SB_UNREFERENCED_PARAMETER(frame_buffers_size_in_frames);
+  SB_UNREFERENCED_PARAMETER(frame_buffers);
+
   return new StubAudioSink(this, sampling_frequency_hz,
                            update_source_status_func, consume_frames_func,
                            context);

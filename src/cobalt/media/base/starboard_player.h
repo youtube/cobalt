@@ -73,10 +73,8 @@ class StarboardPlayer {
   void Suspend();
   void Resume();
 
-#if SB_API_VERSION >= 4
   SbDecodeTarget GetCurrentSbDecodeTarget();
   SbPlayerOutputMode GetSbPlayerOutputMode();
-#endif  // SB_API_VERSION >= 4
 
  private:
   enum State {
@@ -127,13 +125,11 @@ class StarboardPlayer {
   static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 
-#if SB_API_VERSION >= 4
   // Returns the output mode that should be used for a video with the given
   // specifications.
   static SbPlayerOutputMode ComputeSbPlayerOutputMode(
       SbMediaVideoCodec codec, SbDrmSystem drm_system,
       bool prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= 4
 
   // The following variables are initialized in the ctor and never changed.
   const scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -171,10 +167,8 @@ class StarboardPlayer {
   uint32 cached_video_frames_dropped_;
   base::TimeDelta preroll_timestamp_;
 
-#if SB_API_VERSION >= 4
   // Keep track of the output mode we are supposed to output to.
   SbPlayerOutputMode output_mode_;
-#endif  // SB_API_VERSION >= 4
 };
 
 }  // namespace media

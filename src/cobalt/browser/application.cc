@@ -93,16 +93,16 @@ int GetRemoteDebuggingPort() {
 #endif  // ENABLE_REMOTE_DEBUGGING
 
 #if defined(ENABLE_WEBDRIVER)
-#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 int GetWebDriverPort() {
   // The default port on which the webdriver server should listen for incoming
   // connections.
 #if defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   const int kDefaultWebDriverPort = SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT;
 #else
-  const int kDefaultWebDriverPort = 9515;
+  const int kDefaultWebDriverPort = 4444;
 #endif  // defined(SB_OVERRIDE_DEFAULT_WEBDRIVER_PORT)
   int webdriver_port = kDefaultWebDriverPort;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverPort)) {
     if (!base::StringToInt(
@@ -114,22 +114,24 @@ int GetWebDriverPort() {
       webdriver_port = kDefaultWebDriverPort;
     }
   }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return webdriver_port;
 }
 
 std::string GetWebDriverListenIp() {
-  // The default port on which the webdriver server should listen for incoming
+  // The default IP on which the webdriver server should listen for incoming
   // connections.
   std::string webdriver_listen_ip =
       webdriver::WebDriverModule::kDefaultListenIp;
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
   if (command_line->HasSwitch(switches::kWebDriverListenIp)) {
     webdriver_listen_ip =
         command_line->GetSwitchValueASCII(switches::kWebDriverListenIp);
   }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
   return webdriver_listen_ip;
 }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
 GURL GetInitialURL() {
@@ -623,7 +625,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-  if (command_line->HasSwitch(switches::kEnableWebDriver)) {
+  bool create_webdriver_module =
+      !command_line->HasSwitch(switches::kDisableWebDriver);
+#else
+  bool create_webdriver_module = true;
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+  if (create_webdriver_module) {
     web_driver_module_.reset(new webdriver::WebDriverModule(
         GetWebDriverPort(), GetWebDriverListenIp(),
         base::Bind(&BrowserModule::CreateSessionDriver,
@@ -634,7 +641,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
                    base::Unretained(browser_module_.get())),
         base::Bind(&Application::Quit, base::Unretained(this))));
   }
-#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 #endif  // ENABLE_WEBDRIVER
 
 #if defined(ENABLE_REMOTE_DEBUGGING)
@@ -722,6 +728,9 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+    case kSbEventTypeLowMemory:
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
       OnApplicationEvent(starboard_event->type);
       break;
     case kSbEventTypeNetworkConnect:
@@ -737,11 +746,9 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       DispatchEventInternal(new base::DeepLinkEvent(link));
       break;
     }
-#if SB_API_VERSION >= 4
     case kSbEventTypeAccessiblitySettingsChanged:
       DispatchEventInternal(new base::AccessibilitySettingsChangedEvent());
       break;
-#endif  // SB_API_VERSION >= 4
     default:
       DLOG(WARNING) << "Unhandled Starboard event of type: "
                     << starboard_event->type;
@@ -813,6 +820,13 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Resume();
       DLOG(INFO) << "Finished resuming.";
       break;
+#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+    case kSbEventTypeLowMemory:
+      DLOG(INFO) << "Got low memory event.";
+      browser_module_->ReduceMemory();
+      DLOG(INFO) << "Finished reducing memory usage.";
+      break;
+#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
     default:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;

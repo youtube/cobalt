@@ -14,33 +14,19 @@
 
 precision mediump float;
 
-// A rounded rect is represented by a vec4 specifying (min.xy, max.xy)
-// and a matrix of corners. Each vector in the matrix represents a corner
-// (order: top left, top right, bottom left, bottom right). Each corner vec4
-// represents (start.xy, radius.xy).
-uniform vec4 u_scissor_rect;
-uniform mat4 u_scissor_corners;
+// The blur rounded rect is split into top and bottom halves.
+// The "start" values represent (left_start.xy, right_start.xy).
+// The "scale" values represent (left_radius.x, 1 / left_radius.y,
+//   right_radius.x, 1 / right_radius.y). The sign of the scale value helps
+//   to translate between position and corner offset values, where the corner
+//   offset is positive if the position is inside the rounded corner.
+uniform vec4 u_blur_start_top;
+uniform vec4 u_blur_start_bottom;
+uniform vec4 u_blur_scale_top;
+uniform vec4 u_blur_scale_bottom;
 
-// The rounded spread rect is represented in a way to optimize calculation of
-// the extents. Each element of a vec4 represents a corner's value -- order
-// is top left, top right, bottom left, bottom right. Extents for each corner
-// can be calculated as:
-//   extents_x = start_x + radius_x * sqrt(1 - scaled_y^2) where
-//   scaled_y = clamp((pos.yyyy - start_y) * scale_y, 0.0, 1.0)
-// To simplify handling left vs right and top vs bottom corners, the sign of
-// scale_y and radius_x handles negation as needed.
-uniform vec4 u_spread_start_x;
-uniform vec4 u_spread_start_y;
-uniform vec4 u_spread_scale_y;
-uniform vec4 u_spread_radius_x;
-
-// The blur extent specifies (3 * sigma, min_rect_y, max_rect_y). This is used
-// to clamp the interval over which integration should be evaluated.
-uniform vec3 u_blur_extent;
-
-// The gaussian scale uniform is used to simplify calculation of the gaussian
-// function at a particular point.
-uniform vec2 u_gaussian_scale;
+// The blur extent specifies (blur_size, min_rect_y, max_rect_y, center_rect_y).
+uniform vec4 u_blur_extent;
 
 // The scale_add uniform is used to switch the shader between generating
 // outset shadows and inset shadows. It impacts the shadow gradient and
@@ -49,39 +35,27 @@ uniform vec2 u_gaussian_scale;
 // inset shadow with scissor rect behaving as an inclusive scissor.
 uniform vec2 u_scale_add;
 
-// Blur calculations happen in terms in sigma distances. Use sigma_scale to
-// translate pixel distances into sigma distances.
-uniform vec2 u_sigma_scale;
+uniform vec4 u_color;
 
 varying vec2 v_offset;
-varying vec4 v_color;
+varying vec4 v_rcorner;
 
-#include "function_is_outside_rrect.inc"
+#include "function_is_outside_rcorner.inc"
 #include "function_gaussian_integral.inc"
 
-vec2 GetXExtents(float y) {
-  // Use x^2 / a^2 + y^2 / b^2 = 1 to solve for the x value of each rounded
-  // corner at the given y.
-  vec4 scaled = clamp((y - u_spread_start_y) * u_spread_scale_y, 0.0, 1.0);
-  vec4 root = sqrt(1.0 - scaled * scaled);
-  vec4 extent = u_spread_start_x + u_spread_radius_x * root;
-
-  // If the y value was before a corner started, then the calculated extent
-  // would equal the unrounded rectangle's extents (since negative values were
-  // clamped to 0 in the above calculation). So smaller extents (i.e. extents
-  // closer to the rectangle center), represent the relevant corners' extents.
-  return vec2(max(extent.x, extent.z), min(extent.y, extent.w));
-}
-
 float GetXBlur(float x, float y) {
-  // Get the integral over the interval occupied by the rectangle.
-  vec2 pos = (GetXExtents(y) - x) * u_sigma_scale;
-  return GaussianIntegral(pos);
-}
+  // Solve for X of the rounded corners at the given Y based on the equation
+  // for an ellipse: x^2 / a^2 + y^2 / b^2 = 1.
+  vec4 corner_start =
+      (y < u_blur_extent.w) ? u_blur_start_top : u_blur_start_bottom;
+  vec4 corner_scale =
+      (y < u_blur_extent.w) ? u_blur_scale_top : u_blur_scale_bottom;
+  vec2 scaled = clamp((y - corner_start.yw) * corner_scale.yw, 0.0, 1.0);
+  vec2 root = sqrt(1.0 - scaled * scaled);
+  vec2 extent_x = corner_start.xz + corner_scale.xz * root;
 
-vec3 GetGaussian(vec3 offset) {
-  // Evaluate the gaussian at the given offsets.
-  return exp(offset * offset * u_gaussian_scale.x);
+  // Get the integral over the interval occupied by the rectangle.
+  return GaussianIntegral(extent_x - x);
 }
 
 float GetBlur(vec2 pos) {
@@ -116,18 +90,18 @@ float GetBlur(vec2 pos) {
   vec3 xblur2 = vec3(GetXBlur(pos.x, pos2.x),
                      GetXBlur(pos.x, pos2.y),
                      GetXBlur(pos.x, pos2.z));
-  vec3 yblur1 = GetGaussian(offset1) * weight;
-  vec3 yblur2 = GetGaussian(offset2) * weight;
+  vec3 yblur1 = exp(-offset1 * offset1) * weight;
+  vec3 yblur2 = exp(-offset2 * offset2) * weight;
 
-  // Since each yblur value should be scaled by u_gaussian_scale.y, save some
-  // cycles and multiply the sum by it.
-  return (dot(xblur1, yblur1) + dot(xblur2, yblur2)) * u_gaussian_scale.y;
+  // Since each yblur value should be normalized by kNormalizeGaussian, just
+  // scale the sum by it.
+  const float kNormalizeGaussian = 0.564189584;  // 1 / sqrt(pi)
+  return (dot(xblur1, yblur1) + dot(xblur2, yblur2)) * kNormalizeGaussian;
 }
 
 void main() {
   float scissor_scale =
-      IsOutsideRRect(v_offset, u_scissor_rect, u_scissor_corners) *
-      u_scale_add.x + u_scale_add.y;
+      IsOutsideRCorner(v_rcorner) * u_scale_add.x + u_scale_add.y;
   float blur_scale = GetBlur(v_offset) * u_scale_add.x + u_scale_add.y;
-  gl_FragColor = v_color * (blur_scale * scissor_scale);
+  gl_FragColor = u_color * (blur_scale * scissor_scale);
 }

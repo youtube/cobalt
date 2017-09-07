@@ -21,6 +21,8 @@
 #include "base/json/json_reader.h"
 #include "base/json/json_writer.h"
 #include "base/string_util.h"
+#include "net/base/ip_endpoint.h"
+#include "net/base/net_errors.h"
 #include "net/base/tcp_listen_socket.h"
 #include "net/server/http_server_request_info.h"
 
@@ -177,11 +179,21 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
 WebDriverServer::WebDriverServer(int port, const std::string& listen_ip,
                                  const HandleRequestCallback& callback)
-    : handle_request_callback_(callback) {
+    : handle_request_callback_(callback),
+      server_address_("WebDriver.Server",
+                      "Address to communicate with WebDriver.") {
   // Create http server
   factory_.reset(new net::TCPListenSocketFactory(listen_ip, port));
   server_ = new net::HttpServer(*factory_, this);
-  LOG(INFO) << "Starting WebDriver server on port " << port;
+  GURL address;
+  int result = GetLocalAddress(&address);
+  if (result == net::OK) {
+    LOG(INFO) << "Starting WebDriver server on port " << port;
+    server_address_ = address.spec();
+  } else {
+    LOG(WARNING) << "Could not start WebDriver server";
+    server_address_ = "<NOT RUNNING>";
+  }
 }
 
 void WebDriverServer::OnHttpRequest(int connection_id,
@@ -215,6 +227,15 @@ void WebDriverServer::OnHttpRequest(int connection_id,
   // Call the HandleRequestCallback.
   handle_request_callback_.Run(StringToHttpMethod(info.method), path,
                                parameters.Pass(), response_handler.Pass());
+}
+
+int WebDriverServer::GetLocalAddress(GURL* out) const {
+  net::IPEndPoint ip_addr;
+  int result = server_->GetLocalAddress(&ip_addr);
+  if (result == net::OK) {
+    *out = GURL("http://" + ip_addr.ToString());
+  }
+  return result;
 }
 
 }  // namespace webdriver

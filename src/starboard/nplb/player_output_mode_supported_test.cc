@@ -17,10 +17,11 @@
 #include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-#if SB_HAS(PLAYER) && SB_API_VERSION >= 4
-
 namespace starboard {
 namespace nplb {
+namespace {
+
+#if SB_HAS(PLAYER)
 
 TEST(SbPlayerOutputModeSupportedTest, SunnyDay) {
   // We should support either decode-to-texture or punch-out mode.
@@ -41,8 +42,8 @@ TEST(SbPlayerOutputModeSupportedTest, RainyDayInvalid) {
   EXPECT_FALSE(result);
 }
 
+#endif  // SB_HAS(PLAYER)
+
+}  // namespace
 }  // namespace nplb
 }  // namespace starboard
-
-#endif  // SB_HAS(PLAYER) && \
-           SB_API_VERSION >= 4

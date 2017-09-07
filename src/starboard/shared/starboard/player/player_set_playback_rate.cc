@@ -17,8 +17,6 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
 
-#if SB_API_VERSION >= 4
-
 bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   if (!SbPlayerIsValid(player)) {
     SB_DLOG(WARNING) << "player is invalid.";
@@ -32,5 +30,3 @@ bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate) {
   player->SetPlaybackRate(playback_rate);
   return true;
 }
-
-#endif  // SB_API_VERSION >= 4

@@ -14,6 +14,8 @@
 
 #include "starboard/shared/x11/window_internal.h"
 
+#include <X11/extensions/Xcomposite.h>
+#include <X11/extensions/Xrender.h>
 #include <X11/Xatom.h>
 #include <X11/XKBlib.h>
 #include <X11/Xlib.h>
@@ -26,32 +28,22 @@
 #include "starboard/log.h"
 #include "starboard/player.h"
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
-#include <X11/extensions/Xcomposite.h>
-#include <X11/extensions/Xrender.h>
-#endif  // SB_API_VERSION >= 4 ||
-        // SB_IS(PLAYER_PUNCHED_OUT)
-
 namespace {
 
 const int kWindowWidth = 1920;
 const int kWindowHeight = 1080;
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 bool HasNeededExtensionsForPunchedOutVideo(Display* display) {
   int dummy;
   return (XRenderQueryExtension(display, &dummy, &dummy) &&
           XCompositeQueryExtension(display, &dummy, &dummy));
 }
-#endif  // SB_API_VERSION >= 4 ||
-        // SB_IS(PLAYER_PUNCHED_OUT)
+
 }  // namespace
 
 SbWindowPrivate::SbWindowPrivate(Display* display,
                                  const SbWindowOptions* options)
-    : window(None)
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
-      ,
+    : window(None),
       window_picture(None),
       composition_pixmap(None),
       composition_picture(None),
@@ -61,10 +53,7 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       video_pixmap_gc(None),
       video_picture(None),
       gl_window(None),
-      gl_picture(None)
-#endif  // SB_API_VERSION >= 4 ||
-      // SB_IS(PLAYER_PUNCHED_OUT)
-      ,
+      gl_picture(None),
       display(display) {
   // Request a 32-bit depth visual for our Window.
   XVisualInfo x_visual_info = {0};
@@ -104,7 +93,6 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
   Atom wm_delete = XInternAtom(display, "WM_DELETE_WINDOW", True);
   XSetWMProtocols(display, window, &wm_delete, 1);
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   SB_CHECK(HasNeededExtensionsForPunchedOutVideo(display));
   gl_window = XCreateSimpleWindow(display, window, 0, 0, width, height, 0,
                                   WhitePixel(display, DefaultScreen(display)),
@@ -128,8 +116,6 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       XRenderFindVisualFormat(display, x_visual_info.visual);
   window_picture = XRenderCreatePicture(display, window, pict_format, 0, NULL);
   SB_CHECK(window_picture != None);
-#endif  // SB_API_VERSION >= 4 ||
-        // SB_IS(PLAYER_PUNCHED_OUT)
 
   XSelectInput(display, window,
                VisibilityChangeMask | ExposureMask | FocusChangeMask |
@@ -139,7 +125,6 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
 }
 
 SbWindowPrivate::~SbWindowPrivate() {
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
   if (composition_pixmap != None) {
     XFreePixmap(display, composition_pixmap);
     XRenderFreePicture(display, composition_picture);
@@ -152,12 +137,9 @@ SbWindowPrivate::~SbWindowPrivate() {
   XRenderFreePicture(display, gl_picture);
   XDestroyWindow(display, gl_window);
   XRenderFreePicture(display, window_picture);
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)
   XDestroyWindow(display, window);
 }
 
-#if SB_API_VERSION >= 4 || SB_IS(PLAYER_PUNCHED_OUT)
 void SbWindowPrivate::Composite(
     int bounds_x,
     int bounds_y,
@@ -278,5 +260,3 @@ void SbWindowPrivate::Composite(
                    window_picture, 0, 0, 0, 0, 0, 0, width, height);
   XSynchronize(display, False);
 }
-#endif  // SB_API_VERSION >= 4 || \
-           SB_IS(PLAYER_PUNCHED_OUT)

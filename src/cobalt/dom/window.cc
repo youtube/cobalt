@@ -16,6 +16,7 @@
 
 #include <algorithm>
 
+#include "base/base64.h"
 #include "base/bind.h"
 #include "base/bind_helpers.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -28,6 +29,8 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_settings.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/error_event.h"
+#include "cobalt/dom/error_event_init.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element.h"
@@ -111,6 +114,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
       is_resize_event_pending_(false),
+      is_reporting_script_error_(false),
 #if defined(ENABLE_TEST_RUNNER)
       test_runner_(new TestRunner()),
 #endif  // ENABLE_TEST_RUNNER
@@ -285,6 +289,18 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
+std::string Window::Btoa(const std::string& string_to_encode) {
+  std::string output;
+  base::Base64Encode(string_to_encode, &output);
+  return output;
+}
+
+std::string Window::Atob(const std::string& encoded_string) {
+  std::string output;
+  base::Base64Decode(encoded_string, &output);
+  return output;
+}
+
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
                        int timeout) {
   DLOG_IF(WARNING, timeout < 0)
@@ -428,6 +444,65 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
 
 void Window::SetApplicationState(base::ApplicationState state) {
   html_element_context_->page_visibility_state()->SetApplicationState(state);
+}
+
+bool Window::ReportScriptError(const script::ErrorReport& error_report) {
+  // Runtime script errors: when the user agent is required to report an error
+  // for a particular script, it must run these steps, after which the error is
+  // either handled or not handled:
+  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+
+  // 1. If target is in error reporting mode, then abort these steps; the error
+  //    is not handled.
+  if (is_reporting_script_error_) {
+    return false;
+  }
+
+  // 2. Let target be in error reporting mode.
+  is_reporting_script_error_ = true;
+
+  // 7. Let event be a new trusted ErrorEvent object that does not bubble but is
+  //    cancelable, and which has the event name error.
+  // NOTE: Cobalt does not currently support trusted events.
+  ErrorEventInit error_event_init;
+  error_event_init.set_bubbles(false);
+  error_event_init.set_cancelable(true);
+
+  if (error_report.is_muted) {
+    // 6. If script has muted errors, then set message to "Script error.", set
+    //    location to the empty string, set line and col to 0, and set error
+    //    object to null.
+    error_event_init.set_message("Script error.");
+    error_event_init.set_filename("");
+    error_event_init.set_lineno(0);
+    error_event_init.set_colno(0);
+    error_event_init.set_error(NULL);
+  } else {
+    // 8. Initialize event's message attribute to message.
+    error_event_init.set_message(error_report.message);
+    // 9. Initialize event's filename attribute to location.
+    error_event_init.set_filename(error_report.filename);
+    // 10. Initialize event's lineno attribute to line.
+    error_event_init.set_lineno(error_report.line_number);
+    // 11. Initialize event's colno attribute to col.
+    error_event_init.set_colno(error_report.column_number);
+    // 12. Initialize event's error attribute to error object.
+    error_event_init.set_error(error_report.error ? error_report.error.get()
+                                                  : NULL);
+  }
+
+  scoped_refptr<ErrorEvent> error_event(
+      new ErrorEvent(base::Tokens::error(), error_event_init));
+
+  // 13. Dispatch event at target.
+  DispatchEvent(error_event);
+
+  // 14. Let target no longer be in error reporting mode.
+  is_reporting_script_error_ = false;
+
+  // 15. If event was canceled, then the error is handled. Otherwise, the error
+  //     is not handled.
+  return error_event->default_prevented();
 }
 
 void Window::SetSynchronousLayoutCallback(

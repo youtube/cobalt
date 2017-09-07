@@ -216,6 +216,44 @@ TEST_F(PixelTest, RotatedOvalViaRoundedCorners) {
           RotateMatrix(static_cast<float>(M_PI) / 6.0f)));
 }
 
+TEST_F(PixelTest, ScaledThenRotatedRectWithDifferentRoundedCorners) {
+  RoundedCorner top_left(6, 15);
+  RoundedCorner top_right(0, 0);
+  RoundedCorner bottom_right(6, 25);
+  RoundedCorner bottom_left(2, 25);
+
+  scoped_ptr<RoundedCorners> rounded_corners(
+      new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
+
+  TestTree(new MatrixTransformNode(
+      new RectNode(RectF(-7, -25, 14, 50),
+                   scoped_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
+                   rounded_corners.Pass()),
+      TranslateMatrix(100.0f, 100.0f) *
+      RotateMatrix(static_cast<float>(M_PI) / 3.0f) *
+      ScaleMatrix(-10.0f, 2.0f)));
+}
+
+TEST_F(PixelTest, RotatedThenScaledRectWithDifferentRoundedCorners) {
+  RoundedCorner top_left(4, 7);
+  RoundedCorner top_right(0, 0);
+  RoundedCorner bottom_right(10, 2);
+  RoundedCorner bottom_left(5, 3);
+
+  scoped_ptr<RoundedCorners> rounded_corners(
+      new RoundedCorners(top_left, top_right, bottom_right, bottom_left));
+
+  TestTree(new MatrixTransformNode(
+      new RectNode(RectF(-10, -7, 20, 14),
+                   scoped_ptr<Brush>(
+                       new SolidColorBrush(ColorRGBA(1, 1, 1, 1))),
+                   rounded_corners.Pass()),
+      TranslateMatrix(100.0f, 100.0f) *
+      ScaleMatrix(6.0f, 9.0f) *
+      RotateMatrix(static_cast<float>(M_PI) / 6.0f)));
+}
+
 TEST_F(PixelTest, RedRectWithDifferentRoundedCornersOnTopLeftOfSurface) {
   RoundedCorner top_left(10, 10);
   RoundedCorner top_right(20, 20);
@@ -1952,6 +1990,19 @@ TEST_F(PixelTest, RoundedCornersViewportOverImage) {
       new ImageNode(image)));
 }
 
+TEST_F(PixelTest, ScaledThenRotatedRoundedCornersViewportOverImage) {
+  scoped_refptr<Image> image =
+      CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
+
+  TestTree(new MatrixTransformNode(
+      new FilterNode(
+          ViewportFilter(RectF(25, 5, 150, 10), RoundedCorners(25, 2)),
+          new ImageNode(image)),
+      TranslateMatrix(-30, 130) *
+      RotateMatrix(static_cast<float>(M_PI / 3.0f)) *
+      ScaleMatrix(1.0f, 10.0f)));
+}
+
 TEST_F(PixelTest, RoundedCornersViewportOverWrappingImage) {
   scoped_refptr<Image> image =
       CreateColoredCheckersImage(GetResourceProvider(), output_surface_size());
@@ -2829,6 +2880,14 @@ TEST_F(PixelTest, BoxShadowBlur100pxCentered) {
       Shadow(Vector2dF(0.0f, 0.0f), 100.0f, ColorRGBA(0, 0, 0, 1))));
 }
 
+TEST_F(PixelTest, ScaledBoxShadowWithSpreadAndBlurCentered) {
+  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 8, 100, 4),
+      Shadow(Vector2dF(0.0f, 0.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f),
+      ScaleMatrix(1.0f, 10.0f)));
+}
+
 TEST_F(PixelTest, TransparentBoxShadowBlurOnGreenBackgroundCentered) {
   TestTree(CreateShadowRectWithBackground(
       output_surface_size(), ColorRGBA(0.3f, 0.8f, 0.3f, 1.0f),
@@ -2914,6 +2973,15 @@ TEST_F(PixelTest, BoxShadowCircleWithOutset25pxSpreadAndRoundedCorners) {
       ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 50, 50),
       Shadow(Vector2dF(8.0f, 8.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
       RoundedCorners(25, 25)));
+}
+
+TEST_F(PixelTest, ScaledBoxShadowEllipseWithOutset5pxSpreadAndRoundedCorners) {
+  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(6, 25, 2, 100),
+      Shadow(Vector2dF(0.0f, 0.0f), 0.0f, ColorRGBA(0, 0, 0, 1)), false, 5.0f,
+      RoundedCorners(1, 50)),
+      ScaleMatrix(15.0f, 1.0f)));
 }
 
 TEST_F(PixelTest, BoxShadowCircleWithInset25pxSpread1pxBlurAndRoundedCorners) {
@@ -3031,6 +3099,16 @@ TEST_F(PixelTest,
       ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(50, 50, 140, 100),
       Shadow(Vector2dF(8.0f, 8.0f), 8.0f, ColorRGBA(0, 0, 0, 1)), false, 25.0f,
       RoundedCorners(70, 50)));
+}
+
+TEST_F(PixelTest,
+       ScaledBoxShadowEllipseWithOutset25pxSpread3pxBlurAndRoundedCorners) {
+  TestTree(new MatrixTransformNode(CreateShadowRectWithBackground(
+      output_surface_size(), ColorRGBA(1.0f, 1.0f, 1.0f, 1.0f),
+      ColorRGBA(0.5f, 0.5f, 0.5f, 1.0f), RectF(20, 5, 140, 10),
+      Shadow(Vector2dF(8.0f, 1.0f), 3.0f, ColorRGBA(0, 0, 0, 1)), false, 4.0f,
+      RoundedCorners(70, 5)),
+      ScaleMatrix(1.0f, 10.0f)));
 }
 
 TEST_F(PixelTest,

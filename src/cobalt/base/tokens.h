@@ -43,6 +43,7 @@ namespace base {
     MacroOpWithNameOnly(animationend)                                \
     MacroOpWithNameOnly(assertive)                                   \
     MacroOpWithNameOnly(attributes)                                  \
+    MacroOpWithNameOnly(beforeunload)                                \
     MacroOpWithNameOnly(blur)                                        \
     MacroOpWithNameOnly(boundary)                                    \
     MacroOpWithNameOnly(canplay)                                     \

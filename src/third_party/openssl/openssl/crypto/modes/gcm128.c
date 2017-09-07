@@ -87,7 +87,7 @@
 } while(0)
 
 
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
 static const int kBlockSizeBits = 128;
 static const int kBlockSizeBytes = 16;
 static inline void sb_block128(GCM128_CONTEXT *ctx,
@@ -120,7 +120,7 @@ static inline void sb_ctr128(GCM128_CONTEXT *ctx,
     (*ctr)(in, out, blocks, key, ivec);
   }
 }
-#else  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#else  // defined(OPENSSL_SYS_STARBOARD)
 static inline void sb_block128(GCM128_CONTEXT *ctx,
                                block128_f block,
                                const unsigned char in[16],
@@ -140,7 +140,7 @@ static inline void sb_ctr128(GCM128_CONTEXT *ctx,
   SB_UNREFERENCED_PARAMETER(ctx);
   (*ctr)(in, out, blocks, key, ivec);
 }
-#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 
 /*-
  * Even though permitted values for TABLE_BITS are 8, 4 and 1, it should

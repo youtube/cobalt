@@ -53,6 +53,7 @@
 #include "cobalt/page_visibility/page_visibility_state.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/environment_settings.h"
+#include "cobalt/script/error_report.h"
 #include "cobalt/script/execution_state.h"
 #include "cobalt/script/script_runner.h"
 #include "cobalt/script/script_value_factory.h"
@@ -227,6 +228,11 @@ class Window : public EventTarget,
   //   https://www.w3.org/TR/WebCryptoAPI/#crypto-interface
   scoped_refptr<Crypto> crypto() const;
 
+  // base64 encoding and decoding
+  std::string Btoa(const std::string& string_to_encode);
+
+  std::string Atob(const std::string& encoded_string);
+
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html5/webappapis.html#timers
   //
@@ -310,6 +316,11 @@ class Window : public EventTarget,
   // precipitate events to be dispatched.
   void SetApplicationState(base::ApplicationState state);
 
+  // Performs the steps specified for runtime script errors:
+  //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
+  // Returns whether or not the script was handled.
+  bool ReportScriptError(const script::ErrorReport& error_report);
+
   // page_visibility::PageVisibilityState::Observer implementation.
   void OnWindowFocusChanged(bool has_focus) OVERRIDE;
   void OnVisibilityStateChanged(
@@ -346,6 +357,11 @@ class Window : public EventTarget,
   // state is not visible. In this case, the resize event will run when the
   // visibility state changes to visible.
   bool is_resize_event_pending_;
+
+  // Whether or not the window is currently reporting a script error. This is
+  // used to prevent infinite recursion, because reporting the error causes an
+  // event to be dispatched, which can generate a new script error.
+  bool is_reporting_script_error_;
 
 #if defined(ENABLE_TEST_RUNNER)
   scoped_refptr<TestRunner> test_runner_;

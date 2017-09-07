@@ -27,22 +27,7 @@ namespace rasterizer {
 namespace egl {
 
 namespace {
-const int kVertexCount = 4;
-
-struct VertexAttributes {
-  float position[2];
-  float offset[2];
-  float texcoord[2];
-};
-
-void SetVertex(VertexAttributes* vertex, float x, float y, float u, float v) {
-  vertex->position[0] = x;
-  vertex->position[1] = y;
-  vertex->offset[0] = x;
-  vertex->offset[1] = y;
-  vertex->texcoord[0] = u;
-  vertex->texcoord[1] = v;
-}
+const int kVertexCount = 4 * 6;
 }  // namespace
 
 DrawRRectColorTexture::DrawRRectColorTexture(GraphicsState* graphics_state,
@@ -60,25 +45,58 @@ DrawRRectColorTexture::DrawRRectColorTexture(GraphicsState* graphics_state,
   DCHECK(base_state_.rounded_scissor_corners);
   color_ = GetDrawColor(color) * base_state_.opacity;
   graphics_state->ReserveVertexData(kVertexCount * sizeof(VertexAttributes));
+
+  // Extract scale from the transform and move it into the vertex attributes
+  // so that the anti-aliased edges remain 1 pixel wide.
+  math::Vector2dF scale = RemoveScaleFromTransform();
+  rect_.Scale(scale.x(), scale.y());
+  base_state_.rounded_scissor_rect.Scale(scale.x(), scale.y());
+  base_state_.rounded_scissor_corners =
+      base_state_.rounded_scissor_corners->Scale(scale.x(), scale.y());
 }
 
 void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
+  const float kWidthScale = 1.0f / rect_.width();
+  const float kHeightScale = 1.0f / rect_.height();
+
   VertexAttributes attributes[kVertexCount];
-  SetVertex(&attributes[0], rect_.x(), rect_.y(),
-      texcoord_transform_(0, 2), texcoord_transform_(1, 2));    // uv = (0,0)
-  SetVertex(&attributes[1], rect_.right(), rect_.y(),
-      texcoord_transform_(0, 0) + texcoord_transform_(0, 2),    // uv = (1,0)
-      texcoord_transform_(1, 0) + texcoord_transform_(1, 2));
-  SetVertex(&attributes[2], rect_.right(), rect_.bottom(),
-      texcoord_transform_(0, 0) + texcoord_transform_(0, 1) +   // uv = (1,1)
-          texcoord_transform_(0, 2),
-      texcoord_transform_(1, 0) + texcoord_transform_(1, 1) +
-          texcoord_transform_(1, 2));
-  SetVertex(&attributes[3], rect_.x(), rect_.bottom(),
-      texcoord_transform_(0, 1) + texcoord_transform_(0, 2),    // uv = (0,1)
-      texcoord_transform_(1, 1) + texcoord_transform_(1, 2));
+  RRectAttributes rrect[4];
+  GetRRectAttributes(rect_, base_state_.rounded_scissor_rect,
+                     *base_state_.rounded_scissor_corners, rrect);
+  for (int r = 0, v = 0; r < arraysize(rrect); ++r) {
+    attributes[v  ].position[0] = rrect[r].bounds.x();
+    attributes[v  ].position[1] = rrect[r].bounds.y();
+    attributes[v  ].rcorner =
+        RCorner(attributes[v  ].position, rrect[r].rcorner);
+    attributes[v+1].position[0] = rrect[r].bounds.right();
+    attributes[v+1].position[1] = rrect[r].bounds.y();
+    attributes[v+1].rcorner =
+        RCorner(attributes[v+1].position, rrect[r].rcorner);
+    attributes[v+2].position[0] = rrect[r].bounds.x();
+    attributes[v+2].position[1] = rrect[r].bounds.bottom();
+    attributes[v+2].rcorner =
+        RCorner(attributes[v+2].position, rrect[r].rcorner);
+    attributes[v+3].position[0] = rrect[r].bounds.right();
+    attributes[v+3].position[1] = rrect[r].bounds.bottom();
+    attributes[v+3].rcorner =
+        RCorner(attributes[v+3].position, rrect[r].rcorner);
+
+    for (int t = v; t < v + 4; ++t) {
+      math::PointF texcoord(
+          (attributes[t].position[0] - rect_.x()) * kWidthScale,
+          (attributes[t].position[1] - rect_.y()) * kHeightScale);
+      texcoord = texcoord_transform_ * texcoord;
+      attributes[t].texcoord[0] = texcoord.x();
+      attributes[t].texcoord[1] = texcoord.y();
+    }
+
+    attributes[v+4] = attributes[v+1];
+    attributes[v+5] = attributes[v+2];
+    v += 6;
+  }
+
   vertex_buffer_ = graphics_state->AllocateVertexData(sizeof(attributes));
   SbMemoryCopy(vertex_buffer_, attributes, sizeof(attributes));
 
@@ -119,8 +137,8 @@ void DrawRRectColorTexture::ExecuteUpdateVertexBuffer(
 void DrawRRectColorTexture::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  ShaderProgram<ShaderVertexOffsetTexcoord,
-                ShaderFragmentTexcoordColorRrect>* program;
+  ShaderProgram<ShaderVertexRcornerTexcoord,
+                ShaderFragmentRcornerTexcoordColor>* program;
   program_manager->GetProgram(&program);
   graphics_state->UseProgram(program->GetHandle());
   graphics_state->UpdateClipAdjustment(
@@ -135,19 +153,15 @@ void DrawRRectColorTexture::ExecuteRasterize(
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, position));
   graphics_state->VertexAttribPointer(
-      program->GetVertexShader().a_offset(), 2, GL_FLOAT, GL_FALSE,
+      program->GetVertexShader().a_rcorner(), 4, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
-      offsetof(VertexAttributes, offset));
+      offsetof(VertexAttributes, rcorner));
   graphics_state->VertexAttribPointer(
       program->GetVertexShader().a_texcoord(), 2, GL_FLOAT, GL_FALSE,
       sizeof(VertexAttributes), vertex_buffer_ +
       offsetof(VertexAttributes, texcoord));
   graphics_state->VertexAttribFinish();
 
-  SetRRectUniforms(program->GetFragmentShader().u_rect(),
-                   program->GetFragmentShader().u_corners(),
-                   base_state_.rounded_scissor_rect,
-                   *base_state_.rounded_scissor_corners, 0.5f);
   GL_CALL(glUniform4f(program->GetFragmentShader().u_color(),
                       color_.r(), color_.g(), color_.b(), color_.a()));
   GL_CALL(glUniform4fv(program->GetFragmentShader().u_texcoord_clamp(), 1,
@@ -157,7 +171,7 @@ void DrawRRectColorTexture::ExecuteRasterize(
     graphics_state->ActiveBindTexture(
         program->GetFragmentShader().u_texture_texunit(),
         texture_->GetTarget(), texture_->gl_handle(), GL_REPEAT);
-    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, kVertexCount));
+    GL_CALL(glDrawArrays(GL_TRIANGLES, 0, kVertexCount));
     graphics_state->ActiveBindTexture(
         program->GetFragmentShader().u_texture_texunit(),
         texture_->GetTarget(), texture_->gl_handle(), GL_CLAMP_TO_EDGE);
@@ -165,13 +179,13 @@ void DrawRRectColorTexture::ExecuteRasterize(
     graphics_state->ActiveBindTexture(
         program->GetFragmentShader().u_texture_texunit(),
         texture_->GetTarget(), texture_->gl_handle());
-    GL_CALL(glDrawArrays(GL_TRIANGLE_FAN, 0, kVertexCount));
+    GL_CALL(glDrawArrays(GL_TRIANGLES, 0, kVertexCount));
   }
 }
 
 base::TypeId DrawRRectColorTexture::GetTypeId() const {
-  return ShaderProgram<ShaderVertexOffsetTexcoord,
-                       ShaderFragmentTexcoordColorRrect>::GetTypeId();
+  return ShaderProgram<ShaderVertexRcornerTexcoord,
+                       ShaderFragmentRcornerTexcoordColor>::GetTypeId();
 }
 
 }  // namespace egl
