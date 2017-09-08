@@ -19,6 +19,7 @@
 
 #include "base/bind.h"
 #include "base/callback.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/parser.h"
 
 namespace cobalt {
@@ -29,15 +30,19 @@ class Parser : public dom::Parser {
   Parser()
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
         ALLOW_THIS_IN_INITIALIZER_LIST(error_callback_(
-            base::Bind(&Parser::ErrorCallback, base::Unretained(this)))) {}
+            base::Bind(&Parser::ErrorCallback, base::Unretained(this)))),
+        require_csp_(csp::kCSPRequired) {}
   explicit Parser(
       const base::Callback<void(const std::string&)>& error_callback)
       : dom_max_element_depth_(kDefaultDOMMaxElementDepth),
-        error_callback_(error_callback) {}
+        error_callback_(error_callback),
+        require_csp_(csp::kCSPRequired) {}
   Parser(const int dom_max_element_depth,
-         const base::Callback<void(const std::string&)>& error_callback)
+         const base::Callback<void(const std::string&)>& error_callback,
+         csp::CSPHeaderPolicy require_csp)
       : dom_max_element_depth_(dom_max_element_depth),
-        error_callback_(error_callback) {}
+        error_callback_(error_callback),
+        require_csp_(require_csp) {}
   ~Parser() OVERRIDE {}
 
   // From dom::Parser.
@@ -78,6 +83,10 @@ class Parser : public dom::Parser {
   const base::Callback<void(const std::string&)> error_callback_;
 
   void ErrorCallback(const std::string& error);
+
+  // Cobalt user can specify if they want to forbid Cobalt rendering without csp
+  // headers.
+  csp::CSPHeaderPolicy require_csp_;
 
   DISALLOW_COPY_AND_ASSIGN(Parser);
 };

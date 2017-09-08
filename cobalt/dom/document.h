@@ -111,6 +111,7 @@ class Document : public Node,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
             const std::string& location_policy,
+            csp::CSPHeaderPolicy require_csp,
             CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback,
             int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0)
@@ -124,6 +125,7 @@ class Document : public Node,
           cookie_jar(cookie_jar),
           post_sender(post_sender),
           location_policy(location_policy),
+          require_csp(require_csp),
           csp_enforcement_mode(csp_enforcement_mode),
           csp_policy_changed_callback(csp_policy_changed_callback),
           csp_insecure_allowed_token(csp_insecure_allowed_token),
@@ -139,6 +141,7 @@ class Document : public Node,
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
     std::string location_policy;
+    csp::CSPHeaderPolicy require_csp;
     CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;
     int csp_insecure_allowed_token;

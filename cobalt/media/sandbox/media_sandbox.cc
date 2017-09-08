@@ -72,7 +72,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
                          const FilePath& trace_log_path) {
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
   network::NetworkModule::Options network_options;
-  network_options.require_https = false;
+  network_options.https_requirement = network::kHTTPSOptional;
 
   network_module_.reset(new network::NetworkModule(network_options));
   fetcher_factory_.reset(new loader::FetcherFactory(network_module_.get()));

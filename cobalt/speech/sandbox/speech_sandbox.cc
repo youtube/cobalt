@@ -33,7 +33,7 @@ SpeechSandbox::SpeechSandbox(const std::string& file_path_string,
   trace_to_file_.reset(new trace_event::ScopedTraceToFile(trace_log_path));
 
   network::NetworkModule::Options network_options;
-  network_options.require_https = false;
+  network_options.https_requirement = network::kHTTPSOptional;
   network_module_.reset(new network::NetworkModule(network_options));
 
   GURL url(file_path_string);
