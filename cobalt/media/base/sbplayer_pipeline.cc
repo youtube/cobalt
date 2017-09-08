@@ -227,6 +227,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   scoped_ptr<StarboardPlayer> player_;
   bool suspended_;
   bool stopped_;
+  bool ended_;
 
   VideoDumper video_dumper_;
 
@@ -250,6 +251,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       suspended_(false),
       stopped_(false),
+      ended_(false),
       video_dumper_(kVideoDumpFileName) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
@@ -364,6 +366,7 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
   }
 
   player_->PrepareForSeek();
+  ended_ = false;
 
   DCHECK(seek_cb_.is_null());
   DCHECK(!seek_cb.is_null());
@@ -428,6 +431,9 @@ TimeDelta SbPlayerPipeline::GetMediaTime() const {
   }
   if (!player_) {
     return TimeDelta();
+  }
+  if (ended_) {
+    return duration_;
   }
   base::TimeDelta media_time;
   player_->GetInfo(&statistics_.video_frames_decoded,
@@ -825,6 +831,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateEndOfStream:
       ended_cb_.Run(PIPELINE_OK);
+      ended_ = true;
       break;
     case kSbPlayerStateDestroyed:
       break;
