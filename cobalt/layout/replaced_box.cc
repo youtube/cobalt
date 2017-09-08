@@ -254,6 +254,21 @@ void AnimateVideoWithLetterboxing(
 
   scoped_refptr<render_tree::Image> image = replace_image_cb.Run();
 
+  // If the image hasn't changed, then no need to change anything else.  The
+  // image should be the first child (see AddLetterboxedImageToRenderTree()).
+  if (!composition_node_builder->children().empty()) {
+    render_tree::ImageNode* existing_image_node =
+        base::polymorphic_downcast<render_tree::ImageNode*>(
+            composition_node_builder->GetChild(0)->get());
+    if (existing_image_node->data().source.get() == image.get()) {
+      return;
+    }
+  }
+
+  // Reset the composition node from whatever it was before, we will recreate
+  // it anew in each animation frame.
+  *composition_node_builder = CompositionNode::Builder();
+
   // TODO: Detect better when the intrinsic video size is used for the
   //   node size, and trigger a re-layout from the media element when the size
   //   changes.
