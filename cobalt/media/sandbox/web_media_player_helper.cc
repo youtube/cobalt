@@ -35,7 +35,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   // WebMediaPlayerClient methods
   void NetworkStateChanged() OVERRIDE {}
   void ReadyStateChanged() OVERRIDE {}
-  void TimeChanged(bool) OVERRIDE {}
+  void TimeChanged() OVERRIDE {}
   void DurationChanged() OVERRIDE {}
   void OutputModeChanged() OVERRIDE {}
   void PlaybackStateChanged() OVERRIDE {}
@@ -48,8 +48,9 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE { return ""; }
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,
-                                         unsigned) OVERRIDE {}
+  void EncryptedMediaInitDataEncountered(EmeInitDataType init_data_type,
+                                         const unsigned char* init_data,
+                                         unsigned init_data_length) OVERRIDE {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 };
 
