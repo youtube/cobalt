@@ -19,17 +19,9 @@ namespace browser {
 namespace switches {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-// Allow insecure HTTP network connections.
-const char kAllowHttp[] = "allow_http";
 
 // Decode audio data using ShellRawAudioDecoderStub.
 const char kAudioDecoderStub[] = "audio_decoder_stub";
-
-// Set the content security policy enforcement mode: disable | enable
-// disable: Allow all resource loads. Ignore CSP totally.
-// enable: default mode. Enforce CSP strictly.  Require CSP headers or fail
-// the initial document load.
-const char kCspMode[] = "csp_mode";
 
 // Switches different debug console modes: on | hud | off
 const char kDebugConsoleMode[] = "debug_console";
@@ -66,6 +58,10 @@ const char kNullAudioStreamer[] = "null_audio_streamer";
 // app run as if it has no local storage.
 const char kNullSavegame[] = "null_savegame";
 
+// Several checks are not enabled by default in non-production(gold) build. Use
+// this flag to simulate production build behavior.
+const char kProd[] = "prod";
+
 // Specifies a proxy to use for network connections.
 const char kProxy[] = "proxy";
 
@@ -74,6 +70,14 @@ const char kPartialLayout[] = "partial_layout";
 
 // Creates a remote debugging server and listens on the specified port.
 const char kRemoteDebuggingPort[] = "remote_debugging_port";
+
+// Forbid Cobalt to start without receiving csp headers which is enabled by
+// default in production.
+const char kRequireCSP[] = "require_csp";
+
+// Ask Cobalt to only accept https url which is enabled by default in
+// production.
+const char kRequireHTTPSLocation[] = "require_https";
 
 // If this flag is set, Cobalt will automatically shutdown after the specified
 // number of seconds have passed.
@@ -130,7 +134,7 @@ const char kFPSPrint[] = "fps_stdout";
 const char kFPSOverlay[] = "fps_overlay";
 
 // Disables the hard-coded navigation whitelist without disabling any other
-// security checks. This is enabled in Gold builds.
+// security checks. This is enabled in production(gold) builds.
 const char kDisableNavigationWhitelist[] = "disable_navigation_whitelist";
 
 // Determines the capacity of the image cache which manages image surfaces

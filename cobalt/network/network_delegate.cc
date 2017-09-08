@@ -23,10 +23,10 @@ namespace cobalt {
 namespace network {
 
 NetworkDelegate::NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
-                                 bool require_https)
+                                 network::HTTPSRequirement https_requirement)
     : cookie_policy_(cookie_policy),
       cookies_enabled_(true),
-      require_https_(require_https) {}
+      https_requirement_(https_requirement) {}
 
 NetworkDelegate::~NetworkDelegate() {}
 
@@ -37,16 +37,13 @@ int NetworkDelegate::OnBeforeURLRequest(
   UNREFERENCED_PARAMETER(callback);
   UNREFERENCED_PARAMETER(new_url);
 
-#if defined(COBALT_FORCE_HTTPS)
-  const bool require_https = true;
-#else
-  bool require_https = require_https_;
-#endif
-
   const GURL& url = request->url();
-  if (!require_https) {
+  if (url.SchemeIsSecure() || url.SchemeIs("data")) {
     return net::OK;
-  } else if (url.SchemeIsSecure() || url.SchemeIs("data")) {
+  } else if (https_requirement_ == kHTTPSOptional) {
+    DLOG(WARNING)
+        << "Page must be served over secure scheme, it will fail to load "
+           "in production builds of Cobalt.";
     return net::OK;
   }
 

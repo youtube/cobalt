@@ -49,7 +49,8 @@ class HTMLDecoder : public loader::Decoder {
               const base::SourceLocation& input_location,
               const base::Closure& done_callback,
               const base::Callback<void(const std::string&)>& error_callback,
-              const bool should_run_scripts);
+              const bool should_run_scripts,
+              const csp::CSPHeaderPolicy require_csp);
 
   ~HTMLDecoder();
 
@@ -74,6 +75,9 @@ class HTMLDecoder : public loader::Decoder {
   const base::Closure done_callback_;
 
   const bool should_run_scripts_;
+
+  // If Cobalt user forbids rendering Cobalt without csp headers.
+  const csp::CSPHeaderPolicy require_csp_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLDecoder);
 };
