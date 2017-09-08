@@ -28,7 +28,11 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+          options.offscreen_target_cache_size_in_bytes,
+#else
           options.surface_cache_size_in_bytes,
+#endif
           options.purge_skia_font_caches_on_destruction));
 }
 }  // namespace

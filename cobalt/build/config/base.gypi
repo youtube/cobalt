@@ -174,7 +174,7 @@
     #                    output window.
     #   'stub'        -- Stub graphics rasterization.  A rasterizer object will
     #                    still be available and valid, but it will do nothing.
-    'rasterizer_type%': 'hardware',
+    'rasterizer_type%': 'direct-gles',
 
     # If set to 1, will enable support for rendering only the regions of the
     # display that are modified due to animations, instead of re-rendering the
