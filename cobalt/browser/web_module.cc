@@ -424,7 +424,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   dom_parser_.reset(new dom_parser::Parser(
       kDOMMaxElementDepth,
-      base::Bind(&WebModule::Impl::OnError, base::Unretained(this))));
+      base::Bind(&WebModule::Impl::OnError, base::Unretained(this)),
+      data.options.require_csp));
   DCHECK(dom_parser_);
 
   blob_registry_.reset(new dom::Blob::Registry);
@@ -531,7 +532,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnError, base::Unretained(this)),
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
-      data.options.location_policy, data.options.csp_enforcement_mode,
+      data.options.location_policy, data.options.require_csp,
+      data.options.csp_enforcement_mode,
       base::Bind(&WebModule::Impl::OnCspPolicyChanged, base::Unretained(this)),
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),

@@ -21,6 +21,7 @@
 #include "base/gtest_prod_util.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/singleton.h"
+#include "cobalt/csp/content_security_policy.h"
 #include "cobalt/dom/csp_delegate_type.h"
 #include "googleurl/src/gurl.h"
 
@@ -43,13 +44,13 @@ class CspDelegateFactory {
   scoped_ptr<CspDelegate> Create(
       CspEnforcementType type,
       scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy,
+      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token = 0);
 
   typedef CspDelegate* (*CspDelegateCreator)(
       scoped_ptr<CspViolationReporter> violation_reporter, const GURL&,
-      const std::string&, const base::Closure&, int);
+      const std::string&, csp::CSPHeaderPolicy, const base::Closure&, int);
 
 #if !defined(COBALT_FORCE_CSP)
   // Allow tests to have the factory create a different delegate type.
