@@ -29,13 +29,14 @@ HTMLDecoder::HTMLDecoder(
     const int dom_max_element_depth, const base::SourceLocation& input_location,
     const base::Closure& done_callback,
     const base::Callback<void(const std::string&)>& error_callback,
-    const bool should_run_scripts)
+    const bool should_run_scripts, const csp::CSPHeaderPolicy require_csp)
     : libxml_html_parser_wrapper_(new LibxmlHTMLParserWrapper(
           document, parent_node, reference_node, dom_max_element_depth,
           input_location, error_callback, should_run_scripts)),
       document_(document),
       done_callback_(done_callback),
-      should_run_scripts_(should_run_scripts) {}
+      should_run_scripts_(should_run_scripts),
+      require_csp_(require_csp) {}
 
 HTMLDecoder::~HTMLDecoder() {}
 
@@ -61,7 +62,8 @@ loader::LoadResponseType HTMLDecoder::OnResponseStarted(
   }
 
   csp::ResponseHeaders csp_headers(headers);
-  if (document_->csp_delegate()->OnReceiveHeaders(csp_headers)) {
+  if (document_->csp_delegate()->OnReceiveHeaders(csp_headers) ||
+      require_csp_ == csp::kCSPOptional) {
     return loader::kLoadResponseContinue;
   } else {
     DLOG(ERROR) << "Failure receiving Content Security Policy headers";

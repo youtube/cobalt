@@ -31,7 +31,7 @@ scoped_refptr<dom::Document> Parser::ParseDocument(
       new dom::Document(html_element_context);
   HTMLDecoder html_decoder(document, document, NULL, dom_max_element_depth_,
                            input_location, base::Closure(), error_callback_,
-                           false);
+                           false, require_csp_);
   html_decoder.DecodeChunk(input.c_str(), input.length());
   html_decoder.Finish();
   return document;
@@ -57,9 +57,9 @@ void Parser::ParseDocumentFragment(
     const scoped_refptr<dom::Node>& parent_node,
     const scoped_refptr<dom::Node>& reference_node,
     const base::SourceLocation& input_location) {
-  HTMLDecoder html_decoder(document, parent_node, reference_node,
-                           dom_max_element_depth_, input_location,
-                           base::Closure(), error_callback_, false);
+  HTMLDecoder html_decoder(
+      document, parent_node, reference_node, dom_max_element_depth_,
+      input_location, base::Closure(), error_callback_, false, require_csp_);
   html_decoder.DecodeChunk(input.c_str(), input.length());
   html_decoder.Finish();
 }
@@ -81,9 +81,9 @@ void Parser::ParseXMLDocumentFragment(
 scoped_ptr<loader::Decoder> Parser::ParseDocumentAsync(
     const scoped_refptr<dom::Document>& document,
     const base::SourceLocation& input_location) {
-  return scoped_ptr<loader::Decoder>(
-      new HTMLDecoder(document, document, NULL, dom_max_element_depth_,
-                      input_location, base::Closure(), error_callback_, true));
+  return scoped_ptr<loader::Decoder>(new HTMLDecoder(
+      document, document, NULL, dom_max_element_depth_, input_location,
+      base::Closure(), error_callback_, true, require_csp_));
 }
 
 scoped_ptr<loader::Decoder> Parser::ParseXMLDocumentAsync(

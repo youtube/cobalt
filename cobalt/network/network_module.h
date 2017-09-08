@@ -60,11 +60,11 @@ class NetworkModule {
         : cookie_policy(
               net::StaticCookiePolicy::BLOCK_SETTING_THIRD_PARTY_COOKIES),
           ignore_certificate_errors(false),
-          require_https(true),
+          https_requirement(network::kHTTPSRequired),
           preferred_language("en-US") {}
     net::StaticCookiePolicy::Type cookie_policy;
     bool ignore_certificate_errors;
-    bool require_https;
+    HTTPSRequirement https_requirement;
     std::string preferred_language;
     std::string custom_proxy;
   };
