@@ -27,6 +27,7 @@
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/render_target.h"
 #include "cobalt/renderer/rasterizer/common/find_node.h"
+#include "cobalt/renderer/rasterizer/egl/hardware_rasterizer.h"
 #include "cobalt/renderer/rasterizer/lib/exported/graphics.h"
 #include "cobalt/renderer/rasterizer/lib/exported/video.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_image.h"
@@ -154,8 +155,12 @@ class ExternalRasterizer::Impl {
 
   backend::GraphicsContextEGL* graphics_context_;
 
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+  egl::HardwareRasterizer hardware_rasterizer_;
+#else
   skia::HardwareRasterizer hardware_rasterizer_;
-  skia::HardwareRasterizer::Options options_;
+#endif
+  Rasterizer::Options options_;
 
   // The main offscreen render target to use when rendering UI or rectangular
   // video.
@@ -178,7 +183,7 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               int surface_cache_size_in_bytes,
+                               int rasterizer_gpu_cache_size_in_bytes,
                                bool purge_skia_font_caches_on_destruction)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
@@ -186,11 +191,12 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       hardware_rasterizer_(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction),
+          rasterizer_gpu_cache_size_in_bytes,
+          purge_skia_font_caches_on_destruction),
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0) {
-  options_.flags = skia::HardwareRasterizer::kSubmitFlags_Clear;
+  options_.flags = Rasterizer::kSubmitFlags_Clear;
   graphics_context_->MakeCurrent();
 
   // TODO: Import the correct size for this and any other textures from the lib
@@ -397,12 +403,14 @@ void ExternalRasterizer::Impl::RenderOffscreenVideo(
 ExternalRasterizer::ExternalRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
-    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+    int scratch_surface_cache_size_in_bytes,
+    int rasterizer_gpu_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
     : impl_(new Impl(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction)) {
+          rasterizer_gpu_cache_size_in_bytes,
+          purge_skia_font_caches_on_destruction)) {
 }
 
 ExternalRasterizer::~ExternalRasterizer() {}
