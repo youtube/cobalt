@@ -42,6 +42,12 @@ struct ViolationInfo {
   std::string header;
 };
 
+// Whether Cobalt can start without CSP headers.
+enum CSPHeaderPolicy {
+  kCSPRequired,
+  kCSPOptional,
+};
+
 // A callback that a URL fetcher will call to check if the URL is permitted
 // by our security policy. This may be called multiple times if the URL results
 // in a redirect. The callback should return |true| if the URL is safe to

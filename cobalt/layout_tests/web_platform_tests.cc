@@ -46,22 +46,23 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
  public:
   CspDelegatePermissive(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy,
+      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback)
       : dom::CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
-                               policy_changed_callback) {
+                               require_csp, policy_changed_callback) {
     // Lies, but some checks in our parent require this.
     was_header_received_ = true;
   }
 
   static CspDelegate* Create(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy,
+      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
     UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(violation_reporter.Pass(), url,
-                                     location_policy, policy_changed_callback);
+                                     location_policy, require_csp,
+                                     policy_changed_callback);
   }
 
   bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
@@ -150,7 +151,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
 
   // Network module
   network::NetworkModule::Options net_options;
-  net_options.require_https = false;
+  net_options.https_requirement = network::kHTTPSOptional;
   network::NetworkModule network_module(net_options);
 
   // Media module

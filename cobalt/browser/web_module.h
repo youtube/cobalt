@@ -128,6 +128,9 @@ class WebModule : public LifecycleObserver {
     // can't be changed from the whitelisted origins.
     std::string location_policy;
 
+    // Whether Cobalt is forbidden to render without receiving CSP headers.
+    csp::CSPHeaderPolicy require_csp;
+
     // Image cache capacity in bytes.
     int image_cache_capacity;
 

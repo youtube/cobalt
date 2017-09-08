@@ -61,7 +61,7 @@ browser::WebModule::LayoutResults SnapshotURL(
   network::NetworkModule::Options net_options;
   // Some layout tests test Content Security Policy; allow HTTP so we
   // don't interfere.
-  net_options.require_https = false;
+  net_options.https_requirement = network::kHTTPSOptional;
   network::NetworkModule network_module(net_options);
 
   // We do not support a media module in this mode.

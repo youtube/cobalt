@@ -105,6 +105,7 @@ class CspDelegateSecure : public CspDelegate {
  public:
   CspDelegateSecure(scoped_ptr<CspViolationReporter> violation_reporter,
                     const GURL& url, const std::string& location_policy,
+                    csp::CSPHeaderPolicy require_csp,
                     const base::Closure& policy_changed_callback);
   ~CspDelegateSecure();
 
@@ -155,6 +156,9 @@ class CspDelegateSecure : public CspDelegate {
   // receiving (and parsing) the headers, or after encountering a CSP directive
   // in a <meta> tag.
   base::Closure policy_changed_callback_;
+
+  // Whether Cobalt is forbidden to render without receiving CSP header.
+  csp::CSPHeaderPolicy require_csp_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CspDelegateSecure);
