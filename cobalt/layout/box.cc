@@ -1638,20 +1638,21 @@ void Box::UpdateHorizontalMarginsAssumingBlockLevelInFlowBox(
   }
 }
 
-void Box::ApplyTransformActionToCoordinate(TransformAction action,
+bool Box::ApplyTransformActionToCoordinate(TransformAction action,
                                            math::Vector2dF* coordinate) const {
   std::vector<math::Vector2dF> coordinate_vector;
   coordinate_vector.push_back(*coordinate);
-  ApplyTransformActionToCoordinates(action, &coordinate_vector);
+  bool result = ApplyTransformActionToCoordinates(action, &coordinate_vector);
   *coordinate = coordinate_vector[0];
+  return result;
 }
 
-void Box::ApplyTransformActionToCoordinates(
+bool Box::ApplyTransformActionToCoordinates(
     TransformAction action, std::vector<math::Vector2dF>* coordinates) const {
   const scoped_refptr<cssom::PropertyValue>& transform =
       computed_style()->transform();
   if (transform == cssom::KeywordValue::GetNone()) {
-    return;
+    return true;
   }
 
   // The border box offset is calculated in two steps because we want to
@@ -1673,6 +1674,11 @@ void Box::ApplyTransformActionToCoordinates(
   if (!matrix.IsIdentity()) {
     if (action == kEnterTransform) {
       matrix = matrix.Inverse();
+      // The matrix is not invertible. Return that applying the transform
+      // failed.
+      if (matrix.IsZeros()) {
+        return false;
+      }
     }
 
     for (std::vector<math::Vector2dF>::iterator coordinate_iter =
@@ -1702,6 +1708,7 @@ void Box::ApplyTransformActionToCoordinates(
       coordinate += containing_block_offset_from_root_as_float;
     }
   }
+  return true;
 }
 
 }  // namespace layout

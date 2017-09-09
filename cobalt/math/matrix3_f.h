@@ -39,6 +39,7 @@ class Matrix3F {
     data_[8] = m22;
   }
 
+  bool IsZeros() const;
   bool IsIdentity() const;
 
   bool IsEqual(const Matrix3F& rhs) const;
