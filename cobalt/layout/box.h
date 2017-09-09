@@ -572,9 +572,11 @@ class Box : public base::RefCounted<Box> {
                               RenderSequence other_render_sequence);
 
   // Applies the specified transform action to the provided coordinates.
-  void ApplyTransformActionToCoordinate(TransformAction action,
+  // Returns false if the transform is not invertible and the action requires
+  // it being inverted.
+  bool ApplyTransformActionToCoordinate(TransformAction action,
                                         math::Vector2dF* coordinate) const;
-  void ApplyTransformActionToCoordinates(
+  bool ApplyTransformActionToCoordinates(
       TransformAction action, std::vector<math::Vector2dF>* coordinates) const;
 
  protected:
