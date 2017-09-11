@@ -100,33 +100,36 @@ void UpdateEventModifierInit(const system_window::InputEvent* input_event,
   event->set_meta_key(modifiers & system_window::InputEvent::kMetaKey);
 }
 
-void UpdateMouseEventInitButton(int key_code, MouseEventInit* event) {
+void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
+                                 MouseEventInit* event) {
   // The value of the button attribute MUST be as follows:
   //  https://www.w3.org/TR/uievents/#ref-for-dom-mouseevent-button-1
-  if (key_code == kSbKeyMouse1) {
-    // 0 MUST indicate the primary button of the device (in general, the left
-    // button or the only button on single-button devices, used to activate a
-    // user interface control or select text) or the un-initialized value.
-    event->set_button(0);
-    event->set_buttons(1);
-  } else if (key_code == kSbKeyMouse2) {
-    // 1 MUST indicate the auxiliary button (in general, the middle button,
-    // often combined with a mouse wheel).
-    event->set_button(1);
-    event->set_buttons(2);
-  } else if (key_code == kSbKeyMouse3) {
-    // 2 MUST indicate the secondary button (in general, the right button, often
-    // used to display a context menu).
-    event->set_button(2);
-    event->set_buttons(4);
+  switch (input_event->key_code()) {
+    case kSbKeyMouse1:
+      // 0 MUST indicate the primary button of the device (in general, the left
+      // button or the only button on single-button devices, used to activate a
+      // user interface control or select text) or the un-initialized value.
+      event->set_button(0);
+      break;
+    case kSbKeyMouse2:
+      // 1 MUST indicate the auxiliary button (in general, the middle button,
+      // often combined with a mouse wheel).
+      event->set_button(1);
+      break;
+    case kSbKeyMouse3:
+      // 2 MUST indicate the secondary button (in general, the right button,
+      // often used to display a context menu).
+      event->set_button(2);
+      break;
+    default:
+      break;
   }
-}
 
-void UpdateMouseEventInitButtons(uint32 modifiers, MouseEventInit* event) {
   // The value of the buttons attribute MUST be as follows:
   //  https://www.w3.org/TR/uievents/#ref-for-dom-mouseevent-buttons-3
 
   // 0 MUST indicate no button is currently active.
+  uint32 modifiers = input_event->modifiers();
   uint16 buttons = 0;
   if (modifiers & system_window::InputEvent::kLeftButton) {
     // 1 MUST indicate the primary button of the device (in general, the left
@@ -144,14 +147,34 @@ void UpdateMouseEventInitButtons(uint32 modifiers, MouseEventInit* event) {
     // often combined with a mouse wheel).
     buttons |= 4;
   }
-  event->set_buttons(event->buttons() | buttons);
+
+  // The buttons attribute reflects the state of the mouse's buttons for any
+  // MouseEvent object (while it is being dispatched).
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#ref-for-dom-mouseevent-buttons-2
+  switch (input_event->type()) {
+    case system_window::InputEvent::kTouchpadDown:
+    case system_window::InputEvent::kPointerDown:
+      // For 'down' events, ensure that the buttons state includes the currently
+      // reported button press.
+      buttons |= 1 << event->button();
+      break;
+    case system_window::InputEvent::kTouchpadUp:
+    case system_window::InputEvent::kPointerUp:
+      // For 'up' events, ensure that the buttons state excludes the currently
+      // reported button press.
+      buttons &= ~(1 << event->button());
+      break;
+    default:
+      break;
+  }
+
+  event->set_buttons(buttons);
 }
 
 void UpdateMouseEventInit(const system_window::InputEvent* input_event,
                           dom::MouseEventInit* mouse_event) {
   UpdateEventModifierInit(input_event, mouse_event);
-  UpdateMouseEventInitButton(input_event->key_code(), mouse_event);
-  UpdateMouseEventInitButtons(input_event->modifiers(), mouse_event);
+  UpdateMouseEventInitButtons(input_event, mouse_event);
 
   const math::PointF& position = input_event->position();
   mouse_event->set_screen_x(static_cast<float>(position.x()));
@@ -164,7 +187,6 @@ void UpdateMouseEventInit(const system_window::InputEvent* input_event,
 float value_or(float value, float default_value) {
   return std::isnan(value) ? default_value : value;
 }
-
 }  // namespace
 
 void InputDeviceManagerDesktop::HandleKeyboardEvent(

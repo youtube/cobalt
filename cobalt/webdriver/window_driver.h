@@ -30,14 +30,17 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/pointer_event.h"
-#include "cobalt/dom/wheel_event.h"
+#include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/webdriver/element_driver.h"
 #include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/keyboard.h"
+#include "cobalt/webdriver/protocol/button.h"
 #include "cobalt/webdriver/protocol/cookie.h"
+#include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/frame_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
+#include "cobalt/webdriver/protocol/moveto.h"
 #include "cobalt/webdriver/protocol/script.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
 #include "cobalt/webdriver/protocol/size.h"
@@ -61,9 +64,6 @@ class WindowDriver : private ElementMapping {
   typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
                               const dom::PointerEventInit&)>
       PointerEventInjector;
-  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
-                              const dom::WheelEventInit&)>
-      WheelEventInjector;
 
   typedef base::Callback<scoped_refptr<script::GlobalEnvironment>()>
       GetGlobalEnvironmentFunction;
@@ -72,7 +72,6 @@ class WindowDriver : private ElementMapping {
                const GetGlobalEnvironmentFunction& get_global_environment,
                KeyboardEventInjector keyboard_event_injector,
                PointerEventInjector pointer_event_injector,
-               WheelEventInjector wheel_event_injector,
                const scoped_refptr<base::MessageLoopProxy>& message_loop);
   ~WindowDriver();
   const protocol::WindowId& window_id() { return window_id_; }
@@ -100,6 +99,10 @@ class WindowDriver : private ElementMapping {
   util::CommandResult<std::vector<protocol::Cookie> > GetCookie(
       const std::string& name);
   util::CommandResult<void> AddCookie(const protocol::Cookie& cookie);
+  util::CommandResult<void> MouseMoveTo(const protocol::Moveto& moveto);
+  util::CommandResult<void> MouseButtonDown(const protocol::Button& button);
+  util::CommandResult<void> MouseButtonUp(const protocol::Button& button);
+  util::CommandResult<void> SendClick(const protocol::Button& button);
 
  private:
   typedef base::hash_map<std::string, ElementDriver*> ElementDriverMap;
@@ -139,6 +142,27 @@ class WindowDriver : private ElementMapping {
 
   util::CommandResult<void> AddCookieInternal(const protocol::Cookie& cookie);
 
+  void InitPointerEvent(dom::PointerEventInit* event);
+
+  // Used to receive pointer positions from events injected from an
+  // ElementDriver.
+  void InjectPointerEvent(scoped_refptr<dom::Element> element, base::Token type,
+                          const dom::PointerEventInit& event);
+
+  util::CommandResult<void> MouseMoveToInternal(const protocol::Moveto& moveto);
+
+  void InjectMouseButtonUp(const protocol::Button& button);
+
+  void InjectMouseButtonDown(const protocol::Button& button);
+
+  util::CommandResult<void> MouseButtonDownInternal(
+      const protocol::Button& button);
+
+  util::CommandResult<void> MouseButtonUpInternal(
+      const protocol::Button& button);
+
+  util::CommandResult<void> SendClickInternal(const protocol::Button& button);
+
   util::CommandResult<protocol::ElementId> GetActiveElementInternal();
 
   const protocol::WindowId window_id_;
@@ -148,7 +172,6 @@ class WindowDriver : private ElementMapping {
 
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;
-  WheelEventInjector wheel_event_injector_;
 
   // Anything that interacts with the window must be run on this message loop.
   scoped_refptr<base::MessageLoopProxy> window_message_loop_;
@@ -175,6 +198,10 @@ class WindowDriver : private ElementMapping {
 
   // Monotonically increasing number to provide unique element ids.
   int32 next_element_id_;
+
+  int pointer_buttons_;
+  float pointer_x_;
+  float pointer_y_;
 };
 
 }  // namespace webdriver

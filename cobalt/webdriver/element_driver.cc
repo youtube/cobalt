@@ -16,7 +16,11 @@
 
 #include "cobalt/cssom/property_value.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_rect.h"
+#include "cobalt/dom/dom_rect_list.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/math/rect_f.h"
+#include "cobalt/math/size.h"
 #include "cobalt/webdriver/algorithms.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/search.h"
@@ -25,6 +29,8 @@
 namespace cobalt {
 namespace webdriver {
 namespace {
+
+const int kWebDriverMousePointerId = 0x12345678;
 
 std::string GetTagName(dom::Element* element) {
   DCHECK(element);
@@ -64,14 +70,12 @@ ElementDriver::ElementDriver(
     const base::WeakPtr<dom::Element>& element, ElementMapping* element_mapping,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
-    WheelEventInjector wheel_event_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : element_id_(element_id),
       element_(element),
       element_mapping_(element_mapping),
       keyboard_event_injector_(keyboard_event_injector),
       pointer_event_injector_(pointer_event_injector),
-      wheel_event_injector_(wheel_event_injector),
       element_message_loop_(message_loop) {}
 
 util::CommandResult<std::string> ElementDriver::GetTagName() {
@@ -99,8 +103,6 @@ util::CommandResult<bool> ElementDriver::IsDisplayed() {
 }
 
 util::CommandResult<void> ElementDriver::SendKeys(const protocol::Keys& keys) {
-  typedef util::CommandResult<void> CommandResult;
-
   // Translate the keys into KeyboardEvents. Reset modifiers.
   scoped_ptr<Keyboard::KeyboardEventVector> events(
       new Keyboard::KeyboardEventVector());
@@ -130,6 +132,14 @@ ElementDriver::FindElements(const protocol::SearchStrategy& strategy) {
       base::Bind(&ElementDriver::FindElementsInternal<ElementIdVector>,
                  base::Unretained(this), strategy),
       protocol::Response::kNoSuchElement);
+}
+
+util::CommandResult<void> ElementDriver::SendClick(
+    const protocol::Button& button) {
+  return util::CallOnMessageLoop(element_message_loop_,
+                                 base::Bind(&ElementDriver::SendClickInternal,
+                                            base::Unretained(this), button),
+                                 protocol::Response::kStaleElementReference);
 }
 
 util::CommandResult<bool> ElementDriver::Equals(
@@ -186,6 +196,78 @@ util::CommandResult<void> ElementDriver::SendKeysInternal(
     keyboard_event_injector_.Run(element_.get(), (*events)[i].first,
                                  (*events)[i].second);
   }
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<void> ElementDriver::SendClickInternal(
+    const protocol::Button& button) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), element_message_loop_);
+  if (!element_) {
+    return CommandResult(protocol::Response::kStaleElementReference);
+  }
+  // First ensure that the element is displayed, and return an error if not.
+  if (!algorithms::IsDisplayed(element_.get())) {
+    return CommandResult(protocol::Response::kElementNotVisible);
+  }
+  // Click on an element.
+  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidelementidclick
+  // The Element Click clicks the in-view center point of the element
+  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-element-click
+
+  // An element's in-view center point is the origin position of the rectangle
+  // that is the intersection between the element's first DOM client rectangle
+  // and the initial viewport.
+  //   https://w3c.github.io/webdriver/webdriver-spec.html#dfn-in-view-center-point
+  scoped_refptr<dom::DOMRectList> dom_rects = element_->GetClientRects();
+  if (dom_rects->length() == 0) {
+    return CommandResult(protocol::Response::kElementNotVisible);
+  }
+  scoped_refptr<dom::DOMRect> dom_rect = dom_rects->Item(0);
+  math::RectF rect(dom_rect->left(), dom_rect->top(), dom_rect->width(),
+                   dom_rect->height());
+  DCHECK(element_->owner_document());
+  math::Size viewport_size = element_->owner_document()->viewport_size();
+  math::RectF viewport_rect(0, 0, viewport_size.width(),
+                            viewport_size.height());
+  rect.Intersect(viewport_rect);
+  float x = rect.x() + rect.width() / 2;
+  float y = rect.y() + rect.height() / 2;
+
+  dom::PointerEventInit event;
+  event.set_screen_x(x);
+  event.set_screen_y(y);
+  event.set_client_x(x);
+  event.set_client_y(y);
+
+  event.set_pointer_type("mouse");
+  event.set_pointer_id(kWebDriverMousePointerId);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  event.set_width(0.0f);
+  event.set_height(0.0f);
+  event.set_pressure(0.0f);
+  event.set_tilt_x(0.0f);
+  event.set_tilt_y(0.0f);
+#endif
+  event.set_is_primary(true);
+
+  event.set_button(0);
+  event.set_buttons(0);
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointermove(), event);
+  event.set_buttons(1);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  event.set_pressure(0.5f);
+#endif
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointerdown(), event);
+  event.set_buttons(0);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  event.set_pressure(0.0f);
+#endif
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointerup(), event);
+
   return CommandResult(protocol::Response::kSuccess);
 }
 

@@ -341,6 +341,26 @@ WebDriverModule::WebDriverModule(
       StringPrintf("/session/%s/cookie", kSessionIdVariable),
       current_window_command_factory->GetCommandHandler(
           base::Bind(&WindowDriver::AddCookie)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/moveto", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::MouseMoveTo)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/buttondown", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::MouseButtonDown)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/buttonup", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::MouseButtonUp)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/click", kSessionIdVariable),
+      current_window_command_factory->GetCommandHandler(
+          base::Bind(&WindowDriver::SendClick)));
 
   // Element commands.
   webdriver_dispatcher_->RegisterCommand(
@@ -373,6 +393,12 @@ WebDriverModule::WebDriverModule(
                                            kSessionIdVariable, kElementId),
       element_command_factory->GetCommandHandler(
           base::Bind(&ElementDriver::FindElements)));
+  webdriver_dispatcher_->RegisterCommand(
+      WebDriverServer::kPost,
+      StringPrintf("/session/%s/element/%s/click", kSessionIdVariable,
+                   kElementId),
+      element_command_factory->GetCommandHandler(
+          base::Bind(&ElementDriver::SendClick)));
   webdriver_dispatcher_->RegisterCommand(
       WebDriverServer::kGet,
       StringPrintf("/session/%s/element/%s/equals/%s", kSessionIdVariable,
@@ -411,14 +437,14 @@ WebDriverModule::WebDriverModule(
   webdriver_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StartServer,
                             base::Unretained(this), server_port, listen_ip));
-}
+}  // NOLINT(readability/fn_size)
 
 WebDriverModule::~WebDriverModule() {
   webdriver_thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebDriverModule::StopServer,
                             base::Unretained(this)));
   webdriver_thread_.Stop();
-}
+}  // NOLINT(readability/fn_size)
 
 void WebDriverModule::OnWindowRecreated() {
   if (MessageLoop::current() != webdriver_thread_.message_loop()) {
