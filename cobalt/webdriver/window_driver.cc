@@ -18,7 +18,11 @@
 
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/dom_rect.h"
 #include "cobalt/dom/location.h"
+#include "cobalt/dom/pointer_event.h"
+#include "cobalt/dom/pointer_event_init.h"
+#include "cobalt/math/clamp.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/webdriver/keyboard.h"
 #include "cobalt/webdriver/search.h"
@@ -27,6 +31,8 @@
 namespace cobalt {
 namespace webdriver {
 namespace {
+
+const int kWebDriverMousePointerId = 0x12345678;
 
 class SyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
  public:
@@ -110,17 +116,18 @@ WindowDriver::WindowDriver(
     const GetGlobalEnvironmentFunction& get_global_environment_function,
     KeyboardEventInjector keyboard_event_injector,
     PointerEventInjector pointer_event_injector,
-    WheelEventInjector wheel_event_injector,
     const scoped_refptr<base::MessageLoopProxy>& message_loop)
     : window_id_(window_id),
       window_(window),
       get_global_environment_(get_global_environment_function),
       keyboard_event_injector_(keyboard_event_injector),
       pointer_event_injector_(pointer_event_injector),
-      wheel_event_injector_(wheel_event_injector),
       window_message_loop_(message_loop),
       element_driver_map_deleter_(&element_drivers_),
-      next_element_id_(0) {
+      next_element_id_(0),
+      pointer_buttons_(0),
+      pointer_x_(0),
+      pointer_y_(0) {
   // The WindowDriver may have been created on some arbitrary thread (i.e. the
   // thread that owns the Window). Detach the thread checker so it can be
   // re-bound to the next thread that calls a webdriver API, which should be
@@ -338,6 +345,44 @@ util::CommandResult<void> WindowDriver::AddCookie(
                                  protocol::Response::kNoSuchWindow);
 }
 
+util::CommandResult<void> WindowDriver::MouseMoveTo(
+    const protocol::Moveto& moveto) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(window_message_loop_,
+                                 base::Bind(&WindowDriver::MouseMoveToInternal,
+                                            base::Unretained(this), moveto),
+                                 protocol::Response::kNoSuchWindow);
+}
+
+util::CommandResult<void> WindowDriver::MouseButtonDown(
+    const protocol::Button& button) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::MouseButtonDownInternal, base::Unretained(this),
+                 button),
+      protocol::Response::kNoSuchWindow);
+}
+
+util::CommandResult<void> WindowDriver::MouseButtonUp(
+    const protocol::Button& button) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(
+      window_message_loop_,
+      base::Bind(&WindowDriver::MouseButtonUpInternal, base::Unretained(this),
+                 button),
+      protocol::Response::kNoSuchWindow);
+}
+
+util::CommandResult<void> WindowDriver::SendClick(
+    const protocol::Button& button) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  return util::CallOnMessageLoop(window_message_loop_,
+                                 base::Bind(&WindowDriver::SendClickInternal,
+                                            base::Unretained(this), button),
+                                 protocol::Response::kNoSuchWindow);
+}
+
 protocol::ElementId WindowDriver::ElementToId(
     const scoped_refptr<dom::Element>& element) {
   DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
@@ -360,8 +405,10 @@ protocol::ElementId WindowDriver::CreateNewElementDriver(
       element_drivers_.insert(std::make_pair(
           element_id.id(),
           new ElementDriver(element_id, weak_element, this,
-                            keyboard_event_injector_, pointer_event_injector_,
-                            wheel_event_injector_, window_message_loop_)));
+                            keyboard_event_injector_,
+                            base::Bind(&WindowDriver::InjectPointerEvent,
+                                       base::Unretained(this)),
+                            window_message_loop_)));
   DCHECK(pair_it.second)
       << "An ElementDriver was already mapped to the element id: "
       << element_id.id();
@@ -470,6 +517,172 @@ util::CommandResult<void> WindowDriver::AddCookieInternal(
 
   std::string cookie_string = cookie.ToCookieString(document_domain);
   window_->document()->set_cookie(cookie_string);
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+void WindowDriver::InitPointerEvent(dom::PointerEventInit* event) {
+  event->set_buttons(pointer_buttons_);
+
+  event->set_screen_x(pointer_x_);
+  event->set_screen_y(pointer_y_);
+  event->set_client_x(pointer_x_);
+  event->set_client_y(pointer_y_);
+
+  event->set_pointer_type("mouse");
+  event->set_pointer_id(kWebDriverMousePointerId);
+#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+  event->set_width(0.0f);
+  event->set_height(0.0f);
+  event->set_pressure(pointer_buttons_ ? 0.5f : 0.0f);
+  event->set_tilt_x(0.0f);
+  event->set_tilt_y(0.0f);
+#endif
+  event->set_is_primary(true);
+}
+
+void WindowDriver::InjectPointerEvent(scoped_refptr<dom::Element> element,
+                                      base::Token type,
+                                      const dom::PointerEventInit& event) {
+  pointer_x_ = event.screen_x();
+  pointer_y_ = event.screen_y();
+  pointer_event_injector_.Run(element, type, event);
+}
+
+util::CommandResult<void> WindowDriver::MouseMoveToInternal(
+    const protocol::Moveto& moveto) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  // Move the mouse by an offset of the specified element. If no element is
+  // specified, the move is relative to the current mouse cursor. If an element
+  // is provided but no offset, the mouse will be moved to the center of the
+  // element.
+  //   https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#sessionsessionidmoveto
+  float x = 0;
+  float y = 0;
+  scoped_refptr<dom::Element> element;
+  const base::optional<protocol::ElementId>& element_id = moveto.element();
+  if (element_id) {
+    // The element to move to.
+    element = IdToElement(*element_id);
+  }
+  if (element) {
+    scoped_refptr<dom::DOMRect> rect = element->GetBoundingClientRect();
+    if (rect) {
+      if (moveto.xoffset()) {
+        // X offset to move to, relative to the top-left corner of the element.
+        x = rect->left() + *moveto.xoffset();
+      } else {
+        // If not specified, the mouse will move to the middle of the element.
+        x = rect->left() + rect->width() / 2;
+      }
+
+      if (moveto.yoffset()) {
+        // Y offset to move to, relative to the top-left corner of the element.
+        y = rect->top() + *moveto.yoffset();
+      } else {
+        // If not specified, the mouse will move to the middle of the element.
+        y = rect->top() + rect->height() / 2;
+      }
+    }
+  } else {
+    // If the element not specified or is null, the offset is relative to
+    // current position of the mouse.
+    x = pointer_x_;
+    y = pointer_y_;
+    if (moveto.xoffset()) {
+      x += *moveto.xoffset();
+    }
+    if (moveto.yoffset()) {
+      y += *moveto.yoffset();
+    }
+  }
+
+  pointer_x_ = math::Clamp(x, 0.0f, GetWeak()->inner_width());
+  pointer_y_ = math::Clamp(y, 0.0f, GetWeak()->inner_height());
+
+  dom::PointerEventInit event;
+  InitPointerEvent(&event);
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointermove(), event);
+
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+void WindowDriver::InjectMouseButtonUp(const protocol::Button& button) {
+  dom::PointerEventInit event;
+  event.set_button(button.button());
+
+  // The buttons attribute reflects the state of the mouse's buttons for any
+  // MouseEvent object (while it is being dispatched).
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#ref-for-dom-mouseevent-buttons-2
+  // Clear the buttons state bit corresponding to the button that has just been
+  // released.
+  pointer_buttons_ &= ~(1 << event.button());
+
+  InitPointerEvent(&event);
+
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointerup(), event);
+}
+
+void WindowDriver::InjectMouseButtonDown(const protocol::Button& button) {
+  dom::PointerEventInit event;
+  event.set_button(button.button());
+
+  // The buttons attribute reflects the state of the mouse's buttons for any
+  // MouseEvent object (while it is being dispatched).
+  //   https://www.w3.org/TR/2016/WD-uievents-20160804/#ref-for-dom-mouseevent-buttons-2
+  // Set the buttons state bit corresponding to the button that has just been
+  // pressed.
+  pointer_buttons_ |= 1 << event.button();
+
+  InitPointerEvent(&event);
+
+  pointer_event_injector_.Run(scoped_refptr<dom::Element>(),
+                              base::Tokens::pointerdown(), event);
+}
+
+util::CommandResult<void> WindowDriver::MouseButtonDownInternal(
+    const protocol::Button& button) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  InjectMouseButtonDown(button);
+
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<void> WindowDriver::MouseButtonUpInternal(
+    const protocol::Button& button) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  InjectMouseButtonUp(button);
+
+  return CommandResult(protocol::Response::kSuccess);
+}
+
+util::CommandResult<void> WindowDriver::SendClickInternal(
+    const protocol::Button& button) {
+  typedef util::CommandResult<void> CommandResult;
+  DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);
+  if (!window_) {
+    return CommandResult(protocol::Response::kNoSuchWindow);
+  }
+
+  InjectMouseButtonDown(button);
+  InjectMouseButtonUp(button);
+
   return CommandResult(protocol::Response::kSuccess);
 }
 

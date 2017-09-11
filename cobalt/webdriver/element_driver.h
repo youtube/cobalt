@@ -27,9 +27,9 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/pointer_event_init.h"
-#include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/webdriver/element_mapping.h"
 #include "cobalt/webdriver/keyboard.h"
+#include "cobalt/webdriver/protocol/button.h"
 #include "cobalt/webdriver/protocol/element_id.h"
 #include "cobalt/webdriver/protocol/keys.h"
 #include "cobalt/webdriver/protocol/search_strategy.h"
@@ -42,7 +42,7 @@ class WindowDriver;
 
 // ElementDriver could be considered a WebElement as described in the WebDriver
 // spec.
-// https://code.google.com/p/selenium/wiki/JsonWireProtocol#WebElement
+// https://github.com/SeleniumHQ/selenium/wiki/JsonWireProtocol#webelement
 // Commands that interact with a WebElement, such as:
 //     /session/:sessionId/element/:id/some_command
 // will map to a method on this class.
@@ -54,16 +54,12 @@ class ElementDriver {
   typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
                               const dom::PointerEventInit&)>
       PointerEventInjector;
-  typedef base::Callback<void(scoped_refptr<dom::Element>, const base::Token,
-                              const dom::WheelEventInit&)>
-      WheelEventInjector;
 
   ElementDriver(const protocol::ElementId& element_id,
                 const base::WeakPtr<dom::Element>& element,
                 ElementMapping* element_mapping,
                 KeyboardEventInjector keyboard_event_injector,
                 PointerEventInjector pointer_event_injector,
-                WheelEventInjector wheel_event_injector,
                 const scoped_refptr<base::MessageLoopProxy>& message_loop);
   const protocol::ElementId& element_id() { return element_id_; }
 
@@ -75,6 +71,7 @@ class ElementDriver {
       const protocol::SearchStrategy& strategy);
   util::CommandResult<std::vector<protocol::ElementId> > FindElements(
       const protocol::SearchStrategy& strategy);
+  util::CommandResult<void> SendClick(const protocol::Button& button);
   util::CommandResult<bool> Equals(const ElementDriver* other_element_driver);
   util::CommandResult<base::optional<std::string> > GetAttribute(
       const std::string& attribute_name);
@@ -91,6 +88,8 @@ class ElementDriver {
   util::CommandResult<void> SendKeysInternal(
       scoped_ptr<Keyboard::KeyboardEventVector> keyboard_events);
 
+  util::CommandResult<void> SendClickInternal(const protocol::Button& button);
+
   // Shared logic between FindElement and FindElements.
   template <typename T>
   util::CommandResult<T> FindElementsInternal(
@@ -106,7 +105,6 @@ class ElementDriver {
   ElementMapping* element_mapping_;
   KeyboardEventInjector keyboard_event_injector_;
   PointerEventInjector pointer_event_injector_;
-  WheelEventInjector wheel_event_injector_;
   scoped_refptr<base::MessageLoopProxy> element_message_loop_;
 
   friend class WindowDriver;
