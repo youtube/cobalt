@@ -72,6 +72,10 @@ class CompositionNode : public Node {
       children_.swap(moved->children_);
     }
 
+    bool operator==(const Builder& other) const {
+      return offset_ == other.offset_ && children_ == other.children_;
+    }
+
     // Add a child node to the list of children we are building.  When a
     // CompositionNode is constructed from this CompositionNode::Builder, it
     // will have as children all nodes who were passed into the builder via this
@@ -105,6 +109,9 @@ class CompositionNode : public Node {
 
   explicit CompositionNode(Builder::Moved builder)
       : data_(builder), cached_bounds_(ComputeBounds()) {}
+
+  explicit CompositionNode(Builder&& builder)
+      : data_(builder.Pass()), cached_bounds_(ComputeBounds()) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

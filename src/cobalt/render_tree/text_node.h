@@ -46,6 +46,11 @@ class TextNode : public Node {
             const scoped_refptr<GlyphBuffer>& glyph_buffer,
             const ColorRGBA& color);
 
+    bool operator==(const Builder& other) const {
+      return offset == other.offset && glyph_buffer == other.glyph_buffer &&
+             color == other.color && shadows == other.shadows;
+    }
+
     math::Vector2dF offset;
 
     // All of the glyph data needed to render the text.

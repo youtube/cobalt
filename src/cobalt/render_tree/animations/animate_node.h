@@ -20,6 +20,7 @@
 
 #include "base/containers/small_map.h"
 #include "base/memory/ref_counted.h"
+#include "base/optional.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/animations/animation_list.h"
 #include "cobalt/render_tree/movable.h"
@@ -80,8 +81,26 @@ class AnimateNode : public Node {
     }
 
     template <typename T>
+    void Add(
+        const scoped_refptr<T>& target_node,
+        const typename Animation<T>::TimeIndependentFunction& single_animation,
+        base::TimeDelta expiry) {
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(
+                      new AnimationList<T>(single_animation, expiry)));
+    }
+
+    template <typename T>
     void Add(const scoped_refptr<T>& target_node,
              const typename Animation<T>::Function& single_animation) {
+      AddInternal(target_node,
+                  scoped_refptr<AnimationListBase>(new AnimationList<T>(
+                      single_animation, base::TimeDelta::Max())));
+    }
+    template <typename T>
+    void Add(const scoped_refptr<T>& target_node,
+             const typename Animation<T>::TimeIndependentFunction&
+                 single_animation) {
       AddInternal(target_node,
                   scoped_refptr<AnimationListBase>(new AnimationList<T>(
                       single_animation, base::TimeDelta::Max())));
@@ -140,8 +159,11 @@ class AnimateNode : public Node {
 
   struct AnimateResults {
     // The animated render tree, which is guaranteed to not contain any
-    // AnimateNodes.
-    scoped_refptr<Node> animated;
+    // AnimateNodes.  Note that it is returned as an AnimateNode...  The actual
+    // animated render tree can be obtained via |animated->source()|, the
+    // AnimateNode however allows one to animate the animated node so that
+    // it can be checked if anything has actually been animated or not.
+    scoped_refptr<AnimateNode> animated;
 
     // Can be called in order to return a bounding rectangle around all
     // nodes that are actively animated.  The parameter specifies a "since"
@@ -152,6 +174,9 @@ class AnimateNode : public Node {
     base::Callback<math::RectF(base::TimeDelta)> get_animation_bounds_since;
   };
   // Apply the animations to the sub render tree with the given |time_offset|.
+  // Note that if |animated| in the results is equivalent to |this| on which
+  // Apply() is called, then no animations have actually taken place, and a
+  // re-render can be avoided.
   AnimateResults Apply(base::TimeDelta time_offset);
 
   // Returns the sub-tree for which the animations apply to.
@@ -163,6 +188,12 @@ class AnimateNode : public Node {
   // all x, y >= expiry().
   const base::TimeDelta& expiry() const { return expiry_; }
 
+  // Similar to |expiry()|, but returns the expiration for all animations whose
+  // callback function actually depends on the time parameter passed into them.
+  const base::TimeDelta& depends_on_time_expiry() const {
+    return depends_on_time_expiry_;
+  }
+
  private:
   // The compiled node animation list is a sequence of nodes that are either
   // animated themselves, or on the path to an animated node.  Only nodes in
@@ -170,12 +201,19 @@ class AnimateNode : public Node {
   // list, complete with animations to be applied to the given node, if any.
   struct TraverseListEntry {
     TraverseListEntry(Node* node,
-                      const scoped_refptr<AnimationListBase>& animations)
-        : node(node), animations(animations) {}
-    explicit TraverseListEntry(Node* node) : node(node) {}
+                      const scoped_refptr<AnimationListBase>& animations,
+                      bool did_animate_previously)
+        : node(node),
+          animations(animations),
+          did_animate_previously(did_animate_previously) {}
+    explicit TraverseListEntry(Node* node)
+        : node(node), did_animate_previously(false) {}
 
     Node* node;
     scoped_refptr<AnimationListBase> animations;
+    // Used when checking animation bounds to see which nodes were actually
+    // animated and whose bounds we need to accumulate.
+    bool did_animate_previously;
   };
   typedef std::vector<TraverseListEntry> TraverseList;
 
@@ -192,6 +230,18 @@ class AnimateNode : public Node {
   // rectangle for all active animations.
   class BoundsVisitor;
 
+  // This private constructor is used by AnimateNode::Apply() to create a new
+  // AnimateNode that matches the resulting animated render tree.
+  AnimateNode(const TraverseList& traverse_list, scoped_refptr<Node> source,
+              const base::TimeDelta& expiry,
+              const base::TimeDelta& depends_on_time_expiry,
+              const base::TimeDelta& snapshot_time)
+      : traverse_list_(traverse_list),
+        source_(source),
+        expiry_(expiry),
+        depends_on_time_expiry_(depends_on_time_expiry),
+        snapshot_time_(snapshot_time) {}
+
   void CommonInit(const Builder::InternalMap& node_animation_map,
                   const scoped_refptr<Node>& source);
 
@@ -205,6 +255,12 @@ class AnimateNode : public Node {
   TraverseList traverse_list_;
   scoped_refptr<Node> source_;
   base::TimeDelta expiry_;
+  base::TimeDelta depends_on_time_expiry_;
+  // Time when the |source_| render tree was last animated, if known.  This
+  // will get set when Apply() is called to produce a new AnimateNode that can
+  // then be Apply()d again.  It can be used during the second apply to check
+  // if some animations have expired.
+  base::optional<base::TimeDelta> snapshot_time_;
 };
 
 }  // namespace animations

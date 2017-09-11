@@ -81,8 +81,12 @@ void TopmostEventTarget::ConsiderElement(dom::Element* element,
   if (layout_boxes) {
     const Box* box = layout_boxes->boxes().front();
     if (box->computed_style() && box->IsTransformed()) {
-      box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
-                                            &element_coordinate);
+      // Early out if the transform cannot be applied. This can occur if the
+      // transform matrix is not invertible.
+      if (!box->ApplyTransformActionToCoordinate(Box::kEnterTransform,
+                                                 &element_coordinate)) {
+        return;
+      }
     }
 
     scoped_refptr<dom::HTMLElement> html_element = element->AsHTMLElement();

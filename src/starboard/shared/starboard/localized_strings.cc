@@ -14,9 +14,12 @@
 
 #include "starboard/shared/starboard/localized_strings.h"
 
+#include <algorithm>
+
 #include "starboard/file.h"
 #include "starboard/log.h"
 #include "starboard/system.h"
+#include "starboard/types.h"
 
 namespace starboard {
 namespace shared {
@@ -64,10 +67,12 @@ bool ReadFile(const std::string& filename, std::string* out_result) {
 
   char* buffer = new char[file_info.size];
   SB_DCHECK(buffer);
-  int bytes_to_read = file_info.size;
+  int64_t bytes_to_read = file_info.size;
   char* buffer_pos = buffer;
   while (bytes_to_read > 0) {
-    int bytes_read = file.Read(buffer_pos, bytes_to_read);
+    int max_bytes_to_read = static_cast<int>(
+        std::min(static_cast<int64_t>(kSbInt32Max), bytes_to_read));
+    int bytes_read = file.Read(buffer_pos, max_bytes_to_read);
     if (bytes_read < 0) {
       SB_DLOG(ERROR) << "Read from i18n file failed.";
       delete[] buffer;

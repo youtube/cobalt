@@ -37,6 +37,10 @@ class MatrixTransform3DNode : public Node {
     Builder(const scoped_refptr<Node>& source, const glm::mat4& transform)
         : source(source), transform(transform) {}
 
+    bool operator==(const Builder& other) const {
+      return source == other.source && transform == other.transform;
+    }
+
     // The subtree that will be rendered with |transform| applied to it.
     scoped_refptr<Node> source;
 

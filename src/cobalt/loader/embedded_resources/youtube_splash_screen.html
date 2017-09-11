@@ -26,15 +26,18 @@
   margin: 0;
   height: 100vh;
   width: 100vw;
-  transition: 2s;
+  transition: 200ms;
+  transition-delay: 500ms;
 }
 #lozengeContainer {
   position: fixed;
+  z-index: 1;
   top: 50%;
   left: 25%;
   transform: translate(0, -50%);
   width: 33%;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: 0ms;
 }
 #lozengeContainer.move {
   transform: translate(-51%, -50%);
@@ -55,9 +58,11 @@
   transform: translate(0, -50%);
   width: 33%;
   transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-delay: 0ms;
 }
 #wordmarkContainer.move {
-  transform: translate(54%, -50%);;
+  transform: translate(54%, -50%);
+  z-index: 0;
 }
 #wordmark {
   background-size: contain;
@@ -173,20 +178,10 @@
 }
 </style>
 
-<script>
-window.onbeforeunload = function() {
-  document.getElementById('lozengeContainer').className = 'move';
-  document.getElementById('wordmarkContainer').className = 'move';
-  document.getElementById('spinnerContainer').classList.remove("active");
-};
-window.ontransitionend = function() {
-  document.getElementById('background').style.opacity = 0;
-  window.close();
-}
-</script>
 </head>
 
-<body id="background">
+<body>
+<div id="background">
 <div id="lozengeContainer">
   <div id="lozengeBg"></div>
   <div id="lozenge"></div>
@@ -200,5 +195,25 @@ window.ontransitionend = function() {
     <div id="loadafter" class="beforeafter"></div>
   </div>
 </div>
+</div>
+<script>
+  function backgroundTransitionEnd(e) {
+    if (e.target == e.currentTarget) {
+      window.close();
+    }
+  }
+
+  function expand() {
+    document.getElementById('lozengeContainer').className = 'move';
+    document.getElementById('wordmarkContainer').className = 'move';
+    document.getElementById('spinnerContainer').classList.remove("active");
+    document.getElementById('background').addEventListener('transitionend',
+        backgroundTransitionEnd);
+    document.getElementById('background').style.opacity = 0;
+    return '';
+  }
+
+  window.onbeforeunload = expand;
+</script>
 </body>
 </html>

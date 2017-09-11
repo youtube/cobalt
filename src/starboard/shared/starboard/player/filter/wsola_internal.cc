@@ -17,7 +17,9 @@
 // limitations under the License.
 
 // MSVC++ requires this to be set before any other includes to get M_PI.
+#if !defined(_USE_MATH_DEFINES)
 #define _USE_MATH_DEFINES
+#endif
 
 #include "starboard/shared/starboard/player/filter/wsola_internal.h"
 
@@ -30,6 +32,12 @@
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/internal_only.h"
+
+// TODO: Detect Neon on ARM platform and enable SIMD.
+#if SB_IS(ARCH_X86)
+#define USE_SIMD 1
+#include <xmmintrin.h>
+#endif  // SB_IS(ARCH_X86)
 
 namespace starboard {
 namespace shared {
@@ -66,9 +74,53 @@ void MultiChannelDotProduct(const scoped_refptr<DecodedAudio>& a,
   SB_DCHECK(frame_offset_a + num_frames <= a->frames());
   SB_DCHECK(frame_offset_b + num_frames <= b->frames());
 
-  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
   const float* a_frames = reinterpret_cast<const float*>(a->buffer());
   const float* b_frames = reinterpret_cast<const float*>(b->buffer());
+
+// SIMD optimized variants can provide a massive speedup to this operation.
+#if defined(USE_SIMD)
+  const int rem = num_frames % 4;
+  const int last_index = num_frames - rem;
+  const int channels = a->channels();
+  for (int ch = 0; ch < channels; ++ch) {
+    const float* a_src = a_frames + frame_offset_a * a->channels() + ch;
+    const float* b_src = b_frames + frame_offset_b * b->channels() + ch;
+
+#if SB_IS(ARCH_X86)
+    // First sum all components.
+    __m128 m_sum = _mm_setzero_ps();
+    for (int s = 0; s < last_index; s += 4) {
+      m_sum = _mm_add_ps(
+          m_sum, _mm_mul_ps(_mm_loadu_ps(a_src + s), _mm_loadu_ps(b_src + s)));
+    }
+
+    // Reduce to a single float for this channel. Sadly, SSE1,2 doesn't have a
+    // horizontal sum function, so we have to condense manually.
+    m_sum = _mm_add_ps(_mm_movehl_ps(m_sum, m_sum), m_sum);
+    _mm_store_ss(dot_product + ch,
+                 _mm_add_ss(m_sum, _mm_shuffle_ps(m_sum, m_sum, 1)));
+#elif SB_IS(ARCH_ARM)
+    // First sum all components.
+    float32x4_t m_sum = vmovq_n_f32(0);
+    for (int s = 0; s < last_index; s += 4)
+      m_sum = vmlaq_f32(m_sum, vld1q_f32(a_src + s), vld1q_f32(b_src + s));
+
+    // Reduce to a single float for this channel.
+    float32x2_t m_half = vadd_f32(vget_high_f32(m_sum), vget_low_f32(m_sum));
+    dot_product[ch] = vget_lane_f32(vpadd_f32(m_half, m_half), 0);
+#endif  // SB_IS(ARCH_X86)
+  }
+
+  if (!rem) {
+    return;
+  }
+  num_frames = rem;
+  frame_offset_a += last_index;
+  frame_offset_b += last_index;
+#else   // defined(USE_SIMD)
+  SbMemorySet(dot_product, 0, sizeof(*dot_product) * a->channels());
+#endif  // defined(USE_SIMD)
+
   for (int k = 0; k < a->channels(); ++k) {
     const float* ch_a = a_frames + frame_offset_a * a->channels() + k;
     const float* ch_b = b_frames + frame_offset_b * b->channels() + k;
@@ -290,7 +342,7 @@ int OptimalIndex(const scoped_refptr<DecodedAudio>& search_block,
 }
 
 void GetSymmetricHanningWindow(int window_length, float* window) {
-  const float scale = 2.0f * M_PI / window_length;
+  const float scale = static_cast<float>(2.0 * M_PI) / window_length;
   for (int n = 0; n < window_length; ++n)
     window[n] = 0.5f * (1.0f - cosf(n * scale));
 }
