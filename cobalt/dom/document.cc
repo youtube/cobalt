@@ -57,6 +57,7 @@
 #include "cobalt/dom/node_descendants_iterator.h"
 #include "cobalt/dom/text.h"
 #include "cobalt/dom/ui_event.h"
+#include "cobalt/dom/wheel_event.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/global_environment.h"
 #include "nb/memory_scope.h"
@@ -244,6 +245,10 @@ scoped_refptr<Event> Document::CreateEvent(
   } else if (base::strcasecmp(interface_name.c_str(), "uievent") == 0 ||
              base::strcasecmp(interface_name.c_str(), "uievents") == 0) {
     return new UIEvent(Event::Uninitialized);
+  } else if (base::strcasecmp(interface_name.c_str(), "wheelevent") == 0) {
+    // This not in the spec, but commonly implemented to create a WheelEvent.
+    //   https://www.w3.org/TR/2016/WD-uievents-20160804/#interface-wheelevent
+    return new WheelEvent(Event::Uninitialized);
   } else if (base::strcasecmp(interface_name.c_str(), "customevent") == 0) {
     return new CustomEvent(Event::Uninitialized);
   }
