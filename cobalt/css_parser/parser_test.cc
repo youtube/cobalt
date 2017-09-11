@@ -3869,29 +3869,268 @@ TEST_F(ParserTest, ParsesBorderWidthWithZeroValue) {
   EXPECT_FALSE(style->GetPropertyValue(cssom::kBorderLeftWidthProperty));
 }
 
-TEST_F(ParserTest, ParsesBorderRadiusLength) {
+TEST_F(ParserTest, ParsesBorderRadiusSingleLength) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border-radius: 0.2em;",
                                         source_location_);
 
-  scoped_refptr<cssom::LengthValue> border_radius =
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
       dynamic_cast<cssom::LengthValue*>(
-          style->GetPropertyValue(cssom::kBorderRadiusProperty).get());
-  ASSERT_TRUE(border_radius);
-  EXPECT_FLOAT_EQ(0.2f, border_radius->value());
-  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_radius->unit());
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_top_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_top_right_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_bottom_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_left_radius->unit());
 }
 
-TEST_F(ParserTest, ParsesBorderRadiusPercentage) {
+TEST_F(ParserTest, ParsesBorderRadiusSinglePercentage) {
   scoped_refptr<cssom::CSSDeclaredStyleData> style =
       parser_.ParseStyleDeclarationList("border-radius: 50%;",
                                         source_location_);
 
-  scoped_refptr<cssom::PercentageValue> border_radius =
+  scoped_refptr<cssom::PercentageValue> border_top_left_radius =
       dynamic_cast<cssom::PercentageValue*>(
-          style->GetPropertyValue(cssom::kBorderRadiusProperty).get());
-  ASSERT_TRUE(border_radius);
-  EXPECT_FLOAT_EQ(0.5f, border_radius->value());
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.5f, border_top_left_radius->value());
+
+  scoped_refptr<cssom::PercentageValue> border_top_right_radius =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(0.5f, border_top_right_radius->value());
+
+  scoped_refptr<cssom::PercentageValue> border_bottom_right_radius =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(0.5f, border_bottom_right_radius->value());
+
+  scoped_refptr<cssom::PercentageValue> border_bottom_left_radius =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(0.5f, border_bottom_left_radius->value());
+}
+
+TEST_F(ParserTest, ParsesBorderRadiusWithTwoLengths) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-radius: .8em 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_top_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_bottom_left_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_left_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderRadiusWithLengthAndPercentage) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-radius: .8em 20%;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
+
+  scoped_refptr<cssom::PercentageValue> border_top_right_radius =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_top_right_radius->value());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_right_radius->unit());
+
+  scoped_refptr<cssom::PercentageValue> border_bottom_left_radius =
+      dynamic_cast<cssom::PercentageValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_bottom_left_radius->value());
+}
+
+TEST_F(ParserTest, ParsesBorderRadiusWithThreeLengths) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-radius: .8em 20px 10px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_top_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(10.0f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_bottom_left_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_left_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderRadiusWithFourLengths) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-radius: .8em 20px 10px 5px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_left_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_top_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_top_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(10.0f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_right_radius->unit());
+
+  scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(5.0f, border_bottom_left_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_left_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderTopLeftRadius) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-top-left-radius: 20px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopLeftRadiusProperty).get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(20.0f, border_top_left_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_top_left_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderTopRightRadius) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-top-right-radius: .8em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_top_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderTopRightRadiusProperty).get());
+  ASSERT_TRUE(border_top_right_radius);
+  EXPECT_FLOAT_EQ(0.8f, border_top_right_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_top_right_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderBottomRightRadius) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-bottom-right-radius: 50px;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_bottom_right_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomRightRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_right_radius);
+  EXPECT_FLOAT_EQ(50.0f, border_bottom_right_radius->value());
+  EXPECT_EQ(cssom::kPixelsUnit, border_bottom_right_radius->unit());
+}
+
+TEST_F(ParserTest, ParsesBorderBottomLeftRadius) {
+  scoped_refptr<cssom::CSSDeclaredStyleData> style =
+      parser_.ParseStyleDeclarationList("border-bottom-left-radius: .2em;",
+                                        source_location_);
+
+  scoped_refptr<cssom::LengthValue> border_bottom_left_radius =
+      dynamic_cast<cssom::LengthValue*>(
+          style->GetPropertyValue(cssom::kBorderBottomLeftRadiusProperty)
+              .get());
+  ASSERT_TRUE(border_bottom_left_radius);
+  EXPECT_FLOAT_EQ(0.2f, border_bottom_left_radius->value());
+  EXPECT_EQ(cssom::kFontSizesAkaEmUnit, border_bottom_left_radius->unit());
 }
 
 TEST_F(ParserTest, ParsesBoxShadowWithNone) {

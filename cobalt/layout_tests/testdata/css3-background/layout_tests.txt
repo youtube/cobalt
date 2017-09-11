@@ -73,6 +73,12 @@
 4-0-border-width-with-solid-border-style
 4-0-different-border-styles-with-different-border-widths
 4-0-different-border-widths-with-solid-border-style
+5-0-border-radius-2-values-with-background-color
+5-0-border-radius-2-values-with-border-only
+5-0-border-radius-3-values-with-background-color
+5-0-border-radius-3-values-with-border-only
+5-0-border-radius-4-values-with-background-color
+5-0-border-radius-4-values-with-border-only
 5-0-border-radius-circle-with-background-color-and-border
 5-0-border-radius-circle-with-background-image-and-border
 5-0-border-radius-with-background-color
@@ -80,6 +86,8 @@
 5-0-border-radius-with-background-image
 5-0-border-radius-with-background-image-and-border
 5-0-border-radius-with-border-only
+5-0-border-radius-with-zero-value-and-background-color
+5-0-border-radius-with-zero-value-and-border-only
 7-1-1-box-shadow-with-inset
 7-1-1-box-shadow-with-inset-and-blur-and-spread
 7-1-1-box-shadow-with-spread
