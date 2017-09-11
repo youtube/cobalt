@@ -14,6 +14,12 @@
 
 // All imported functions defined below MUST be implemented by client
 // applications.
+// All of callbacks in here will happen on Cobalt's rasterization thread
+// (i.e. the thread which owns the GL context). To guarantee no callbacks
+// are missed, all callbacks should be set before the rasterization thread
+// has started. Any other functions in here (e.g.
+// CbLibGrapicsGetMainTextureHandle) are also not thread-safe and should only be
+// invoked on the rasterization thread during one of the provided callbacks.
 
 #ifndef COBALT_RENDERER_RASTERIZER_LIB_EXPORTED_GRAPHICS_H_
 #define COBALT_RENDERER_RASTERIZER_LIB_EXPORTED_GRAPHICS_H_
@@ -26,8 +32,7 @@ extern "C" {
 #endif
 
 typedef void (*CbLibGraphicsContextCreatedCallback)(void* context);
-typedef void (*CbLibGraphicsBeginRenderFrameCallback)(
-    void* context, intptr_t render_tree_texture_handle);
+typedef void (*CbLibGraphicsBeginRenderFrameCallback)(void* context);
 typedef void (*CbLibGraphicsEndRenderFrameCallback)(void* context);
 
 // Sets a callback which will be called from the rasterization thread once the
@@ -36,11 +41,18 @@ SB_EXPORT_PLATFORM void CbLibGraphicsSetContextCreatedCallback(
     void* context, CbLibGraphicsContextCreatedCallback callback);
 
 // Sets a callback which will be called as often as the platform can swap
-// buffers from the rasterization thread. |render_tree_texture_handle| which is
-// provided to the callback corresponds to a GLint texture ID for the current
-// RenderTree.
+// buffers from the rasterization thread.
 SB_EXPORT_PLATFORM void CbLibGraphicsSetBeginRenderFrameCallback(
     void* context, CbLibGraphicsBeginRenderFrameCallback callback);
+
+// Returns the texture ID for the current RenderTree. This should be
+// re-retrieved each frame in the event that the underlying texture has
+// changed. This method will return 0 if there is not yet a valid texture ID.
+// This will never return anything other than 0 until after the first frame is
+// started / the CbLibGraphicsBeginRenderFrameCallback is invoked (assuming the
+// callback is set). This is not thread-safe and should be invoked on the
+// rasterization thread only.
+SB_EXPORT_PLATFORM intptr_t CbLibGrapicsGetMainTextureHandle();
 
 // Sets a callback which will be called at the end of rendering, after swap
 // buffers has been called.
