@@ -42,6 +42,13 @@ WheelEvent::WheelEvent(base::Token type, const scoped_refptr<Window>& view,
       delta_z_(init_dict.delta_z()),
       delta_mode_(init_dict.delta_mode()) {}
 
+WheelEvent::WheelEvent(UninitializedFlag uninitialized_flag)
+    : MouseEvent(uninitialized_flag),
+      delta_x_(0),
+      delta_y_(0),
+      delta_z_(0),
+      delta_mode_(kDomDeltaPixel) {}
+
 void WheelEvent::InitWheelEvent(
     const std::string& type, bool bubbles, bool cancelable,
     const scoped_refptr<Window>& view, int32 detail, int32 screen_x,
