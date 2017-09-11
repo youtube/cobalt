@@ -269,12 +269,12 @@ class UsedBorderRadiusProvider : public cssom::NotReachedPropertyValueVisitor {
   void VisitLength(cssom::LengthValue* length) OVERRIDE;
   void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
 
-  const base::optional<render_tree::RoundedCorners>& rounded_corners() const {
-    return rounded_corners_;
+  const base::optional<render_tree::RoundedCorner>& rounded_corner() const {
+    return rounded_corner_;
   }
 
  private:
-  base::optional<render_tree::RoundedCorners> rounded_corners_;
+  base::optional<render_tree::RoundedCorner> rounded_corner_;
 
   const math::SizeF frame_size_;
 

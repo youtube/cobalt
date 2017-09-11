@@ -1212,15 +1212,19 @@ UsedBorderRadiusProvider::UsedBorderRadiusProvider(
 
 void UsedBorderRadiusProvider::VisitLength(cssom::LengthValue* length) {
   if (length->value() > 0) {
-    rounded_corners_.emplace(length->value(), length->value());
+    rounded_corner_.emplace(length->value(), length->value());
+  } else {
+    rounded_corner_ = base::nullopt;
   }
 }
 
 void UsedBorderRadiusProvider::VisitPercentage(
     cssom::PercentageValue* percentage) {
   if (percentage->value() > 0) {
-    rounded_corners_.emplace(percentage->value() * frame_size_.width(),
-                             percentage->value() * frame_size_.height());
+    rounded_corner_.emplace(percentage->value() * frame_size_.width(),
+                            percentage->value() * frame_size_.height());
+  } else {
+    rounded_corner_ = base::nullopt;
   }
 }
 

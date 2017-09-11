@@ -127,20 +127,69 @@ TEST(CSSComputedStyleDataTest, BackgroundSizeSettersAndGettersAreConsistent) {
 TEST(CSSComputedStyleDataTest, BorderRadiusSettersAndGettersAreConsistent) {
   scoped_refptr<CSSComputedStyleData> style = new CSSComputedStyleData();
 
-  EXPECT_EQ(GetPropertyInitialValue(kBorderRadiusProperty),
-            style->border_radius());
-  EXPECT_EQ(style->border_radius(),
-            style->GetPropertyValue(kBorderRadiusProperty));
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopLeftRadiusProperty),
+            style->border_top_left_radius());
+  EXPECT_EQ(style->border_top_left_radius(),
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
 
-  style->set_border_radius(KeywordValue::GetInitial());
-  EXPECT_EQ(KeywordValue::GetInitial(), style->border_radius());
+  style->set_border_top_left_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_left_radius());
   EXPECT_EQ(KeywordValue::GetInitial(),
-            style->GetPropertyValue(kBorderRadiusProperty));
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
 
-  style->SetPropertyValue(kBorderRadiusProperty, KeywordValue::GetInherit());
-  EXPECT_EQ(KeywordValue::GetInherit(), style->border_radius());
+  style->SetPropertyValue(kBorderTopLeftRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_left_radius());
   EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderRadiusProperty));
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderTopRightRadiusProperty),
+            style->border_top_right_radius());
+  EXPECT_EQ(style->border_top_right_radius(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  style->set_border_top_right_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_top_right_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  style->SetPropertyValue(kBorderTopRightRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_top_right_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomRightRadiusProperty),
+            style->border_bottom_right_radius());
+  EXPECT_EQ(style->border_bottom_right_radius(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  style->set_border_bottom_right_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_right_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  style->SetPropertyValue(kBorderBottomRightRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_right_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  EXPECT_EQ(GetPropertyInitialValue(kBorderBottomLeftRadiusProperty),
+            style->border_bottom_left_radius());
+  EXPECT_EQ(style->border_bottom_left_radius(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+
+  style->set_border_bottom_left_radius(KeywordValue::GetInitial());
+  EXPECT_EQ(KeywordValue::GetInitial(), style->border_bottom_left_radius());
+  EXPECT_EQ(KeywordValue::GetInitial(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+
+  style->SetPropertyValue(kBorderBottomLeftRadiusProperty,
+                          KeywordValue::GetInherit());
+  EXPECT_EQ(KeywordValue::GetInherit(), style->border_bottom_left_radius());
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
 }
 
 TEST(CSSComputedStyleDataTest, BorderTopColorSettersAndGettersAreConsistent) {

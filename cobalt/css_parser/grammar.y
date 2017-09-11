@@ -87,6 +87,8 @@
 %token kBackgroundSizeToken                   // background-size
 %token kBackgroundToken                       // background
 %token kBorderToken                           // border
+%token kBorderBottomLeftRadiusToken           // border-bottom-left-radius
+%token kBorderBottomRightRadiusToken          // border-bottom-right-radius
 %token kBorderBottomToken                     // border-bottom
 %token kBorderBottomColorToken                // border-bottom-color
 %token kBorderBottomStyleToken                // border-bottom-style
@@ -104,6 +106,8 @@
 %token kBorderStyleToken                      // border-style
 %token kBorderTopToken                        // border-top
 %token kBorderTopColorToken                   // border-top-color
+%token kBorderTopLeftRadiusToken              // border-top-left-radius
+%token kBorderTopRightRadiusToken             // border-top-right-radius
 %token kBorderTopStyleToken                   // border-top-style
 %token kBorderTopWidthToken                   // border-top-width
 %token kBorderWidthToken                      // border-width
@@ -523,6 +527,8 @@
                        background_size_property_value
                        background_size_property_value_without_common_values
                        border_color_property_value
+                       border_radius_element
+                       border_radius_element_with_common_values
                        border_radius_property_value
                        border_style_property_value
                        border_width_element
@@ -757,6 +763,7 @@
 %union { cssom::PropertyListValue::Builder* property_list; }
 %type <property_list> background_size_property_list
                       border_color_property_list
+                      border_radius_property_list
                       border_style_property_list
                       border_width_property_list
                       comma_separated_animation_direction_list
@@ -1325,6 +1332,14 @@ identifier_token:
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBorderProperty));
   }
+  | kBorderBottomLeftRadiusToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderBottomLeftRadiusProperty));
+  }
+  | kBorderBottomRightRadiusToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderBottomRightRadiusProperty));
+  }
   | kBorderBottomToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBorderBottomProperty));
@@ -1392,6 +1407,14 @@ identifier_token:
   | kBorderTopColorToken {
     $$ = TrivialStringPiece::FromCString(
             cssom::GetPropertyName(cssom::kBorderTopColorProperty));
+  }
+  | kBorderTopLeftRadiusToken {
+    $$ = TrivialStringPiece::FromCString(
+            cssom::GetPropertyName(cssom::kBorderTopLeftRadiusProperty));
+  }
+  | kBorderTopRightRadiusToken {
+    $$ = TrivialStringPiece::FromCString(
+          cssom::GetPropertyName(cssom::kBorderTopRightRadiusProperty));
   }
   | kBorderTopStyleToken {
     $$ = TrivialStringPiece::FromCString(
@@ -3461,9 +3484,42 @@ border_or_outline_property_value:
 // The radii of a quarter ellipse that defines the shape of the corner
 // of the outer border edge.
 //   https://www.w3.org/TR/css3-background/#the-border-radius
-border_radius_property_value:
+border_radius_element:
     positive_length_percent_property_value { $$ = $1; }
+  ;
+border_radius_element_with_common_values:
+    border_radius_element
   | common_values
+  ;
+
+border_radius_property_list:
+    /* empty */ {
+    $$ = new cssom::PropertyListValue::Builder();
+  }
+  | border_radius_property_list border_radius_element {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    property_value->push_back(MakeScopedRefPtrAndRelease($2));
+    $$ = property_value.release();
+  }
+  ;
+
+border_radius_property_value:
+    border_radius_property_list {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value($1);
+    if (property_value->size() > 0u &&
+        property_value->size() <= 4u) {
+      $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+    } else {
+      parser_impl->LogWarning(@1, "invalid number of border radius values");
+      $$ = NULL;
+    }
+  }
+  | common_values {
+    scoped_ptr<cssom::PropertyListValue::Builder> property_value(
+        new cssom::PropertyListValue::Builder());
+    property_value->push_back($1);
+    $$ = AddRef(new cssom::PropertyListValue(property_value.Pass()));
+  }
   ;
 
 box_shadow_property_element:
@@ -5610,6 +5666,18 @@ maybe_declaration:
       $$ = NULL;
     }
   }
+  | kBorderBottomLeftRadiusToken maybe_whitespace colon border_radius_element_with_common_values
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderBottomLeftRadiusProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderBottomRightRadiusToken maybe_whitespace colon border_radius_element_with_common_values
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderBottomRightRadiusProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
   | kBorderBottomToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
     scoped_ptr<BorderOrOutlineShorthand> border($4);
@@ -5733,9 +5801,38 @@ maybe_declaration:
   }
   | kBorderRadiusToken maybe_whitespace colon border_radius_property_value
       maybe_important {
-    $$ = $4 ? new PropertyDeclaration(cssom::kBorderRadiusProperty,
-                                      MakeScopedRefPtrAndRelease($4), $5)
-            : NULL;
+    scoped_refptr<cssom::PropertyValue> property_list_value(
+        MakeScopedRefPtrAndRelease($4));
+    if (property_list_value) {
+      BorderShorthandToLonghand shorthand_to_longhand;
+      shorthand_to_longhand.Assign4BordersBasedOnPropertyList(
+            property_list_value);
+
+      scoped_ptr<PropertyDeclaration> property_declaration(
+          new PropertyDeclaration($5));
+
+      // Unpack border radius.
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderTopLeftRadiusProperty,
+              shorthand_to_longhand.border_top));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderTopRightRadiusProperty,
+              shorthand_to_longhand.border_right));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderBottomRightRadiusProperty,
+              shorthand_to_longhand.border_bottom));
+      property_declaration->property_values.push_back(
+          PropertyDeclaration::PropertyKeyValuePair(
+              cssom::kBorderBottomLeftRadiusProperty,
+              shorthand_to_longhand.border_left));
+
+      $$ = property_declaration.release();
+    } else {
+      $$ = NULL;
+    }
   }
   | kBorderRightToken maybe_whitespace colon border_or_outline_property_value
       maybe_important {
@@ -5843,6 +5940,18 @@ maybe_declaration:
   | kBorderTopColorToken maybe_whitespace colon color_property_value
       maybe_important {
     $$ = $4 ? new PropertyDeclaration(cssom::kBorderTopColorProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderTopLeftRadiusToken maybe_whitespace colon border_radius_element_with_common_values
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderTopLeftRadiusProperty,
+                                      MakeScopedRefPtrAndRelease($4), $5)
+            : NULL;
+  }
+  | kBorderTopRightRadiusToken maybe_whitespace colon border_radius_element_with_common_values
+      maybe_important {
+    $$ = $4 ? new PropertyDeclaration(cssom::kBorderTopRightRadiusProperty,
                                       MakeScopedRefPtrAndRelease($4), $5)
             : NULL;
   }
