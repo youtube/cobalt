@@ -14,6 +14,7 @@
 
 #include "cobalt/browser/browser_module.h"
 
+#include <algorithm>
 #include <vector>
 
 #include "base/bind.h"
@@ -252,10 +253,13 @@ BrowserModule::BrowserModule(const GURL& url,
       timeout_polling_thread_(kTimeoutPollingThreadName),
       render_timeout_count_(0),
 #endif
+      on_error_retry_count_(0),
       will_quit_(false),
       application_state_(initial_application_state),
       splash_screen_cache_(new SplashScreenCache()),
-      produced_render_tree_(false) {
+      navigation_produced_main_render_tree_(false) {
+  h5vcc_url_handler_.reset(new H5vccURLHandler(this));
+
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpRegisterHandler(BrowserModule::CoreDumpHandler, this);
   on_error_triggered_count_ = 0;
@@ -330,12 +334,15 @@ BrowserModule::BrowserModule(const GURL& url,
 
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
   // Synchronously construct our WebModule object.
-  NavigateInternal(url);
+  Navigate(url);
   DCHECK(web_module_);
 }
 
 BrowserModule::~BrowserModule() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  if (on_error_retry_timer_.IsRunning()) {
+    on_error_retry_timer_.Stop();
+  }
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
 #endif
@@ -343,47 +350,27 @@ BrowserModule::~BrowserModule() {
 
 void BrowserModule::Navigate(const GURL& url) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Navigate()");
+  // Reset the waitable event regardless of the thread. This ensures that the
+  // webdriver won't incorrectly believe that the webmodule has finished loading
+  // when it calls Navigate() and waits for the |web_module_loaded_| signal.
   web_module_loaded_.Reset();
 
-  // Always post this as a task in case this is being called from the WebModule.
-  self_message_loop_->PostTask(
-      FROM_HERE, base::Bind(&BrowserModule::NavigateInternal, weak_this_, url));
-}
-
-void BrowserModule::Reload() {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  DCHECK(web_module_);
-  web_module_->ExecuteJavascript(
-      "location.reload();",
-      base::SourceLocation("[object BrowserModule]", 1, 1),
-      NULL /* output: succeeded */);
-}
-
-#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-// static
-void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
-  BrowserModule* browser_module =
-      static_cast<BrowserModule*>(browser_module_as_void);
-  SbCoreDumpLogInteger("BrowserModule.on_error_triggered_count_",
-                       browser_module->on_error_triggered_count_);
-#if defined(COBALT_CHECK_RENDER_TIMEOUT)
-  SbCoreDumpLogInteger("BrowserModule.recovery_mechanism_triggered_count_",
-                       browser_module->recovery_mechanism_triggered_count_);
-  SbCoreDumpLogInteger("BrowserModule.timeout_response_trigger_count_",
-                       browser_module->timeout_response_trigger_count_);
-#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
-}
-#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
-
-void BrowserModule::NavigateInternal(const GURL& url) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::NavigateInternal()");
-  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  // Repost to our own message loop if necessary.
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::Navigate, weak_this_, url));
+    return;
+  }
 
   // First try the registered handlers (e.g. for h5vcc://). If one of these
   // handles the URL, we don't use the web module.
   if (TryURLHandlers(url)) {
     return;
+  }
+
+  on_error_url_.clear();
+  if (on_error_retry_timer_.IsRunning()) {
+    on_error_retry_timer_.Stop();
   }
 
   // Destroy old WebModule first, so we don't get a memory high-watermark after
@@ -402,12 +389,15 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   const math::Size& viewport_size = GetViewportSize();
 
   DestroySplashScreen();
+  navigation_produced_main_render_tree_ = false;
   base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (fallback_splash_screen_url_ ||
       (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
     // Create the splash screen layer.
-    splash_screen_layer_ =
-        render_tree_combiner_->CreateLayer(kSplashScreenZIndex);
+    if (render_tree_combiner_) {
+      splash_screen_layer_ =
+          render_tree_combiner_->CreateLayer(kSplashScreenZIndex);
+    }
 
     splash_screen_.reset(new SplashScreen(
         application_state_,
@@ -470,6 +460,32 @@ void BrowserModule::NavigateInternal(const GURL& url) {
   }
 }
 
+void BrowserModule::Reload() {
+  TRACE_EVENT0("cobalt::browser", "BrowserModule::Reload()");
+  DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+  DCHECK(web_module_);
+  web_module_->ExecuteJavascript(
+      "location.reload();",
+      base::SourceLocation("[object BrowserModule]", 1, 1),
+      NULL /* output: succeeded */);
+}
+
+#if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+// static
+void BrowserModule::CoreDumpHandler(void* browser_module_as_void) {
+  BrowserModule* browser_module =
+      static_cast<BrowserModule*>(browser_module_as_void);
+  SbCoreDumpLogInteger("BrowserModule.on_error_triggered_count_",
+                       browser_module->on_error_triggered_count_);
+#if defined(COBALT_CHECK_RENDER_TIMEOUT)
+  SbCoreDumpLogInteger("BrowserModule.recovery_mechanism_triggered_count_",
+                       browser_module->recovery_mechanism_triggered_count_);
+  SbCoreDumpLogInteger("BrowserModule.timeout_response_trigger_count_",
+                       browser_module->timeout_response_trigger_count_);
+#endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
+}
+#endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
+
 void BrowserModule::OnLoad() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnLoad()");
   // Repost to our own message loop if necessary. This also prevents
@@ -483,6 +499,9 @@ void BrowserModule::OnLoad() {
   // This log is relied on by the webdriver benchmark tests, so it shouldn't be
   // changed unless the corresponding benchmark logic is changed as well.
   LOG(INFO) << "Loaded WebModule";
+
+  // Clear |on_error_retry_count_| after a successful load.
+  on_error_retry_count_ = 0;
 
   on_load_event_time_ = base::TimeTicks::Now().ToInternalValue();
   web_module_loaded_.Signal();
@@ -541,15 +560,16 @@ void BrowserModule::OnRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
-  if (splash_screen_ && !produced_render_tree_) {
+  if (splash_screen_ && !navigation_produced_main_render_tree_) {
     splash_screen_->Shutdown();
   }
-  produced_render_tree_ = true;
-
   if (application_state_ == base::kApplicationStatePreloading ||
       !render_tree_combiner_ || !main_web_module_layer_) {
     return;
   }
+
+  navigation_produced_main_render_tree_ = true;
+
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
   renderer_submission.on_rasterized_callback = base::Bind(
@@ -760,16 +780,44 @@ void BrowserModule::InjectKeyEventToMainWebModule(
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE, base::Bind(&BrowserModule::OnError, weak_this_, url, error));
+    return;
+  }
+
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   on_error_triggered_count_++;
 #endif
-  LOG(ERROR) << error;
-  std::string url_string = "h5vcc://network-failure";
 
-  // Retry the current URL.
-  url_string += "?retry-url=" + url.spec();
+  on_error_url_ = url.spec();
 
-  Navigate(GURL(url_string));
+  // Start the OnErrorRetry() timer if it isn't already running.
+  // The minimum delay between calls to OnErrorRetry() exponentially grows as
+  // |on_error_retry_count_| increases. |on_error_retry_count_| is reset when
+  // OnLoad() is called.
+  if (!on_error_retry_timer_.IsRunning()) {
+    const int64 kBaseRetryDelayInMilliseconds = 1000;
+    // Cap the max error shift at 10 (1024 * kBaseDelayInMilliseconds)
+    // This results in the minimum delay being capped at ~17 minutes.
+    const int kMaxOnErrorRetryCountShift = 10;
+    int64 min_delay = kBaseRetryDelayInMilliseconds << std::min(
+                          kMaxOnErrorRetryCountShift, on_error_retry_count_);
+    int64 required_delay = std::max(
+        min_delay -
+            (base::TimeTicks::Now() - on_error_retry_time_).InMilliseconds(),
+        static_cast<int64>(0));
+
+    on_error_retry_timer_.Start(
+        FROM_HERE, base::TimeDelta::FromMilliseconds(required_delay), this,
+        &BrowserModule::OnErrorRetry);
+  }
+}
+
+void BrowserModule::OnErrorRetry() {
+  ++on_error_retry_count_;
+  on_error_retry_time_ = base::TimeTicks::Now();
+  TryURLHandlers(GURL("h5vcc://network-failure?retry-url=" + on_error_url_));
 }
 
 bool BrowserModule::FilterKeyEvent(base::Token type,
@@ -1091,9 +1139,6 @@ void BrowserModule::InitializeSystemWindow() {
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
 #endif  // defined(ENABLE_SCREENSHOT)
-  // TODO: Pass in dialog closure instead of system window, and initialize
-  // earlier.
-  h5vcc_url_handler_.reset(new H5vccURLHandler(this, system_window_.get()));
 
   media_module_ =
       media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
@@ -1210,6 +1255,12 @@ void BrowserModule::StartOrResumeInternal(bool is_start) {
   } else {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                       Resume(resource_provider));
+  }
+
+  // If no navigate has occurred since the last OnError call, then attempt to
+  // navigate to |on_error_url_| now.
+  if (!on_error_url_.empty()) {
+    Navigate(GURL(on_error_url_));
   }
 }
 

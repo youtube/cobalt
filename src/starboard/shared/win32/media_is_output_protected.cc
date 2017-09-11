@@ -15,7 +15,6 @@
 #include "starboard/media.h"
 
 bool SbMediaIsOutputProtected() {
-  // Pretend that HDCP is always on.
-  // TODO: Fix this with proper HDCP query.
-  return true;
+  SB_NOTIMPLEMENTED();
+  return false;
 }

@@ -683,6 +683,8 @@ void UpdateMatchingRules(HTMLElement* current_element) {
       }
     }
   }
+
+  current_element->set_matching_rules_valid();
 }
 
 scoped_refptr<Element> QuerySelector(Node* node, const std::string& selectors,

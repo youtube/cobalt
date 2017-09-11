@@ -26,9 +26,11 @@
 
 #include "starboard/event.h"
 #include "starboard/log.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/window_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
@@ -42,6 +44,7 @@ using starboard::shared::starboard::Application;
 using starboard::shared::starboard::CommandLine;
 using starboard::shared::uwp::ApplicationUwp;
 using starboard::shared::uwp::GetArgvZero;
+using starboard::shared::uwp::WaitForResult;
 using starboard::shared::win32::stringToPlatformString;
 using starboard::shared::win32::wchar_tToUTF8;
 using starboard::shared::starboard::player::VideoFrame;
@@ -59,6 +62,13 @@ using Windows::Foundation::IAsyncOperation;
 using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
+using Windows::Media::Protection::HdcpProtection;
+using Windows::Media::Protection::HdcpSession;
+using Windows::Media::Protection::HdcpSetProtectionResult;
+using Windows::Networking::Connectivity::ConnectionProfile;
+using Windows::Networking::Connectivity::NetworkConnectivityLevel;
+using Windows::Networking::Connectivity::NetworkInformation;
+using Windows::Networking::Connectivity::NetworkStatusChangedEventHandler;
 using Windows::System::Threading::ThreadPoolTimer;
 using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::UserAuthenticationStatus;
@@ -203,7 +213,7 @@ struct SbSystemPlatformErrorPrivate {
 
 ref class App sealed : public IFrameworkView {
  public:
-  App() : previously_activated_(false) {}
+  App() : previously_activated_(false), has_internet_access_(false) {}
 
   // IFrameworkView methods.
   virtual void Initialize(CoreApplicationView^ applicationView) {
@@ -215,7 +225,37 @@ ref class App sealed : public IFrameworkView {
     applicationView->Activated +=
         ref new TypedEventHandler<CoreApplicationView^, IActivatedEventArgs^>(
             this, &App::OnActivated);
+
+    has_internet_access_ = HasInternetAccess();
+
+    SB_LOG(INFO) << "Has internet access? " << std::boolalpha
+                 << has_internet_access_;
+
+    NetworkInformation::NetworkStatusChanged +=
+        ref new NetworkStatusChangedEventHandler(this, &App::OnNetworkChanged);
   }
+
+  void OnNetworkChanged(Platform::Object^ sender) {
+    SB_UNREFERENCED_PARAMETER(sender);
+    bool has_internet_access = HasInternetAccess();
+
+    if (has_internet_access == has_internet_access_) {
+      return;
+    }
+
+    SB_LOG(INFO) << "NetworkChanged.  Has internet access? " << std::boolalpha
+      << has_internet_access;
+
+    has_internet_access_ = has_internet_access;
+
+    const SbEventType network_event =
+        (has_internet_access ? kSbEventTypeNetworkConnect
+                             : kSbEventTypeNetworkDisconnect);
+
+    ApplicationUwp::Get()->Inject(
+        new ApplicationUwp::Event(network_event, nullptr, nullptr));
+  }
+
   virtual void SetWindow(CoreWindow^ window) {
     ApplicationUwp::Get()->SetCoreWindow(window);
     window->KeyUp += ref new TypedEventHandler<CoreWindow^, KeyEventArgs^>(
@@ -363,7 +403,33 @@ ref class App sealed : public IFrameworkView {
     }
   }
 
+  bool HasInternetAccess() {
+    ConnectionProfile^ connection_profile =
+        NetworkInformation::GetInternetConnectionProfile();
+
+    if (connection_profile == nullptr) {
+      return false;
+    }
+    const NetworkConnectivityLevel connectivity_level =
+        connection_profile->GetNetworkConnectivityLevel();
+
+    switch (connectivity_level) {
+      case NetworkConnectivityLevel::InternetAccess:
+      case NetworkConnectivityLevel::ConstrainedInternetAccess:
+        return true;
+      case NetworkConnectivityLevel::None:
+      case NetworkConnectivityLevel::LocalAccess:
+        return false;
+    }
+    SB_NOTREACHED() << "Unknown network connectivity level found "
+                    << sbwin32::platformStringToString(
+                            connectivity_level.ToString());
+
+    return false;
+  }
+
   bool previously_activated_;
+  bool has_internet_access_;
   // Only valid if previously_activated_ is true
   ActivationKind previous_activation_kind_;
   std::vector<std::string> args_;
@@ -448,6 +514,23 @@ bool ApplicationUwp::DispatchNextEvent() {
   return false;
 }
 
+Windows::Media::Protection::HdcpSession^ ApplicationUwp::GetHdcpSession() {
+  if (!hdcp_session_) {
+    hdcp_session_ = ref new HdcpSession();
+  }
+  return hdcp_session_;
+}
+
+void ApplicationUwp::ResetHdcpSession() {
+  // delete will call the destructor, but not free memory.
+  // The destructor is called explicitly so that HDCP session can be
+  // torn down immediately.
+  if (hdcp_session_) {
+    delete hdcp_session_;
+    hdcp_session_ = nullptr;
+  }
+}
+
 void ApplicationUwp::Inject(Application::Event* event) {
   RunInMainThreadAsync([this, event]() {
     bool result = DispatchAndDelete(event);
@@ -527,6 +610,54 @@ void ApplicationUwp::OnSbSystemClearPlatformError(
 Platform::String^ ApplicationUwp::GetString(
     const char* id, const char* fallback) const {
   return stringToPlatformString(localized_strings_.GetString(id, fallback));
+}
+
+bool ApplicationUwp::IsHdcpOn() {
+  ::starboard::ScopedLock lock(hdcp_session_mutex_);
+
+  return GetHdcpSession()->IsEffectiveProtectionAtLeast(HdcpProtection::On);
+}
+
+bool ApplicationUwp::TurnOnHdcp() {
+  HdcpSetProtectionResult protection_result;
+  {
+    ::starboard::ScopedLock lock(hdcp_session_mutex_);
+
+    protection_result =
+      WaitForResult(GetHdcpSession()->SetDesiredMinProtectionAsync(
+        HdcpProtection::On));
+  }
+
+  if (IsHdcpOn()) {
+    return true;
+  }
+
+  // If the operation did not have intended result, log something.
+  switch (protection_result) {
+  case HdcpSetProtectionResult::Success:
+    SB_LOG(INFO) << "Successfully set HDCP.";
+    break;
+  case HdcpSetProtectionResult::NotSupported:
+    SB_LOG(INFO) << "HDCP is not supported.";
+    break;
+  case HdcpSetProtectionResult::TimedOut:
+    SB_LOG(INFO) << "Setting HDCP timed out.";
+    break;
+  case HdcpSetProtectionResult::UnknownFailure:
+    SB_LOG(INFO) << "Unknown failure returned while setting HDCP.";
+    break;
+  }
+
+  return false;
+}
+
+bool ApplicationUwp::TurnOffHdcp() {
+  {
+    ::starboard::ScopedLock lock(hdcp_session_mutex_);
+    ResetHdcpSession();
+  }
+  bool success = !SbMediaIsOutputProtected();
+  return success;
 }
 
 void ApplicationUwp::AcceptFrame(SbPlayer player,

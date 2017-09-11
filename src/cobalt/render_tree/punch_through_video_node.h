@@ -45,6 +45,10 @@ class PunchThroughVideoNode : public Node {
     Builder(const math::RectF& rect, const SetBoundsCB& set_bounds_cb)
         : rect(rect), set_bounds_cb(set_bounds_cb) {}
 
+    bool operator==(const Builder& other) const {
+      return rect == other.rect && set_bounds_cb.Equals(other.set_bounds_cb);
+    }
+
     // The destination rectangle (size includes border).
     math::RectF rect;
     const SetBoundsCB set_bounds_cb;

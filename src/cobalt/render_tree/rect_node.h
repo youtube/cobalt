@@ -52,6 +52,8 @@ class RectNode : public Node {
     explicit Builder(const Builder& other);
     explicit Builder(Moved moved);
 
+    bool operator==(const Builder& other) const;
+
     // The destination rectangle (size includes border).
     math::RectF rect;
 

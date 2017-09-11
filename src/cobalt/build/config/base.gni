@@ -152,7 +152,7 @@ if (!defined(sb_target_platform)) {
 #   'stub'        -- Stub graphics rasterization.  A rasterizer object will
 #                    still be available and valid, but it will do nothing.
 if (!defined(rasterizer_type)) {
-  rasterizer_type = "hardware"
+  rasterizer_type = "direct-gles"
 }
 
 # If set to true, will enable support for rendering only the regions of the

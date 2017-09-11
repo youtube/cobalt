@@ -548,9 +548,9 @@ void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx)
 
 int EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *c)
 {
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
     SbCryptographyDestroyTransformer(c->stream_transformer);
-#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 #ifndef OPENSSL_FIPS
     if (c->cipher != NULL) {
         if (c->cipher->cleanup && !c->cipher->cleanup(c))

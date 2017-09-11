@@ -38,6 +38,11 @@ class RectShadowNode : public Node {
             float spread)
         : rect(rect), shadow(shadow), inset(inset), spread(spread) {}
 
+    bool operator==(const Builder& other) const {
+      return rect == other.rect && rounded_corners == other.rounded_corners &&
+             shadow == other.shadow && inset == other.inset &&
+             spread == other.spread;
+    }
     // The destination rectangle.
     math::RectF rect;
 

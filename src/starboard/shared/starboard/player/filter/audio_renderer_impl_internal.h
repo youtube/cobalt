@@ -44,10 +44,6 @@ namespace filter {
 // |AudioDecoder| interface, rather than a platform specific implementation.
 class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  // Preroll is considered as finished after either the amount of audio caches
-  // exceeds kPrerollTime or if EOS is reached.
-  static const size_t kPrerollTime = kSbTimeSecond / 4;
-
   AudioRendererImpl(
       scoped_ptr<AudioDecoder> decoder,
       const SbMediaAudioHeader& audio_header,
@@ -146,6 +142,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
 
   bool can_accept_more_data_;
   bool process_audio_data_scheduled_;
+  Closure process_audio_data_closure_;
 
   // Our owner will attempt to seek to pts 0 when playback begins.  In
   // general, seeking could require a full reset of the underlying decoder on

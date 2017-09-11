@@ -19,6 +19,8 @@
       'application_uwp.h',
       'async_utils.h',
       'get_home_directory.cc',
+      'media_is_output_protected.cc',
+      'media_set_output_protection.cc',
       'system_clear_platform_error.cc',
       'system_get_device_type.cc',
       'system_get_property.cc',

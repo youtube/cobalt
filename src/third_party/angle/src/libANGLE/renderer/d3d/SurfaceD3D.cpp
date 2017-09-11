@@ -107,8 +107,7 @@ SurfaceD3D::SurfaceD3D(const egl::SurfaceState &state,
             out = sizeof(mDXGIBuffer);
             hr = static_cast<ID3D11DeviceChild*>(mD3DTexture)->
                 GetPrivateData(kCobaltDxgiBuffer, &out, &mDXGIBuffer);
-            ASSERT(SUCCEEDED(hr));
-            if (mDXGIBuffer != nullptr) {
+            if (SUCCEEDED(hr) && mDXGIBuffer != nullptr) {
               mDXGIBuffer->AddRef();
             }
             break;
@@ -148,8 +147,11 @@ egl::Error SurfaceD3D::initialize(const DisplayImpl *displayImpl)
 
         D3D11_TEXTURE2D_DESC texture_desc;
         d3Texture->GetDesc(&texture_desc);
-        if ((texture_desc.BindFlags & D3D11_BIND_RENDER_TARGET) == 0)
+
+        if (texture_desc.Format == DXGI_FORMAT_NV12)
         {
+            // NV12 textures cannot be rendered to,
+            // so don't proceed to making a swap chain.
             return egl::Error(EGL_SUCCESS);
         }
     }

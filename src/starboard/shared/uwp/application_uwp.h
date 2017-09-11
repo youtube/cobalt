@@ -32,6 +32,8 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
+using Windows::Media::Protection::HdcpSession;
+
 // Returns win32's GetModuleFileName(). For cases where we'd like an argv[0].
 std::string GetArgvZero();
 
@@ -97,6 +99,12 @@ class ApplicationUwp : public shared::starboard::Application {
 
   Platform::String^ GetString(const char* id, const char* fallback) const;
 
+  bool IsHdcpOn();
+  // Returns true on success.
+  bool TurnOnHdcp();
+  // Returns true on success.
+  bool TurnOffHdcp();
+
  private:
   // --- Application overrides ---
   bool IsStartImmediate() SB_OVERRIDE { return false; }
@@ -116,6 +124,11 @@ class ApplicationUwp : public shared::starboard::Application {
                    int width,
                    int height) SB_OVERRIDE;
 
+  // These two functions should only be called while holding
+  // |hdcp_session_mutex_|.
+  Windows::Media::Protection::HdcpSession^ GetHdcpSession();
+  void ResetHdcpSession();
+
   // The single open window, if any.
   SbWindow window_;
   Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
@@ -123,9 +136,13 @@ class ApplicationUwp : public shared::starboard::Application {
   shared::starboard::LocalizedStrings localized_strings_;
 
   Mutex mutex_;
-  // Locked by mutex_
+  // |timer_event_map_| is locked by |mutex_|.
   std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
     timer_event_map_;
+
+  // |hdcp_session_| is locked by |hdcp_session_mutex_|.
+  Mutex hdcp_session_mutex_;
+  Windows::Media::Protection::HdcpSession^ hdcp_session_;
 };
 
 }  // namespace uwp

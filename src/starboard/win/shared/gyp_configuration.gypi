@@ -139,6 +139,11 @@
                 # Enable some warnings, even those that are disabled by default.
                 # See https://msdn.microsoft.com/en-us/library/23k5d385.aspx
                 'WarningLevel': '4',
+                'AdditionalOptions': [
+                  # Warn if an enumeration value is unhandled in switch (C4062).
+                  # This warning is off by default, so it must be turned on explicitly.
+                  '/w44062',
+                ],
               },
             },
           }],

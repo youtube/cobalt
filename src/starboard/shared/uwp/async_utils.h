@@ -34,6 +34,7 @@ TResult WaitForResult(IAsyncOperation<TResult>^ operation) {
   concurrency::create_task(operation,
                            task_continuation_context::use_arbitrary())
       .then([&event](TResult result) {
+        SB_UNREFERENCED_PARAMETER(result);
         BOOL success = SetEvent(event);
         SB_DCHECK(success);
       }, task_continuation_context::use_arbitrary());

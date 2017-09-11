@@ -588,26 +588,28 @@ scoped_refptr<HTMLVideoElement> HTMLElement::AsHTMLVideoElement() {
 }
 
 void HTMLElement::InvalidateMatchingRulesRecursively() {
-  if (!matching_rules_valid_) {
-    return;
-  }
+  InvalidateMatchingRulesRecursivelyInternal(true /*is_initial_invalidation*/);
+}
 
-  matching_rules_valid_ = false;
+void HTMLElement::InvalidateMatchingRulesRecursivelyInternal(
+    bool is_initial_invalidation) {
+  if (matching_rules_valid_) {
+    // Move |matching_rules_| into |old_matching_rules_|. This is used for
+    // determining whether or not the matching rules actually changed when they
+    // are updated.
+    old_matching_rules_.swap(matching_rules_);
 
-  // Move |matching_rules_| into |old_matching_rules_|. This is used for
-  // determining whether or not the matching rules actually changed when they
-  // are updated.
-  old_matching_rules_.swap(matching_rules_);
-
-  matching_rules_.clear();
-  rule_matching_state_.matching_nodes.clear();
-  rule_matching_state_.descendant_potential_nodes.clear();
-  rule_matching_state_.following_sibling_potential_nodes.clear();
-  for (int pseudo_element_type = 0; pseudo_element_type < kMaxPseudoElementType;
-       ++pseudo_element_type) {
-    if (pseudo_elements_[pseudo_element_type]) {
-      pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
+    matching_rules_.clear();
+    rule_matching_state_.matching_nodes.clear();
+    rule_matching_state_.descendant_potential_nodes.clear();
+    rule_matching_state_.following_sibling_potential_nodes.clear();
+    for (int pseudo_element_type = 0;
+         pseudo_element_type < kMaxPseudoElementType; ++pseudo_element_type) {
+      if (pseudo_elements_[pseudo_element_type]) {
+        pseudo_elements_[pseudo_element_type]->ClearMatchingRules();
+      }
     }
+    matching_rules_valid_ = false;
   }
 
   // Invalidate matching rules on all children.
@@ -615,18 +617,22 @@ void HTMLElement::InvalidateMatchingRulesRecursively() {
        element = element->next_element_sibling()) {
     HTMLElement* html_element = element->AsHTMLElement();
     if (html_element) {
-      html_element->InvalidateMatchingRulesRecursively();
+      html_element->InvalidateMatchingRulesRecursivelyInternal(
+          false /*is_initial_invalidation*/);
     }
   }
 
-  // Invalidate matching rules on all following siblings if sibling combinators
-  // are used.
-  if (node_document()->selector_tree()->has_sibling_combinators()) {
+  // Invalidate matching rules on all following siblings if this is the initial
+  // invalidation and sibling combinators are used; if this is not the initial
+  // invalidation, then these will already be handled by a previous call.
+  if (is_initial_invalidation &&
+      node_document()->selector_tree()->has_sibling_combinators()) {
     for (Element* element = next_element_sibling(); element;
          element = element->next_element_sibling()) {
       HTMLElement* html_element = element->AsHTMLElement();
       if (html_element) {
-        html_element->InvalidateMatchingRulesRecursively();
+        html_element->InvalidateMatchingRulesRecursivelyInternal(
+            false /*is_initial_invalidation*/);
       }
     }
   }
@@ -1216,7 +1222,6 @@ void HTMLElement::UpdateComputedStyle(
   if (!matching_rules_valid_) {
     dom_stat_tracker_->OnUpdateMatchingRules();
     UpdateMatchingRules(this);
-    matching_rules_valid_ = true;
 
     // Check for whether the matching rules have changed. If they have, then a
     // new computed style must be generated from them.

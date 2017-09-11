@@ -121,7 +121,8 @@ scoped_ptr<IntSetting> CreateSystemMemorySetting(
     return setting.Pass();
   }
 
-  setting->set_value(MemorySetting::kStarboardAPI, -1);
+  // This will mark the value as invalid.
+  setting->set_value(MemorySetting::kUnset, -1);
   return setting.Pass();
 }
 

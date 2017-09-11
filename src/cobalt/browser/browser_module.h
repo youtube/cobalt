@@ -23,6 +23,7 @@
 #include "base/synchronization/lock.h"
 #include "base/synchronization/waitable_event.h"
 #include "base/threading/thread.h"
+#include "base/timer.h"
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
@@ -34,6 +35,7 @@
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/splash_screen.h"
 #include "cobalt/browser/suspend_fuzzer.h"
+#include "cobalt/browser/system_platform_error_handler.h"
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/array_buffer.h"
@@ -107,6 +109,10 @@ class BrowserModule {
   // Reloads web module.
   void Reload();
 
+  SystemPlatformErrorHandler* system_platform_error_handler() {
+    return &system_platform_error_handler_;
+  }
+
   // Adds/removes a URL handler.
   void AddURLHandler(const URLHandler::URLHandlerCallback& callback);
   void RemoveURLHandler(const URLHandler::URLHandlerCallback& callback);
@@ -159,9 +165,6 @@ class BrowserModule {
 #endif  // defined(COBALT_CHECK_RENDER_TIMEOUT)
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 
-  // Recreates web module with the given URL.
-  void NavigateInternal(const GURL& url);
-
   // Called when the WebModule's Window.onload event is fired.
   void OnLoad();
 
@@ -213,6 +216,10 @@ class BrowserModule {
 
   // Error callback for any error that stops the program.
   void OnError(const GURL& url, const std::string& error);
+
+  // OnErrorRetry() runs a retry URL through the URL handlers. It should only be
+  // called by |on_error_retry_timer_|.
+  void OnErrorRetry();
 
   // Filters a key event.
   // Returns true if the event should be passed on to other handlers,
@@ -327,6 +334,9 @@ class BrowserModule {
 
   // The browser module runs on this message loop.
   MessageLoop* const self_message_loop_;
+
+  // Handler for system errors, which is owned by browser module.
+  SystemPlatformErrorHandler system_platform_error_handler_;
 
   // Collection of URL handlers that can potentially handle a URL before
   // using it to initialize a new WebModule.
@@ -448,6 +458,20 @@ class BrowserModule {
   int render_timeout_count_;
 #endif
 
+  // The URL associated with the last OnError() call. It is cleared on the next
+  // call to Navigate().
+  std::string on_error_url_;
+  // The number of OnErrorRetry() calls that have occurred since the last
+  // OnDone() call. This is used to determine the exponential backoff delay
+  // between the call to OnError() and the timer call to OnErrorRetry().
+  int on_error_retry_count_;
+  // The time OnErrorRetry() was last called. This is used to limit how
+  // frequently |on_error_retry_timer_| can call OnErrorRetry().
+  base::TimeTicks on_error_retry_time_;
+  // The timer for the next call to OnErrorRetry(). It is started in OnError()
+  // when it is not already active.
+  base::OneShotTimer<BrowserModule> on_error_retry_timer_;
+
   // Set when the application is about to quit. May be set from a thread other
   // than the one hosting this object, and read from another.
   bool will_quit_;
@@ -474,8 +498,9 @@ class BrowserModule {
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
-  // Whether or not the main WebModule has produced any render trees yet.
-  bool produced_render_tree_;
+  // Whether or not the main WebModule has produced any render trees yet for the
+  // current navigation.
+  bool navigation_produced_main_render_tree_;
 };
 
 }  // namespace browser

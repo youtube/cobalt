@@ -154,7 +154,7 @@ extern "C" {
  * in release builds as well as debug builds.  But if the failure is one that
  * should be debugged and fixed, MOZ_ASSERT is generally preferable.
  */
-#if defined(STARBOARD) && (SB_API_VERSION >= 4)
+#if defined(STARBOARD)
 #  define MOZ_CRASH() \
      do { \
        *((volatile int*) NULL) = 123; \

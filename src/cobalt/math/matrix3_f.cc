@@ -84,6 +84,12 @@ Matrix3F Matrix3F::FromValues(float m00, float m01, float m02, float m10,
   return matrix;
 }
 
+bool Matrix3F::IsZeros() const {
+  return data_[M00] == 0.0f && data_[M01] == 0.0f && data_[M02] == 0.0f &&
+         data_[M10] == 0.0f && data_[M11] == 0.0f && data_[M12] == 0.0f &&
+         data_[M20] == 0.0f && data_[M21] == 0.0f && data_[M22] == 0.0f;
+}
+
 bool Matrix3F::IsIdentity() const {
   return data_[M00] == 1.0f && data_[M01] == 0.0f && data_[M02] == 0.0f &&
          data_[M10] == 0.0f && data_[M11] == 1.0f && data_[M12] == 0.0f &&

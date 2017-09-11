@@ -96,6 +96,8 @@
         'suspend_fuzzer.h',
         'switches.cc',
         'switches.h',
+        'system_platform_error_handler.cc',
+        'system_platform_error_handler.h',
         'trace_manager.cc',
         'trace_manager.h',
         'url_handler.cc',

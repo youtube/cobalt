@@ -121,7 +121,7 @@ struct gcm128_context {
     block128_f block;
     void *key;
 
-#if defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#if defined(OPENSSL_SYS_STARBOARD)
     // Whether in decrypt or encrypt mode.
     int encrypt;
 
@@ -145,7 +145,7 @@ struct gcm128_context {
     // mode. If valid, then this is used instead of any other state in the
     // context.
     SbCryptographyTransformer gcm_transformer;
-#endif  // defined(OPENSSL_SYS_STARBOARD) && SB_API_VERSION >= 4
+#endif  // defined(OPENSSL_SYS_STARBOARD)
 };
 
 struct xts128_context {

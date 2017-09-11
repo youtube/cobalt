@@ -27,6 +27,7 @@
        'dependencies': [
          '<(DEPTH)/base/base.gyp:base',
          '<(DEPTH)/cobalt/render_tree/render_tree.gyp:render_tree',
+         '<(DEPTH)/cobalt/renderer/rasterizer/egl/rasterizer.gyp:hardware_rasterizer',
          '<(DEPTH)/cobalt/renderer/rasterizer/skia/common.gyp:common',
          '<(DEPTH)/cobalt/renderer/rasterizer/skia/rasterizer.gyp:hardware_rasterizer',
          '<(DEPTH)/cobalt/renderer/rasterizer/skia/skia/skia.gyp:skia',
