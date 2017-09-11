@@ -273,6 +273,7 @@ PointF Matrix3F::operator*(const PointF& rhs) const {
   float x = rhs.x() * data_[M00] + rhs.y() * data_[M01] + data_[M02];
   float y = rhs.x() * data_[M10] + rhs.y() * data_[M11] + data_[M12];
   float z = rhs.x() * data_[M20] + rhs.y() * data_[M21] + data_[M22];
+  DCHECK_NE(z, 0.f);
 
   return PointF(x / z, y / z);
 }
