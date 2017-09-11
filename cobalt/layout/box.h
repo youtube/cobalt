@@ -699,6 +699,9 @@ class Box : public base::RefCounted<Box> {
   // Updates used values of "padding" properties.
   void UpdatePaddings(const LayoutParams& layout_params);
 
+  // Computes the rounded corners (if there are any) from the border radii.
+  base::optional<render_tree::RoundedCorners> ComputeRoundedCorners();
+
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
   // of the ellipsis, if it has not already been placed, and updating the

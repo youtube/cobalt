@@ -183,6 +183,38 @@ TEST(CSSDeclaredStyleDeclarationTest, BorderBottomColorSetter) {
   style->set_border_bottom_color(border_bottom_color, NULL);
 }
 
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomLeftRadiusSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string border_bottom_left_radius = "0.2em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kBorderBottomLeftRadiusProperty),
+                              border_bottom_left_radius, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_bottom_left_radius(border_bottom_left_radius, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, BorderBottomRightRadiusSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string border_bottom_right_radius = "0.2em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kBorderBottomRightRadiusProperty),
+                              border_bottom_right_radius, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_bottom_right_radius(border_bottom_right_radius, NULL);
+}
+
 TEST(CSSDeclaredStyleDeclarationTest, BorderBottomStyleSetter) {
   testing::MockCSSParser css_parser;
   scoped_refptr<CSSDeclaredStyleDeclaration> style =
@@ -389,6 +421,38 @@ TEST(CSSDeclaredStyleDeclarationTest, BorderStyleSetter) {
                   GetPropertyName(kBorderStyleProperty), border_style, _, _));
   EXPECT_CALL(observer, OnCSSMutation()).Times(1);
   style->set_border_style(border_style, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopLeftRadiusSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string border_top_left_radius = "0.2em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kBorderTopLeftRadiusProperty),
+                              border_top_left_radius, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_top_left_radius(border_top_left_radius, NULL);
+}
+
+TEST(CSSDeclaredStyleDeclarationTest, BorderTopRightRadiusSetter) {
+  testing::MockCSSParser css_parser;
+  scoped_refptr<CSSDeclaredStyleDeclaration> style =
+      new CSSDeclaredStyleDeclaration(&css_parser);
+
+  const std::string border_top_right_radius = "0.2em";
+  MockMutationObserver observer;
+  style->set_mutation_observer(&observer);
+
+  EXPECT_CALL(css_parser, ParsePropertyIntoDeclarationData(
+                              GetPropertyName(kBorderTopRightRadiusProperty),
+                              border_top_right_radius, _, _));
+  EXPECT_CALL(observer, OnCSSMutation()).Times(1);
+  style->set_border_top_right_radius(border_top_right_radius, NULL);
 }
 
 TEST(CSSDeclaredStyleDeclarationTest, BorderTopSetter) {

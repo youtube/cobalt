@@ -85,12 +85,33 @@ TEST(CSSDeclaredStyleDataTest, BackgroundSizeSettersAndGettersAreConsistent) {
 TEST(CSSDeclaredStyleDataTest, BorderRadiusSettersAndGettersAreConsistent) {
   scoped_refptr<CSSDeclaredStyleData> style = new CSSDeclaredStyleData();
 
-  EXPECT_FALSE(style->GetPropertyValue(kBorderRadiusProperty));
+  EXPECT_FALSE(style->GetPropertyValue(kBorderTopLeftRadiusProperty));
 
-  style->SetPropertyValueAndImportance(kBorderRadiusProperty,
+  style->SetPropertyValueAndImportance(kBorderTopLeftRadiusProperty,
                                        KeywordValue::GetInherit(), false);
   EXPECT_EQ(KeywordValue::GetInherit(),
-            style->GetPropertyValue(kBorderRadiusProperty));
+            style->GetPropertyValue(kBorderTopLeftRadiusProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  style->SetPropertyValueAndImportance(kBorderTopRightRadiusProperty,
+                                       KeywordValue::GetInherit(), false);
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderTopRightRadiusProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  style->SetPropertyValueAndImportance(kBorderBottomRightRadiusProperty,
+                                       KeywordValue::GetInherit(), false);
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomRightRadiusProperty));
+
+  EXPECT_FALSE(style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
+
+  style->SetPropertyValueAndImportance(kBorderBottomLeftRadiusProperty,
+                                       KeywordValue::GetInherit(), false);
+  EXPECT_EQ(KeywordValue::GetInherit(),
+            style->GetPropertyValue(kBorderBottomLeftRadiusProperty));
 }
 
 TEST(CSSDeclaredStyleDataTest, BorderTopColorSettersAndGettersAreConsistent) {
