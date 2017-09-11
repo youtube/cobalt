@@ -29,6 +29,7 @@ RoundedCorners RoundedCorners::Scale(float sx, float sy) const {
 }
 
 RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {
+  const float kEpsilon = 0.0001f;
   float scale = 1.0f;
   float size;
 
@@ -38,27 +39,28 @@ RoundedCorners RoundedCorners::Normalize(const math::RectF& rect) const {
   size = top_left.horizontal +
          std::max(top_right.horizontal, bottom_right.horizontal);
   if (size > rect.width()) {
-    scale = rect.width() / size;
+    scale = (rect.width() - kEpsilon) / size;
   }
 
   size = bottom_left.horizontal +
          std::max(bottom_right.horizontal, top_right.horizontal);
   if (size > rect.width()) {
-    scale = std::min(rect.width() / size, scale);
+    scale = std::min((rect.width() - kEpsilon) / size, scale);
   }
 
-  size = top_left.vertical +
-         std::max(bottom_left.vertical, bottom_right.vertical);
+  size =
+      top_left.vertical + std::max(bottom_left.vertical, bottom_right.vertical);
   if (size > rect.height()) {
-    scale = std::min(rect.height() / size, scale);
+    scale = std::min((rect.height() - kEpsilon) / size, scale);
   }
 
   size = top_right.vertical +
          std::max(bottom_right.vertical, bottom_left.vertical);
   if (size > rect.height()) {
-    scale = std::min(rect.height() / size, scale);
+    scale = std::min((rect.height() - kEpsilon) / size, scale);
   }
 
+  scale = std::max(scale, 0.0f);
   return Scale(scale, scale);
 }
 
