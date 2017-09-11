@@ -428,6 +428,54 @@ void CSSStyleDeclaration::set_border_radius(
                               exception_state);
 }
 
+std::string CSSStyleDeclaration::border_top_left_radius(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kBorderTopLeftRadiusProperty);
+}
+
+void CSSStyleDeclaration::set_border_top_left_radius(
+    const std::string& border_top_left_radius,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kBorderTopLeftRadiusProperty,
+                              border_top_left_radius, exception_state);
+}
+
+std::string CSSStyleDeclaration::border_top_right_radius(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kBorderTopRightRadiusProperty);
+}
+
+void CSSStyleDeclaration::set_border_top_right_radius(
+    const std::string& border_top_right_radius,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kBorderTopRightRadiusProperty,
+                              border_top_right_radius, exception_state);
+}
+
+std::string CSSStyleDeclaration::border_bottom_right_radius(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kBorderBottomRightRadiusProperty);
+}
+
+void CSSStyleDeclaration::set_border_bottom_right_radius(
+    const std::string& border_bottom_right_radius,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kBorderBottomRightRadiusProperty,
+                              border_bottom_right_radius, exception_state);
+}
+
+std::string CSSStyleDeclaration::border_bottom_left_radius(
+    script::ExceptionState* /*exception_state*/) const {
+  return GetDeclaredPropertyValueStringByKey(kBorderBottomLeftRadiusProperty);
+}
+
+void CSSStyleDeclaration::set_border_bottom_left_radius(
+    const std::string& border_bottom_left_radius,
+    script::ExceptionState* exception_state) {
+  SetPropertyValueStringByKey(kBorderBottomLeftRadiusProperty,
+                              border_bottom_left_radius, exception_state);
+}
+
 std::string CSSStyleDeclaration::bottom(
     script::ExceptionState* /*exception_state*/) const {
   return GetDeclaredPropertyValueStringByKey(kBottomProperty);

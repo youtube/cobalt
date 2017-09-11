@@ -2933,7 +2933,10 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
       (*value)->Accept(&background_size_provider);
       *value = background_size_provider.computed_background_size();
     } break;
-    case kBorderRadiusProperty: {
+    case kBorderBottomLeftRadiusProperty:
+    case kBorderBottomRightRadiusProperty:
+    case kBorderTopLeftRadiusProperty:
+    case kBorderTopRightRadiusProperty: {
       ComputedBorderRadiusProvider border_radius_provider(
           GetFontSize(), GetRootFontSize(), GetViewportSizeOnePercent());
       (*value)->Accept(&border_radius_provider);
@@ -3013,6 +3016,7 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     case kBorderColorProperty:
     case kBorderLeftProperty:
     case kBorderProperty:
+    case kBorderRadiusProperty:
     case kBorderRightProperty:
     case kBorderStyleProperty:
     case kBorderTopProperty:
@@ -3076,6 +3080,8 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBackgroundSizeProperty:
     case kBorderBottomProperty:
     case kBorderBottomColorProperty:
+    case kBorderBottomLeftRadiusProperty:
+    case kBorderBottomRightRadiusProperty:
     case kBorderBottomWidthProperty:
     case kBorderColorProperty:
     case kBorderLeftProperty:
@@ -3088,6 +3094,8 @@ void CalculateComputedStyleContext::OnComputedStyleCalculated(
     case kBorderStyleProperty:
     case kBorderTopProperty:
     case kBorderTopColorProperty:
+    case kBorderTopLeftRadiusProperty:
+    case kBorderTopRightRadiusProperty:
     case kBorderTopWidthProperty:
     case kBorderProperty:
     case kBorderWidthProperty:
