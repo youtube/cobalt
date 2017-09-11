@@ -67,6 +67,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
     kEventTypeInvalid = -1,
     kEventTypeKeyDown,
     kEventTypeKeyUp,
+    kEventTypePointerDown,
+    kEventTypePointerUp,
     kNumEventTypes,
   };
 
