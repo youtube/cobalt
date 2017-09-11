@@ -126,6 +126,8 @@ BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
 EndRenderFrame::LazyCallback g_end_render_frame_callback =
     LAZY_INSTANCE_INITIALIZER;
 
+ExternalRasterizer::Impl* g_external_rasterizer_impl = nullptr;
+
 }  // namespace
 
 namespace cobalt {
@@ -147,6 +149,8 @@ class ExternalRasterizer::Impl {
   render_tree::ResourceProvider* GetResourceProvider();
 
   void MakeCurrent() { hardware_rasterizer_.MakeCurrent(); }
+
+  intptr_t GetMainTextureHandle();
 
  private:
   void RenderOffscreenVideo(render_tree::FilterNode* map_to_mesh_filter_node);
@@ -196,6 +200,8 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0) {
+  CHECK(!g_external_rasterizer_impl);
+  g_external_rasterizer_impl = this;
   options_.flags = Rasterizer::kSubmitFlags_Clear;
   graphics_context_->MakeCurrent();
 
@@ -322,14 +328,17 @@ void ExternalRasterizer::Impl::Submit(
 
   // TODO: Allow clients to specify arbitrary subtrees to render into
   // different textures?
-  const intptr_t texture_handle = main_texture_->GetPlatformHandle();
-  g_begin_render_frame_callback.Get().Run(texture_handle);
+  g_begin_render_frame_callback.Get().Run();
   graphics_context_->SwapBuffers(render_target_egl);
   g_end_render_frame_callback.Get().Run();
 }
 
 render_tree::ResourceProvider* ExternalRasterizer::Impl::GetResourceProvider() {
   return hardware_rasterizer_.GetResourceProvider();
+}
+
+intptr_t ExternalRasterizer::Impl::GetMainTextureHandle() {
+  return main_texture_->GetPlatformHandle();
 }
 
 void ExternalRasterizer::Impl::RenderOffscreenVideo(
@@ -482,4 +491,15 @@ void CbLibGraphicsSetEndRenderFrameCallback(
   g_end_render_frame_callback.Get() =
       callback ? base::Bind(callback, context)
                : base::Bind(&EndRenderFrame::DefaultImplementation);
+}
+
+intptr_t CbLibGrapicsGetMainTextureHandle() {
+  DCHECK(g_external_rasterizer_impl);
+  if (!g_external_rasterizer_impl) {
+    LOG(WARNING) << __FUNCTION__
+                 << "ExternalRasterizer not yet created; unable to progress.";
+    return 0;
+  }
+
+  return g_external_rasterizer_impl->GetMainTextureHandle();
 }
