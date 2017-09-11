@@ -291,7 +291,7 @@
 
     # The URL of default build time splash screen - see
     #   cobalt/doc/splash_screen.md for information about this.
-    'fallback_splash_screen_url%': 'h5vcc-embedded://youtube_splash_screen.html',
+    'fallback_splash_screen_url%': 'none',
 
     # Cache parameters
 
