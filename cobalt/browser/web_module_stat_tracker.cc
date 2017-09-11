@@ -73,6 +73,10 @@ void WebModuleStatTracker::OnStartInjectEvent(
     current_event_type_ = kEventTypeKeyDown;
   } else if (event->type() == base::Tokens::keyup()) {
     current_event_type_ = kEventTypeKeyUp;
+  } else if (event->type() == base::Tokens::pointerdown()) {
+    current_event_type_ = kEventTypePointerDown;
+  } else if (event->type() == base::Tokens::pointerup()) {
+    current_event_type_ = kEventTypePointerUp;
   } else {
     current_event_type_ = kEventTypeInvalid;
   }
@@ -399,6 +403,10 @@ std::string WebModuleStatTracker::GetEventTypeName(
       return "KeyDown";
     case WebModuleStatTracker::kEventTypeKeyUp:
       return "KeyUp";
+    case WebModuleStatTracker::kEventTypePointerDown:
+      return "PointerDown";
+    case WebModuleStatTracker::kEventTypePointerUp:
+      return "PointerUp";
     case WebModuleStatTracker::kEventTypeInvalid:
     case WebModuleStatTracker::kNumEventTypes:
     default:

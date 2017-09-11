@@ -21,6 +21,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 
 namespace cobalt {
 namespace webdriver {
