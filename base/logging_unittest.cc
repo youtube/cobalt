@@ -215,7 +215,7 @@ TEST_F(LoggingTest, DcheckStreamsAreLazy) {
 }
 
 TEST_F(LoggingTest, Dcheck) {
-#if LOGGING_IS_OFFICIAL_BUILD
+#if LOGGING_IS_OFFICIAL_BUILD || defined(__LB_SHELL__FOR_QA__)
   // Official build.
   EXPECT_FALSE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));
