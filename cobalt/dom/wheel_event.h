@@ -46,10 +46,8 @@ class WheelEvent : public MouseEvent {
   WheelEvent(base::Token type, const scoped_refptr<Window>& view,
              const WheelEventInit& init_dict);
 
-  double delta_x() const { return delta_x_; }
-  double delta_y() const { return delta_y_; }
-  double delta_z() const { return delta_z_; }
-  DeltaMode delta_mode() const { return delta_mode_; }
+  // Creates an event with its "initialized flag" unset.
+  explicit WheelEvent(UninitializedFlag uninitialized_flag);
 
   void InitWheelEvent(const std::string& type, bool bubbles, bool cancelable,
                       const scoped_refptr<Window>& view, int32 detail,
@@ -58,6 +56,11 @@ class WheelEvent : public MouseEvent {
                       const scoped_refptr<EventTarget>& related_target,
                       const std::string& modifierslist, double delta_x,
                       double delta_y, double delta_z, uint32 delta_mode);
+
+  double delta_x() const { return delta_x_; }
+  double delta_y() const { return delta_y_; }
+  double delta_z() const { return delta_z_; }
+  DeltaMode delta_mode() const { return delta_mode_; }
 
   DEFINE_WRAPPABLE_TYPE(WheelEvent);
 
