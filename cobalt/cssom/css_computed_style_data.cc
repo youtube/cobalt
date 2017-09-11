@@ -167,19 +167,23 @@ CSSComputedStyleData::GetComputedInitialValue(PropertyKey key) const {
     case kBackgroundProperty:
     case kBackgroundRepeatProperty:
     case kBackgroundSizeProperty:
-    case kBorderBottomStyleProperty:
+    case kBorderBottomLeftRadiusProperty:
     case kBorderBottomProperty:
+    case kBorderBottomRightRadiusProperty:
+    case kBorderBottomStyleProperty:
     case kBorderColorProperty:
     case kBorderLeftProperty:
     case kBorderLeftStyleProperty:
     case kBorderProperty:
+    case kBorderRadiusProperty:
     case kBorderRightProperty:
     case kBorderRightStyleProperty:
     case kBorderStyleProperty:
+    case kBorderTopLeftRadiusProperty:
     case kBorderTopProperty:
+    case kBorderTopRightRadiusProperty:
     case kBorderTopStyleProperty:
     case kBorderWidthProperty:
-    case kBorderRadiusProperty:
     case kBottomProperty:
     case kBoxShadowProperty:
     case kColorProperty:

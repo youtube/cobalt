@@ -33,6 +33,8 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString border;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottom;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottomColor;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottomLeftRadius;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottomRightRadius;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottomStyle;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderBottomWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderColor;
@@ -48,6 +50,8 @@ interface CSSStyleDeclaration {
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderStyle;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTop;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTopColor;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTopLeftRadius;
+  [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTopRightRadius;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTopStyle;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderTopWidth;
   [TreatNullAs=EmptyString, RaisesException] attribute DOMString borderWidth;

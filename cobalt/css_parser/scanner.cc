@@ -1856,6 +1856,24 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
       }
       return false;
 
+    case 22:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderTopLeftRadiusProperty))) {
+        *property_name_token = kBorderTopLeftRadiusToken;
+        return true;
+      }
+      return false;
+
+    case 23:
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderTopRightRadiusProperty))) {
+        *property_name_token = kBorderTopRightRadiusToken;
+        return true;
+      }
+      return false;
+
     case 25:
       if (IsEqualToCssIdentifier(
               name.begin, cssom::GetPropertyName(
@@ -1869,6 +1887,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
         *property_name_token = kAnimationTimingFunctionToken;
         return true;
       }
+      if (IsEqualToCssIdentifier(
+              name.begin,
+              cssom::GetPropertyName(cssom::kBorderBottomLeftRadiusProperty))) {
+        *property_name_token = kBorderBottomLeftRadiusToken;
+        return true;
+      }
       return false;
 
     case 26:
@@ -1876,6 +1900,12 @@ bool Scanner::DetectPropertyNameToken(const TrivialStringPiece& name,
               name.begin, cssom::GetPropertyName(
                               cssom::kTransitionTimingFunctionProperty))) {
         *property_name_token = kTransitionTimingFunctionToken;
+        return true;
+      }
+      if (IsEqualToCssIdentifier(
+              name.begin, cssom::GetPropertyName(
+                              cssom::kBorderBottomRightRadiusProperty))) {
+        *property_name_token = kBorderBottomRightRadiusToken;
         return true;
       }
       return false;
