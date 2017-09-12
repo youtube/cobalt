@@ -58,9 +58,8 @@ class MozjsEngine : public JavaScriptEngine {
   // one per process, but it's allowed to have multiple.
   JSRuntime* runtime_;
 
-  // A list of all contexts created for this JSRuntime.
-  typedef std::vector<JSContext*> ContextVector;
-  ContextVector contexts_;
+  // The sole context created for this JSRuntime.
+  JSContext* context_;
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
