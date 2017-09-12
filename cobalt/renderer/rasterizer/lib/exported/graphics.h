@@ -45,6 +45,11 @@ SB_EXPORT_PLATFORM void CbLibGraphicsSetContextCreatedCallback(
 SB_EXPORT_PLATFORM void CbLibGraphicsSetBeginRenderFrameCallback(
     void* context, CbLibGraphicsBeginRenderFrameCallback callback);
 
+// Sets a callback which will be called at the end of rendering, after swap
+// buffers has been called.
+SB_EXPORT_PLATFORM void CbLibGraphicsSetEndRenderFrameCallback(
+    void* context, CbLibGraphicsEndRenderFrameCallback callback);
+
 // Returns the texture ID for the current RenderTree. This should be
 // re-retrieved each frame in the event that the underlying texture has
 // changed. This method will return 0 if there is not yet a valid texture ID.
@@ -53,11 +58,6 @@ SB_EXPORT_PLATFORM void CbLibGraphicsSetBeginRenderFrameCallback(
 // callback is set). This is not thread-safe and should be invoked on the
 // rasterization thread only.
 SB_EXPORT_PLATFORM intptr_t CbLibGrapicsGetMainTextureHandle();
-
-// Sets a callback which will be called at the end of rendering, after swap
-// buffers has been called.
-SB_EXPORT_PLATFORM void CbLibGraphicsSetEndRenderFrameCallback(
-    void* context, CbLibGraphicsEndRenderFrameCallback callback);
 
 #ifdef __cplusplus
 }  // extern "C"
