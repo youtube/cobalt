@@ -15,7 +15,7 @@ class ObjectGroup;
 
 namespace gc {
 
-#ifdef JS_GC_TRACE
+#if (defined(COBALT) && defined(COBALT_JS_GC_TRACE)) || defined(JS_GC_TRACE)
 
 extern bool InitTrace(GCRuntime& gc);
 extern void FinishTrace();
