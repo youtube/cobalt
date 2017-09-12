@@ -525,5 +525,34 @@ TEST_F(SourceListTest, TestInsecureLocalNetworkDefaultV6Secure) {
 }
 #endif
 
+TEST_F(SourceListTest, TestInvalidHash) {
+  std::string sources = "'sha256-c3uoUQo23pT8hqB5MoAZnI9LiPUc+lWgGBKHfV07iAM='";
+  SourceList source_list(&checker_, csp_.get(), "style-src");
+  ParseSourceList(&source_list, sources);
+
+  std::string hash_value =
+      "'sha256-IegLaWGTFJzK5gbj1YVsl+RfqHIqXhXan88eiG9GQwE='";
+  DigestValue digest_value;
+  HashAlgorithm hash_algorithm;
+  EXPECT_TRUE(SourceList::ParseHash(hash_value.c_str(),
+                                    hash_value.c_str() + hash_value.length(),
+                                    &digest_value, &hash_algorithm));
+  EXPECT_FALSE(source_list.AllowHash(HashValue(hash_algorithm, digest_value)));
+}
+
+TEST_F(SourceListTest, TestValidHash) {
+  std::string sources = "'sha256-IegLaWGTFJzK5gbj1YVsl+RfqHIqXhXan88eiG9GQwE='";
+  SourceList source_list(&checker_, csp_.get(), "style-src");
+  ParseSourceList(&source_list, sources);
+
+  std::string hash_value = sources;
+  DigestValue digest_value;
+  HashAlgorithm hash_algorithm;
+  EXPECT_TRUE(SourceList::ParseHash(hash_value.c_str(),
+                                    hash_value.c_str() + hash_value.length(),
+                                    &digest_value, &hash_algorithm));
+  EXPECT_TRUE(source_list.AllowHash(HashValue(hash_algorithm, digest_value)));
+}
+
 }  // namespace csp
 }  // namespace cobalt
