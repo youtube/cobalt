@@ -17,6 +17,7 @@ EXPORTS
     CbLibGraphicsSetContextCreatedCallback
     CbLibGraphicsSetBeginRenderFrameCallback
     CbLibGraphicsSetEndRenderFrameCallback
+    CbLibGrapicsGetMainTextureHandle
 
     ; From cobalt/render/rasterizer/lib/exported/video.h:
     CbLibVideoSetOnUpdateProjectionType
