@@ -23,6 +23,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/atomic.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/file.h"
 #include "starboard/log.h"
@@ -84,6 +85,11 @@ class AudioDecoder
     scoped_refptr<InputBuffer> input_buffer;
   };
 
+  struct QueueInputBufferTask {
+    DequeueInputResult dequeue_input_result;
+    Event event;
+  };
+
   // The maximum amount of work that can exist in the union of |EventQueue|,
   // |pending_work| and |decoded_audios_|.
   static const int kMaxPendingWorkSize = 64;
@@ -121,6 +127,8 @@ class AudioDecoder
 
   jint output_sample_rate_;
   jint output_channel_count_;
+
+  optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
 };
 
 }  // namespace shared

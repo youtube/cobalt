@@ -271,34 +271,62 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   }
 
   SB_CHECK(media_codec_bridge_);
-  DequeueInputResult dequeue_input_result =
-      media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
-  if (dequeue_input_result.index < 0) {
-    if (dequeue_input_result.status != MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
-      SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
-                    << dequeue_input_result.status;
+
+  // During secure playback, and only secure playback, is is possible that our
+  // attempt to enqueue an input buffer will be rejected by MediaCodec because
+  // we do not have a key yet.  In this case, we hold on to the input buffer
+  // that we have already set up, and repeatedly attempt to enqueue it until
+  // it works.  Ideally, we would just wait until MediaDrm was ready, however
+  // the shared starboard player framework assumes that it is possible to
+  // perform decryption and decoding as separate steps, so from its
+  // perspective, having made it to this point implies that we ready to
+  // decode.  It is not possible to do them as separate steps on Android. From
+  // the perspective of user application, decryption and decoding are one
+  // atomic step.
+  DequeueInputResult dequeue_input_result;
+  Event event;
+  bool input_buffer_already_written = false;
+  if (pending_queue_input_buffer_task_) {
+    dequeue_input_result =
+        pending_queue_input_buffer_task_->dequeue_input_result;
+    SB_DCHECK(dequeue_input_result.index >= 0);
+    event = pending_queue_input_buffer_task_->event;
+    pending_queue_input_buffer_task_ = nullopt_t();
+    input_buffer_already_written = true;
+  } else {
+    dequeue_input_result =
+        media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
+    event = pending_work->front();
+    if (dequeue_input_result.index < 0) {
+      if (dequeue_input_result.status !=
+          MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
+        SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
+                      << dequeue_input_result.status;
+      }
+      return false;
     }
-    return false;
+    pending_work->pop_front();
   }
 
-  Event event = pending_work->front();
   SB_DCHECK(event.type == Event::kWriteInputBuffer ||
             event.type == Event::kWriteEndOfStream);
   scoped_refptr<InputBuffer> input_buffer = event.input_buffer;
   bool is_eos = event.type == Event::kWriteEndOfStream;
-  pending_work->pop_front();
   SB_DCHECK(!is_eos || pending_work->empty());
 
-  ScopedJavaByteBuffer byte_buffer(
-      media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-  if (!is_eos &&
-      (byte_buffer.IsNull() || byte_buffer.capacity() < input_buffer->size())) {
-    SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
-    return false;
-  }
-
-  if (!is_eos) {
-    byte_buffer.CopyInto(input_buffer->data(), input_buffer->size());
+  // Don't bother rewriting the same data if we already did it last time we
+  // were called and had it stored in |pending_queue_input_buffer_task_|.
+  if (!input_buffer_already_written) {
+    ScopedJavaByteBuffer byte_buffer(
+        media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
+    if (!is_eos && (byte_buffer.IsNull() ||
+                    byte_buffer.capacity() < input_buffer->size())) {
+      SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
+      return false;
+    }
+    if (!is_eos) {
+      byte_buffer.CopyInto(input_buffer->data(), input_buffer->size());
+    }
   }
 
   jint status;
@@ -311,16 +339,9 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
       SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
                        "MEDIA_CODEC_NO_KEY, will try again later.";
       // We will try this input buffer again later after |drm_system_| tries
-      // to take care of our key.  We still need to return this input buffer
-      // to media codec, though.
-      pending_work->push_front(event);
-      status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, kNoSize,
-          ConvertSbMediaTimeToMicroseconds(input_buffer->pts()),
-          kNoBufferFlags);
-      if (status != MEDIA_CODEC_OK) {
-        SB_LOG(ERROR) << "|queueInputBuffer| failed with status: " << status;
-      }
+      // to take care of our key.
+      SB_DCHECK(!pending_queue_input_buffer_task_);
+      pending_queue_input_buffer_task_ = {dequeue_input_result, event};
       return false;
     }
   } else if (is_eos) {
