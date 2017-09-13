@@ -54,11 +54,12 @@ SbMediaTime ConvertToMediaTime(int64_t input) {
 }
 
 std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(
+    int stream_id,
     IMFTransform* decoder) {
   std::vector<ComPtr<IMFMediaType>> output;
   for (int index = 0;; ++index) {
     ComPtr<IMFMediaType> media_type;
-    HRESULT hr = decoder->GetOutputAvailableType(0, index, &media_type);
+    HRESULT hr = decoder->GetOutputAvailableType(stream_id, index, &media_type);
     if (SUCCEEDED(hr)) {
       output.push_back(media_type);
     } else {
@@ -67,6 +68,23 @@ std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(
     }
   }
   return output;
+}
+
+std::vector<ComPtr<IMFMediaType>> GetAllInputMediaTypes(
+    int stream_id,
+    IMFTransform* transform) {
+  std::vector<ComPtr<IMFMediaType>> input_types;
+
+  for (DWORD i = 0;; ++i) {
+    ComPtr<IMFMediaType> curr_type;
+    HRESULT hr = transform->GetInputAvailableType(stream_id, i,
+                                                  curr_type.GetAddressOf());
+    if (FAILED(hr)) {
+      break;
+    }
+    input_types.push_back(curr_type);
+  }
+  return input_types;
 }
 
 std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
@@ -84,16 +102,12 @@ std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
   return output;
 }
 
-ComPtr<IMFMediaType> FindMediaType(GUID sub_type, IMFTransform* decoder) {
-  std::vector<ComPtr<IMFMediaType>> media_types =
-      GetAllOutputMediaTypes(decoder);
-  media_types = FilterMediaBySubType(media_types, sub_type);
-  if (media_types.empty()) {
-    ComPtr<IMFMediaType> empty;
-    return empty;
-  } else {
-    return media_types[0];
-  }
+HRESULT CreateDecoderTransform(const GUID& decoder_guid,
+                               ComPtr<IMFTransform>* transform) {
+  LPVOID* ptr_address = reinterpret_cast<LPVOID*>(transform->GetAddressOf());
+  HRESULT hr = CoCreateInstance(decoder_guid, NULL, CLSCTX_INPROC_SERVER,
+                                IID_IMFTransform, ptr_address);
+  return hr;
 }
 
 }  // namespace win32

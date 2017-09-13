@@ -51,12 +51,16 @@
       '<(DEPTH)/starboard/shared/win32/wrm_header.cc',
       '<(DEPTH)/starboard/shared/win32/wrm_header.h',
     ],
+
+    # Please keep this in sync with xb1/shared/starboard_platform.gypi.
     'win32_media_player_files': [
       '<(DEPTH)/starboard/shared/win32/atomic_queue.h',
       '<(DEPTH)/starboard/shared/win32/audio_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/audio_decoder.h',
       '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.cc',
       '<(DEPTH)/starboard/shared/win32/audio_decoder_thread.h',
+      '<(DEPTH)/starboard/shared/win32/audio_transform.cc',
+      '<(DEPTH)/starboard/shared/win32/audio_transform.h',
       '<(DEPTH)/starboard/shared/win32/decode_target_internal.cc',
       '<(DEPTH)/starboard/shared/win32/decode_target_internal.h',
       '<(DEPTH)/starboard/shared/win32/decrypting_decoder.cc',
@@ -81,6 +85,8 @@
       '<(DEPTH)/starboard/shared/win32/video_decoder_thread.h',
       '<(DEPTH)/starboard/shared/win32/video_renderer.cc',
       '<(DEPTH)/starboard/shared/win32/video_renderer.h',
+      '<(DEPTH)/starboard/shared/win32/video_transform.cc',
+      '<(DEPTH)/starboard/shared/win32/video_transform.h',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.h',
       '<(DEPTH)/starboard/shared/win32/win32_video_decoder.cc',

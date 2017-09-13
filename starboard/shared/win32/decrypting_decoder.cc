@@ -102,9 +102,10 @@ void AttachDrmDataToSample(ComPtr<IMFSample> sample,
 }  // namespace
 
 DecryptingDecoder::DecryptingDecoder(const std::string& type,
-                                     CLSID clsid,
+                                     scoped_ptr<MediaTransform> decoder,
                                      SbDrmSystem drm_system)
-    : type_(type), decoder_(clsid) {
+    : type_(type), decoder_(decoder.Pass()) {
+  SB_DCHECK(decoder_.get());
   drm_system_ = static_cast<SbDrmSystemPlayready*>(drm_system);
 }
 
@@ -190,14 +191,14 @@ bool DecryptingDecoder::TryWriteInputBuffer(
 
   if (encrypted) {
     if (!decryptor_) {
-      if (decoder_.draining()) {
+      if (decoder_->draining()) {
         return false;
       }
-      if (!decoder_.drained()) {
-        decoder_.Drain();
+      if (!decoder_->drained()) {
+        decoder_->Drain();
         return false;
       }
-      decoder_.ResetFromDrained();
+      decoder_->ResetFromDrained();
       scoped_refptr<SbDrmSystemPlayready::License> license =
           drm_system_->GetLicense(key_id, key_id_size);
       if (license && license->usable()) {
@@ -214,14 +215,14 @@ bool DecryptingDecoder::TryWriteInputBuffer(
   if (encrypted) {
     return decryptor_->TryWrite(input_sample);
   }
-  return decoder_.TryWrite(input_sample);
+  return decoder_->TryWrite(input_sample);
 }
 
 bool DecryptingDecoder::ProcessAndRead(ComPtr<IMFSample>* output,
                                        ComPtr<IMFMediaType>* new_type) {
   bool did_something = false;
 
-  *output = decoder_.TryRead(new_type);
+  *output = decoder_->TryRead(new_type);
   did_something = *output != NULL;
 
   if (decryptor_) {
@@ -232,14 +233,15 @@ bool DecryptingDecoder::ProcessAndRead(ComPtr<IMFSample>* output,
     }
 
     if (pending_decryptor_output_) {
-      if (decoder_.TryWrite(pending_decryptor_output_)) {
+      if (decoder_->TryWrite(pending_decryptor_output_)) {
         pending_decryptor_output_.Reset();
         did_something = true;
       }
     }
 
-    if (decryptor_->drained() && !decoder_.draining() && !decoder_.drained()) {
-      decoder_.Drain();
+    if (decryptor_->drained() && !decoder_->draining() &&
+        !decoder_->drained()) {
+      decoder_->Drain();
       did_something = true;
     }
   }
@@ -251,15 +253,15 @@ void DecryptingDecoder::Drain() {
   if (decryptor_) {
     decryptor_->Drain();
   } else {
-    decoder_.Drain();
+    decoder_->Drain();
   }
 }
 
 void DecryptingDecoder::ActivateDecryptor() {
   SB_DCHECK(decryptor_);
 
-  ComPtr<IMFMediaType> decoder_output_type = decoder_.GetCurrentOutputType();
-  decryptor_->SetInputType(decoder_.GetCurrentInputType());
+  ComPtr<IMFMediaType> decoder_output_type = decoder_->GetCurrentOutputType();
+  decryptor_->SetInputType(decoder_->GetCurrentInputType());
 
   GUID original_sub_type;
   decoder_output_type->GetGUID(MF_MT_SUBTYPE, &original_sub_type);
@@ -276,7 +278,7 @@ void DecryptingDecoder::ActivateDecryptor() {
   CheckResult(hr);
 
   ComPtr<IMFSampleProtection> decoder_sample_protection =
-      decoder_.GetSampleProtection();
+      decoder_->GetSampleProtection();
   SB_DCHECK(decoder_sample_protection);
 
   DWORD decoder_protection_version;
@@ -320,15 +322,15 @@ void DecryptingDecoder::ActivateDecryptor() {
   SB_DCHECK(!decryptor_output_types.empty());
 
   decryptor_->SetOutputType(decryptor_output_types[0]);
-  decoder_.SetInputType(decryptor_output_types[0]);
+  decoder_->SetInputType(decryptor_output_types[0]);
 
   std::vector<ComPtr<IMFMediaType>> decoder_output_types =
-      decoder_.GetAvailableOutputTypes();
+      decoder_->GetAvailableOutputTypes();
   for (auto output_type : decoder_output_types) {
     GUID sub_type;
     output_type->GetGUID(MF_MT_SUBTYPE, &sub_type);
     if (IsEqualGUID(sub_type, original_sub_type)) {
-      decoder_.SetOutputType(output_type);
+      decoder_->SetOutputType(output_type);
       return;
     }
   }
@@ -338,7 +340,7 @@ void DecryptingDecoder::Reset() {
   if (decryptor_) {
     decryptor_->Reset();
   }
-  decoder_.Reset();
+  decoder_->Reset();
 
   last_input_buffer_ = nullptr;
   last_input_sample_ = nullptr;

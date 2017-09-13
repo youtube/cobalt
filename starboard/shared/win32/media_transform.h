@@ -22,6 +22,8 @@
 
 #include <vector>
 
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/media.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
 namespace starboard {
@@ -39,6 +41,7 @@ namespace win32 {
 // may deal with two IMFTransforms: one decoder and one decryptor.
 class MediaTransform {
  public:
+  enum { kStreamId = 0 };
   explicit MediaTransform(CLSID clsid);
   explicit MediaTransform(
       const Microsoft::WRL::ComPtr<IMFTransform>& transform);
@@ -56,11 +59,11 @@ class MediaTransform {
   void ResetFromDrained();
 
   Microsoft::WRL::ComPtr<IMFMediaType> GetCurrentInputType();
-  void SetInputType(const Microsoft::WRL::ComPtr<IMFMediaType>& input_type);
+  void SetInputType(const Microsoft::WRL::ComPtr<IMFMediaType>& type);
   std::vector<Microsoft::WRL::ComPtr<IMFMediaType>> GetAvailableInputTypes();
 
   Microsoft::WRL::ComPtr<IMFMediaType> GetCurrentOutputType();
-  void SetOutputType(const Microsoft::WRL::ComPtr<IMFMediaType>& input_type);
+  void SetOutputType(const Microsoft::WRL::ComPtr<IMFMediaType>& type);
   std::vector<Microsoft::WRL::ComPtr<IMFMediaType>> GetAvailableOutputTypes();
   void SetOutputTypeBySubType(GUID subtype);
 
