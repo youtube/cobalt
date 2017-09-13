@@ -74,7 +74,18 @@ EGLSurface EGLAPIENTRY eglGetCurrentSurface(EGLint readdraw)
 
 EGLDisplay EGLAPIENTRY eglGetDisplay(EGLNativeDisplayType display_id)
 {
-    return egl::GetDisplay(display_id);
+    // Hard-wire to always return a PATH_FAST_ANGLE-configured display.
+    // This is so Cobalt platform-independent code does not have to
+    // be aware of this nuance.
+    EGLint display_attribute_list[] = {
+        EGL_PLATFORM_ANGLE_TYPE_ANGLE,
+        EGL_PLATFORM_ANGLE_TYPE_D3D11_ANGLE,
+        EGL_EXPERIMENTAL_PRESENT_PATH_ANGLE,
+        EGL_EXPERIMENTAL_PRESENT_PATH_FAST_ANGLE,
+        EGL_NONE
+    };
+    return egl::GetPlatformDisplayEXT(
+        EGL_PLATFORM_ANGLE_ANGLE, display_id, display_attribute_list);
 }
 
 EGLint EGLAPIENTRY eglGetError(void)
