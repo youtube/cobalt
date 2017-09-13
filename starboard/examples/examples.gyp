@@ -19,12 +19,9 @@
       'type': 'none',
       'dependencies': [
         '<(DEPTH)/starboard/examples/blitter/blitter.gyp:starboard_blitter_example',
+        '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
       ],
       'conditions': [
-        ['not no_starboard_window_example', {
-            '<(DEPTH)/starboard/examples/window/window.gyp:starboard_window_example',
-          }
-        ],
         ['gl_type != "none"', {
           'dependencies': [
             '<(DEPTH)/starboard/examples/glclear/glclear.gyp:starboard_glclear_example',
