@@ -40,7 +40,7 @@ URLRequestContext::URLRequestContext()
 }
 
 URLRequestContext::~URLRequestContext() {
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   AssertNoURLRequests();
 #endif
 }

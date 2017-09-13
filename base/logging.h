@@ -471,7 +471,7 @@ const LogSeverity LOG_0 = LOG_ERROR;
 // defined.
 #if ( defined(OS_WIN) && defined(OFFICIAL_BUILD)) || \
     (!defined(OS_WIN) && defined(NDEBUG) && defined(GOOGLE_CHROME_BUILD)) || \
-    defined(__LB_SHELL__FOR_RELEASE__)
+    defined(COBALT_BUILD_TYPE_GOLD)
 #define LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define LOGGING_IS_OFFICIAL_BUILD 0
@@ -618,7 +618,7 @@ DEFINE_CHECK_OP_IMPL(GT, > )
 #define CHECK_GT(val1, val2) CHECK_OP(GT, > , val1, val2)
 
 #if LOGGING_IS_OFFICIAL_BUILD || \
-    (defined(__LB_SHELL__FOR_QA__) && !defined(__LB_SHELL__FORCE_LOGGING__))
+    (defined(COBALT_BUILD_TYPE_QA) && !defined(__LB_SHELL__FORCE_LOGGING__))
 // In order to have optimized code for official builds, remove DLOGs and
 // DCHECKs.
 #define ENABLE_DLOG 0
@@ -1052,7 +1052,7 @@ inline std::ostream& operator<<(std::ostream& out, ::Platform::String^ str) {
 
 #ifndef NOTIMPLEMENTED_POLICY
 #if (defined(OS_ANDROID) && defined(OFFICIAL_BUILD)) || \
-  defined(__LB_SHELL__FOR_RELEASE__)
+  defined(COBALT_BUILD_TYPE_GOLD)
 #define NOTIMPLEMENTED_POLICY 0
 #elif defined (__LB_SHELL__) || defined(COBALT)
   // Only print each message once.

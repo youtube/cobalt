@@ -285,7 +285,7 @@ class Lock;
 // to record histogram data, and have the data submitted/uploaded via UMA.
 // Not all systems support such UMA, but if they do, the following macros
 // should work with the service.
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 
 #define UMA_HISTOGRAM_TIMES(name, sample) DISCARD_2_ARGUMENTS(name, sample)
 #define UMA_HISTOGRAM_MEDIUM_TIMES(name, sample) \
@@ -372,7 +372,7 @@ class Lock;
     STATIC_HISTOGRAM_POINTER_BLOCK(name, Add(sample), \
         base::CustomHistogram::FactoryGet(name, custom_ranges, \
             base::Histogram::kUmaTargetedHistogramFlag))
-#endif  // defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 //------------------------------------------------------------------------------
 
