@@ -22,7 +22,7 @@ namespace tracked_objects {
 
 namespace {
 // Flag to compile out almost all of the task tracking code.
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 const bool kTrackAllTaskObjects = false;
 #else
 const bool kTrackAllTaskObjects = true;
