@@ -88,10 +88,7 @@ class AdbCommandBuilder(object):
   """Builder for 'adb' commands."""
 
   def __init__(self, device_id):
-    if not device_id:
-      self.device_id = None
-    else:
-      self.device_id = device_id
+    self.device_id = device_id
 
   def Build(self, *args):
     """Builds an 'adb' commandline with the given args."""
@@ -168,10 +165,9 @@ class AdbAmMonitorWatcher(object):
       if re.search(_RE_ADB_AM_MONITOR_ERROR, line):
         self.done_queue.put(_QUEUE_CODE_CRASHED)
         # This log line will wake up the main thread
-        subprocess.call([
-            'adb', 'shell', 'log', '-t', 'starboard',
-            'am monitor detected crash'
-        ])
+        subprocess.call(
+            self.adb_builder.Build('shell', 'log', '-t', 'starboard',
+                                   'am monitor detected crash'))
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -181,6 +177,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     super(Launcher, self).__init__(platform, target_name, config, device_id,
                                    args)
+
+    if not self.device_id:
+      self.device_id = self._IdentifyDevice()
 
     self.adb_builder = AdbCommandBuilder(self.device_id)
 
@@ -199,11 +198,40 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self.executable_out_path, _DIR_SOURCE_ROOT_DIRECTORY_RELATIVE_PATH)
 
   def _GetAdbDevices(self):
-    """Returns a list of devices connected, or empty list if none."""
-    p = self._PopenAdb('devices', stderr=_DEV_NULL, stdout=subprocess.PIPE)
+    """Returns a list of names of connected devices, or empty list if none."""
+
+    # Does not use the ADBCommandBuilder class because this command should be
+    # run without targeting a specific device.
+    p = subprocess.Popen(['adb', 'devices'], stderr=_DEV_NULL,
+                         stdout=subprocess.PIPE)
     result = p.stdout.readlines()[1:-1]
     p.wait()
-    return result
+
+    names = []
+    for device in result:
+      name_info = device.split('\t')
+      # Some devices may not have authorization for USB debugging.
+      if 'unauthorized' not in name_info[1]:
+        names.append(name_info[0])
+    return names
+
+  def _IdentifyDevice(self):
+    """Picks a device to be used to run the executable.
+
+    In the event that no device_id is provided, but multiple
+    devices are connected, this method chooses the first device
+    listed.
+
+    Returns:
+      The name of an attached device, or None if no devices are present.
+    """
+    device_name = None
+
+    devices = self._GetAdbDevices()
+    if devices:
+      device_name = devices[0]
+
+    return device_name
 
   def _LaunchCrowIfNecessary(self):
     if self.device_id or self._GetAdbDevices():
@@ -214,7 +242,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCall(*_CROW_COMMANDLINE)
 
   def _IsAppInstalled(self):
-    """Determines if an app is present on the target device.
+    """Determines if the app is present on the target device.
 
     Returns:
       True if the app is installed on the device, False otherwise.
@@ -360,7 +388,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('wait-for-device')
     self._CheckCallAdb('root')
     self._CheckCallAdb('wait-for-device')
-    self.Kill()
+    self._Shutdown()
 
     # This flag is set if the app needs to be installed.
     needs_install = False
@@ -373,13 +401,15 @@ class Launcher(abstract_launcher.AbstractLauncher):
       needs_install = True
 
     if needs_install:
-      self._CheckCallAdb('uninstall', _APP_PACKAGE_NAME)
       self._CheckCallAdb('install', self.apk_path)
 
     self.data_dir = self._GetInstalledAppDataDir()
 
     if self.data_dir is None:
       raise Exception('Could not find installed app data dir')
+
+    self.exit_code_path = TargetOsPathJoin(self.data_dir, 'files', 'exitcode')
+    self.log_file_path = TargetOsPathJoin(self.data_dir, 'files', 'log')
 
     android_files_path = TargetOsPathJoin(self.data_dir, 'files')
     android_content_path = TargetOsPathJoin(android_files_path,
@@ -422,17 +452,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._SetupEnvironment()
     self._CheckCallAdb('logcat', '-c')
 
-    logcat_process = self._PopenAdb(
-        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE)
-
-    exit_code_path = TargetOsPathJoin(self.data_dir, 'files', 'exitcode')
-    log_file_path = TargetOsPathJoin(self.data_dir, 'files', 'log')
-    self._CheckCallAdb('shell', 'rm', '-f', exit_code_path)
-    self._CheckCallAdb('shell', 'rm', '-f', log_file_path)
+    self._CheckCallAdb('shell', 'rm', '-f', self.exit_code_path)
+    self._CheckCallAdb('shell', 'rm', '-f', self.log_file_path)
 
     queue = Queue.Queue()
     am_monitor = AdbAmMonitorWatcher(self.adb_builder, queue)
-    exit_watcher = ExitFileWatch(self.adb_builder, exit_code_path, queue)
+    exit_watcher = ExitFileWatch(self.adb_builder, self.exit_code_path, queue)
+
+    # Increases the size of the logcat buffer.  Without this, the log buffer
+    # will not flush quickly enough and output will be cut off.
+    self._CheckCallAdb('logcat', '-G', '2M')
+
+    logcat_process = self._PopenAdb(
+        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE)
 
     # The return code for binaries run on Android is fetched from an exitcode
     # file on the device.  This return_code variable will be assigned the
@@ -442,8 +474,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     try:
       args = [_APP_START_INTENT]
 
-      extra_args = ['--android_exit_file={}'.format(exit_code_path),
-                    '--android_log_file={}'.format(log_file_path)]
+      extra_args = ['--android_exit_file={}'.format(self.exit_code_path),
+                    '--android_log_file={}'.format(self.log_file_path)]
       extra_args += self.target_command_line_params
 
       extra_args_string = ','.join(extra_args)
@@ -451,23 +483,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
       self._CheckCallAdb(*args)
 
-      # We need to know that the executable has completed in order to
-      # get the full information off of the device's log file.
-      executable_complete = False
-
-      # Note we cannot use "for line in logcat_process.stdout" because
-      # that uses a large buffer which will cause us to deadlock.
       while True:
-        line = logcat_process.stdout.readline()
-        if not line:
-          # Something caused "adb logcat" to exit.
-          print '***Logcat Exited***'
-          break
         if not queue.empty():
           queue_code = queue.get_nowait()
 
           if queue_code == _QUEUE_CODE_CRASHED:
-            print '***Application Crashed***'
+            print '***Application Crashed***\n'
+            break
           else:
             # Occasionally, the exit file watcher will detect an exitcode file
             # when it has not actually been generated yet.  The reason for this
@@ -475,60 +497,51 @@ class Launcher(abstract_launcher.AbstractLauncher):
             # watcher if there is a false alarm.
             try:
               p = self._PopenAdb(
-                  'shell', 'cat', exit_code_path, stdout=subprocess.PIPE,
+                  'shell', 'cat', self.exit_code_path, stdout=subprocess.PIPE,
                   stderr=_DEV_NULL)
               p.wait()
               lines = p.stdout.readlines()
               if lines:
                 return_code = int(lines[0])
-                executable_complete = True
               else:
                 exit_watcher.Restart()
                 continue
             except IndexError:  # Output was not the expected exit code
               # If something failed, restart the exit file watcher
-              exit_watcher.Restart()
+              self.exit_watcher.Restart()
               continue
           break
 
-      if executable_complete:
-        self._DumpLogFile(log_file_path)
+        # Note we cannot use "for line in logcat_process.stdout" because
+        # that uses a large buffer which will cause us to deadlock.
+        line = logcat_process.stdout.readline()
+        if not line:
+          break
+        else:
+          self._WriteLine(line)
 
       logcat_process.kill()
+
     finally:
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
 
     return return_code
 
-  # TODO:  This doesn't seem to handle CTRL + C cleanly.  Need to fix.
-  def Kill(self):
+  def _Shutdown(self):
     self._CheckCallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
 
-  def _DumpLogFile(self, path):
-    """Writes all info in target device's log file to stdout.
-
-    Args:
-      path: The path to the log file on the target device.
-    """
-    p = self._PopenAdb(
-        'shell', 'cat', path, stdout=subprocess.PIPE,
-        stderr=_DEV_NULL)
-
-    # Popen.communicate() must be used here because attempting to
-    # read from the stdout pipe directly will cause the read to block.
-    p_stdout, p_stderr = p.communicate()
-
-    stdout_lines = p_stdout.split('\n')
-
-    for line in stdout_lines:
-      # Trim header from log lines with the "starboard" logcat tag so
-      # that downstream log processing tools can recognize them.
-      # Leave the prefixes on the non-starboard log lines to help
-      # identify the source later.
-      line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
-      self._WriteLine(line)
+  # TODO:  Ensure this is always a clean exit on CTRL + C
+  def Kill(self):
+    print '***Killing Launcher***'
+    self._Shutdown()
+    try:
+      self._CheckCallAdb('shell', 'echo', '1', '>', self.exit_code_path)
+    except AttributeError:  # exit_code_path isn't defined yet, so ignore it.
+      pass
 
   def _WriteLine(self, line):
     """Write log output to stdout."""
+    line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
     print line
+    sys.stdout.flush()
