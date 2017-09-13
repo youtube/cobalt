@@ -24,6 +24,7 @@
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_common.h"
 #include "starboard/android/shared/video_window.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
 #include "starboard/log.h"
@@ -85,6 +86,11 @@ class VideoDecoder
         : type(kWriteInputBuffer), input_buffer(input_buffer) {}
   };
 
+  struct QueueInputBufferTask {
+    DequeueInputResult dequeue_input_result;
+    Event event;
+  };
+
   static void* ThreadEntryPoint(void* context);
   void DecoderThreadFunc();
   void JoinOnDecoderThread();
@@ -139,6 +145,8 @@ class VideoDecoder
   // The width and height of the latest decoded frame.
   int32_t frame_width_;
   int32_t frame_height_;
+
+  optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
 };
 
 }  // namespace shared
