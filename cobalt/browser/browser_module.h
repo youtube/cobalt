@@ -104,7 +104,10 @@ class BrowserModule {
 
   const std::string& GetUserAgent() { return network_module_.GetUserAgent(); }
 
-  // Recreates web module with the given URL.
+  // Recreates web module with the given URL. In the case where Cobalt is
+  // currently suspended, this defers the navigation and instead sets
+  // |pending_navigate_url_| to the specified url, which will trigger a
+  // navigation when Cobalt resumes.
   void Navigate(const GURL& url);
   // Reloads web module.
   void Reload();
@@ -295,8 +298,12 @@ class BrowserModule {
   // Does all the steps for either a Suspend or the first half of a Start.
   void SuspendInternal(bool is_start);
 
-  // Does all the steps for either a Resume or the second half of a Start.
-  void StartOrResumeInternal(bool is_start);
+  // Does all the steps for either a Resume or the second half of a Start that
+  // happen prior to the app state update.
+  void StartOrResumeInternalPreStateUpdate(bool is_start);
+  // Does all the steps for either a Resume or the second half of a Start that
+  // happen after the app state update.
+  void StartOrResumeInternalPostStateUpdate();
 
   // Gets a viewport size to use for now. This may change depending on the
   // current application state. While preloading, this returns the requested
@@ -458,9 +465,13 @@ class BrowserModule {
   int render_timeout_count_;
 #endif
 
-  // The URL associated with the last OnError() call. It is cleared on the next
-  // call to Navigate().
-  std::string on_error_url_;
+  // The URL that Cobalt will attempt to navigate to during an OnErrorRetry()
+  // and also when starting from a preloaded state or resuming from a suspended
+  // state. This url is set within OnError() and also when a navigation is
+  // deferred as a result of Cobalt being suspended; it is cleared when a
+  // navigation occurs.
+  std::string pending_navigate_url_;
+
   // The number of OnErrorRetry() calls that have occurred since the last
   // OnDone() call. This is used to determine the exponential backoff delay
   // between the call to OnError() and the timer call to OnErrorRetry().
