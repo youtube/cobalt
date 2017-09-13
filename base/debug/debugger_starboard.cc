@@ -26,7 +26,7 @@ bool SpawnDebuggerOnProcess(unsigned process_id) {
 }
 
 bool BeingDebugged() {
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
   return false;
 #else
   return SbSystemIsDebuggerAttached();

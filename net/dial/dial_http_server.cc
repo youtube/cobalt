@@ -140,7 +140,7 @@ void DialHttpServer::ConfigureApplicationUrl() {
 void DialHttpServer::SendDeviceDescriptionManifest(int conn_id) {
   DCHECK_EQ(message_loop_proxy_, base::MessageLoopProxy::current());
   DialSystemConfig* system_config = DialSystemConfig::GetInstance();
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
   const char* friendly_name = system_config->friendly_name();
 #else
   // For non-Gold builds, append the IP to the friendly name
