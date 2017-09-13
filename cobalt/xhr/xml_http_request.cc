@@ -82,7 +82,7 @@ bool MethodNameToRequestType(const std::string& method,
   return true;
 }
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 const char* kStateNames[] = {"Unsent", "Opened", "HeadersReceived", "Loading",
                              "Done"};
 const char* kMethodNames[] = {"GET", "POST", "HEAD", "DELETE", "PUT"};
@@ -104,7 +104,7 @@ const char* StateName(XMLHttpRequest::State state) {
     return "";
   }
 }
-#endif  // defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 bool IsForbiddenMethod(const std::string& method) {
   for (size_t i = 0; i < arraysize(kForbiddenMethods); ++i) {
@@ -932,7 +932,7 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
 }
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   base::StringPiece response_text("");
   if ((xhr.state_ == XMLHttpRequest::kDone) &&
       (xhr.response_type_ == XMLHttpRequest::kDefault ||
