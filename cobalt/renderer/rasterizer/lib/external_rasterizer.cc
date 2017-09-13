@@ -219,6 +219,7 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
 ExternalRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
+  g_external_rasterizer_impl = nullptr;
 }
 
 void ExternalRasterizer::Impl::Submit(
