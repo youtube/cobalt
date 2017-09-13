@@ -121,7 +121,7 @@
 #define PNG_NO_WRITE_SUPPORTED
 #endif
 
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 // LB_SHELL needs to be able to specify custom allocators to libpng for
 // debugging.
 #define PNG_NO_USER_MEM
