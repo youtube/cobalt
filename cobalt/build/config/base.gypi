@@ -765,7 +765,6 @@
           'ENABLE_PARTIAL_LAYOUT_CONTROL',
           'ENABLE_TEST_RUNNER',
           '__LB_SHELL__ENABLE_SCREENSHOT__',
-          '__LB_SHELL__FOR_QA__',
           'NDEBUG',
         ],
       }, # end of devel_base
@@ -781,7 +780,6 @@
           'COBALT_BUILD_TYPE_GOLD',
           'COBALT_FORCE_CSP',
           'COBALT_FORCE_HTTPS',
-          '__LB_SHELL__FOR_RELEASE__',
           'NDEBUG',
           'TRACING_DISABLED',
         ],
