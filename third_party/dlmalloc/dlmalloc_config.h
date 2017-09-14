@@ -40,7 +40,7 @@
 // dont conflict with the normal malloc functions.
 #define USE_DL_PREFIX 1
 
-#if !defined (COBALT_BUILD_TYPE_GOLD)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 #define MALLOC_INSPECT_ALL 1
 #endif
 
