@@ -21,7 +21,7 @@
 #include "media/base/buffers.h"
 
 // don't include me in release builds please
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 
 static const uint32 kFormWavHeaderLength = 12;
 static const uint32 kWavFormatChunkLength = 48;
@@ -73,6 +73,6 @@ class MEDIA_EXPORT ShellWavTestProbe {
 
 }  // namespace media
 
-#endif  // __LB_SHELL__FOR_RELEASE__
+#endif  // COBALT_BUILD_TYPE_GOLD
 
 #endif  // MEDIA_AUDIO_SHELL_WAV_TEST_PROBE_H_
