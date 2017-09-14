@@ -19,11 +19,11 @@ namespace dom {
 namespace testing {
 
 std::string StubScriptRunner::Execute(
-    const std::string& script_utf8,
-    const base::SourceLocation& script_location,
-    bool* out_succeeded) {
+    const std::string& script_utf8, const base::SourceLocation& script_location,
+    bool* out_succeeded, bool mute_errors) {
   UNREFERENCED_PARAMETER(script_utf8);
   UNREFERENCED_PARAMETER(script_location);
+  UNREFERENCED_PARAMETER(mute_errors);
   if (out_succeeded) {
     *out_succeeded = true;
   }

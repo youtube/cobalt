@@ -51,12 +51,13 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void CreateGlobalObject() OVERRIDE;
 
   bool EvaluateScript(const scoped_refptr<SourceCode>& script,
-                      std::string* out_result_utf8) OVERRIDE;
+                      std::string* out_result_utf8, bool mute_errors) OVERRIDE;
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
-                      const scoped_refptr<Wrappable>& owning_object,
-                      base::optional<OpaqueHandleHolder::Reference>*
-                          out_opaque_handle) OVERRIDE;
+  bool EvaluateScript(
+      const scoped_refptr<SourceCode>& script_utf8,
+      const scoped_refptr<Wrappable>& owning_object,
+      base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle,
+      bool mute_errors) OVERRIDE;
 
   std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
 
@@ -143,7 +144,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
  private:
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
-                              JS::MutableHandleValue out_result);
+                              JS::MutableHandleValue out_result,
+                              bool mute_errors);
 
   void EvaluateEmbeddedScript(const unsigned char* data, size_t size,
                               const char* filename);

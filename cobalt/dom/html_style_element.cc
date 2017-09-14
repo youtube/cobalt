@@ -82,10 +82,12 @@ void HTMLStyleElement::Process() {
   if (bypass_csp || text.empty() ||
       csp_delegate->AllowInline(CspDelegate::kStyle, inline_style_location_,
                                 text)) {
-    style_sheet_ =
+    scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
         document->html_element_context()->css_parser()->ParseStyleSheet(
             text, inline_style_location_);
-    style_sheet_->SetLocationUrl(GURL(inline_style_location_.file_path));
+    css_style_sheet->SetLocationUrl(GURL(inline_style_location_.file_path));
+    css_style_sheet->SetOriginClean(true);
+    style_sheet_ = css_style_sheet;
     document->OnStyleSheetsModified();
   } else {
     // Report a violation.

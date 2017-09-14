@@ -38,8 +38,8 @@ void KeyframesMapUpdater::ProcessCSSStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
   // Iterate through each rule in the stylesheet and add any CSSKeyframesRule
   // objects to our keyframes map.
-  if (style_sheet && style_sheet->css_rules()) {
-    style_sheet->css_rules()->Accept(this);
+  if (style_sheet && style_sheet->css_rules_same_origin()) {
+    style_sheet->css_rules_same_origin()->Accept(this);
   }
 }
 

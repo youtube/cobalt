@@ -42,6 +42,7 @@ scoped_refptr<CSSStyleSheet> ParseUserAgentStyleSheet(CSSParser* css_parser) {
               static_cast<size_t>(html_css_file_contents.size)),
           base::SourceLocation(kUserAgentStyleSheetFileName, 1, 1));
   user_agent_style_sheet->set_origin(kNormalUserAgent);
+  user_agent_style_sheet->SetOriginClean(true);
   return user_agent_style_sheet;
 }
 

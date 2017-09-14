@@ -129,7 +129,7 @@ TEST_F(ParserTest, ParsesEmptyInput) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, HandlesInvalidAtRuleEndsWithSemicolons) {
@@ -141,7 +141,7 @@ TEST_F(ParserTest, HandlesInvalidAtRuleEndsWithSemicolons) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("@casino-royale;", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, HandlesInvalidAtRuleWithoutSemicolonsAtTheEndOfFile) {
@@ -153,7 +153,7 @@ TEST_F(ParserTest, HandlesInvalidAtRuleWithoutSemicolonsAtTheEndOfFile) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("@casino-royale", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, HandlesInvalidAtRuleWithNoMatchingEndBrace) {
@@ -165,7 +165,7 @@ TEST_F(ParserTest, HandlesInvalidAtRuleWithNoMatchingEndBrace) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("@casino-royale }", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
@@ -176,7 +176,7 @@ TEST_F(ParserTest, ComputesErrorLocationOnFirstLine) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "cucumber", base::SourceLocation("[object ParserTest]", 10, 10));
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
@@ -189,14 +189,14 @@ TEST_F(ParserTest, ComputesErrorLocationOnSecondLine) {
       "cucumber",
       base::SourceLocation("[object ParserTest]", 10, 10));
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, IgnoresSgmlCommentDelimiters) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("<!-- body {} -->", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidAtToken) {
@@ -208,7 +208,7 @@ TEST_F(ParserTest, RecoversFromInvalidAtToken) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @cobalt-magic; div {}", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
@@ -219,7 +219,7 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithSemicolon) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet = parser_.ParseStyleSheet(
       "body {} @charset 'utf-8'; div {}", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
@@ -230,7 +230,7 @@ TEST_F(ParserTest, RecoversFromInvalidRuleWhichEndsWithBlock) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("body {} !important {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(2, style_sheet->css_rules()->length());
+  EXPECT_EQ(2, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, SemicolonsDonotEndQualifiedRules) {
@@ -241,18 +241,18 @@ TEST_F(ParserTest, SemicolonsDonotEndQualifiedRules) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("foo; bar {} div {}", source_location_);
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, ParsesAttributeSelectorNoValue) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("[attr] {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -274,11 +274,11 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithQuotes) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("[attr=\"value\"] {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -301,11 +301,11 @@ TEST_F(ParserTest, ParsesAttributeSelectorValueWithoutQuotes) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("[attr=value] {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -328,11 +328,11 @@ TEST_F(ParserTest, ParsesClassSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(".my-class {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -353,11 +353,11 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS2) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":after {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -378,11 +378,11 @@ TEST_F(ParserTest, ParsesAfterPseudoElementCSS3) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("::after {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -403,11 +403,11 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS2) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":before {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -428,11 +428,11 @@ TEST_F(ParserTest, ParsesBeforePseudoElementCSS3) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("::before {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -453,11 +453,11 @@ TEST_F(ParserTest, ParsesActivePseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":active {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -478,11 +478,11 @@ TEST_F(ParserTest, ParsesEmptyPseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":empty {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -502,11 +502,11 @@ TEST_F(ParserTest, ParsesFocusPseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":focus {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -526,11 +526,11 @@ TEST_F(ParserTest, ParsesHoverPseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":hover {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -550,11 +550,11 @@ TEST_F(ParserTest, ParsesNotPseudoClass) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":not(div.my-class) {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -593,7 +593,7 @@ TEST_F(ParserTest, ParsesNotPseudoClassShouldNotTakeEmptyParameter) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":not() {}", source_location_);
 
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, ParsesNotPseudoClassShouldNotTakeComplexSelector) {
@@ -604,18 +604,18 @@ TEST_F(ParserTest, ParsesNotPseudoClassShouldNotTakeComplexSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet(":not(div span) {}", source_location_);
 
-  EXPECT_EQ(0, style_sheet->css_rules()->length());
+  EXPECT_EQ(0, style_sheet->css_rules_same_origin()->length());
 }
 
 TEST_F(ParserTest, ParsesIdSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("#my-id {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -636,11 +636,11 @@ TEST_F(ParserTest, ParsesTypeSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -661,11 +661,11 @@ TEST_F(ParserTest, ParsesUniversalSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("* {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -686,11 +686,11 @@ TEST_F(ParserTest, ParsesCompoundSelector) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div.my-class {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -716,11 +716,11 @@ TEST_F(ParserTest, ParsesComplexSelectorDescendantCombinator) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div div {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -737,11 +737,11 @@ TEST_F(ParserTest, ParsesComplexSelectorFollowingSiblingCombinator) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div ~ div {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -758,11 +758,11 @@ TEST_F(ParserTest, ParsesComplexSelectorChildCombinator) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div > div {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -779,11 +779,11 @@ TEST_F(ParserTest, ParsesComplexSelectorNextSiblingCombinator) {
   scoped_refptr<cssom::CSSStyleSheet> style_sheet =
       parser_.ParseStyleSheet("div + div {}", source_location_);
 
-  ASSERT_EQ(1, style_sheet->css_rules()->length());
+  ASSERT_EQ(1, style_sheet->css_rules_same_origin()->length());
   ASSERT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
   cssom::CSSStyleRule* style_rule = static_cast<cssom::CSSStyleRule*>(
-      style_sheet->css_rules()->Item(0).get());
+      style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_EQ(1, style_rule->selectors().size());
   cssom::ComplexSelector* complex_selector =
       dynamic_cast<cssom::ComplexSelector*>(
@@ -947,9 +947,9 @@ TEST_F(ParserTest, WarnsAboutInvalidAtRule) {
       "#my-id {} \n",
       source_location_);
 
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
   EXPECT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
 }
 
 TEST_F(ParserTest, WarnsAboutInvalidAtRuleCurlyBraceInsideOfAnotherBlock) {
@@ -969,9 +969,9 @@ TEST_F(ParserTest, WarnsAboutInvalidAtRuleCurlyBraceInsideOfAnotherBlock) {
       "#my-id {} \n",
       source_location_);
 
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
   EXPECT_EQ(cssom::CSSRule::kStyleRule,
-            style_sheet->css_rules()->Item(0)->type());
+            style_sheet->css_rules_same_origin()->Item(0)->type());
 }
 
 TEST_F(ParserTest, StyleSheetEndsWhileRuleIsStillOpen) {
@@ -985,11 +985,11 @@ TEST_F(ParserTest, StyleSheetEndsWhileRuleIsStillOpen) {
       source_location_);
 
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
 
   cssom::CSSKeyframesRule* keyframes_rule =
       dynamic_cast<cssom::CSSKeyframesRule*>(
-          style_sheet->css_rules()->Item(0).get());
+          style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_TRUE(keyframes_rule);
   EXPECT_EQ("foo3", keyframes_rule->name());
 
@@ -6937,11 +6937,11 @@ TEST_F(ParserTest, IgnoresOtherBrowserKeyframesRules) {
       source_location_);
 
   ASSERT_TRUE(style_sheet);
-  EXPECT_EQ(1, style_sheet->css_rules()->length());
+  EXPECT_EQ(1, style_sheet->css_rules_same_origin()->length());
 
   cssom::CSSKeyframesRule* keyframes_rule =
       dynamic_cast<cssom::CSSKeyframesRule*>(
-          style_sheet->css_rules()->Item(0).get());
+          style_sheet->css_rules_same_origin()->Item(0).get());
   ASSERT_TRUE(keyframes_rule);
   EXPECT_EQ("foo3", keyframes_rule->name());
 

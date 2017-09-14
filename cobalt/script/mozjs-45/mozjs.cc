@@ -88,7 +88,8 @@ int MozjsMain(int argc, char** argv) {
 
         // Execute the script and get the results of execution.
         std::string result;
-        bool success = global_environment->EvaluateScript(source, &result);
+        bool success = global_environment->EvaluateScript(
+            source, &result, false /*mute_errors*/);
         // Echo the results to stdout.
         if (!success) {
           std::cout << "Exception: ";
