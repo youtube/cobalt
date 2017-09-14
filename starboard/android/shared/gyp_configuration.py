@@ -71,6 +71,15 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
   def GetEnvironmentVariables(self):
     env_variables = sdk_utils.GetEnvironmentVariables(self.android_abi)
     env_variables.update(self.host_compiler_environment)
+    # Android builds tend to consume significantly more memory than the
+    # default settings permit, so cap this at 3 in order to avoid build
+    # issues.  Without this, 32GB machines end up getting automatically
+    # configured to run 5 at a time, which can be too much for at least
+    # android-arm64_debug.
+    # TODO: Eventually replace this with something more robust, like an
+    #       implementation of the abstract toolchain for Android.
+    env_variables.update({'GYP_LINK_CONCURRENCY': '3'})
+
     return env_variables
 
   def GetLauncher(self):
