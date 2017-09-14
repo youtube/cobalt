@@ -152,13 +152,11 @@ void UpdateMouseEventInitButtons(const system_window::InputEvent* input_event,
   // MouseEvent object (while it is being dispatched).
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#ref-for-dom-mouseevent-buttons-2
   switch (input_event->type()) {
-    case system_window::InputEvent::kTouchpadDown:
     case system_window::InputEvent::kPointerDown:
       // For 'down' events, ensure that the buttons state includes the currently
       // reported button press.
       buttons |= 1 << event->button();
       break;
-    case system_window::InputEvent::kTouchpadUp:
     case system_window::InputEvent::kPointerUp:
       // For 'up' events, ensure that the buttons state excludes the currently
       // reported button press.
