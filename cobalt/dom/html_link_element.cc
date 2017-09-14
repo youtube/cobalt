@@ -127,6 +127,8 @@ void HTMLLinkElement::Obtain() {
       &CspDelegate::CanLoad, base::Unretained(document->csp_delegate()),
       GetCspResourceTypeForRel(rel()));
 
+  fetched_last_url_origin_ = loader::Origin();
+
   if (IsRelContentCriticalResource(rel())) {
     // The element must delay the load event of the element's document until all
     // the attempts to obtain the resource and its critical subresources are
@@ -144,10 +146,15 @@ void HTMLLinkElement::Obtain() {
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
 }
 
-void HTMLLinkElement::OnLoadingDone(const std::string& content) {
+void HTMLLinkElement::OnLoadingDone(const std::string& content,
+                                    const loader::Origin& last_url_origin) {
   TRACK_MEMORY_SCOPE("DOM");
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
+
+  // Get resource's final destination url from loader.
+  fetched_last_url_origin_ = last_url_origin;
+
   Document* document = node_document();
   if (rel() == "stylesheet") {
     OnStylesheetLoaded(document, content);
@@ -211,10 +218,17 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,
                                          const std::string& content) {
-  style_sheet_ =
+  scoped_refptr<cssom::CSSStyleSheet> css_style_sheet =
       document->html_element_context()->css_parser()->ParseStyleSheet(
           content, base::SourceLocation(href(), 1, 1));
-  style_sheet_->SetLocationUrl(absolute_url_);
+  css_style_sheet->SetLocationUrl(absolute_url_);
+  // If not loading from network-fetched resources or fetched resource is same
+  // origin as the document, set origin-clean flag to true.
+  if (!loader_ || document->url_as_gurl().SchemeIsFile() ||
+      (fetched_last_url_origin_ == document->location()->OriginObject())) {
+    css_style_sheet->SetOriginClean(true);
+  }
+  style_sheet_ = css_style_sheet;
   document->OnStyleSheetsModified();
 }
 

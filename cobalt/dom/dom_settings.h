@@ -130,7 +130,7 @@ class DOMSettings : public script::EnvironmentSettings {
   virtual const GURL& base_url() const;
 
   // Return's document's origin.
-  const URLUtils::Origin& document_origin() const;
+  const loader::Origin& document_origin() const;
 
  private:
   const int max_dom_element_depth_;

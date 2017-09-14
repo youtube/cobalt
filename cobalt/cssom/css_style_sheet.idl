@@ -15,6 +15,6 @@
 // https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
 
 interface CSSStyleSheet : StyleSheet {
-  [SameObject] readonly attribute CSSRuleList cssRules;
-  unsigned long insertRule(DOMString rule, unsigned long index);
+  [SameObject, RaisesException] readonly attribute CSSRuleList cssRules;
+  [RaisesException] unsigned long insertRule(DOMString rule, unsigned long index);
 };

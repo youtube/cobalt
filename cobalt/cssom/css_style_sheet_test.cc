@@ -46,6 +46,7 @@ class MockMutationObserver : public MutationObserver {
 class CSSStyleSheetTest : public ::testing::Test {
  protected:
   CSSStyleSheetTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
+    css_style_sheet_->SetOriginClean(true);
     StyleSheetVector style_sheets;
     style_sheets.push_back(css_style_sheet_);
     style_sheet_list_ = new StyleSheetList(style_sheets, &mutation_observer_);
@@ -63,17 +64,20 @@ TEST_F(CSSStyleSheetTest, InsertRule) {
 
   EXPECT_CALL(css_parser_, ParseRule(css_text, _))
       .WillOnce(Return(scoped_refptr<CSSRule>()));
-  css_style_sheet_->InsertRule(css_text, 0);
+  css_style_sheet_->InsertRuleSameOrigin(css_text, 0);
 }
 
 TEST_F(CSSStyleSheetTest, CSSRuleListIsCached) {
-  scoped_refptr<CSSRuleList> rule_list_1 = css_style_sheet_->css_rules();
-  scoped_refptr<CSSRuleList> rule_list_2 = css_style_sheet_->css_rules();
+  scoped_refptr<CSSRuleList> rule_list_1 =
+      css_style_sheet_->css_rules_same_origin();
+  scoped_refptr<CSSRuleList> rule_list_2 =
+      css_style_sheet_->css_rules_same_origin();
   ASSERT_EQ(rule_list_1, rule_list_2);
 }
 
 TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
-  scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
+  scoped_refptr<CSSRuleList> rule_list =
+      css_style_sheet_->css_rules_same_origin();
   ASSERT_EQ(0, rule_list->length());
   ASSERT_FALSE(rule_list->Item(0).get());
 
@@ -86,7 +90,7 @@ TEST_F(CSSStyleSheetTest, CSSRuleListIsLive) {
   ASSERT_EQ(1, rule_list->length());
   ASSERT_EQ(rule, rule_list->Item(0));
   ASSERT_FALSE(rule_list->Item(1).get());
-  ASSERT_EQ(rule_list, css_style_sheet_->css_rules());
+  ASSERT_EQ(rule_list, css_style_sheet_->css_rules_same_origin());
 }
 
 TEST_F(CSSStyleSheetTest, CSSMutationIsReportedAtStyleSheetList) {
@@ -104,7 +108,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaRuleAddition) {
   // EvaluateMediaRules(), even when called with the same media parameters as
   // before. That also tests that OnMediaRuleMutation() should be called and
   // that the flag it sets should be honored.
-  scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
+  scoped_refptr<CSSRuleList> rule_list =
+      css_style_sheet_->css_rules_same_origin();
   // A CSSMediaRule with no expression always evaluates to true.
   scoped_refptr<CSSMediaRule> rule = new CSSMediaRule();
 
@@ -127,7 +132,8 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedForAddingFalseMediaRule) {
   scoped_refptr<MediaList> media_list(new MediaList());
   media_list->Append(media_query);
   scoped_refptr<CSSMediaRule> rule = new CSSMediaRule(media_list, NULL);
-  scoped_refptr<CSSRuleList> rule_list = css_style_sheet_->css_rules();
+  scoped_refptr<CSSRuleList> rule_list =
+      css_style_sheet_->css_rules_same_origin();
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
   rule_list->AppendCSSRule(rule);
@@ -159,7 +165,7 @@ TEST_F(CSSStyleSheetTest, CSSMutationIsRecordedAfterMediaValueChanges) {
   // added to the style sheet.
 
   EXPECT_CALL(mutation_observer_, OnCSSMutation()).Times(1);
-  css_style_sheet_->css_rules()->AppendCSSRule(rule);
+  css_style_sheet_->css_rules_same_origin()->AppendCSSRule(rule);
 
   // This should result in a call to OnCSSMutation(), because the added media
   // rule evaluates to true, so its rule list needs to be traversed for the next

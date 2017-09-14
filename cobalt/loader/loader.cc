@@ -13,6 +13,8 @@
 // limitations under the License.
 
 #include "cobalt/loader/loader.h"
+#include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/loader/text_decoder.h"
 
 #include "base/bind.h"
 #include "base/compiler_specific.h"
@@ -56,6 +58,8 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
   }
   void OnDone(Fetcher* fetcher) OVERRIDE {
     UNREFERENCED_PARAMETER(fetcher);
+    DCHECK(fetcher);
+    decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
   void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {

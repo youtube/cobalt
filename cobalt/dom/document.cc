@@ -664,13 +664,14 @@ void AppendRulesFromCSSRuleListToSelectorTree(
 void AppendRulesFromCSSStyleSheetToSelectorTree(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet,
     cssom::SelectorTree* selector_tree) {
-  AppendRulesFromCSSRuleListToSelectorTree(style_sheet->css_rules(),
+  AppendRulesFromCSSRuleListToSelectorTree(style_sheet->css_rules_same_origin(),
                                            selector_tree);
 }
 
 void ClearAddedToSelectorTreeFromCSSStyleSheetRules(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
-  RemoveRulesFromCSSRuleListFromSelectorTree(style_sheet->css_rules(), NULL);
+  RemoveRulesFromCSSRuleListFromSelectorTree(
+      style_sheet->css_rules_same_origin(), NULL);
 }
 
 }  // namespace
