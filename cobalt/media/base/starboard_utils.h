@@ -29,6 +29,9 @@ namespace media {
 SbMediaAudioCodec MediaAudioCodecToSbMediaAudioCodec(AudioCodec codec);
 SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec);
 
+SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
+    const AudioDecoderConfig& audio_decoder_config);
+
 base::TimeDelta SbMediaTimeToTimeDelta(SbMediaTime timestamp);
 SbMediaTime TimeDeltaToSbMediaTime(base::TimeDelta timedelta);
 
