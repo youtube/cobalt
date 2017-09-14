@@ -55,7 +55,7 @@ SplashScreen::SplashScreen(
         render_tree_produced_callback,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const GURL& fallback_splash_screen_url,
+    const base::optional<GURL>& fallback_splash_screen_url,
     const GURL& initial_main_web_module_url,
     SplashScreenCache* splash_screen_cache,
     const base::Callback<void()>& on_splash_screen_shutdown_complete)
@@ -71,11 +71,14 @@ SplashScreen::SplashScreen(
   web_module_options.loader_thread_priority = base::kThreadPriority_High;
   web_module_options.animated_image_decode_thread_priority =
       base::kThreadPriority_High;
-  GURL url_to_pass = fallback_splash_screen_url;
 
+  base::optional<GURL> url_to_pass = fallback_splash_screen_url;
   // Use the cached URL rather than the passed in URL if it exists.
   base::optional<std::string> key =
       SplashScreenCache::GetKeyForStartUrl(initial_main_web_module_url);
+  DCHECK(fallback_splash_screen_url ||
+         (key && splash_screen_cache &&
+          splash_screen_cache->IsSplashScreenCached(*key)));
   if (key && splash_screen_cache &&
       splash_screen_cache->IsSplashScreenCached(*key)) {
     url_to_pass = GURL(loader::kCacheScheme + ("://" + *key));
@@ -88,8 +91,9 @@ SplashScreen::SplashScreen(
 
   web_module_options.on_before_unload_fired_but_not_handled = on_window_close;
 
+  DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
-      url_to_pass, initial_application_state, render_tree_produced_callback_,
+      *url_to_pass, initial_application_state, render_tree_produced_callback_,
       base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
       &stub_media_module_, network_module, window_dimensions,
