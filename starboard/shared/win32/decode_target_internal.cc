@@ -31,6 +31,7 @@
 
 using Microsoft::WRL::ComPtr;
 using starboard::shared::win32::VideoFramePtr;
+using starboard::shared::win32::VideoTexture;
 using starboard::shared::win32::CheckResult;
 
 // {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
@@ -50,31 +51,15 @@ static const GUID kCobaltDxgiBuffer = {
 SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   SbMemorySet(&info, 0, sizeof(info));
 
-  ComPtr<IMFSample> sample = static_cast<IMFSample*>(frame->native_texture());
+  VideoTexture* texture = static_cast<VideoTexture*>(frame->native_texture());
 
-  ComPtr<IMFMediaBuffer> media_buffer;
-  HRESULT hr = sample->GetBufferByIndex(0, &media_buffer);
-  CheckResult(hr);
-
-  ComPtr<IMFDXGIBuffer> dxgi_buffer;
-  hr = media_buffer.As(&dxgi_buffer);
-  CheckResult(hr);
-  SB_DCHECK(dxgi_buffer.Get());
-
-  ComPtr<ID3D11Texture2D> d3texture;
-  hr = dxgi_buffer->GetResource(IID_PPV_ARGS(&d3texture));
-  CheckResult(hr);
-
-  UINT array_index;
-  dxgi_buffer->GetSubresourceIndex(&array_index);
+  ComPtr<ID3D11Texture2D> d3texture = texture->GetTexture();
 
   info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
   info.is_opaque = true;
 
-  D3D11_TEXTURE2D_DESC texture_desc;
-  d3texture->GetDesc(&texture_desc);
-  info.width = texture_desc.Width;
-  info.height = texture_desc.Height;
+  info.width = frame->width();
+  info.height = frame->height();
 
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
@@ -136,14 +121,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   // This tells ANGLE that the texture it creates should draw
   // the luma channel on R8.
-  hr = d3texture->SetPrivateData(kCobaltNv12BindChroma, 0, nullptr);
-  SB_DCHECK(SUCCEEDED(hr));
-
-  // This lets ANGLE find out the subresource index / texture array index
-  // to use.
-  // Note: No AddRef here, since we clear this private data below.
-  hr = d3texture->SetPrivateData(kCobaltDxgiBuffer, sizeof(IMFDXGIBuffer*),
-                                 dxgi_buffer.GetAddressOf());
+  HRESULT hr = d3texture->SetPrivateData(kCobaltNv12BindChroma, 0, nullptr);
   SB_DCHECK(SUCCEEDED(hr));
 
   surface[0] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,

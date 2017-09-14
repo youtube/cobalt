@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_WIN32_MEDIA_COMMON_H_
 #define STARBOARD_SHARED_WIN32_MEDIA_COMMON_H_
 
+#include <D3D11.h>
 #include <Mfapi.h>
 #include <Mferror.h>
 #include <Mfidl.h>
@@ -71,6 +72,14 @@ std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
 
 HRESULT CreateDecoderTransform(const GUID& decoder_guid,
                                ComPtr<IMFTransform>* transform);
+
+// The contents of VideoFrame->native_texture()
+class VideoTexture {
+ public:
+  // Retrieves texture associated with video frame.
+  // This method must be called on the rasterizer thread.
+  virtual ComPtr<ID3D11Texture2D> GetTexture() = 0;
+};
 
 }  // namespace win32
 }  // namespace shared
