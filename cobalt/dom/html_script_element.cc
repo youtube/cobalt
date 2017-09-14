@@ -239,6 +239,9 @@ void HTMLScriptElement::Prepare() {
                    CspDelegate::kScript);
   }
 
+  // Clear origin before start.
+  fetched_last_url_origin_ = loader::Origin();
+
   switch (load_option_) {
     case 2: {
       // If the element has a src attribute, and the element has been flagged as
@@ -337,6 +340,7 @@ void HTMLScriptElement::Prepare() {
           csp_delegate->AllowInline(CspDelegate::kScript,
                                     inline_script_location_,
                                     text)) {
+        fetched_last_url_origin_ = document_->location()->OriginObject();
         ExecuteInternal();
       } else {
         PreventGarbageCollectionAndPostToDispatchEvent(FROM_HERE,
@@ -347,10 +351,12 @@ void HTMLScriptElement::Prepare() {
   }
 }
 
-void HTMLScriptElement::OnSyncLoadingDone(const std::string& content) {
+void HTMLScriptElement::OnSyncLoadingDone(
+    const std::string& content, const loader::Origin& last_url_origin) {
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnSyncLoadingDone()");
   content_ = content;
   is_sync_load_successful_ = true;
+  fetched_last_url_origin_ = last_url_origin;
 }
 
 void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
@@ -360,7 +366,8 @@ void HTMLScriptElement::OnSyncLoadingError(const std::string& error) {
 
 // Algorithm for OnLoadingDone:
 //   https://www.w3.org/TR/html5/scripting-1.html#prepare-a-script
-void HTMLScriptElement::OnLoadingDone(const std::string& content) {
+void HTMLScriptElement::OnLoadingDone(const std::string& content,
+                                      const loader::Origin& last_url_origin) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(load_option_ == 4 || load_option_ == 5);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::OnLoadingDone()");
@@ -368,6 +375,7 @@ void HTMLScriptElement::OnLoadingDone(const std::string& content) {
     AllowGarbageCollection();
     return;
   }
+  fetched_last_url_origin_ = last_url_origin;
 
   content_ = content;
   switch (load_option_) {
@@ -522,8 +530,10 @@ void HTMLScriptElement::Execute(const std::string& content,
   // script was obtained, the script block's type as the scripting language, and
   // the script settings object of the script element's Document's Window
   // object.
-  html_element_context()->script_runner()->Execute(content, script_location,
-      NULL /* output: succeeded */);
+  bool mute_errors =
+      fetched_last_url_origin_ != document_->location()->OriginObject();
+  html_element_context()->script_runner()->Execute(
+      content, script_location, NULL /* output: succeeded */, mute_errors);
 
   // 5. 6. Not needed by Cobalt.
 

@@ -22,6 +22,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/loader/loader.h"
 #include "cobalt/loader/text_decoder.h"
@@ -70,7 +71,8 @@ class HTMLLinkElement : public HTMLElement {
   // From the spec: HTMLLinkElement.
   void Obtain();
 
-  void OnLoadingDone(const std::string& content);
+  void OnLoadingDone(const std::string& content,
+                     const loader::Origin& last_url_origin);
   void OnLoadingError(const std::string& error);
   void OnSplashscreenLoaded(Document* document, const std::string& content);
   void OnStylesheetLoaded(Document* document, const std::string& content);
@@ -90,6 +92,8 @@ class HTMLLinkElement : public HTMLElement {
 
   // The style sheet associated with this element.
   scoped_refptr<cssom::StyleSheet> style_sheet_;
+
+  loader::Origin fetched_last_url_origin_;
 };
 
 }  // namespace dom

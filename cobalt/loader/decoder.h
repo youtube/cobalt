@@ -18,8 +18,10 @@
 #include <string>
 
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader_types.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "googleurl/src/gurl.h"
 #include "net/http/http_response_headers.h"
 
 namespace cobalt {
@@ -64,6 +66,10 @@ class Decoder {
 
   // Resumes the decode of this resource, starting over from the zero state.
   virtual void Resume(render_tree::ResourceProvider* resource_provider) = 0;
+
+  // Provides textdecoder with last url to prevent security leak if resource is
+  // cross-origin.
+  virtual void SetLastURLOrigin(const loader::Origin&) {}
 };
 
 }  // namespace loader

@@ -144,6 +144,7 @@ TEST(CascadedStyleTest, PromoteToCascadedStyleWithBackgroundImage) {
       std::make_pair(css_style_rule_2, cascade_precedence_2));
 
   scoped_refptr<CSSStyleSheet> parent_style_sheet(new CSSStyleSheet());
+  parent_style_sheet->SetOriginClean(true);
   parent_style_sheet->SetLocationUrl(GURL("https:///www.youtube.com/tv/img"));
   css_style_rule_2->set_parent_style_sheet(parent_style_sheet.get());
 
@@ -187,6 +188,7 @@ TEST(CascadedStyleTest,
       std::make_pair(css_style_rule, cascade_precedence));
 
   scoped_refptr<CSSStyleSheet> parent_style_sheet(new CSSStyleSheet());
+  parent_style_sheet->SetOriginClean(true);
   css_style_rule->set_parent_style_sheet(parent_style_sheet.get());
 
   scoped_refptr<CSSComputedStyleData> computed_style = PromoteToCascadedStyle(

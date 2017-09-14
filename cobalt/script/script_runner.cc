@@ -70,7 +70,7 @@ class ScriptRunnerImpl : public ScriptRunner {
 
   std::string Execute(const std::string& script_utf8,
                       const base::SourceLocation& script_location,
-                      bool* out_succeeded) OVERRIDE;
+                      bool* out_succeeded, bool mute_errors) OVERRIDE;
   GlobalEnvironment* GetGlobalEnvironment() const OVERRIDE {
     return global_environment_;
   }
@@ -80,9 +80,8 @@ class ScriptRunnerImpl : public ScriptRunner {
 };
 
 std::string ScriptRunnerImpl::Execute(
-    const std::string& script_utf8,
-    const base::SourceLocation& script_location,
-    bool* out_succeeded) {
+    const std::string& script_utf8, const base::SourceLocation& script_location,
+    bool* out_succeeded, bool mute_errors) {
   scoped_refptr<SourceCode> source_code =
       SourceCode::CreateSourceCode(script_utf8, script_location);
   if (out_succeeded) {
@@ -93,7 +92,7 @@ std::string ScriptRunnerImpl::Execute(
     return "";
   }
   std::string result;
-  if (!global_environment_->EvaluateScript(source_code, &result)) {
+  if (!global_environment_->EvaluateScript(source_code, &result, mute_errors)) {
     DLOG(WARNING) << "Failed to execute JavaScript: " << result;
 #if defined(HANDLE_CORE_DUMP)
     script_runner_log.Get().IncrementFailCount();

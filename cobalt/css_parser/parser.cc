@@ -399,9 +399,7 @@ bool ParserImpl::Parse() {
       }
       return false;
     case 2:
-      LogError(
-          "the html put too many queries on bison stack without "
-          "closing/reducing");
+      LogError("bison parser is out of memory");
       return false;
     default:
       NOTREACHED();
