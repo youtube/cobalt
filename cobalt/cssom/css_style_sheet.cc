@@ -24,6 +24,7 @@
 #include "cobalt/cssom/css_style_declaration.h"
 #include "cobalt/cssom/css_style_rule.h"
 #include "cobalt/cssom/style_sheet_list.h"
+#include "cobalt/dom/dom_exception.h"
 
 namespace cobalt {
 namespace cssom {
@@ -72,15 +73,32 @@ CSSStyleSheet::CSSStyleSheet()
     : parent_style_sheet_list_(NULL),
       css_parser_(NULL),
       media_rules_changed_(false),
-      origin_(kNormalAuthor) {}
+      origin_(kNormalAuthor),
+      origin_clean_(false) {}
 
 CSSStyleSheet::CSSStyleSheet(CSSParser* css_parser)
     : parent_style_sheet_list_(NULL),
       css_parser_(css_parser),
       media_rules_changed_(false),
-      origin_(kNormalAuthor) {}
+      origin_(kNormalAuthor),
+      origin_clean_(false) {}
 
-const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules() {
+// https://drafts.csswg.org/cssom/#dom-cssstylesheet-cssrules
+const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules(
+    script::ExceptionState* exception_state) {
+  if (!origin_clean_) {
+    dom::DOMException::Raise(
+        dom::DOMException::kSecurityErr,
+        "Website trys to access css rules from a CSSStyleSheet "
+        "fetched from another origin.",
+        exception_state);
+    DCHECK(!null_css_rule_list_);
+    return null_css_rule_list_;
+  }
+  return css_rules_same_origin();
+}
+
+const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules_same_origin() {
   if (!css_rule_list_) {
     set_css_rules(new CSSRuleList());
   }
@@ -88,9 +106,24 @@ const scoped_refptr<CSSRuleList>& CSSStyleSheet::css_rules() {
   return css_rule_list_;
 }
 
-unsigned int CSSStyleSheet::InsertRule(const std::string& rule,
-                                       unsigned int index) {
-  return css_rules()->InsertRule(rule, index);
+// https://drafts.csswg.org/cssom/#dom-cssstylesheet-insertrule
+unsigned int CSSStyleSheet::InsertRule(
+    const std::string& rule, unsigned int index,
+    script::ExceptionState* exception_state) {
+  if (!origin_clean_) {
+    dom::DOMException::Raise(
+        dom::DOMException::kSecurityErr,
+        "Website trys to insert css rule to a CSSStyleSheet fetched"
+        "from another origin.",
+        exception_state);
+    return 0;
+  }
+  return css_rules_same_origin()->InsertRule(rule, index);
+}
+
+unsigned int CSSStyleSheet::InsertRuleSameOrigin(const std::string& rule,
+                                                 unsigned int index) {
+  return css_rules_same_origin()->InsertRule(rule, index);
 }
 
 void CSSStyleSheet::OnCSSMutation() {

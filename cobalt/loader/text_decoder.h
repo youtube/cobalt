@@ -23,6 +23,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/decoder.h"
 
 namespace cobalt {
@@ -32,13 +33,16 @@ namespace loader {
 // results.
 class TextDecoder : public Decoder {
  public:
-  explicit TextDecoder(base::Callback<void(const std::string&)> done_callback)
+  explicit TextDecoder(
+      base::Callback<void(const std::string&, const loader::Origin&)>
+          done_callback)
       : done_callback_(done_callback), suspended_(false) {}
   ~TextDecoder() OVERRIDE {}
 
   // This function is used for binding callback for creating TextDecoder.
   static scoped_ptr<Decoder> Create(
-      base::Callback<void(const std::string&)> done_callback) {
+      base::Callback<void(const std::string&, const loader::Origin&)>
+          done_callback) {
     return scoped_ptr<Decoder>(new TextDecoder(done_callback));
   }
 
@@ -70,7 +74,7 @@ class TextDecoder : public Decoder {
     if (suspended_) {
       return;
     }
-    done_callback_.Run(text_);
+    done_callback_.Run(text_, last_url_origin_);
   }
   bool Suspend() OVERRIDE {
     suspended_ = true;
@@ -80,12 +84,17 @@ class TextDecoder : public Decoder {
   void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
     suspended_ = false;
   }
+  void SetLastURLOrigin(const loader::Origin& last_url_origin) OVERRIDE {
+    last_url_origin_ = last_url_origin;
+  }
 
  private:
   base::ThreadChecker thread_checker_;
   std::string text_;
-  base::Callback<void(const std::string&)> done_callback_;
+  base::Callback<void(const std::string&, const loader::Origin&)>
+      done_callback_;
   bool suspended_;
+  loader::Origin last_url_origin_;
 };
 
 }  // namespace loader

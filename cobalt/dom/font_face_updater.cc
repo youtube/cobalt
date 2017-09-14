@@ -247,8 +247,8 @@ FontFaceUpdater::~FontFaceUpdater() {
 
 void FontFaceUpdater::ProcessCSSStyleSheet(
     const scoped_refptr<cssom::CSSStyleSheet>& style_sheet) {
-  if (style_sheet && style_sheet->css_rules()) {
-    style_sheet->css_rules()->Accept(this);
+  if (style_sheet && style_sheet->css_rules_same_origin()) {
+    style_sheet->css_rules_same_origin()->Accept(this);
   }
 }
 

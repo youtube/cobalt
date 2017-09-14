@@ -22,6 +22,7 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/dom/html_element.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/loader.h"
 
 namespace cobalt {
@@ -89,10 +90,12 @@ class HTMLScriptElement : public HTMLElement {
   //
   void Prepare();
 
-  void OnSyncLoadingDone(const std::string& content);
+  void OnSyncLoadingDone(const std::string& content,
+                         const loader::Origin& last_url_origin);
   void OnSyncLoadingError(const std::string& error);
 
-  void OnLoadingDone(const std::string& content);
+  void OnLoadingDone(const std::string& content,
+                     const loader::Origin& last_url_origin);
   void OnLoadingError(const std::string& error);
 
   void ExecuteExternal() {
@@ -138,6 +141,11 @@ class HTMLScriptElement : public HTMLElement {
 
   // Whether or not the script should execute at all.
   bool should_execute_;
+
+  // Will be compared with document's origin to derive mute_errors flag
+  // javascript parser takes in to record if the error reqort should be muted
+  // due to cross-origin fetched script.
+  loader::Origin fetched_last_url_origin_;
 };
 
 }  // namespace dom

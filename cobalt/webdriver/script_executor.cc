@@ -81,7 +81,8 @@ scoped_refptr<ScriptExecutor> ScriptExecutor::Create(
 
   // Evaluate the harness initialization script.
   std::string result;
-  if (!global_environment->EvaluateScript(source, &result)) {
+  if (!global_environment->EvaluateScript(source, &result,
+                                          false /*mute_errors*/)) {
     return NULL;
   }
 

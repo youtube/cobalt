@@ -304,7 +304,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool is_cross_origin_;
   // net::URLReuqest does not have origin variable so we can only store it here.
   // https://fetch.spec.whatwg.org/#concept-request-origin
-  dom::URLUtils::Origin origin_;
+  loader::Origin origin_;
   bool is_redirect_;
   std::string response_mime_type_;
   std::string request_body_text_;
