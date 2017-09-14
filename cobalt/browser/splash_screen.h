@@ -40,7 +40,8 @@ class SplashScreen : public LifecycleObserver {
       network::NetworkModule* network_module,
       const math::Size& window_dimensions,
       render_tree::ResourceProvider* resource_provider,
-      float layout_refresh_rate, const GURL& fallback_splash_screen_url,
+      float layout_refresh_rate,
+      const base::optional<GURL>& fallback_splash_screen_url,
       const GURL& initial_main_web_module_url,
       cobalt::browser::SplashScreenCache* splash_screen_cache,
       const base::Callback<void()>& on_splash_screen_shutdown_complete);
