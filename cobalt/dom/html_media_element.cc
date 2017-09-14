@@ -1663,7 +1663,13 @@ bool HTMLMediaElement::PreferDecodeToTexture() {
                     "HTMLMediaElement or not. Perhaps the HTMLMediaElement is "
                     "not attached to the document?  Falling back to checking "
                     "the inline style instead.";
-    filter = style()->data()->GetPropertyValue(cssom::kFilterProperty);
+    if (style() && style()->data()) {
+      filter = style()->data()->GetPropertyValue(cssom::kFilterProperty);
+    }
+  }
+
+  if (!filter) {
+    return false;
   }
 
   const cssom::MapToMeshFunction* map_to_mesh_filter =
