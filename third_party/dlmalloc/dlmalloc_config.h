@@ -40,7 +40,7 @@
 // dont conflict with the normal malloc functions.
 #define USE_DL_PREFIX 1
 
-#if !defined (__LB_SHELL__FOR_RELEASE__)
+#if !defined (COBALT_BUILD_TYPE_GOLD)
 #define MALLOC_INSPECT_ALL 1
 #endif
 
@@ -216,7 +216,7 @@ void dl_malloc_finalize();
 void dlmalloc_ranges_np(uintptr_t *start1, uintptr_t *end1,
                         uintptr_t *start2, uintptr_t *end2,
                         uintptr_t *start3, uintptr_t *end3);
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 void lbshell_inspect_mmap_heap(void(*handler)(void*, void *, size_t, void*),
                            void* arg);
 void dldump_heap();
