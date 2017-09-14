@@ -319,7 +319,7 @@ bool ApplicationAndroid::OnSearchRequested() {
 
 extern "C" SB_EXPORT_PLATFORM
 jboolean Java_foo_cobalt_coat_CobaltActivity_nativeReleaseBuild() {
-#ifdef __LB_SHELL__FOR_RELEASE__
+#if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
   return false;
