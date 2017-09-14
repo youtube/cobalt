@@ -114,7 +114,7 @@ SB_EXPORT bool SbLogIsTty();
 }  // extern "C"
 #endif
 
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 #define SB_LOGGING_IS_OFFICIAL_BUILD 1
 #else
 #define SB_LOGGING_IS_OFFICIAL_BUILD 0
