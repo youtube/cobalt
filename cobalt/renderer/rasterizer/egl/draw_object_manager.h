@@ -15,6 +15,7 @@
 #ifndef COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_MANAGER_H_
 #define COBALT_RENDERER_RASTERIZER_EGL_DRAW_OBJECT_MANAGER_H_
 
+#include <unordered_map>
 #include <vector>
 
 #include "base/callback.h"
@@ -49,6 +50,15 @@ class DrawObjectManager {
   DrawObjectManager(const base::Closure& reset_external_rasterizer,
                     const base::Closure& flush_external_offscreen_draws);
 
+  // Add a draw object which uses an external rasterizer on an offscreen render
+  // target. These draws are processed before all other offscreen draws. After
+  // execution of these draws, |flush_external_offscreen_draws| is called, so
+  // these batched draws do not need to flush individually.
+  // Returns an ID which can be used to remove the queued draw.
+  uint32_t AddBatchedExternalDraw(scoped_ptr<DrawObject> draw_object,
+      base::TypeId draw_type, const backend::RenderTarget* render_target,
+      const math::RectF& draw_bounds);
+
   // Add a draw object that will render to an offscreen render target. There
   // must be a corresponding draw object added via AddOnscreenDraw() to
   // render the contents onto the main render target. All offscreen draws are
@@ -77,6 +87,12 @@ class DrawObjectManager {
   // Calling RemoveDraws(0) will remove all draws that have been added.
   void RemoveDraws(uint32_t last_valid_draw_id);
 
+  // Tell the draw object manager that the given render target has a dependency
+  // on draws to another render target. This information is used to sort
+  // offscreen draws.
+  void AddRenderTargetDependency(const backend::RenderTarget* draw_target,
+      const backend::RenderTarget* required_target);
+
   void ExecuteOffscreenRasterize(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
   void ExecuteOnscreenRasterize(GraphicsState* graphics_state,
@@ -99,7 +115,19 @@ class DrawObjectManager {
     math::RectF draw_bounds;
     base::TypeId draw_type;
     BlendType blend_type;
-    uint32_t draw_id;
+    union {
+      uint32_t draw_id;
+      uint32_t dependencies;
+    };
+  };
+
+  struct RenderTargetDependency {
+    RenderTargetDependency(const backend::RenderTarget* in_draw_target,
+                           const backend::RenderTarget* in_required_target)
+        : draw_target(in_draw_target),
+          required_target(in_required_target) {}
+    const backend::RenderTarget* draw_target;
+    const backend::RenderTarget* required_target;
   };
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
@@ -121,6 +149,9 @@ class DrawObjectManager {
   std::vector<DrawInfo> onscreen_draws_;
   std::vector<DrawInfo> offscreen_draws_;
   std::vector<DrawInfo> external_offscreen_draws_;
+
+  std::vector<RenderTargetDependency> draw_dependencies_;
+  std::unordered_map<int32_t, uint32_t> dependency_count_;
 
   uint32_t current_draw_id_;
 };
