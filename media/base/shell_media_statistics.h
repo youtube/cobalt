@@ -116,7 +116,7 @@ class ShellScopedMediaStat {
 
 }  // namespace media
 
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 #define UPDATE_MEDIA_STATISTICS(type, value) \
   do {                                       \
   } while (false)
@@ -125,7 +125,7 @@ class ShellScopedMediaStat {
 #define SCOPED_MEDIA_STATISTICS(type) \
   do {                                \
   } while (false)
-#else  // defined(__LB_SHELL__FOR_RELEASE__)
+#else  // defined(COBALT_BUILD_TYPE_GOLD)
 // This macro reports a media stat with its new value
 #define UPDATE_MEDIA_STATISTICS(type, value)      \
   media::ShellMediaStatistics::Instance().record( \
@@ -135,6 +135,6 @@ class ShellScopedMediaStat {
 #define SCOPED_MEDIA_STATISTICS(type)           \
   media::ShellScopedMediaStat statistics_event( \
       media::ShellMediaStatistics::type)
-#endif  // defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
 #endif  // MEDIA_BASE_SHELL_MEDIA_STATISTICS_H_

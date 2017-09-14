@@ -27,7 +27,7 @@
 #include "media/filters/shell_demuxer.h"
 
 // don't include me in release builds please
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 
 static const uint16 kWavFormatCodePCM = 0x0001;
 static const uint16 kWavFormatCodeIEEEFloat = 0x0003;
@@ -232,4 +232,4 @@ void ShellWavTestProbe::Close() {
 
 }  // namespace media
 
-#endif  // __LB_SHELL__FOR_RELEASE__
+#endif  // COBALT_BUILD_TYPE_GOLD
