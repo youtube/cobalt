@@ -103,7 +103,7 @@ TEST_F(RuleMatchingTest, UniversalSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -116,7 +116,7 @@ TEST_F(RuleMatchingTest, TypeSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -129,7 +129,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchNoValue) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -142,7 +142,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchEquals) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -155,7 +155,7 @@ TEST_F(RuleMatchingTest, AttributeSelectorMatchEqualsWithQuote) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -179,7 +179,7 @@ TEST_F(RuleMatchingTest, ClassSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -192,7 +192,7 @@ TEST_F(RuleMatchingTest, IdSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -205,7 +205,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -218,7 +218,7 @@ TEST_F(RuleMatchingTest, EmptyPseudoClassShouldMatchCommentOnly) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -252,7 +252,7 @@ TEST_F(RuleMatchingTest, FocusPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -282,7 +282,7 @@ TEST_F(RuleMatchingTest, NotPseudoClassMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -311,7 +311,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchGlobal) {
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   html_element = body_->last_element_child()->AsHTMLElement();
@@ -321,7 +321,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementMatchGlobal) {
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -339,7 +339,7 @@ TEST_F(RuleMatchingTest, AfterPseudoElementSelectorMatch) {
   matching_rules =
       html_element->pseudo_element(kAfterPseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -370,7 +370,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementMatchGlobal) {
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   html_element = body_->last_element_child()->AsHTMLElement();
@@ -380,7 +380,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementMatchGlobal) {
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -398,7 +398,7 @@ TEST_F(RuleMatchingTest, BeforePseudoElementSelectorMatch) {
   matching_rules =
       html_element->pseudo_element(kBeforePseudoElementType)->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -435,7 +435,7 @@ TEST_F(RuleMatchingTest, CompoundSelectorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -466,7 +466,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorDescendantCombinatorMatch) {
           ->AsHTMLElement()
           ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -496,7 +496,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorChildCombinatorMatch) {
           ->AsHTMLElement()
           ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -525,7 +525,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorNextSiblingCombinatorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -549,7 +549,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorFollowingSiblingCombinatorMatch) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->last_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -574,11 +574,11 @@ TEST_F(RuleMatchingTest, SelectorListMatchShouldContainAllMatches) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       body_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(3, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[1].first);
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[2].first);
 
   std::vector<cssom::Specificity> vs;
@@ -606,7 +606,7 @@ TEST_F(RuleMatchingTest, ComplexSelectorCombinedMatch) {
           ->AsHTMLElement()
           ->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -750,9 +750,9 @@ TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_NE(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_NE(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
-  EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   head_->RemoveChild(div2);
@@ -763,9 +763,9 @@ TEST_F(RuleMatchingTest, StyleElementReorderingOneMatching) {
   matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(1, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
-  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 
@@ -787,9 +787,9 @@ TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
   cssom::RulesWithCascadePrecedence* matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(2, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
-  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 
   head_->RemoveChild(div2);
@@ -800,9 +800,9 @@ TEST_F(RuleMatchingTest, StyleElementReorderingTwoMatching) {
   matching_rules =
       head_->first_element_child()->AsHTMLElement()->matching_rules();
   ASSERT_EQ(2, matching_rules->size());
-  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules()->Item(0),
+  EXPECT_EQ(GetDocumentStyleSheet(0)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
-  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules()->Item(0),
+  EXPECT_NE(GetDocumentStyleSheet(1)->css_rules_same_origin()->Item(0),
             (*matching_rules)[0].first);
 }
 

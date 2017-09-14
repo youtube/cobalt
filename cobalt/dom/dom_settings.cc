@@ -63,7 +63,7 @@ const GURL& DOMSettings::base_url() const {
   return window()->document()->url_as_gurl();
 }
 
-const dom::URLUtils::Origin& DOMSettings::document_origin() const {
+const loader::Origin& DOMSettings::document_origin() const {
   return window()->document()->location()->OriginObject();
 }
 

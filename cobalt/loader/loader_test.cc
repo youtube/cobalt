@@ -19,6 +19,7 @@
 #include "base/message_loop.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/loader/file_fetcher.h"
 #include "cobalt/loader/text_decoder.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -40,7 +41,7 @@ class TextDecoderCallback {
  public:
   explicit TextDecoderCallback(base::RunLoop* run_loop) : run_loop_(run_loop) {}
 
-  void OnDone(const std::string& text) {
+  void OnDone(const std::string& text, const loader::Origin&) {
     text_ = text;
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }

@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/callback.h"
+#include "cobalt/loader/origin.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -35,34 +36,11 @@ namespace dom {
 // callback. The callback should call set_url if necessary.
 class URLUtils {
  public:
-  // https://html.spec.whatwg.org/multipage/origin.html#concept-origin
-  class Origin {
-   public:
-    // To create an opaque origin, use Origin().
-    Origin();
-    // Initialize an origin to the url's origin.
-    // https://url.spec.whatwg.org/#concept-url-origin
-    explicit Origin(const GURL& url);
-    // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
-    std::string SerializedOrigin() const;
-    bool is_opaque() const { return is_opaque_; }
-    // Only document has an origin and no elements inherit document's origin, so
-    // opaque origin comparison can always return false.
-    // https://html.spec.whatwg.org/multipage/origin.html#same-origin
-    bool operator==(const Origin& rhs) const;
-    // Returns true if two origins are different(cross-origin).
-    bool operator!=(const Origin& rhs) const { return !(*this == rhs); }
-
-   private:
-    bool is_opaque_;
-    std::string origin_str_;
-  };
-
   typedef base::Callback<void(const std::string&)> UpdateStepsCallback;
 
   explicit URLUtils(const GURL& url, bool is_opaque = false);
   explicit URLUtils(const UpdateStepsCallback& update_steps)
-      : update_steps_(update_steps), origin_(Origin()) {}
+      : update_steps_(update_steps) {}
   URLUtils(const GURL& url, const UpdateStepsCallback& update_steps,
            bool is_opaque = false);
 
@@ -99,7 +77,7 @@ class URLUtils {
   const GURL& url() const { return url_; }
   void set_url(const GURL& url) { url_ = url; }
 
-  const Origin& OriginObject() const { return origin_; }
+  const loader::Origin& OriginObject() const { return origin_; }
 
  private:
   // From the spec: URLUtils.
@@ -107,7 +85,7 @@ class URLUtils {
 
   GURL url_;
   UpdateStepsCallback update_steps_;
-  Origin origin_;
+  loader::Origin origin_;
 };
 
 }  // namespace dom

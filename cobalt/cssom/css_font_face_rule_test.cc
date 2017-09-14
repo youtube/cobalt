@@ -48,6 +48,7 @@ class MockMutationObserver : public MutationObserver {
 class CSSFontFaceRuleTest : public ::testing::Test {
  protected:
   CSSFontFaceRuleTest() : css_style_sheet_(new CSSStyleSheet(&css_parser_)) {
+    css_style_sheet_->SetOriginClean(true);
     StyleSheetVector style_sheets;
     style_sheets.push_back(css_style_sheet_);
     style_sheet_list_ = new StyleSheetList(style_sheets, &mutation_observer_);
