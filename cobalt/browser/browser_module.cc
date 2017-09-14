@@ -415,7 +415,7 @@ void BrowserModule::Navigate(const GURL& url) {
         base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                    base::Unretained(this)),
         &network_module_, viewport_size, GetResourceProvider(),
-        kLayoutMaxRefreshFrequencyInHz, *fallback_splash_screen_url_, url,
+        kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
         splash_screen_cache_.get(),
         base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
     lifecycle_observers_.AddObserver(splash_screen_.get());
