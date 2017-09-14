@@ -6131,7 +6131,7 @@ void dlmalloc_ranges_np(uintptr_t *start1, uintptr_t *end1,
   *start3 = *end3 = *end2;
 }
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 // Track and print contiguous ranges of allocations / free blocks.
 typedef struct HeapWalker {
   // Allocated blocks, not including allocator overhead.
@@ -6364,7 +6364,7 @@ void dldump_heap() {
   RELEASE_MALLOC_GLOBAL_LOCK();
 }
 
-#endif /* defined(__LB_SHELL__FOR_RELEASE__) */
+#endif /* defined(COBALT_BUILD_TYPE_GOLD) */
 
 int dlmalloc_stats_np(size_t *system_size, size_t *in_use_size) {
   // Same as dlmalloc_stats, but returns values
