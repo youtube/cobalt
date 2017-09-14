@@ -25,9 +25,9 @@ ShellVideoFrameProvider::ShellVideoFrameProvider(
     scoped_refptr<VideoFrame> punch_out)
     : punch_out_(punch_out), has_consumed_frames_(false), dropped_frames_(0),
       output_mode_(kOutputModeInvalid) {
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   max_delay_in_microseconds_ = 0;
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 void ShellVideoFrameProvider::RegisterMediaTimeAndSeekingStateCB(
@@ -74,7 +74,7 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
     if (current_frame_ != frames_[0] && !is_seeking) {
       ++dropped_frames_;
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
       if (media_time.InMicroseconds() - frame_time > max_delay_in_microseconds_)
         max_delay_in_microseconds_ = media_time.InMicroseconds() - frame_time;
       const bool kLogFrameDrops ALLOW_UNUSED = false;
@@ -84,7 +84,7 @@ const scoped_refptr<VideoFrame>& ShellVideoFrameProvider::GetCurrentFrame() {
           << media_time.InMicroseconds() << " total dropped " << dropped_frames_
           << " frames with a max delay of " << max_delay_in_microseconds_
           << " ms";
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
     }
 
     if (frames_.size() == 1) {

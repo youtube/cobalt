@@ -111,9 +111,9 @@ class ShellVideoFrameProvider
   bool has_consumed_frames_;
   int dropped_frames_;
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   int max_delay_in_microseconds_;
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   OutputMode output_mode_;
   GetCurrentSbDecodeTargetFunction get_current_sb_decode_target_function_;

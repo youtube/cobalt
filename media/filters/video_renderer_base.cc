@@ -27,9 +27,9 @@
 
 namespace media {
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
 int VideoRendererBase::videos_played_;
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
 base::TimeDelta VideoRendererBase::kMaxLastFrameDuration() {
   return base::TimeDelta::FromMilliseconds(250);
@@ -58,10 +58,10 @@ VideoRendererBase::VideoRendererBase(
 #if defined(__LB_SHELL__) || defined(COBALT)
   frame_provider_ = ShellMediaPlatform::Instance()->GetVideoFrameProvider();
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   late_frames_ = 0;
   DLOG(INFO) << "Start playing back video " << videos_played_;
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
 }
 
@@ -69,13 +69,13 @@ VideoRendererBase::~VideoRendererBase() {
   base::AutoLock auto_lock(lock_);
   DCHECK(state_ == kStopped || state_ == kUninitialized) << state_;
   DCHECK_EQ(thread_, base::kNullThreadHandle);
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   ++videos_played_;
   DLOG_IF(INFO, late_frames_ != 0) << "Finished playing back with "
                                    << late_frames_ << " late frames.";
   DLOG_IF(INFO, late_frames_ == 0)
       << "Finished playing back with no late frame.";
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 }
 
 void VideoRendererBase::Play(const base::Closure& callback) {
@@ -724,12 +724,12 @@ void VideoRendererBase::AddReadyFrame(const scoped_refptr<VideoFrame>& frame) {
     frame->SetTimestamp(duration);
   }
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   if (frame->GetTimestamp() < get_time_cb_.Run()) {
     SCOPED_MEDIA_STATISTICS(STAT_TYPE_VIDEO_FRAME_LATE);
     ++late_frames_;
   }
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   ready_frames_.push_back(frame);
 #if defined(__LB_SHELL__) || defined(COBALT)

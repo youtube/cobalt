@@ -246,7 +246,7 @@ void ShellAudioDecoderImpl::OnDemuxerRead(
     return;
   }
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   // What the test does is:
   //   Play for kTimeBetweenUnderflow + kTimeToUnderflow;
   //   for (;;) {
@@ -273,7 +273,7 @@ void ShellAudioDecoderImpl::OnDemuxerRead(
       return;
     }
   }
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 
   DCHECK(demuxer_read_and_decode_in_progress_);
 

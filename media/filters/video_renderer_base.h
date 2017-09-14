@@ -293,10 +293,10 @@ class MEDIA_EXPORT VideoRendererBase
 #if defined(__LB_SHELL__) || defined(COBALT)
   ShellVideoFrameProvider* frame_provider_;
 
-#if !defined(__LB_SHELL__FOR_RELEASE__)
+#if !defined(COBALT_BUILD_TYPE_GOLD)
   static int videos_played_;
   int late_frames_;
-#endif  // !defined(__LB_SHELL__FOR_RELEASE__)
+#endif  // !defined(COBALT_BUILD_TYPE_GOLD)
 #endif  // defined(__LB_SHELL__) || defined(COBALT)
 
   DISALLOW_COPY_AND_ASSIGN(VideoRendererBase);
