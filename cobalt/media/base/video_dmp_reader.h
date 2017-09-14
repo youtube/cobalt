@@ -12,22 +12,42 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_MEDIA_BASE_VIDEO_DMP_READER_H_
-#define COBALT_MEDIA_BASE_VIDEO_DMP_READER_H_
+// TODO: Move this into Starboard
 
 // This file is deliberately not using any Cobalt/Starboard specific API so it
 // can be used in an independent application.
+#ifndef COBALT_MEDIA_BASE_VIDEO_DMP_READER_H_
+#define COBALT_MEDIA_BASE_VIDEO_DMP_READER_H_
 
-#include <algorithm>
 #include <string>
 #include <vector>
 
 // File: <BOM> <Record>*
 //   BOM: 0x76543210
-//   Record: <4 bytes type> + <4 bytes size> + <|size| bytes binary data>
-//     type: 0: audio config, 1: video config, 2: eme init data,
-//           3: audio access unit, 4: video access unit.
+//   Record: <4 bytes fourcc type> + <4 bytes size> + <|size| bytes binary data>
+//
+//     audio config:
+//       fourcc type: 'acfg'
+//       2 bytes audio codec type in SbMediaAudioCodec
+//       2 bytes format_tag
+//       2 bytes number_of_channels
+//       4 bytes samples_per_second
+//       4 bytes average_bytes_per_second
+//       2 bytes block_alignment
+//       2 bytes bits_per_sample
+//       2 bytes audio_specific_config_size
+//       |audio_specific_config_size| bytes audio specific config
+//
+//     video config:
+//       fourcc type: 'vcfg'
+//       2 bytes video codec type in SbMediaVideoCodec
+//
+//     eme init data
+//       fourcc type: 'emei'
+//       4 bytes size
+//         |size| bytes eme init data
 //     audio/video access unit;
+//       fourcc type: 'adat'/'vdat'
 //       <8 bytes time stamp in microseconds>
 //       <4 bytes size of key_id> + |size| bytes of key id
 //       <4 bytes size of iv> + |size| bytes of iv
@@ -38,11 +58,11 @@
 class VideoDmpReader {
  public:
   enum {
-    kRecordTypeAudioConfig,
-    kRecordTypeVideoConfig,
-    kRecordTypeEmeInitData,
-    kRecordTypeAudioAccessUnit,
-    kRecordTypeVideoAccessUnit,
+    kRecordTypeAudioConfig = 'acfg',
+    kRecordTypeVideoConfig = 'vcfg',
+    kRecordTypeEmeInitData = 'emei',
+    kRecordTypeAudioAccessUnit = 'adat',
+    kRecordTypeVideoAccessUnit = 'vdat',
   };
 
   enum AccessUnitType { kAccessUnitTypeAudio, kAccessUnitTypeVideo };
@@ -98,119 +118,9 @@ class VideoDmpReader {
   }
   const std::vector<AccessUnit>& access_units() const { return access_units_; }
 
-  void Parse() {
-    uint32_t bom;
-    ReadChecked(&bom);
-    if (bom != kBOM) {
-      std::reverse(reinterpret_cast<uint8_t*>(&bom),
-                   reinterpret_cast<uint8_t*>(&bom + 1));
-      if (bom != kBOM) {
-        ReportFatalError();
-        return;
-      }
-      reverse_byte_order_ = true;
-    }
-    uint32_t type;
-    EmeInitData eme_init_data;
-    while (ReadUnchecked(&type)) {
-      uint32_t size;
-      switch (type) {
-        case kRecordTypeAudioConfig:
-          ReadChecked(&size);
-          if (size != 0) {
-            ReportFatalError();
-          }
-          break;
-        case kRecordTypeVideoConfig:
-          ReadChecked(&size);
-          if (size != 0) {
-            ReportFatalError();
-          }
-          break;
-        case kRecordTypeEmeInitData:
-          ReadChecked(&eme_init_data);
-          eme_init_datas_.push_back(eme_init_data);
-          break;
-        case kRecordTypeAudioAccessUnit:
-          ReadChecked(&size);
-          ReadAndAppendAccessUnitChecked(kAccessUnitTypeAudio);
-          break;
-        case kRecordTypeVideoAccessUnit:
-          ReadChecked(&size);
-          ReadAndAppendAccessUnitChecked(kAccessUnitTypeVideo);
-          break;
-      }
-    }
-  }
+  void Parse();
 
  private:
-  void ReadAndAppendAccessUnitChecked(AccessUnitType access_unit_type) {
-    int64_t timestamp;
-    ReadChecked(&timestamp);
-
-    std::vector<uint8_t> key_id, iv;
-    ReadChecked(&key_id);
-    ReadChecked(&iv);
-
-    uint32_t subsample_count;
-    ReadChecked(&subsample_count);
-
-    Subsamples subsamples(subsample_count);
-    for (auto& subsample : subsamples) {
-      ReadChecked(&subsample.clear_bytes);
-      ReadChecked(&subsample.encrypted_bytes);
-    }
-
-    std::vector<uint8_t> data;
-    ReadChecked(&data);
-
-    access_units_.emplace_back(access_unit_type, timestamp, key_id, iv,
-                               subsamples, std::move(data));
-  }
-
-  template <typename T>
-  bool ReadUnchecked(T* value) {
-    if (!value) {
-      ReportFatalError();
-      return false;
-    }
-
-    int bytes_to_read = static_cast<int>(sizeof(*value));
-    int bytes_read = Read(value, bytes_to_read);
-
-    if (reverse_byte_order_) {
-      std::reverse(reinterpret_cast<uint8_t*>(value),
-                   reinterpret_cast<uint8_t*>(value + 1));
-    }
-
-    return bytes_to_read == bytes_read;
-  }
-  template <typename T>
-  void ReadChecked(T* value) {
-    if (!ReadUnchecked(value)) {
-      ReportFatalError();
-    }
-  }
-  void ReadChecked(std::vector<uint8_t>* value) {
-    if (!value) {
-      ReportFatalError();
-    }
-
-    uint32_t size;
-    ReadChecked(&size);
-
-    value->resize(size);
-
-    if (size == 0) {
-      return;
-    }
-
-    int bytes_read = Read(value->data(), size);
-    if (bytes_read != size) {
-      ReportFatalError();
-    }
-  }
-
   bool reverse_byte_order_;
   std::vector<EmeInitData> eme_init_datas_;
   std::vector<AccessUnit> access_units_;

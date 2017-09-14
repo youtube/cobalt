@@ -14,6 +14,8 @@
 
 #include "cobalt/media/base/starboard_utils.h"
 
+#include <algorithm>
+
 #include "base/logging.h"
 #include "starboard/memory.h"
 
@@ -51,6 +53,41 @@ SbMediaVideoCodec MediaVideoCodecToSbMediaVideoCodec(VideoCodec codec) {
   }
   DLOG(ERROR) << "Unsupported video codec " << codec;
   return kSbMediaVideoCodecNone;
+}
+
+SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
+    const AudioDecoderConfig& audio_decoder_config) {
+  SbMediaAudioHeader audio_header;
+
+  // TODO: Make this work with non AAC audio.
+  audio_header.format_tag = 0x00ff;
+  audio_header.number_of_channels =
+      ChannelLayoutToChannelCount(audio_decoder_config.channel_layout());
+  audio_header.samples_per_second = audio_decoder_config.samples_per_second();
+  audio_header.average_bytes_per_second = 1;
+  audio_header.block_alignment = 4;
+  audio_header.bits_per_sample = audio_decoder_config.bits_per_channel();
+
+#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+  audio_header.audio_specific_config_size =
+      static_cast<uint16_t>(audio_decoder_config.extra_data().size());
+  if (audio_header.audio_specific_config_size == 0) {
+    audio_header.audio_specific_config = NULL;
+  } else {
+    audio_header.audio_specific_config = &audio_decoder_config.extra_data()[0];
+  }
+#else   // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+  audio_header.audio_specific_config_size = static_cast<uint16_t>(
+      std::min(audio_decoder_config.extra_data().size(),
+               sizeof(audio_header.audio_specific_config)));
+  if (audio_header.audio_specific_config_size > 0) {
+    SbMemoryCopy(audio_header.audio_specific_config,
+                 &audio_decoder_config.extra_data()[0],
+                 audio_header.audio_specific_config_size);
+  }
+#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+
+  return audio_header;
 }
 
 TimeDelta SbMediaTimeToTimeDelta(SbMediaTime timestamp) {

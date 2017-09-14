@@ -14,8 +14,6 @@
 
 #include "cobalt/media/base/starboard_player.h"
 
-#include <algorithm>
-
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
@@ -387,33 +385,8 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  SbMediaAudioHeader audio_header;
-  // TODO: Make this work with non AAC audio.
-  audio_header.format_tag = 0x00ff;
-  audio_header.number_of_channels =
-      ChannelLayoutToChannelCount(audio_config_.channel_layout());
-  audio_header.samples_per_second = audio_config_.samples_per_second();
-  audio_header.average_bytes_per_second = 1;
-  audio_header.block_alignment = 4;
-  audio_header.bits_per_sample = audio_config_.bits_per_channel();
-#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
-  audio_header.audio_specific_config_size =
-      static_cast<uint16_t>(audio_config_.extra_data().size());
-  if (audio_header.audio_specific_config_size == 0) {
-    audio_header.audio_specific_config = NULL;
-  } else {
-    audio_header.audio_specific_config = &audio_config_.extra_data()[0];
-  }
-#else   // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
-  audio_header.audio_specific_config_size = static_cast<uint16_t>(
-      std::min(audio_config_.extra_data().size(),
-               sizeof(audio_header.audio_specific_config)));
-  if (audio_header.audio_specific_config_size > 0) {
-    SbMemoryCopy(audio_header.audio_specific_config,
-                 &audio_config_.extra_data()[0],
-                 audio_header.audio_specific_config_size);
-  }
-#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+  SbMediaAudioHeader audio_header =
+      MediaAudioConfigToSbMediaAudioHeader(audio_config_);
 
   SbMediaAudioCodec audio_codec =
       MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
