@@ -193,10 +193,12 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
   // named error at the link element.
   PostToDispatchEvent(FROM_HERE, base::Tokens::error());
 
-  // The element must delay the load event of the element's document until all
-  // the attempts to obtain the resource and its critical subresources are
-  // complete.
-  node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+  if (IsRelContentCriticalResource(rel())) {
+    // The element must delay the load event of the element's document until all
+    // the attempts to obtain the resource and its critical subresources are
+    // complete.
+    node_document()->DecreaseLoadingCounterAndMaybeDispatchLoadEvent();
+  }
 
   MessageLoop::current()->PostTask(
       FROM_HERE, base::Bind(&HTMLLinkElement::ReleaseLoader, this));
