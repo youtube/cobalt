@@ -28,8 +28,6 @@
         'hardware_rasterizer.h',
         'hardware_resource_provider.cc',
         'hardware_resource_provider.h',
-        'shader_preload_tree.cc',
-        'shader_preload_tree.h',
         'vertex_buffer_object.cc',
         'vertex_buffer_object.h',
       ],
@@ -43,14 +41,6 @@
         '<(DEPTH)/third_party/icu/icu.gyp:icuuc',
         '<(DEPTH)/third_party/ots/ots.gyp:ots',
         '<(DEPTH)/cobalt/renderer/rasterizer/common/common.gyp:common',
-      ],
-
-      'conditions': [
-        ['skia_preload_shaders==1', {
-          'defines': [
-            'SKIA_PRELOAD_SHADERS'
-          ],
-        }],
       ],
     },
   ],

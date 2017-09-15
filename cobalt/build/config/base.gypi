@@ -317,10 +317,6 @@
     # Blitter API).
     'skia_cache_size_in_bytes%': 4 * 1024 * 1024,
 
-    # Determines whether shaders for skia will be preloaded on first draw
-    # call.
-    'skia_preload_shaders%': 0,
-
     # Determines the capacity of the scratch surface cache.  The scratch
     # surface cache facilitates the reuse of temporary offscreen surfaces
     # within a single frame.  This setting is only relevant when using the
