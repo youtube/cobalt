@@ -473,6 +473,12 @@
     # implementation is a no-op.
     'cobalt_enable_jit%': 0,
 
+    # Can be set to enable zealous garbage collection, if |javascript_engine|
+    # supports it.  Zealous garbage collection will cause garbage collection
+    # to occur much more frequently than normal, for the purpose of finding or
+    # reproducing bugs.
+    'cobalt_gc_zeal%': 0,
+
     # The event polling mechanism available on this platform to support libevent.
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
@@ -626,6 +632,12 @@
       }, {
         'defines': [
           'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        ],
+      }],
+      ['cobalt_gc_zeal == 1', {
+        'defines': [
+          'COBALT_GC_ZEAL=1',
+          'JS_GC_ZEAL=1',
         ],
       }],
       ['final_executable_type=="shared_library"', {
