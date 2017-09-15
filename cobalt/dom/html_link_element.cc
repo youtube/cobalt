@@ -37,7 +37,7 @@ CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
   if (rel == "stylesheet") {
     return CspDelegate::kStyle;
   } else if (rel == "splashscreen") {
-    return CspDelegate::kScript;
+    return CspDelegate::kLocation;
   } else {
     NOTIMPLEMENTED();
     return CspDelegate::kImage;
