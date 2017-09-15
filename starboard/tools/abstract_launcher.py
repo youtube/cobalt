@@ -103,3 +103,18 @@ class AbstractLauncher(object):
   def Kill(self):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
+
+  def GetHostAndPortGivenPort(self, port):
+    """Creates a host/port tuple for use on the target device.
+
+    This is used to gain access to a service on the target device, and
+    can be overridden when the host/port of that service is only accessible
+    at runtime and/or via forwarding.
+
+    Args:
+      port:  Port number for the desired service on the target device.
+
+    Returns:
+      (Host, port) tuple for use in connecting to the target device.
+    """
+    return self.device_id, port
