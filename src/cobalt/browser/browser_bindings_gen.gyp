@@ -260,6 +260,7 @@
 
         '../dom/buffer_source.idl',
         '../dom/document__web_animations_api.idl',
+        '../dom/document_cobalt.idl',
         '../dom/document_cssom.idl',
         '../dom/document_html5.idl',
         '../dom/element_css_inline_style.idl',

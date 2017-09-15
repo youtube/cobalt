@@ -49,7 +49,8 @@ class VideoRendererImpl : public VideoRenderer,
 
   void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
 
-  scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time) SB_OVERRIDE;
+  scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time,
+                                            bool audio_eos_reached) SB_OVERRIDE;
 
   bool IsEndOfStreamWritten() const SB_OVERRIDE {
     return end_of_stream_written_;

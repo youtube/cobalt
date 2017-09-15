@@ -368,10 +368,21 @@ void BrowserModule::Navigate(const GURL& url) {
     return;
   }
 
-  on_error_url_.clear();
   if (on_error_retry_timer_.IsRunning()) {
     on_error_retry_timer_.Stop();
   }
+
+  // Navigations aren't allowed if the app is suspended. If this is the case,
+  // simply set the pending navigate url, which will cause the navigation to
+  // occur when Cobalt resumes, and return.
+  if (application_state_ == base::kApplicationStateSuspended) {
+    pending_navigate_url_ = url.spec();
+    return;
+  }
+
+  // Now that we know the navigation is occurring, clear out
+  // |pending_navigate_url_|.
+  pending_navigate_url_.clear();
 
   // Destroy old WebModule first, so we don't get a memory high-watermark after
   // the second WebModule's constructor runs, but before scoped_ptr::reset() is
@@ -404,7 +415,7 @@ void BrowserModule::Navigate(const GURL& url) {
         base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
                    base::Unretained(this)),
         &network_module_, viewport_size, GetResourceProvider(),
-        kLayoutMaxRefreshFrequencyInHz, *fallback_splash_screen_url_, url,
+        kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
         splash_screen_cache_.get(),
         base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
     lifecycle_observers_.AddObserver(splash_screen_.get());
@@ -790,7 +801,12 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
   on_error_triggered_count_++;
 #endif
 
-  on_error_url_ = url.spec();
+  // Set |pending_navigate_url_| to the url where the error occurred. This will
+  // cause the OnError callback to Navigate() to this URL if it receives a
+  // positive response; otherwise, if Cobalt is currently preloaded or
+  // suspended, then this is the url that Cobalt will navigate to when it starts
+  // or resumes.
+  pending_navigate_url_ = url.spec();
 
   // Start the OnErrorRetry() timer if it isn't already running.
   // The minimum delay between calls to OnErrorRetry() exponentially grows as
@@ -817,7 +833,8 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 void BrowserModule::OnErrorRetry() {
   ++on_error_retry_count_;
   on_error_retry_time_ = base::TimeTicks::Now();
-  TryURLHandlers(GURL("h5vcc://network-failure?retry-url=" + on_error_url_));
+  TryURLHandlers(
+      GURL("h5vcc://network-failure?retry-url=" + pending_navigate_url_));
 }
 
 bool BrowserModule::FilterKeyEvent(base::Token type,
@@ -966,9 +983,11 @@ void BrowserModule::Start() {
   DCHECK(application_state_ == base::kApplicationStatePreloading);
 
   SuspendInternal(true /*is_start*/);
-  StartOrResumeInternal(true /*is_start*/);
+  StartOrResumeInternalPreStateUpdate(true /*is_start*/);
 
   application_state_ = base::kApplicationStateStarted;
+
+  StartOrResumeInternalPostStateUpdate();
 }
 
 void BrowserModule::Pause() {
@@ -999,9 +1018,11 @@ void BrowserModule::Resume() {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::Resume()");
   DCHECK(application_state_ == base::kApplicationStateSuspended);
 
-  StartOrResumeInternal(false /*is_start*/);
+  StartOrResumeInternalPreStateUpdate(false /*is_start*/);
 
   application_state_ = base::kApplicationStatePaused;
+
+  StartOrResumeInternalPostStateUpdate();
 }
 
 void BrowserModule::ReduceMemory() {
@@ -1224,9 +1245,10 @@ void BrowserModule::SuspendInternal(bool is_start) {
   }
 }
 
-void BrowserModule::StartOrResumeInternal(bool is_start) {
-  TRACE_EVENT1("cobalt::browser", "BrowserModule::StartOrResumeInternal",
-               "is_start", is_start ? "true" : "false");
+void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
+  TRACE_EVENT1("cobalt::browser",
+               "BrowserModule::StartOrResumeInternalPreStateUpdate", "is_start",
+               is_start ? "true" : "false");
   render_tree::ResourceProvider* resource_provider = NULL;
   if (!renderer_module_) {
     InitializeSystemWindow();
@@ -1256,11 +1278,15 @@ void BrowserModule::StartOrResumeInternal(bool is_start) {
     FOR_EACH_OBSERVER(LifecycleObserver, lifecycle_observers_,
                       Resume(resource_provider));
   }
+}
 
-  // If no navigate has occurred since the last OnError call, then attempt to
-  // navigate to |on_error_url_| now.
-  if (!on_error_url_.empty()) {
-    Navigate(GURL(on_error_url_));
+void BrowserModule::StartOrResumeInternalPostStateUpdate() {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::StartOrResumeInternalPostStateUpdate");
+  // If there's a navigation that's pending, then attempt to navigate to its
+  // specified URL now.
+  if (!pending_navigate_url_.empty()) {
+    Navigate(GURL(pending_navigate_url_));
   }
 }
 
