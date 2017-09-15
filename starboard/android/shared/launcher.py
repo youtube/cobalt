@@ -30,6 +30,7 @@ import hashlib
 import Queue
 import re
 import signal
+import socket
 import subprocess
 import time
 import threading
@@ -287,6 +288,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
       raise Exception('Could not get installed APK codePath')
     return result
 
+  def _Call(self, *args):
+    sys.stderr.write('{}\n'.format(' '.join(args)))
+    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL)
+
+  def _CallAdb(self, *in_args):
+    args = self.adb_builder.Build(*in_args)
+    self._Call(*args)
+
   def _CheckCall(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
     subprocess.check_call(args, stdout=_DEV_NULL, stderr=_DEV_NULL)
@@ -523,6 +532,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       logcat_process.kill()
 
     finally:
+      self._CallAdb('forward', '--remove-all')
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
 
@@ -545,3 +555,13 @@ class Launcher(abstract_launcher.AbstractLauncher):
     line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
     print line
     sys.stdout.flush()
+
+  def GetHostAndPortGivenPort(self, port):
+    forward_p = self._PopenAdb(
+        'forward', 'tcp:0', 'tcp:{}'.format(port),
+        stdout=subprocess.PIPE,
+        stderr=_DEV_NULL)
+    forward_p.wait()
+
+    local_port = forward_p.stdout.readline()
+    return socket.gethostbyname('localhost'), local_port
