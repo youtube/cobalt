@@ -369,46 +369,33 @@ void LayoutManager::Impl::DoLayoutAndProduceRenderTree() {
       are_computed_styles_and_box_tree_dirty_ = false;
     }
 
-    // If no render tree has been produced yet, check if html, head, and
-    // body display should block the first render tree.
-    if (!produced_render_tree_) {
-      bool displayed_html = document->html()->IsDisplayed();
-      if (!displayed_html) {
-        return;
-      }
-      bool displayed_head = true;
-      if (document->head()) {
-        displayed_head = document->head();
-      }
-      bool displayed_body = true;
-      if (document->body()) {
-        displayed_body = document->body();
-      }
-      if (!displayed_head && !displayed_body) {
-        return;
-      }
-    }
+    // If no render tree has been produced yet, check if html display
+    // should prevent the first render tree.
+    bool display_none_prevents_render =
+        !produced_render_tree_ && !document->html()->IsDisplayed();
 
-    scoped_refptr<render_tree::Node> render_tree_root =
-        layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
-                                              layout_stat_tracker_,
-                                              &initial_containing_block_);
-    bool run_on_render_tree_produced_callback = true;
-    produced_render_tree_ = true;
+    if (!document->render_postponed() && !display_none_prevents_render) {
+      scoped_refptr<render_tree::Node> render_tree_root =
+          layout::GenerateRenderTreeFromBoxTree(used_style_provider_.get(),
+                                                layout_stat_tracker_,
+                                                &initial_containing_block_);
+      bool run_on_render_tree_produced_callback = true;
+      produced_render_tree_ = true;
 #if defined(ENABLE_TEST_RUNNER)
-    if (layout_trigger_ == kTestRunnerMode &&
-        window_->test_runner()->should_wait()) {
-      run_on_render_tree_produced_callback = false;
-    }
+      if (layout_trigger_ == kTestRunnerMode &&
+          window_->test_runner()->should_wait()) {
+        run_on_render_tree_produced_callback = false;
+      }
 #endif  // ENABLE_TEST_RUNNER
 
-    if (run_on_render_tree_produced_callback) {
-      on_render_tree_produced_callback_.Run(LayoutResults(
-          render_tree_root, base::TimeDelta::FromMillisecondsD(
-                                *document->timeline()->current_time())));
-    }
+      if (run_on_render_tree_produced_callback) {
+        on_render_tree_produced_callback_.Run(LayoutResults(
+            render_tree_root, base::TimeDelta::FromMillisecondsD(
+                                  *document->timeline()->current_time())));
+      }
 
-    is_render_tree_pending_ = false;
+      is_render_tree_pending_ = false;
+    }
     TRACE_EVENT_END0("cobalt::layout", kBenchmarkStatLayout);
   }
 

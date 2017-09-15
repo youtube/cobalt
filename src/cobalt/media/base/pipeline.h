@@ -25,6 +25,7 @@
 #include "cobalt/media/base/media_export.h"
 #include "cobalt/media/base/pipeline_status.h"
 #include "cobalt/media/base/ranges.h"
+#include "cobalt/media/base/video_dumper.h"
 #include "starboard/drm.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
@@ -39,8 +40,6 @@ typedef SbWindow PipelineWindow;
 #else   // defined(COBALT_USE_SBPLAYER_PIPELINE)
 typedef void* PipelineWindow;
 #endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
-
-// #define COBALT_MEDIA_ENABLE_VIDEO_DUMPER 1
 
 namespace cobalt {
 namespace media {

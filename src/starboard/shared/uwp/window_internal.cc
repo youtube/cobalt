@@ -15,7 +15,6 @@
 #include <EGL/egl.h>
 #include <windows.h>
 
-// For __getActivationFactoryByPCWSTR custom definition.
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/window_internal.h"
 
@@ -23,9 +22,9 @@ using Windows::UI::Core::CoreWindow;
 
 // TODO: Make sure the width and height here behave well given that we want
 // 1080 video, but perhaps 4k UI where applicable.
-SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* /*options*/)
-    : width(1920),
-      height(1080) {
+SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options)
+    : width(options->size.width),
+      height(options->size.height) {
   egl_native_window_ = reinterpret_cast<EGLNativeWindowType>(
       starboard::shared::uwp::ApplicationUwp::Get()->GetCoreWindow().Get());
 }

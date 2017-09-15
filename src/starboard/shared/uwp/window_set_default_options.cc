@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "starboard/memory.h"
 #include "starboard/window.h"
 
-void SbWindowSetDefaultOptions(SbWindowOptions* /*options*/) {}
+void SbWindowSetDefaultOptions(SbWindowOptions* options) {
+  SbMemorySet(options, 0, sizeof(*options));
+  options->size.width = 1920;
+  options->size.height = 1080;
+}

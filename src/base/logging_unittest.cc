@@ -215,7 +215,7 @@ TEST_F(LoggingTest, DcheckStreamsAreLazy) {
 }
 
 TEST_F(LoggingTest, Dcheck) {
-#if LOGGING_IS_OFFICIAL_BUILD
+#if LOGGING_IS_OFFICIAL_BUILD || defined(COBALT_BUILD_TYPE_QA)
   // Official build.
   EXPECT_FALSE(DCHECK_IS_ON());
   EXPECT_FALSE(DLOG_IS_ON(DCHECK));

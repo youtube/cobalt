@@ -104,10 +104,31 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
                                       EGL_NONE};
 
   EGLDisplay display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+
   EGLConfig config;
+  EGLint attribute_list[] = {
+    EGL_SURFACE_TYPE,  // this must be first
+    EGL_WINDOW_BIT | EGL_PBUFFER_BIT,
+    EGL_RED_SIZE,
+    8,
+    EGL_GREEN_SIZE,
+    8,
+    EGL_BLUE_SIZE,
+    8,
+    EGL_ALPHA_SIZE,
+    8,
+    EGL_BIND_TO_TEXTURE_RGBA,
+    EGL_TRUE,
+    EGL_RENDERABLE_TYPE,
+    EGL_OPENGL_ES2_BIT,
+    EGL_NONE
+  };
+
   EGLint num_configs;
-  bool ok = eglGetConfigs(display, &config, 1, &num_configs);
+  bool ok = eglChooseConfig(
+      display, attribute_list, &config, 1, &num_configs);
   SB_DCHECK(ok);
+  SB_DCHECK(num_configs == 1);
 
   GLuint gl_textures[2] = {0};
   glGenTextures(2, gl_textures);

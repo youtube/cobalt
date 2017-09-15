@@ -9,7 +9,7 @@
 #include "base/command_line.h"
 #endif
 
-#if defined(__LB_SHELL__FOR_RELEASE__)
+#if defined(COBALT_BUILD_TYPE_GOLD)
 #error You cannot build unit tests in gold builds.
 #endif
 

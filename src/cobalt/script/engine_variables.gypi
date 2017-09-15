@@ -14,7 +14,6 @@
 
 {
   'includes': [
-    'mozjs/mozjs_variables.gypi',
     'mozjs-45/mozjs-45_variables.gypi',
   ],
 }

@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'javascript_engine': 'mozjs',
+    'javascript_engine': 'mozjs-45',
     'cobalt_enable_jit': 0,
     'angle_build_winrt': 0,
     'winrt': 0,

@@ -141,7 +141,7 @@ void ReportErrorHandler(JSContext* context, const char* message,
 }  // namespace
 
 MozjsEngine::MozjsEngine(const Options& options)
-    : accumulated_extra_memory_cost_(0), options_(options) {
+    : context_(nullptr), accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   SbOnce(&g_js_init_once_control, CallInitAndRegisterShutDownOnce);
   runtime_ = JS_NewRuntime(options_.js_options.gc_threshold_bytes);
@@ -250,13 +250,11 @@ bool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op,
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
   DCHECK(engine->thread_checker_.CalledOnValidThread());
   if (context_op == JSCONTEXT_NEW) {
-    engine->contexts_.push_back(context);
+    DCHECK(engine->context_ == nullptr);
+    engine->context_ = context;
   } else if (context_op == JSCONTEXT_DESTROY) {
-    ContextVector::iterator it =
-        std::find(engine->contexts_.begin(), engine->contexts_.end(), context);
-    if (it != engine->contexts_.end()) {
-      engine->contexts_.erase(it);
-    }
+    DCHECK(engine->context_ == context);
+    engine->context_ = nullptr;
   }
   return true;
 }
@@ -271,16 +269,17 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
       engine->gc_timer_.Reset();
     }
   }
-  for (int i = 0; i < engine->contexts_.size(); ++i) {
-    MozjsGlobalEnvironment* global_environment =
-        MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
-    if (status == JSGC_BEGIN) {
-      TRACE_EVENT_BEGIN0("cobalt::script", "SpiderMonkey Garbage Collection");
-      global_environment->BeginGarbageCollection();
-    } else if (status == JSGC_END) {
-      global_environment->EndGarbageCollection();
-      TRACE_EVENT_END0("cobalt::script", "SpiderMonkey Garbage Collection");
-    }
+  if (!engine->context_) {
+    return;
+  }
+  MozjsGlobalEnvironment* global_environment =
+      MozjsGlobalEnvironment::GetFromContext(engine->context_);
+  if (status == JSGC_BEGIN) {
+    TRACE_EVENT_BEGIN0("cobalt::script", "SpiderMonkey Garbage Collection");
+    global_environment->BeginGarbageCollection();
+  } else if (status == JSGC_END) {
+    global_environment->EndGarbageCollection();
+    TRACE_EVENT_END0("cobalt::script", "SpiderMonkey Garbage Collection");
   }
 }
 
@@ -289,12 +288,10 @@ void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
   TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
   DCHECK(engine->thread_checker_.CalledOnValidThread());
-  if (status == JSFINALIZE_GROUP_START) {
-    for (int i = 0; i < engine->contexts_.size(); ++i) {
-      MozjsGlobalEnvironment* global_environment =
-          MozjsGlobalEnvironment::GetFromContext(engine->contexts_[i]);
-      global_environment->DoSweep();
-    }
+  if (status == JSFINALIZE_GROUP_START && engine->context_) {
+    MozjsGlobalEnvironment* global_environment =
+        MozjsGlobalEnvironment::GetFromContext(engine->context_);
+    global_environment->DoSweep();
   }
 }
 
@@ -327,6 +324,7 @@ bool MozjsEngine::ReportJSError(JSContext* context, const char* message,
 
 }  // namespace mozjs
 
+// static
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
@@ -334,6 +332,7 @@ scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
   return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(moz_options));
 }
 
+// static
 size_t JavaScriptEngine::UpdateMemoryStatsAndReturnReserved() {
   return mozjs::EngineStats::GetInstance()
       ->UpdateMemoryStatsAndReturnReserved();

@@ -1,0 +1,28 @@
+set(JSC_SOURCES
+    ../jsc.cpp
+)
+
+set(JSC_LIBRARIES
+    ${WTF_LIBRARY_NAME}
+    ${JavaScriptCore_LIBRARY_NAME}
+)
+
+if ("${JavaScriptCore_LIBRARY_TYPE}" MATCHES "STATIC")
+    add_definitions(-DSTATICALLY_LINKED_WITH_JavaScriptCore)
+endif ()
+
+WEBKIT_INCLUDE_CONFIG_FILES_IF_EXISTS()
+
+WEBKIT_WRAP_SOURCELIST(${JSC_SOURCES})
+include_directories(./ ${JavaScriptCore_INCLUDE_DIRECTORIES})
+add_executable(${JSC_EXECUTABLE_NAME} ${JSC_SOURCES})
+target_link_libraries(${JSC_EXECUTABLE_NAME} ${JSC_LIBRARIES})
+set_target_properties(${JSC_EXECUTABLE_NAME} PROPERTIES FOLDER "JavaScriptCore")
+
+if (JSC_LINK_FLAGS)
+    ADD_TARGET_PROPERTIES(${JSC_EXECUTABLE_NAME} LINK_FLAGS "${JSC_LINK_FLAGS}")
+endif ()
+
+if (SHOULD_INSTALL_JS_SHELL)
+    install(TARGETS ${JSC_EXECUTABLE_NAME} DESTINATION "${EXEC_INSTALL_DIR}")
+endif ()

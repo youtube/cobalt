@@ -40,6 +40,12 @@ class ScaleFunction : public TransformFunction {
   float y_factor() const { return y_factor_; }
 
   std::string ToString() const OVERRIDE {
+    if (y_factor_ == 1.0f) {
+      return base::StringPrintf("scaleX(%.7g)", x_factor_);
+    }
+    if (x_factor_ == 1.0f) {
+      return base::StringPrintf("scaleY(%.7g)", y_factor_);
+    }
     return base::StringPrintf("scale(%.7g, %.7g)", x_factor_, y_factor_);
   }
 

@@ -797,7 +797,6 @@ void WebModule::Impl::CreateWindowDriver(
       base::Bind(&WebModule::Impl::global_environment, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectKeyboardEvent, base::Unretained(this)),
       base::Bind(&WebModule::Impl::InjectPointerEvent, base::Unretained(this)),
-      base::Bind(&WebModule::Impl::InjectWheelEvent, base::Unretained(this)),
       base::MessageLoopProxy::current()));
 }
 #endif  // defined(ENABLE_WEBDRIVER)

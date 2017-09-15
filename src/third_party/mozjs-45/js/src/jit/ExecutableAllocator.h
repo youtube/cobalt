@@ -389,14 +389,22 @@ class ExecutableAllocator
 
     static void makeWritable(void* start, size_t size)
     {
+        // Starboard has no concept of changing permissions of memory after it
+        // has been mapped.  Writable memory must be asked for up front.
+#if !defined(STARBOARD)
         if (nonWritableJitCode)
             reprotectRegion(start, size, Writable);
+#endif
     }
 
     static void makeExecutable(void* start, size_t size)
     {
+        // Starboard has no concept of changing permissions of memory after it
+        // has been mapped.  Executable memory must be asked for up front.
+#if !defined(STARBOARD)
         if (nonWritableJitCode)
             reprotectRegion(start, size, Executable);
+#endif
     }
 
     static unsigned initialProtectionFlags(ProtectionSetting protection);

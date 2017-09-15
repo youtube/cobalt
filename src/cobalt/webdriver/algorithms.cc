@@ -423,17 +423,24 @@ std::string GetElementText(dom::Element* element) {
 bool IsDisplayed(dom::Element* element) {
   DCHECK(element);
 
-  // Update the computed styles first to ensure we get up-to-date computed
-  // styles.
-  DCHECK(element->node_document());
-  element->node_document()->UpdateComputedStyles();
-
   // By convention, BODY element is always shown: BODY represents the document
   // and even if there's nothing rendered in there, user can always see there's
   // the document.
   if (element->AsHTMLElement() &&
       element->AsHTMLElement()->AsHTMLBodyElement()) {
     return true;
+  }
+
+  // Update the computed styles first to ensure we get up-to-date computed
+  // styles.
+  if (element->AsHTMLElement()) {
+    DCHECK(element->node_document());
+    // If the element is an HTML element, we can update for only its subtree.
+    element->node_document()->UpdateComputedStyleOnElementAndAncestor(
+        element->AsHTMLElement());
+  } else {
+    DCHECK(element->node_document());
+    element->node_document()->UpdateComputedStyles();
   }
 
   // Any element with hidden/collapsed visibility is not shown.

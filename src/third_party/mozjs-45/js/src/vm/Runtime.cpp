@@ -24,10 +24,11 @@
 #include <locale.h>
 #include <string.h>
 
-// TODO: Starboardize.
+#if !defined(STARBOARD)
 #ifdef JS_CAN_CHECK_THREADSAFE_ACCESSES
 # include <sys/mman.h>
 #endif
+#endif  // !defined(STARBOARD)
 
 #include "jsatom.h"
 #include "jsdtoa.h"
@@ -260,7 +261,6 @@ SignalBasedTriggersDisabled()
   return !!js_sb_getenv("JS_DISABLE_SLOW_SCRIPT_SIGNALS") || !!js_sb_getenv("JS_NO_SIGNALS");
 }
 
-// TODO: Starboardize.
 bool
 JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 {
@@ -268,7 +268,10 @@ JSRuntime::init(uint32_t maxbytes, uint32_t maxNurseryBytes)
 
     // Get a platform-native handle for the owner thread, used by
     // js::InterruptRunningJitCode to halt the runtime's main thread.
-#ifdef XP_WIN
+#if defined(STARBOARD)
+    static_assert(sizeof(SbThreadId) <= sizeof(ownerThreadNative_), "need bigger field");
+    ownerThreadNative_ = SbThreadGetId();
+#elif defined(XP_WIN)
     size_t openFlags = THREAD_GET_CONTEXT | THREAD_SET_CONTEXT | THREAD_SUSPEND_RESUME |
                        THREAD_QUERY_INFORMATION;
     HANDLE self = OpenThread(openFlags, false, GetCurrentThreadId());

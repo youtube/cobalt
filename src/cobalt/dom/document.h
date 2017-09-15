@@ -390,6 +390,11 @@ class Document : public Node,
 
   PointerState* pointer_state() { return &pointer_state_; }
 
+  // render_postponed is a Cobalt-specific Web API.
+  bool render_postponed() const { return render_postponed_; }
+
+  void set_render_postponed(bool render_postponed);
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
@@ -495,6 +500,9 @@ class Document : public Node,
 
   // Various state related to pointer and mouse support.
   PointerState pointer_state_;
+
+  // Whether or not rendering is currently postponed.
+  bool render_postponed_;
 };
 
 }  // namespace dom
