@@ -14,8 +14,6 @@
 
 {
   'variables': {
-    'cobalt_minimum_frame_time_in_milliseconds': '33',
-
     # RasPi 1 is ARMv6
     'arm_version': 6,
     'armv7': 0,
