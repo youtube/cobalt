@@ -3659,7 +3659,7 @@ scoped_refptr<Node> CreateMapToMeshTestRenderTree(
 
   const float kNearZ = 0.01f;
   const float kFarZ = 1000.0f;
-  const float kVerticalFOV = M_PI / 2.0f;
+  const float kVerticalFOV = static_cast<float>(M_PI / 2.0f);
   const float kAspectRatio = 1.0f;
   glm::mat4 projection =
       glm::perspectiveRH(kVerticalFOV, kAspectRatio, kNearZ, kFarZ);
