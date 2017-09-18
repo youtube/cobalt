@@ -39,7 +39,6 @@
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 #include "cobalt/media/base/starboard_player.h"
 #include "cobalt/media/base/video_decoder_config.h"
-#include "cobalt/media/base/video_dumper.h"
 #include "ui/gfx/size.h"
 
 namespace cobalt {
@@ -51,7 +50,6 @@ using base::TimeDelta;
 namespace {
 
 static const int kRetryDelayAtSuspendInMilliseconds = 100;
-const char kVideoDumpFileName[] = "video_content.dmp";
 
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
 // parameters exceed what base::Bind() can support.
@@ -86,9 +84,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void Resume() override;
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-             const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 #if SB_HAS(PLAYER_WITH_URL)
              const OnEncryptedMediaInitDataEncounteredCB&
                  on_encrypted_media_init_data_encountered_cb,
@@ -159,15 +154,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   void SuspendTask(base::WaitableEvent* done_event);
   void ResumeTask(base::WaitableEvent* done_event);
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  void OnEMEInitDataReady(const std::vector<uint8_t>& eme_init_data) {
-    DCHECK(!eme_init_data.empty());
-    eme_init_datas_.push_back(eme_init_data);
-  }
-
-  std::vector<std::vector<uint8_t> > eme_init_datas_;
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
   // Message loop used to execute pipeline tasks.  It is thread-safe.
   scoped_refptr<base::MessageLoopProxy> message_loop_;
@@ -250,8 +236,6 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool stopped_;
   bool ended_;
 
-  VideoDumper video_dumper_;
-
   DISALLOW_COPY_AND_ASSIGN(SbPlayerPipeline);
 };
 
@@ -272,8 +256,7 @@ SbPlayerPipeline::SbPlayerPipeline(
       set_bounds_helper_(new SbPlayerSetBoundsHelper),
       suspended_(false),
       stopped_(false),
-      ended_(false),
-      video_dumper_(kVideoDumpFileName) {}
+      ended_(false) {}
 
 SbPlayerPipeline::~SbPlayerPipeline() { DCHECK(!player_); }
 
@@ -327,9 +310,6 @@ void OnEncryptedMediaInitDataEncountered(
 
 void SbPlayerPipeline::Start(
     Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-    const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 #if SB_HAS(PLAYER_WITH_URL)
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
@@ -374,11 +354,6 @@ void SbPlayerPipeline::Start(
   set_drm_system_ready_cb_.Run(
       base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
 #endif  // SB_HAS(PLAYER_WITH_URL)
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  set_eme_init_data_ready_cb.Run(base::Bind(
-      &SbPlayerPipeline::OnEMEInitDataReady, base::Unretained(this)));
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 
   message_loop_->PostTask(
       FROM_HERE, base::Bind(&SbPlayerPipeline::StartTask, this, parameters));
@@ -825,10 +800,6 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   const VideoDecoderConfig& video_config =
       video_stream_->video_decoder_config();
 
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  video_dumper_.DumpEmeInitData(eme_init_datas_);
-  video_dumper_.DumpConfigs(audio_config, video_config);
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
   {
     base::AutoLock auto_lock(lock_);
     player_.reset(new StarboardPlayer(
@@ -1003,7 +974,6 @@ void SbPlayerPipeline::OnDemuxerStreamRead(
     video_read_in_progress_ = false;
   }
 
-  video_dumper_.DumpAccessUnit(buffer);
   player_->WriteBuffer(type, buffer);
 }
 

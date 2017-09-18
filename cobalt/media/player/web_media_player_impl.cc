@@ -589,14 +589,6 @@ void WebMediaPlayerImpl::SetDrmSystemReadyCB(
   }
 }
 
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-void WebMediaPlayerImpl::SetEMEInitDataReadyCB(
-    const EMEInitDataReadyCB& eme_init_data_ready_cb) {
-  DCHECK(!eme_init_data_ready_cb.is_null());
-  eme_init_data_ready_cb_ = eme_init_data_ready_cb;
-}
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-
 void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   state_.starting = false;
@@ -728,9 +720,6 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       NULL, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetEMEInitDataReadyCB),
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
       BIND_TO_RENDER_LOOP(
           &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
       url.spec(), BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
@@ -750,9 +739,6 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
   pipeline_->SetDecodeToTextureOutputMode(client_->PreferDecodeToTexture());
   pipeline_->Start(
       demuxer, BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetDrmSystemReadyCB),
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetEMEInitDataReadyCB),
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
       // SB_HAS(PLAYER_WITH_URL)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
@@ -843,11 +829,6 @@ void WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered(
 
   GetClient()->EncryptedMediaInitDataEncountered(init_data_type, &init_data[0],
                                                  init_data.size());
-
-#if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-  DCHECK(!eme_init_data_ready_cb_.is_null());
-  eme_init_data_ready_cb_.Run(init_data);
-#endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
 }
 
 WebMediaPlayerClient* WebMediaPlayerImpl::GetClient() {
