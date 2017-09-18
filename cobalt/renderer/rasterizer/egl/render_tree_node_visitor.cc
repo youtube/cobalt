@@ -311,7 +311,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       draw_state_.opacity *= filter_opacity;
       scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
           draw_state_, content_rect, kOpaqueWhite, texture,
-          texcoord_transform, false /* clamp_texcoords */));
+          texcoord_transform, true /* clamp_texcoords */));
       AddTransparentDraw(draw.Pass(), content_rect);
       draw_state_.opacity = old_opacity;
       draw_state_.transform = old_transform;
@@ -832,6 +832,11 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   draw_object_manager_->AddRenderTargetDependency(
       old_render_target, render_target_);
 
+  // Draw the contents at 100% opacity. The caller will then draw the results
+  // onto the main render target at the desired opacity.
+  draw_state_.opacity = 1.0f;
+  draw_state_.scissor = RoundRectFToInt(target_info.region);
+
   // Clear the new render target. (Set the transform to the identity matrix so
   // the bounds for the DrawClear comes out as the entire target region.)
   draw_state_.transform = math::Matrix3F::Identity();
@@ -839,16 +844,11 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
       draw_state_, kTransparentBlack));
   AddOpaqueDraw(draw_clear.Pass(), target_info.region);
 
-  // Draw the contents at 100% opacity. The caller will then draw the results
-  // onto the main render target at the desired opacity.
-  draw_state_.opacity = 1.0f;
-
   // Adjust the transform to render into target_info.region.
   draw_state_.transform =
       math::TranslateMatrix(target_info.region.x() - clipped_bounds.x(),
                             target_info.region.y() - clipped_bounds.y()) *
       old_draw_state.transform;
-  draw_state_.scissor = RoundRectFToInt(target_info.region);
 
   node->Accept(this);
 
