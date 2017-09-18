@@ -36,7 +36,7 @@ PAGE_LOAD_WAIT_SECONDS = 30
 PROCESSING_TIMEOUT_SECONDS = 180
 HTML_SCRIPT_ELEMENT_EXECUTE_TIMEOUT_SECONDS = 30
 MEDIA_TIMEOUT_SECONDS = 30
-SKIP_AD_TIMEOUT_SECONDS = 30
+AD_TIMEOUT_SECONDS = 60
 TITLE_CARD_HIDDEN_TIMEOUT_SECONDS = 30
 
 MAX_SURVEY_SHELF_COUNT = 3
@@ -323,23 +323,22 @@ class TvTestCase(unittest.TestCase):
 
     return True
 
-  def skip_advertisement_if_playing(self):
-    """Waits to skip an ad if it is encountered.
+  def maybe_wait_for_advertisement(self):
+    """Waits for an advertisement if it is encountered.
 
     Returns:
-      True if a skippable advertisement was encountered
+      True if an advertisement was encountered
     """
     start_time = time.time()
-    if not self.find_elements(tv.SKIP_AD_BUTTON_HIDDEN):
-      while not self.find_elements(tv.SKIP_AD_BUTTON_CAN_SKIP):
-        if time.time() - start_time > SKIP_AD_TIMEOUT_SECONDS:
-          return True
-        time.sleep(0.1)
-      self.send_keys(keys.Keys.ENTER)
-      self.wait_for_processing_complete(False)
-      return True
-
-    return False
+    advertisement_encountered = self.find_elements(tv.AD_SHOWING)
+    while self.find_elements(tv.AD_SHOWING):
+      if self.find_elements(tv.SKIP_AD_BUTTON_CAN_SKIP):
+        self.send_keys(keys.Keys.ENTER)
+        self.wait_for_processing_complete(False)
+        break
+      if time.time() - start_time > AD_TIMEOUT_SECONDS:
+        break
+    return advertisement_encountered
 
   def wait_for_title_card_hidden(self):
     """Waits for the title to disappear while a video is playing.
