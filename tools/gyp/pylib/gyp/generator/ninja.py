@@ -913,6 +913,7 @@ class NinjaWriter:
       cflags = GetConfigFlags(config, self.toolset, 'cflags')
       cflags_c = GetConfigFlags(config, self.toolset, 'cflags_c')
       cflags_cc = GetConfigFlags(config, self.toolset, 'cflags_cc')
+      cflags_mm = GetConfigFlags(config, self.toolset, 'cflags_mm')
 
       c_compiler = FindFirstInstanceOf(abstract.CCompiler, toolchain)
       if c_compiler:
@@ -929,6 +930,16 @@ class NinjaWriter:
         self.ninja.variable(
             '{0}_flags'.format(GetNinjaRuleName(cxx_compiler, self.toolset)),
             JoinShellArguments(shell, cxx_compiler_flags))
+
+      objcxx_compiler = FindFirstInstanceOf(abstract.ObjectiveCxxCompiler,
+                                            toolchain)
+      if objcxx_compiler:
+        objcxx_compiler_flags = objcxx_compiler.GetFlags(defines, include_dirs,
+                                                         cflags + cflags_cc +
+                                                         cflags_mm)
+        self.ninja.variable(
+            '{0}_flags'.format(GetNinjaRuleName(objcxx_compiler, self.toolset)),
+            JoinShellArguments(shell, objcxx_compiler_flags))
 
       assembler = FindFirstInstanceOf(abstract.AssemblerWithCPreprocessor,
                                       toolchain)
@@ -954,6 +965,11 @@ class NinjaWriter:
                                 'to build {0} for {1} platform.').format(
                                     source, self.toolset)
           rule_name = GetNinjaRuleName(cxx_compiler, self.toolset)
+        elif extension in ['.mm']:
+          assert objcxx_compiler, ('Toolchain must provide Objective-C++ '
+                                   'compiler in order to build {0} for {1} '
+                                   'platform.').format(source, self.toolset)
+          rule_name = GetNinjaRuleName(objcxx_compiler, self.toolset)
         elif extension in ['.S', '.s']:
           assert assembler, ('Toolchain must provide assembler in order to '
                              'build {0} for {1} platform.').format(
@@ -1192,7 +1208,8 @@ class NinjaWriter:
         self.ninja.variable('{0}_flags'.format(rule_name),
                             JoinShellArguments(shell, executable_linker_flags))
       else:
-        raise Exception('Target type {0} is not supported.'.format(target_type))
+        raise Exception('Target type {0} is not supported for target {1}.'
+            .format(target_type, spec['target_name']))
 
       order_only_deps = set()
 
