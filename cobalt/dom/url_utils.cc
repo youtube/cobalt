@@ -17,6 +17,14 @@
 namespace cobalt {
 namespace dom {
 
+URLUtils::URLUtils(const GURL& url, bool is_opaque)
+    : url_(url), origin_(is_opaque ? Origin() : Origin(url)) {}
+URLUtils::URLUtils(const GURL& url, const UpdateStepsCallback& update_steps,
+                   bool is_opaque)
+    : url_(url),
+      update_steps_(update_steps),
+      origin_(is_opaque ? Origin() : Origin(url)) {}
+
 std::string URLUtils::href() const { return url_.possibly_invalid_spec(); }
 
 void URLUtils::set_href(const std::string& href) {
@@ -132,6 +140,8 @@ void URLUtils::RunPreUpdateSteps(const GURL& new_url,
     update_steps_.Run(value.empty() ? new_url.possibly_invalid_spec() : value);
   }
 }
+
+std::string URLUtils::origin() const { return origin_.SerializedOrigin(); }
 
 }  // namespace dom
 }  // namespace cobalt

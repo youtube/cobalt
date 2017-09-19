@@ -319,6 +319,9 @@ INSTANTIATE_TEST_CASE_P(
 INSTANTIATE_TEST_CASE_P(dom, WebPlatformTest,
                         ::testing::ValuesIn(EnumerateWebPlatformTests("dom")));
 
+INSTANTIATE_TEST_CASE_P(cors, WebPlatformTest,
+                        ::testing::ValuesIn(EnumerateWebPlatformTests("cors")));
+
 INSTANTIATE_TEST_CASE_P(
     fetch, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("fetch",
