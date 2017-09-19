@@ -33,7 +33,7 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
       "foo/cobalt/media/MediaCodecBridge", "createAudioMediaCodecBridge",
       "(Ljava/lang/String;ZZIILandroid/media/MediaCrypto;)Lfoo/cobalt/media/"
       "MediaCodecBridge;",
-      j_mime.Get(), false, false, audio_header.samples_per_second,
+      j_mime.Get(), !!j_media_crypto, false, audio_header.samples_per_second,
       audio_header.number_of_channels, j_media_crypto);
 
   if (!j_media_codec_bridge) {
@@ -63,7 +63,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
       "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
       "(Ljava/lang/String;ZZIILandroid/view/Surface;Landroid/media/"
       "MediaCrypto;)Lfoo/cobalt/media/MediaCodecBridge;",
-      j_mime.Get(), false, false, width, height, j_surface, j_media_crypto);
+      j_mime.Get(), !!j_media_crypto, false, width, height, j_surface,
+      j_media_crypto);
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);
