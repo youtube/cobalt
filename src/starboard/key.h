@@ -200,6 +200,8 @@ typedef enum SbKey {
   kSbKeyDbeSbcschar = 0xF3,
   kSbKeyDbeDbcschar = 0xF4,
   kSbKeyPlay = 0xFA,
+  kSbKeyChannelUp = 0x1AB,
+  kSbKeyChannelDown = 0x1AC,
 
   // Beyond this point are non-Windows key codes that are provided as
   // extensions, as they otherwise have no analogs.
