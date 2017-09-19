@@ -15,6 +15,7 @@
 #ifndef COBALT_BASE_TOKEN_H_
 #define COBALT_BASE_TOKEN_H_
 
+#include <ostream>
 #include <string>
 
 #include "base/basictypes.h"
