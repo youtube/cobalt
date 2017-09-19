@@ -152,6 +152,16 @@ EventTarget::GetAttributeEventListener(base::Token type) const {
   return NULL;
 }
 
+bool EventTarget::HasOneOrMoreAttributeEventListener() const {
+  for (EventListenerInfos::const_iterator iter = event_listener_infos_.begin();
+       iter != event_listener_infos_.end(); ++iter) {
+    if ((*iter)->listener_type == EventListener::kAttribute) {
+      return true;
+    }
+  }
+  return false;
+}
+
 bool EventTarget::ShouldKeepWrapperAlive() {
   return !event_listener_infos_.empty();
 }

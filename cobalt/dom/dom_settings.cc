@@ -15,6 +15,7 @@
 #include "cobalt/dom/dom_settings.h"
 
 #include "cobalt/dom/document.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/dom/window.h"
 
 namespace cobalt {
@@ -60,6 +61,10 @@ scoped_refptr<Window> DOMSettings::window() const { return window_; }
 
 const GURL& DOMSettings::base_url() const {
   return window()->document()->url_as_gurl();
+}
+
+const dom::URLUtils::Origin& DOMSettings::document_origin() const {
+  return window()->document()->location()->OriginObject();
 }
 
 }  // namespace dom

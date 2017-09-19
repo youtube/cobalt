@@ -71,6 +71,8 @@ class HTMLAnchorElement : public HTMLElement {
   std::string search() const { return url_utils_.search(); }
   void set_search(const std::string& search) { url_utils_.set_search(search); }
 
+  std::string origin() const { return url_utils_.origin(); }
+
   // Custom, not in any spec.
   scoped_refptr<HTMLAnchorElement> AsHTMLAnchorElement() OVERRIDE {
     return this;
