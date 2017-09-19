@@ -306,18 +306,17 @@ void FilterBasedPlayerWorkerHandler::Update() {
       (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
     }
 
-    scoped_refptr<VideoFrame> frame = video_renderer_->GetCurrentFrame(
-        audio_renderer_->GetCurrentTime(),
-        audio_renderer_->IsEndOfStreamPlayed());
-    player_worker_->UpdateDroppedVideoFrames(
-        video_renderer_->GetDroppedFrames());
-
     if (output_mode_ == kSbPlayerOutputModePunchOut)
     {
+      scoped_refptr<VideoFrame> frame = video_renderer_->GetCurrentFrame(
+          audio_renderer_->GetCurrentTime(),
+          audio_renderer_->IsEndOfStreamPlayed());
       shared::starboard::Application::Get()->HandleFrame(
           player_, frame, bounds_.x, bounds_.y, bounds_.width, bounds_.height);
     }
 
+    player_worker_->UpdateDroppedVideoFrames(
+        video_renderer_->GetDroppedFrames());
     (*player_worker_.*update_media_time_cb_)(audio_renderer_->GetCurrentTime());
   }
 
