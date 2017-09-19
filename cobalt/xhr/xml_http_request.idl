@@ -47,7 +47,7 @@
 
     // FetchAPI: replacement for "send" when fetch functionality is needed.
     [RaisesException] void fetch(
-        FetchUpdateCallback fetch_callback,
+        FetchUpdateCallback fetch_callback, FetchModeCallback mode_callback,
         (DOMString or ArrayBufferView or ArrayBuffer)? request_body);
 
     // response
@@ -73,3 +73,5 @@ typedef EventListener? EventHandler;
 
 // FetchAPI: custom callback to allow progressive updates.
 callback FetchUpdateCallback = void(Uint8Array data);
+// FetchAPI: custom callback to distinguish between mode.
+callback FetchModeCallback = void(boolean is_cors_mode);

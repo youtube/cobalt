@@ -15,6 +15,7 @@
 #include "cobalt/xhr/xml_http_request.h"
 
 #include <algorithm>
+#include <utility>
 
 #include "base/compiler_specific.h"
 #include "base/string_number_conversions.h"
@@ -30,6 +31,7 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/dom/xml_document.h"
 #include "cobalt/dom_parser/xml_decoder.h"
+#include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
@@ -147,6 +149,9 @@ void FireProgressEvent(XMLHttpRequestEventTarget* target,
 }
 
 int s_xhr_sequence_num_ = 0;
+// https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
+// 5. If request's redirect count is twenty, return a network error.
+const int kRedirectLimit = 20;
 
 }  // namespace
 
@@ -164,7 +169,12 @@ XMLHttpRequest::XMLHttpRequest(script::EnvironmentSettings* settings)
       sent_(false),
       stop_timeout_(false),
       upload_complete_(false),
-      active_requests_count_(0) {
+      active_requests_count_(0),
+      upload_listener_(false),
+      is_cross_origin_(false),
+      is_redirect_(false),
+      redirect_times_(0),
+      is_data_url_(false) {
   DCHECK(settings_);
   dom::GlobalStats::GetInstance()->Add(this);
   xhr_id_ = ++s_xhr_sequence_num_;
@@ -238,9 +248,7 @@ void XMLHttpRequest::Open(const std::string& method, const std::string& url,
   sent_ = false;
   stop_timeout_ = false;
 
-  response_body_.Clear();
-  request_headers_.Clear();
-  response_array_buffer_ = NULL;
+  PrepareForNewRequest();
 
   // Check previous state to avoid dispatching readyState event when calling
   // open several times in a row.
@@ -329,14 +337,13 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   CobaltXhrModifyHeader(request_url_, &request_headers_);
 #endif
 
-  std::string request_body_text;
   // Add request body, if appropriate.
   if ((method_ == net::URLFetcher::POST || method_ == net::URLFetcher::PUT) &&
       request_body) {
     bool has_content_type =
         request_headers_.HasHeader(net::HttpRequestHeaders::kContentType);
     if (request_body->IsType<std::string>()) {
-      request_body_text.assign(request_body->AsType<std::string>());
+      request_body_text_.assign(request_body->AsType<std::string>());
       if (!has_content_type) {
         // We're assuming that request_body is UTF-8 encoded.
         request_headers_.SetHeader(net::HttpRequestHeaders::kContentType,
@@ -347,22 +354,25 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
           request_body->AsType<scoped_refptr<dom::ArrayBufferView> >();
       if (view->byte_length()) {
         const char* start = reinterpret_cast<const char*>(view->base_address());
-        request_body_text.assign(start + view->byte_offset(),
-                                 view->byte_length());
+        request_body_text_.assign(start + view->byte_offset(),
+                                  view->byte_length());
       }
     } else if (request_body->IsType<scoped_refptr<dom::ArrayBuffer> >()) {
       scoped_refptr<dom::ArrayBuffer> array_buffer =
           request_body->AsType<scoped_refptr<dom::ArrayBuffer> >();
       if (array_buffer->byte_length()) {
         const char* start = reinterpret_cast<const char*>(array_buffer->data());
-        request_body_text.assign(start, array_buffer->byte_length());
+        request_body_text_.assign(start, array_buffer->byte_length());
       }
     }
   } else {
     upload_complete_ = true;
   }
-  // Step 8- not required
-
+  // Step 8
+  if (upload_) {
+    upload_listener_ = upload_->HasOneOrMoreAttributeEventListener();
+  }
+  origin_ = settings_->document_origin();
   // Step 9
   sent_ = true;
   // Now that a send is happening, prevent this object
@@ -374,7 +384,7 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
     FireProgressEvent(upload_, base::Tokens::loadstart());
   }
 
-  StartRequest(request_body_text);
+  StartRequest(request_body_text_);
 
   // Start the timeout timer running, if applicable.
   send_start_time_ = base::TimeTicks::Now();
@@ -386,12 +396,14 @@ void XMLHttpRequest::Send(const base::optional<RequestBodyType>& request_body,
   last_progress_time_ = base::TimeTicks();
 }
 
-void XMLHttpRequest::Fetch(
-    const FetchUpdateCallbackArg& fetch_callback,
-    const base::optional<RequestBodyType>& request_body,
-    script::ExceptionState* exception_state) {
+void XMLHttpRequest::Fetch(const FetchUpdateCallbackArg& fetch_callback,
+                           const FetchModeCallbackArg& fetch_mode_callback,
+                           const base::optional<RequestBodyType>& request_body,
+                           script::ExceptionState* exception_state) {
   fetch_callback_.reset(
       new FetchUpdateCallbackArg::Reference(this, fetch_callback));
+  fetch_mode_callback_.reset(
+      new FetchModeCallbackArg::Reference(this, fetch_mode_callback));
   Send(request_body, exception_state);
 }
 
@@ -584,14 +596,6 @@ scoped_refptr<XMLHttpRequestUpload> XMLHttpRequest::upload() {
 
 void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
-  if (source->GetURL() != source->GetOriginalURL()) {
-    // This was a redirect. Re-check the CSP.
-    if (!csp_delegate()->CanLoad(dom::CspDelegate::kXhr, source->GetURL(),
-                                 true /* is_redirect */)) {
-      HandleRequestError(kNetworkError);
-      return;
-    }
-  }
 
   http_status_ = source->GetResponseCode();
   // Don't handle a response without headers.
@@ -604,14 +608,31 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
   http_response_headers_ =
       new net::HttpResponseHeaders(source->GetResponseHeaders()->raw_headers());
 
+  // Perform a CORS Check on response headers at their arrival and raise
+  // Network Error when the Check fails.
+  if (is_cross_origin_) {
+    if (!loader::CORSPreflight::CORSCheck(*http_response_headers_,
+                                          origin_.SerializedOrigin(),
+                                          with_credentials_)) {
+      HandleRequestError(kNetworkError);
+      return;
+    }
+  }
+
   // Discard these as required by XHR spec.
   http_response_headers_->RemoveHeader("Set-Cookie2");
   http_response_headers_->RemoveHeader("Set-Cookie");
+
+  http_response_headers_->GetMimeType(&response_mime_type_);
 
   if (mime_type_override_.length()) {
     http_response_headers_->RemoveHeader("Content-Type");
     http_response_headers_->AddHeader(std::string("Content-Type: ") +
                                       mime_type_override_);
+  }
+
+  if (fetch_mode_callback_) {
+    fetch_mode_callback_->value().Run(is_cross_origin_);
   }
 
   // Reserve space for the content in the case of a regular XHR request.
@@ -625,6 +646,39 @@ void XMLHttpRequest::OnURLFetchResponseStarted(const net::URLFetcher* source) {
                                   ? static_cast<size_t>(content_length)
                                   : kInitialReceivingBufferSize;
     response_body_.Reserve(bytes_to_reserve);
+  }
+
+  // Further filter response headers as XHR's mode is cors
+  if (is_cross_origin_) {
+    void* iter = NULL;
+    std::string name, value;
+    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    std::vector<std::string> expose_headers;
+    loader::CORSPreflight::GetServerAllowedHeaders(*http_response_headers_,
+                                                   &expose_headers);
+    while (http_response_headers_->EnumerateHeaderLines(&iter, &name, &value)) {
+      if (!loader::CORSPreflight::IsSafeResponseHeader(name, expose_headers,
+                                                       with_credentials_)) {
+        header_names_to_discard.push_back(std::make_pair(name, value));
+      }
+    }
+    for (const auto& header : header_names_to_discard) {
+      http_response_headers_->RemoveHeaderLine(header.first, header.second);
+    }
+  }
+
+  if (is_data_url_) {
+    void* iter = NULL;
+    std::string name, value;
+    std::vector<std::pair<std::string, std::string> > header_names_to_discard;
+    while (http_response_headers_->EnumerateHeaderLines(&iter, &name, &value)) {
+      if (name != net::HttpRequestHeaders::kContentType) {
+        header_names_to_discard.push_back(std::make_pair(name, value));
+      }
+    }
+    for (const auto& header : header_names_to_discard) {
+      http_response_headers_->RemoveHeaderLine(header.first, header.second);
+    }
   }
 
   ChangeState(kHeadersReceived);
@@ -668,7 +722,18 @@ void XMLHttpRequest::OnURLFetchDownloadData(
 
 void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  if (source->GetResponseHeaders()) {
+    if (source->GetResponseHeaders()->IsRedirect(NULL)) {
+      // To do CORS Check and Send potential preflight, we used
+      // SetStopOnRedirect to terminate request on redirect and OnRedict
+      // function will deal with the early termination and send preflight if
+      // needed.
+      OnRedirect(*source->GetResponseHeaders());
+      return;
+    }
+  }
   fetch_callback_.reset();
+  fetch_mode_callback_.reset();
   const net::URLRequestStatus& status = source->GetStatus();
   if (status.is_success()) {
     stop_timeout_ = true;
@@ -683,6 +748,20 @@ void XMLHttpRequest::OnURLFetchComplete(const net::URLFetcher* source) {
   } else {
     HandleRequestError(kNetworkError);
   }
+}
+
+// Reset some variables in case the XHR object is reused.
+void XMLHttpRequest::PrepareForNewRequest() {
+  response_body_.Clear();
+  request_headers_.Clear();
+  response_array_buffer_ = NULL;
+  // Below are variables used for CORS.
+  request_body_text_.clear();
+  is_cross_origin_ = false;
+  redirect_times_ = 0;
+  is_data_url_ = false;
+  upload_listener_ = false;
+  is_redirect_ = false;
 }
 
 void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
@@ -703,6 +782,17 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
 
   // Fire a progress event if either the upload just completed, or if enough
   // time has elapsed since we sent the last one.
+
+  // https://xhr.spec.whatwg.org/#dom-xmlhttprequest-send step 11.4.
+  // To process request body for request, run these subsubsteps:
+  // 1.not roughly 50ms have passed since these subsubsteps were last invoked,
+  // terminate these subsubsteps.
+  // 2. If upload listener flag is set, then fire a progress event named
+  // progress on the XMLHttpRequestUpload object with request's body's
+  // transmiteted bytes and request's body's total bytes.
+  if (!upload_listener_) {
+    return;
+  }
   const base::TimeTicks now = base::TimeTicks::Now();
   const base::TimeDelta elapsed(now - upload_last_progress_time_);
   if (upload_complete_ ||
@@ -712,12 +802,88 @@ void XMLHttpRequest::OnURLFetchUploadProgress(const net::URLFetcher* source,
     upload_last_progress_time_ = now;
   }
 
+  // To process request end-of-body for request, run these subsubsteps:
+  // 2. if upload listener flag is unset, then terminate these subsubsteps.
   if (upload_complete_) {
     FireProgressEvent(upload_, base::Tokens::load(), current, total,
                       total != 0);
     FireProgressEvent(upload_, base::Tokens::loadend(), current, total,
                       total != 0);
   }
+}
+
+void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
+  GURL new_url = url_fetcher_->GetURL();
+  // Since we moved redirect from url_request to here, we also need to
+  // handle redirecting too many times.
+  if (redirect_times_ >= kRedirectLimit) {
+    DLOG(INFO) << "XHR's redirect times hit limit, aborting request.";
+    HandleRequestError(kNetworkError);
+    return;
+  }
+
+  // This function is designed to be called by url_fetcher_core::
+  // OnReceivedRedirect
+  // https://fetch.spec.whatwg.org/#concept-http-redirect-fetch
+  // 7. If request’s mode is "cors", request’s origin is not same origin
+  // with actualResponse’s location URL’s origin, and actualResponse’s
+  // location URL includes credentials, then return a network error.
+  // 8. If CORS flag is set and actualResponse’s location URL includes
+  // credentials, then return a network error.
+  if (new_url.has_username() || new_url.has_password()) {
+    if (dom::URLUtils::Origin(new_url) != dom::URLUtils::Origin(request_url_)) {
+      DLOG(INFO) << "XHR is redirected to cross-origin url with credentials, "
+                    "aborting request for security reasons.";
+      HandleRequestError(kNetworkError);
+      return;
+    } else if (is_cross_origin_) {
+      DLOG(INFO) << "XHR is redirected with credentials and cors_flag set, "
+                    "aborting request for security reasons.";
+      HandleRequestError(kNetworkError);
+      return;
+    }
+  }
+  if (!new_url.is_valid()) {
+    HandleRequestError(kNetworkError);
+    return;
+  }
+  // This is a redirect. Re-check the CSP.
+  if (!csp_delegate()->CanLoad(dom::CspDelegate::kXhr, new_url,
+                               true /* is_redirect */)) {
+    HandleRequestError(kNetworkError);
+    return;
+  }
+  // CORS check for the received resposne
+  if (is_cross_origin_) {
+    if (!loader::CORSPreflight::CORSCheck(headers, origin_.SerializedOrigin(),
+                                          with_credentials_)) {
+      HandleRequestError(kNetworkError);
+      return;
+    }
+  }
+  is_redirect_ = true;
+  // If CORS flag is set and actualResponse’s location URL’s origin is not
+  // same origin with request’s current url’s origin, then set request’s
+  // origin to a unique opaque origin.
+  if (dom::URLUtils::Origin(new_url) != dom::URLUtils::Origin(request_url_)) {
+    if (is_cross_origin_) {
+      origin_ = dom::URLUtils::Origin();
+    } else {
+      origin_ = dom::URLUtils::Origin(request_url_);
+      is_cross_origin_ = true;
+    }
+  }
+  // Send out preflight if needed
+  int http_status_code = headers.response_code();
+  if ((http_status_code == 303) ||
+      ((http_status_code == 301 || http_status_code == 302) &&
+       (method_ == net::URLFetcher::POST))) {
+    method_ = net::URLFetcher::GET;
+    request_body_text_.clear();
+  }
+  request_url_ = new_url;
+  redirect_times_++;
+  StartRequest(request_body_text_);
 }
 
 void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
@@ -909,25 +1075,68 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
   // Don't retry, let the caller deal with it.
   url_fetcher_->SetAutomaticallyRetryOn5xx(false);
   url_fetcher_->SetExtraRequestHeaders(request_headers_.ToString());
+
+  // We want to do cors check and preflight during redirects
+  url_fetcher_->SetStopOnRedirect(true);
+
   if (request_body.size()) {
     // If applicable, the request body Content-Type is already set in
     // request_headers.
     url_fetcher_->SetUploadData("", request_body);
   }
 
-  bool is_cross_origin = request_url_.GetOrigin() != base_url_.GetOrigin();
-  if (is_cross_origin) {
+  // We let data url fetch resources freely but with no response headers.
+  is_data_url_ = is_data_url_ || request_url_.SchemeIs("data");
+  is_cross_origin_ =
+      (is_redirect_ && is_cross_origin_) ||
+      (origin_ != dom::URLUtils::Origin(request_url_) && !is_data_url_);
+  is_redirect_ = false;
+  // If the CORS flag is set, httpRequest’s method is neither `GET` nor `HEAD`
+  // or httpRequest’s mode is "websocket", then append `Origin`/httpRequest’s
+  // origin, serialized and UTF-8 encoded, to httpRequest’s header list.
+  if (is_cross_origin_ ||
+      (method_ != net::URLFetcher::GET && method_ != net::URLFetcher::HEAD)) {
+    url_fetcher_->AddExtraRequestHeader("Origin:" + origin_.SerializedOrigin());
+  }
+  bool dopreflight = false;
+  if (is_cross_origin_) {
+    corspreflight_.reset(new cobalt::loader::CORSPreflight(
+        request_url_, method_, network_module,
+        base::Bind(&XMLHttpRequest::CORSPreflightSuccessCallback,
+                   base::Unretained(this)),
+        origin_.SerializedOrigin(),
+        base::Bind(&XMLHttpRequest::CORSPreflightErrorCallback,
+                   base::Unretained(this))));
+    corspreflight_->set_headers(request_headers_);
     // For cross-origin requests, don't send or save auth data / cookies unless
     // withCredentials was set.
+    // To make a cross-origin request, add origin, referrer source, credentials,
+    // omit credentials flag, force preflight flag
     if (!with_credentials_) {
       const uint32 kDisableCookiesLoadFlags =
           net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
           net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
       url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
+    } else {
+      // For credentials mode: If the withCredentials attribute value is true,
+      // "include", and "same-origin" otherwise.
+      corspreflight_->set_credentials_mode_is_include(true);
     }
+    corspreflight_->set_force_preflight(upload_listener_);
+    dopreflight = corspreflight_->Send();
   }
-
   DLOG_IF(INFO, verbose()) << __FUNCTION__ << *this;
+  if (!dopreflight) {
+    url_fetcher_->Start();
+  }
+}
+
+void XMLHttpRequest::CORSPreflightErrorCallback() {
+  HandleRequestError(XMLHttpRequest::kNetworkError);
+}
+
+void XMLHttpRequest::CORSPreflightSuccessCallback() {
+  DCHECK(url_fetcher_);
   url_fetcher_->Start();
 }
 
@@ -973,8 +1182,9 @@ std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {
 // https://www.w3.org/TR/2014/WD-XMLHttpRequest-20140130/#document-response-entity-body
 scoped_refptr<dom::Document> XMLHttpRequest::GetDocumentResponseEntityBody() {
   // Step 1..5
-  if (mime_type_override_ != "text/xml" &&
-      mime_type_override_ != "application/xml") {
+  const std::string final_mime_type =
+      mime_type_override_.empty() ? response_mime_type_ : mime_type_override_;
+  if (final_mime_type != "text/xml" && final_mime_type != "application/xml") {
     return NULL;
   }
 

@@ -81,11 +81,17 @@ class Location : public script::Wrappable {
   std::string search() const { return url_utils_.search(); }
   void set_search(const std::string& search) { url_utils_.set_search(search); }
 
+  std::string origin() const { return url_utils_.origin(); }
+
   // Custom, not in any spec.
   //
   // Gets and sets the URL without doing any navigation.
   const GURL& url() const { return url_utils_.url(); }
   void set_url(const GURL& url) { url_utils_.set_url(url); }
+
+  const URLUtils::Origin& OriginObject() const {
+    return url_utils_.OriginObject();
+  }
 
   DEFINE_WRAPPABLE_TYPE(Location);
 

@@ -21,6 +21,7 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/url_registry.h"
+#include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/script/environment_settings.h"
@@ -127,6 +128,9 @@ class DOMSettings : public script::EnvironmentSettings {
 
   // An absolute URL used to resolve relative URLs.
   virtual const GURL& base_url() const;
+
+  // Return's document's origin.
+  const URLUtils::Origin& document_origin() const;
 
  private:
   const int max_dom_element_depth_;

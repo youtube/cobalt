@@ -738,6 +738,7 @@
   self.fetch = function(input, init) {
     return new Promise(function(resolve, reject) {
       var cancelled = false
+      var isCORSMode = false
       var request = new Request(input, init)
       var xhr = new XMLHttpRequest()
 
@@ -768,7 +769,7 @@
                      xhr.responseURL : init.headers.get('X-Request-URL')
           try {
             var response = new Response(responseStream, init)
-            response[TYPE_SLOT] = 'basic'
+            response[TYPE_SLOT] = isCORSMode ? 'cors' : 'basic'
             resolve(response)
           } catch (err) {
             reject(err)
@@ -805,11 +806,15 @@
         }
       }
 
+      var modeUpdate = function(iscorsmode) {
+        isCORSMode = iscorsmode
+      }
+
       if (request.body === null) {
-        xhr.fetch(fetchUpdate, null)
+        xhr.fetch(fetchUpdate, modeUpdate, null)
       } else {
         consumeBodyAsUint8Array(request).then(function(data) {
-          xhr.fetch(fetchUpdate, data)
+          xhr.fetch(fetchUpdate, modeUpdate, data)
         })
       }
     })
