@@ -38,7 +38,6 @@
       'js/src/builtin/TypedObject.cpp',
       'js/src/builtin/WeakMapObject.cpp',
       'js/src/builtin/WeakSetObject.cpp',
-      'js/src/devtools/sharkctl.cpp',
       'js/src/ds/LifoAlloc.cpp',
       'js/src/frontend/BytecodeCompiler.cpp',
       'js/src/frontend/BytecodeEmitter.cpp',
