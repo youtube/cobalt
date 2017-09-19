@@ -28,6 +28,7 @@
 #include "cobalt/dom/document.h"
 #include "cobalt/dom/dom_exception.h"
 #include "cobalt/dom/uint8_array.h"
+#include "cobalt/loader/cors_preflight.h"
 #include "cobalt/loader/net_fetcher.h"
 #include "cobalt/script/union_type.h"
 #include "cobalt/xhr/xhr_response_data.h"
@@ -131,8 +132,11 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   // FetchAPI: replacement for Send() when fetch functionality is required.
   typedef script::CallbackFunction<
       void(const scoped_refptr<dom::Uint8Array>& data)> FetchUpdateCallback;
+  typedef script::CallbackFunction<void(bool)> FetchModeCallback;
   typedef script::ScriptValue<FetchUpdateCallback> FetchUpdateCallbackArg;
+  typedef script::ScriptValue<FetchModeCallback> FetchModeCallbackArg;
   void Fetch(const FetchUpdateCallbackArg& fetch_callback,
+             const FetchModeCallbackArg& fetch_mode_callback,
              const base::optional<RequestBodyType>& request_body,
              script::ExceptionState* exception_state);
 
@@ -171,6 +175,7 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   void OnURLFetchUploadProgress(const net::URLFetcher* source, int64 current,
                                 int64 total) OVERRIDE;
+  void OnRedirect(const net::HttpResponseHeaders& headers);
 
   // Called from bindings layer to tie objects' lifetimes to this XHR instance.
   XMLHttpRequestUpload* upload_or_null() { return upload_.get(); }
@@ -238,9 +243,12 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
       const scoped_refptr<net::HttpResponseHeaders>& response_headers) {
     http_response_headers_ = response_headers;
   }
+  void PrepareForNewRequest();
 
   scoped_refptr<dom::Document> GetDocumentResponseEntityBody();
   void XMLDecoderErrorCallback(const std::string& error);
+  void CORSPreflightErrorCallback();
+  void CORSPreflightSuccessCallback();
 
   base::ThreadChecker thread_checker_;
 
@@ -265,6 +273,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   // FetchAPI: transfer progress callback.
   scoped_ptr<FetchUpdateCallbackArg::Reference> fetch_callback_;
+  // FetchAPI: tell fetch polyfill if the response mode is cors.
+  scoped_ptr<FetchModeCallbackArg::Reference> fetch_mode_callback_;
 
   // All members requiring initialization are grouped below.
   dom::DOMSettings* settings_;
@@ -279,6 +289,8 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
   bool stop_timeout_;
   bool upload_complete_;
   int active_requests_count_;
+  // https://xhr.spec.whatwg.org/#upload-listener-flag
+  bool upload_listener_;
 
   static bool verbose_;
   // Unique ID for debugging.
@@ -286,6 +298,18 @@ class XMLHttpRequest : public XMLHttpRequestEventTarget,
 
   bool has_xml_decoder_error_;
 
+  // A corspreflight instance for potentially sending preflight
+  // request and perfoming cors check for all cross origin requests.
+  scoped_ptr<cobalt::loader::CORSPreflight> corspreflight_;
+  bool is_cross_origin_;
+  // net::URLReuqest does not have origin variable so we can only store it here.
+  // https://fetch.spec.whatwg.org/#concept-request-origin
+  dom::URLUtils::Origin origin_;
+  bool is_redirect_;
+  std::string response_mime_type_;
+  std::string request_body_text_;
+  int redirect_times_;
+  bool is_data_url_;
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequest);
 };
 
