@@ -85,6 +85,8 @@
       '<(DEPTH)/starboard/shared/win32/video_decoder_thread.h',
       '<(DEPTH)/starboard/shared/win32/video_renderer.cc',
       '<(DEPTH)/starboard/shared/win32/video_renderer.h',
+      '<(DEPTH)/starboard/shared/win32/video_texture.cc',
+      '<(DEPTH)/starboard/shared/win32/video_texture.h',
       '<(DEPTH)/starboard/shared/win32/video_transform.cc',
       '<(DEPTH)/starboard/shared/win32/video_transform.h',
       '<(DEPTH)/starboard/shared/win32/win32_audio_decoder.cc',

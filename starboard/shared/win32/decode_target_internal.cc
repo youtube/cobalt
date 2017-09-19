@@ -24,6 +24,7 @@
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
+#include "starboard/shared/win32/video_texture.h"
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 #include "third_party/angle/include/GLES2/gl2.h"
