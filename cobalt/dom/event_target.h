@@ -393,6 +393,9 @@ class EventTarget : public script::Wrappable,
   const EventListenerScriptValue* GetAttributeEventListener(
       base::Token type) const;
 
+  // Return true if one or more event listeners are registered
+  bool HasOneOrMoreAttributeEventListener() const;
+
   // script::Wrappable
   //
   bool ShouldKeepWrapperAlive() OVERRIDE;
