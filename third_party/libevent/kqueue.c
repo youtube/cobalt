@@ -92,7 +92,9 @@ struct kqop {
 	struct kevent *changes;
 	int nchanges;
 	struct kevent *events;
+#ifndef STARBOARD
 	struct event_list evsigevents[NSIG];
+#endif
 	int nevents;
 	int kq;
 	pid_t pid;
@@ -129,7 +131,7 @@ kq_init(struct event_base *base)
 		return (NULL);
 
 	/* Initalize the kernel queue */
-	
+
 	if ((kq = kqueue()) == -1) {
 		event_warn("kqueue");
 		free (kqueueop);
@@ -154,16 +156,18 @@ kq_init(struct event_base *base)
 	}
 	kqueueop->nevents = NEVENT;
 
+#ifndef STARBOARD
 	/* we need to keep track of multiple events per signal */
 	for (i = 0; i < NSIG; ++i) {
 		TAILQ_INIT(&kqueueop->evsigevents[i]);
 	}
+#endif
 
 	/* Check for Mac OS X kqueue bug. */
 	kqueueop->changes[0].ident = -1;
 	kqueueop->changes[0].filter = EVFILT_READ;
 	kqueueop->changes[0].flags = EV_ADD;
-	/* 
+	/*
 	 * If kqueue works, then kevent will succeed, and it will
 	 * stick an error in events[0].  If kqueue is broken, then
 	 * kevent will fail.
@@ -222,7 +226,7 @@ kq_insert(struct kqop *kqop, struct kevent *kev)
 	memcpy(&kqop->changes[kqop->nchanges++], kev, sizeof(struct kevent));
 
 	event_debug(("%s: fd %d %s%s",
-		__func__, (int)kev->ident, 
+		__func__, (int)kev->ident,
 		kev->filter == EVFILT_READ ? "EVFILT_READ" : "EVFILT_WRITE",
 		kev->flags == EV_DELETE ? " (del)" : ""));
 
@@ -267,7 +271,7 @@ kq_dispatch(struct event_base *base, void *arg, struct timeval *tv)
 		int which = 0;
 
 		if (events[i].flags & EV_ERROR) {
-			/* 
+			/*
 			 * Error messages that can happen, when a delete fails.
 			 *   EBADF happens when the file discriptor has been
 			 *   closed,
@@ -324,25 +328,26 @@ kq_add(void *arg, struct event *ev)
 	struct kqop *kqop = arg;
 	struct kevent kev;
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
 
 		assert(nsignal >= 0 && nsignal < NSIG);
 		if (TAILQ_EMPTY(&kqop->evsigevents[nsignal])) {
 			struct timespec timeout = { 0, 0 };
-			
+
 			memset(&kev, 0, sizeof(kev));
 			kev.ident = nsignal;
 			kev.filter = EVFILT_SIGNAL;
 			kev.flags = EV_ADD;
 			kev.udata = PTR_TO_UDATA(&kqop->evsigevents[nsignal]);
-			
+
 			/* Be ready for the signal if it is sent any
 			 * time between now and the next call to
 			 * kq_dispatch. */
 			if (kevent(kqop->kq, &kev, 1, NULL, 0, &timeout) == -1)
 				return (-1);
-			
+
 			if (_evsignal_set_handler(ev->ev_base, nsignal,
 				kq_sighandler) == -1)
 				return (-1);
@@ -353,6 +358,7 @@ kq_add(void *arg, struct event *ev)
 		ev->ev_flags |= EVLIST_X_KQINKERNEL;
 		return (0);
 	}
+#endif
 
 	if (ev->ev_events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
@@ -366,7 +372,7 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -381,7 +387,7 @@ kq_add(void *arg, struct event *ev)
 		if (!(ev->ev_events & EV_PERSIST))
 			kev.flags |= EV_ONESHOT;
 		kev.udata = PTR_TO_UDATA(ev);
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -400,6 +406,7 @@ kq_del(void *arg, struct event *ev)
 	if (!(ev->ev_flags & EVLIST_X_KQINKERNEL))
 		return (0);
 
+#ifndef STARBOARD
 	if (ev->ev_events & EV_SIGNAL) {
 		int nsignal = EVENT_SIGNAL(ev);
 		struct timespec timeout = { 0, 0 };
@@ -411,7 +418,7 @@ kq_del(void *arg, struct event *ev)
 			kev.ident = nsignal;
 			kev.filter = EVFILT_SIGNAL;
 			kev.flags = EV_DELETE;
-		
+
 			/* Because we insert signal events
 			 * immediately, we need to delete them
 			 * immediately, too */
@@ -426,13 +433,14 @@ kq_del(void *arg, struct event *ev)
 		ev->ev_flags &= ~EVLIST_X_KQINKERNEL;
 		return (0);
 	}
+#endif
 
 	if (ev->ev_events & EV_READ) {
  		memset(&kev, 0, sizeof(kev));
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_READ;
 		kev.flags = EV_DELETE;
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
@@ -444,7 +452,7 @@ kq_del(void *arg, struct event *ev)
 		kev.ident = ev->ev_fd;
 		kev.filter = EVFILT_WRITE;
 		kev.flags = EV_DELETE;
-		
+
 		if (kq_insert(kqop, &kev) == -1)
 			return (-1);
 
