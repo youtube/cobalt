@@ -33,8 +33,6 @@ namespace script {
 
 namespace mozjs {
 namespace {
-// After this many bytes have been allocated, the garbage collector will run.
-const uint32_t kGarbageCollectionThresholdBytes = 8 * 1024 * 1024;
 
 // Trigger garbage collection this many seconds after the last one.
 const int kGarbageCollectionIntervalSeconds = 60;
