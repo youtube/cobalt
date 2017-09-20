@@ -395,6 +395,10 @@ class Document : public Node,
 
   void set_render_postponed(bool render_postponed);
 
+  // Called when the root element has its offset dimensions requested and is
+  // unable to provide them.
+  void OnRootElementUnableToProvideOffsetDimensions();
+
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
