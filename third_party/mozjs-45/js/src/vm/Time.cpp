@@ -279,7 +279,8 @@ size_t
 PRMJ_FormatTime(char* buf, int buflen, const char* fmt, PRMJTime* prtm)
 {
     size_t result = 0;
-#if defined(XP_UNIX) || defined(XP_WIN)
+    // Use this for Starboard until Internationalization API is enabled.
+#if defined(XP_UNIX) || defined(XP_WIN) || defined(STARBOARD)
     struct tm a;
     int fake_tm_year = 0;
 #ifdef XP_WIN
