@@ -202,8 +202,6 @@ SbMediaAudioFrameStorageType AudioDecoder::GetStorageType() const {
 }
 
 int AudioDecoder::GetSamplesPerSecond() const {
-  SB_DCHECK(BelongsToCurrentThread());
-
   return audio_header_.samples_per_second;
 }
 
