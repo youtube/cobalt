@@ -134,8 +134,6 @@ SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
 }
 
 int AudioDecoder::GetSamplesPerSecond() const {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-
   return audio_header_.samples_per_second;
 }
 
