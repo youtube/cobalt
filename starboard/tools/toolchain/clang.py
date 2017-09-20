@@ -90,6 +90,26 @@ class CxxCompiler(CompilerBase, abstract.CxxCompiler):
     ]
     return define_flags + include_dir_flags + cflags
 
+class ObjectiveCxxCompiler(CompilerBase, abstract.ObjectiveCxxCompiler):
+  """Compiles Objective-C++ sources using Clang."""
+
+  def __init__(self, **kwargs):
+    super(ObjectiveCxxCompiler, self).__init__(**kwargs)
+
+  def GetCommand(self, path, extra_flags, flags):
+    return '{0} -x objective-c++ -MMD -MF $out.d {1} {2} -c $in -o $out'.format(
+        path, extra_flags, flags)
+
+  def GetDescription(self):
+    return 'OBJCXX $out'
+
+  def GetFlags(self, defines, include_dirs, cflags):
+    define_flags = ['-D{0}'.format(define) for define in defines]
+    include_dir_flags = [
+        '-I{0}'.format(include_dir) for include_dir in include_dirs
+    ]
+    return define_flags + include_dir_flags + cflags
+
 
 class AssemblerWithCPreprocessor(CompilerBase,
                                  abstract.AssemblerWithCPreprocessor):
