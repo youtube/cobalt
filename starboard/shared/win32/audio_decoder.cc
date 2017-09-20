@@ -134,7 +134,7 @@ SbMediaAudioSampleType AudioDecoder::GetSampleType() const {
 }
 
 int AudioDecoder::GetSamplesPerSecond() const {
-  return audio_header_.samples_per_second;
+  return decoder_impl_->GetSamplesPerSecond();
 }
 
 void AudioDecoder::Initialize(const Closure& output_cb) {

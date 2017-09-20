@@ -50,6 +50,9 @@ class AbstractWin32AudioDecoder {
   virtual DecodedAudioPtr ProcessAndRead() = 0;
   // Reset
   virtual void Reset() = 0;
+
+  // Dynamically query the audio frequency to support HE-AAC.
+  virtual int GetSamplesPerSecond() const = 0;
 };
 
 }  // namespace win32

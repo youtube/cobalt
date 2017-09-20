@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <queue>
 
+#include "starboard/atomic.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/atomic_queue.h"
 #include "starboard/shared/win32/audio_decoder.h"
@@ -33,6 +34,10 @@ using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::ThreadChecker;
 using ::starboard::shared::win32::CreateAudioTransform;
 
+const size_t kAacSamplesPerFrame = 1024;
+// We are using float samples on Xb1.
+const size_t kBytesPerSample = sizeof(float);
+
 namespace {
 
 class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
@@ -46,7 +51,9 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
-        number_of_channels_(audio_header.number_of_channels) {
+        number_of_channels_(audio_header.number_of_channels),
+        heaac_detected_(false),
+        samples_per_second_(static_cast<int>(audio_header.samples_per_second)) {
     scoped_ptr<MediaTransform> audio_decoder =
         CreateAudioTransform(audio_header, codec_);
     impl_.reset(
@@ -77,6 +84,12 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 
     const uint8_t* data = reinterpret_cast<uint8_t*>(buffer);
     const size_t data_size = static_cast<size_t>(length);
+
+    const size_t expect_size_in_bytes =
+        number_of_channels_ * kAacSamplesPerFrame * kBytesPerSample;
+    if (data_size / expect_size_in_bytes == 2) {
+      heaac_detected_.store(true);
+    }
 
     DecodedAudioPtr data_ptr(
         new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
@@ -138,6 +151,13 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     thread_checker_.Detach();
   }
 
+  int GetSamplesPerSecond() const SB_OVERRIDE {
+    if (heaac_detected_.load()) {
+      return samples_per_second_ * 2;
+    }
+    return samples_per_second_;
+  }
+
   // The object is single-threaded and is driven by a dedicated thread.
   // However the thread may gets destroyed and re-created over the life time of
   // this object.  We enforce that certain member functions can only called
@@ -155,6 +175,8 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   scoped_ptr<DecryptingDecoder> impl_;
   std::queue<DecodedAudioPtr> output_queue_;
   uint16_t number_of_channels_;
+  atomic_bool heaac_detected_;
+  int samples_per_second_;
 };
 
 }  // anonymous namespace.
