@@ -23,6 +23,7 @@
 
 #if !defined(POEM_NO_EMULATION)
 
+#undef assert
 // On one line so that the assert macros do not interfere with reporting of line
 // numbers in compiler error messages.
 #define assert(x)                                                            \
