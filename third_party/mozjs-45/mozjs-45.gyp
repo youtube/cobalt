@@ -44,6 +44,9 @@
       'cobalt_config/include',
       '<(DEPTH)/third_party/icu/source/common',
     ],
+    'common_msvs_force_includes': [
+      'third_party/mozjs-45/cobalt_config/include/js-confdefs.h',
+    ],
     'common_msvs_disabled_warnings': [
       # Level 2, Possible loss of data due to type conversion.
       4244,
@@ -137,6 +140,11 @@
 
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
+    'msvs_settings': {
+      'VCCLCompilerTool': {
+        'ForcedIncludeFiles': ['<@(common_msvs_force_includes)', ],
+      },
+    },
     'msvs_disabled_warnings': [
       '<@(common_msvs_disabled_warnings)',
       # Level 2, unary minus operator applied to unsigned type, result still
@@ -151,6 +159,11 @@
     # Unfortunately, there is code that generate warnings in the headers.
     'direct_dependent_settings': {
       'msvs_disabled_warnings': [ '<@(common_msvs_disabled_warnings)', ],
+      'msvs_settings': {
+        'VCCLCompilerTool': {
+          'ForcedIncludeFiles': [ '<@(common_msvs_force_includes)', ],
+        },
+      },
     },
   },
 
