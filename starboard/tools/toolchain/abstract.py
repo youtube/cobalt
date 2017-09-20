@@ -213,6 +213,35 @@ class CxxCompiler(Tool):
     """
     pass
 
+class ObjectiveCxxCompiler(Tool):
+  """Compiles Objective-C++ sources."""
+
+  def IsPlatformAgnostic(self):
+    return False
+
+  def GetRuleName(self):
+    return 'compile_objective_cxx'
+
+  @abc.abstractmethod
+  def GetFlags(self, defines, include_dirs, cflags):
+    """Returns tool flags specific to a target.
+
+    This method translates platform-agnostic concepts into a command line
+    arguments understood by a tool.
+
+    Args:
+      defines: A list of preprocessor defines in "NAME=VALUE" format.
+      include_dirs: A list of header search directories.
+      cflags: A list of GCC-style command-line flags. See
+        https://gcc.gnu.org/onlinedocs/gcc/Invoking-GCC.html#Invoking-GCC for
+        details.
+
+    Returns:
+      A list of unquoted strings, one for each flag. It is a responsibility of a
+      caller to quote flags that contain special characters (as determined by a
+      shell) before passing to a tool.
+    """
+    pass
 
 class AssemblerWithCPreprocessor(Tool):
   """Compiles assembler sources that contain C preprocessor directives."""
