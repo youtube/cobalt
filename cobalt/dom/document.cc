@@ -914,6 +914,10 @@ void Document::set_render_postponed(bool render_postponed) {
   }
 }
 
+void Document::OnRootElementUnableToProvideOffsetDimensions() {
+  window_->OnDocumentRootElementUnableToProvideOffsetDimensions();
+}
+
 void Document::DispatchOnLoadEvent() {
   TRACE_EVENT0("cobalt::dom", "Document::DispatchOnLoadEvent()");
 

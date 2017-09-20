@@ -458,6 +458,9 @@ float HTMLElement::offset_width() {
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
   if (!layout_boxes_) {
+    if (IsRootElement()) {
+      node_document()->OnRootElementUnableToProvideOffsetDimensions();
+    }
     return 0.0f;
   }
 
@@ -476,6 +479,9 @@ float HTMLElement::offset_height() {
   // 1. If the element does not have any associated CSS layout box return zero
   // and terminate this algorithm.
   if (!layout_boxes_) {
+    if (IsRootElement()) {
+      node_document()->OnRootElementUnableToProvideOffsetDimensions();
+    }
     return 0.0f;
   }
 
