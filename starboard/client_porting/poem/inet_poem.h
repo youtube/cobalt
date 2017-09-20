@@ -19,9 +19,16 @@
 
 #include "starboard/byte_swap.h"
 
+#undef htonl
 #define htonl(x) SB_HOST_TO_NET_U32(x)
+
+#undef htons
 #define htons(x) SB_HOST_TO_NET_U16(x)
+
+#undef ntohl
 #define ntohl(x) SB_NET_TO_HOST_U32(x)
+
+#undef ntohs
 #define ntohs(x) SB_NET_TO_HOST_U16(x)
 
 #endif  // STARBOARD_CLIENT_PORTING_POEM_INET_POEM_H_
