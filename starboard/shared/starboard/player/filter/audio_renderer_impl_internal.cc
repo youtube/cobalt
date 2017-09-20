@@ -108,6 +108,8 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
 
   decoder_->Initialize(Bind(&AudioRendererImpl::OnDecoderOutput, this));
 
+  // TODO: Initialize |time_stretcher_| after the first decoded audio output to
+  // ensure that implicit HEAAC is properly handled.
   int source_sample_rate = decoder_->GetSamplesPerSecond();
   int destination_sample_rate =
       SbAudioSinkGetNearestSupportedSampleFrequency(source_sample_rate);
@@ -268,14 +270,15 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
     elasped_since_last_set =
         SbTimeGetMonotonicNow() - frames_consumed_set_at_.load();
   }
+  int samples_per_second = decoder_->GetSamplesPerSecond();
   int64_t elapsed_frames =
-      elasped_since_last_set * decoder_->GetSamplesPerSecond() / kSbTimeSecond;
+      elasped_since_last_set * samples_per_second / kSbTimeSecond;
   int64_t frames_played =
       audio_frame_tracker_.GetFutureFramesPlayedAdjustedToPlaybackRate(
           elapsed_frames);
 
   return seeking_to_pts_ +
-         frames_played * kSbMediaTimeSecond / decoder_->GetSamplesPerSecond();
+         frames_played * kSbMediaTimeSecond / samples_per_second;
 }
 
 void AudioRendererImpl::CreateAudioSinkAndResampler() {
