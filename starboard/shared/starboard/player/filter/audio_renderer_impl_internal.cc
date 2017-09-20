@@ -235,8 +235,6 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
 }
 
 bool AudioRendererImpl::IsEndOfStreamPlayed() const {
-  SB_DCHECK(BelongsToCurrentThread());
-
   return eos_state_.load() >= kEOSSentToSink &&
          frames_sent_to_sink_.load() == frames_consumed_by_sink_.load();
 }
