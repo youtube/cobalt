@@ -326,6 +326,10 @@ class Window : public EventTarget,
   void OnVisibilityStateChanged(
       page_visibility::VisibilityState visibility_state) OVERRIDE;
 
+  // Called when the document's root element has its offset dimensions requested
+  // and is unable to provide them.
+  void OnDocumentRootElementUnableToProvideOffsetDimensions();
+
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
   const base::Callback<bool(const std::string&)> splash_screen_cache_callback()
