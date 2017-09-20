@@ -551,6 +551,18 @@ void Window::OnVisibilityStateChanged(
   }
 }
 
+void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
+  DLOG(WARNING) << "Document root element unable to provide offset dimensions!";
+  // If the root element was unable to provide its dimensions as a result of
+  // the app being in a visibility state that disables layout, then prepare a
+  // pending resize event, so that the resize will occur once layouts are again
+  // available.
+  if (html_element_context_->page_visibility_state()->GetVisibilityState() !=
+      page_visibility::kVisibilityStateVisible) {
+    is_resize_event_pending_ = true;
+  }
+}
+
 void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(performance_);
   tracer->Trace(document_);
