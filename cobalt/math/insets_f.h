@@ -19,6 +19,15 @@ class InsetsF : public InsetsBase<InsetsF, float> {
   InsetsF(float left, float top, float right, float bottom);
   ~InsetsF();
 
+  InsetsF Scale(float scale) const { return Scale(scale, scale); }
+
+  InsetsF Scale(float x_scale, float y_scale) const {
+    return InsetsF(left() * x_scale,
+                   top() * y_scale,
+                   right() * x_scale,
+                   bottom() * y_scale);
+  }
+
   // Returns a string representation of the insets.
   std::string ToString() const;
 };
