@@ -18,9 +18,10 @@
 
 #if defined(STARBOARD)
 #include "starboard/time.h"
-#else
-#include <time.h>
 #endif
+
+// TODO: Don't include this on starboard.
+#include <time.h>
 
 #include "jstypes.h"
 #include "jsutil.h"
