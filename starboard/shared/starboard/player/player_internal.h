@@ -46,7 +46,7 @@ struct SbPlayerPrivate
                    const SbMediaVideoSampleInfo* video_sample_info,
                    const SbDrmSampleInfo* sample_drm_info);
   void WriteEndOfStream(SbMediaType stream_type);
-  void SetBounds(int x, int y, int width, int height);
+  void SetBounds(int z_index, int x, int y, int width, int height);
 
   void GetInfo(SbPlayerInfo* out_player_info);
   void SetPause(bool pause);

@@ -228,6 +228,7 @@ class Application {
   // video manually (should be rare). Will be called from an external thread.
   void HandleFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
+                   int z_index,
                    int x,
                    int y,
                    int width,
@@ -265,6 +266,7 @@ class Application {
   // system. Will be called from an external thread.
   virtual void AcceptFrame(SbPlayer /* player */,
                            const scoped_refptr<VideoFrame>& /* frame */,
+                           int /* z_index */,
                            int /* x */,
                            int /* y */,
                            int /* width */,

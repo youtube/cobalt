@@ -85,6 +85,7 @@ void ApplicationDispmanx::Teardown() {
 
 void ApplicationDispmanx::AcceptFrame(SbPlayer player,
                                       const scoped_refptr<VideoFrame>& frame,
+                                      int z_index,
                                       int x,
                                       int y,
                                       int width,
