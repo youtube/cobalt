@@ -81,7 +81,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   scoped_ptr<AudioDecoder> decoder_;
 
   atomic_int64_t frames_consumed_set_at_;
-  double playback_rate_;
+  atomic_double playback_rate_;
 
  private:
   enum EOSState {
