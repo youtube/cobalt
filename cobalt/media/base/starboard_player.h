@@ -60,7 +60,7 @@ class StarboardPlayer {
 
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
-  void SetBounds(const gfx::Rect& rect);
+  void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();
   void Seek(base::TimeDelta time);
@@ -154,8 +154,9 @@ class StarboardPlayer {
   bool seek_pending_;
   DecoderBufferCache decoder_buffer_cache_;
   // If |SetBounds| is called while we are in a suspended state, then the
-  // |Rect| that we are passed will be saved to here, and then immediately set
-  // on the new player that we construct when we are resumed.
+  // |z_index| and |rect| that we are passed will be saved to here, and then
+  // immediately set on the new player that we construct when we are resumed.
+  base::optional<int> pending_set_bounds_z_index_;
   base::optional<gfx::Rect> pending_set_bounds_rect_;
 
   // The following variables can be accessed from GetInfo(), which can be called
