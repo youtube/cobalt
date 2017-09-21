@@ -715,7 +715,7 @@ ApplicationX11::ApplicationX11()
       wm_delete_atom_(None),
       composite_event_id_(kSbEventIdInvalid),
       frame_read_index_(0),
-      frame_written_(false),
+      frames_updated_(false),
       display_(NULL),
       paste_buffer_key_release_pending_(false) {
   SbAudioSinkPrivate::Initialize();
@@ -763,30 +763,32 @@ void ApplicationX11::Composite() {
   if (!windows_.empty()) {
     SbWindow window = windows_[0];
     if (SbWindowIsValid(window)) {
-      int index = -1;
+      std::map<int, FrameInfo> frame_infos;
       {
         ScopedLock lock(frame_mutex_);
-        if (frame_written_) {
-          // Clear the old frame, now that we are done with it.
-          frame_infos_[frame_read_index_].frame = NULL;
-
+        if (frames_updated_) {
           // Increment the index to the next frame, which has been written.
           frame_read_index_ = (frame_read_index_ + 1) % kNumFrames;
+          frame_infos.swap(frame_infos_[frame_read_index_]);
 
           // Clear the frame written flag, so we will not advance frames until
           // the next frame is written.
-          frame_written_ = false;
+          frames_updated_ = false;
         }
-        index = frame_read_index_;
       }
-      FrameInfo& frame_info = frame_infos_[frame_read_index_];
+      window->BeginComposite();
+      for (auto& iter : frame_infos) {
+        FrameInfo& frame_info = iter.second;
 
-      if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
-          frame_info.frame->format() != VideoFrame::kBGRA32) {
-        frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
+        if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
+            frame_info.frame->format() != VideoFrame::kBGRA32) {
+          frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
+        }
+        window->CompositeVideoFrame(frame_info.x, frame_info.y,
+                                    frame_info.width, frame_info.height,
+                                    frame_info.frame);
       }
-      window->Composite(frame_info.x, frame_info.y, frame_info.width,
-                        frame_info.height, frame_info.frame);
+      window->EndComposite();
     }
   }
   composite_event_id_ =
@@ -795,34 +797,34 @@ void ApplicationX11::Composite() {
 
 void ApplicationX11::AcceptFrame(SbPlayer player,
                                  const scoped_refptr<VideoFrame>& frame,
+                                 int z_index,
                                  int x,
                                  int y,
                                  int width,
                                  int height) {
-  int write_index = -1;
-  {
-    ScopedLock lock(frame_mutex_);
-    // Always write ahead 1 frame of the current read frame.
-    write_index = (frame_read_index_ + 1) % kNumFrames;
+  ScopedLock lock(frame_mutex_);
+  // Always write ahead 1 frame of the current read frame.
+  int write_index = (frame_read_index_ + 1) % kNumFrames;
 
-    // Since we are about to modify the next frame, we need to ensure that the
-    // reader will not try to advance frames concurrently, so we clear the flag
-    // stating the frame has been written.
-    frame_written_ = false;
+  for (auto iter = frame_infos_[write_index].begin();
+       iter != frame_infos_[write_index].end(); ++iter) {
+    if (iter->second.player == player) {
+      frame_infos_[write_index].erase(iter);
+      break;
+    }
   }
 
   // Copy the frame.
-  frame_infos_[write_index].frame = frame;
-  frame_infos_[write_index].x = x;
-  frame_infos_[write_index].y = y;
-  frame_infos_[write_index].width = width;
-  frame_infos_[write_index].height = height;
+  FrameInfo& frame_info = frame_infos_[write_index][z_index];
+  frame_info.player = player;
+  frame_info.frame = frame;
+  frame_info.z_index = z_index;
+  frame_info.x = x;
+  frame_info.y = y;
+  frame_info.width = width;
+  frame_info.height = height;
 
-  {
-    ScopedLock lock(frame_mutex_);
-    // The next frame is now ready to be read.
-    frame_written_ = true;
-  }
+  frames_updated_ = true;
 }
 
 void ApplicationX11::Initialize() {

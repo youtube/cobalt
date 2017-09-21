@@ -155,11 +155,12 @@ void Application::Cancel(SbEventId id) {
 #if SB_HAS(PLAYER)
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
+                              int z_index,
                               int x,
                               int y,
                               int width,
                               int height) {
-  AcceptFrame(player, frame, x, y, width, height);
+  AcceptFrame(player, frame, z_index, x, y, width, height);
 }
 #endif  // SB_HAS(PLAYER)
 
