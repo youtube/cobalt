@@ -41,9 +41,9 @@ CbLibMainCallbackRegistrationReadyCallback g_callback_registration_ready =
     nullptr;
 void* g_registration_ready_context = nullptr;
 
-
 void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                         const base::Closure& quit_closure) {
+  LOG(INFO) << "Preloading application.";
   DCHECK(!g_application);
   CHECK(g_callback_registration_ready);
   g_callback_registration_ready(g_registration_ready_context);
@@ -54,7 +54,7 @@ void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
 
 void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                       const base::Closure& quit_closure) {
-  LOG(INFO) << "Starting application!";
+  LOG(INFO) << "Starting application.";
   if (!g_application) {
     CHECK(g_callback_registration_ready);
     g_callback_registration_ready(g_registration_ready_context);
@@ -71,7 +71,7 @@ void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
 
 void StopApplication() {
   DCHECK(g_application);
-  LOG(INFO) << "Stopping application!";
+  LOG(INFO) << "Stopping application.";
   delete g_application;
   g_application = NULL;
 }
