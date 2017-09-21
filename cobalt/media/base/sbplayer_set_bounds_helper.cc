@@ -14,10 +14,16 @@
 
 #include "cobalt/media/base/sbplayer_set_bounds_helper.h"
 
+#include "base/atomic_sequence_num.h"
 #include "cobalt/media/base/starboard_player.h"
 
 namespace cobalt {
 namespace media {
+
+namespace {
+// StaticAtomicSequenceNumber is safe to be initialized statically.
+base::StaticAtomicSequenceNumber s_z_index;
+}  // namespace
 
 void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
   base::Lock lock_;
@@ -29,7 +35,7 @@ bool SbPlayerSetBoundsHelper::SetBounds(const gfx::Rect& rect) {
   if (!player_) {
     return false;
   }
-  player_->SetBounds(rect);
+  player_->SetBounds(s_z_index.GetNext(), rect);
   return true;
 }
 
