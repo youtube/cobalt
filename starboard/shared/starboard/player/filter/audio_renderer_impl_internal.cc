@@ -175,13 +175,17 @@ void AudioRendererImpl::Pause() {
 void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
-  playback_rate_ = playback_rate;
+  if (playback_rate_.load() == 0.f && playback_rate > 0.f) {
+    consume_frames_called_.store(false);
+  }
+
+  playback_rate_.store(playback_rate);
 
   if (audio_sink_) {
     // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
     // support play/pause.
-    audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
-    if (playback_rate_ > 0.0) {
+    audio_sink_->SetPlaybackRate(playback_rate_.load() > 0.0 ? 1.0 : 0.0);
+    if (playback_rate_.load() > 0.0) {
       if (process_audio_data_scheduled_) {
         Remove(process_audio_data_closure_);
       }
@@ -266,7 +270,8 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
   // When the audio sink is transitioning from pause to play, it may come with a
   // long delay.  So ensure that ConsumeFrames() is called after Play() before
   // taking elapsed time into account.
-  if (!paused_.load() && consume_frames_called_.load()) {
+  if (!paused_.load() && playback_rate_.load() > 0.f &&
+      consume_frames_called_.load()) {
     elasped_since_last_set =
         SbTimeGetMonotonicNow() - frames_consumed_set_at_.load();
   }
@@ -314,7 +319,7 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
 
   // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
   // support play/pause.
-  audio_sink_->SetPlaybackRate(playback_rate_ > 0.0 ? 1.0 : 0.0);
+  audio_sink_->SetPlaybackRate(playback_rate_.load() > 0.0 ? 1.0 : 0.0);
   audio_sink_->SetVolume(volume_);
 }
 
@@ -435,7 +440,7 @@ void AudioRendererImpl::ProcessAudioData() {
     }
   }
 
-  if (seeking_.load() || playback_rate_ == 0.0) {
+  if (seeking_.load() || playback_rate_.load() == 0.0) {
     process_audio_data_scheduled_ = true;
     Schedule(process_audio_data_closure_, 5 * kSbTimeMillisecond);
     return;
@@ -464,7 +469,7 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
     seeking_.store(false);
   }
 
-  if (seeking_.load() || playback_rate_ == 0.0) {
+  if (seeking_.load() || playback_rate_.load() == 0.0) {
     return false;
   }
 
@@ -478,12 +483,13 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   int offset_to_append = frames_sent_to_sink_.load() % kMaxCachedFrames;
 
   scoped_refptr<DecodedAudio> decoded_audio =
-      time_stretcher_.Read(kFrameAppendUnit, playback_rate_);
+      time_stretcher_.Read(kFrameAppendUnit, playback_rate_.load());
   SB_DCHECK(decoded_audio);
   if (decoded_audio->frames() == 0 && eos_state_.load() == kEOSDecoded) {
     eos_state_.store(kEOSSentToSink);
   }
-  audio_frame_tracker_.AddFrames(decoded_audio->frames(), playback_rate_);
+  audio_frame_tracker_.AddFrames(decoded_audio->frames(),
+                                 playback_rate_.load());
   // TODO: Support kSbMediaAudioFrameStorageTypePlanar.
   decoded_audio->SwitchFormatTo(sink_sample_type_,
                                 kSbMediaAudioFrameStorageTypeInterleaved);
