@@ -18,7 +18,7 @@
 #include "starboard/shared/starboard/player/player_internal.h"
 
 void SbPlayerSetBounds(SbPlayer player,
-                       int /*z_index*/,
+                       int z_index,
                        int x,
                        int y,
                        int width,
@@ -27,5 +27,5 @@ void SbPlayerSetBounds(SbPlayer player,
     SB_DLOG(WARNING) << "player is invalid.";
     return;
   }
-  player->SetBounds(x, y, width, height);
+  player->SetBounds(z_index, x, y, width, height);
 }

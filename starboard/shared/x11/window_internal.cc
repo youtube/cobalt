@@ -140,12 +140,7 @@ SbWindowPrivate::~SbWindowPrivate() {
   XDestroyWindow(display, window);
 }
 
-void SbWindowPrivate::Composite(
-    int bounds_x,
-    int bounds_y,
-    int bounds_width,
-    int bounds_height,
-    const starboard::scoped_refptr<VideoFrame>& frame) {
+void SbWindowPrivate::BeginComposite() {
   XSynchronize(display, True);
   XWindowAttributes window_attributes;
   XGetWindowAttributes(display, window, &window_attributes);
@@ -174,7 +169,14 @@ void SbWindowPrivate::Composite(
   XRenderColor black = {0x0000, 0x0000, 0x0000, 0xFFFF};
   XRenderFillRectangle(display, PictOpSrc, composition_picture, &black, 0, 0,
                        width, height);
+}
 
+void SbWindowPrivate::CompositeVideoFrame(
+    int bounds_x,
+    int bounds_y,
+    int bounds_width,
+    int bounds_height,
+    const starboard::scoped_refptr<VideoFrame>& frame) {
   if (frame != NULL && frame->format() == VideoFrame::kBGRA32 &&
       frame->GetPlaneCount() > 0 && frame->width() > 0 && frame->height() > 0) {
     if (frame->width() != video_pixmap_width ||
@@ -248,7 +250,9 @@ void SbWindowPrivate::Composite(
                      composition_picture, 0, 0, 0, 0, dest_x, dest_y,
                      video_width, video_height);
   }
+}
 
+void SbWindowPrivate::EndComposite() {
   // Composite (with blending) the GL output on top of the composition pixmap
   // that already has the current video frame if video is playing.
   XRenderComposite(display, PictOpOver, gl_picture, None, composition_picture,
