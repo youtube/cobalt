@@ -317,7 +317,8 @@ void FilterBasedPlayerWorkerHandler::Update() {
           audio_renderer_->GetCurrentTime(),
           audio_renderer_->IsEndOfStreamPlayed());
       shared::starboard::Application::Get()->HandleFrame(
-          player_, frame, bounds_.x, bounds_.y, bounds_.width, bounds_.height);
+          player_, frame, bounds_.z_index, bounds_.x, bounds_.y, bounds_.width,
+          bounds_.height);
     }
 
     player_worker_->UpdateDroppedVideoFrames(
@@ -347,7 +348,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   if (IsPunchoutMode()) {
     // Clear the video frame as we terminate.
     shared::starboard::Application::Get()->HandleFrame(
-        player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0);
+        player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
   }
 }
 

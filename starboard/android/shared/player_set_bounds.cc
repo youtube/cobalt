@@ -30,5 +30,5 @@ void SbPlayerSetBounds(SbPlayer player,
   }
   starboard::android::shared::JniEnvExt::Get()->CallActivityVoidMethodOrAbort(
       "setVideoSurfaceBounds", "(IIII)V", x, y, width, height);
-  player->SetBounds(x, y, width, height);
+  player->SetBounds(z_index, x, y, width, height);
 }
