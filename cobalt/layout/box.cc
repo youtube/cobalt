@@ -1357,9 +1357,10 @@ void Box::RenderAndAnimateBoxShadow(
 }
 
 namespace {
-bool AllBorderSidesShareSameProperties(const Border& border) {
-  return border.left == border.top && border.left == border.right &&
-         border.left == border.bottom;
+bool AllBorderSidesShareSameStyle(const Border& border) {
+  return border.left.style == border.top.style &&
+         border.left.style == border.right.style &&
+         border.left.style == border.bottom.style;
 }
 }  // namespace
 
@@ -1381,10 +1382,10 @@ void Box::RenderAndAnimateBorder(
                            &rect_node_builder);
 
   if (rounded_corners &&
-      !AllBorderSidesShareSameProperties(*rect_node_builder.border)) {
+      !AllBorderSidesShareSameStyle(*rect_node_builder.border)) {
     LOG(WARNING)
         << "Cobalt does not support rounded corners borders whose edges do not "
-           "all share the same properties.";
+           "all share the same style.";
     return;
   }
 
