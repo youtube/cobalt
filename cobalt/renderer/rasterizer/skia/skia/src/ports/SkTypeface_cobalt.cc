@@ -54,6 +54,10 @@ SkStreamAsset* SkTypeface_CobaltStream::onOpenStream(int* face_index) const {
   return stream_->duplicate();
 }
 
+size_t SkTypeface_CobaltStream::GetStreamLength() const {
+  return stream_->getLength();
+}
+
 SkTypeface_CobaltStreamProvider::SkTypeface_CobaltStreamProvider(
     SkFileMemoryChunkStreamProvider* stream_provider, int face_index,
     Style style, bool is_fixed_pitch, const SkString& family_name,
@@ -82,4 +86,12 @@ SkStreamAsset* SkTypeface_CobaltStreamProvider::onOpenStream(
     int* face_index) const {
   *face_index = face_index_;
   return stream_provider_->OpenStream();
+}
+
+size_t SkTypeface_CobaltStreamProvider::GetStreamLength() const {
+  DLOG(WARNING)
+      << "Requesting stream length of SkTypeface_CobaltStreamProvider. "
+         "This requires a file load and should be used sparingly.";
+  SkAutoTUnref<SkFileMemoryChunkStream> stream(stream_provider_->OpenStream());
+  return stream->getLength();
 }

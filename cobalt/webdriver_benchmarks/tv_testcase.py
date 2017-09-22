@@ -289,7 +289,7 @@ class TvTestCase(unittest.TestCase):
             self.get_cval(c_val_names.layout_is_render_tree_pending()) or
             (check_animations and
              self.get_cval(c_val_names.renderer_has_active_animations())) or
-            self.get_cval(c_val_names.count_image_cache_loading_resources()))
+            self.get_cval(c_val_names.count_image_cache_resource_loading()))
 
   def wait_for_html_script_element_execute_count(self, required_count):
     """Waits for specified number of html script element Execute() calls.
