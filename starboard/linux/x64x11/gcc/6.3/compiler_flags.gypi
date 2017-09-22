@@ -70,6 +70,8 @@
       '-Wno-unused-local-typedefs',
       # Disable warning: 'narrowing conversion'
       '-Wno-narrowing',
+      # Do not remove null this checks.
+      '-fno-delete-null-pointer-checks',
     ],
     'conditions': [
       ['cobalt_fastbuild==0', {

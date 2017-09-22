@@ -249,6 +249,8 @@
         'time_zone_get_current_test.cc',
         'time_zone_get_dst_name_test.cc',
         'time_zone_get_name_test.cc',
+        'undefined_behavior_test.cc',
+        'unsafe_math_test.cc',
         'user_get_current_test.cc',
         'user_get_property_test.cc',
         'user_get_signed_in_test.cc',
