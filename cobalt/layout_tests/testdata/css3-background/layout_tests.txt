@@ -73,6 +73,16 @@
 4-0-border-width-with-solid-border-style
 4-0-different-border-styles-with-different-border-widths
 4-0-different-border-widths-with-solid-border-style
+4-1-border-color-2-values-with-rounded-corners
+4-1-border-color-3-values-with-rounded-corners
+4-1-border-color-4-values-with-different-rounded-corners
+4-1-border-color-4-values-with-different-rounded-corners-and-different-border-widths
+4-1-border-color-4-values-with-rounded-corners
+4-1-border-color-4-values-with-rounded-corners-and-different-border-widths
+4-3-border-width-2-values-with-rounded-corners
+4-3-border-width-3-values-with-rounded-corners
+4-3-border-width-4-values-with-different-rounded-corners
+4-3-border-width-4-values-with-rounded-corners
 5-0-border-radius-2-values-with-background-color
 5-0-border-radius-2-values-with-border-only
 5-0-border-radius-3-values-with-background-color
