@@ -87,6 +87,9 @@ class TvTestCase(unittest.TestCase):
       self.load_tv(query_params=query_params, triggers_reload=triggers_reload)
       _is_initialized = True
 
+  def get_platform(self):
+    return tv_testcase_runner.GetPlatform()
+
   def get_webdriver(self):
     return tv_testcase_runner.GetWebDriver()
 
@@ -338,6 +341,8 @@ class TvTestCase(unittest.TestCase):
         break
       if time.time() - start_time > AD_TIMEOUT_SECONDS:
         break
+      time.sleep(0.1)
+
     return advertisement_encountered
 
   def wait_for_title_card_hidden(self):
