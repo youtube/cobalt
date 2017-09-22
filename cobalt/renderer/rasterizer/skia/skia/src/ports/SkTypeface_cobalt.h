@@ -28,10 +28,12 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
   SkTypeface_Cobalt(int face_index, Style style, bool is_fixed_pitch,
                     const SkString& family_name);
 
+  virtual size_t GetStreamLength() const = 0;
+
   bool synthesizes_bold() const { return synthesizes_bold_; }
 
  protected:
-  virtual void onGetFamilyName(SkString* family_name) const SK_OVERRIDE;
+  void onGetFamilyName(SkString* family_name) const SK_OVERRIDE;
 
   int face_index_;
   SkString family_name_;
@@ -46,10 +48,12 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
   SkTypeface_CobaltStream(SkStreamAsset* stream, int face_index, Style style,
                           bool is_fixed_pitch, const SkString& family_name);
 
-  virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,
-                                   bool* serialize) const SK_OVERRIDE;
+  void onGetFontDescriptor(SkFontDescriptor* descriptor,
+                           bool* serialize) const SK_OVERRIDE;
 
-  virtual SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+  SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+
+  size_t GetStreamLength() const SK_OVERRIDE;
 
  private:
   typedef SkTypeface_Cobalt INHERITED;
@@ -64,10 +68,12 @@ class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
       Style style, bool is_fixed_pitch, const SkString& family_name,
       bool disable_synthetic_bolding);
 
-  virtual void onGetFontDescriptor(SkFontDescriptor* descriptor,
-                                   bool* serialize) const SK_OVERRIDE;
+  void onGetFontDescriptor(SkFontDescriptor* descriptor,
+                           bool* serialize) const SK_OVERRIDE;
 
-  virtual SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+  SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+
+  size_t GetStreamLength() const SK_OVERRIDE;
 
  private:
   typedef SkTypeface_Cobalt INHERITED;

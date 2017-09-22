@@ -510,10 +510,14 @@ class ResourceCache {
 
   base::ThreadChecker resource_cache_thread_checker_;
 
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> size_in_bytes_;
-  base::CVal<base::cval::SizeInBytes, base::CValPublic> capacity_in_bytes_;
-  base::CVal<int> count_requested_resources_;
-  base::CVal<int> count_loading_resources_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic> memory_size_in_bytes_;
+  base::CVal<base::cval::SizeInBytes, base::CValPublic>
+      memory_capacity_in_bytes_;
+  base::CVal<base::cval::SizeInBytes> memory_resources_loaded_in_bytes_;
+
+  base::CVal<int> count_resources_requested_;
+  base::CVal<int> count_resources_loading_;
+  base::CVal<int> count_resources_loaded_;
   base::CVal<int> count_pending_callbacks_;
 
   DISALLOW_COPY_AND_ASSIGN(ResourceCache);
@@ -532,20 +536,28 @@ ResourceCache<CacheType>::ResourceCache(
       create_loader_function_(create_loader_function),
       is_processing_pending_callbacks_(false),
       are_callbacks_disabled_(false),
-      size_in_bytes_(base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
-                     "Total number of bytes currently used by the cache."),
-      capacity_in_bytes_(
+      memory_size_in_bytes_(
+          base::StringPrintf("Memory.%s.Size", name_.c_str()), 0,
+          "Total number of bytes currently used by the cache."),
+      memory_capacity_in_bytes_(
           base::StringPrintf("Memory.%s.Capacity", name_.c_str()),
           cache_capacity_,
           "The capacity, in bytes, of the resource cache.  "
           "Exceeding this results in *unused* resources being "
           "purged."),
-      count_requested_resources_(
-          base::StringPrintf("Count.%s.RequestedResources", name_.c_str()), 0,
+      memory_resources_loaded_in_bytes_(
+          base::StringPrintf("Memory.%s.Resource.Loaded", name_.c_str()), 0,
+          "Combined size in bytes of all resources that have been loaded by "
+          "the cache."),
+      count_resources_requested_(
+          base::StringPrintf("Count.%s.Resource.Requested", name_.c_str()), 0,
           "The total number of resources that have been requested."),
-      count_loading_resources_(
-          base::StringPrintf("Count.%s.LoadingResources", name_.c_str()), 0,
-          "The number of loading resources that are still outstanding."),
+      count_resources_loading_(
+          base::StringPrintf("Count.%s.Resource.Loading", name_.c_str()), 0,
+          "The number of resources that are currently loading."),
+      count_resources_loaded_(
+          base::StringPrintf("Count.%s.Resource.Loaded", name_.c_str()), 0,
+          "The total number of resources that have been successfully loaded."),
       count_pending_callbacks_(
           base::StringPrintf("Count.%s.PendingCallbacks", name_.c_str()), 0,
           "The number of loading completed resources that have pending "
@@ -580,7 +592,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
   }
 
   // If we reach this point, then the resource doesn't exist yet.
-  ++count_requested_resources_;
+  ++count_resources_requested_;
 
   // Add the resource to a loading set. If no current resources have pending
   // callbacks, then this resource will block callbacks until it is decoded.
@@ -593,7 +605,7 @@ ResourceCache<CacheType>::CreateCachedResource(const GURL& url) {
   } else {
     non_callback_blocking_loading_resource_set_.insert(url.spec());
   }
-  ++count_loading_resources_;
+  ++count_resources_loading_;
 
   // Create the cached resource and fetch its resource based on the url.
   scoped_refptr<CachedResourceType> cached_resource(new CachedResourceType(
@@ -613,7 +625,7 @@ template <typename CacheType>
 void ResourceCache<CacheType>::SetCapacity(uint32 capacity) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
   cache_capacity_ = capacity;
-  capacity_in_bytes_ = capacity;
+  memory_capacity_in_bytes_ = capacity;
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
 }
 
@@ -637,8 +649,12 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
   const std::string& url = cached_resource->url().spec();
 
   if (cached_resource->TryGetResource()) {
-    size_in_bytes_ +=
+    uint32 estimated_size_in_bytes =
         CacheType::GetEstimatedSizeInBytes(cached_resource->TryGetResource());
+    memory_size_in_bytes_ += estimated_size_in_bytes;
+    memory_resources_loaded_in_bytes_ += estimated_size_in_bytes;
+
+    ++count_resources_loaded_;
   }
 
   // Remove the resource from its loading set. It should exist in exactly one
@@ -659,7 +675,7 @@ void ResourceCache<CacheType>::NotifyResourceLoadingComplete(
   // incremented first to ensure that the total of the two counts always remains
   // above 0.
   ++count_pending_callbacks_;
-  --count_loading_resources_;
+  --count_resources_loading_;
 
   ProcessPendingCallbacksIfUnblocked();
   ReclaimMemoryAndMaybeProcessPendingCallbacks(cache_capacity_);
@@ -690,10 +706,10 @@ void ResourceCache<CacheType>::NotifyResourceDestroyed(
     DCHECK(non_callback_blocking_loading_resource_set_.find(url) ==
            non_callback_blocking_loading_resource_set_.end());
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
-    --count_loading_resources_;
+    --count_resources_loading_;
   } else if (non_callback_blocking_loading_resource_set_.erase(url)) {
     DCHECK(pending_callback_map_.find(url) == pending_callback_map_.end());
-    --count_loading_resources_;
+    --count_resources_loading_;
   } else if (pending_callback_map_.erase(url)) {
     --count_pending_callbacks_;
   }
@@ -717,7 +733,7 @@ void ResourceCache<CacheType>::ReclaimMemoryAndMaybeProcessPendingCallbacks(
   // pending callbacks and try again. References to the cached resources are
   // potentially being held until the callbacks run, so processing them may
   // enable more memory to be reclaimed.
-  if (size_in_bytes_ > bytes_to_reclaim_down_to) {
+  if (memory_size_in_bytes_ > bytes_to_reclaim_down_to) {
     ProcessPendingCallbacks();
     ReclaimMemory(bytes_to_reclaim_down_to, true /*log_warning_if_over*/);
   }
@@ -728,7 +744,7 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
                                              bool log_warning_if_over) {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
 
-  while (size_in_bytes_ > bytes_to_reclaim_down_to &&
+  while (memory_size_in_bytes_ > bytes_to_reclaim_down_to &&
          !unreference_cached_resource_map_.empty()) {
     // The first element is the earliest-inserted element.
     scoped_refptr<ResourceType> resource =
@@ -739,15 +755,15 @@ void ResourceCache<CacheType>::ReclaimMemory(uint32 bytes_to_reclaim_down_to,
     // in linked_hash_map. Add that function and related unit test.
     unreference_cached_resource_map_.erase(
         unreference_cached_resource_map_.begin());
-    size_in_bytes_ -= first_resource_size;
+    memory_size_in_bytes_ -= first_resource_size;
   }
 
   if (log_warning_if_over) {
     // Log a warning if we're still over |bytes_to_reclaim_down_to| after
     // attempting to reclaim memory. This can occur validly when the size of
     // the referenced images exceeds the target size.
-    DLOG_IF(WARNING, size_in_bytes_ > bytes_to_reclaim_down_to)
-        << "cached size: " << size_in_bytes_
+    DLOG_IF(WARNING, memory_size_in_bytes_ > bytes_to_reclaim_down_to)
+        << "cached size: " << memory_size_in_bytes_
         << ", target size: " << bytes_to_reclaim_down_to;
   }
 }
