@@ -223,13 +223,13 @@ bool DecryptingDecoder::ProcessAndRead(ComPtr<IMFSample>* output,
   bool did_something = false;
 
   *output = decoder_->TryRead(new_type);
-  did_something = *output != NULL;
+  did_something |= *output != NULL;
 
   if (decryptor_) {
     if (!pending_decryptor_output_) {
       ComPtr<IMFMediaType> ignored_type;
       pending_decryptor_output_ = decryptor_->TryRead(&ignored_type);
-      did_something = pending_decryptor_output_ != NULL;
+      did_something |= pending_decryptor_output_ != NULL;
     }
 
     if (pending_decryptor_output_) {
