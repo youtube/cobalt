@@ -70,6 +70,7 @@ This adds SbKey codes for:
   * Color keys
   * Closed Caption key
   * Application launch key
+  * Channel Up/Down keys
 
 ### `kSbEventTypeLowMemory`
 
