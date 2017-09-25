@@ -17,6 +17,7 @@
 #include <GLES2/gl2.h>
 
 #include "base/logging.h"
+#include "cobalt/math/insets_f.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -46,16 +47,57 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
     : DrawPolyColor(base_state),
       index_buffer_(NULL) {
   DCHECK(node->data().border);
-  const render_tree::Border& border = *(node->data().border);
 
-  // Only uniform, non-rounded borders are supported.
-  is_valid_ = !node->data().rounded_corners &&
-              border.left.style == border.right.style &&
-              border.left.style == border.top.style &&
-              border.left.style == border.bottom.style &&
-              border.left.color == border.right.color &&
-              border.left.color == border.top.color &&
-              border.left.color == border.bottom.color;
+  const render_tree::Border& border = *(node->data().border);
+  render_tree::ColorRGBA border_color;
+  int num_borders = 0;
+  int num_unhandled_borders = 0;
+  bool uniform_opposing_borders =
+      border.left.style == border.right.style &&
+      border.left.color == border.right.color &&
+      border.top.style == border.bottom.style &&
+      border.top.color == border.bottom.color;
+  bool uniform_borders =
+      uniform_opposing_borders &&
+      border.left.style == border.top.style &&
+      border.left.color == border.top.color;
+
+  if (border.left.style == render_tree::kBorderStyleSolid) {
+    border_color = border.left.color;
+    ++num_borders;
+  } else if (border.left.width > 0.0f) {
+    ++num_unhandled_borders;
+  }
+
+  if (border.right.style == render_tree::kBorderStyleSolid) {
+    border_color = border.right.color;
+    ++num_borders;
+  } else if (border.right.width > 0.0f) {
+    ++num_unhandled_borders;
+  }
+
+  if (border.top.style == render_tree::kBorderStyleSolid) {
+    border_color = border.top.color;
+    ++num_borders;
+  } else if (border.top.width > 0.0f) {
+    ++num_unhandled_borders;
+  }
+
+  if (border.bottom.style == render_tree::kBorderStyleSolid) {
+    border_color = border.bottom.color;
+    ++num_borders;
+  } else if (border.bottom.width > 0.0f) {
+    ++num_unhandled_borders;
+  }
+
+  // Only non-rounded borders are supported. Additionally, only borders that
+  // do not create a diagonal edge are supported. For example, a top border of
+  // one color adjacent to a right border of a different color would create a
+  // diagonal edge between them.
+  is_valid_ = !node->data().rounded_corners && num_unhandled_borders == 0 &&
+              ((num_borders <= 1) ||
+               (num_borders == 2 && uniform_opposing_borders) ||
+               (num_borders == 4 && uniform_borders));
 
   // If a background brush is used, then only solid colored ones are supported.
   // This simplifies blending the inner-antialiased border with the content.
@@ -77,11 +119,10 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
                         border.right.width, border.bottom.width);
     node_bounds_ = node->data().rect;
 
-    if (border.left.style == render_tree::kBorderStyleSolid) {
+    if (num_borders > 0) {
       attributes_.reserve(kVertexCount);
       indices_.reserve(kIndexCount);
-      render_tree::ColorRGBA border_color =
-          GetDrawColor(border.left.color) * base_state_.opacity;
+      border_color = GetDrawColor(border_color) * base_state_.opacity;
       is_valid_ = SetSquareBorder(border, node->data().rect, content_rect_,
                                   border_color, content_color);
       if (is_valid_ && attributes_.size() > 0) {
@@ -133,22 +174,33 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
   // are of different widths.
   float pixel_size_x = 1.0f / scale.x();
   float pixel_size_y = 1.0f / scale.y();
-  if (border.left.width < pixel_size_x || border.right.width < pixel_size_x ||
-      border.top.width < pixel_size_y || border.bottom.width < pixel_size_y) {
+  if ((border.left.style != render_tree::kBorderStyleNone &&
+        border.left.width < pixel_size_x) ||
+      (border.right.style != render_tree::kBorderStyleNone &&
+        border.right.width < pixel_size_x) ||
+      (border.top.style != render_tree::kBorderStyleNone &&
+        border.top.width < pixel_size_y) ||
+      (border.bottom.style != render_tree::kBorderStyleNone &&
+        border.bottom.style < pixel_size_y)) {
     return false;
   }
 
   // To antialias the edges, shrink the borders by half a pixel, then add a
   // 1-pixel edge which transitions to 0 (for outer) or content_color (for
   // inner). The rasterizer will handle interpolating to the correct color.
+  math::InsetsF insets(
+      border.left.style != render_tree::kBorderStyleNone ? 1.0f : 0.0f,
+      border.top.style != render_tree::kBorderStyleNone ? 1.0f : 0.0f,
+      border.right.style != render_tree::kBorderStyleNone ? 1.0f : 0.0f,
+      border.bottom.style != render_tree::kBorderStyleNone ? 1.0f : 0.0f);
   math::RectF outer_rect(border_rect);
   math::RectF inner_rect(content_rect);
-  outer_rect.Inset(0.5f * pixel_size_x, 0.5f * pixel_size_y);
-  inner_rect.Outset(0.5f * pixel_size_x, 0.5f * pixel_size_y);
+  outer_rect.Inset(insets.Scale(0.5f * pixel_size_x, 0.5f * pixel_size_y));
+  inner_rect.Inset(insets.Scale(-0.5f * pixel_size_x, -0.5f * pixel_size_y));
   math::RectF outer_outer(outer_rect);
   math::RectF inner_inner(inner_rect);
-  outer_outer.Outset(pixel_size_x, pixel_size_y);
-  inner_inner.Inset(pixel_size_x, pixel_size_y);
+  outer_outer.Inset(insets.Scale(-pixel_size_x, -pixel_size_y));
+  inner_inner.Inset(insets.Scale(pixel_size_x, pixel_size_y));
 
   uint32_t border_color32 = GetGLRGBA(border_color);
   uint32_t content_color32 = GetGLRGBA(content_color);

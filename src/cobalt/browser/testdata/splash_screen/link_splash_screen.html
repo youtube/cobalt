@@ -3,13 +3,15 @@
 
 <head>
   <meta http-equiv="Content-Security-Policy" content="
-    default-src h5vcc-embedded://*/cobalt_splash_screen.html;
+    default-src 'none';
+    script-src 'nonce-TIHLJvN4pWbKSSZT71MTog==';
     style-src 'unsafe-inline';"
 </head>
 
 <body style="background-color: #1f52a5;">
   <link rel="splashscreen" href="h5vcc-embedded://cobalt_splash_screen.html">
-<h1>Heading</h1>
+
+<h1>Don't forget to run with --disable_navigation_whitelist</h1>
 
 <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus
 interdum maximus finibus. Ut fermentum malesuada commodo. Sed

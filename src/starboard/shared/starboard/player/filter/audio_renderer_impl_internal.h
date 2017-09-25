@@ -44,12 +44,8 @@ namespace filter {
 // |AudioDecoder| interface, rather than a platform specific implementation.
 class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
  public:
-  AudioRendererImpl(
-      scoped_ptr<AudioDecoder> decoder,
-      const SbMediaAudioHeader& audio_header,
-      scoped_ptr<AudioFrameTracker> audio_frame_tracker =
-          scoped_ptr<AudioFrameTracker>(new SingleThreadedAudioFrameTracker())
-              .Pass());
+  AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
+                    const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
   void WriteSample(const InputBuffer& input_buffer) SB_OVERRIDE;
@@ -67,13 +63,16 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   bool IsEndOfStreamPlayed() const SB_OVERRIDE;
   bool CanAcceptMoreData() const SB_OVERRIDE;
   bool IsSeekingInProgress() const SB_OVERRIDE;
+
+  // This function can be called from any thread.
   SbMediaTime GetCurrentTime() SB_OVERRIDE;
 
  protected:
   atomic_bool paused_;
+  atomic_bool consume_frames_called_;
   atomic_bool seeking_;
   SbMediaTime seeking_to_pts_;
-  scoped_ptr<AudioFrameTracker> audio_frame_tracker_;
+  AudioFrameTracker audio_frame_tracker_;
 
   atomic_int64_t frames_sent_to_sink_;
   atomic_int64_t frames_consumed_by_sink_;
@@ -82,7 +81,7 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   scoped_ptr<AudioDecoder> decoder_;
 
   atomic_int64_t frames_consumed_set_at_;
-  double playback_rate_;
+  atomic_double playback_rate_;
 
  private:
   enum EOSState {

@@ -591,7 +591,6 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
-      'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=<(cobalt_encrypted_media_extension_enable_key_statuses_update)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -632,6 +631,11 @@
       }, {
         'defines': [
           'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        ],
+      }],
+      ['cobalt_encrypted_media_extension_enable_key_statuses_update == 1', {
+        'defines': [
+          'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=1',
         ],
       }],
       ['final_executable_type=="shared_library"', {

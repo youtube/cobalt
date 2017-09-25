@@ -20,9 +20,15 @@ function ConsoleValues() {
   this.DEFAULT_KEY = 'default';
   // Reduced space-separated list of CVal prefixes to display at start-up.
   this.DEFAULT_ACTIVE_SET =
-      'Cobalt DevTools WebDriver Memory.CPU Memory.MainWebModule Memory.JS ' +
-      'Memory.Font Event.Duration.MainWebModule.KeyDown ' +
-      'Renderer.Rasterize.Duration';
+      'Cobalt DevTools WebDriver ' +
+      'Memory.CPU Memory.MainWebModule Memory.JS Memory.Font ' +
+      'Count.MainWebModule.ImageCache.Resource ' +
+      'Count.MainWebModule.DOM.HtmlElement Count.MainWebModule.Layout.Box ' +
+      'Event.Count.MainWebModule.KeyDown.DOM.HtmlElement.Added ' +
+      'Event.Count.MainWebModule.KeyDown.Layout.Box.Created ' +
+      'Event.Count.MainWebModule.KeyDown.Layout.Box.Destroyed ' +
+      'Event.Duration.MainWebModule.DOM.VideoStartDelay ' +
+      'Event.Duration.MainWebModule.KeyDown'
 
   var names = window.debugHub.getConsoleValueNames();
   this.allCVals = names.split(' ');

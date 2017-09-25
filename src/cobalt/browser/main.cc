@@ -23,6 +23,7 @@ cobalt::browser::Application* g_application = NULL;
 
 void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                         const base::Closure& quit_closure) {
+  LOG(INFO) << "Preloading application.";
   DCHECK(!g_application);
   g_application =
       new cobalt::browser::Application(quit_closure, true /*should_preload*/);
@@ -31,6 +32,7 @@ void PreloadApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
 
 void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
                       const base::Closure& quit_closure) {
+  LOG(INFO) << "Starting application.";
   if (!g_application) {
     g_application = new cobalt::browser::Application(quit_closure,
                                                      false /*should_preload*/);
@@ -41,6 +43,7 @@ void StartApplication(int /*argc*/, char** /*argv*/, const char* /*link*/,
 }
 
 void StopApplication() {
+  LOG(INFO) << "Stopping application.";
   DCHECK(g_application);
   delete g_application;
   g_application = NULL;
@@ -48,8 +51,13 @@ void StopApplication() {
 
 void HandleStarboardEvent(const SbEvent* starboard_event) {
   DCHECK(starboard_event);
-  DCHECK(g_application);
-  g_application->HandleStarboardEvent(starboard_event);
+  if (g_application) {
+    g_application->HandleStarboardEvent(starboard_event);
+  } else {
+    LOG(ERROR) << "Unable to handle starboard event because there is no "
+                  "existing application!";
+    NOTREACHED();
+  }
 }
 
 }  // namespace

@@ -45,7 +45,8 @@ class VideoRenderer {
   virtual bool IsEndOfStreamPlayed() const = 0;
   virtual bool CanAcceptMoreData() const = 0;
   virtual bool IsSeekingInProgress() const = 0;
-  virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
+  virtual SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time,
+                                                bool audio_eos_reached) = 0;
 };
 
 }  // namespace filter
