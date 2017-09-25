@@ -142,7 +142,7 @@ MozjsEngine::MozjsEngine(const Options& options)
     : context_(nullptr), accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::MozjsEngine()");
   SbOnce(&g_js_init_once_control, CallInitAndRegisterShutDownOnce);
-  runtime_ = JS_NewRuntime(options_.js_options.gc_threshold_bytes);
+  runtime_ = JS_NewRuntime(options_.gc_threshold_bytes);
   CHECK(runtime_);
 
   // Sets the size of the native stack that should not be exceeded.
@@ -207,7 +207,7 @@ MozjsEngine::~MozjsEngine() {
 scoped_refptr<GlobalEnvironment> MozjsEngine::CreateGlobalEnvironment() {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::CreateGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  return new MozjsGlobalEnvironment(runtime_, options_.js_options);
+  return new MozjsGlobalEnvironment(runtime_);
 }
 
 void MozjsEngine::CollectGarbage() {
@@ -221,7 +221,7 @@ void MozjsEngine::ReportExtraMemoryCost(size_t bytes) {
   accumulated_extra_memory_cost_ += bytes;
 
   const bool do_collect_garbage =
-      accumulated_extra_memory_cost_ > options_.js_options.gc_threshold_bytes;
+      accumulated_extra_memory_cost_ > options_.gc_threshold_bytes;
   if (do_collect_garbage) {
     accumulated_extra_memory_cost_ = 0;
     CollectGarbage();
@@ -326,8 +326,7 @@ bool MozjsEngine::ReportJSError(JSContext* context, const char* message,
 scoped_ptr<JavaScriptEngine> JavaScriptEngine::CreateEngine(
     const JavaScriptEngine::Options& options) {
   TRACE_EVENT0("cobalt::script", "JavaScriptEngine::CreateEngine()");
-  mozjs::MozjsEngine::Options moz_options(options);
-  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(moz_options));
+  return make_scoped_ptr<JavaScriptEngine>(new mozjs::MozjsEngine(options));
 }
 
 // static

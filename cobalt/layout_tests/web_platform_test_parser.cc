@@ -101,8 +101,7 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
     // Evaluate the javascript precondition. Enumerate the web platform tests
     // only if the precondition is true.
     scoped_ptr<script::JavaScriptEngine> engine =
-        script::JavaScriptEngine::CreateEngine(
-            script::JavaScriptEngine::Options());
+        script::JavaScriptEngine::CreateEngine();
     scoped_refptr<script::GlobalEnvironment> global_environment =
         engine->CreateGlobalEnvironment();
     global_environment->CreateGlobalObject();

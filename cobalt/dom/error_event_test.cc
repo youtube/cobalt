@@ -75,8 +75,7 @@ class ErrorEventTest : public ::testing::Test {
             base::Closure() /* ran_animation_frame_callbacks */,
             base::Closure() /* window_close */,
             base::Closure() /* window_minimize */, NULL, NULL)) {
-    engine_ = script::JavaScriptEngine::CreateEngine(
-        script::JavaScriptEngine::Options());
+    engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());
