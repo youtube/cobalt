@@ -29,12 +29,15 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
-  VideoFramePtr last_frame = Base::GetLastDisplayedFrame();
-  if (!last_frame || last_frame->IsEndOfStream()) {
+SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget(
+    SbMediaTime media_time,
+    bool audio_eos_reached) {
+  VideoFramePtr current_frame =
+      Base::GetCurrentFrame(media_time, audio_eos_reached);
+  if (!current_frame || current_frame->IsEndOfStream()) {
     return kSbDecodeTargetInvalid;
   }
-  return new SbDecodeTargetPrivate(last_frame);
+  return new SbDecodeTargetPrivate(current_frame);
 }
 
 }  // namespace win32

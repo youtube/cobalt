@@ -83,14 +83,16 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
  private:
   void GetScratchTexture(scoped_refptr<render_tree::Node> node, float size,
                          DrawObject::TextureInfo* out_texture_info);
-  void GetOffscreenTarget(scoped_refptr<render_tree::Node> node,
-                          bool* out_content_cached,
-                          OffscreenTargetManager::TargetInfo* out_target_info,
-                          math::RectF* out_content_rect);
+  void GetCachedTarget(scoped_refptr<render_tree::Node> node,
+                       bool* out_content_cached,
+                       OffscreenTargetManager::TargetInfo* out_target_info,
+                       math::RectF* out_content_rect);
+
   void FallbackRasterize(scoped_refptr<render_tree::Node> node);
   void FallbackRasterize(scoped_refptr<render_tree::Node> node,
                          const OffscreenTargetManager::TargetInfo& target_info,
                          const math::RectF& content_rect);
+
   void OffscreenRasterize(scoped_refptr<render_tree::Node> node,
                           const backend::TextureEGL** out_texture,
                           math::Matrix3F* out_texcoord_transform,
@@ -112,10 +114,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   DrawObject::BaseState draw_state_;
   SkCanvas* fallback_render_target_;
   backend::RenderTarget* render_target_;
-  bool render_target_is_offscreen_;
-
-  bool allow_offscreen_targets_;
-  bool failed_offscreen_target_request_;
+  backend::RenderTarget* onscreen_render_target_;
 
   uint32_t last_draw_id_;
 };

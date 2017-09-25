@@ -38,7 +38,8 @@ class VideoRendererImpl
   explicit VideoRendererImpl(scoped_ptr<VideoDecoder> decoder)
       : Base(decoder.PassAs<HostedVideoDecoder>()) {}
 
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time,
+                                        bool audio_eos_reached) SB_OVERRIDE;
 };
 
 }  // namespace win32

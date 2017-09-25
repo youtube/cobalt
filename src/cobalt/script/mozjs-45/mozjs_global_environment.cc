@@ -134,6 +134,16 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(
   // Set a pointer to this class inside the JSContext.
   JS_SetContextPrivate(context_, this);
 
+#if defined(COBALT_GC_ZEAL)
+  // Set zeal level to "Collect when every frequency allocations." See
+  // https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/JSAPI_reference/JS_SetGCZeal
+  // for other valid options.
+  const uint8_t kZealLevel = 2;
+  // TODO: Decrease this value as bugs that it discovers are fixed.
+  const uint32_t kZealFrequency = 2000;
+  JS_SetGCZeal(context_, kZealLevel, kZealFrequency);
+#endif
+
   JS_SetGCParameterForThread(context_, JSGC_MAX_CODE_CACHE_BYTES,
                              kMaxCodeCacheBytes);
 

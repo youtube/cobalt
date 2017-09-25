@@ -37,7 +37,7 @@ CspDelegate::ResourceType GetCspResourceTypeForRel(const std::string& rel) {
   if (rel == "stylesheet") {
     return CspDelegate::kStyle;
   } else if (rel == "splashscreen") {
-    return CspDelegate::kScript;
+    return CspDelegate::kLocation;
   } else {
     NOTIMPLEMENTED();
     return CspDelegate::kImage;
@@ -210,7 +210,8 @@ void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
 
   const base::optional<base::Callback<bool(const std::string&)>>
       splash_screen_cache_callback = window->splash_screen_cache_callback();
-  if (splash_screen_cache_callback) {
+  if (splash_screen_cache_callback &&
+      !splash_screen_cache_callback->is_null()) {
     splash_screen_cache_callback->Run(content);
   }
 }

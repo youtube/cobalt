@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_WIN32_MEDIA_COMMON_H_
 #define STARBOARD_SHARED_WIN32_MEDIA_COMMON_H_
 
+#include <D3D11.h>
 #include <Mfapi.h>
 #include <Mferror.h>
 #include <Mfidl.h>
@@ -59,15 +60,18 @@ int64_t ConvertToWin32Time(SbMediaTime input);
 // Convert the other way around.
 SbMediaTime ConvertToMediaTime(int64_t input);
 
-// TODO: Remove the following functions once all of them are moved into
-//       MediaTransform.
-std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(IMFTransform* decoder);
+std::vector<ComPtr<IMFMediaType>> GetAllOutputMediaTypes(int stream_id,
+                                                         IMFTransform* decoder);
+std::vector<ComPtr<IMFMediaType>> GetAllInputMediaTypes(
+    int stream_id,
+    IMFTransform* transform);
 
 std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
     const std::vector<ComPtr<IMFMediaType>>& input,
     GUID sub_type_filter);
 
-ComPtr<IMFMediaType> FindMediaType(GUID sub_type, IMFTransform* decoder);
+HRESULT CreateDecoderTransform(const GUID& decoder_guid,
+                               ComPtr<IMFTransform>* transform);
 
 }  // namespace win32
 }  // namespace shared

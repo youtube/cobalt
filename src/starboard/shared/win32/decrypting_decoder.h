@@ -43,11 +43,11 @@ namespace win32 {
 class DecryptingDecoder {
  public:
   DecryptingDecoder(const std::string& type,
-                    CLSID clsid,
+                    scoped_ptr<MediaTransform> decoder,
                     SbDrmSystem drm_system);
   ~DecryptingDecoder();
 
-  MediaTransform& GetDecoder() { return decoder_; }
+  MediaTransform* GetDecoder() { return decoder_.get(); }
 
   bool TryWriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer,
                            int bytes_to_skip_in_sample);
@@ -70,7 +70,7 @@ class DecryptingDecoder {
   SbDrmSystemPlayready* drm_system_;
 
   scoped_ptr<MediaTransform> decryptor_;
-  MediaTransform decoder_;
+  scoped_ptr<MediaTransform> decoder_;
 
   scoped_refptr<InputBuffer> last_input_buffer_;
   ComPtr<IMFSample> last_input_sample_;

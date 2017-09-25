@@ -497,7 +497,7 @@ Error ValidateCreateContext(Display *display, Config *configuration, gl::Context
             {
                 return Error(EGL_BAD_CONFIG);
             }
-            if (!(configuration->conformant & EGL_OPENGL_ES3_BIT_KHR))
+            if (!(configuration->renderableType & EGL_OPENGL_ES3_BIT_KHR))
             {
                 return Error(EGL_BAD_CONFIG);
             }

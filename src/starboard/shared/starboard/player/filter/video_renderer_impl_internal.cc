@@ -89,7 +89,6 @@ void VideoRendererImpl::Seek(SbMediaTime seek_to_pts) {
 scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
     SbMediaTime media_time,
     bool audio_eos_reached) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
   ScopedLock lock(mutex_);
 
   if (frames_.empty()) {
@@ -158,18 +157,16 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
-SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget() {
+SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget(
+    SbMediaTime media_time,
+    bool audio_eos_reached) {
+  SB_UNREFERENCED_PARAMETER(media_time);
+  SB_UNREFERENCED_PARAMETER(audio_eos_reached);
   if (decoder_) {
     return decoder_->GetCurrentDecodeTarget();
   } else {
     return kSbDecodeTargetInvalid;
   }
-}
-
-::starboard::scoped_refptr<VideoFrame>
-VideoRendererImpl::GetLastDisplayedFrame() {
-  ScopedLock lock(mutex_);
-  return last_displayed_frame_;
 }
 
 }  // namespace filter

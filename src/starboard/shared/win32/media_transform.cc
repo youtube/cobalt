@@ -14,8 +14,13 @@
 
 #include "starboard/shared/win32/media_transform.h"
 
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
+#include "starboard/shared/win32/audio_transform.h"
 #include "starboard/shared/win32/error_utils.h"
+#include "starboard/shared/win32/media_common.h"
+#include "starboard/shared/win32/media_foundation_utils.h"
+#include "starboard/shared/win32/video_transform.h"
 
 namespace starboard {
 namespace shared {
@@ -33,8 +38,6 @@ void ReleaseIfNotNull(T** ptr) {
     *ptr = NULL;
   }
 }
-
-const int kStreamId = 0;
 
 }  // namespace
 
@@ -185,19 +188,7 @@ void MediaTransform::SetInputType(const ComPtr<IMFMediaType>& input_type) {
 }
 
 std::vector<ComPtr<IMFMediaType>> MediaTransform::GetAvailableInputTypes() {
-  std::vector<ComPtr<IMFMediaType>> input_types;
-
-  for (DWORD i = 0;; ++i) {
-    ComPtr<IMFMediaType> curr_type;
-    HRESULT hr = transform_->GetInputAvailableType(kStreamId, i,
-                                                   curr_type.GetAddressOf());
-    if (FAILED(hr)) {
-      break;
-    }
-    input_types.push_back(curr_type);
-  }
-
-  return input_types;
+  return GetAllInputMediaTypes(kStreamId, transform_.Get());
 }
 
 ComPtr<IMFMediaType> MediaTransform::GetCurrentOutputType() {

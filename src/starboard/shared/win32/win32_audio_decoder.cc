@@ -17,8 +17,11 @@
 #include <algorithm>
 #include <queue>
 
+#include "starboard/atomic.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/atomic_queue.h"
+#include "starboard/shared/win32/audio_decoder.h"
+#include "starboard/shared/win32/audio_transform.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
@@ -27,64 +30,15 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-namespace {
-
 using Microsoft::WRL::ComPtr;
 using ::starboard::shared::starboard::ThreadChecker;
+using ::starboard::shared::win32::CreateAudioTransform;
 
-std::vector<ComPtr<IMFMediaType>> Filter(
-    GUID subtype_guid, const std::vector<ComPtr<IMFMediaType>>& input) {
-  std::vector<ComPtr<IMFMediaType>> output;
-  for (size_t i = 0; i < input.size(); ++i) {
-    ComPtr<IMFMediaType> curr = input[i];
-    GUID guid_value;
-    HRESULT hr = curr->GetGUID(MF_MT_SUBTYPE, &guid_value);
-    CheckResult(hr);
-    if (subtype_guid == guid_value) {
-      output.push_back(curr);
-    }
-  }
+const size_t kAacSamplesPerFrame = 1024;
+// We are using float samples on Xb1.
+const size_t kBytesPerSample = sizeof(float);
 
-  return output;
-}
-
-class WinAudioFormat {
- public:
-  explicit WinAudioFormat(const SbMediaAudioHeader& audio_header) {
-    WAVEFORMATEX* wave_format = WaveFormatTexPtr();
-    wave_format->nAvgBytesPerSec = audio_header.average_bytes_per_second;
-    wave_format->nBlockAlign = audio_header.block_alignment;
-    wave_format->nChannels = audio_header.number_of_channels;
-    wave_format->nSamplesPerSec = audio_header.samples_per_second;
-    wave_format->wBitsPerSample = audio_header.bits_per_sample;
-    wave_format->wFormatTag = audio_header.format_tag;
-
-    // TODO: Investigate this more.
-    wave_format->cbSize = kAudioExtraFormatBytes;
-    std::uint8_t* audio_specific_config = AudioSpecificConfigPtr();
-
-    // These are hard-coded audio specif audio configuration.
-    // Use |SbMediaAudioHeader::audio_specific_config| instead.
-    SB_DCHECK(kAudioExtraFormatBytes == 2);
-    // TODO: What do these values do?
-    audio_specific_config[0] = 0x12;
-    audio_specific_config[1] = 0x10;
-  }
-  WAVEFORMATEX* WaveFormatTexPtr() {
-    return reinterpret_cast<WAVEFORMATEX*>(full_structure);
-  }
-  uint8_t* AudioSpecificConfigPtr() {
-    return full_structure + sizeof(WAVEFORMATEX);
-  }
-
-  UINT32 Size() const {
-    return sizeof(full_structure);
-  }
-
- private:
-  static const UINT32 kAudioExtraFormatBytes = 2;
-  uint8_t full_structure[sizeof(WAVEFORMATEX) + kAudioExtraFormatBytes];
-};
+namespace {
 
 class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
  public:
@@ -97,21 +51,13 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
         codec_(codec),
         audio_frame_fmt_(audio_frame_fmt),
         sample_type_(sample_type),
-        audio_header_(audio_header),
-        impl_("audio", CLSID_MSAACDecMFT, drm_system) {
-    Configure();
-  }
-
-  static GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
-    switch (codec) {
-      case kSbMediaAudioCodecNone: { return MFAudioFormat_PCM; }
-      case kSbMediaAudioCodecAac: { return MFAudioFormat_AAC; }
-      case kSbMediaAudioCodecOpus: { return MFAudioFormat_Opus; }
-      case kSbMediaAudioCodecVorbis: {
-        SB_NOTIMPLEMENTED();
-      }
-    }
-    return MFAudioFormat_PCM;
+        number_of_channels_(audio_header.number_of_channels),
+        heaac_detected_(false),
+        samples_per_second_(static_cast<int>(audio_header.samples_per_second)) {
+    scoped_ptr<MediaTransform> audio_decoder =
+        CreateAudioTransform(audio_header, codec_);
+    impl_.reset(
+        new DecryptingDecoder("audio", audio_decoder.Pass(), drm_system));
   }
 
   void Consume(ComPtr<IMFSample> sample) {
@@ -139,57 +85,20 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     const uint8_t* data = reinterpret_cast<uint8_t*>(buffer);
     const size_t data_size = static_cast<size_t>(length);
 
-    DecodedAudioPtr data_ptr(new DecodedAudio(
-        audio_header_.number_of_channels, sample_type_, audio_frame_fmt_,
-        ConvertToMediaTime(win32_timestamp), data_size));
+    const size_t expect_size_in_bytes =
+        number_of_channels_ * kAacSamplesPerFrame * kBytesPerSample;
+    if (data_size / expect_size_in_bytes == 2) {
+      heaac_detected_.store(true);
+    }
+
+    DecodedAudioPtr data_ptr(
+        new DecodedAudio(number_of_channels_, sample_type_, audio_frame_fmt_,
+                         ConvertToMediaTime(win32_timestamp), data_size));
 
     std::copy(data, data + data_size, data_ptr->buffer());
 
     output_queue_.push(data_ptr);
     media_buffer->Unlock();
-  }
-
-  void Configure() {
-    ComPtr<IMFMediaType> input_type;
-    HRESULT hr = MFCreateMediaType(&input_type);
-    CheckResult(hr);
-
-    WinAudioFormat audio_fmt(audio_header_);
-    hr = MFInitMediaTypeFromWaveFormatEx(
-        input_type.Get(),
-        audio_fmt.WaveFormatTexPtr(),
-        audio_fmt.Size());
-
-    CheckResult(hr);
-
-    hr = input_type->SetUINT32(MF_MT_AAC_PAYLOAD_TYPE, 0);  // raw aac
-    CheckResult(hr);
-
-    GUID subtype = ConvertToWin32AudioCodec(codec_);
-    hr = input_type->SetGUID(MF_MT_SUBTYPE, subtype);
-    CheckResult(hr);
-
-    MediaTransform& decoder = impl_.GetDecoder();
-    std::vector<ComPtr<IMFMediaType>> available_types =
-        decoder.GetAvailableInputTypes();
-
-    available_types = Filter(subtype, available_types);
-    SB_DCHECK(available_types.size());
-    ComPtr<IMFMediaType> selected = available_types[0];
-
-    std::vector<GUID> attribs = {
-      MF_MT_AUDIO_BLOCK_ALIGNMENT,
-      MF_MT_AUDIO_SAMPLES_PER_SECOND,
-      MF_MT_AUDIO_AVG_BYTES_PER_SECOND,
-      MF_MT_AUDIO_NUM_CHANNELS,
-    };
-
-    for (auto it = attribs.begin(); it != attribs.end(); ++it) {
-      CopyUint32Property(*it, input_type.Get(), selected.Get());
-    }
-
-    decoder.SetInputType(selected);
-    decoder.SetOutputTypeBySubType(MFAudioFormat_Float);
   }
 
   bool TryWrite(const scoped_refptr<InputBuffer>& buff) SB_OVERRIDE {
@@ -199,17 +108,17 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     // the audio decoder is configured to accept raw AAC.  So we have to adjust
     // the data, size, and subsample mapping to skip the ADTS header.
     const int kADTSHeaderSize = 7;
-    const bool write_ok = impl_.TryWriteInputBuffer(buff, kADTSHeaderSize);
+    const bool write_ok = impl_->TryWriteInputBuffer(buff, kADTSHeaderSize);
     return write_ok;
   }
 
   void WriteEndOfStream() SB_OVERRIDE {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
-    impl_.Drain();
+    impl_->Drain();
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
-    while (impl_.ProcessAndRead(&sample, &media_type)) {
+    while (impl_->ProcessAndRead(&sample, &media_type)) {
       if (sample) {
         Consume(sample);
       }
@@ -222,7 +131,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
 
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaType> media_type;
-    while (impl_.ProcessAndRead(&sample, &media_type)) {
+    while (impl_->ProcessAndRead(&sample, &media_type)) {
       if (sample) {
         Consume(sample);
       }
@@ -236,10 +145,17 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   }
 
   void Reset() SB_OVERRIDE {
-    impl_.Reset();
+    impl_->Reset();
     std::queue<DecodedAudioPtr> empty;
     output_queue_.swap(empty);
     thread_checker_.Detach();
+  }
+
+  int GetSamplesPerSecond() const SB_OVERRIDE {
+    if (heaac_detected_.load()) {
+      return samples_per_second_ * 2;
+    }
+    return samples_per_second_;
   }
 
   // The object is single-threaded and is driven by a dedicated thread.
@@ -254,11 +170,13 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
   //    new thread.
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
   const SbMediaAudioCodec codec_;
-  const SbMediaAudioHeader audio_header_;
   const SbMediaAudioSampleType sample_type_;
   const SbMediaAudioFrameStorageType audio_frame_fmt_;
-  DecryptingDecoder impl_;
+  scoped_ptr<DecryptingDecoder> impl_;
   std::queue<DecodedAudioPtr> output_queue_;
+  uint16_t number_of_channels_;
+  atomic_bool heaac_detected_;
+  int samples_per_second_;
 };
 
 }  // anonymous namespace.

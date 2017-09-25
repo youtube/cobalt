@@ -18,9 +18,6 @@
 
 #include "base/debug/trace_event.h"
 #include "base/logging.h"
-#include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/rasterizer/egl/draw_callback.h"
 
 namespace cobalt {
 namespace renderer {
@@ -34,13 +31,21 @@ DrawObjectManager::DrawObjectManager(
       flush_external_offscreen_draws_(flush_external_offscreen_draws),
       current_draw_id_(0) {}
 
+uint32_t DrawObjectManager::AddBatchedExternalDraw(
+    scoped_ptr<DrawObject> draw_object, base::TypeId draw_type,
+    const backend::RenderTarget* render_target,
+    const math::RectF& draw_bounds) {
+  external_offscreen_draws_.emplace_back(draw_object.Pass(), draw_type,
+      kBlendExternal, render_target, draw_bounds, ++current_draw_id_);
+  return current_draw_id_;
+}
+
 uint32_t DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
     BlendType blend_type, base::TypeId draw_type,
     const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
-  onscreen_draws_.push_back(DrawInfo(
-      draw_object.Pass(), draw_type, blend_type, render_target,
-      draw_bounds, ++current_draw_id_));
+  onscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
+      render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
 }
 
@@ -48,20 +53,8 @@ uint32_t DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
     BlendType blend_type, base::TypeId draw_type,
     const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
-  // Put all draws using kBlendExternal into their own draw list since they
-  // use an external rasterizer which tracks its own state.
-  auto* draw_list = &offscreen_draws_;
-  if (blend_type == kBlendExternal) {
-    draw_list = &external_offscreen_draws_;
-
-    // Only the DrawCallback type should use kBlendExternal. All other draw
-    // object types use the native rasterizer.
-    DCHECK(base::polymorphic_downcast<DrawCallback*>(draw_object.get()));
-  }
-
-  draw_list->push_back(DrawInfo(
-      draw_object.Pass(), draw_type, blend_type, render_target,
-      draw_bounds, ++current_draw_id_));
+  offscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
+      render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
 }
 
@@ -86,6 +79,42 @@ void DrawObjectManager::RemoveDraws(std::vector<DrawInfo>* draw_list,
   }
 }
 
+void DrawObjectManager::AddRenderTargetDependency(
+    const backend::RenderTarget* draw_target,
+    const backend::RenderTarget* required_target) {
+  // Check for circular dependencies.
+  DCHECK(draw_target != required_target);
+
+  // There should be very few unique render target dependencies, so just keep
+  // them in a vector for simplicity.
+  for (auto dep = draw_dependencies_.begin();; ++dep) {
+    if (dep == draw_dependencies_.end()) {
+      draw_dependencies_.emplace_back(draw_target, required_target);
+      auto count = dependency_count_.find(draw_target->GetSerialNumber());
+      if (count != dependency_count_.end()) {
+        count->second += 1;
+      } else {
+        dependency_count_.emplace(draw_target->GetSerialNumber(), 1);
+      }
+      break;
+    }
+    if (dep->draw_target == draw_target &&
+        dep->required_target == required_target) {
+      return;
+    }
+  }
+
+  // Propagate dependencies upward so that targets which depend on
+  // |draw_target| will also depend on |required_target|.
+  size_t count = draw_dependencies_.size();
+  for (size_t index = 0; index < count; ++index) {
+    if (draw_dependencies_[index].required_target == draw_target) {
+      AddRenderTargetDependency(draw_dependencies_[index].draw_target,
+                                required_target);
+    }
+  }
+}
+
 void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
   SortOffscreenDraws(&external_offscreen_draws_);
@@ -95,6 +124,8 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     TRACE_EVENT0("cobalt::renderer", "OffscreenExternalRasterizer");
     for (auto draw = external_offscreen_draws_.begin();
          draw != external_offscreen_draws_.end(); ++draw) {
+      // Batched external draws should not have any dependencies.
+      DCHECK_EQ(draw->dependencies, 0);
       draw->draw_object->ExecuteRasterize(graphics_state, program_manager);
     }
     if (!flush_external_offscreen_draws_.is_null()) {
@@ -191,12 +222,23 @@ void DrawObjectManager::SortOffscreenDraws(std::vector<DrawInfo>* draw_list) {
 
   // Sort offscreen draws to minimize GPU state changes.
   for (auto iter = draw_list->begin(); iter != draw_list->end(); ++iter) {
+    auto dependencies =
+        dependency_count_.find(iter->render_target->GetSerialNumber());
+    iter->dependencies =
+        dependencies != dependency_count_.end() ? dependencies->second : 0;
+
     for (auto current_draw = iter; current_draw != draw_list->begin();
          std::swap(*current_draw, *(current_draw - 1)), current_draw--) {
       auto prev_draw = current_draw - 1;
 
-      // Unlike onscreen draws, offscreen draws should be grouped by
-      // render target.
+      // Unlike onscreen draws, offscreen draws should be grouped by render
+      // target. Ensure that render targets with fewer dependencies are first
+      // in the draw list.
+      if (prev_draw->dependencies > current_draw->dependencies) {
+        continue;
+      } else if (prev_draw->dependencies < current_draw->dependencies) {
+        break;
+      }
       if (prev_draw->render_target > current_draw->render_target) {
         continue;
       } else if (prev_draw->render_target < current_draw->render_target) {

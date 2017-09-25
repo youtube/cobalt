@@ -317,10 +317,6 @@
     # Blitter API).
     'skia_cache_size_in_bytes%': 4 * 1024 * 1024,
 
-    # Determines whether shaders for skia will be preloaded on first draw
-    # call.
-    'skia_preload_shaders%': 0,
-
     # Determines the capacity of the scratch surface cache.  The scratch
     # surface cache facilitates the reuse of temporary offscreen surfaces
     # within a single frame.  This setting is only relevant when using the
@@ -477,6 +473,12 @@
     # implementation is a no-op.
     'cobalt_enable_jit%': 0,
 
+    # Can be set to enable zealous garbage collection, if |javascript_engine|
+    # supports it.  Zealous garbage collection will cause garbage collection
+    # to occur much more frequently than normal, for the purpose of finding or
+    # reproducing bugs.
+    'cobalt_gc_zeal%': 0,
+
     # The event polling mechanism available on this platform to support libevent.
     # Platforms may redefine to 'poll' if necessary.
     # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
@@ -589,7 +591,6 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
-      'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=<(cobalt_encrypted_media_extension_enable_key_statuses_update)',
     ],
     'cflags': [ '<@(compiler_flags)' ],
     'ldflags': [ '<@(linker_flags)' ],
@@ -630,6 +631,17 @@
       }, {
         'defines': [
           'COBALT_MEDIA_BUFFER_STORAGE_TYPE_FILE=1',
+        ],
+      }],
+      ['cobalt_gc_zeal == 1', {
+        'defines': [
+          'COBALT_GC_ZEAL=1',
+          'JS_GC_ZEAL=1',
+        ],
+      }],
+      ['cobalt_encrypted_media_extension_enable_key_statuses_update == 1', {
+        'defines': [
+          'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=1',
         ],
       }],
       ['final_executable_type=="shared_library"', {
