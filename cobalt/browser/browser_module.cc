@@ -328,7 +328,7 @@ BrowserModule::BrowserModule(const GURL& url,
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      options_.web_module_options.javascript_options));
+      options_.web_module_options.javascript_engine_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -1322,7 +1322,7 @@ void BrowserModule::ApplyAutoMemSettings() {
       static_cast<int>(auto_mem_->image_cache_size_in_bytes()->value());
   options_.web_module_options.remote_typeface_cache_capacity = static_cast<int>(
       auto_mem_->remote_typeface_cache_size_in_bytes()->value());
-  options_.web_module_options.javascript_options.gc_threshold_bytes =
+  options_.web_module_options.javascript_engine_options.gc_threshold_bytes =
       static_cast<size_t>(
           auto_mem_->javascript_gc_threshold_in_bytes()->value());
   if (web_module_) {

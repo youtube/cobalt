@@ -487,8 +487,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       new browser::WebModuleStatTracker(name_, data.options.track_event_stats));
   DCHECK(web_module_stat_tracker_);
 
-  javascript_engine_ =
-      script::JavaScriptEngine::CreateEngine(data.options.javascript_options);
+  javascript_engine_ = script::JavaScriptEngine::CreateEngine(
+      data.options.javascript_engine_options);
   DCHECK(javascript_engine_);
 
 #if defined(COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING)
