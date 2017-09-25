@@ -172,7 +172,7 @@ class WebModule : public LifecycleObserver {
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
 
-    script::JavaScriptEngine::Options javascript_options;
+    script::JavaScriptEngine::Options javascript_engine_options;
 
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.

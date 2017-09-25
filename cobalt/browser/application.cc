@@ -493,7 +493,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
-    options.web_module_options.javascript_options.disable_jit = true;
+    options.web_module_options.javascript_engine_options.disable_jit = true;
   }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
