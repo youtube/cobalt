@@ -45,8 +45,7 @@ class WeakHandle;
 class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
-  MozjsGlobalEnvironment(JSRuntime* runtime,
-                         const JavaScriptEngine::Options& options);
+  explicit MozjsGlobalEnvironment(JSRuntime* runtime);
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;

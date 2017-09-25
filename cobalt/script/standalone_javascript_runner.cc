@@ -24,8 +24,8 @@ namespace cobalt {
 namespace script {
 
 StandaloneJavascriptRunner::StandaloneJavascriptRunner(
-    const JavaScriptEngine::Options& options) {
-  CommonInitialization(options);
+    const JavaScriptEngine::Options& javascript_engine_options) {
+  CommonInitialization(javascript_engine_options);
   global_environment_->CreateGlobalObject();
 }
 
@@ -54,8 +54,8 @@ void StandaloneJavascriptRunner::ExecuteFile(const FilePath& path) {
 }
 
 void StandaloneJavascriptRunner::CommonInitialization(
-    const JavaScriptEngine::Options& options) {
-  engine_ = JavaScriptEngine::CreateEngine(options);
+    const JavaScriptEngine::Options& javascript_engine_options) {
+  engine_ = JavaScriptEngine::CreateEngine(javascript_engine_options);
   global_environment_ = engine_->CreateGlobalEnvironment();
   environment_settings_.reset(new EnvironmentSettings());
 }
