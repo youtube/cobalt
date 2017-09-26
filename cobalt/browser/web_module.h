@@ -205,12 +205,13 @@ class WebModule : public LifecycleObserver {
   typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
+  typedef dom::Window::CloseCallback CloseCallback;
 
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
-            const base::Closure& window_close_callback,
+            const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
@@ -291,7 +292,7 @@ class WebModule : public LifecycleObserver {
         base::ApplicationState initial_application_state,
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
-        const base::Closure& window_close_callback,
+        const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
         media::MediaModule* media_module,
         network::NetworkModule* network_module,
@@ -318,7 +319,7 @@ class WebModule : public LifecycleObserver {
     base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
-    const base::Closure& window_close_callback;
+    const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;

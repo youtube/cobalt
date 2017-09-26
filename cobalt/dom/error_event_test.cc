@@ -73,7 +73,7 @@ class ErrorEventTest : public ::testing::Test {
             std::string() /* default security policy */, csp::kCSPRequired,
             kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
-            base::Closure() /* window_close */,
+            dom::Window::CloseCallback() /* window_close */,
             base::Closure() /* window_minimize */, NULL, NULL)) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();

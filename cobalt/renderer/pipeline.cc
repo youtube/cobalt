@@ -35,11 +35,6 @@ namespace cobalt {
 namespace renderer {
 
 namespace {
-// In order to put a bound on memory we set a maximum submission queue size that
-// is empirically found to be a nice balance between animation smoothing and
-// memory usage.
-const size_t kMaxSubmissionQueueSize = 4u;
-
 // How quickly the renderer time adjusts to changing submission times.
 // 500ms is chosen as a default because it is fast enough that the user will not
 // usually notice input lag from a slow timeline renderer, but slow enough that
@@ -234,14 +229,40 @@ void Pipeline::RasterizeToRGBAPixels(
                render_target_->GetSize());
 }
 
+void Pipeline::TimeFence(base::TimeDelta time_fence) {
+  TRACK_MEMORY_SCOPE("Renderer");
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::TimeFence()");
+
+  if (MessageLoop::current() != rasterizer_thread_.message_loop()) {
+    rasterizer_thread_.message_loop()->PostTask(
+        FROM_HERE,
+        base::Bind(&Pipeline::TimeFence, base::Unretained(this), time_fence));
+    return;
+  }
+
+  if (!time_fence_) {
+    time_fence_ = time_fence;
+  } else {
+    LOG(ERROR) << "Attempting to set a time fence while one was already set.";
+  }
+}
+
 void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   DCHECK(render_tree_submission.render_tree.get());
 
   TRACE_EVENT0("cobalt::renderer", "Pipeline::SetNewRenderTree()");
 
-  submission_queue_->PushSubmission(render_tree_submission,
-                                    base::TimeTicks::Now());
+  // If a time fence is active, save the submission to be queued only after
+  // we pass the time fence.  Overwrite any existing waiting submission in this
+  // case.
+  if (time_fence_) {
+    post_fence_submission_ = render_tree_submission;
+    post_fence_receipt_time_ = base::TimeTicks::Now();
+    return;
+  }
+
+  QueueSubmission(render_tree_submission, base::TimeTicks::Now());
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
@@ -261,7 +282,7 @@ void Pipeline::ClearCurrentRenderTree() {
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ClearCurrentRenderTree()");
 
-  submission_queue_->Reset();
+  ResetSubmissionQueue();
   rasterize_timer_ = base::nullopt;
 }
 
@@ -281,32 +302,44 @@ void Pipeline::RasterizeCurrentTree() {
   // If our render tree hasn't changed from the one that was previously
   // rendered and it's okay on this system to not flip the display buffer
   // frequently, then we can just not do anything here.
-  if (!fps_overlay_update_pending_ &&
-      !submit_even_if_render_tree_is_unchanged_ && !has_render_tree_changed) {
-    return;
+  if (fps_overlay_update_pending_ || submit_even_if_render_tree_is_unchanged_ ||
+      has_render_tree_changed) {
+    // Check whether the animations in the render tree that is being rasterized
+    // are active.
+    render_tree::animations::AnimateNode* animate_node =
+        base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
+            submission.render_tree.get());
+
+    // Rasterize the last submitted render tree.
+    bool did_rasterize =
+        RasterizeSubmissionToRenderTarget(submission, render_target_);
+
+    bool animations_expired = animate_node->expiry() <= submission.time_offset;
+    bool stat_tracked_animations_expired =
+        animate_node->depends_on_time_expiry() <= submission.time_offset;
+
+    UpdateRasterizeStats(did_rasterize, stat_tracked_animations_expired,
+                         is_new_render_tree, start_rasterize_time,
+                         base::TimeTicks::Now());
+
+    last_did_rasterize_ = did_rasterize;
+    last_animations_expired_ = animations_expired;
+    last_stat_tracked_animations_expired_ = stat_tracked_animations_expired;
   }
 
-  // Check whether the animations in the render tree that is being rasterized
-  // are active.
-  render_tree::animations::AnimateNode* animate_node =
-      base::polymorphic_downcast<render_tree::animations::AnimateNode*>(
-          submission.render_tree.get());
+  if (time_fence_ && submission_queue_->submission_time(
+                         base::TimeTicks::Now()) >= *time_fence_) {
+    // A time fence was active and we just crossed it, so reset it.
+    time_fence_ = base::nullopt;
 
-  // Rasterize the last submitted render tree.
-  bool did_rasterize =
-      RasterizeSubmissionToRenderTarget(submission, render_target_);
-
-  bool animations_expired = animate_node->expiry() <= submission.time_offset;
-  bool stat_tracked_animations_expired =
-      animate_node->depends_on_time_expiry() <= submission.time_offset;
-
-  UpdateRasterizeStats(did_rasterize, stat_tracked_animations_expired,
-                       is_new_render_tree, start_rasterize_time,
-                       base::TimeTicks::Now());
-
-  last_did_rasterize_ = did_rasterize;
-  last_animations_expired_ = animations_expired;
-  last_stat_tracked_animations_expired_ = stat_tracked_animations_expired;
+    if (post_fence_submission_) {
+      // A submission was waiting to be queued once we passed the time fence,
+      // so go ahead and queue it now.
+      QueueSubmission(*post_fence_submission_, *post_fence_receipt_time_);
+      post_fence_submission_ = base::nullopt;
+      post_fence_receipt_time_ = base::nullopt;
+    }
+  }
 }
 
 void Pipeline::UpdateRasterizeStats(bool did_rasterize,
@@ -470,11 +503,7 @@ void Pipeline::InitializeRasterizerThread(
       base::Thread::Options(MessageLoop::TYPE_DEFAULT, kRendererThreadStackSize,
                             base::kThreadPriority_High));
 
-  submission_queue_.emplace(
-      kMaxSubmissionQueueSize,
-      base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS),
-      base::Bind(&DestructSubmissionOnMessageLoop,
-                 submission_disposal_thread_.message_loop()));
+  ResetSubmissionQueue();
 }
 
 void Pipeline::ShutdownSubmissionQueue() {
@@ -627,6 +656,33 @@ void Pipeline::FrameStatsOnFlushCallback(
   if (enable_fps_stdout_) {
     PrintFPS(flush_results);
   }
+}
+
+void Pipeline::ResetSubmissionQueue() {
+  TRACK_MEMORY_SCOPE("Renderer");
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::ResetSubmissionQueue()");
+  submission_queue_ = base::nullopt;
+  submission_queue_.emplace(
+      current_timeline_info_.max_submission_queue_size,
+      base::TimeDelta::FromMillisecondsD(kTimeToConvergeInMS),
+      current_timeline_info_.allow_latency_reduction,
+      base::Bind(&DestructSubmissionOnMessageLoop,
+                 submission_disposal_thread_.message_loop()));
+}
+
+void Pipeline::QueueSubmission(const Submission& submission,
+                               base::TimeTicks receipt_time) {
+  TRACK_MEMORY_SCOPE("Renderer");
+  TRACE_EVENT0("cobalt::renderer", "Pipeline::QueueSubmission()");
+  // Upon each submission, check if the timeline has changed.  If it has,
+  // reset our submission queue (possibly with a new configuration specified
+  // within |timeline_info|.
+  if (submission.timeline_info.id != current_timeline_info_.id) {
+    current_timeline_info_ = submission.timeline_info;
+    ResetSubmissionQueue();
+  }
+
+  submission_queue_->PushSubmission(submission, receipt_time);
 }
 
 }  // namespace renderer

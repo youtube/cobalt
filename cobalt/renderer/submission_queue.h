@@ -105,6 +105,7 @@ class SubmissionQueue {
   // used to allow the Submission/render tree to be disposed/destroyed on a
   // separate thread.
   SubmissionQueue(size_t max_queue_size, base::TimeDelta time_to_converge,
+                  bool allow_latency_reduction = true,
                   const DisposeSubmissionFunction& dispose_function =
                       DisposeSubmissionFunction());
 
@@ -116,19 +117,16 @@ class SubmissionQueue {
   // timing information already setup.  Time must be monotonically increasing.
   Submission GetCurrentSubmission(const base::TimeTicks& now);
 
-  // Resets the submission queue.
-  void Reset() { submission_queue_.clear(); }
-
- private:
-  typedef std::list<Submission> SubmissionQueueInternal;
+  // Returns the corresponding submission time for a given TimeTicks
+  // "real world" system value.
+  base::TimeDelta submission_time(const base::TimeTicks& time);
 
   // Returns the corresponding renderer time for a given TimeTicks value
   // (e.g. base::TimeTicks::Now()).
   base::TimeDelta render_time(const base::TimeTicks& time);
 
-  // Returns the corresponding submission time for a given TimeTicks
-  // "real world" system value.
-  base::TimeDelta submission_time(const base::TimeTicks& time);
+ private:
+  typedef std::list<Submission> SubmissionQueueInternal;
 
   void PurgeStaleSubmissionsFromQueue(const base::TimeTicks& time);
 
@@ -168,6 +166,12 @@ class SubmissionQueue {
 
   base::CVal<base::TimeDelta> to_submission_time_cval_;
   base::CVal<size_t> queue_size_;
+
+  // If false, we will only ever allow to_submission_time_cval_ to move
+  // backwards ensuring that animations never speed up during playback (at the
+  // cost of increased and non-recoverable input latency).  This is good for
+  // non-interactive content.
+  const bool allow_latency_reduction_;
 };
 
 }  // namespace renderer
