@@ -34,6 +34,7 @@ const double kMaxSlopeMagnitude = 800.0;
 
 SubmissionQueue::SubmissionQueue(
     size_t max_queue_size, base::TimeDelta time_to_converge,
+    bool allow_latency_reduction,
     const DisposeSubmissionFunction& dispose_function)
     : max_queue_size_(max_queue_size),
       dispose_function_(dispose_function),
@@ -47,13 +48,16 @@ SubmissionQueue::SubmissionQueue(
       queue_size_(
           "Renderer.SubmissionQueueSize", 0,
           "The current size of the renderer submission queue.  Each item in "
-          "queue contains a render tree and associated animations.") {}
+          "queue contains a render tree and associated animations."),
+      allow_latency_reduction_(allow_latency_reduction) {}
 
 void SubmissionQueue::PushSubmission(const Submission& submission,
                                      const base::TimeTicks& now) {
   TRACE_EVENT0("cobalt::renderer", "SubmissionQueue::PushSubmission()");
 
-  CheckThatNowIsMonotonicallyIncreasing(now);
+  if (!submission_queue_.empty()) {
+    CheckThatNowIsMonotonicallyIncreasing(now);
+  }
 
   if (submission_queue_.size() >= max_queue_size_) {
     // If we are at capacity, then make room for the new submission by erasing
@@ -78,7 +82,12 @@ void SubmissionQueue::PushSubmission(const Submission& submission,
   double latest_to_submission_time_in_ms =
       latest_to_submission_time.InMillisecondsF();
 
-  to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms, now);
+  // Update our mapping from render time to submission time.
+  if (allow_latency_reduction_ || submission_queue_.empty() ||
+      to_submission_time_in_ms_.GetValueAtTime(now) >
+          latest_to_submission_time_in_ms) {
+    to_submission_time_in_ms_.SetTarget(latest_to_submission_time_in_ms, now);
+  }
 
   // Snap time to the new submission if no existing animations are playing both
   // currently and during the time that we are snapping to.

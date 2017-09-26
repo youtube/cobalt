@@ -101,6 +101,10 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
     quit_event_.Signal();
     screen_reader_.reset();
   }
+  void OnClose(base::TimeDelta close_time) {
+    UNREFERENCED_PARAMETER(close_time);
+    Quit();
+  }
 
   scoped_refptr<script::Wrappable> CreateWindowAttribute(
       const scoped_refptr<dom::Window>& window,
@@ -167,7 +171,7 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       url, base::kApplicationStateStarted,
       base::Bind(&LiveRegionMutationTest::OnRenderTreeProducedStub),
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
-      base::Bind(&LiveRegionMutationTest::Quit, base::Unretained(this)),
+      base::Bind(&LiveRegionMutationTest::OnClose, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
       NULL /* media_module */, &network_module, kDefaultViewportSize,
       kDefaultVideoPixelRatio, &resource_provider, kRefreshRate,
