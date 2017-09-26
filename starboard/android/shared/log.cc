@@ -20,7 +20,6 @@
 
 #include "starboard/android/shared/log_file_impl.h"
 #include "starboard/log.h"
-#include "starboard/mutex.h"
 
 using starboard::android::shared::WriteToLogFile;
 
