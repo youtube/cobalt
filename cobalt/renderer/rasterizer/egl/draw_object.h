@@ -71,6 +71,11 @@ class DrawObject {
 
   virtual ~DrawObject() {}
 
+  // Certain draw objects can be merged with others to reduce the number of
+  // draw calls issued. If TryMerge returns true, then |other| can be discarded.
+  base::TypeId GetMergeTypeId() const { return merge_type_; }
+  virtual bool TryMerge(DrawObject* other) { return false; }
+
   // This stage is used to update the vertex buffer for the rasterize
   // stage. Vertex data is handled by the GraphicsState to minimize the number
   // of vertex buffers needed. Once this stage is executed, the rasterizer will
@@ -107,7 +112,7 @@ class DrawObject {
     RCorner rcorner;
   };
 
-  DrawObject() {}
+  DrawObject();
   explicit DrawObject(const BaseState& base_state);
 
   // Extract the scale vector from this object's transform.
@@ -146,6 +151,10 @@ class DrawObject {
       RRectAttributes (&out_attributes)[8]);
 
   BaseState base_state_;
+
+  // Provide type information for use with TryMerge. Only DrawObjects that may
+  // be merged need to set this.
+  base::TypeId merge_type_;
 
  private:
   // Return the RCorner values for the given rounded rect, and the normalized

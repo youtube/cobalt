@@ -35,12 +35,8 @@ class DrawRectBorder : public DrawPolyColor {
                  const BaseState& base_state,
                  const scoped_refptr<render_tree::RectNode>& node);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
-  void ExecuteRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
-
   bool IsValid() const { return is_valid_; }
+  bool DrawsContentRect() const { return draw_content_rect_; }
   const math::RectF& GetContentRect() const { return content_rect_; }
   const math::RectF& GetBounds() const { return node_bounds_; }
 
@@ -50,14 +46,13 @@ class DrawRectBorder : public DrawPolyColor {
                        const math::RectF& content_rect,
                        const render_tree::ColorRGBA& border_color,
                        const render_tree::ColorRGBA& content_color);
-  void AddRegion(const math::RectF& outer_rect, uint32_t outer_color,
-                 const math::RectF& inner_rect, uint32_t inner_color);
+  void AddBorders(const render_tree::Border& border,
+                  uint16_t outer_verts, uint16_t inner_verts);
 
   math::RectF content_rect_;
   math::RectF node_bounds_;
-  std::vector<uint16_t> indices_;
-  uint16_t* index_buffer_;
   bool is_valid_;
+  bool draw_content_rect_;
 };
 
 }  // namespace egl
