@@ -73,8 +73,12 @@ DrawObject::RCorner::RCorner(const float (&position)[2], const RCorner& init)
       rx(init.rx * kRCornerGradientScale),
       ry(init.ry * kRCornerGradientScale) {}
 
+DrawObject::DrawObject()
+    : merge_type_(base::GetTypeId<DrawObject>()) {}
+
 DrawObject::DrawObject(const BaseState& base_state)
-    : base_state_(base_state) {}
+    : base_state_(base_state),
+      merge_type_(base::GetTypeId<DrawObject>()) {}
 
 math::Vector2dF DrawObject::GetScale() const {
   float m00 = base_state_.transform(0, 0);

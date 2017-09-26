@@ -32,20 +32,24 @@ namespace {
 // antialiased inner area, and the solid area in between.
 const int kRegionCount = 3;
 
-// Each region consists of 2 rects which use 4 vertices each. Each region is
-// drawn with 8 triangles, and indices are used to minimize vertex duplication.
-const int kVertexCountPerRegion = 4 * 2;
-const int kIndexCountPerRegion = 8 * 3;
+// Each region consists of an outer and inner rectangle. However, since regions
+// are adjacent to each other, many of these rectangles are shared.
+const int kVertexCount = (kRegionCount + 1) * 4;
 
-const int kVertexCount = kRegionCount * kVertexCountPerRegion;
-const int kIndexCount = kRegionCount * kIndexCountPerRegion;
+// The draw object may draw the content rect as well. If so, two triangles are
+// used to draw the content rect.
+const int kIndexCountForContentRect = 2 * 3;
+
+// Each region has 4 rectangular areas corresponding to the possible borders.
+// Each rectangular area is drawn using 2 triangles.
+const int kIndexCount = kRegionCount * (4 * 2 * 3) + kIndexCountForContentRect;
 }  // namespace
 
 DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
     const BaseState& base_state,
     const scoped_refptr<render_tree::RectNode>& node)
     : DrawPolyColor(base_state),
-      index_buffer_(NULL) {
+      draw_content_rect_(false) {
   DCHECK(node->data().border);
 
   const render_tree::Border& border = *(node->data().border);
@@ -99,17 +103,24 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
                (num_borders == 2 && uniform_opposing_borders) ||
                (num_borders == 4 && uniform_borders));
 
-  // If a background brush is used, then only solid colored ones are supported.
-  // This simplifies blending the inner-antialiased border with the content.
+  // If the background brush is solid-colored, then this object can handle the
+  // content rect as well. Otherwise, don't draw the inner antialiased edge to
+  // avoid having to blend with an unknown color.
   render_tree::ColorRGBA content_color(0);
-  if (is_valid_ && node->data().background_brush) {
-    is_valid_ = node->data().background_brush->GetTypeId() ==
-                base::GetTypeId<render_tree::SolidColorBrush>();
-    if (is_valid_) {
-      const render_tree::SolidColorBrush* solid_brush =
-          base::polymorphic_downcast<const render_tree::SolidColorBrush*>
-              (node->data().background_brush.get());
-      content_color = GetDrawColor(solid_brush->color()) * base_state_.opacity;
+  if (is_valid_) {
+    if (node->data().background_brush) {
+      draw_content_rect_ = node->data().background_brush->GetTypeId() ==
+                           base::GetTypeId<render_tree::SolidColorBrush>();
+      if (draw_content_rect_) {
+        const render_tree::SolidColorBrush* solid_brush =
+            base::polymorphic_downcast<const render_tree::SolidColorBrush*>
+                (node->data().background_brush.get());
+        content_color = GetDrawColor(solid_brush->color()) *
+                        base_state_.opacity;
+      }
+    } else {
+      // No background brush is the same as a totally transparent background.
+      draw_content_rect_ = true;
     }
   }
 
@@ -127,34 +138,10 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
                                   border_color, content_color);
       if (is_valid_ && attributes_.size() > 0) {
         graphics_state->ReserveVertexData(
-            attributes_.size() * sizeof(VertexAttributes));
+            attributes_.size() * sizeof(attributes_[0]));
         graphics_state->ReserveVertexIndices(indices_.size());
       }
     }
-  }
-}
-
-void DrawRectBorder::ExecuteUpdateVertexBuffer(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  if (attributes_.size() > 0) {
-    vertex_buffer_ = graphics_state->AllocateVertexData(
-        attributes_.size() * sizeof(VertexAttributes));
-    SbMemoryCopy(vertex_buffer_, &attributes_[0],
-                 attributes_.size() * sizeof(VertexAttributes));
-    index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
-    SbMemoryCopy(index_buffer_, &indices_[0],
-                 indices_.size() * sizeof(indices_[0]));
-  }
-}
-
-void DrawRectBorder::ExecuteRasterize(
-    GraphicsState* graphics_state,
-    ShaderProgramManager* program_manager) {
-  if (attributes_.size() > 0) {
-    SetupShader(graphics_state, program_manager);
-    GL_CALL(glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
-        graphics_state->GetVertexIndexPointer(index_buffer_)));
   }
 }
 
@@ -196,17 +183,41 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
   math::RectF outer_rect(border_rect);
   math::RectF inner_rect(content_rect);
   outer_rect.Inset(insets.Scale(0.5f * pixel_size_x, 0.5f * pixel_size_y));
-  inner_rect.Inset(insets.Scale(-0.5f * pixel_size_x, -0.5f * pixel_size_y));
+  if (draw_content_rect_) {
+    inner_rect.Inset(insets.Scale(-0.5f * pixel_size_x, -0.5f * pixel_size_y));
+  }
   math::RectF outer_outer(outer_rect);
   math::RectF inner_inner(inner_rect);
   outer_outer.Inset(insets.Scale(-pixel_size_x, -pixel_size_y));
-  inner_inner.Inset(insets.Scale(pixel_size_x, pixel_size_y));
+  if (draw_content_rect_) {
+    inner_inner.Inset(insets.Scale(pixel_size_x, pixel_size_y));
+  }
 
-  uint32_t border_color32 = GetGLRGBA(border_color);
-  uint32_t content_color32 = GetGLRGBA(content_color);
-  AddRegion(outer_outer, 0, outer_rect, border_color32);
-  AddRegion(outer_rect, border_color32, inner_rect, border_color32);
-  AddRegion(inner_rect, border_color32, inner_inner, content_color32);
+  // Add the vertex attributes for the rectangles that will be used.
+  uint16_t outer_outer_verts = static_cast<uint16_t>(attributes_.size());
+  AddRectVertices(outer_outer, 0);
+  uint16_t outer_rect_verts = static_cast<uint16_t>(attributes_.size());
+  AddRectVertices(outer_rect, GetGLRGBA(border_color));
+  uint16_t inner_rect_verts = static_cast<uint16_t>(attributes_.size());
+  AddRectVertices(inner_rect, GetGLRGBA(border_color));
+  uint16_t inner_inner_verts = inner_rect_verts;
+  if (draw_content_rect_) {
+    inner_inner_verts = static_cast<uint16_t>(attributes_.size());
+    AddRectVertices(inner_inner, GetGLRGBA(content_color));
+  }
+
+  // Add indices to draw the borders using the vertex attributes added.
+  AddBorders(border, outer_outer_verts, outer_rect_verts);
+  AddBorders(border, outer_rect_verts, inner_rect_verts);
+  if (draw_content_rect_) {
+    AddBorders(border, inner_rect_verts, inner_inner_verts);
+  }
+
+  // Draw the content rect as appropriate.
+  if (draw_content_rect_ && content_color.a() > 0.0f) {
+    AddRectIndices(inner_inner_verts, inner_inner_verts + 1,
+                   inner_inner_verts + 2, inner_inner_verts + 3);
+  }
 
   // Update the content and node bounds to account for the antialiasing edges.
   node_bounds_ = outer_outer;
@@ -214,34 +225,27 @@ bool DrawRectBorder::SetSquareBorder(const render_tree::Border& border,
   return true;
 }
 
-void DrawRectBorder::AddRegion(
-    const math::RectF& outer_rect, uint32_t outer_color,
-    const math::RectF& inner_rect, uint32_t inner_color) {
-  // Add triangles to render the area between the two rects.
-  uint16_t first_vertex = static_cast<uint16_t>(attributes_.size());
-  AddVertex(outer_rect.x(), outer_rect.y(), outer_color);
-  AddVertex(inner_rect.x(), inner_rect.y(), inner_color);
-  AddVertex(outer_rect.right(), outer_rect.y(), outer_color);
-  AddVertex(inner_rect.right(), inner_rect.y(), inner_color);
-  AddVertex(outer_rect.right(), outer_rect.bottom(), outer_color);
-  AddVertex(inner_rect.right(), inner_rect.bottom(), inner_color);
-  AddVertex(outer_rect.x(), outer_rect.bottom(), outer_color);
-  AddVertex(inner_rect.x(), inner_rect.bottom(), inner_color);
-
-  // Use indices to minimize duplication of vertex data. The last two triangles
-  // use the first one or two vertices of the region.
-  uint16_t wrap_start = static_cast<uint16_t>(attributes_.size()) - 2;
-  for (uint16_t i = first_vertex; i < wrap_start; ++i) {
-    indices_.push_back(i);
-    indices_.push_back(i + 1);
-    indices_.push_back(i + 2);
+void DrawRectBorder::AddBorders(const render_tree::Border& border,
+    uint16_t outer_verts, uint16_t inner_verts) {
+  // Draw the area between those two rectangles using triangle primitives.
+  // The vertices for the rectangles were added as top-left, top-right,
+  // bottom-left, and bottom-right. See DrawPolyColor::AddRectVertices().
+  if (border.left.style != render_tree::kBorderStyleNone) {
+    AddRectIndices(outer_verts, inner_verts,
+                   outer_verts + 2, inner_verts + 2);
   }
-  indices_.push_back(wrap_start);
-  indices_.push_back(wrap_start + 1);
-  indices_.push_back(first_vertex);
-  indices_.push_back(wrap_start + 1);
-  indices_.push_back(first_vertex);
-  indices_.push_back(first_vertex + 1);
+  if (border.top.style != render_tree::kBorderStyleNone) {
+    AddRectIndices(outer_verts, outer_verts + 1,
+                   inner_verts, inner_verts + 1);
+  }
+  if (border.right.style != render_tree::kBorderStyleNone) {
+    AddRectIndices(inner_verts + 1, outer_verts + 1,
+                   inner_verts + 3, outer_verts + 3);
+  }
+  if (border.bottom.style != render_tree::kBorderStyleNone) {
+    AddRectIndices(inner_verts + 2, inner_verts + 3,
+                   outer_verts + 2, outer_verts + 3);
+  }
 }
 
 }  // namespace egl
