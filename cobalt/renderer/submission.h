@@ -60,6 +60,39 @@ struct Submission {
   // If non-null, |on_rasterized_callback| will be called every time this
   // submission is rasterized.
   base::Closure on_rasterized_callback;
+
+  // Information about the specific timeline that this submission is intended
+  // to run on.  The most important part of TimelineInfo is TimelineInfo::id,
+  // which the renderer pipeline will check to see if it is equal to the
+  // submissions timeline, and if so assume animation continuity.  If not, it
+  // will reset its submission queue, and possibly apply any animation playback
+  // configuration changes specified by the other fields in this structure.
+  struct TimelineInfo {
+    // An id of -1 is valid, and acts as the default id.
+    TimelineInfo()
+        : id(-1), allow_latency_reduction(true), max_submission_queue_size(4) {}
+
+    // A number identifying this timeline and used to check for timeline
+    // continuity between submissions.  If this changes, the renderer pipeline
+    // will reset its submission queue.
+    int id;
+
+    // If true, allows the vector from renderer time to submission time to
+    // increase over time, in effect reducing latency between when a submission
+    // is submitted to when it appears on the screen.  This is typically
+    // desirable for interactive applications, but not as necessary for
+    // non-interactive content (and in this case can result in some frames
+    // being skipped).
+    bool allow_latency_reduction;
+
+    // In order to put a bound on memory we set a maximum submission queue size.
+    // The queue size refers to how many submissions which the renderer has
+    // not caught up to rendering yet will be stored.  If latency reduction
+    // is disallowed, this will likely need to be higher to accommodate for
+    // the larger latency between submission and render.
+    int max_submission_queue_size;
+  };
+  TimelineInfo timeline_info;
 };
 
 }  // namespace renderer

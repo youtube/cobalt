@@ -103,7 +103,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
                const base::Closure& ran_animation_frame_callbacks_callback,
-               const base::Closure& window_close_callback,
+               const CloseCallback& window_close_callback,
                const base::Closure& window_minimize_callback,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
@@ -203,7 +203,8 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 void Window::Close() {
   LOG(INFO) << __func__;
   if (!window_close_callback_.is_null()) {
-    window_close_callback_.Run();
+    window_close_callback_.Run(
+        performance_->timing()->GetNavigationStartClock()->Now());
   }
 }
 
