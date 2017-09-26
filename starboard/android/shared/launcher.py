@@ -29,7 +29,6 @@ else:
 import hashlib
 import Queue
 import re
-import signal
 import socket
 import subprocess
 import time
@@ -174,29 +173,25 @@ class AdbAmMonitorWatcher(object):
 class Launcher(abstract_launcher.AbstractLauncher):
   """Run an application on Android."""
 
-  def __init__(self, platform, target_name, config, device_id, args):
+  def __init__(self, platform, target_name, config, device_id, args,
+               output_file, out_directory):
 
     super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   args)
+                                   args, output_file, out_directory)
 
     if not self.device_id:
       self.device_id = self._IdentifyDevice()
 
     self.adb_builder = AdbCommandBuilder(self.device_id)
 
-    self.executable_dir_name = '{}_{}'.format(self.platform, self.config)
-    self.executable_out_path = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), os.pardir,
-                     os.pardir, os.pardir, 'out', self.executable_dir_name))
+    self.executable_dir_path = os.path.join(self.out_directory, 'lib')
 
-    self.executable_dir_path = os.path.join(self.executable_out_path, 'lib')
-
-    self.apk_path = os.path.join(self.executable_out_path, _APK_RELATIVE_PATH)
+    self.apk_path = os.path.join(self.out_directory, _APK_RELATIVE_PATH)
     if not os.path.exists(self.apk_path):
       raise Exception("Can't find APK {}".format(self.apk_path))
 
     self.host_content_path = os.path.join(
-        self.executable_out_path, _DIR_SOURCE_ROOT_DIRECTORY_RELATIVE_PATH)
+        self.out_directory, _DIR_SOURCE_ROOT_DIRECTORY_RELATIVE_PATH)
 
   def _GetAdbDevices(self):
     """Returns a list of names of connected devices, or empty list if none."""
@@ -450,13 +445,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._PushChecksum(local_checksum, android_checksum_path)
 
     # Regardless of whether the apk or extra data needed to be copied, we still
-    # push the shared libary containing the test binary.
+    # push the shared libary containing the binary.
     self._CheckCallAdb('push', host_lib_path, android_lib_path)
 
   def Run(self):
-
-    signal.signal(signal.SIGTERM, lambda signum, frame: self.Kill())
-    signal.signal(signal.SIGINT, lambda signum, frame: self.Kill())
 
     self._SetupEnvironment()
     self._CheckCallAdb('logcat', '-c')
@@ -497,7 +489,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
           queue_code = queue.get_nowait()
 
           if queue_code == _QUEUE_CODE_CRASHED:
-            print '***Application Crashed***\n'
+            self.output_file.write('***Application Crashed***\n')
             break
           else:
             # Occasionally, the exit file watcher will detect an exitcode file
@@ -539,11 +531,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return return_code
 
   def _Shutdown(self):
-    self._CheckCallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
+    self._CallAdb('shell', 'am', 'force-stop', _APP_PACKAGE_NAME)
 
   # TODO:  Ensure this is always a clean exit on CTRL + C
   def Kill(self):
-    print '***Killing Launcher***'
+    self.output_file.write('***Killing Launcher***\n')
     self._Shutdown()
     try:
       self._CheckCallAdb('shell', 'echo', '1', '>', self.exit_code_path)
@@ -553,8 +545,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
   def _WriteLine(self, line):
     """Write log output to stdout."""
     line = re.sub(_RE_STARBOARD_LOGCAT_PREFIX, '', line, count=1)
-    print line
-    sys.stdout.flush()
+    self.output_file.write(line)
+    self.output_file.flush()
 
   def GetHostAndPortGivenPort(self, port):
     forward_p = self._PopenAdb(
