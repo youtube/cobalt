@@ -49,13 +49,17 @@ class RenderTreeCombiner {
     // Submit render tree to the layer, and specify whether the time
     // received should be stored.
     void Submit(
-        const base::optional<renderer::Submission>& render_tree_submission,
-        bool receive_time = false);
+        const base::optional<renderer::Submission>& render_tree_submission);
 
    private:
     friend class RenderTreeCombiner;
 
     explicit Layer(RenderTreeCombiner* render_tree_combiner = NULL);
+
+    // Returns the current submission time for this particular layer.  This is
+    // called by the RenderTreeCombiner on the |timeline_layer_| to determine
+    // which value to pass in as the submission time for the renderer.
+    base::optional<base::TimeDelta> CurrentTimeOffset();
 
     RenderTreeCombiner* render_tree_combiner_;
 
@@ -75,15 +79,25 @@ class RenderTreeCombiner {
   // a base::nullopt.
   base::optional<renderer::Submission> GetCurrentSubmission();
 
+  // Names a single layer as the one responsible for providing the timeline
+  // id and configuration to the output combined render tree.  Only a single
+  // layer can be responsible for providing the timeline.
+  void SetTimelineLayer(Layer* layer);
+
  private:
+  // Returns true if the specified layer exists in this render tree combiner's
+  // current list of layers (e.g. |layers_|).
+  bool OwnsLayer(Layer* layer);
+
   // The layers keyed on their z_index.
   std::map<int, Layer*> layers_;
 
   // Removes a layer from |layers_|. Called by the Layer destructor.
   void RemoveLayer(const Layer* layer);
 
-  // Combines the cached render trees and renders the result.
-  void SubmitToRenderer();
+  // Which layer is currently controlling the receipt time submitted to the
+  // rasterizer.
+  RenderTreeCombiner::Layer* timeline_layer_;
 };
 
 }  // namespace browser

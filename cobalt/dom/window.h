@@ -102,6 +102,10 @@ class Window : public EventTarget,
       const base::SourceLocation&, const base::Closure&,
       const base::Callback<void(const std::string&)>&)>
       HTMLDecoderCreatorCallback;
+  // Callback that will be called when window.close() is called.  The
+  // base::TimeDelta parameter will contain the document's timeline time when
+  // close() was called.
+  typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   enum ClockType {
     kClockTypeTestRunner,
@@ -138,7 +142,7 @@ class Window : public EventTarget,
       dom::CspEnforcementType csp_enforcement_mode,
       const base::Closure& csp_policy_changed_callback,
       const base::Closure& ran_animation_frame_callbacks_callback,
-      const base::Closure& window_close_callback,
+      const CloseCallback& window_close_callback,
       const base::Closure& window_minimize_callback,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
@@ -394,7 +398,7 @@ class Window : public EventTarget,
   scoped_refptr<Screen> screen_;
 
   const base::Closure ran_animation_frame_callbacks_callback_;
-  const base::Closure window_close_callback_;
+  const CloseCallback window_close_callback_;
   const base::Closure window_minimize_callback_;
 
   base::Callback<bool(const std::string&)> splash_screen_cache_callback_;

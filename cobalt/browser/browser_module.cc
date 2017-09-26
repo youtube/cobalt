@@ -257,7 +257,10 @@ BrowserModule::BrowserModule(const GURL& url,
       will_quit_(false),
       application_state_(initial_application_state),
       splash_screen_cache_(new SplashScreenCache()),
-      main_web_module_generation_(0) {
+      main_web_module_generation_(0),
+      next_timeline_id_(1),
+      current_splash_screen_timeline_id_(-1),
+      current_main_web_module_timeline_id_(-1) {
   h5vcc_url_handler_.reset(new H5vccURLHandler(this));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -395,6 +398,8 @@ void BrowserModule::Navigate(const GURL& url) {
   // Increment the navigation generation so that we can attach it to event
   // callbacks as a way of identifying the new web module from the old ones.
   ++main_web_module_generation_;
+  current_splash_screen_timeline_id_ = next_timeline_id_++;
+  current_main_web_module_timeline_id_ = next_timeline_id_++;
 
   main_web_module_layer_->Reset();
 
@@ -405,7 +410,7 @@ void BrowserModule::Navigate(const GURL& url) {
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = GetViewportSize();
 
-  DestroySplashScreen();
+  DestroySplashScreen(base::TimeDelta());
   base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (fallback_splash_screen_url_ ||
       (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
@@ -594,10 +599,18 @@ void BrowserModule::OnRenderTreeProduced(
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
+  // Set the timeline id for the main web module.  The main web module is
+  // assumed to be an interactive experience for which the default timeline
+  // configuration is already designed for, so we don't configure anything
+  // explicitly.
+  renderer_submission.timeline_info.id = current_main_web_module_timeline_id_;
+
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  main_web_module_layer_->Submit(renderer_submission,
-                                 !splash_screen_ /* receive_time */);
+  if (!splash_screen_) {
+    render_tree_combiner_->SetTimelineLayer(main_web_module_layer_.get());
+  }
+  main_web_module_layer_->Submit(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
@@ -619,9 +632,28 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
+  // We customize some of the renderer pipeline timeline behavior to cater for
+  // non-interactive splash screen playback.
+  renderer_submission.timeline_info.id = current_splash_screen_timeline_id_;
+  // Since the splash screen is non-interactive, latency is not a concern.
+  // Latency reduction implies a speedup in animation playback speed which can
+  // make the splash screen play out quicker than intended.
+  renderer_submission.timeline_info.allow_latency_reduction = false;
+  // Increase the submission queue size to a larger value than usual.  This
+  // is done because a) since we do not attempt to reduce latency, the queue
+  // tends to fill up more and b) the pipeline may end up receiving a number
+  // of render tree submissions caused by updated main web module render trees,
+  // which can fill the submission queue.  Blowing the submission queue is
+  // particularly bad for the splash screen as it results in dropping of older
+  // submissions, which results in skipping forward during animations, which
+  // sucks.
+  renderer_submission.timeline_info.max_submission_queue_size =
+      std::max(8, renderer_submission.timeline_info.max_submission_queue_size);
+
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  splash_screen_layer_->Submit(renderer_submission, true /* receive_time */);
+  render_tree_combiner_->SetTimelineLayer(splash_screen_layer_.get());
+  splash_screen_layer_->Submit(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
 // TODO: write screen shot using render_tree_combiner_ (to combine
@@ -634,7 +666,8 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   SubmitCurrentRenderTreeToRenderer();
 }
 
-void BrowserModule::OnWindowClose() {
+void BrowserModule::OnWindowClose(base::TimeDelta close_time) {
+  UNREFERENCED_PARAMETER(close_time);
 #if defined(ENABLE_DEBUG_CONSOLE)
   if (input_device_manager_fuzzer_) {
     return;
@@ -922,17 +955,26 @@ bool BrowserModule::TryURLHandlers(const GURL& url) {
   return false;
 }
 
-void BrowserModule::DestroySplashScreen() {
+void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::DestroySplashScreen()");
   if (MessageLoop::current() != self_message_loop_) {
     self_message_loop_->PostTask(
-        FROM_HERE, base::Bind(&BrowserModule::DestroySplashScreen, weak_this_));
+        FROM_HERE, base::Bind(&BrowserModule::DestroySplashScreen, weak_this_,
+                              close_time));
     return;
   }
   if (splash_screen_) {
     lifecycle_observers_.RemoveObserver(splash_screen_.get());
   }
-  splash_screen_layer_.reset(NULL);
+  if (splash_screen_layer_) {
+    if (!close_time.is_zero()) {
+      // Ensure that the renderer renders each frame up until the window.close()
+      // is called on the splash screen's timeline, in order to ensure that the
+      // splash screen shutdown transition plays out completely.
+      renderer_module_->pipeline()->TimeFence(close_time);
+    }
+    splash_screen_layer_.reset(NULL);
+  }
   splash_screen_.reset(NULL);
 }
 

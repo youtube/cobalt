@@ -178,7 +178,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
-      base::Closure() /* window_close_callback */,
+      browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */, media_module.get(),
       &network_module, kDefaultViewportSize, 1.f, &resource_provider, 60.0f,
       web_module_options);

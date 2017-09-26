@@ -242,10 +242,10 @@ class BrowserModule {
   bool TryURLHandlers(const GURL& url);
 
   // Destroys the splash screen, if currently displayed.
-  void DestroySplashScreen();
+  void DestroySplashScreen(base::TimeDelta close_time);
 
   // Called when web module has received window.close().
-  void OnWindowClose();
+  void OnWindowClose(base::TimeDelta close_time);
 
   // Called when web module has received window.minimize().
   void OnWindowMinimize();
@@ -520,6 +520,16 @@ class BrowserModule {
   // ditinguishing lingering events produced by older web modules as we switch
   // from one to another.  This is incremented with each navigation.
   int main_web_module_generation_;
+
+  // Keeps track of a unique next ID to be assigned to new splash screen or
+  // main web module timelines.
+  int next_timeline_id_;
+
+  // The following values are specified on submissions sent into the renderer
+  // so that the renderer can identify when it is changing from one timeline
+  // to another (in which case it may need to clear its submission queue).
+  int current_splash_screen_timeline_id_;
+  int current_main_web_module_timeline_id_;
 };
 
 }  // namespace browser
