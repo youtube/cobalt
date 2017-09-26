@@ -116,7 +116,8 @@ class Pipeline {
 
   // Updates the rasterizer timer stats according to the |start_time| and
   // |end_time| of the most recent rasterize call.
-  void UpdateRasterizeStats(bool did_rasterize, bool are_animations_active,
+  void UpdateRasterizeStats(bool did_rasterize,
+                            bool are_stat_tracked_animations_expired,
                             bool is_new_render_tree, base::TimeTicks start_time,
                             base::TimeTicks end_time);
 
@@ -200,6 +201,9 @@ class Pipeline {
   // allows us to skip rasterizing that render tree if we see it again and it
   // did have expired animations.
   bool last_animations_expired_;
+  // Keep track of whether the last rendered tree had animations that we're
+  // tracking stats on.
+  bool last_stat_tracked_animations_expired_;
 
   // Did a rasterization take place in the last frame?
   bool last_did_rasterize_;

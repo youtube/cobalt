@@ -83,6 +83,7 @@ Pipeline::Pipeline(const CreateRasterizerFunction& create_rasterizer_function,
           submit_even_if_render_tree_is_unchanged),
       last_did_rasterize_(false),
       last_animations_expired_(true),
+      last_stat_tracked_animations_expired_(true),
       rasterize_periodic_timer_("Renderer.Rasterize.Duration",
                                 kRasterizePeriodicTimerEntriesPerUpdate,
                                 false /*enable_entry_list_c_val*/),
@@ -285,21 +286,27 @@ void Pipeline::RasterizeCurrentTree() {
       RasterizeSubmissionToRenderTarget(submission, render_target_);
 
   bool animations_expired = animate_node->expiry() <= submission.time_offset;
+  bool stat_tracked_animations_expired =
+      animate_node->depends_on_time_expiry() <= submission.time_offset;
 
-  UpdateRasterizeStats(did_rasterize, animations_expired, is_new_render_tree,
-                       start_rasterize_time, base::TimeTicks::Now());
+  UpdateRasterizeStats(did_rasterize, stat_tracked_animations_expired,
+                       is_new_render_tree, start_rasterize_time,
+                       base::TimeTicks::Now());
 
   last_did_rasterize_ = did_rasterize;
   last_animations_expired_ = animations_expired;
+  last_stat_tracked_animations_expired_ = stat_tracked_animations_expired;
 }
 
-void Pipeline::UpdateRasterizeStats(bool did_rasterize, bool animations_expired,
+void Pipeline::UpdateRasterizeStats(bool did_rasterize,
+                                    bool are_stat_tracked_animations_expired,
                                     bool is_new_render_tree,
                                     base::TimeTicks start_time,
                                     base::TimeTicks end_time) {
   bool last_animations_active =
-      !last_animations_expired_ && last_did_rasterize_;
-  bool animations_active = !animations_expired && did_rasterize;
+      !last_stat_tracked_animations_expired_ && last_did_rasterize_;
+  bool animations_active =
+      !are_stat_tracked_animations_expired && did_rasterize;
 
   // The rasterization is only timed with the periodic timer when the render
   // tree has changed. This ensures that the frames being timed are consistent
