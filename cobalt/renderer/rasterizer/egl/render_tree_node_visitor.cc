@@ -520,7 +520,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
   }
 
   if (draw_border) {
+    bool content_rect_drawn = draw_border->DrawsContentRect();
     AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
+    if (content_rect_drawn) {
+      return;
+    }
   }
 
   // Handle drawing the content.
@@ -537,11 +541,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
     } else {
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
           draw_state_, content_rect, solid_brush->color()));
-      if (IsOpaque(draw_state_.opacity * solid_brush->color().a())) {
-        AddOpaqueDraw(draw.Pass(), node_bounds);
-      } else {
-        AddTransparentDraw(draw.Pass(), node_bounds);
-      }
+      // Match the blending mode used by other rect node draws to allow
+      // merging of the draw objects if possible.
+      AddTransparentDraw(draw.Pass(), node_bounds);
     }
   } else if (brush_is_linear_and_supported) {
     const render_tree::LinearGradientBrush* linear_brush =
