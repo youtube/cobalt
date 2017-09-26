@@ -1038,7 +1038,7 @@ WebModule::WebModule(
     const GURL& initial_url, base::ApplicationState initial_application_state,
     const OnRenderTreeProducedCallback& render_tree_produced_callback,
     const OnErrorCallback& error_callback,
-    const base::Closure& window_close_callback,
+    const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
     media::MediaModule* media_module, network::NetworkModule* network_module,
     const math::Size& window_dimensions, float video_pixel_ratio,

@@ -192,8 +192,8 @@ DebugConsole::DebugConsole(
       new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
                     render_tree_produced_callback,
                     base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-                    base::Closure(), /* window_close_callback */
-                    base::Closure(), /* window_minimize_callback */
+                    WebModule::CloseCallback(), /* window_close_callback */
+                    base::Closure(),            /* window_minimize_callback */
                     &stub_media_module_, network_module, window_dimensions,
                     1.f /*video_pixel_ratio*/, resource_provider,
                     layout_refresh_rate, web_module_options));
