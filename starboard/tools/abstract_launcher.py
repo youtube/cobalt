@@ -32,47 +32,106 @@ import abc
 import starboard.tools.platform as platform_module
 
 
-def _GetLauncherForPlatform(platform_path):
+def GetGypModuleForPlatform(platform):
+  """Gets the module containing a platform's GYP configuration.
+
+  Args:
+    platform:  Platform on which the app will be run, ex. "linux-x64x11".
+
+  Returns:
+    The module containing the platform's GYP configuration.
+
+  Raises:
+    RuntimeError:  The specified platform does not exist.
+  """
+  platform_dict = platform_module.GetAllPorts()
+  if platform in platform_dict:
+    platform_path = platform_dict[platform]
+    if platform_path not in sys.path:
+      sys.path.append(platform_path)
+    gyp_module = importlib.import_module("gyp_configuration")
+    return gyp_module
+  else:
+    raise RuntimeError("Specified platform does not exist.")
+
+
+def _GetLauncherForPlatform(platform):
   """Gets the module containing a platform's concrete launcher implementation.
 
   Args:
-    platform_path:  Path to the location of a valid starboard platform.
+    platform: Platform on which the app will be run, ex. "linux-x64x11".
 
   Returns:
     The module containing the platform's launcher implementation.
   """
-  if platform_path not in sys.path:
-    sys.path.append(platform_path)
-  gyp_module = importlib.import_module("gyp_configuration")
+
+  gyp_module = GetGypModuleForPlatform(platform)
   return gyp_module.CreatePlatformConfig().GetLauncher()
 
 
-def LauncherFactory(platform, target_name, config, device_id, args):
+def DynamicallyBuildOutDirectory(platform, config):
+  """Constructs the location used to store executable targets/their components.
+
+  Args:
+    platform: The platform to run the executable on, ex. "linux-x64x11".
+    config: The build configuration, ex. "qa".
+
+  Returns:
+    The path to the directory containing executables and/or their components.
+  """
+  path = os.path.abspath(
+      os.path.join(os.path.dirname(__file__),
+                   os.pardir, os.pardir, "out",
+                   "{}_{}".format(platform, config)))
+  return path
+
+def GetDefaultTargetPath(platform, config, target_name):
+  """Constructs the default path to an executable target.
+
+  The default path talkes the form of:
+
+    "/path/to/out/<platform>_<config>/target_name"
+
+  Args:
+    patform: The platform to run the executable on, ex. "linux-x64x11".
+    config: The build configuration, ex. "qa".
+    target_name:  The name of the executable target (ex. "cobalt")
+
+  Returns:
+    The path to an executable target.
+  """
+  return os.path.join(DynamicallyBuildOutDirectory(platform, config),
+                      target_name)
+
+
+def LauncherFactory(platform, target_name, config, device_id, args,
+                    output_file=sys.stdout, out_directory=None):
   """Creates the proper launcher based upon command line args.
 
   Args:
-    platform:  The platform on which the app will run
-    target_name:  The name of the executable target (ex. "cobalt")
-    config:  Type of configuration used by the launcher (ex. "qa", "devel")
-    device_id:  The identifier for the devkit being used
-    args:  Any extra arguments to be passed on a platform-specific basis
+    platform:  The platform on which the app will run.
+    target_name:  The name of the executable target (ex. "cobalt").
+    config:  Type of configuration used by the launcher (ex. "qa", "devel").
+    device_id:  The identifier for the devkit being used.
+    args:  Any extra arguments to be passed on a platform-specific basis.
+    output_file:  The open file to which the launcher should write its output.
+    out_directory:  Path to directory where tool/test targets and/or their
+      components are stored.
 
   Returns:
-    An instance of the concrete launcher class for the desired platform
+    An instance of the concrete launcher class for the desired platform.
 
   Raises:
     RuntimeError: The platform does not exist, or there is no project root.
   """
 
+  if not out_directory:
+    out_directory = DynamicallyBuildOutDirectory(platform, config)
+
   #  Creates launcher for provided platform if the platform has a valid port
-  platform_dict = platform_module.GetAllPorts()
-  if platform in platform_dict:
-    platform_path = platform_dict[platform]
-    launcher_module = _GetLauncherForPlatform(platform_path)
-    return launcher_module.Launcher(platform, target_name, config, device_id,
-                                    args)
-  else:
-    raise RuntimeError("Specified platform does not exist.")
+  launcher_module = _GetLauncherForPlatform(platform)
+  return launcher_module.Launcher(platform, target_name, config, device_id,
+                                  args, output_file, out_directory)
 
 
 class AbstractLauncher(object):
@@ -80,15 +139,22 @@ class AbstractLauncher(object):
 
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, platform, target_name, config, device_id, args):
+  def __init__(self, platform, target_name, config, device_id,
+               args, output_file, out_directory):
     self.platform = platform
     self.target_name = target_name
     self.config = config
     self.device_id = device_id
     self.args = args
+    self.out_directory = out_directory
+    self.output_file = output_file
     self.target_command_line_params = []
     if "target_params" in args:
       self.target_command_line_params.extend(args["target_params"])
+
+    # Launchers that need different startup timeout times should reassign
+    # this variable during initialization.
+    self.startup_timeout_seconds = 2 * 60
 
   @abc.abstractmethod
   def Run(self):
@@ -103,6 +169,10 @@ class AbstractLauncher(object):
   def Kill(self):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
+
+  def GetStartupTimeout(self):
+    """Gets the number of seconds to wait before assuming a launcher timeout."""
+    return self.startup_timeout_seconds
 
   def GetHostAndPortGivenPort(self, port):
     """Creates a host/port tuple for use on the target device.
