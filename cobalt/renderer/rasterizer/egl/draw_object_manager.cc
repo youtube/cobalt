@@ -44,6 +44,19 @@ uint32_t DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
     BlendType blend_type, base::TypeId draw_type,
     const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
+  // See if this draw object can be merged with the last one.
+  if (!onscreen_draws_.empty()) {
+    DrawInfo& last_draw = onscreen_draws_.back();
+    if (last_draw.render_target == render_target &&
+        last_draw.draw_type == draw_type &&
+        last_draw.blend_type == blend_type &&
+        last_draw.draw_object->TryMerge(draw_object.get())) {
+      last_draw.draw_bounds.Union(draw_bounds);
+      last_draw.draw_id = ++current_draw_id_;
+      return current_draw_id_;
+    }
+  }
+
   onscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
       render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
@@ -53,6 +66,19 @@ uint32_t DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
     BlendType blend_type, base::TypeId draw_type,
     const backend::RenderTarget* render_target,
     const math::RectF& draw_bounds) {
+  // See if this draw object can be merged with the last one.
+  if (!offscreen_draws_.empty()) {
+    DrawInfo& last_draw = offscreen_draws_.back();
+    if (last_draw.render_target == render_target &&
+        last_draw.draw_type == draw_type &&
+        last_draw.blend_type == blend_type &&
+        last_draw.draw_object->TryMerge(draw_object.get())) {
+      last_draw.draw_bounds.Union(draw_bounds);
+      last_draw.draw_id = ++current_draw_id_;
+      return current_draw_id_;
+    }
+  }
+
   offscreen_draws_.emplace_back(draw_object.Pass(), draw_type, blend_type,
       render_target, draw_bounds, ++current_draw_id_);
   return current_draw_id_;
