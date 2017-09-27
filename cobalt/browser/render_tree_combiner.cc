@@ -21,7 +21,6 @@
 #include "base/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
-#include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
@@ -35,7 +34,6 @@ RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
 RenderTreeCombiner::Layer::~Layer() {
   DCHECK(render_tree_combiner_);
   render_tree_combiner_->RemoveLayer(this);
-  render_tree_combiner_->SubmitToRenderer();
 }
 
 void RenderTreeCombiner::Layer::Submit(
@@ -47,13 +45,9 @@ void RenderTreeCombiner::Layer::Submit(
   } else {
     receipt_time_ = base::nullopt;
   }
-  DCHECK(render_tree_combiner_);
-  render_tree_combiner_->SubmitToRenderer();
 }
 
-RenderTreeCombiner::RenderTreeCombiner(
-    renderer::RendererModule* renderer_module, const math::Size& viewport_size)
-    : renderer_module_(renderer_module), viewport_size_(viewport_size) {}
+RenderTreeCombiner::RenderTreeCombiner() {}
 
 scoped_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
     int z_index) {
@@ -76,7 +70,8 @@ void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
   }
 }
 
-void RenderTreeCombiner::SubmitToRenderer() {
+base::optional<renderer::Submission>
+RenderTreeCombiner::GetCurrentSubmission() {
   render_tree::CompositionNode::Builder builder;
 
   // Add children for all layers in order.
@@ -97,7 +92,7 @@ void RenderTreeCombiner::SubmitToRenderer() {
     }
   }
   if (!first_tree) {
-    return;
+    return base::nullopt;
   }
   if (!combined_submission) {
     // None of the layers store the time.
@@ -105,7 +100,7 @@ void RenderTreeCombiner::SubmitToRenderer() {
   }
 
   combined_submission->render_tree = new render_tree::CompositionNode(builder);
-  renderer_module_->pipeline()->Submit(*combined_submission);
+  return *combined_submission;
 }
 }  // namespace browser
 }  // namespace cobalt

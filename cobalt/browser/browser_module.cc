@@ -257,7 +257,7 @@ BrowserModule::BrowserModule(const GURL& url,
       will_quit_(false),
       application_state_(initial_application_state),
       splash_screen_cache_(new SplashScreenCache()),
-      navigation_produced_main_render_tree_(false) {
+      main_web_module_generation_(0) {
   h5vcc_url_handler_.reset(new H5vccURLHandler(this));
 
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
@@ -392,6 +392,12 @@ void BrowserModule::Navigate(const GURL& url) {
   }
   web_module_.reset(NULL);
 
+  // Increment the navigation generation so that we can attach it to event
+  // callbacks as a way of identifying the new web module from the old ones.
+  ++main_web_module_generation_;
+
+  main_web_module_layer_->Reset();
+
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
@@ -400,7 +406,6 @@ void BrowserModule::Navigate(const GURL& url) {
   const math::Size& viewport_size = GetViewportSize();
 
   DestroySplashScreen();
-  navigation_produced_main_render_tree_ = false;
   base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
   if (fallback_splash_screen_url_ ||
       (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
@@ -459,7 +464,7 @@ void BrowserModule::Navigate(const GURL& url) {
   web_module_.reset(new WebModule(
       url, application_state_,
       base::Bind(&BrowserModule::QueueOnRenderTreeProduced,
-                 base::Unretained(this)),
+                 base::Unretained(this), main_web_module_generation_),
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
@@ -544,11 +549,12 @@ void BrowserModule::ProcessRenderTreeSubmissionQueue() {
 }
 
 void BrowserModule::QueueOnRenderTreeProduced(
+    int main_web_module_generation,
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::QueueOnRenderTreeProduced()");
   render_tree_submission_queue_.AddMessage(
       base::Bind(&BrowserModule::OnRenderTreeProduced, base::Unretained(this),
-                 layout_results));
+                 main_web_module_generation, layout_results));
   self_message_loop_->PostTask(
       FROM_HERE,
       base::Bind(&BrowserModule::ProcessRenderTreeSubmissionQueue, weak_this_));
@@ -567,19 +573,24 @@ void BrowserModule::QueueOnSplashScreenRenderTreeProduced(
 }
 
 void BrowserModule::OnRenderTreeProduced(
+    int main_web_module_generation,
     const browser::WebModule::LayoutResults& layout_results) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
-  if (splash_screen_ && !navigation_produced_main_render_tree_) {
+  if (main_web_module_generation != main_web_module_generation_) {
+    // Ignore render trees produced by old stale web modules.  This might happen
+    // during a navigation transition.
+    return;
+  }
+
+  if (splash_screen_ && !splash_screen_->ShutdownSignaled()) {
     splash_screen_->Shutdown();
   }
   if (application_state_ == base::kApplicationStatePreloading ||
       !render_tree_combiner_ || !main_web_module_layer_) {
     return;
   }
-
-  navigation_produced_main_render_tree_ = true;
 
   renderer::Submission renderer_submission(layout_results.render_tree,
                                            layout_results.layout_time);
@@ -592,6 +603,7 @@ void BrowserModule::OnRenderTreeProduced(
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
 #endif
+  SubmitCurrentRenderTreeToRenderer();
 }
 
 void BrowserModule::OnSplashScreenRenderTreeProduced(
@@ -612,12 +624,14 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   splash_screen_layer_->Submit(renderer_submission, true /* receive_time */);
 
 #if defined(ENABLE_SCREENSHOT)
-// TODO: write screen shot using render_tree_combinder_ (to combine
+// TODO: write screen shot using render_tree_combiner_ (to combine
 // splash screen and main web_module). Consider when the splash
 // screen is overlaid on top of the main web module render tree, and
 // a screenshot is taken : there will be a race condition on which
 // web module update their render tree last.
 #endif
+
+  SubmitCurrentRenderTreeToRenderer();
 }
 
 void BrowserModule::OnWindowClose() {
@@ -713,6 +727,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
   debug_console_layer_->Submit(renderer::Submission(
       layout_results.render_tree, layout_results.layout_time));
+
+  SubmitCurrentRenderTreeToRenderer();
 }
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
@@ -1147,8 +1163,7 @@ void BrowserModule::InitializeSystemWindow() {
       RendererModuleWithCameraOptions(options_.renderer_module_options,
                                       input_device_manager_->camera_3d())));
 
-  render_tree_combiner_.reset(
-      new RenderTreeCombiner(renderer_module_.get(), GetViewportSize()));
+  render_tree_combiner_.reset(new RenderTreeCombiner());
   // Create the main web module layer.
   main_web_module_layer_ =
       render_tree_combiner_->CreateLayer(kMainWebModuleZIndex);
@@ -1355,6 +1370,14 @@ void BrowserModule::ApplyAutoMemSettings() {
     options_.renderer_module_options.skia_glyph_texture_atlas_dimensions =
         math::Size(skia_glyph_atlas_texture_dimensions.width(),
                    skia_glyph_atlas_texture_dimensions.height());
+  }
+}
+
+void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
+  base::optional<renderer::Submission> submission =
+      render_tree_combiner_->GetCurrentSubmission();
+  if (submission) {
+    renderer_module_->pipeline()->Submit(*submission);
   }
 }
 
