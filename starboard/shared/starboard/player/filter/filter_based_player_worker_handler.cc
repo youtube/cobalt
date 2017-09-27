@@ -174,9 +174,15 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
+        SbDrmSystemPrivate::DecryptStatus decrypt_status =
+          drm_system_->Decrypt(input_buffer);
+        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
+        }
+        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+          *written = false;
+          return false;
         }
       }
       audio_renderer_->WriteSample(input_buffer);
@@ -194,9 +200,15 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
+        SbDrmSystemPrivate::DecryptStatus decrypt_status =
+          drm_system_->Decrypt(input_buffer);
+        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
+        }
+        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+          *written = false;
+          return false;
         }
       }
       video_renderer_->WriteSample(input_buffer);
