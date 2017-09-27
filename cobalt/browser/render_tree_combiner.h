@@ -20,7 +20,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/time.h"
-#include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
@@ -64,13 +63,17 @@ class RenderTreeCombiner {
     base::optional<base::TimeTicks> receipt_time_;
   };
 
-  explicit RenderTreeCombiner(renderer::RendererModule* renderer_module,
-                              const math::Size& viewport_size);
+  RenderTreeCombiner();
   ~RenderTreeCombiner() {}
 
   // Create a Layer with a given |z_index|. If a Layer already exists
   // at |z_index|, return NULL, and no Layer is created.
   scoped_ptr<Layer> CreateLayer(int z_index);
+
+  // Returns a current submission object that can be passed into a renderer
+  // for rasterization.  If no layers with render trees exist, this will return
+  // a base::nullopt.
+  base::optional<renderer::Submission> GetCurrentSubmission();
 
  private:
   // The layers keyed on their z_index.
@@ -81,13 +84,6 @@ class RenderTreeCombiner {
 
   // Combines the cached render trees and renders the result.
   void SubmitToRenderer();
-
-  // Local reference to the render pipeline, so we can submit the combined tree.
-  // Reference counted pointer not necessary here.
-  renderer::RendererModule* renderer_module_;
-
-  // The size of the output viewport.
-  math::Size viewport_size_;
 };
 
 }  // namespace browser
