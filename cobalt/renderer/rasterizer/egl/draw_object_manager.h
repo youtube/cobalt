@@ -117,7 +117,7 @@ class DrawObjectManager {
     BlendType blend_type;
     union {
       uint32_t draw_id;
-      uint32_t dependencies;
+      mutable uint32_t dependencies;
     };
   };
 
@@ -130,25 +130,33 @@ class DrawObjectManager {
     const backend::RenderTarget* required_target;
   };
 
+  typedef std::vector<DrawInfo> DrawList;
+  typedef std::vector<const DrawInfo*> SortedDrawList;
+
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
 
-  void Rasterize(const std::vector<DrawInfo>& draw_list,
+  void Rasterize(const SortedDrawList& draw_list,
                  GraphicsState* graphics_state,
                  ShaderProgramManager* program_manager);
 
-  void RemoveDraws(std::vector<DrawInfo>* draw_list,
-                   uint32_t last_valid_draw_id);
+  void RemoveDraws(DrawList* draw_list, uint32_t last_valid_draw_id);
 
-  void SortOffscreenDraws(std::vector<DrawInfo>* draw_list);
-  void SortOnscreenDraws(std::vector<DrawInfo>* draw_list);
+  void SortOffscreenDraws(const DrawList& draw_list,
+                          SortedDrawList* sorted_draw_list);
+  void SortOnscreenDraws(const DrawList& draw_list,
+                         SortedDrawList* sorted_draw_list);
 
   base::Closure reset_external_rasterizer_;
   base::Closure flush_external_offscreen_draws_;
 
-  std::vector<DrawInfo> onscreen_draws_;
-  std::vector<DrawInfo> offscreen_draws_;
-  std::vector<DrawInfo> external_offscreen_draws_;
+  DrawList onscreen_draws_;
+  DrawList offscreen_draws_;
+  DrawList external_offscreen_draws_;
+
+  SortedDrawList sorted_onscreen_draws_;
+  SortedDrawList sorted_offscreen_draws_;
+  SortedDrawList sorted_external_offscreen_draws_;
 
   std::vector<RenderTargetDependency> draw_dependencies_;
   std::unordered_map<int32_t, uint32_t> dependency_count_;

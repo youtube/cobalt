@@ -65,7 +65,7 @@ void DrawObjectManager::RemoveDraws(uint32_t last_valid_draw_id) {
   RemoveDraws(&external_offscreen_draws_, last_valid_draw_id);
 }
 
-void DrawObjectManager::RemoveDraws(std::vector<DrawInfo>* draw_list,
+void DrawObjectManager::RemoveDraws(DrawList* draw_list,
     uint32_t last_valid_draw_id) {
   // Objects in the draw list should have ascending draw IDs at this point.
   auto iter = draw_list->end();
@@ -117,13 +117,13 @@ void DrawObjectManager::AddRenderTargetDependency(
 
 void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  SortOffscreenDraws(&external_offscreen_draws_);
+  SortOffscreenDraws(external_offscreen_draws_,
+                     &sorted_external_offscreen_draws_);
 
   // Process draws handled by an external rasterizer.
   {
     TRACE_EVENT0("cobalt::renderer", "OffscreenExternalRasterizer");
-    for (auto draw = external_offscreen_draws_.begin();
-         draw != external_offscreen_draws_.end(); ++draw) {
+    for (const DrawInfo* draw : sorted_external_offscreen_draws_) {
       // Batched external draws should not have any dependencies.
       DCHECK_EQ(draw->dependencies, 0);
       draw->draw_object->ExecuteRasterize(graphics_state, program_manager);
@@ -133,8 +133,8 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     }
   }
 
-  SortOffscreenDraws(&offscreen_draws_);
-  SortOnscreenDraws(&onscreen_draws_);
+  SortOffscreenDraws(offscreen_draws_, &sorted_offscreen_draws_);
+  SortOnscreenDraws(onscreen_draws_, &sorted_onscreen_draws_);
 
   // Update the vertex buffer for all draws.
   {
@@ -145,19 +145,17 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
   // Process the native offscreen draws.
   {
     TRACE_EVENT0("cobalt::renderer", "OffscreenNativeRasterizer");
-    Rasterize(offscreen_draws_, graphics_state, program_manager);
+    Rasterize(sorted_offscreen_draws_, graphics_state, program_manager);
   }
 }
 
 void DrawObjectManager::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
-  for (auto draw = offscreen_draws_.begin(); draw != offscreen_draws_.end();
-       ++draw) {
+  for (const DrawInfo* draw : sorted_offscreen_draws_) {
     draw->draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
-  for (auto draw = onscreen_draws_.begin(); draw != onscreen_draws_.end();
-       ++draw) {
+  for (const DrawInfo* draw : sorted_onscreen_draws_) {
     draw->draw_object->ExecuteUpdateVertexBuffer(
         graphics_state, program_manager);
   }
@@ -166,10 +164,10 @@ void DrawObjectManager::ExecuteUpdateVertexBuffer(
 
 void DrawObjectManager::ExecuteOnscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  Rasterize(onscreen_draws_, graphics_state, program_manager);
+  Rasterize(sorted_onscreen_draws_, graphics_state, program_manager);
 }
 
-void DrawObjectManager::Rasterize(const std::vector<DrawInfo>& draw_list,
+void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
     GraphicsState* graphics_state, ShaderProgramManager* program_manager) {
   const backend::RenderTarget* current_target = nullptr;
   bool using_native_rasterizer = true;
@@ -177,7 +175,7 @@ void DrawObjectManager::Rasterize(const std::vector<DrawInfo>& draw_list,
   // Starting from an unknown state.
   graphics_state->SetDirty();
 
-  for (auto draw = draw_list.begin(); draw != draw_list.end(); ++draw) {
+  for (const DrawInfo* draw : sorted_draw_list) {
     bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
 
     if (draw_uses_native_rasterizer) {
@@ -217,94 +215,131 @@ void DrawObjectManager::Rasterize(const std::vector<DrawInfo>& draw_list,
   }
 }
 
-void DrawObjectManager::SortOffscreenDraws(std::vector<DrawInfo>* draw_list) {
+void DrawObjectManager::SortOffscreenDraws(const DrawList& draw_list,
+    SortedDrawList* sorted_draw_list) {
   TRACE_EVENT0("cobalt::renderer", "SortOffscreenDraws");
 
   // Sort offscreen draws to minimize GPU state changes.
-  for (auto iter = draw_list->begin(); iter != draw_list->end(); ++iter) {
+  sorted_draw_list->reserve(draw_list.size());
+  for (size_t draw_pos = 0; draw_pos < draw_list.size(); ++draw_pos) {
+    auto* draw = &draw_list[draw_pos];
+    bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
+    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list.size() &&
+        draw_list[draw_pos + 1].blend_type != kBlendExternal;
     auto dependencies =
-        dependency_count_.find(iter->render_target->GetSerialNumber());
-    iter->dependencies =
+        dependency_count_.find(draw->render_target->GetSerialNumber());
+    draw->dependencies =
         dependencies != dependency_count_.end() ? dependencies->second : 0;
 
-    for (auto current_draw = iter; current_draw != draw_list->begin();
-         std::swap(*current_draw, *(current_draw - 1)), current_draw--) {
-      auto prev_draw = current_draw - 1;
+    // Find an appropriate sort position for the current draw.
+    auto sort_pos = draw_pos;
+    for (; sort_pos > 0; --sort_pos) {
+      auto* prev_draw = sorted_draw_list->at(sort_pos - 1);
 
       // Unlike onscreen draws, offscreen draws should be grouped by render
       // target. Ensure that render targets with fewer dependencies are first
       // in the draw list.
-      if (prev_draw->dependencies > current_draw->dependencies) {
+      if (prev_draw->dependencies > draw->dependencies) {
         continue;
-      } else if (prev_draw->dependencies < current_draw->dependencies) {
+      } else if (prev_draw->dependencies < draw->dependencies) {
         break;
       }
-      if (prev_draw->render_target > current_draw->render_target) {
+      if (prev_draw->render_target > draw->render_target) {
         continue;
-      } else if (prev_draw->render_target < current_draw->render_target) {
+      } else if (prev_draw->render_target < draw->render_target) {
         break;
       }
 
-      if (prev_draw->draw_bounds.Intersects(current_draw->draw_bounds)) {
-        break;
-      }
-
-      if (prev_draw->draw_type > current_draw->draw_type) {
-        continue;
-      } else if (prev_draw->draw_type < current_draw->draw_type) {
-        break;
-      }
-
-      if (prev_draw->blend_type <= current_draw->blend_type) {
-        break;
-      }
-    }
-  }
-}
-
-void DrawObjectManager::SortOnscreenDraws(std::vector<DrawInfo>* draw_list) {
-  TRACE_EVENT0("cobalt::renderer", "SortOnscreenDraws");
-
-  // Sort onscreen draws to minimize GPU state changes.
-  for (auto iter = draw_list->begin(); iter != draw_list->end(); ++iter) {
-    for (auto current_draw = iter; current_draw != draw_list->begin();
-         std::swap(*current_draw, *(current_draw - 1)), current_draw--) {
-      auto prev_draw = current_draw - 1;
-
-      // Do not sort across different render targets since their contents may
-      // be generated just before consumed by a subsequent draw.
-      if (prev_draw->render_target != current_draw->render_target) {
-        break;
-      }
-
-      if (prev_draw->draw_bounds.Intersects(current_draw->draw_bounds)) {
+      // The rest of the sorting logic is the same between onscreen and
+      // offscreen draws.
+      if (prev_draw->draw_bounds.Intersects(draw->draw_bounds)) {
         break;
       }
 
       // Group native vs. non-native draws together.
-      bool next_uses_same_rasterizer = current_draw + 1 != draw_list->end() &&
-          ((current_draw + 1)->blend_type == kBlendExternal) ==
-          (current_draw->blend_type == kBlendExternal);
-      bool prev_uses_same_rasterizer =
-          (prev_draw->blend_type == kBlendExternal) ==
-          (current_draw->blend_type == kBlendExternal);
-      if (!next_uses_same_rasterizer && !prev_uses_same_rasterizer) {
+      bool prev_uses_native_rasterizer =
+          prev_draw->blend_type != kBlendExternal;
+      if (draw_uses_native_rasterizer != next_uses_native_rasterizer &&
+          draw_uses_native_rasterizer != prev_uses_native_rasterizer) {
+        next_uses_native_rasterizer = prev_uses_native_rasterizer;
         continue;
       }
-      if (next_uses_same_rasterizer && !prev_uses_same_rasterizer) {
+      if (draw_uses_native_rasterizer == next_uses_native_rasterizer &&
+          draw_uses_native_rasterizer != prev_uses_native_rasterizer) {
+        break;
+      }
+      next_uses_native_rasterizer = prev_uses_native_rasterizer;
+
+      if (prev_draw->draw_type > draw->draw_type) {
+        continue;
+      } else if (prev_draw->draw_type < draw->draw_type) {
         break;
       }
 
-      if (prev_draw->draw_type > current_draw->draw_type) {
-        continue;
-      } else if (prev_draw->draw_type < current_draw->draw_type) {
-        break;
-      }
-
-      if (prev_draw->blend_type <= current_draw->blend_type) {
+      if (prev_draw->blend_type <= draw->blend_type) {
         break;
       }
     }
+
+    sorted_draw_list->insert(sorted_draw_list->begin() + sort_pos, draw);
+  }
+}
+
+void DrawObjectManager::SortOnscreenDraws(const DrawList& draw_list,
+    SortedDrawList* sorted_draw_list) {
+  TRACE_EVENT0("cobalt::renderer", "SortOnscreenDraws");
+
+  // Sort onscreen draws to minimize GPU state changes.
+  sorted_draw_list->reserve(draw_list.size());
+  for (size_t draw_pos = 0; draw_pos < draw_list.size(); ++draw_pos) {
+    auto* draw = &draw_list[draw_pos];
+    bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
+    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list.size() &&
+        draw_list[draw_pos + 1].blend_type != kBlendExternal;
+
+    // Find an appropriate sort position for the current draw.
+    auto sort_pos = draw_pos;
+    for (; sort_pos > 0; --sort_pos) {
+      auto* prev_draw = sorted_draw_list->at(sort_pos - 1);
+
+      // Do not sort across different render targets since their contents may
+      // be generated just before consumed by a subsequent draw.
+      if (prev_draw->render_target != draw->render_target) {
+        break;
+      }
+
+      // The rest of the sorting logic is the same between onscreen and
+      // offscreen draws.
+      if (prev_draw->draw_bounds.Intersects(draw->draw_bounds)) {
+        break;
+      }
+
+      // Group native vs. non-native draws together.
+      bool prev_uses_native_rasterizer =
+          prev_draw->blend_type != kBlendExternal;
+      if (draw_uses_native_rasterizer != next_uses_native_rasterizer &&
+          draw_uses_native_rasterizer != prev_uses_native_rasterizer) {
+        next_uses_native_rasterizer = prev_uses_native_rasterizer;
+        continue;
+      }
+      if (draw_uses_native_rasterizer == next_uses_native_rasterizer &&
+          draw_uses_native_rasterizer != prev_uses_native_rasterizer) {
+        break;
+      }
+      next_uses_native_rasterizer = prev_uses_native_rasterizer;
+
+      if (prev_draw->draw_type > draw->draw_type) {
+        continue;
+      } else if (prev_draw->draw_type < draw->draw_type) {
+        break;
+      }
+
+      if (prev_draw->blend_type <= draw->blend_type) {
+        break;
+      }
+    }
+
+    sorted_draw_list->insert(sorted_draw_list->begin() + sort_pos, draw);
   }
 }
 
