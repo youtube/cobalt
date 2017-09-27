@@ -585,7 +585,8 @@ void BrowserModule::OnRenderTreeProduced(
                                            layout_results.layout_time);
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  main_web_module_layer_->Submit(renderer_submission, true /* receive_time */);
+  main_web_module_layer_->Submit(renderer_submission,
+                                 !splash_screen_ /* receive_time */);
 
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_->SetLastPipelineSubmission(renderer::Submission(
@@ -608,7 +609,7 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
                                            layout_results.layout_time);
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  splash_screen_layer_->Submit(renderer_submission, false /* receive_time */);
+  splash_screen_layer_->Submit(renderer_submission, true /* receive_time */);
 
 #if defined(ENABLE_SCREENSHOT)
 // TODO: write screen shot using render_tree_combinder_ (to combine
