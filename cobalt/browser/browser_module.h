@@ -179,8 +179,10 @@ class BrowserModule {
   // Glue function to deal with the production of the main render tree,
   // and will manage handing it off to the renderer.
   void QueueOnRenderTreeProduced(
+      int web_module_generation,
       const browser::WebModule::LayoutResults& layout_results);
   void OnRenderTreeProduced(
+      int web_module_generation,
       const browser::WebModule::LayoutResults& layout_results);
 
   // Glue function to deal with the production of the splash screen render tree,
@@ -314,6 +316,11 @@ class BrowserModule {
 
   // Applies the current AutoMem settings to all applicable submodules.
   void ApplyAutoMemSettings();
+
+  // If it exists, takes the current combined render tree from
+  // |render_tree_combiner_| and submits it to the pipeline in the renderer
+  // module.
+  void SubmitCurrentRenderTreeToRenderer();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to
@@ -509,9 +516,10 @@ class BrowserModule {
   // The splash screen cache.
   scoped_ptr<SplashScreenCache> splash_screen_cache_;
 
-  // Whether or not the main WebModule has produced any render trees yet for the
-  // current navigation.
-  bool navigation_produced_main_render_tree_;
+  // Number of main web modules that have take place so far, helpful for
+  // ditinguishing lingering events produced by older web modules as we switch
+  // from one to another.  This is incremented with each navigation.
+  int main_web_module_generation_;
 };
 
 }  // namespace browser
