@@ -85,17 +85,18 @@ def DynamicallyBuildOutDirectory(platform, config):
                    "{}_{}".format(platform, config)))
   return path
 
+
 def GetDefaultTargetPath(platform, config, target_name):
   """Constructs the default path to an executable target.
 
-  The default path talkes the form of:
+  The default path takes the form of:
 
     "/path/to/out/<platform>_<config>/target_name"
 
   Args:
-    patform: The platform to run the executable on, ex. "linux-x64x11".
+    platform: The platform to run the executable on, ex. "linux-x64x11".
     config: The build configuration, ex. "qa".
-    target_name:  The name of the executable target (ex. "cobalt")
+    target_name:  The name of the executable target, ex. "cobalt"
 
   Returns:
     The path to an executable target.
