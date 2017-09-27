@@ -72,6 +72,9 @@ class SplashScreen : public LifecycleObserver {
   // no handlers, |on_splash_screen_shutdown_complete_| is run immediately.
   void Shutdown();
 
+  // Returns whether Shutdown() has been called before or not.
+  bool ShutdownSignaled() const { return shutdown_signaled_; }
+
  private:
   // Run when window.close() is called by the WebModule.
   void OnWindowClosed();
@@ -89,6 +92,9 @@ class SplashScreen : public LifecycleObserver {
   // This is called by Shutdown (via window.close) or after
   // the time limit has been exceeded.
   base::CancelableClosure on_splash_screen_shutdown_complete_;
+
+  // True if SplashScreen::Shutdown() has been called.
+  bool shutdown_signaled_;
 };
 
 }  // namespace browser

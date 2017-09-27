@@ -61,7 +61,8 @@ SplashScreen::SplashScreen(
     const base::Callback<void()>& on_splash_screen_shutdown_complete)
     : render_tree_produced_callback_(render_tree_produced_callback),
       self_message_loop_(MessageLoop::current()),
-      on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete) {
+      on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
+      shutdown_signaled_(false) {
   WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
@@ -113,12 +114,16 @@ SplashScreen::~SplashScreen() {
 void SplashScreen::Shutdown() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
+  DCHECK(!ShutdownSignaled()) << "Shutdown() should be called at most once.";
+
   if (!on_splash_screen_shutdown_complete_.callback().is_null()) {
     MessageLoop::current()->PostDelayedTask(
         FROM_HERE, on_splash_screen_shutdown_complete_.callback(),
         base::TimeDelta::FromSeconds(kSplashShutdownSeconds));
   }
   web_module_->InjectBeforeUnloadEvent();
+
+  shutdown_signaled_ = true;
 }
 
 }  // namespace browser
