@@ -73,8 +73,9 @@
         },{  # "target_arch != "arm" or arm_version < 7"
           'type': 'none',
         }],
-        ['target_arch == "arm" and arm_version >= 8 and clang == 1', {
-          # NEON is implicit on ARMv8, and clang doesn't like the redundant flag
+        ['target_arch == "arm" and arm_version >= 8', {
+          # NEON is implicit on ARMv8, and both clang and gcc don't like the
+          # redundant flag.
           'cflags!': [ '-mfpu=neon' ],
         }],
       ],
