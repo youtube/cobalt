@@ -75,7 +75,7 @@ class VideoDecoder
     };
 
     Type type;
-    // |input_buffer| is only used when |type| is kWriteInputBuffer.
+    // |input_buffer| is only used when |type| is |kWriteInputBuffer|.
     scoped_refptr<InputBuffer> input_buffer;
 
     explicit Event(Type type = kInvalid) : type(type) {
@@ -147,6 +147,15 @@ class VideoDecoder
   int32_t frame_height_;
 
   optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
+
+  // The last enqueued |SbMediaColorMetadata|.
+  optional<SbMediaColorMetadata> previous_color_metadata_;
+
+  // Helper value to keep track of whether we have enqueued our first input
+  // buffer or not.  This is used to decide whether or not we need to
+  // reinitialize upon receiving the first input buffer, since HDR metadata is
+  // unforunately not provided to us at initialization time.
+  bool has_written_buffer_since_reset_;
 };
 
 }  // namespace shared

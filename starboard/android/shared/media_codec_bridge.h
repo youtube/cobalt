@@ -83,7 +83,8 @@ class MediaCodecBridge {
       int width,
       int height,
       jobject j_surface,
-      jobject j_media_crypto);
+      jobject j_media_crypto,
+      const SbMediaColorMetadata* color_metadata);
 
   ~MediaCodecBridge();
 
