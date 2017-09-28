@@ -18,6 +18,65 @@ namespace starboard {
 namespace android {
 namespace shared {
 
+namespace {
+
+// See
+// https://developer.android.com/reference/android/media/MediaFormat.html#COLOR_RANGE_FULL.
+const jint COLOR_RANGE_FULL = 1;
+const jint COLOR_RANGE_LIMITED = 2;
+
+const jint COLOR_STANDARD_BT2020 = 6;
+const jint COLOR_STANDARD_BT601_NTSC = 4;
+const jint COLOR_STANDARD_BT601_PAL = 2;
+const jint COLOR_STANDARD_BT709 = 1;
+
+const jint COLOR_TRANSFER_HLG = 7;
+const jint COLOR_TRANSFER_LINEAR = 1;
+const jint COLOR_TRANSFER_SDR_VIDEO = 3;
+const jint COLOR_TRANSFER_ST2084 = 6;
+
+// A special value to represent that no mapping between an SbMedia* HDR
+// metadata value and Android HDR metadata value is possible.  This value
+// implies that HDR playback should not be attempted.
+const jint COLOR_VALUE_UNKNOWN = -1;
+
+jint SbMediaPrimaryIdToColorStandard(SbMediaPrimaryId primary_id) {
+  switch (primary_id) {
+    case kSbMediaPrimaryIdBt709:
+      return COLOR_STANDARD_BT709;
+    case kSbMediaPrimaryIdBt2020:
+      return COLOR_STANDARD_BT2020;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+jint SbMediaTransferIdToColorTransfer(SbMediaTransferId transfer_id) {
+  switch (transfer_id) {
+    case kSbMediaTransferIdBt709:
+      return COLOR_TRANSFER_SDR_VIDEO;
+    case kSbMediaTransferIdSmpteSt2084:
+      return COLOR_TRANSFER_ST2084;
+    case kSbMediaTransferIdAribStdB67:
+      return COLOR_TRANSFER_HLG;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+jint SbMediaRangeIdToColorRange(SbMediaRangeId range_id) {
+  switch (range_id) {
+    case kSbMediaRangeIdLimited:
+      return COLOR_RANGE_LIMITED;
+    case kSbMediaRangeIdFull:
+      return COLOR_RANGE_FULL;
+    default:
+      return COLOR_VALUE_UNKNOWN;
+  }
+}
+
+}  // namespace
+
 // static
 scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateAudioMediaCodecBridge(
     SbMediaAudioCodec audio_codec,
@@ -51,7 +110,8 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
     int width,
     int height,
     jobject j_surface,
-    jobject j_media_crypto) {
+    jobject j_media_crypto,
+    const SbMediaColorMetadata* color_metadata) {
   const char* mime = SupportedVideoCodecToMimeType(video_codec);
   if (!mime) {
     return scoped_ptr<MediaCodecBridge>(NULL);
@@ -59,12 +119,41 @@ scoped_ptr<MediaCodecBridge> MediaCodecBridge::CreateVideoMediaCodecBridge(
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jstring> j_mime(env->NewStringStandardUTFOrAbort(mime));
 
+  ScopedLocalJavaRef<jobject> j_color_info(nullptr);
+  if (color_metadata) {
+    jint color_standard =
+        SbMediaPrimaryIdToColorStandard(color_metadata->primaries);
+    jint color_transfer =
+        SbMediaTransferIdToColorTransfer(color_metadata->transfer);
+    jint color_range = SbMediaRangeIdToColorRange(color_metadata->range);
+
+    if (color_standard != COLOR_VALUE_UNKNOWN &&
+        color_transfer != COLOR_VALUE_UNKNOWN &&
+        color_range != COLOR_VALUE_UNKNOWN) {
+      const auto& mastering_metadata = color_metadata->mastering_metadata;
+      j_color_info.Reset(env->NewObjectOrAbort(
+          "foo/cobalt/media/MediaCodecBridge$ColorInfo", "(IIIFFFFFFFFFF)V",
+          color_standard, color_transfer, color_range,
+          mastering_metadata.primary_r_chromaticity_x,
+          mastering_metadata.primary_r_chromaticity_y,
+          mastering_metadata.primary_g_chromaticity_x,
+          mastering_metadata.primary_g_chromaticity_y,
+          mastering_metadata.primary_b_chromaticity_x,
+          mastering_metadata.primary_b_chromaticity_y,
+          mastering_metadata.white_point_chromaticity_x,
+          mastering_metadata.white_point_chromaticity_y,
+          mastering_metadata.luminance_max, mastering_metadata.luminance_min));
+    }
+  }
+
   jobject j_media_codec_bridge = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaCodecBridge", "createVideoMediaCodecBridge",
-      "(Ljava/lang/String;ZZIILandroid/view/Surface;Landroid/media/"
-      "MediaCrypto;)Lfoo/cobalt/media/MediaCodecBridge;",
+      "(Ljava/lang/String;ZZIILandroid/view/Surface;"
+      "Landroid/media/MediaCrypto;"
+      "Lfoo/cobalt/media/MediaCodecBridge$ColorInfo;)"
+      "Lfoo/cobalt/media/MediaCodecBridge;",
       j_mime.Get(), !!j_media_crypto, false, width, height, j_surface,
-      j_media_crypto);
+      j_media_crypto, j_color_info.Get());
 
   if (!j_media_codec_bridge) {
     return scoped_ptr<MediaCodecBridge>(NULL);

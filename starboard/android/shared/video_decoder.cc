@@ -45,6 +45,32 @@ const jlong kNoPts = 0;
 const jint kNoSize = 0;
 const jint kNoBufferFlags = 0;
 
+// Convenience HDR mastering metadata.
+const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
+
+// Determine if two |SbMediaMasteringMetadata|s are equal.
+bool Equal(const SbMediaMasteringMetadata& lhs,
+           const SbMediaMasteringMetadata& rhs) {
+  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+}
+
+// Determine if two |SbMediaColorMetadata|s are equal.
+bool Equal(const SbMediaColorMetadata& lhs, const SbMediaColorMetadata& rhs) {
+  return SbMemoryCompare(&lhs, &rhs, sizeof(SbMediaMasteringMetadata)) == 0;
+}
+
+// TODO: For whatever reason, Cobalt will always pass us this us for
+// color metadata, regardless of whether HDR is on or not.  Find out if this
+// is intentional or not.  It would make more sense if it were NULL.
+// Determine if |color_metadata| is "empty", or "null".
+bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
+  return color_metadata.primaries == kSbMediaPrimaryIdBt709 &&
+         color_metadata.transfer == kSbMediaTransferIdBt709 &&
+         color_metadata.matrix == kSbMediaMatrixIdBt709 &&
+         color_metadata.range == kSbMediaRangeIdLimited &&
+         Equal(color_metadata.mastering_metadata, kEmptyMasteringMetadata);
+}
+
 }  // namespace
 
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
@@ -64,7 +90,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
           decode_target_graphics_context_provider),
       decode_target_(kSbDecodeTargetInvalid),
       frame_width_(0),
-      frame_height_(0) {
+      frame_height_(0),
+      has_written_buffer_since_reset_(false) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
     TeardownCodec();
@@ -91,6 +118,23 @@ void VideoDecoder::WriteInputBuffer(
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputBuffer() was called after WriteEndOfStream().";
     return;
+  }
+
+  if (!has_written_buffer_since_reset_) {
+    SB_LOG(INFO) << "Attempting to reconfigure with HDR metadata";
+    has_written_buffer_since_reset_ = true;
+    // If color metadata is present, is not "null", and different than our
+    // previously queued (which is possibly already set) color metadata, then
+    // queue up recreating the MediaCodec video decoder using the new meta data.
+    auto* color_metadata = input_buffer->video_sample_info()->color_metadata;
+    if (color_metadata && !IsIdentity(*color_metadata) &&
+        !previous_color_metadata_) {
+      previous_color_metadata_ = *color_metadata;
+      TeardownCodec();
+      if (!InitializeCodec()) {
+        SB_LOG(ERROR) << "Failed to reinitialize codec with HDR metadata.";
+      }
+    }
   }
 
   if (!SbThreadIsValid(decoder_thread_)) {
@@ -162,7 +206,8 @@ bool VideoDecoder::InitializeCodec() {
   jobject j_media_crypto = drm_system_ ? drm_system_->GetMediaCrypto() : NULL;
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_codec_bridge_ = MediaCodecBridge::CreateVideoMediaCodecBridge(
-      video_codec_, width, height, j_output_surface, j_media_crypto);
+      video_codec_, width, height, j_output_surface, j_media_crypto,
+      previous_color_metadata_ ? &*previous_color_metadata_ : nullptr);
   if (!media_codec_bridge_) {
     SB_LOG(ERROR) << "Failed to create video media codec bridge.";
     return false;
