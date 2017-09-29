@@ -726,21 +726,24 @@ TEST_F(PixelTest, RectDrawOrder) {
   // adjacent rects are not considered intersecting.
   CompositionNode::Builder composition_builder;
   for (int i = 0; i < 400; ++i) {
+    // The evaluation order of function call parameters is not guaranteed.
+    // To maintain determinism, explicitly calculate the parameters before
+    // calling the relevant functions.
     int x1 = simple_rand() % rand_area.width();
     int x2 = simple_rand() % rand_area.width();
     int y1 = simple_rand() % rand_area.height();
     int y2 = simple_rand() % rand_area.height();
+    float r = (simple_rand() % 256) / 255.0f;
+    float g = (simple_rand() % 256) / 255.0f;
+    float b = (simple_rand() % 256) / 255.0f;
+    float a = (simple_rand() % 5) * 0.1f + 0.1f;
     composition_builder.AddChild(new RectNode(
         math::RectF(
             std::min(x1, x2) * kPositionScale + 0.1f,
             std::min(y1, y2) * kPositionScale + 0.1f,
             std::abs(x1 - x2) * kPositionScale - 0.2f,
             std::abs(y1 - y2) * kPositionScale - 0.2f),
-        scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(
-            (simple_rand() % 256) / 255.0f,
-            (simple_rand() % 256) / 255.0f,
-            (simple_rand() % 256) / 255.0f,
-            (simple_rand() % 5) * 0.1f + 0.1f)))));
+        scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(r, g, b, a)))));
   }
 
   TestTree(new CompositionNode(composition_builder.Pass()));
