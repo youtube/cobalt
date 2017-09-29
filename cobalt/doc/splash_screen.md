@@ -105,5 +105,3 @@ resources:
   * `h5vcc-embedded://black_splash_screen.html` - a black splash screen
   * `h5vcc-embedded://cobalt_splash_screen.html` - a splash screen showing the
     Cobalt logo
-  * `h5vcc-embedded://youtube_splash_screen.html` - a splash screen showing the
-    YouTube logo
