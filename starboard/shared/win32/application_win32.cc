@@ -15,16 +15,20 @@
 #include "starboard/shared/win32/application_win32.h"
 
 #include <windows.h>  // NOLINT(build/include_order)
+#include <windowsx.h>  // NOLINT(build/include_order)
 
 #include <cstdio>
 #include <string>
 
+#include "starboard/input.h"
+#include "starboard/key.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/win32/dialog.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/shared/win32/window_internal.h"
+#include "starboard/system.h"
 
 using starboard::shared::starboard::Application;
 using starboard::shared::win32::ApplicationWin32;
@@ -32,6 +36,8 @@ using starboard::shared::win32::CStringToWString;
 using starboard::shared::win32::DebugLogWinError;
 
 namespace {
+
+static const int kSbMouseDeviceId = 1;
 
 static const TCHAR kWindowClassName[] = L"window_class_name";
 
@@ -209,16 +215,30 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
                                         LPARAM l_param) {
   switch (msg) {
     // Input message handling.
+    case WM_MBUTTONDOWN:
+    case WM_LBUTTONDOWN:
+    case WM_RBUTTONDOWN:
+    case WM_MBUTTONUP:
+    case WM_LBUTTONUP:
+    case WM_RBUTTONUP:
+    case WM_MOUSEMOVE:
+    case WM_MOUSEWHEEL:
+      pending_event_ =
+          ProcessWinMouseEvent(GetCoreWindow(), msg, w_param, l_param);
+      break;
     case WM_KEYDOWN:
     case WM_SYSKEYDOWN:
     case WM_KEYUP:
     case WM_SYSKEYUP:
-      // TODO: Listen for mouse events as well.
       pending_event_ =
           ProcessWinKeyEvent(GetCoreWindow(), msg, w_param, l_param);
       break;
     case WM_DESTROY:
-      SB_LOG(INFO) << "Received destroy message; exiting.";
+      SB_LOG(INFO) << "Received destroy message; posting Quit message";
+      // Pause and suspend the application first so we can do some cleanup
+      // before the window is destroyed (e.g. stopping rasterization).
+      DispatchAndDelete(new Event(kSbEventTypePause, NULL, NULL));
+      DispatchAndDelete(new Event(kSbEventTypeSuspend, NULL, NULL));
       PostQuitMessage(0);
       break;
     default:
@@ -229,8 +249,8 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
 
 bool ApplicationWin32::ProcessNextSystemMessage() {
   MSG msg;
-  BOOL get_message_return = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
-  if (get_message_return == -1) {
+  BOOL peek_message_return = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
+  if (peek_message_return == -1) {
     SB_LOG(INFO) << "Error while getting messages";
     return false;
   }
@@ -238,10 +258,75 @@ bool ApplicationWin32::ProcessNextSystemMessage() {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
   }
-  if (get_message_return == 0) {
+  if (msg.message == WM_QUIT) {
+    SB_LOG(INFO) << "Received Quit message; stopping application";
+    SbSystemRequestStop(msg.wParam);
+  }
+  if (peek_message_return == 0) {
     return false;
   }
   return true;
+}
+
+Application::Event* ApplicationWin32::ProcessWinMouseEvent(SbWindow window,
+                                                           UINT msg,
+                                                           WPARAM w_param,
+                                                           LPARAM l_param) {
+  SbInputData* data = new SbInputData();
+  SbMemorySet(data, 0, sizeof(*data));
+
+  data->window = window;
+  data->device_type = kSbInputDeviceTypeMouse;
+  data->device_id = kSbMouseDeviceId;
+  switch (msg) {
+    case WM_LBUTTONDOWN:
+      data->key = kSbKeyMouse1;
+      data->type = kSbInputEventTypePress;
+      break;
+    case WM_RBUTTONDOWN:
+      data->key = kSbKeyMouse2;
+      data->type = kSbInputEventTypePress;
+      break;
+    case WM_MBUTTONDOWN:
+      data->key = kSbKeyMouse3;
+      data->type = kSbInputEventTypePress;
+      break;
+    case WM_LBUTTONUP:
+      data->key = kSbKeyMouse1;
+      data->type = kSbInputEventTypeUnpress;
+      break;
+    case WM_RBUTTONUP:
+      data->key = kSbKeyMouse2;
+      data->type = kSbInputEventTypeUnpress;
+      break;
+    case WM_MBUTTONUP:
+      data->key = kSbKeyMouse3;
+      data->type = kSbInputEventTypeUnpress;
+      break;
+    case WM_MOUSEMOVE:
+      data->type = kSbInputEventTypeMove;
+      break;
+    case WM_MOUSEWHEEL: {
+      data->type = kSbInputEventTypeWheel;
+      int wheel_delta = GET_WHEEL_DELTA_WPARAM(w_param);
+      // Per MSFT, standard mouse wheel increments are multiples of 120. For
+      // smooth scrolling, this may be less.
+      // https://msdn.microsoft.com/en-us/library/windows/desktop/ms645617(v=vs.85).aspx
+      data->delta.y = wheel_delta / 120.0f;
+    } break;
+    default:
+      SB_LOG(WARNING) << "Received unrecognized MSG code " << msg;
+      return nullptr;
+  }
+
+  data->pressure = NAN;
+  data->size = {NAN, NAN};
+  data->tilt = {NAN, NAN};
+  data->position.x = GET_X_LPARAM(l_param);
+  data->position.y = GET_Y_LPARAM(l_param);
+
+  return new Application::Event(kSbEventTypeInput, data,
+                                &Application::DeleteDestructor<SbInputData>);
 }
 
 }  // namespace win32

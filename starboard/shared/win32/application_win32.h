@@ -101,6 +101,13 @@ class ApplicationWin32 : public starboard::QueueApplication {
                             WPARAM w_param,
                             LPARAM l_param);
 
+  // Processes window mouse events, returning a corresponding Event instance.
+  // This transfers ownership of the returned Event. The Event may be nullptr.
+  Event* ProcessWinMouseEvent(SbWindow window,
+                              UINT msg,
+                              WPARAM w_param,
+                              LPARAM l_param);
+
   Event* pending_event_ = nullptr;
 
   // The single open window, if any.
