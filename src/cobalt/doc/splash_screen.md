@@ -76,6 +76,15 @@ where `"https://www.example.com/self-contained.html"` is the address of some
 self-contained splash screen document. The document must not violate the Content
 Security Policy. The splash screen is treated as a script resource by the CSP.
 
+### Caching implementation requirements
+
+In order to cache the application-provided splash screen, Cobalt will attempt
+to create directories and write files into the directory returned from a call to
+`SbSystemGetPath(kSbSystemPathCacheDirectory, ...)`.  Cobalt will expect the
+data that it writes into that directory to persist across process instances.
+Cobalt will also need to read the cached splash screen from the cache directory
+when starting up.
+
 ## Application-specific splash screens
 
 On systems that plan to support multiple Cobalt-based applications, an
@@ -96,5 +105,3 @@ resources:
   * `h5vcc-embedded://black_splash_screen.html` - a black splash screen
   * `h5vcc-embedded://cobalt_splash_screen.html` - a splash screen showing the
     Cobalt logo
-  * `h5vcc-embedded://youtube_splash_screen.html` - a splash screen showing the
-    YouTube logo

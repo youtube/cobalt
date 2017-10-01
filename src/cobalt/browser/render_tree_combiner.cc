@@ -21,7 +21,6 @@
 #include "base/time.h"
 #include "cobalt/render_tree/composition_node.h"
 #include "cobalt/render_tree/rect_node.h"
-#include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
@@ -35,25 +34,24 @@ RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
 RenderTreeCombiner::Layer::~Layer() {
   DCHECK(render_tree_combiner_);
   render_tree_combiner_->RemoveLayer(this);
-  render_tree_combiner_->SubmitToRenderer();
 }
 
 void RenderTreeCombiner::Layer::Submit(
-    const base::optional<renderer::Submission>& render_tree_submission,
-    bool receive_time) {
+    const base::optional<renderer::Submission>& render_tree_submission) {
   render_tree_ = render_tree_submission;
-  if (receive_time) {
-    receipt_time_ = base::TimeTicks::HighResNow();
-  } else {
-    receipt_time_ = base::nullopt;
-  }
-  DCHECK(render_tree_combiner_);
-  render_tree_combiner_->SubmitToRenderer();
+  receipt_time_ = base::TimeTicks::HighResNow();
 }
 
-RenderTreeCombiner::RenderTreeCombiner(
-    renderer::RendererModule* renderer_module, const math::Size& viewport_size)
-    : renderer_module_(renderer_module), viewport_size_(viewport_size) {}
+base::optional<base::TimeDelta> RenderTreeCombiner::Layer::CurrentTimeOffset() {
+  if (!receipt_time_) {
+    return base::nullopt;
+  } else {
+    return render_tree_->time_offset +
+           (base::TimeTicks::HighResNow() - *receipt_time_);
+  }
+}
+
+RenderTreeCombiner::RenderTreeCombiner() : timeline_layer_(NULL) {}
 
 scoped_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
     int z_index) {
@@ -66,7 +64,19 @@ scoped_ptr<RenderTreeCombiner::Layer> RenderTreeCombiner::CreateLayer(
   return scoped_ptr<RenderTreeCombiner::Layer>(layers_[z_index]);
 }
 
+void RenderTreeCombiner::SetTimelineLayer(Layer* layer) {
+  if (layer != NULL) {
+    DCHECK(OwnsLayer(layer));
+  }
+
+  timeline_layer_ = layer;
+}
+
 void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
+  if (timeline_layer_ == layer) {
+    SetTimelineLayer(NULL);
+  }
+
   for (auto it = layers_.begin(); it != layers_.end(); /* no increment */) {
     if (it->second == layer) {
       it = layers_.erase(it);
@@ -76,36 +86,41 @@ void RenderTreeCombiner::RemoveLayer(const Layer* layer) {
   }
 }
 
-void RenderTreeCombiner::SubmitToRenderer() {
+base::optional<renderer::Submission>
+RenderTreeCombiner::GetCurrentSubmission() {
   render_tree::CompositionNode::Builder builder;
 
   // Add children for all layers in order.
-  base::optional<renderer::Submission> first_tree = base::nullopt;
-  base::optional<renderer::Submission> combined_submission = base::nullopt;
+  Layer* first_layer_with_render_tree = NULL;
   for (auto it = layers_.begin(); it != layers_.end(); ++it) {
     RenderTreeCombiner::Layer* layer = it->second;
     if (layer->render_tree_) {
       builder.AddChild(layer->render_tree_->render_tree);
-      first_tree = layer->render_tree_;
-      // Make the combined submission with the first receipt_time_ we find.
-      if (!combined_submission && layer->receipt_time_) {
-        combined_submission = renderer::Submission(*layer->render_tree_);
-        combined_submission->time_offset =
-            layer->render_tree_->time_offset +
-            (base::TimeTicks::HighResNow() - *layer->receipt_time_);
-      }
+      first_layer_with_render_tree = layer;
     }
   }
-  if (!first_tree) {
-    return;
-  }
-  if (!combined_submission) {
-    // None of the layers store the time.
-    combined_submission = renderer::Submission(*first_tree);
+  if (!first_layer_with_render_tree) {
+    return base::nullopt;
   }
 
-  combined_submission->render_tree = new render_tree::CompositionNode(builder);
-  renderer_module_->pipeline()->Submit(*combined_submission);
+  Layer* timeline_layer = (timeline_layer_ && timeline_layer_->render_tree_)
+                              ? timeline_layer_
+                              : first_layer_with_render_tree;
+
+  renderer::Submission submission(new render_tree::CompositionNode(builder),
+                                  *timeline_layer->CurrentTimeOffset());
+  submission.timeline_info = timeline_layer->render_tree_->timeline_info;
+  return submission;
 }
+
+bool RenderTreeCombiner::OwnsLayer(Layer* layer) {
+  for (const auto& iter_layer : layers_) {
+    if (iter_layer.second == layer) {
+      return true;
+    }
+  }
+  return false;
+}
+
 }  // namespace browser
 }  // namespace cobalt

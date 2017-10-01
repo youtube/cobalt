@@ -404,6 +404,7 @@ bool SourceList::ParseNonce(const char* begin, const char* end,
 // hash-algorithm    = "sha1" / "sha256" / "sha384" / "sha512"
 // hash-value        = 1*( ALPHA / DIGIT / "+" / "/" / "=" )
 //
+// static
 bool SourceList::ParseHash(const char* begin, const char* end,
                            DigestValue* hash, HashAlgorithm* hash_algorithm) {
   std::string prefix;

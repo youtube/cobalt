@@ -30,16 +30,17 @@ namespace {
 
 const int kSplashShutdownSeconds = 2;
 
-void PostCallbackToMessageLoop(const base::Closure& callback,
-                               MessageLoop* message_loop) {
+typedef base::Callback<void(base::TimeDelta)> Callback;
+void PostCallbackToMessageLoop(const Callback& callback,
+                               MessageLoop* message_loop,
+                               base::TimeDelta time) {
   DCHECK(message_loop);
-  message_loop->PostTask(FROM_HERE, callback);
+  message_loop->PostTask(FROM_HERE, base::Bind(callback, time));
 }
 
 // TODO: consolidate definitions of BindToLoop / BindToCurrentLoop
 // from here and media in base.
-base::Closure BindToLoop(const base::Closure& callback,
-                         MessageLoop* message_loop) {
+Callback BindToLoop(const Callback& callback, MessageLoop* message_loop) {
   return base::Bind(&PostCallbackToMessageLoop, callback, message_loop);
 }
 
@@ -58,10 +59,12 @@ SplashScreen::SplashScreen(
     const base::optional<GURL>& fallback_splash_screen_url,
     const GURL& initial_main_web_module_url,
     SplashScreenCache* splash_screen_cache,
-    const base::Callback<void()>& on_splash_screen_shutdown_complete)
+    const base::Callback<void(base::TimeDelta)>&
+        on_splash_screen_shutdown_complete)
     : render_tree_produced_callback_(render_tree_produced_callback),
       self_message_loop_(MessageLoop::current()),
-      on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete) {
+      on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
+      shutdown_signaled_(false) {
   WebModule::Options web_module_options;
   web_module_options.name = "SplashScreenWebModule";
 
@@ -86,10 +89,11 @@ SplashScreen::SplashScreen(
     web_module_options.splash_screen_cache = splash_screen_cache;
   }
 
-  base::Callback<void()> on_window_close(
+  base::Callback<void(base::TimeDelta)> on_window_close(
       BindToLoop(on_splash_screen_shutdown_complete, self_message_loop_));
 
-  web_module_options.on_before_unload_fired_but_not_handled = on_window_close;
+  web_module_options.on_before_unload_fired_but_not_handled =
+      base::Bind(on_window_close, base::TimeDelta());
 
   DCHECK(url_to_pass);
   web_module_.reset(new WebModule(
@@ -113,12 +117,18 @@ SplashScreen::~SplashScreen() {
 void SplashScreen::Shutdown() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
   DCHECK(web_module_);
+  DCHECK(!ShutdownSignaled()) << "Shutdown() should be called at most once.";
+
   if (!on_splash_screen_shutdown_complete_.callback().is_null()) {
     MessageLoop::current()->PostDelayedTask(
-        FROM_HERE, on_splash_screen_shutdown_complete_.callback(),
+        FROM_HERE,
+        base::Bind(on_splash_screen_shutdown_complete_.callback(),
+                   base::TimeDelta()),
         base::TimeDelta::FromSeconds(kSplashShutdownSeconds));
   }
   web_module_->InjectBeforeUnloadEvent();
+
+  shutdown_signaled_ = true;
 }
 
 }  // namespace browser

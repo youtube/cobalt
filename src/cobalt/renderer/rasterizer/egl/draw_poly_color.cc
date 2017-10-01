@@ -16,6 +16,8 @@
 
 #include <GLES2/gl2.h>
 
+#include "base/logging.h"
+#include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -29,32 +31,77 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& rect,
     const render_tree::ColorRGBA& color)
     : DrawObject(base_state),
-      vertex_buffer_(NULL) {
+      index_buffer_(nullptr),
+      vertex_buffer_(nullptr) {
+  merge_type_ = base::GetTypeId<DrawPolyColor>();
+
   attributes_.reserve(4);
-  AddRect(rect, GetGLRGBA(GetDrawColor(color) * base_state_.opacity));
+  AddRectVertices(rect, GetGLRGBA(GetDrawColor(color) * base_state_.opacity));
+  indices_.reserve(6);
+  AddRectIndices(0, 1, 2, 3);
+
   graphics_state->ReserveVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
+      attributes_.size() * sizeof(attributes_[0]));
+  graphics_state->ReserveVertexIndices(indices_.size());
 }
 
 DrawPolyColor::DrawPolyColor(const BaseState& base_state)
     : DrawObject(base_state),
-      vertex_buffer_(NULL) {
+      index_buffer_(nullptr),
+      vertex_buffer_(nullptr) {
+  merge_type_ = base::GetTypeId<DrawPolyColor>();
+}
+
+bool DrawPolyColor::TryMerge(DrawObject* other) {
+  if (merge_type_ != other->GetMergeTypeId()) {
+    return false;
+  }
+
+  // If the merge types match, then the objects should use the same shaders.
+  // Otherwise, ensure the merge types are different.
+  DCHECK(GetTypeId() == other->GetTypeId());
+
+  DrawPolyColor* merge = base::polymorphic_downcast<DrawPolyColor*>(other);
+  if (!PrepareForMerge() || !merge->PrepareForMerge()) {
+    return false;
+  }
+
+  // Since the draws for these objects already use indexed triangles, just
+  // concatenate the vertex attributes and indices. Keep in mind the indices
+  // for the |other| object need to be fixed up.
+  uint16_t index_offset = static_cast<uint16_t>(attributes_.size());
+  attributes_.insert(attributes_.end(),
+                     merge->attributes_.begin(), merge->attributes_.end());
+  for (uint16_t index : merge->indices_) {
+    indices_.emplace_back(index + index_offset);
+  }
+
+  base_state_.scissor.Union(merge->base_state_.scissor);
+  return true;
 }
 
 void DrawPolyColor::ExecuteUpdateVertexBuffer(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  vertex_buffer_ = graphics_state->AllocateVertexData(
-      attributes_.size() * sizeof(VertexAttributes));
-  SbMemoryCopy(vertex_buffer_, &attributes_[0],
-               attributes_.size() * sizeof(VertexAttributes));
+  if (attributes_.size() > 0) {
+    vertex_buffer_ = graphics_state->AllocateVertexData(
+        attributes_.size() * sizeof(attributes_[0]));
+    SbMemoryCopy(vertex_buffer_, &attributes_[0],
+                 attributes_.size() * sizeof(attributes_[0]));
+    index_buffer_ = graphics_state->AllocateVertexIndices(indices_.size());
+    SbMemoryCopy(index_buffer_, &indices_[0],
+                 indices_.size() * sizeof(indices_[0]));
+  }
 }
 
 void DrawPolyColor::ExecuteRasterize(
     GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  SetupShader(graphics_state, program_manager);
-  GL_CALL(glDrawArrays(GL_TRIANGLE_STRIP, 0, attributes_.size()));
+  if (attributes_.size() > 0) {
+    SetupShader(graphics_state, program_manager);
+    GL_CALL(glDrawElements(GL_TRIANGLES, indices_.size(), GL_UNSIGNED_SHORT,
+        graphics_state->GetVertexIndexPointer(index_buffer_)));
+  }
 }
 
 base::TypeId DrawPolyColor::GetTypeId() const {
@@ -86,16 +133,55 @@ void DrawPolyColor::SetupShader(GraphicsState* graphics_state,
   graphics_state->VertexAttribFinish();
 }
 
-void DrawPolyColor::AddRect(const math::RectF& rect, uint32_t color) {
-  AddVertex(rect.x(), rect.y(), color);
-  AddVertex(rect.x(), rect.bottom(), color);
-  AddVertex(rect.right(), rect.y(), color);
-  AddVertex(rect.right(), rect.bottom(), color);
+void DrawPolyColor::AddRectVertices(const math::RectF& rect, uint32_t color) {
+  // Beware that child classes may depend on the order in which these vertices
+  // are added.
+  attributes_.emplace_back(rect.x(), rect.y(), color);
+  attributes_.emplace_back(rect.right(), rect.y(), color);
+  attributes_.emplace_back(rect.x(), rect.bottom(), color);
+  attributes_.emplace_back(rect.right(), rect.bottom(), color);
 }
 
-void DrawPolyColor::AddVertex(float x, float y, uint32_t color) {
-  VertexAttributes attribute = { { x, y }, color };
-  attributes_.push_back(attribute);
+void DrawPolyColor::AddRectIndices(uint16_t top_left, uint16_t top_right,
+    uint16_t bottom_left, uint16_t bottom_right) {
+  indices_.emplace_back(top_left);
+  indices_.emplace_back(top_right);
+  indices_.emplace_back(bottom_left);
+  indices_.emplace_back(top_right);
+  indices_.emplace_back(bottom_left);
+  indices_.emplace_back(bottom_right);
+}
+
+bool DrawPolyColor::PrepareForMerge() {
+  if (can_merge_) {
+    return *can_merge_;
+  }
+
+  // Since a single draw can only have one transform and one scissor, draws
+  // can be merged only if they use the same transform and the vertices are
+  // in their respective scissors.
+
+  // Rounded scissors are too expensive to check for containment.
+  if (base_state_.rounded_scissor_corners) {
+    can_merge_ = false;
+    return *can_merge_;
+  }
+
+  math::RectF scissor(base_state_.scissor);
+  bool in_scissor = true;
+
+  // Transform the vertices and check that they are within the scissor.
+  for (auto& vert : attributes_) {
+    math::PointF pos = base_state_.transform *
+        math::PointF(vert.position[0], vert.position[1]);
+    vert.position[0] = pos.x();
+    vert.position[1] = pos.y();
+    in_scissor = in_scissor && scissor.Contains(pos);
+  }
+
+  base_state_.transform = math::Matrix3F::Identity();
+  can_merge_ = in_scissor;
+  return *can_merge_;
 }
 
 }  // namespace egl

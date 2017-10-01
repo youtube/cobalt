@@ -152,6 +152,53 @@ TEST(SubmissionQueueTest, TimeSkewsTowardsFasterOffsets) {
   EXPECT_DOUBLE_EQ(7.5, current.time_offset.InSecondsF());
 }
 
+TEST(SubmissionQueueTest,
+     TimeDoesNotSkewTowardsFasterOffsetsWhenLatencyReductionIsDisabled) {
+  SubmissionQueue queue(4, base::TimeDelta::FromSeconds(1), false);
+
+  Submission first = MakeSubmissionWithUniqueRenderTree(1.0);
+  Submission second = MakeSubmissionWithUniqueRenderTree(5.0);
+
+  // Offset of 1.0 from render tree time.
+  queue.PushSubmission(first, SecondsToTime(2.0));
+  // Offset of 0.5 from render tree time.
+  queue.PushSubmission(second, SecondsToTime(5.5));
+
+  // Check that the first submission has up until this point had its time
+  // advanced at the same rate as the renderer.
+  Submission current = queue.GetCurrentSubmission(SecondsToTime(5.5));
+  EXPECT_EQ(first.render_tree, current.render_tree);
+  EXPECT_DOUBLE_EQ(4.5, current.time_offset.InSecondsF());
+
+  // At this point we are half-way through the transition.  Ordinarily the
+  // submission queue would try to transition from the initial offset of 1.0
+  // to the new offset of 0.5, but because latency reduction is disabled, the
+  // offset should never increase and it should stay at 1.0.
+  current = queue.GetCurrentSubmission(SecondsToTime(6.0));
+  EXPECT_EQ(second.render_tree, current.render_tree);
+  EXPECT_NEAR(5, current.time_offset.InSecondsF(), 0.001);
+
+  // After 1 second later, we should still be unchanged from offset 1.0
+  current = queue.GetCurrentSubmission(SecondsToTime(8.0));
+  EXPECT_EQ(second.render_tree, current.render_tree);
+  EXPECT_DOUBLE_EQ(7, current.time_offset.InSecondsF());
+
+  // A third submission that increases the latency should indeed still affect
+  // the submission queue transitioned time.
+  Submission third = MakeSubmissionWithUniqueRenderTree(9.5);
+  queue.PushSubmission(third, SecondsToTime(11.0));
+
+  // Nothing should have changed yet...
+  current = queue.GetCurrentSubmission(SecondsToTime(11.0));
+  EXPECT_EQ(third.render_tree, current.render_tree);
+  EXPECT_NEAR(10, current.time_offset.InSecondsF(), 0.001);
+
+  // We should be transitioning to a larger offset now...
+  current = queue.GetCurrentSubmission(SecondsToTime(11.5));
+  EXPECT_EQ(third.render_tree, current.render_tree);
+  EXPECT_NEAR(10.25, current.time_offset.InSecondsF(), 0.001);
+}
+
 // Check that inserting a submission older than what the renderer thinks the
 // submission time is will cause the SubmissionQueue to jump back in time to
 // make to accomodate the newly pushed old submission.

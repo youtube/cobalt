@@ -93,6 +93,16 @@ class Pipeline {
   void RasterizeToRGBAPixels(const Submission& render_tree_submission,
                              const RasterizationCompleteCallback& complete);
 
+  // Inserts a fence that ensures the rasterizer rasterizes up until the
+  // submission time proceeding queuing additional submissions.  This is useful
+  // when switching timelines in order to ensure that an old timeline plays out
+  // completely before resetting the submission queue for a timeline change.
+  // Upon passing the fence, we will immediately queue the latest submission
+  // submitted after TimeFence() was called.  If a time fence is set while
+  // an existing time fence already exists, the new time fence is ignored (and
+  // an error is logged).
+  void TimeFence(base::TimeDelta time_fence);
+
   // Returns a thread-safe object from which one can produce renderer resources
   // like images and fonts which can be referenced by render trees that are
   // subsequently submitted to this pipeline.
@@ -125,7 +135,8 @@ class Pipeline {
 
   // Updates the rasterizer timer stats according to the |start_time| and
   // |end_time| of the most recent rasterize call.
-  void UpdateRasterizeStats(bool did_rasterize, bool are_animations_active,
+  void UpdateRasterizeStats(bool did_rasterize,
+                            bool are_stat_tracked_animations_expired,
                             bool is_new_render_tree, base::TimeTicks start_time,
                             base::TimeTicks end_time);
 
@@ -160,6 +171,17 @@ class Pipeline {
   void FrameStatsOnFlushCallback(
       const base::CValCollectionTimerStats<base::CValPublic>::FlushResults&
           flush_results);
+
+  // Resets the submission queue, effecitvely emptying it and restarting it
+  // with the configuration specified by |current_timeline_info_| applied to it.
+  void ResetSubmissionQueue();
+
+  // Pushes the specified submission into the submission queue, where it will
+  // then be picked up by subsequent rasterizations.  If the submission's
+  // timeline id is different from the current timeline id (in
+  // |current_timeline_info_|), then the submission queue will be reset.
+  void QueueSubmission(const Submission& submission,
+                       base::TimeTicks receipt_time);
 
   base::WaitableEvent rasterizer_created_event_;
 
@@ -215,6 +237,9 @@ class Pipeline {
   // allows us to skip rasterizing that render tree if we see it again and it
   // did have expired animations.
   bool last_animations_expired_;
+  // Keep track of whether the last rendered tree had animations that we're
+  // tracking stats on.
+  bool last_stat_tracked_animations_expired_;
 
   // Did a rasterization take place in the last frame?
   bool last_did_rasterize_;
@@ -278,6 +303,18 @@ class Pipeline {
 
   // True if the overlay has been updated and it needs to be re-rasterized.
   bool fps_overlay_update_pending_;
+
+  // Time fence data that records if a time fence is active, at what time, and
+  // what submission if any is waiting to be queued once we pass the time fence.
+  base::optional<base::TimeDelta> time_fence_;
+  base::optional<Submission> post_fence_submission_;
+  base::optional<base::TimeTicks> post_fence_receipt_time_;
+
+  // Information about the current timeline.  Each incoming submission
+  // identifies with a particular timeline, and if that ever changes, we assume
+  // a discontinuity in animations and reset our submission queue, possibly
+  // with new configuration parameters specified in the new |TimelineInfo|.
+  Submission::TimelineInfo current_timeline_info_;
 };
 
 }  // namespace renderer

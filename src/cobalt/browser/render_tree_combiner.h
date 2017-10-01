@@ -20,7 +20,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/time.h"
-#include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
 
 namespace cobalt {
@@ -50,13 +49,17 @@ class RenderTreeCombiner {
     // Submit render tree to the layer, and specify whether the time
     // received should be stored.
     void Submit(
-        const base::optional<renderer::Submission>& render_tree_submission,
-        bool receive_time = false);
+        const base::optional<renderer::Submission>& render_tree_submission);
 
    private:
     friend class RenderTreeCombiner;
 
     explicit Layer(RenderTreeCombiner* render_tree_combiner = NULL);
+
+    // Returns the current submission time for this particular layer.  This is
+    // called by the RenderTreeCombiner on the |timeline_layer_| to determine
+    // which value to pass in as the submission time for the renderer.
+    base::optional<base::TimeDelta> CurrentTimeOffset();
 
     RenderTreeCombiner* render_tree_combiner_;
 
@@ -64,30 +67,37 @@ class RenderTreeCombiner {
     base::optional<base::TimeTicks> receipt_time_;
   };
 
-  explicit RenderTreeCombiner(renderer::RendererModule* renderer_module,
-                              const math::Size& viewport_size);
+  RenderTreeCombiner();
   ~RenderTreeCombiner() {}
 
   // Create a Layer with a given |z_index|. If a Layer already exists
   // at |z_index|, return NULL, and no Layer is created.
   scoped_ptr<Layer> CreateLayer(int z_index);
 
+  // Returns a current submission object that can be passed into a renderer
+  // for rasterization.  If no layers with render trees exist, this will return
+  // a base::nullopt.
+  base::optional<renderer::Submission> GetCurrentSubmission();
+
+  // Names a single layer as the one responsible for providing the timeline
+  // id and configuration to the output combined render tree.  Only a single
+  // layer can be responsible for providing the timeline.
+  void SetTimelineLayer(Layer* layer);
+
  private:
+  // Returns true if the specified layer exists in this render tree combiner's
+  // current list of layers (e.g. |layers_|).
+  bool OwnsLayer(Layer* layer);
+
   // The layers keyed on their z_index.
   std::map<int, Layer*> layers_;
 
   // Removes a layer from |layers_|. Called by the Layer destructor.
   void RemoveLayer(const Layer* layer);
 
-  // Combines the cached render trees and renders the result.
-  void SubmitToRenderer();
-
-  // Local reference to the render pipeline, so we can submit the combined tree.
-  // Reference counted pointer not necessary here.
-  renderer::RendererModule* renderer_module_;
-
-  // The size of the output viewport.
-  math::Size viewport_size_;
+  // Which layer is currently controlling the receipt time submitted to the
+  // rasterizer.
+  RenderTreeCombiner::Layer* timeline_layer_;
 };
 
 }  // namespace browser
