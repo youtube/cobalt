@@ -11,6 +11,10 @@
 
 #include "base/port.h"    // Types that only need exist on certain systems
 
+#if defined(OS_STARBOARD)
+#include "starboard/types.h"
+#endif  // defined(OS_STARBOARD)
+
 #ifndef COMPILER_MSVC
 // stdint.h is part of C99 but MSVC doesn't have it.
 #include <stdint.h>         // For intptr_t.
@@ -19,8 +23,15 @@
 typedef signed char         schar;
 typedef signed char         int8;
 typedef short               int16;
+#if defined(OS_STARBOARD)
+typedef int32_t             int32;
+#else
 typedef int                 int32;
+#endif  // defined(OS_STARBOARD)
 
+#if defined(OS_STARBOARD)
+typedef int64_t int64;
+#else
 // The NSPR system headers define 64-bit as |long| when possible, except on
 // Mac OS X.  In order to not have typedef mismatches, we do the same on LP64.
 //
@@ -31,6 +42,7 @@ typedef long                int64;
 #else
 typedef long long           int64;
 #endif
+#endif  // defined(OS_STARBOARD)
 
 // NOTE: unsigned types are DANGEROUS in loops and other arithmetical
 // places.  Use the signed types unless your variable represents a bit
@@ -38,22 +50,37 @@ typedef long long           int64;
 // use 'unsigned' to express "this value should always be positive";
 // use assertions for this.
 
+#if defined(OS_STARBOARD)
+typedef uint8_t            uint8;
+typedef uint16_t           uint16;
+typedef uint32_t           uint32;
+#else
 typedef unsigned char      uint8;
 typedef unsigned short     uint16;
 typedef unsigned int       uint32;
+#endif  // defined(OS_STARBOARD)
 
+#if defined(OS_STARBOARD)
+typedef uint64_t uint64;
+#else
 // See the comment above about NSPR and 64-bit.
 #if defined(__LP64__) && !defined(OS_MACOSX) && !defined(OS_OPENBSD)
 typedef unsigned long uint64;
 #else
 typedef unsigned long long uint64;
 #endif
+#endif  // defined(OS_STARBOARD)
 
 // A type to represent a Unicode code-point value. As of Unicode 4.0,
 // such values require up to 21 bits.
 // (For type-checking on pointers, make this explicitly signed,
 // and it should always be the signed version of whatever int32 is.)
-typedef signed int         char32;
+#if defined(OS_STARBOARD)
+typedef int32_t         char32;
+#else
+typedef signed int      char32;
+#endif  // defined(OS_STARBOARD)
+
 
 #if defined(COBALT_WIN)
 #pragma warning(push)

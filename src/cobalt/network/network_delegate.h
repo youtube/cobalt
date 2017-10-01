@@ -23,6 +23,13 @@
 
 namespace cobalt {
 namespace network {
+
+// Used to tell if HTTPS scheme has to be used.
+enum HTTPSRequirement {
+  kHTTPSRequired,
+  kHTTPSOptional,
+};
+
 // A NetworkDelegate receives callbacks when network events occur.
 // Each override can specify custom behavior or just add additional logging.
 // We do nothing for most events, but our network delegate
@@ -30,7 +37,7 @@ namespace network {
 class NetworkDelegate : public net::NetworkDelegate {
  public:
   NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
-                  bool require_https);
+                  network::HTTPSRequirement https_requirement);
   ~NetworkDelegate() OVERRIDE;
 
   // For debugging, we allow blocking all cookies.
@@ -84,7 +91,7 @@ class NetworkDelegate : public net::NetworkDelegate {
  private:
   net::StaticCookiePolicy::Type cookie_policy_;
   bool cookies_enabled_;
-  bool require_https_;
+  network::HTTPSRequirement https_requirement_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkDelegate);
 };

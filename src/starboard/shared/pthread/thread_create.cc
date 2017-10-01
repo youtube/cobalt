@@ -61,12 +61,14 @@ void* ThreadFunc(void* context) {
 
   delete thread_params;
 
+#if !SB_HAS_QUIRK(THREAD_AFFINITY_UNSUPPORTED)
   if (SbThreadIsValidAffinity(affinity)) {
     cpu_set_t cpu_set;
     CPU_ZERO(&cpu_set);
     CPU_SET(affinity, &cpu_set);
     sched_setaffinity(0, sizeof(cpu_set), &cpu_set);
   }
+#endif
 
   return entry_point(real_context);
 }

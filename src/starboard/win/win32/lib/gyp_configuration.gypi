@@ -14,7 +14,7 @@
 
 {
   'variables': {
-    'javascript_engine': 'mozjs',
+    'javascript_engine': 'mozjs-45',
     'cobalt_enable_jit': 0,
     # TODO: In theory, there are tools that can combine static libraries into
     # thick static libraries with all their transitive dependencies. Using
@@ -23,6 +23,7 @@
     'final_executable_type': 'shared_library',
     'default_renderer_options_dependency': '<(DEPTH)/cobalt/renderer/rasterizer/lib/lib.gyp:external_rasterizer',
     'sb_enable_lib': 1,
+    'enable_map_to_mesh': 1,
     'angle_build_winrt': 0,
     'winrt': 0,
     'enable_d3d11_feature_level_11': 1,

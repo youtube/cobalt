@@ -94,7 +94,6 @@ TEST_P(LayoutTest, LayoutTest) {
 
   bool results =
       pixel_tester.TestTree(animated_tree, GetParam().base_file_path);
-  EXPECT_TRUE(results);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||
       (!results &&
@@ -102,6 +101,8 @@ TEST_P(LayoutTest, LayoutTest) {
            switches::kRebaselineFailedTests))) {
     pixel_tester.Rebaseline(animated_tree, GetParam().base_file_path);
   }
+
+  EXPECT_TRUE(results);
 }
 
 // Cobalt-specific test cases.

@@ -38,7 +38,7 @@ std::string GetSha256String(const std::string& content) {
   std::string encoded;
   bool ok = base::Base64Encode(digest_piece, &encoded);
   if (ok) {
-    return "sha256-" + encoded;
+    return "'sha256-" + encoded + "'";
   } else {
     DLOG(WARNING) << "Base64Encode failed on " << content;
     return "sha256-...";
@@ -221,10 +221,22 @@ bool DirectiveList::CheckInlineAndReportViolation(
     suffix =
         " Note that 'unsafe-inline' is ignored if either a hash or nonce value "
         "is present in the source list.";
+  } else if (directive->hash_or_nonce_present()) {
+    suffix =
+        " Either the 'unsafe-inline' keyword, a hash (" + hash_value +
+        "), or a nonce ('nonce-...') is required to enable inline execution.";
+    DigestValue digest_value;
+    HashAlgorithm hash_algorithm;
+    SourceList::ParseHash(hash_value.c_str(),
+                          hash_value.c_str() + hash_value.length(),
+                          &digest_value, &hash_algorithm);
+    if (directive->AllowHash(HashValue(hash_algorithm, digest_value))) {
+      return true;
+    }
   } else {
     suffix =
-        " Either the 'unsafe-inline' keyword, a hash ('" + hash_value +
-        "'), or a nonce ('nonce-...') is required to enable inline execution.";
+        " Either the 'unsafe-inline' keyword, a hash (" + hash_value +
+        "), or a nonce ('nonce-...') is required to enable inline execution.";
     if (directive == default_src_)
       suffix = suffix + " Note also that '" +
                std::string(is_script ? "script" : "style") +

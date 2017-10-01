@@ -90,8 +90,12 @@ void SbPlayerPrivate::WriteEndOfStream(SbMediaType stream_type) {
   worker_->WriteEndOfStream(stream_type);
 }
 
-void SbPlayerPrivate::SetBounds(int x, int y, int width, int height) {
-  PlayerWorker::Bounds bounds = {x, y, width, height};
+void SbPlayerPrivate::SetBounds(int z_index,
+                                int x,
+                                int y,
+                                int width,
+                                int height) {
+  PlayerWorker::Bounds bounds = {z_index, x, y, width, height};
   worker_->SetBounds(bounds);
   // TODO: Wait until a frame is rendered with the updated bounds.
 }

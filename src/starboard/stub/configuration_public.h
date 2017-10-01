@@ -102,6 +102,10 @@
 // following quirk.
 #undef SB_HAS_QUIRK_DOES_NOT_STACK_ALIGN_OVER_16_BYTES
 
+// Some platforms do not have thread affinity support. Platforms where this is
+// the case should define the following quirk.
+#undef SB_HAS_QUIRK_THREAD_AFFINITY_UNSUPPORTED
+
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
@@ -159,6 +163,15 @@
 #elif defined(__MIPSEL__)
 #define SB_IS_WCHAR_T_SIGNED 1
 #endif
+
+// Some platforms have memset predefined in system headers. Platforms where this
+// is the case should define the following quirk.
+#undef SB_HAS_QUIRK_MEMSET_IN_SYSTEM_HEADERS
+
+// This quirk is used to switch the headers included in
+// starboard/shared/linux/socket_get_interface_address.cc for darwin system
+// headers. It may be removed at some point in favor of a different solution.
+#undef SB_HAS_QUIRK_SOCKET_BSD_HEADERS
 
 // --- Compiler Configuration ------------------------------------------------
 

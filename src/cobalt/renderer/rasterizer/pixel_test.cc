@@ -700,6 +700,55 @@ TEST_F(PixelTest, TransparentRectOverlappingSolidRect) {
   TestTree(new CompositionNode(composition_builder.Pass()));
 }
 
+TEST_F(PixelTest, RectDrawOrder) {
+  // This test ensures that relative draw order is preserved for overlapping
+  // rectangles.
+
+  // Use a linear congruential generator (std::minstd_rand) to generate
+  // deterministic pseudo-random numbers.
+  struct SimpleRand {
+    SimpleRand() : seed(10222016) {}
+    int32_t operator()() {
+      seed = static_cast<int32_t>(
+          (static_cast<int64_t>(seed) * 48271) % 2147483647);
+      return seed;
+    }
+    int32_t seed;
+  } simple_rand;
+
+  const int kPositionScale = 10;
+  math::Size rand_area(output_surface_size().width() / kPositionScale + 1,
+                       output_surface_size().height() / kPositionScale + 1);
+
+  // Add a bunch of random rectangles with varying colors and opacity. Limit
+  // opacity to be less than 100% so that previous rectangles are not totally
+  // overwritten. Also leave a gap at the edges of the rectangles so that
+  // adjacent rects are not considered intersecting.
+  CompositionNode::Builder composition_builder;
+  for (int i = 0; i < 400; ++i) {
+    // The evaluation order of function call parameters is not guaranteed.
+    // To maintain determinism, explicitly calculate the parameters before
+    // calling the relevant functions.
+    int x1 = simple_rand() % rand_area.width();
+    int x2 = simple_rand() % rand_area.width();
+    int y1 = simple_rand() % rand_area.height();
+    int y2 = simple_rand() % rand_area.height();
+    float r = (simple_rand() % 256) / 255.0f;
+    float g = (simple_rand() % 256) / 255.0f;
+    float b = (simple_rand() % 256) / 255.0f;
+    float a = (simple_rand() % 5) * 0.1f + 0.1f;
+    composition_builder.AddChild(new RectNode(
+        math::RectF(
+            std::min(x1, x2) * kPositionScale + 0.1f,
+            std::min(y1, y2) * kPositionScale + 0.1f,
+            std::abs(x1 - x2) * kPositionScale - 0.2f,
+            std::abs(y1 - y2) * kPositionScale - 0.2f),
+        scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(r, g, b, a)))));
+  }
+
+  TestTree(new CompositionNode(composition_builder.Pass()));
+}
+
 namespace {
 
 // Creates a texture containing a 3x3 grid of colors each of the provided

@@ -28,39 +28,13 @@ else:
     sys.path.append(env_path)
   environment = importlib.import_module("environment")
 
-import argparse
-
 from starboard.tools import abstract_launcher
-
-arg_parser = argparse.ArgumentParser(
-    description="Runs application/tool executables.")
-arg_parser.add_argument(
-    "-p",
-    "--platform",
-    help="Device platform, eg 'linux-x64x11'.")
-arg_parser.add_argument(
-    "-t",
-    "--target_name",
-    help="Name of executable.")
-arg_parser.add_argument(
-    "-c",
-    "--config",
-    choices=["debug", "devel", "qa", "gold"],
-    help="Build config (eg, 'qa' or 'devel')")
-arg_parser.add_argument(
-    "-d",
-    "--device_id",
-    help="Devkit or IP address for the target device.")
-arg_parser.add_argument(
-    "--target_params",
-    help="Command line arguments to pass to the executable."
-         " Because different executables could have differing command"
-         " line syntax, list all arguments exactly as you would to the"
-         " executable between a set of double quotation marks.")
+from starboard.tools import command_line
 
 
 def main():
-  args = arg_parser.parse_args()
+  parser = command_line.CreateParser()
+  args = parser.parse_args()
   extra_args = {}
 
   if not args.device_id:
@@ -70,9 +44,9 @@ def main():
   if args.target_params:
     extra_args["target_params"] = args.target_params.split(" ")
 
-  launcher = abstract_launcher.LauncherFactory(args.platform,
-                                               args.target_name, args.config,
-                                               args.device_id, extra_args)
+  launcher = abstract_launcher.LauncherFactory(
+      args.platform, args.target_name, args.config,
+      args.device_id, extra_args, out_directory=args.out_directory)
   return launcher.Run()
 
 if __name__ == "__main__":

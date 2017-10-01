@@ -33,18 +33,18 @@ namespace browser {
 //
 class SplashScreen : public LifecycleObserver {
  public:
-  SplashScreen(
-      base::ApplicationState initial_application_state,
-      const WebModule::OnRenderTreeProducedCallback&
-          render_tree_produced_callback,
-      network::NetworkModule* network_module,
-      const math::Size& window_dimensions,
-      render_tree::ResourceProvider* resource_provider,
-      float layout_refresh_rate,
-      const base::optional<GURL>& fallback_splash_screen_url,
-      const GURL& initial_main_web_module_url,
-      cobalt::browser::SplashScreenCache* splash_screen_cache,
-      const base::Callback<void()>& on_splash_screen_shutdown_complete);
+  SplashScreen(base::ApplicationState initial_application_state,
+               const WebModule::OnRenderTreeProducedCallback&
+                   render_tree_produced_callback,
+               network::NetworkModule* network_module,
+               const math::Size& window_dimensions,
+               render_tree::ResourceProvider* resource_provider,
+               float layout_refresh_rate,
+               const base::optional<GURL>& fallback_splash_screen_url,
+               const GURL& initial_main_web_module_url,
+               cobalt::browser::SplashScreenCache* splash_screen_cache,
+               const base::Callback<void(base::TimeDelta)>&
+                   on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
@@ -72,6 +72,9 @@ class SplashScreen : public LifecycleObserver {
   // no handlers, |on_splash_screen_shutdown_complete_| is run immediately.
   void Shutdown();
 
+  // Returns whether Shutdown() has been called before or not.
+  bool ShutdownSignaled() const { return shutdown_signaled_; }
+
  private:
   // Run when window.close() is called by the WebModule.
   void OnWindowClosed();
@@ -88,7 +91,11 @@ class SplashScreen : public LifecycleObserver {
 
   // This is called by Shutdown (via window.close) or after
   // the time limit has been exceeded.
-  base::CancelableClosure on_splash_screen_shutdown_complete_;
+  base::CancelableCallback<void(base::TimeDelta)>
+      on_splash_screen_shutdown_complete_;
+
+  // True if SplashScreen::Shutdown() has been called.
+  bool shutdown_signaled_;
 };
 
 }  // namespace browser

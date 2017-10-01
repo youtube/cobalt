@@ -167,11 +167,11 @@ DebugConsole::DebugConsole(
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
-    const script::JavaScriptEngine::Options& js_options) {
+    const script::JavaScriptEngine::Options& javascript_engine_options) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
-  web_module_options.javascript_options = js_options;
+  web_module_options.javascript_engine_options = javascript_engine_options;
   web_module_options.name = "DebugConsoleWebModule";
   // The debug console does not load any image assets.
   web_module_options.image_cache_capacity = 0;
@@ -192,8 +192,8 @@ DebugConsole::DebugConsole(
       new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
                     render_tree_produced_callback,
                     base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-                    base::Closure(), /* window_close_callback */
-                    base::Closure(), /* window_minimize_callback */
+                    WebModule::CloseCallback(), /* window_close_callback */
+                    base::Closure(),            /* window_minimize_callback */
                     &stub_media_module_, network_module, window_dimensions,
                     1.f /*video_pixel_ratio*/, resource_provider,
                     layout_refresh_rate, web_module_options));

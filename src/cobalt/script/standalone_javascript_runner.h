@@ -30,13 +30,14 @@ namespace script {
 class StandaloneJavascriptRunner {
  public:
   StandaloneJavascriptRunner(
-      const JavaScriptEngine::Options& options = JavaScriptEngine::Options());
+      const JavaScriptEngine::Options& javascript_engine_options =
+          JavaScriptEngine::Options());
 
   template <typename GlobalInterface>
   StandaloneJavascriptRunner(
-      const JavaScriptEngine::Options& options,
+      const JavaScriptEngine::Options& javascript_engine_options,
       const scoped_refptr<GlobalInterface>& global_object) {
-    CommonInitialization(options);
+    CommonInitialization(javascript_engine_options);
     global_environment_->CreateGlobalObject(global_object,
                                             environment_settings_.get());
   }
@@ -53,7 +54,8 @@ class StandaloneJavascriptRunner {
   }
 
  private:
-  void CommonInitialization(const JavaScriptEngine::Options& options);
+  void CommonInitialization(
+      const JavaScriptEngine::Options& javascript_engine_options);
   void ExecuteAndPrintResult(const base::SourceLocation& source_location,
                              const std::string& script);
 

@@ -151,7 +151,7 @@ void NetworkModule::OnCreate(base::WaitableEvent* creation_event) {
       new URLRequestContext(storage_manager_, options_.custom_proxy, net_log,
                             options_.ignore_certificate_errors));
   network_delegate_.reset(
-      new NetworkDelegate(options_.cookie_policy, options_.require_https));
+      new NetworkDelegate(options_.cookie_policy, options_.https_requirement));
   url_request_context_->set_http_user_agent_settings(
       http_user_agent_settings_.get());
   url_request_context_->set_network_delegate(network_delegate_.get());

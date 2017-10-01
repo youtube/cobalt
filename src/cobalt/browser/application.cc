@@ -378,19 +378,6 @@ const char kYouTubeTvLocationPolicy[] =
 #endif
     "h5vcc:";
 
-#if !defined(COBALT_FORCE_CSP)
-dom::CspEnforcementType StringToCspMode(const std::string& mode) {
-  if (mode == "disable") {
-    return dom::kCspEnforcementDisable;
-  } else if (mode == "enable") {
-    return dom::kCspEnforcementEnable;
-  } else {
-    DLOG(INFO) << "Invalid CSP mode: " << mode << ": use [disable|enable]";
-    return dom::kCspEnforcementEnable;
-  }
-}
-#endif  // !defined(COBALT_FORCE_CSP)
-
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
@@ -399,6 +386,11 @@ struct NonTrivialStaticFields {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NonTrivialStaticFields);
+};
+
+struct SecurityFlags {
+  csp::CSPHeaderPolicy csp_header_policy;
+  network::HTTPSRequirement https_requirement;
 };
 
 // |non_trivial_static_fields| will be lazily created on the first time it's
@@ -493,7 +485,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   ApplyCommandLineSettingsToRendererOptions(&options.renderer_module_options);
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
-    options.web_module_options.javascript_options.disable_jit = true;
+    options.web_module_options.javascript_engine_options.disable_jit = true;
   }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -516,6 +508,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
+  SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired};
   options.web_module_options.location_policy = kYouTubeTvLocationPolicy;
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
@@ -531,29 +524,24 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
         command_line->GetSwitchValueASCII(browser::switches::kProxy);
   }
 
-#if !defined(COBALT_FORCE_CSP)
-  if (command_line->HasSwitch(browser::switches::kCspMode)) {
-    options.web_module_options.csp_enforcement_mode = StringToCspMode(
-        command_line->GetSwitchValueASCII(browser::switches::kCspMode));
-  }
-  if (options.web_module_options.csp_enforcement_mode !=
-      dom::kCspEnforcementEnable) {
-    options.web_module_options.location_policy = "h5vcc-location-src *";
-  }
-#endif  // !defined(COBALT_FORCE_CSP)
-
 #if defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
   if (command_line->HasSwitch(browser::switches::kIgnoreCertificateErrors)) {
     options.network_module_options.ignore_certificate_errors = true;
   }
 #endif  // defined(ENABLE_IGNORE_CERTIFICATE_ERRORS)
 
-#if !defined(COBALT_FORCE_HTTPS)
-  if (command_line->HasSwitch(switches::kAllowHttp)) {
-    DLOG(INFO) << "Allowing insecure HTTP connections";
-    options.network_module_options.require_https = false;
+  if (!command_line->HasSwitch(switches::kRequireHTTPSLocation)) {
+    security_flags.https_requirement = network::kHTTPSOptional;
   }
-#endif  // !defined(COBALT_FORCE_HTTPS)
+
+  if (!command_line->HasSwitch(browser::switches::kRequireCSP)) {
+    security_flags.csp_header_policy = csp::kCSPOptional;
+  }
+
+  if (command_line->HasSwitch(browser::switches::kProd)) {
+    security_flags.https_requirement = network::kHTTPSRequired;
+    security_flags.csp_header_policy = csp::kCSPRequired;
+  }
 
   if (command_line->HasSwitch(switches::kVideoPlaybackRateMultiplier)) {
     double playback_rate = 1.0;
@@ -597,6 +585,20 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.web_module_options.enable_image_animations = false;
   }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
+
+// Production-builds override all switches to the most secure configuration.
+#if defined(COBALT_FORCE_HTTPS)
+  security_flags.https_requirement = network::kHTTPSRequired;
+#endif  // defined(COBALT_FORCE_HTTPS)
+
+#if defined(COBALT_FORCE_CSP)
+  security_flags.csp_header_policy = csp::kCSPRequired;
+#endif  // defined(COBALT_FORCE_CSP)
+
+  options.network_module_options.https_requirement =
+      security_flags.https_requirement;
+  options.web_module_options.require_csp = security_flags.csp_header_policy;
+  options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
 
   if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
     LOG(ERROR) << "\n"

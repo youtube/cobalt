@@ -27,12 +27,6 @@ namespace mozjs {
 
 class MozjsEngine : public JavaScriptEngine {
  public:
-  struct Options {
-    explicit Options(const JavaScriptEngine::Options& js_options)
-        : js_options(js_options) {}
-    JavaScriptEngine::Options js_options;  // Generic settings.
-  };
-
   explicit MozjsEngine(const Options& options);
   ~MozjsEngine() OVERRIDE;
 
@@ -70,7 +64,7 @@ class MozjsEngine : public JavaScriptEngine {
   // Used to handle javascript errors.
   ErrorHandler error_handler_;
 
-  Options options_;
+  JavaScriptEngine::Options options_;
 };
 }  // namespace mozjs
 }  // namespace script

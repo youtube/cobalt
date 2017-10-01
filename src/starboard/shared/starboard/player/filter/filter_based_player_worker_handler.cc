@@ -174,9 +174,15 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
+        SbDrmSystemPrivate::DecryptStatus decrypt_status =
+          drm_system_->Decrypt(input_buffer);
+        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
+        }
+        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+          *written = false;
+          return false;
         }
       }
       audio_renderer_->WriteSample(input_buffer);
@@ -194,9 +200,15 @@ bool FilterBasedPlayerWorkerHandler::WriteSample(
         if (!SbDrmSystemIsValid(drm_system_)) {
           return false;
         }
-        if (drm_system_->Decrypt(input_buffer) == SbDrmSystemPrivate::kRetry) {
+        SbDrmSystemPrivate::DecryptStatus decrypt_status =
+          drm_system_->Decrypt(input_buffer);
+        if (decrypt_status == SbDrmSystemPrivate::kRetry) {
           *written = false;
           return true;
+        }
+        if (decrypt_status == SbDrmSystemPrivate::kFailure) {
+          *written = false;
+          return false;
         }
       }
       video_renderer_->WriteSample(input_buffer);
@@ -317,7 +329,8 @@ void FilterBasedPlayerWorkerHandler::Update() {
           audio_renderer_->GetCurrentTime(),
           audio_renderer_->IsEndOfStreamPlayed());
       shared::starboard::Application::Get()->HandleFrame(
-          player_, frame, bounds_.x, bounds_.y, bounds_.width, bounds_.height);
+          player_, frame, bounds_.z_index, bounds_.x, bounds_.y, bounds_.width,
+          bounds_.height);
     }
 
     player_worker_->UpdateDroppedVideoFrames(
@@ -347,7 +360,7 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   if (IsPunchoutMode()) {
     // Clear the video frame as we terminate.
     shared::starboard::Application::Get()->HandleFrame(
-        player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0);
+        player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
   }
 }
 

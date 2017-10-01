@@ -120,7 +120,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
         friendly_name = "XboxOne";
       } else if (sku == "XBOX_ONE_ED") {
         friendly_name = "XboxOne S";
-      } else if (sku == "XBOX_ONE_CH") {
+      } else if (sku == "XBOX_ONE_CH" || sku == "XBOX_ONE_SC") {
         friendly_name = "XboxOne X";
       } else {
         friendly_name = "XboxOne " + sku;

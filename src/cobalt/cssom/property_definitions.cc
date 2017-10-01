@@ -344,12 +344,30 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
                         kImpactsBoxSizesYes, kImpactsBoxCrossReferencesNo,
                         new LengthValue(3, kPixelsUnit));
 
-  // Cobalt only support a single length value that applies to all borders.
   //   https://www.w3.org/TR/css3-background/#the-border-radius
+  SetPropertyDefinition(kBorderTopLeftRadiusProperty, "border-top-left-radius",
+                        kInheritedNo, kAnimatableNo,
+                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
+                        new LengthValue(0, kPixelsUnit));
+
+  SetPropertyDefinition(kBorderTopRightRadiusProperty,
+                        "border-top-right-radius", kInheritedNo, kAnimatableNo,
+                        kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo,
+                        kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
+                        new LengthValue(0, kPixelsUnit));
+
   SetPropertyDefinition(
-      kBorderRadiusProperty, "border-radius", kInheritedNo, kAnimatableNo,
-      kImpactsChildDeclaredStyleNo, kImpactsBoxGenerationNo, kImpactsBoxSizesNo,
-      kImpactsBoxCrossReferencesNo, new LengthValue(0, kPixelsUnit));
+      kBorderBottomRightRadiusProperty, "border-bottom-right-radius",
+      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
+      new LengthValue(0, kPixelsUnit));
+
+  SetPropertyDefinition(
+      kBorderBottomLeftRadiusProperty, "border-bottom-left-radius",
+      kInheritedNo, kAnimatableNo, kImpactsChildDeclaredStyleNo,
+      kImpactsBoxGenerationNo, kImpactsBoxSizesNo, kImpactsBoxCrossReferencesNo,
+      new LengthValue(0, kPixelsUnit));
 
   // https://www.w3.org/TR/CSS2/visuren.html#propdef-bottom
   SetPropertyDefinition(kBottomProperty, "bottom", kInheritedNo, kAnimatableNo,
@@ -779,6 +797,15 @@ NonTrivialGlobalVariables::NonTrivialGlobalVariables() {
   border_width_longhand_properties.insert(kBorderLeftWidthProperty);
   SetShorthandPropertyDefinition(kBorderWidthProperty, "border-width",
                                  border_width_longhand_properties);
+
+  //   https://www.w3.org/TR/css3-background/#border-radius
+  LonghandPropertySet border_radius_longhand_properties;
+  border_radius_longhand_properties.insert(kBorderTopLeftRadiusProperty);
+  border_radius_longhand_properties.insert(kBorderTopRightRadiusProperty);
+  border_radius_longhand_properties.insert(kBorderBottomRightRadiusProperty);
+  border_radius_longhand_properties.insert(kBorderBottomLeftRadiusProperty);
+  SetShorthandPropertyDefinition(kBorderRadiusProperty, "border-radius",
+                                 border_radius_longhand_properties);
 
   //   https://www.w3.org/TR/css3-background/#border
   LonghandPropertySet border_longhand_properties;
@@ -1423,6 +1450,20 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
       }
       return kNoneProperty;
 
+    case 22:
+      if (LowerCaseEqualsASCII(property_name,
+                               GetPropertyName(kBorderTopLeftRadiusProperty))) {
+        return kBorderTopLeftRadiusProperty;
+      }
+      return kNoneProperty;
+
+    case 23:
+      if (LowerCaseEqualsASCII(
+              property_name, GetPropertyName(kBorderTopRightRadiusProperty))) {
+        return kBorderTopRightRadiusProperty;
+      }
+      return kNoneProperty;
+
     case 25:
       if (LowerCaseEqualsASCII(
               property_name,
@@ -1434,9 +1475,19 @@ PropertyKey GetPropertyKey(const std::string& property_name) {
               GetPropertyName(kAnimationTimingFunctionProperty))) {
         return kAnimationTimingFunctionProperty;
       }
+      if (LowerCaseEqualsASCII(
+              property_name,
+              GetPropertyName(kBorderBottomLeftRadiusProperty))) {
+        return kBorderBottomLeftRadiusProperty;
+      }
       return kNoneProperty;
 
     case 26:
+      if (LowerCaseEqualsASCII(
+              property_name,
+              GetPropertyName(kBorderBottomRightRadiusProperty))) {
+        return kBorderBottomRightRadiusProperty;
+      }
       if (LowerCaseEqualsASCII(
               property_name,
               GetPropertyName(kTransitionTimingFunctionProperty))) {

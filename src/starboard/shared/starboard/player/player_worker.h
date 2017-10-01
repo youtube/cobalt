@@ -51,6 +51,7 @@ class PlayerWorker {
   };
 
   struct Bounds {
+    int z_index;
     int x;
     int y;
     int width;

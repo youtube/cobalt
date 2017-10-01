@@ -25,9 +25,10 @@ CspDelegate::~CspDelegate() {}
 
 CspDelegateSecure::CspDelegateSecure(
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    const std::string& location_policy,
+    const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback) {
   location_policy_ = location_policy;
+  require_csp_ = require_csp;
   was_header_received_ = false;
   policy_changed_callback_ = policy_changed_callback;
 
@@ -53,10 +54,15 @@ bool CspDelegateSecure::CanLoad(ResourceType type, const GURL& url,
   // we check our default navigation policy, to permit navigation to
   // and from the main site and error pages, and disallow everything else.
   if (!was_header_received_) {
+    bool should_allow = false;
     if (type == kLocation) {
-      return csp_->AllowNavigateToSource(url, redirect_status);
+      should_allow = csp_->AllowNavigateToSource(url, redirect_status);
+    }
+    if (require_csp_ == csp::kCSPRequired || should_allow) {
+      return should_allow;
     } else {
-      return false;
+      DLOG(WARNING) << "Page must include Content-Security-Policy header, it "
+                       "will fail to load in production builds of Cobalt!";
     }
   }
 

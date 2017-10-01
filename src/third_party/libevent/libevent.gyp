@@ -87,7 +87,7 @@
                   'include_dirs': [ 'starboard/linux' ],
                   }
                 ],
-                [ 'target_os == "ios"', {
+                [ 'target_os in ("tvos", "ios", "mac")', {
                   'include_dirs': [ 'starboard/darwin' ],
                   }
                 ],

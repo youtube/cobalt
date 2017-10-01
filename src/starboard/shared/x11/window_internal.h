@@ -31,15 +31,19 @@ struct SbWindowPrivate {
 
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
-  // Composites graphics and the given video frame video for this window. In
-  // kSbPlayerOutputModePunchOut mode, this is the only way any graphics or
-  // video is presented in the window.  The video frame will be rendered
-  // according to boundaries specified by the parameters.
-  void Composite(int bounds_x,
-                 int bounds_y,
-                 int bounds_width,
-                 int bounds_height,
-                 const starboard::scoped_refptr<VideoFrame>& frame);
+  // The following functions composite graphics and the given video frame video
+  // for this window. In kSbPlayerOutputModePunchOut mode, this is the only way
+  // any graphics or video is presented in the window.  The video frame will be
+  // rendered according to boundaries specified by the parameters.
+  // CompositeVideoFrame() can be called multiple times in between
+  // BeginComposite() and EndComposite() to display frames from multiple videos.
+  void BeginComposite();
+  void CompositeVideoFrame(int bounds_x,
+                           int bounds_y,
+                           int bounds_width,
+                           int bounds_height,
+                           const starboard::scoped_refptr<VideoFrame>& frame);
+  void EndComposite();
 
   // The cached XRender Picture that represents the window that is the
   // destination of the composition.

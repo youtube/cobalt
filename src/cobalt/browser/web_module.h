@@ -128,6 +128,9 @@ class WebModule : public LifecycleObserver {
     // can't be changed from the whitelisted origins.
     std::string location_policy;
 
+    // Whether Cobalt is forbidden to render without receiving CSP headers.
+    csp::CSPHeaderPolicy require_csp;
+
     // Image cache capacity in bytes.
     int image_cache_capacity;
 
@@ -172,7 +175,7 @@ class WebModule : public LifecycleObserver {
     // To support 3D camera movements.
     scoped_refptr<input::Camera3D> camera_3d;
 
-    script::JavaScriptEngine::Options javascript_options;
+    script::JavaScriptEngine::Options javascript_engine_options;
 
     // The video playback rate will be multiplied with the following value.  Its
     // default value is 1.0.
@@ -202,12 +205,13 @@ class WebModule : public LifecycleObserver {
   typedef base::Callback<void(const LayoutResults&)>
       OnRenderTreeProducedCallback;
   typedef base::Callback<void(const GURL&, const std::string&)> OnErrorCallback;
+  typedef dom::Window::CloseCallback CloseCallback;
 
   WebModule(const GURL& initial_url,
             base::ApplicationState initial_application_state,
             const OnRenderTreeProducedCallback& render_tree_produced_callback,
             const OnErrorCallback& error_callback,
-            const base::Closure& window_close_callback,
+            const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
             media::MediaModule* media_module,
             network::NetworkModule* network_module,
@@ -288,7 +292,7 @@ class WebModule : public LifecycleObserver {
         base::ApplicationState initial_application_state,
         const OnRenderTreeProducedCallback& render_tree_produced_callback,
         const OnErrorCallback& error_callback,
-        const base::Closure& window_close_callback,
+        const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
         media::MediaModule* media_module,
         network::NetworkModule* network_module,
@@ -315,7 +319,7 @@ class WebModule : public LifecycleObserver {
     base::ApplicationState initial_application_state;
     OnRenderTreeProducedCallback render_tree_produced_callback;
     OnErrorCallback error_callback;
-    const base::Closure& window_close_callback;
+    const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
     media::MediaModule* media_module;
     network::NetworkModule* network_module;

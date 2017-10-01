@@ -774,7 +774,8 @@ TEST(PromoteToComputedStyle, BackgroundSizeKeywordNotChanged) {
 TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
   scoped_refptr<CSSComputedStyleData> computed_style(
       new CSSComputedStyleData());
-  computed_style->set_border_radius(new LengthValue(3, kFontSizesAkaEmUnit));
+  computed_style->set_border_top_left_radius(
+      new LengthValue(3, kFontSizesAkaEmUnit));
 
   scoped_refptr<CSSComputedStyleData> parent_computed_style(
       new CSSComputedStyleData());
@@ -784,10 +785,12 @@ TEST(PromoteToComputedStyle, BorderRadiusEmToPixel) {
   PromoteToComputedStyle(computed_style, parent_computed_style_declaration,
                          parent_computed_style, math::Size(), NULL);
 
-  LengthValue* border_radius = base::polymorphic_downcast<LengthValue*>(
-      computed_style->border_radius().get());
-  EXPECT_FLOAT_EQ(48.0f, border_radius->value());
-  EXPECT_EQ(kPixelsUnit, border_radius->unit());
+  LengthValue* border_top_left_radius =
+      base::polymorphic_downcast<LengthValue*>(
+          computed_style->border_top_left_radius().get());
+  ASSERT_TRUE(border_top_left_radius);
+  EXPECT_FLOAT_EQ(48.0f, border_top_left_radius->value());
+  EXPECT_EQ(kPixelsUnit, border_top_left_radius->unit());
 }
 
 TEST(PromoteToComputedStyle, BorderColorWithInitialValue) {

@@ -70,13 +70,12 @@ class ErrorEventTest : public ::testing::Test {
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(),
-            std::string() /* default security policy */, kCspEnforcementEnable,
-            base::Closure() /* csp_policy_changed */,
+            std::string() /* default security policy */, csp::kCSPRequired,
+            kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
-            base::Closure() /* window_close */,
+            dom::Window::CloseCallback() /* window_close */,
             base::Closure() /* window_minimize */, NULL, NULL)) {
-    engine_ = script::JavaScriptEngine::CreateEngine(
-        script::JavaScriptEngine::Options());
+    engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     global_environment_->CreateGlobalObject(window_,
                                             environment_settings_.get());

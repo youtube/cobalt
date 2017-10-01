@@ -22,7 +22,7 @@ function ConsoleValues() {
   this.DEFAULT_ACTIVE_SET =
       'Cobalt DevTools WebDriver ' +
       'Memory.CPU Memory.MainWebModule Memory.JS Memory.Font ' +
-      'Count.MainWebModule.ImageCache.RequestedResources ' +
+      'Count.MainWebModule.ImageCache.Resource ' +
       'Count.MainWebModule.DOM.HtmlElement Count.MainWebModule.Layout.Box ' +
       'Event.Count.MainWebModule.KeyDown.DOM.HtmlElement.Added ' +
       'Event.Count.MainWebModule.KeyDown.Layout.Box.Created ' +

@@ -116,6 +116,18 @@ class CSSStyleDeclaration : public script::Wrappable {
   void set_border_bottom_color(const std::string& border_bottom_color,
                                script::ExceptionState* exception_state);
 
+  std::string border_bottom_left_radius(
+      script::ExceptionState* exception_state) const;
+  void set_border_bottom_left_radius(
+      const std::string& border_bottom_left_radius,
+      script::ExceptionState* exception_state);
+
+  std::string border_bottom_right_radius(
+      script::ExceptionState* exception_state) const;
+  void set_border_bottom_right_radius(
+      const std::string& border_bottom_right_radius,
+      script::ExceptionState* exception_state);
+
   std::string border_bottom_style(
       script::ExceptionState* exception_state) const;
   void set_border_bottom_style(const std::string& border_bottom_style,
@@ -173,6 +185,16 @@ class CSSStyleDeclaration : public script::Wrappable {
   std::string border_top_color(script::ExceptionState* exception_state) const;
   void set_border_top_color(const std::string& border_top_color,
                             script::ExceptionState* exception_state);
+
+  std::string border_top_left_radius(
+      script::ExceptionState* exception_state) const;
+  void set_border_top_left_radius(const std::string& border_top_left_radius,
+                                  script::ExceptionState* exception_state);
+
+  std::string border_top_right_radius(
+      script::ExceptionState* exception_state) const;
+  void set_border_top_right_radius(const std::string& border_top_right_radius,
+                                   script::ExceptionState* exception_state);
 
   std::string border_top_style(script::ExceptionState* exception_state) const;
   void set_border_top_style(const std::string& border_top_style,

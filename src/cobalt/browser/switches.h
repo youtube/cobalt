@@ -20,9 +20,7 @@ namespace browser {
 namespace switches {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
-extern const char kAllowHttp[];
 extern const char kAudioDecoderStub[];
-extern const char kCspMode[];
 extern const char kDebugConsoleMode[];
 extern const char kDisableWebDriver[];
 extern const char kDisableWebmVp9[];
@@ -72,6 +70,10 @@ extern const char kReduceCpuMemoryBy[];
 extern const char kReduceGpuMemoryBy[];
 
 extern const char kVideoPlaybackRateMultiplier[];
+
+extern const char kProd[];
+extern const char kRequireHTTPSLocation[];
+extern const char kRequireCSP[];
 
 }  // namespace switches
 }  // namespace browser

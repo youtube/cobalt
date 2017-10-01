@@ -31,6 +31,12 @@
 extern "C" {
 #endif
 
+typedef struct CbLibSize {
+  CbLibSize(int width, int height) : width(width), height(height) {}
+  int width;
+  int height;
+} CbLibSize;
+
 typedef void (*CbLibGraphicsContextCreatedCallback)(void* context);
 typedef void (*CbLibGraphicsBeginRenderFrameCallback)(void* context);
 typedef void (*CbLibGraphicsEndRenderFrameCallback)(void* context);
@@ -58,6 +64,13 @@ SB_EXPORT_PLATFORM void CbLibGraphicsSetEndRenderFrameCallback(
 // callback is set). This is not thread-safe and should be invoked on the
 // rasterization thread only.
 SB_EXPORT_PLATFORM intptr_t CbLibGrapicsGetMainTextureHandle();
+
+// Sets the target main texture buffer size (in pixels) to use when rendering
+// out HTML content. The specified size is a target and is not guaranteed. In
+// general, the updated size will be picked up and used at the beginning of the
+// next frame.
+SB_EXPORT_PLATFORM void CbLibGraphicsSetTargetMainTextureSize(
+    const CbLibSize& target_render_size);
 
 #ifdef __cplusplus
 }  // extern "C"

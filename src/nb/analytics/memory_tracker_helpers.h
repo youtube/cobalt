@@ -162,7 +162,7 @@ class AtomicAllocationMap {
       AllocationRecord,
       std::less<const void*>,  // required, when specifying allocator.
       nb::StdAllocator<
-          std::pair<const void*, AllocationRecord>,
+          std::pair<const void* const, AllocationRecord>,
           NoReportAllocator> > PointerMap;
 
   PointerMap pointer_map_;

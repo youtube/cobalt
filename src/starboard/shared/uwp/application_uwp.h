@@ -117,13 +117,6 @@ class ApplicationUwp : public shared::starboard::Application {
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
   SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
 
-  void AcceptFrame(SbPlayer player,
-                   const scoped_refptr<VideoFrame>& frame,
-                   int x,
-                   int y,
-                   int width,
-                   int height) SB_OVERRIDE;
-
   // These two functions should only be called while holding
   // |hdcp_session_mutex_|.
   Windows::Media::Protection::HdcpSession^ GetHdcpSession();

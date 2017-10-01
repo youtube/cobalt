@@ -275,11 +275,38 @@ class CSSComputedStyleData : public base::RefCounted<CSSComputedStyleData> {
     SetPropertyValue(kBorderLeftWidthProperty, border_left_width);
   }
 
-  const scoped_refptr<PropertyValue>& border_radius() const {
-    return GetPropertyValueReference(kBorderRadiusProperty);
+  const scoped_refptr<PropertyValue>& border_top_left_radius() const {
+    return GetPropertyValueReference(kBorderTopLeftRadiusProperty);
   }
-  void set_border_radius(const scoped_refptr<PropertyValue>& border_radius) {
-    SetPropertyValue(kBorderRadiusProperty, border_radius);
+  void set_border_top_left_radius(
+      const scoped_refptr<PropertyValue>& border_top_left_radius) {
+    SetPropertyValue(kBorderTopLeftRadiusProperty, border_top_left_radius);
+  }
+
+  const scoped_refptr<PropertyValue>& border_top_right_radius() const {
+    return GetPropertyValueReference(kBorderTopRightRadiusProperty);
+  }
+  void set_border_top_right_radius(
+      const scoped_refptr<PropertyValue>& border_top_right_radius) {
+    SetPropertyValue(kBorderTopRightRadiusProperty, border_top_right_radius);
+  }
+
+  const scoped_refptr<PropertyValue>& border_bottom_right_radius() const {
+    return GetPropertyValueReference(kBorderBottomRightRadiusProperty);
+  }
+  void set_border_bottom_right_radius(
+      const scoped_refptr<PropertyValue>& border_bottom_right_radius) {
+    SetPropertyValue(kBorderBottomRightRadiusProperty,
+                     border_bottom_right_radius);
+  }
+
+  const scoped_refptr<PropertyValue>& border_bottom_left_radius() const {
+    return GetPropertyValueReference(kBorderBottomLeftRadiusProperty);
+  }
+  void set_border_bottom_left_radius(
+      const scoped_refptr<PropertyValue>& border_bottom_left_radius) {
+    SetPropertyValue(kBorderBottomLeftRadiusProperty,
+                     border_bottom_left_radius);
   }
 
   const scoped_refptr<PropertyValue>& bottom() const {

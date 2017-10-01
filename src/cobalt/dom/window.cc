@@ -99,10 +99,11 @@ Window::Window(int width, int height, float device_pixel_ratio,
                network_bridge::CookieJar* cookie_jar,
                const network_bridge::PostSender& post_sender,
                const std::string& default_security_policy,
+               csp::CSPHeaderPolicy require_csp,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
                const base::Closure& ran_animation_frame_callbacks_callback,
-               const base::Closure& window_close_callback,
+               const CloseCallback& window_close_callback,
                const base::Closure& window_minimize_callback,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
@@ -138,7 +139,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
               math::Size(width_, height_), cookie_jar, post_sender,
-              default_security_policy, csp_enforcement_mode,
+              default_security_policy, require_csp, csp_enforcement_mode,
               csp_policy_changed_callback, csp_insecure_allowed_token,
               dom_max_element_depth)))),
       document_loader_(NULL),
@@ -202,7 +203,8 @@ const scoped_refptr<History>& Window::history() const { return history_; }
 void Window::Close() {
   LOG(INFO) << __func__;
   if (!window_close_callback_.is_null()) {
-    window_close_callback_.Run();
+    window_close_callback_.Run(
+        performance_->timing()->GetNavigationStartClock()->Now());
   }
 }
 

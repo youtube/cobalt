@@ -46,6 +46,7 @@ bool InsecureAllowed(int token) {
 CspDelegate* CreateInsecureDelegate(
     scoped_ptr<CspViolationReporter> /*violation_reporter*/,
     const GURL& /*url*/, const std::string& /*location_policy*/,
+    csp::CSPHeaderPolicy /*requre_csp*/,
     const base::Closure& /*policy_changed_callback*/,
     int insecure_allowed_token) {
   if (InsecureAllowed(insecure_allowed_token)) {
@@ -58,11 +59,11 @@ CspDelegate* CreateInsecureDelegate(
 
 CspDelegate* CreateSecureDelegate(
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    const std::string& location_policy,
+    const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback,
     int /*insecure_allowed_token*/) {
   return new CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
-                               policy_changed_callback);
+                               require_csp, policy_changed_callback);
 }
 }  // namespace
 
@@ -86,11 +87,11 @@ CspDelegateFactory::CspDelegateFactory() {
 scoped_ptr<CspDelegate> CspDelegateFactory::Create(
     CspEnforcementType type,
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    const std::string& location_policy,
+    const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback, int insecure_allowed_token) {
-  scoped_ptr<CspDelegate> delegate(
-      method_[type](violation_reporter.Pass(), url, location_policy,
-                    policy_changed_callback, insecure_allowed_token));
+  scoped_ptr<CspDelegate> delegate(method_[type](
+      violation_reporter.Pass(), url, location_policy, require_csp,
+      policy_changed_callback, insecure_allowed_token));
   return delegate.Pass();
 }
 

@@ -45,7 +45,7 @@ class DebugConsole : public LifecycleObserver {
       render_tree::ResourceProvider* resource_provider,
       float layout_refresh_rate,
       const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
-      const script::JavaScriptEngine::Options& js_options);
+      const script::JavaScriptEngine::Options& javascript_engine_options);
   ~DebugConsole();
 
   // Filters a key event.

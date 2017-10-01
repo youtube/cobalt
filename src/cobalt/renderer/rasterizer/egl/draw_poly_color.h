@@ -17,6 +17,7 @@
 
 #include <vector>
 
+#include "base/optional.h"
 #include "cobalt/math/rect_f.h"
 #include "cobalt/render_tree/color_rgba.h"
 #include "cobalt/renderer/rasterizer/egl/draw_object.h"
@@ -34,6 +35,7 @@ class DrawPolyColor : public DrawObject {
                 const math::RectF& rect,
                 const render_tree::ColorRGBA& color);
 
+  bool TryMerge(DrawObject* other) OVERRIDE;
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager) OVERRIDE;
   void ExecuteRasterize(GraphicsState* graphics_state,
@@ -44,16 +46,26 @@ class DrawPolyColor : public DrawObject {
   explicit DrawPolyColor(const BaseState& base_state);
   void SetupShader(GraphicsState* graphics_state,
                    ShaderProgramManager* program_manager);
-  void AddRect(const math::RectF& rect, uint32_t color);
-  void AddVertex(float x, float y, uint32_t color);
+  void AddRectVertices(const math::RectF& rect, uint32_t color);
+  void AddRectIndices(uint16_t top_left, uint16_t top_right,
+                      uint16_t bottom_left, uint16_t bottom_right);
+  bool PrepareForMerge();
 
   struct VertexAttributes {
+    VertexAttributes(float x, float y, uint32_t color32) {
+      position[0] = x;
+      position[1] = y;
+      color = color32;
+    }
     float position[2];
     uint32_t color;
   };
   std::vector<VertexAttributes> attributes_;
+  std::vector<uint16_t> indices_;
 
+  uint16_t* index_buffer_;
   uint8_t* vertex_buffer_;
+  base::optional<bool> can_merge_;
 };
 
 }  // namespace egl

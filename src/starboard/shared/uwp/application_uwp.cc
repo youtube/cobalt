@@ -84,6 +84,9 @@ using Windows::UI::Popups::UICommandInvokedHandler;
 
 namespace {
 
+const HdcpProtection kHDCPProtectionMode =
+    HdcpProtection::OnWithTypeEnforcement;
+
 const int kWinSockVersionMajor = 2;
 const int kWinSockVersionMinor = 2;
 
@@ -615,7 +618,7 @@ Platform::String^ ApplicationUwp::GetString(
 bool ApplicationUwp::IsHdcpOn() {
   ::starboard::ScopedLock lock(hdcp_session_mutex_);
 
-  return GetHdcpSession()->IsEffectiveProtectionAtLeast(HdcpProtection::On);
+  return GetHdcpSession()->IsEffectiveProtectionAtLeast(kHDCPProtectionMode);
 }
 
 bool ApplicationUwp::TurnOnHdcp() {
@@ -623,9 +626,8 @@ bool ApplicationUwp::TurnOnHdcp() {
   {
     ::starboard::ScopedLock lock(hdcp_session_mutex_);
 
-    protection_result =
-      WaitForResult(GetHdcpSession()->SetDesiredMinProtectionAsync(
-        HdcpProtection::On));
+    protection_result = WaitForResult(
+        GetHdcpSession()->SetDesiredMinProtectionAsync(kHDCPProtectionMode));
   }
 
   if (IsHdcpOn()) {
@@ -658,28 +660,6 @@ bool ApplicationUwp::TurnOffHdcp() {
   }
   bool success = !SbMediaIsOutputProtected();
   return success;
-}
-
-void ApplicationUwp::AcceptFrame(SbPlayer player,
-                                 const scoped_refptr<VideoFrame>& frame,
-                                 int x,
-                                 int y,
-                                 int width,
-                                 int height) {
-  SB_UNREFERENCED_PARAMETER(player);
-  SB_UNREFERENCED_PARAMETER(frame);
-  SB_UNREFERENCED_PARAMETER(x);
-  SB_UNREFERENCED_PARAMETER(y);
-  SB_UNREFERENCED_PARAMETER(width);
-  SB_UNREFERENCED_PARAMETER(height);
-
-  if (frame->IsEndOfStream()) {
-    // TODO: Implement.
-  } else {
-    ID3D11Texture2D* dx_texture =
-        static_cast<ID3D11Texture2D*>(frame->native_texture());
-    SB_UNREFERENCED_PARAMETER(dx_texture);
-  }
 }
 
 }  // namespace uwp

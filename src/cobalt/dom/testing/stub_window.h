@@ -59,10 +59,10 @@ class StubWindow {
         dom_stat_tracker_.get(), url_, "", "en-US",
         base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
         NULL, network_bridge::PostSender(),
-        std::string() /* default security policy */, dom::kCspEnforcementEnable,
-        base::Closure() /* csp_policy_changed */,
+        std::string() /* default security policy */, csp::kCSPRequired,
+        dom::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
-        base::Closure() /* window_close */,
+        dom::Window::CloseCallback() /* window_close */,
         base::Closure() /* window_minimize */, NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }

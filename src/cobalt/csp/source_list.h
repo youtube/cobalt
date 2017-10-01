@@ -56,6 +56,9 @@ class SourceList {
   uint8 hash_algorithms_used() const { return hash_algorithms_used_; }
   bool hash_or_nonce_present() const;
 
+  static bool ParseHash(const char* begin, const char* end, DigestValue* hash,
+                        HashAlgorithm* hash_algorithm);
+
  private:
   bool ParseSource(const char* begin, const char* end,
                    SourceConfig* source_config);
@@ -66,8 +69,6 @@ class SourceList {
                  SourceConfig::WildcardDisposition* port_disposition);
   bool ParsePath(const char* begin, const char* end, std::string* path);
   bool ParseNonce(const char* begin, const char* end, std::string* nonce);
-  bool ParseHash(const char* begin, const char* end, DigestValue* hash,
-                 HashAlgorithm* hash_algorithm);
 
   void AddSourceLocalhost();
   void AddSourceLocalNetwork();

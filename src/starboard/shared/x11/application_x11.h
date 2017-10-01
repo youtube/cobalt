@@ -17,6 +17,7 @@
 
 #include <X11/Xlib.h>
 
+#include <map>
 #include <queue>
 #include <vector>
 
@@ -52,6 +53,7 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
  protected:
   void AcceptFrame(SbPlayer player,
                    const scoped_refptr<VideoFrame>& frame,
+                   int z_index,
                    int x,
                    int y,
                    int width,
@@ -76,7 +78,9 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   typedef std::vector<SbWindow> SbWindowVector;
 
   struct FrameInfo {
+    SbPlayer player;
     scoped_refptr<VideoFrame> frame;
+    int z_index;
     int x;
     int y;
     int width;
@@ -107,9 +111,11 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
   SbEventId composite_event_id_;
   Mutex frame_mutex_;
   int frame_read_index_;
-  bool frame_written_;
+  bool frames_updated_;
+
   static const int kNumFrames = 2;
-  FrameInfo frame_infos_[kNumFrames];
+  // Video frames from different videos sorted by their z indices.
+  std::map<int, FrameInfo> frame_infos_[kNumFrames];
 
   Display* display_;
   SbWindowVector windows_;

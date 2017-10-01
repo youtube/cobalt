@@ -61,7 +61,7 @@ browser::WebModule::LayoutResults SnapshotURL(
   network::NetworkModule::Options net_options;
   // Some layout tests test Content Security Policy; allow HTTP so we
   // don't interfere.
-  net_options.require_https = false;
+  net_options.https_requirement = network::kHTTPSOptional;
   network::NetworkModule network_module(net_options);
 
   // We do not support a media module in this mode.
@@ -86,7 +86,7 @@ browser::WebModule::LayoutResults SnapshotURL(
       base::Bind(&WebModuleOnRenderTreeProducedCallback, &results, &run_loop,
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
-      base::Closure() /* window_close_callback */,
+      browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */, stub_media_module.get(),
       &network_module, viewport_size, 1.f, resource_provider, 60.0f,
       web_module_options);

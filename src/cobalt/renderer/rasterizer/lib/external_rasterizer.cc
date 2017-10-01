@@ -34,6 +34,8 @@
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_rasterizer.h"
 #include "starboard/shared/gles/gl_call.h"
+#include "third_party/glm/glm/gtc/matrix_transform.hpp"
+#include "third_party/glm/glm/gtc/type_ptr.hpp"
 
 COMPILE_ASSERT(
     cobalt::render_tree::kMono == kCbLibVideoStereoModeMono &&
@@ -49,7 +51,11 @@ using cobalt::renderer::rasterizer::lib::ExternalRasterizer;
 
 namespace {
 
-const float kMaxRenderTargetSize = 15360.0f;
+static const float kMaxRenderTargetSize = 15360.0f;
+
+// The minimum amount of change required in the desired texture size to generate
+// a new offscreen render target for the quad texture.
+static const float kMinTextureSizeEpsilon = 20.0f;
 
 // Matches the signatures of the callback setter functions in exported/video.h
 // and exported/graphics.h.
@@ -126,6 +132,16 @@ BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
 EndRenderFrame::LazyCallback g_end_render_frame_callback =
     LAZY_INSTANCE_INITIALIZER;
 
+bool ApproxEqual(const cobalt::math::Size& a, const cobalt::math::Size& b,
+                 float epsilon) {
+  return std::abs(a.width() - b.width()) < epsilon &&
+         std::abs(a.height() - b.height()) < epsilon;
+}
+
+cobalt::math::Size CobaltSizeFromCbLibSize(CbLibSize size) {
+  return cobalt::math::Size(size.width, size.height);
+}
+
 ExternalRasterizer::Impl* g_external_rasterizer_impl = nullptr;
 
 }  // namespace
@@ -152,8 +168,17 @@ class ExternalRasterizer::Impl {
 
   intptr_t GetMainTextureHandle();
 
+  // Sets the target size in pixels to use for the main render target buffer.
+  void SetTargetMainTextureSize(const cobalt::math::Size& target_render_size) {
+    target_main_render_target_size_ = target_render_size;
+  }
+
  private:
   void RenderOffscreenVideo(render_tree::FilterNode* map_to_mesh_filter_node);
+
+  scoped_refptr<render_tree::MatrixTransformNode> UpdateTextureSizeAndWrapNode(
+      const cobalt::math::Size& native_render_target_size,
+      const scoped_refptr<render_tree::Node>& render_tree);
 
   base::ThreadChecker thread_checker_;
 
@@ -180,7 +205,11 @@ class ExternalRasterizer::Impl {
   scoped_refptr<skia::HardwareMesh> left_eye_video_mesh_;
   scoped_refptr<skia::HardwareMesh> right_eye_video_mesh_;
   render_tree::StereoMode video_stereo_mode_;
-  int video_texture_rgb_;
+  GLuint video_texture_rgb_;
+  // The 'target'/'ideal' size to use for the main RenderTarget. The actual size
+  // of the buffer for the main RenderTarget should aim to be within some small
+  // delta of this whenever a new RenderTree is rendered.
+  cobalt::math::Size target_main_render_target_size_;
 };
 
 ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
@@ -192,23 +221,23 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)),
-      hardware_rasterizer_(
-          graphics_context, skia_atlas_width, skia_atlas_height,
-          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          rasterizer_gpu_cache_size_in_bytes,
-          purge_skia_font_caches_on_destruction),
+      hardware_rasterizer_(graphics_context, skia_atlas_width,
+                           skia_atlas_height, skia_cache_size_in_bytes,
+                           scratch_surface_cache_size_in_bytes,
+                           rasterizer_gpu_cache_size_in_bytes,
+                           purge_skia_font_caches_on_destruction),
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
-      video_texture_rgb_(0) {
+      video_texture_rgb_(0),
+      target_main_render_target_size_(1, 1) {
   CHECK(!g_external_rasterizer_impl);
   g_external_rasterizer_impl = this;
   options_.flags = Rasterizer::kSubmitFlags_Clear;
   graphics_context_->MakeCurrent();
 
-  // TODO: Import the correct size for this and any other textures from the lib
-  // client and re-generate the size as appropriate.
   main_offscreen_render_target_ =
-      graphics_context_->CreateOffscreenRenderTarget(math::Size(1920, 1080));
+      graphics_context_->CreateOffscreenRenderTarget(
+        target_main_render_target_size_);
   main_texture_.reset(new backend::TextureEGL(
       graphics_context_,
       make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
@@ -321,17 +350,62 @@ void ExternalRasterizer::Impl::Submit(
     }
   }
 
-  backend::RenderTargetEGL* main_texture_render_target_egl =
-      base::polymorphic_downcast<backend::RenderTargetEGL*>(
-          main_offscreen_render_target_.get());
-  hardware_rasterizer_.Submit(map_to_mesh_search.replaced_tree,
-                              main_offscreen_render_target_, options_);
-
+  const scoped_refptr<render_tree::MatrixTransformNode> scaled_main_node =
+      UpdateTextureSizeAndWrapNode(render_target->GetSize(),
+                                   map_to_mesh_search.replaced_tree);
+  hardware_rasterizer_.Submit(scaled_main_node, main_offscreen_render_target_,
+                              options_);
   // TODO: Allow clients to specify arbitrary subtrees to render into
   // different textures?
   g_begin_render_frame_callback.Get().Run();
   graphics_context_->SwapBuffers(render_target_egl);
   g_end_render_frame_callback.Get().Run();
+}
+
+// TODO: Share this logic with the ComponentRenderer.
+scoped_refptr<render_tree::MatrixTransformNode>
+ExternalRasterizer::Impl::UpdateTextureSizeAndWrapNode(
+    const cobalt::math::Size& native_render_target_size,
+    const scoped_refptr<render_tree::Node>& render_tree) {
+  // Create a new offscreen render target if the exist one's size is far enough
+  // off from the target/ideal size.
+  if (!main_offscreen_render_target_ ||
+      !ApproxEqual(main_offscreen_render_target_->GetSize(),
+                   target_main_render_target_size_, kMinTextureSizeEpsilon)) {
+    LOG(INFO) << "Creating a new offscreen render target of size "
+              << target_main_render_target_size_;
+    main_offscreen_render_target_ =
+        graphics_context_->CreateOffscreenRenderTarget(
+            target_main_render_target_size_);
+    // Note: The TextureEGL this pointer references must first be destroyed by
+    // calling reset() before a new TextureEGL can be constructed.
+    main_texture_.reset();
+    main_texture_.reset(new backend::TextureEGL(
+        graphics_context_,
+        make_scoped_refptr(
+            base::polymorphic_downcast<backend::RenderTargetEGL*>(
+                main_offscreen_render_target_.get()))));
+  }
+
+  DCHECK(native_render_target_size.width());
+  DCHECK(native_render_target_size.height());
+  // We wrap the RenderTree in a MatrixTransformNode to scale the RenderTree so
+  // that its scale relative to our RenderTarget matches its original scale
+  // relative to native_render_target_size. This makes the texture cropped to
+  // fit our RenderTarget the same amount it would be for the original
+  // RenderTarget.
+  const float texture_x_scale =
+      static_cast<float>(main_offscreen_render_target_->GetSize().width()) /
+      native_render_target_size.width();
+  const float texture_y_scale =
+      static_cast<float>(main_offscreen_render_target_->GetSize().height()) /
+      native_render_target_size.height();
+  const glm::mat3 scale_mat(glm::scale(
+      glm::mat4(1.0f), glm::vec3(texture_x_scale, texture_y_scale, 1)));
+  const cobalt::math::Matrix3F root_transform_matrix =
+      cobalt::math::Matrix3F::FromArray(glm::value_ptr(scale_mat));
+  return scoped_refptr<render_tree::MatrixTransformNode>(
+      new render_tree::MatrixTransformNode(render_tree, root_transform_matrix));
 }
 
 render_tree::ResourceProvider* ExternalRasterizer::Impl::GetResourceProvider() {
@@ -503,4 +577,16 @@ intptr_t CbLibGrapicsGetMainTextureHandle() {
   }
 
   return g_external_rasterizer_impl->GetMainTextureHandle();
+}
+
+void CbLibGraphicsSetTargetMainTextureSize(
+    const CbLibSize& target_render_size) {
+  DCHECK(g_external_rasterizer_impl);
+  if (!g_external_rasterizer_impl) {
+    LOG(WARNING) << __FUNCTION__
+                 << "ExternalRasterizer not yet created; unable to progress.";
+    return;
+  }
+  const cobalt::math::Size size = CobaltSizeFromCbLibSize(target_render_size);
+  g_external_rasterizer_impl->SetTargetMainTextureSize(size);
 }

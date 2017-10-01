@@ -59,10 +59,10 @@ class WindowTest : public ::testing::Test {
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(),
-            std::string() /* default security policy */, kCspEnforcementEnable,
-            base::Closure() /* csp_policy_changed */,
+            std::string() /* default security policy */, csp::kCSPRequired,
+            kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
-            base::Closure() /* window_close */,
+            dom::Window::CloseCallback() /* window_close */,
             base::Closure() /* window_minimize */, NULL, NULL)) {}
 
   ~WindowTest() OVERRIDE {}
