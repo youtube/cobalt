@@ -381,27 +381,84 @@ const scoped_refptr<cssom::StyleSheetList>& Document::style_sheets() {
   return style_sheets_;
 }
 
-void Document::set_cookie(const std::string& cookie) {
-#if defined(COBALT_BUILD_TYPE_GOLD)
-  UNREFERENCED_PARAMETER(cookie);
-#else
+// https://html.spec.whatwg.org/#cookie-averse-document-object
+bool Document::IsCookieAverseDocument() const {
+  return !HasBrowsingContext() || (!location_->url().SchemeIs("ftp") &&
+                                   !location_->url().SchemeIs("http") &&
+                                   !location_->url().SchemeIs("https"));
+}
+
+// https://html.spec.whatwg.org/#dom-document-cookie
+void Document::set_cookie(const std::string& cookie,
+                          script::ExceptionState* exception_state) {
+  if (IsCookieAverseDocument()) {
+    DLOG(WARNING) << "Document is a cookie-averse Document object, not "
+                     "setting cookie.";
+    return;
+  }
+  if (location_->OriginObject().is_opaque()) {
+    DOMException::Raise(DOMException::kSecurityErr,
+                        "Document origin is opaque, cookie setting failed",
+                        exception_state);
+    return;
+  }
   if (cookie_jar_) {
     cookie_jar_->SetCookie(url_as_gurl(), cookie);
   }
-#endif
 }
 
-std::string Document::cookie() const {
-#if defined(COBALT_BUILD_TYPE_GOLD)
-  return std::string();
-#else
+// https://html.spec.whatwg.org/#dom-document-cookie
+std::string Document::cookie(script::ExceptionState* exception_state) const {
+  if (IsCookieAverseDocument()) {
+    DLOG(WARNING) << "Document is a cookie-averse Document object, returning "
+                     "empty cookie.";
+    return "";
+  }
+  if (location_->OriginObject().is_opaque()) {
+    DOMException::Raise(DOMException::kSecurityErr,
+                        "Document origin is opaque, cookie getting failed",
+                        exception_state);
+    return "";
+  }
   if (cookie_jar_) {
     return cookie_jar_->GetCookies(url_as_gurl());
   } else {
     DLOG(WARNING) << "Document has no cookie jar";
     return "";
   }
-#endif
+}
+
+void Document::set_cookie(const std::string& cookie) {
+  if (IsCookieAverseDocument()) {
+    DLOG(WARNING) << "Document is a cookie-averse Document object, not "
+                     "setting cookie.";
+    return;
+  }
+  if (location_->OriginObject().is_opaque()) {
+    DLOG(WARNING) << "Document origin is opaque, cookie setting failed";
+    return;
+  }
+  if (cookie_jar_) {
+    cookie_jar_->SetCookie(url_as_gurl(), cookie);
+  }
+}
+
+std::string Document::cookie() const {
+  if (IsCookieAverseDocument()) {
+    DLOG(WARNING) << "Document is a cookie-averse Document object, returning "
+                     "empty cookie.";
+    return "";
+  }
+  if (location_->OriginObject().is_opaque()) {
+    DLOG(WARNING) << "Document origin is opaque, cookie getting failed";
+    return "";
+  }
+  if (cookie_jar_) {
+    return cookie_jar_->GetCookies(url_as_gurl());
+  } else {
+    DLOG(WARNING) << "Document has no cookie jar";
+    return "";
+  }
 }
 
 void Document::Accept(NodeVisitor* visitor) { visitor->Visit(this); }
@@ -659,8 +716,8 @@ void Document::UpdateComputedStyles() {
 }
 
 bool Document::UpdateComputedStyleOnElementAndAncestor(HTMLElement* element) {
-  TRACE_EVENT0(
-      "cobalt::dom", "Document::UpdateComputedStyleOnElementAndAncestor");
+  TRACE_EVENT0("cobalt::dom",
+               "Document::UpdateComputedStyleOnElementAndAncestor");
   if (!element || element->node_document() != this) {
     return false;
   }
