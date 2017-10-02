@@ -312,7 +312,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
           draw_state_, content_rect, kOpaqueWhite, texture,
           texcoord_transform, true /* clamp_texcoords */));
-      AddTransparentDraw(draw.Pass(), content_rect);
+      AddDraw(draw.Pass(), content_rect, DrawObjectManager::kBlendSrcAlpha);
       draw_state_.opacity = old_opacity;
       draw_state_.transform = old_transform;
       return;
@@ -433,11 +433,9 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
     return;
   }
 
-  if (is_opaque) {
-    AddOpaqueDraw(draw.Pass(), image_node->GetBounds());
-  } else {
-    AddTransparentDraw(draw.Pass(), image_node->GetBounds());
-  }
+  AddDraw(draw.Pass(), image_node->GetBounds(), is_opaque ?
+          DrawObjectManager::kBlendNoneOrSrcAlpha :
+          DrawObjectManager::kBlendSrcAlpha);
 }
 
 void RenderTreeNodeVisitor::Visit(
@@ -456,7 +454,7 @@ void RenderTreeNodeVisitor::Visit(
 
   scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
       draw_state_, data.rect, kTransparentBlack));
-  AddOpaqueDraw(draw.Pass(), video_node->GetBounds());
+  AddDraw(draw.Pass(), video_node->GetBounds(), DrawObjectManager::kBlendNone);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
@@ -521,7 +519,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
 
   if (draw_border) {
     bool content_rect_drawn = draw_border->DrawsContentRect();
-    AddTransparentDraw(draw_border.PassAs<DrawObject>(), node_bounds);
+    AddDraw(draw_border.PassAs<DrawObject>(), node_bounds,
+            DrawObjectManager::kBlendSrcAlpha);
     if (content_rect_drawn) {
       return;
     }
@@ -537,13 +536,16 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
           draw_state_, content_rect, *data.rounded_corners,
           solid_brush->color()));
       // Transparency is used for anti-aliasing.
-      AddTransparentDraw(draw.Pass(), node_bounds);
+      AddDraw(draw.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
     } else {
       scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
           draw_state_, content_rect, solid_brush->color()));
       // Match the blending mode used by other rect node draws to allow
       // merging of the draw objects if possible.
-      AddTransparentDraw(draw.Pass(), node_bounds);
+      AddDraw(draw.Pass(), node_bounds,
+              IsOpaque(draw_state_.opacity * solid_brush->color().a()) ?
+                  DrawObjectManager::kBlendNoneOrSrcAlpha :
+                  DrawObjectManager::kBlendSrcAlpha);
     }
   } else if (brush_is_linear_and_supported) {
     const render_tree::LinearGradientBrush* linear_brush =
@@ -553,10 +555,11 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectNode* rect_node) {
         draw_state_, content_rect, *linear_brush));
     // The draw may use transparent pixels to ensure only pixels in the
     // specified area are modified.
-    AddTransparentDraw(draw.Pass(), node_bounds);
+    AddDraw(draw.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
   } else if (brush_is_radial_and_supported) {
     // The colors in the brush may be transparent.
-    AddTransparentDraw(draw_radial.PassAs<DrawObject>(), node_bounds);
+    AddDraw(draw_radial.PassAs<DrawObject>(), node_bounds,
+            DrawObjectManager::kBlendSrcAlpha);
   }
 }
 
@@ -612,7 +615,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::RectShadowNode* shadow_node) {
   }
 
   // Transparency is used to skip pixels that are not shadowed.
-  AddTransparentDraw(draw.Pass(), node_bounds);
+  AddDraw(draw.Pass(), node_bounds, DrawObjectManager::kBlendSrcAlpha);
 }
 
 void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
@@ -751,12 +754,12 @@ void RenderTreeNodeVisitor::FallbackRasterize(
   if (IsOpaque(draw_state_.opacity)) {
     scoped_ptr<DrawObject> draw(new DrawRectTexture(graphics_state_,
         draw_state_, content_rect, texture, texcoord_transform));
-    AddTransparentDraw(draw.Pass(), content_rect);
+    AddDraw(draw.Pass(), content_rect, DrawObjectManager::kBlendSrcAlpha);
   } else {
     scoped_ptr<DrawObject> draw(new DrawRectColorTexture(graphics_state_,
         draw_state_, content_rect, kOpaqueWhite, texture, texcoord_transform,
         false /* clamp_texcoords */));
-    AddTransparentDraw(draw.Pass(), content_rect);
+    AddDraw(draw.Pass(), content_rect, DrawObjectManager::kBlendSrcAlpha);
   }
 
   draw_state_.transform = old_transform;
@@ -844,7 +847,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   draw_state_.transform = math::Matrix3F::Identity();
   scoped_ptr<DrawObject> draw_clear(new DrawClear(graphics_state_,
       draw_state_, kTransparentBlack));
-  AddOpaqueDraw(draw_clear.Pass(), target_info.region);
+  AddDraw(draw_clear.Pass(), target_info.region, DrawObjectManager::kBlendNone);
 
   // Adjust the transform to render into target_info.region.
   draw_state_.transform =
@@ -865,30 +868,16 @@ bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
   return !intersection.IsEmpty();
 }
 
-void RenderTreeNodeVisitor::AddOpaqueDraw(scoped_ptr<DrawObject> object,
-    const math::RectF& local_bounds) {
+void RenderTreeNodeVisitor::AddDraw(scoped_ptr<DrawObject> object,
+    const math::RectF& local_bounds, DrawObjectManager::BlendType blend_type) {
   base::TypeId draw_type = object->GetTypeId();
   if (render_target_ != onscreen_render_target_) {
     last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
-        DrawObjectManager::kBlendNone, draw_type, render_target_,
+        blend_type, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
   } else {
     last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
-        DrawObjectManager::kBlendNone, draw_type, render_target_,
-        draw_state_.transform.MapRect(local_bounds));
-  }
-}
-
-void RenderTreeNodeVisitor::AddTransparentDraw(scoped_ptr<DrawObject> object,
-    const math::RectF& local_bounds) {
-  base::TypeId draw_type = object->GetTypeId();
-  if (render_target_ != onscreen_render_target_) {
-    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
-        DrawObjectManager::kBlendSrcAlpha, draw_type, render_target_,
-        draw_state_.transform.MapRect(local_bounds));
-  } else {
-    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
-        DrawObjectManager::kBlendSrcAlpha, draw_type, render_target_,
+        blend_type, draw_type, render_target_,
         draw_state_.transform.MapRect(local_bounds));
   }
 }
