@@ -86,54 +86,62 @@ class ScriptExecutorTest : public ::testing::Test {
 }  // namespace
 
 TEST_F(ScriptExecutorTest, CreateSyncScript) {
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment(), "return 5;", "[]");
-  ASSERT_TRUE(params);
-  EXPECT_NE(reinterpret_cast<intptr_t>(params->function_object()), NULL);
-  EXPECT_STREQ(params->json_args().c_str(), "[]");
-  EXPECT_EQ(params->async_timeout(), base::nullopt);
+  ASSERT_TRUE(gc_prevented_params.params);
+  EXPECT_NE(
+      reinterpret_cast<intptr_t>(gc_prevented_params.params->function_object()),
+      NULL);
+  EXPECT_STREQ(gc_prevented_params.params->json_args().c_str(), "[]");
+  EXPECT_EQ(gc_prevented_params.params->async_timeout(), base::nullopt);
 }
 
 TEST_F(ScriptExecutorTest, CreateAsyncScript) {
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment(), "return 5;", "[]",
                                    base::TimeDelta::FromMilliseconds(5));
-  ASSERT_TRUE(params);
-  EXPECT_NE(reinterpret_cast<intptr_t>(params->function_object()), NULL);
-  EXPECT_STREQ(params->json_args().c_str(), "[]");
-  EXPECT_EQ(params->async_timeout(), 5);
+  ASSERT_TRUE(gc_prevented_params.params);
+  EXPECT_NE(
+      reinterpret_cast<intptr_t>(gc_prevented_params.params->function_object()),
+      NULL);
+  EXPECT_STREQ(gc_prevented_params.params->json_args().c_str(), "[]");
+  EXPECT_EQ(gc_prevented_params.params->async_timeout(), 5);
 }
 
 TEST_F(ScriptExecutorTest, CreateInvalidScript) {
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment(), "retarn 5ish;", "[]");
-  ASSERT_TRUE(params);
-  EXPECT_EQ(reinterpret_cast<intptr_t>(params->function_object()), NULL);
+  ASSERT_TRUE(gc_prevented_params.params);
+  EXPECT_EQ(
+      reinterpret_cast<intptr_t>(gc_prevented_params.params->function_object()),
+      NULL);
 }
 
 TEST_F(ScriptExecutorTest, ExecuteSync) {
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(), "return \"retval\";", "[]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("\"retval\"")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ExecuteAsync) {
   // Create a script that will call the async callback after 50 ms, with
   // an async timeout of 100 ms.
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(),
       "var callback = arguments[0];"
       "window.setTimeout(function() { callback(72); }, 50);",
       "[]", base::TimeDelta::FromMilliseconds(100));
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("72")));
   EXPECT_CALL(result_handler, OnTimeout()).Times(0);
 
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
   // Let the message loop run for 200ms to allow enough time for the async
   // script to fire the callback.
@@ -147,17 +155,18 @@ TEST_F(ScriptExecutorTest, ExecuteAsync) {
 TEST_F(ScriptExecutorTest, AsyncTimeout) {
   // Create a script that will call the async callback after 10 seconds, with
   // an async timeout of 100 ms.
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(),
       "var callback = arguments[0];"
       "window.setTimeout(function() { callback(72); }, 10000);",
       "[]", base::TimeDelta::FromMilliseconds(100));
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(_)).Times(0);
   EXPECT_CALL(result_handler, OnTimeout()).Times(1);
 
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
   // Let the message loop run for 200ms to allow enough time for the async
   // timeout to fire.
@@ -169,59 +178,66 @@ TEST_F(ScriptExecutorTest, AsyncTimeout) {
 }
 
 TEST_F(ScriptExecutorTest, ScriptThrowsException) {
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment(), "throw Error()", "[]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
-  EXPECT_FALSE(script_executor_->Execute(params, &result_handler));
+  EXPECT_FALSE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ConvertBoolean) {
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(), "return arguments[0];", "[true]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("true")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
-  params = ScriptExecutorParams::Create(global_environment(),
-                                        "return arguments[0];", "[false]");
-  ASSERT_TRUE(params);
+  gc_prevented_params = ScriptExecutorParams::Create(
+      global_environment(), "return arguments[0];", "[false]");
+  ASSERT_TRUE(gc_prevented_params.params);
   EXPECT_CALL(result_handler, OnResult(std::string("false")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ConvertNull) {
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(), "return arguments[0];", "[null]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("null")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ConvertNumericType) {
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(), "return arguments[0];", "[6]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("6")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 
-  params = ScriptExecutorParams::Create(global_environment(),
-                                        "return arguments[0];", "[-6.4]");
-  ASSERT_TRUE(params);
+  gc_prevented_params = ScriptExecutorParams::Create(
+      global_environment(), "return arguments[0];", "[-6.4]");
+  ASSERT_TRUE(gc_prevented_params.params);
   EXPECT_CALL(result_handler, OnResult(std::string("-6.4")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ConvertString) {
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(), "return arguments[0];", "[\"Mr. T\"]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
   MockScriptExecutorResult result_handler;
   EXPECT_CALL(result_handler, OnResult(std::string("\"Mr. T\"")));
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
 }
 
 TEST_F(ScriptExecutorTest, ConvertWebElement) {
@@ -235,15 +251,16 @@ TEST_F(ScriptExecutorTest, ConvertWebElement) {
 
   // Create a script that will pass a web element argument as a parameter, and
   // return it back. This will invoke the lookup to and from an id.
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment(), "return arguments[0];",
                                    "[ {\"ELEMENT\": \"id123\"} ]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
 
   // Execute the script and parse the result as JSON, ensuring we got the same
   // web element.
   JSONScriptExecutorResult result_handler;
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
   ASSERT_TRUE(result_handler.json_result());
 
   std::string element_id;
@@ -257,13 +274,14 @@ TEST_F(ScriptExecutorTest, ConvertWebElement) {
 TEST_F(ScriptExecutorTest, ConvertArray) {
   // Create a script that takes an array of numbers as input, and returns an
   // array of those numbers incremented by one.
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(),
       "return [ (arguments[0][0]+1), (arguments[0][1]+1) ];", "[ [5, 6] ]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
 
   JSONScriptExecutorResult result_handler;
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
   ASSERT_TRUE(result_handler.json_result());
 
   base::ListValue* list_value;
@@ -281,14 +299,15 @@ TEST_F(ScriptExecutorTest, ConvertObject) {
   // Create a script that takes an Object with two properties as input, and
   // returns an Object with one property that is the sum of the other Object's
   // properties.
-  scoped_refptr<ScriptExecutorParams> params = ScriptExecutorParams::Create(
+  auto gc_prevented_params = ScriptExecutorParams::Create(
       global_environment(),
       "return {\"sum\": arguments[0].a + arguments[0].b};",
       "[ {\"a\":5, \"b\":6} ]");
-  ASSERT_TRUE(params);
+  ASSERT_TRUE(gc_prevented_params.params);
 
   JSONScriptExecutorResult result_handler;
-  EXPECT_TRUE(script_executor_->Execute(params, &result_handler));
+  EXPECT_TRUE(
+      script_executor_->Execute(gc_prevented_params.params, &result_handler));
   ASSERT_TRUE(result_handler.json_result());
 
   int value;
