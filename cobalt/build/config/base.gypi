@@ -221,7 +221,7 @@
     # swapping frames may take some additional processing time, so it may be
     # better to specify a lower delay. For example, '33' instead of '33.33'
     # for 30 Hz refresh.
-    'cobalt_minimum_frame_time_in_milliseconds%': '16.4',
+    'cobalt_minimum_frame_time_in_milliseconds%': '16.0',
 
     # Cobalt will call eglSwapInterval() and specify this value before calling
     # eglSwapBuffers() each frame.
