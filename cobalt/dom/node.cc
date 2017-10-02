@@ -474,6 +474,7 @@ void Node::TraceMembers(script::Tracer* tracer) {
        it != registered_observers_.registered_observers().end(); ++it) {
     tracer->Trace(it->observer());
   }
+  tracer->Trace(children_collection_);
 }
 
 Node::Node(Document* document)
