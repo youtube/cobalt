@@ -34,7 +34,7 @@ interface Document : Node {
   [NewObject] Comment createComment(DOMString data);
 
   [NewObject, RaisesException] Event createEvent(DOMString interfaceName);
-  attribute DOMString cookie;
+  [RaisesException] attribute DOMString cookie;
 };
 
 Document implements GlobalEventHandlers;
