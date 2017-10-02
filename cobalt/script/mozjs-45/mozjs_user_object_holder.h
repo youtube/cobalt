@@ -62,6 +62,11 @@ class MozjsUserObjectHolder
         wrapper_factory_(wrapper_factory),
         prevent_garbage_collection_count_(0) {}
 
+  ~MozjsUserObjectHolder() {
+    DCHECK_EQ(prevent_garbage_collection_count_, 0);
+    DCHECK(!persistent_root_);
+  }
+
   void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
@@ -99,7 +104,7 @@ class MozjsUserObjectHolder
   }
 
   void AllowGarbageCollection() {
-    if (prevent_garbage_collection_count_++ == 0 && handle_) {
+    if (--prevent_garbage_collection_count_ == 0 && handle_) {
       JSAutoRequest auto_request(context_);
       persistent_root_ = base::nullopt;
     }
