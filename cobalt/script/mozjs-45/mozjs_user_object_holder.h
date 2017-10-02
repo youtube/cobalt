@@ -43,19 +43,24 @@ class MozjsUserObjectHolder
  public:
   typedef ScriptValue<typename MozjsUserObjectType::BaseType> BaseClass;
 
-  MozjsUserObjectHolder() : context_(NULL), wrapper_factory_(NULL) {}
+  MozjsUserObjectHolder()
+      : context_(NULL),
+        wrapper_factory_(NULL),
+        prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
                         WrapperFactory* wrapper_factory)
       : handle_(MozjsUserObjectType(context, object)),
         context_(context),
-        wrapper_factory_(wrapper_factory) {}
+        wrapper_factory_(wrapper_factory),
+        prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JS::HandleValue value, JSContext* context,
                         WrapperFactory* wrapper_factory)
       : handle_(MozjsUserObjectType(context, value)),
         context_(context),
-        wrapper_factory_(wrapper_factory) {}
+        wrapper_factory_(wrapper_factory),
+        prevent_garbage_collection_count_(0) {}
 
   void RegisterOwner(Wrappable* owner) OVERRIDE {
     JSAutoRequest auto_request(context_);
