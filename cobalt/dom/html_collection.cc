@@ -57,12 +57,14 @@ class NodeCollection : public HTMLCollection {
   void EnumerateNamedProperties(
       script::PropertyEnumerator* enumerator) const OVERRIDE;
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
  private:
   // Checks if the collection cache is up to date and refreshes it if it's not.
   void MaybeRefreshCollection() const;
 
   // Base node that was used to generate the collection.
-  const base::WeakPtr<const Node> base_;
+  const base::WeakPtr<Node> base_;
   // Predicate callback.
   const Predicate predicate_;
   // Generation of the base node that was used to create the cache.
@@ -77,6 +79,15 @@ NodeCollection<NodeIterator>::NodeCollection(
     : base_(base::AsWeakPtr(const_cast<Node*>(base.get()))),
       predicate_(predicate),
       base_node_generation_(Node::kInvalidNodeGeneration) {}
+
+template <typename NodeIterator>
+void NodeCollection<NodeIterator>::TraceMembers(
+    script::Tracer* tracer) {
+  tracer->Trace(base_);
+  for (auto& element : cached_collection_) {
+    tracer->Trace(element);
+  }
+}
 
 template <typename NodeIterator>
 void NodeCollection<NodeIterator>::MaybeRefreshCollection() const {
