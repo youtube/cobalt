@@ -99,10 +99,8 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                           math::RectF* out_content_rect);
 
   bool IsVisible(const math::RectF& bounds);
-  void AddOpaqueDraw(scoped_ptr<DrawObject> object,
-                     const math::RectF& local_bounds);
-  void AddTransparentDraw(scoped_ptr<DrawObject> object,
-                          const math::RectF& local_bounds);
+  void AddDraw(scoped_ptr<DrawObject> object, const math::RectF& local_bounds,
+               DrawObjectManager::BlendType blend_type);
   void AddExternalDraw(scoped_ptr<DrawObject> object,
                        const math::RectF& world_bounds, base::TypeId draw_type);
 
