@@ -460,12 +460,12 @@ util::CommandResult<protocol::ScriptResult> WindowDriver::ExecuteScriptInternal(
   DLOG(INFO) << "Executing: " << script.function_body();
   DLOG(INFO) << "Arguments: " << script.argument_array();
 
-  scoped_refptr<ScriptExecutorParams> params =
+  auto gc_prevented_params =
       ScriptExecutorParams::Create(global_environment, script.function_body(),
                                    script.argument_array(), async_timeout);
 
-  if (params->function_object()) {
-    if (script_executor_->Execute(params, async_handler)) {
+  if (gc_prevented_params.params->function_object()) {
+    if (script_executor_->Execute(gc_prevented_params.params, async_handler)) {
       return CommandResult(protocol::Response::kSuccess);
     }
   }
