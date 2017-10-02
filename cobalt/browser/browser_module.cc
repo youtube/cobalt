@@ -976,6 +976,7 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
       renderer_module_->pipeline()->TimeFence(close_time);
     }
     splash_screen_layer_.reset(NULL);
+    SubmitCurrentRenderTreeToRenderer();
   }
   splash_screen_.reset(NULL);
 }
