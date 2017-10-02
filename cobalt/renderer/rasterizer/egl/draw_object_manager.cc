@@ -49,9 +49,11 @@ uint32_t DrawObjectManager::AddOnscreenDraw(scoped_ptr<DrawObject> draw_object,
     DrawInfo& last_draw = onscreen_draws_.back();
     if (last_draw.render_target == render_target &&
         last_draw.draw_type == draw_type &&
-        last_draw.blend_type == blend_type &&
+        (last_draw.blend_type & blend_type) != 0 &&
         last_draw.draw_object->TryMerge(draw_object.get())) {
       last_draw.draw_bounds.Union(draw_bounds);
+      last_draw.blend_type =
+          static_cast<BlendType>(last_draw.blend_type & blend_type);
       last_draw.draw_id = ++current_draw_id_;
       return current_draw_id_;
     }
@@ -71,9 +73,11 @@ uint32_t DrawObjectManager::AddOffscreenDraw(scoped_ptr<DrawObject> draw_object,
     DrawInfo& last_draw = offscreen_draws_.back();
     if (last_draw.render_target == render_target &&
         last_draw.draw_type == draw_type &&
-        last_draw.blend_type == blend_type &&
+        (last_draw.blend_type & blend_type) != 0 &&
         last_draw.draw_object->TryMerge(draw_object.get())) {
       last_draw.draw_bounds.Union(draw_bounds);
+      last_draw.blend_type =
+          static_cast<BlendType>(last_draw.blend_type & blend_type);
       last_draw.draw_id = ++current_draw_id_;
       return current_draw_id_;
     }
@@ -219,9 +223,9 @@ void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
                                  current_target->GetSize().height());
       }
 
-      if (draw->blend_type == kBlendNone) {
+      if ((draw->blend_type & kBlendNone) != 0) {
         graphics_state->DisableBlend();
-      } else if (draw->blend_type == kBlendSrcAlpha) {
+      } else if ((draw->blend_type & kBlendSrcAlpha) != 0) {
         graphics_state->EnableBlend();
       } else {
         NOTREACHED() << "Unsupported blend type";
