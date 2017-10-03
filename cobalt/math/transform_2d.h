@@ -35,6 +35,8 @@ inline cobalt::math::Matrix3F ScaleMatrix(const math::Vector2dF& scale) {
 cobalt::math::Matrix3F ScaleMatrix(float scale);
 cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians);
 
+bool IsOnlyScaleAndTranslate(const Matrix3F& transform);
+
 }  // namespace math
 }  // namespace cobalt
 
