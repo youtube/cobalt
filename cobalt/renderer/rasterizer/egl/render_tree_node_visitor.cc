@@ -71,15 +71,6 @@ math::RectF RoundOut(const math::RectF& input, float pad) {
   return math::RectF(left, top, right - left, bottom - top);
 }
 
-bool IsOnlyScaleAndTranslate(const math::Matrix3F& matrix) {
-  const float kEpsilon = 0.0001f;
-  return std::abs(matrix(0, 1)) < kEpsilon &&
-         std::abs(matrix(1, 0)) < kEpsilon &&
-         std::abs(matrix(2, 0)) < kEpsilon &&
-         std::abs(matrix(2, 1)) < kEpsilon &&
-         std::abs(matrix(2, 2) - 1.0f) < kEpsilon;
-}
-
 math::Matrix3F GetTexcoordTransform(
     const OffscreenTargetManager::TargetInfo& target) {
   // Flip the texture vertically to accommodate OpenGL's bottom-left origin.
@@ -238,7 +229,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
         draw_state_.rounded_scissor_corners = base::nullopt;
         return;
       }
-    } else if (IsOnlyScaleAndTranslate(transform)) {
+    } else if (cobalt::math::IsOnlyScaleAndTranslate(transform)) {
       // Orthogonal viewport filters without rounded corners can be collapsed
       // into the world-space scissor.
 
@@ -374,7 +365,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
   // Calculate matrix to transform texture coordinates according to the local
   // transform.
   math::Matrix3F texcoord_transform(math::Matrix3F::Identity());
-  if (IsOnlyScaleAndTranslate(data.local_transform)) {
+  if (cobalt::math::IsOnlyScaleAndTranslate(data.local_transform)) {
     texcoord_transform(0, 0) = data.local_transform(0, 0) != 0 ?
         1.0f / data.local_transform(0, 0) : 0;
     texcoord_transform(1, 1) = data.local_transform(1, 1) != 0 ?
@@ -677,9 +668,10 @@ void RenderTreeNodeVisitor::GetCachedTarget(
   // reuse of offscreen targets. Transforms that are rotations of angles in
   // the first quadrant will produce the same mapped rect sizes as angles in
   // the other 3 quadrants. Also avoid caching reflections.
-  bool allow_caching = IsOnlyScaleAndTranslate(draw_state_.transform) &&
-                       draw_state_.transform(0, 0) > 0.0f &&
-                       draw_state_.transform(1, 1) > 0.0f;
+  bool allow_caching =
+      cobalt::math::IsOnlyScaleAndTranslate(draw_state_.transform) &&
+      draw_state_.transform(0, 0) > 0.0f &&
+      draw_state_.transform(1, 1) > 0.0f;
   if (allow_caching) {
     *out_content_cached = offscreen_target_manager_->GetCachedTarget(
         node, base::Bind(&OffscreenTargetErrorFunction, mapped_bounds),
