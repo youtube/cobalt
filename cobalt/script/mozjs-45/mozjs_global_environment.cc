@@ -138,8 +138,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
   // https://developer.mozilla.org/en-US/docs/Mozilla/Projects/SpiderMonkey/JSAPI_reference/JS_SetGCZeal
   // for other valid options.
   const uint8_t kZealLevel = 2;
-  // TODO: Decrease this value as bugs that it discovers are fixed.
-  const uint32_t kZealFrequency = 200;
+  const uint32_t kZealFrequency = 600;
   JS_SetGCZeal(context_, kZealLevel, kZealFrequency);
 #endif
 
