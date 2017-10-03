@@ -15,6 +15,7 @@
 #include "cobalt/browser/render_tree_combiner.h"
 
 #include <map>
+#include <vector>
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
@@ -25,6 +26,13 @@
 
 namespace cobalt {
 namespace browser {
+namespace {
+void CallVectorOfCallbacks(const std::vector<base::Closure>& callbacks) {
+  for (auto it = callbacks.begin(); it != callbacks.end(); ++it) {
+    it->Run();
+  }
+}
+}  // namespace
 
 RenderTreeCombiner::Layer::Layer(RenderTreeCombiner* render_tree_combiner)
     : render_tree_combiner_(render_tree_combiner),
@@ -92,11 +100,16 @@ RenderTreeCombiner::GetCurrentSubmission() {
 
   // Add children for all layers in order.
   Layer* first_layer_with_render_tree = NULL;
+  std::vector<base::Closure> all_on_rasterized_callback;
   for (auto it = layers_.begin(); it != layers_.end(); ++it) {
     RenderTreeCombiner::Layer* layer = it->second;
     if (layer->render_tree_) {
       builder.AddChild(layer->render_tree_->render_tree);
       first_layer_with_render_tree = layer;
+      if (!layer->render_tree_->on_rasterized_callback.is_null()) {
+        all_on_rasterized_callback.push_back(
+            layer->render_tree_->on_rasterized_callback);
+      }
     }
   }
   if (!first_layer_with_render_tree) {
@@ -110,6 +123,11 @@ RenderTreeCombiner::GetCurrentSubmission() {
   renderer::Submission submission(new render_tree::CompositionNode(builder),
                                   *timeline_layer->CurrentTimeOffset());
   submission.timeline_info = timeline_layer->render_tree_->timeline_info;
+  if (!all_on_rasterized_callback.empty()) {
+    submission.on_rasterized_callback =
+        base::Bind(CallVectorOfCallbacks, all_on_rasterized_callback);
+  }
+
   return submission;
 }
 
