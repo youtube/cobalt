@@ -21,9 +21,8 @@ EXPORTS
     CbLibGraphicsSetTargetMainTextureSize
 
     ; From cobalt/render/rasterizer/lib/exported/video.h:
-    CbLibVideoSetOnUpdateProjectionType
+    CbLibVideoSetOnUpdateProjectionTypeAndStereoMode
     CbLibVideoSetOnUpdateMeshes
-    CbLibVideoSetOnUpdateStereoMode
     CbLibVideoSetOnUpdateRgbTextureId
 
     ; Following GL functions are copied from libGLESv2.def and EGL from

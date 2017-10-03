@@ -106,10 +106,9 @@ struct CallbackUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
                      kWarningMessageDidNotSet##instance_name>;
 
 INSTANCE_CALLBACK_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
-INSTANCE_CALLBACK_UPDATE(UpdateStereoMode, CbLibVideoSetOnUpdateStereoMode);
 INSTANCE_CALLBACK_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
-INSTANCE_CALLBACK_UPDATE(UpdateProjectionType,
-                         CbLibVideoSetOnUpdateProjectionType);
+INSTANCE_CALLBACK_UPDATE(UpdateProjectionTypeAndStereoMode,
+                         CbLibVideoSetOnUpdateProjectionTypeAndStereoMode);
 INSTANCE_CALLBACK_UPDATE(GraphicsContextCreated,
                          CbLibGraphicsSetContextCreatedCallback);
 INSTANCE_CALLBACK_UPDATE(BeginRenderFrame,
@@ -119,12 +118,11 @@ INSTANCE_CALLBACK_UPDATE(EndRenderFrame,
 #undef INSTANCE_CALLBACK_UPDATE
 
 UpdateMeshes::LazyCallback g_update_meshes_callback = LAZY_INSTANCE_INITIALIZER;
-UpdateStereoMode::LazyCallback g_update_stereo_mode_callback =
-    LAZY_INSTANCE_INITIALIZER;
 UpdateRgbTextureId::LazyCallback g_update_rgb_texture_id_callback =
     LAZY_INSTANCE_INITIALIZER;
-UpdateProjectionType::LazyCallback g_update_projection_type_callback =
-    LAZY_INSTANCE_INITIALIZER;
+UpdateProjectionTypeAndStereoMode::LazyCallback
+    g_update_projection_type_and_stereo_mode_callback =
+        LAZY_INSTANCE_INITIALIZER;
 GraphicsContextCreated::LazyCallback g_graphics_context_created_callback =
     LAZY_INSTANCE_INITIALIZER;
 BeginRenderFrame::LazyCallback g_begin_render_frame_callback =
@@ -200,7 +198,6 @@ class ExternalRasterizer::Impl {
   // host directly.
   scoped_refptr<backend::RenderTarget> video_offscreen_render_target_;
   scoped_ptr<backend::TextureEGL> video_texture_;
-
   CbLibVideoProjectionType video_projection_type_;
   scoped_refptr<skia::HardwareMesh> left_eye_video_mesh_;
   scoped_refptr<skia::HardwareMesh> right_eye_video_mesh_;
@@ -286,14 +283,14 @@ void ExternalRasterizer::Impl::Submit(
       new_projection_type = kCbLibVideoProjectionTypeMesh;
     }
 
-    if (video_projection_type_ != new_projection_type) {
+    if (video_projection_type_ != new_projection_type ||
+        filter->stereo_mode() != video_stereo_mode_) {
+      // Note the above condition will always be true when playback has not
+      // started.
       video_projection_type_ = new_projection_type;
-      g_update_projection_type_callback.Get().Run(video_projection_type_);
-    }
-
-    if (filter->stereo_mode() != video_stereo_mode_) {
       video_stereo_mode_ = filter->stereo_mode();
-      g_update_stereo_mode_callback.Get().Run(
+      g_update_projection_type_and_stereo_mode_callback.Get().Run(
+          video_projection_type_,
           static_cast<CbLibVideoStereoMode>(video_stereo_mode_));
     }
 
@@ -346,7 +343,8 @@ void ExternalRasterizer::Impl::Submit(
   } else {
     if (video_projection_type_ != kCbLibVideoProjectionTypeNone) {
       video_projection_type_ = kCbLibVideoProjectionTypeNone;
-      g_update_projection_type_callback.Get().Run(video_projection_type_);
+      g_update_projection_type_and_stereo_mode_callback.Get().Run(
+          video_projection_type_, kCbLibVideoStereoModeMono);
     }
   }
 
@@ -526,13 +524,6 @@ void CbLibVideoSetOnUpdateMeshes(void* context,
                : base::Bind(&UpdateMeshes::DefaultImplementation);
 }
 
-void CbLibVideoSetOnUpdateStereoMode(
-    void* context, CbLibVideoUpdateStereoModeCallback callback) {
-  g_update_stereo_mode_callback.Get() =
-      callback ? base::Bind(callback, context)
-               : base::Bind(&UpdateStereoMode::DefaultImplementation);
-}
-
 void CbLibVideoSetOnUpdateRgbTextureId(
     void* context, CbLibVideoUpdateRgbTextureIdCallback callback) {
   g_update_rgb_texture_id_callback.Get() =
@@ -540,11 +531,13 @@ void CbLibVideoSetOnUpdateRgbTextureId(
                : base::Bind(&UpdateRgbTextureId::DefaultImplementation);
 }
 
-void CbLibVideoSetOnUpdateProjectionType(
-    void* context, CbLibVideoUpdateProjectionTypeCallback callback) {
-  g_update_projection_type_callback.Get() =
+void CbLibVideoSetOnUpdateProjectionTypeAndStereoMode(
+    void* context,
+    CbLibVideoUpdateProjectionTypeAndStereoModeCallback callback) {
+  g_update_projection_type_and_stereo_mode_callback.Get() =
       callback ? base::Bind(callback, context)
-               : base::Bind(&UpdateProjectionType::DefaultImplementation);
+               : base::Bind(
+                     &UpdateProjectionTypeAndStereoMode::DefaultImplementation);
 }
 
 void CbLibGraphicsSetContextCreatedCallback(
