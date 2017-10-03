@@ -14,6 +14,7 @@
 
 #include "cobalt/math/transform_2d.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace cobalt {
@@ -46,6 +47,15 @@ cobalt::math::Matrix3F RotateMatrix(float counter_clockwise_angle_in_radians) {
       cos_theta,  sin_theta,  0,
       -sin_theta, cos_theta,  0,
       0,          0,          1.0f);
+}
+
+bool IsOnlyScaleAndTranslate(const Matrix3F& transform) {
+  const float kEpsilon = 0.0001f;
+  return std::abs(transform(0, 1)) < kEpsilon &&
+         std::abs(transform(1, 0)) < kEpsilon &&
+         std::abs(transform(2, 0)) < kEpsilon &&
+         std::abs(transform(2, 1)) < kEpsilon &&
+         std::abs(transform(2, 2) - 1.0f) < kEpsilon;
 }
 
 }  // namespace math
