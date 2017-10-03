@@ -139,7 +139,7 @@ MozjsGlobalEnvironment::MozjsGlobalEnvironment(JSRuntime* runtime)
   // for other valid options.
   const uint8_t kZealLevel = 2;
   // TODO: Decrease this value as bugs that it discovers are fixed.
-  const uint32_t kZealFrequency = 2000;
+  const uint32_t kZealFrequency = 200;
   JS_SetGCZeal(context_, kZealLevel, kZealFrequency);
 #endif
 
