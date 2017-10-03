@@ -239,7 +239,7 @@ class TestRunner(object):
       sys.exit(1)
 
     signal.signal(signal.SIGINT, Abort)
-
+    sys.stdout.write("Starting {}\n".format(target_name))
     launcher.Run()
     output = reader.GetLines()
 
