@@ -6161,6 +6161,7 @@ typedef struct HeapWalker {
 } HeapWalker;
 
 #if defined(STARBOARD)
+#undef snprintf
 #define snprintf SbStringFormatF
 #define MEMORY_LOG_PATH SB_MEMORY_LOG_PATH
 
