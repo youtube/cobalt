@@ -466,11 +466,14 @@
     # as expected, rather than requiring it to be set for each platform.
     #'javascript_engine%': 'mozjs-45',
 
-    # Disable jit and run in interpreter-only mode by default. It can be set to
-    # 1 to run in jit mode.  We have found that disabling jit often results in
-    # faster JavaScript execution and lower memory usage.
+    # Disable JIT and run in interpreter-only mode by default. It can be set
+    # to 1 to run in JIT mode.  For SpiderMonkey in particular, we have found
+    # that disabling JIT often results in faster JavaScript execution and
+    # lower memory usage.
     # Setting this to 1 on a platform or engine for which there is no JIT
     # implementation is a no-op.
+    # Setting this to 0 on an engine for which there is a JIT implementation
+    # is a platform configuration error.
     'cobalt_enable_jit%': 0,
 
     # Can be set to enable zealous garbage collection, if |javascript_engine|
