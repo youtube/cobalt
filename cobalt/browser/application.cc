@@ -495,15 +495,18 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   }
 #endif
 
-  base::optional<std::string> initial_key =
-      base::GetApplicationKey(initial_url);
-  options.storage_manager_options.savegame_options.id = initial_key;
+  if (command_line->HasSwitch(browser::switches::kLocalStoragePartitionUrl)) {
+    std::string local_storage_partition_url = command_line->GetSwitchValueASCII(
+        browser::switches::kLocalStoragePartitionUrl);
+    base::optional<std::string> partition_key =
+        base::GetApplicationKey(GURL(local_storage_partition_url));
+    CHECK(partition_key) << "local_storage_partition_url is not a valid URL.";
 
-  base::optional<std::string> default_key =
-      base::GetApplicationKey(GURL(kDefaultURL));
-  if (initial_key == default_key) {
-    options.storage_manager_options.savegame_options.fallback_to_default_id =
-        true;
+    base::optional<std::string> default_partition_key =
+        base::GetApplicationKey(GURL(kDefaultURL));
+    if (*partition_key != *default_partition_key) {
+      options.storage_manager_options.savegame_options.id = *partition_key;
+    }
   }
 
   // User can specify an extra search path entry for files loaded via file://.
