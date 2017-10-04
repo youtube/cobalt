@@ -92,7 +92,8 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   virtual void EnableEval() = 0;
 
   // Disable just-in-time compilation of JavaScript source code to native
-  // code.  Calling this is a no-op if JIT was not enabled in the first place.
+  // code.  Calling this is a no-op if JIT was not enabled in the first place,
+  // or if the engine does not support disabling JIT.
   virtual void DisableJit() = 0;
 
   // Set a callback that will be fired whenever eval() or a Function()
