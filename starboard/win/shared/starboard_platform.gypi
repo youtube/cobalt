@@ -302,6 +302,8 @@
         '<(DEPTH)/starboard/shared/win32/file_truncate.cc',
         '<(DEPTH)/starboard/shared/win32/file_write.cc',
         '<(DEPTH)/starboard/shared/win32/log.cc',
+        '<(DEPTH)/starboard/shared/win32/log_file_impl.cc',
+        '<(DEPTH)/starboard/shared/win32/log_file_impl.h',
         '<(DEPTH)/starboard/shared/win32/log_flush.cc',
         '<(DEPTH)/starboard/shared/win32/log_format.cc',
         '<(DEPTH)/starboard/shared/win32/log_is_tty.cc',
