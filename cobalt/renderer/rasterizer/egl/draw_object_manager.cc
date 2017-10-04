@@ -147,7 +147,7 @@ void DrawObjectManager::AddRenderTargetDependency(
 
 void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     ShaderProgramManager* program_manager) {
-  SortOffscreenDraws(external_offscreen_draws_,
+  SortOffscreenDraws(&external_offscreen_draws_,
                      &sorted_external_offscreen_draws_);
 
   // Process draws handled by an external rasterizer.
@@ -163,8 +163,10 @@ void DrawObjectManager::ExecuteOffscreenRasterize(GraphicsState* graphics_state,
     }
   }
 
-  SortOffscreenDraws(offscreen_draws_, &sorted_offscreen_draws_);
-  SortOnscreenDraws(onscreen_draws_, &sorted_onscreen_draws_);
+  SortOffscreenDraws(&offscreen_draws_, &sorted_offscreen_draws_);
+  SortOnscreenDraws(&onscreen_draws_, &sorted_onscreen_draws_);
+  MergeSortedDraws(&sorted_offscreen_draws_);
+  MergeSortedDraws(&sorted_onscreen_draws_);
 
   // Update the vertex buffer for all draws.
   {
@@ -245,17 +247,17 @@ void DrawObjectManager::Rasterize(const SortedDrawList& sorted_draw_list,
   }
 }
 
-void DrawObjectManager::SortOffscreenDraws(const DrawList& draw_list,
+void DrawObjectManager::SortOffscreenDraws(DrawList* draw_list,
     SortedDrawList* sorted_draw_list) {
   TRACE_EVENT0("cobalt::renderer", "SortOffscreenDraws");
 
   // Sort offscreen draws to minimize GPU state changes.
-  sorted_draw_list->reserve(draw_list.size());
-  for (size_t draw_pos = 0; draw_pos < draw_list.size(); ++draw_pos) {
-    auto* draw = &draw_list[draw_pos];
+  sorted_draw_list->reserve(draw_list->size());
+  for (size_t draw_pos = 0; draw_pos < draw_list->size(); ++draw_pos) {
+    auto* draw = &draw_list->at(draw_pos);
     bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
-    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list.size() &&
-        draw_list[draw_pos + 1].blend_type != kBlendExternal;
+    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list->size() &&
+        draw_list->at(draw_pos + 1).blend_type != kBlendExternal;
     auto dependencies =
         dependency_count_.find(draw->render_target->GetSerialNumber());
     draw->dependencies =
@@ -315,17 +317,17 @@ void DrawObjectManager::SortOffscreenDraws(const DrawList& draw_list,
   }
 }
 
-void DrawObjectManager::SortOnscreenDraws(const DrawList& draw_list,
+void DrawObjectManager::SortOnscreenDraws(DrawList* draw_list,
     SortedDrawList* sorted_draw_list) {
   TRACE_EVENT0("cobalt::renderer", "SortOnscreenDraws");
 
   // Sort onscreen draws to minimize GPU state changes.
-  sorted_draw_list->reserve(draw_list.size());
-  for (size_t draw_pos = 0; draw_pos < draw_list.size(); ++draw_pos) {
-    auto* draw = &draw_list[draw_pos];
+  sorted_draw_list->reserve(draw_list->size());
+  for (size_t draw_pos = 0; draw_pos < draw_list->size(); ++draw_pos) {
+    auto* draw = &draw_list->at(draw_pos);
     bool draw_uses_native_rasterizer = draw->blend_type != kBlendExternal;
-    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list.size() &&
-        draw_list[draw_pos + 1].blend_type != kBlendExternal;
+    bool next_uses_native_rasterizer = draw_pos + 1 < draw_list->size() &&
+        draw_list->at(draw_pos + 1).blend_type != kBlendExternal;
 
     // Find an appropriate sort position for the current draw.
     auto sort_pos = draw_pos;
@@ -370,6 +372,31 @@ void DrawObjectManager::SortOnscreenDraws(const DrawList& draw_list,
     }
 
     sorted_draw_list->insert(sorted_draw_list->begin() + sort_pos, draw);
+  }
+}
+
+void DrawObjectManager::MergeSortedDraws(SortedDrawList* sorted_draw_list) {
+  if (sorted_draw_list->size() <= 1) {
+    return;
+  }
+
+  SortedDrawList old_draw_list(std::move(*sorted_draw_list));
+  sorted_draw_list->clear();
+  sorted_draw_list->reserve(old_draw_list.size());
+
+  sorted_draw_list->emplace_back(old_draw_list[0]);
+  for (size_t i = 1; i < old_draw_list.size(); ++i) {
+    DrawInfo* last_draw = sorted_draw_list->back();
+    DrawInfo* next_draw = old_draw_list[i];
+    if (last_draw->render_target == next_draw->render_target &&
+        last_draw->draw_type == next_draw->draw_type &&
+        (last_draw->blend_type & next_draw->blend_type) != 0 &&
+        last_draw->draw_object->TryMerge(next_draw->draw_object.get())) {
+      last_draw->blend_type =
+          static_cast<BlendType>(last_draw->blend_type & next_draw->blend_type);
+    } else {
+      sorted_draw_list->emplace_back(next_draw);
+    }
   }
 }
 
