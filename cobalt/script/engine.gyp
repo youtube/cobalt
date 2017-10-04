@@ -22,8 +22,9 @@
       'sources': [
         'javascript_engine.h',
       ],
-      'dependencies': [
-        '<(javascript_engine)/<(javascript_engine).gyp:engine',
+      'conditions': [
+        [ 'javascript_engine == "mozjs-45"', { 'dependencies': ['mozjs-45/mozjs-45.gyp:engine', ], }, ],
+        [ 'javascript_engine == "v8"', { 'dependencies': ['v8c/v8c.gyp:engine', ], }, ],
       ],
     },
     {
