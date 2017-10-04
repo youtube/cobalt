@@ -51,6 +51,7 @@ DrawRectBorder::DrawRectBorder(GraphicsState* graphics_state,
     : DrawPolyColor(base_state),
       draw_content_rect_(false) {
   DCHECK(node->data().border);
+  allow_simple_clip_ = true;
 
   const render_tree::Border& border = *(node->data().border);
   render_tree::ColorRGBA border_color;
