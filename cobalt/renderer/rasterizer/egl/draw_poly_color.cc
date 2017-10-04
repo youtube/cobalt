@@ -15,9 +15,11 @@
 #include "cobalt/renderer/rasterizer/egl/draw_poly_color.h"
 
 #include <GLES2/gl2.h>
+#include <algorithm>
 
 #include "base/logging.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/math/transform_2d.h"
 #include "cobalt/renderer/backend/egl/utils.h"
 #include "egl/generated_shader_impl.h"
 #include "starboard/memory.h"
@@ -31,6 +33,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
     const BaseState& base_state, const math::RectF& rect,
     const render_tree::ColorRGBA& color)
     : DrawObject(base_state),
+      allow_simple_clip_(true),
       index_buffer_(nullptr),
       vertex_buffer_(nullptr) {
   merge_type_ = base::GetTypeId<DrawPolyColor>();
@@ -47,6 +50,7 @@ DrawPolyColor::DrawPolyColor(GraphicsState* graphics_state,
 
 DrawPolyColor::DrawPolyColor(const BaseState& base_state)
     : DrawObject(base_state),
+      allow_simple_clip_(false),
       index_buffer_(nullptr),
       vertex_buffer_(nullptr) {
   merge_type_ = base::GetTypeId<DrawPolyColor>();
@@ -167,16 +171,36 @@ bool DrawPolyColor::PrepareForMerge() {
     return *can_merge_;
   }
 
-  math::RectF scissor(base_state_.scissor);
+  float x_min = base_state_.scissor.x();
+  float x_max = base_state_.scissor.right();
+  float y_min = base_state_.scissor.y();
+  float y_max = base_state_.scissor.bottom();
   bool in_scissor = true;
 
-  // Transform the vertices and check that they are within the scissor.
-  for (auto& vert : attributes_) {
-    math::PointF pos = base_state_.transform *
-        math::PointF(vert.position[0], vert.position[1]);
-    vert.position[0] = pos.x();
-    vert.position[1] = pos.y();
-    in_scissor = in_scissor && scissor.Contains(pos);
+  if (allow_simple_clip_ &&
+      cobalt::math::IsOnlyScaleAndTranslate(base_state_.transform)) {
+    // Transform the vertices and clamp them to be within the scissor.
+    float x_scale = base_state_.transform(0, 0);
+    float y_scale = base_state_.transform(1, 1);
+    float x_translate = base_state_.transform(0, 2);
+    float y_translate = base_state_.transform(1, 2);
+    for (auto& vert : attributes_) {
+      math::PointF pos(vert.position[0] * x_scale + x_translate,
+                       vert.position[1] * y_scale + y_translate);
+      vert.position[0] = std::min(std::max(x_min, pos.x()), x_max);
+      vert.position[1] = std::min(std::max(y_min, pos.y()), y_max);
+    }
+  } else {
+    // Transform the vertices and check that they are within the scissor.
+    for (auto& vert : attributes_) {
+      math::PointF pos = base_state_.transform *
+          math::PointF(vert.position[0], vert.position[1]);
+      vert.position[0] = pos.x();
+      vert.position[1] = pos.y();
+      in_scissor = in_scissor &&
+                   pos.x() >= x_min && pos.x() <= x_max &&
+                   pos.y() >= y_min && pos.y() <= y_max;
+    }
   }
 
   base_state_.transform = math::Matrix3F::Identity();
