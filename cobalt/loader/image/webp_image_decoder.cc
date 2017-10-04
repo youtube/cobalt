@@ -106,6 +106,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
         DLOG(ERROR) << "WebPIAppend error, status code: " << status;
         DeleteInternalDecoder();
         set_state(kError);
+        return 0;
       }
     } else {
       animated_webp_image_->AppendChunk(data, input_byte);
