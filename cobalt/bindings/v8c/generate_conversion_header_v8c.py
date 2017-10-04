@@ -1,4 +1,4 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,10 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+"""Generate a conversion header for SpiderMonkey."""
 
-{
-  'includes': [
-    'mozjs-45/mozjs-45_variables.gypi',
-    'v8c/v8c_variables.gypi',
-  ],
-}
+import sys
+
+import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
+
+from cobalt.bindings.generate_conversion_header import generate_header
+from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
+
+if __name__ == '__main__':
+  sys.exit(generate_header(CodeGeneratorV8c))
