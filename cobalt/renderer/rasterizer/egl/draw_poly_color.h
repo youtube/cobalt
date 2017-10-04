@@ -63,6 +63,11 @@ class DrawPolyColor : public DrawObject {
   std::vector<VertexAttributes> attributes_;
   std::vector<uint16_t> indices_;
 
+  // Specify whether vertex positions are allowed to be clamped according to
+  // the scissor rect by PrepareForMerge(). This works properly for shapes with
+  // axis-aligned edges, but will lead to distorted shapes in other cases.
+  bool allow_simple_clip_;
+
   uint16_t* index_buffer_;
   uint8_t* vertex_buffer_;
   base::optional<bool> can_merge_;
