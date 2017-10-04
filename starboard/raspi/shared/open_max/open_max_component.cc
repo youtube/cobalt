@@ -176,6 +176,10 @@ void OpenMaxComponent::DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer) {
 
   {
     ScopedLock scoped_lock(mutex_);
+    if (output_buffers_.empty()) {
+      SB_DCHECK(outstanding_output_buffers_ == 0);
+      return;
+    }
     SB_DCHECK(outstanding_output_buffers_ > 0);
     --outstanding_output_buffers_;
 
