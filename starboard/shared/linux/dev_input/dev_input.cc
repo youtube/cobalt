@@ -921,7 +921,7 @@ DevInput::Event* CreateMoveEventWithKey(SbWindow window,
   data->key_location = location;
   data->key_modifiers = modifiers;
   data->position = input_vector;
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
@@ -949,7 +949,7 @@ DevInput::Event* CreateTouchPadEvent(SbWindow window,
   data->key_location = location;
   data->key_modifiers = modifiers;
   data->position = input_vector;
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};

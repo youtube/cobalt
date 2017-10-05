@@ -60,7 +60,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
       volume_(1.0),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(provider) {
-#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#if SB_API_VERSION >= 6
   if (audio_header_.audio_specific_config_size > 0) {
     audio_specific_config_.reset(
         new int8_t[audio_header_.audio_specific_config_size]);
@@ -69,7 +69,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
                  audio_header.audio_specific_config,
                  audio_header.audio_specific_config_size);
   }
-#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#endif  // SB_API_VERSION >= 6
 
   update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
   bounds_ = PlayerWorker::Bounds();
