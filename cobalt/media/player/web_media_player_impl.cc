@@ -703,6 +703,12 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::SetEMEInitDataReadyCB),
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+      BIND_TO_RENDER_LOOP(
+          &WebMediaPlayerImpl::OnEncryptedMediaInitDataEncountered),
+      GetClient()->SourceURL(),
+#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
+      // SB_HAS(PLAYER_WITH_URL)
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineEnded),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineError),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
