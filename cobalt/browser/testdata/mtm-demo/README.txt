@@ -35,3 +35,6 @@ controlled:
   $ gsutil cp -a public-read cobalt/browser/testdata/mtm-demo/normal.html cobalt/browser/testdata/mtm-demo/mtm.html cobalt/browser/testdata/mtm-demo/progressive.mp4 gs://yt-cobalt-mtm-test/
   $ out/linux-x64x11_debug/cobalt --csp_mode=disable --url=https://storage.googleapis.com/yt-cobalt-mtm-test/mtm.html
   $ out/linux-x64x11_debug/cobalt --csp_mode=disable --url=https://storage.googleapis.com/yt-cobalt-mtm-test/normal.html
+
+If the above `gsutil` command doesn't work, try manually uploading the files at
+https://pantheon.***REMOVED***/storage/browser/yt-cobalt-mtm-test?project=yt-cobalt&pli=1 .
