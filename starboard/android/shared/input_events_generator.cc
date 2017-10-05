@@ -224,6 +224,33 @@ SbKey AInputEventToSbKey(AInputEvent* event) {
     case AKEYCODE_MEDIA_FAST_FORWARD:
       return kSbKeyMediaFastForward;
 
+#if SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+    // TV Remote specific
+    case AKEYCODE_CHANNEL_UP:
+      return kSbKeyChannelUp;
+    case AKEYCODE_CHANNEL_DOWN:
+      return kSbKeyChannelDown;
+    case AKEYCODE_CAPTIONS:
+      return kSbKeyClosedCaption;
+    case AKEYCODE_INFO:
+      return kSbKeyInfo;
+    case AKEYCODE_GUIDE:
+      return kSbKeyGuide;
+    case AKEYCODE_LAST_CHANNEL:
+      return kSbKeyLast;
+    case AKEYCODE_MEDIA_AUDIO_TRACK:
+      return kSbKeyMediaAudioTrack;
+
+    case AKEYCODE_PROG_RED:
+      return kSbKeyRed;
+    case AKEYCODE_PROG_GREEN:
+      return kSbKeyGreen;
+    case AKEYCODE_PROG_YELLOW:
+      return kSbKeyYellow;
+    case AKEYCODE_PROG_BLUE:
+      return kSbKeyBlue;
+#endif  // SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+
     // Whitespace
     case AKEYCODE_TAB:
       return kSbKeyTab;
