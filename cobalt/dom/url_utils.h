@@ -20,36 +20,6 @@
 #include "base/callback.h"
 #include "googleurl/src/gurl.h"
 
-namespace {
-// Returns true if the url can have non-opaque origin.
-// Blob URLs needs to be pre-processed.
-bool NonBlobURLCanHaveTupleOrigin(const GURL& url) {
-  if (url.SchemeIs("https")) {
-    return true;
-  } else if (url.SchemeIs("http")) {
-    return true;
-  } else if (url.SchemeIs("ftp")) {
-    return true;
-  } else if (url.SchemeIs("ws")) {
-    return true;
-  } else if (url.SchemeIs("wss")) {
-    return true;
-  }
-  return false;
-}
-// Returns false if url should be opaque.
-// Otherwise, extract origin tuple from the url and assemble them as a string
-// for easier access and comparison.
-bool NonBlobURLGetOriginStr(const GURL& url, std::string* output) {
-  if (!NonBlobURLCanHaveTupleOrigin(url)) {
-    return false;
-  }
-  *output = url.scheme() + "://" + url.host() +
-            (url.has_port() ? ":" + url.port() : "");
-  return true;
-}
-}  // namespace
-
 namespace cobalt {
 namespace dom {
 
@@ -69,48 +39,19 @@ class URLUtils {
   class Origin {
    public:
     // To create an opaque origin, use Origin().
-    Origin() : is_opaque_(true) {}
+    Origin();
     // Initialize an origin to the url's origin.
     // https://url.spec.whatwg.org/#concept-url-origin
-    Origin(const GURL& url) : is_opaque_(false) {
-      if (url.is_valid() && url.has_scheme() && url.has_host()) {
-        if (url.SchemeIs("blob")) {
-          // Let path_url be the result of parsing URL's path.
-          // Return a new opaque origin, if url is failure, and url's origin
-          // otherwise.
-          GURL path_url(url.path());
-          if (path_url.is_valid() && path_url.has_host() &&
-              path_url.has_scheme() &&
-              NonBlobURLGetOriginStr(path_url, &origin_str_)) {
-            return;
-          }
-        } else if (NonBlobURLGetOriginStr(url, &origin_str_)) {
-          // Assign a tuple origin if given url is allowed to have one.
-          return;
-        }
-      }
-      // Othwise, return a new opaque origin.
-      is_opaque_ = true;
-    }
+    explicit Origin(const GURL& url);
     // https://html.spec.whatwg.org/multipage/origin.html#ascii-serialisation-of-an-origin
-    std::string SerializedOrigin() const {
-      if (is_opaque_) {
-        return "null";
-      }
-      return origin_str_;
-    }
+    std::string SerializedOrigin() const;
+    bool is_opaque() const { return is_opaque_; }
     // Only document has an origin and no elements inherit document's origin, so
     // opaque origin comparison can always return false.
     // https://html.spec.whatwg.org/multipage/origin.html#same-origin
-    bool operator==(const Origin& rhs) {
-      if (is_opaque_ || rhs.is_opaque_) {
-        return false;
-      } else {
-        return origin_str_ == rhs.origin_str_;
-      }
-    }
+    bool operator==(const Origin& rhs) const;
     // Returns true if two origins are different(cross-origin).
-    bool operator!=(const Origin& rhs) { return !(*this == rhs); }
+    bool operator!=(const Origin& rhs) const { return !(*this == rhs); }
 
    private:
     bool is_opaque_;
