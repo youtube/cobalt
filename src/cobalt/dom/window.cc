@@ -108,8 +108,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
                float video_playback_rate_multiplier, ClockType clock_type,
-               const base::Callback<bool(const std::string&)>&
-                   splash_screen_cache_callback)
+               const CacheCallback& splash_screen_cache_callback)
     : width_(width),
       height_(height),
       device_pixel_ratio_(device_pixel_ratio),
@@ -576,6 +575,14 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(local_storage_);
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
+}
+
+void Window::CacheSplashScreen(const std::string& content) {
+  if (splash_screen_cache_callback_.is_null()) {
+    return;
+  }
+  DLOG(INFO) << "Caching splash screen for URL " << location()->url();
+  splash_screen_cache_callback_.Run(location()->url(), content);
 }
 
 Window::~Window() {

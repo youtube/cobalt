@@ -31,6 +31,7 @@
 #include "cobalt/dom/dom_stat_tracker.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
@@ -107,6 +108,7 @@ class Window : public EventTarget,
   // close() was called.
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
+  typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
   enum ClockType {
     kClockTypeTestRunner,
     kClockTypeSystemTime
@@ -148,9 +150,7 @@ class Window : public EventTarget,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
       float video_playback_rate_multiplier = 1.f,
       ClockType clock_type = kClockTypeSystemTime,
-      const base::Callback<bool(const std::string&)>&
-          splash_screen_cache_callback =
-              base::Callback<bool(const std::string&)>());
+      const CacheCallback& splash_screen_cache_callback = CacheCallback());
 
   // Web API: Window
   //
@@ -336,10 +336,8 @@ class Window : public EventTarget,
 
   void TraceMembers(script::Tracer* tracer) OVERRIDE;
 
-  const base::Callback<bool(const std::string&)> splash_screen_cache_callback()
-      const {
-    return splash_screen_cache_callback_;
-  }
+  // Cache the passed in splash screen content for the window.location URL.
+  void CacheSplashScreen(const std::string& content);
 
   DEFINE_WRAPPABLE_TYPE(Window);
 
@@ -400,7 +398,7 @@ class Window : public EventTarget,
   const CloseCallback window_close_callback_;
   const base::Closure window_minimize_callback_;
 
-  base::Callback<bool(const std::string&)> splash_screen_cache_callback_;
+  CacheCallback splash_screen_cache_callback_;
 
   DISALLOW_COPY_AND_ASSIGN(Window);
 };

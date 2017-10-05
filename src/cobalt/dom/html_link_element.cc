@@ -148,7 +148,6 @@ void HTMLLinkElement::OnLoadingDone(const std::string& content) {
   TRACK_MEMORY_SCOPE("DOM");
   DCHECK(thread_checker_.CalledOnValidThread());
   TRACE_EVENT0("cobalt::dom", "HTMLLinkElement::OnLoadingDone()");
-
   Document* document = node_document();
   if (rel() == "stylesheet") {
     OnStylesheetLoaded(document, content);
@@ -207,13 +206,7 @@ void HTMLLinkElement::OnLoadingError(const std::string& error) {
 void HTMLLinkElement::OnSplashscreenLoaded(Document* document,
                                            const std::string& content) {
   scoped_refptr<Window> window = document->window();
-
-  const base::optional<base::Callback<bool(const std::string&)>>
-      splash_screen_cache_callback = window->splash_screen_cache_callback();
-  if (splash_screen_cache_callback &&
-      !splash_screen_cache_callback->is_null()) {
-    splash_screen_cache_callback->Run(content);
-  }
+  window->CacheSplashScreen(content);
 }
 
 void HTMLLinkElement::OnStylesheetLoaded(Document* document,

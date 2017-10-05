@@ -89,19 +89,24 @@ const char kPartialLayoutCommandLongHelp[] =
     "To wipe the box tree and turn partial layout off.";
 #endif  // defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
 
-base::Callback<bool(const std::string&)> SplashScreenCacheCallback(
-    const GURL& initial_url, SplashScreenCache* splash_screen_cache) {
-  base::Callback<bool(const std::string&)> splash_screen_cache_callback =
-      base::Callback<bool(const std::string&)>();
-  base::optional<std::string> key =
-      SplashScreenCache::GetKeyForStartUrl(initial_url);
-  if (splash_screen_cache && key) {
-    splash_screen_cache_callback =
-        base::Bind(base::Bind(&SplashScreenCache::CacheSplashScreen,
-                              base::Unretained(splash_screen_cache)),
-                   *key);
+bool CacheUrlContent(SplashScreenCache* splash_screen_cache, const GURL& url,
+                     const std::string& content) {
+  base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+  if (key) {
+    return splash_screen_cache->SplashScreenCache::CacheSplashScreen(*key,
+                                                                     content);
   }
-  return splash_screen_cache_callback;
+  return false;
+}
+
+base::Callback<bool(const GURL&, const std::string&)> CacheUrlContentCallback(
+    SplashScreenCache* splash_screen_cache) {
+  // This callback takes in first the url, then the content string.
+  if (splash_screen_cache) {
+    return base::Bind(CacheUrlContent, base::Unretained(splash_screen_cache));
+  } else {
+    return base::Callback<bool(const GURL&, const std::string&)>();
+  }
 }
 
 }  // namespace
@@ -511,9 +516,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   media_session_client_ = media_session::MediaSessionClient::Create();
 
-  base::Callback<bool(const std::string&)> splash_screen_cache_callback =
-      SplashScreenCacheCallback(data.initial_url,
-                                data.options.splash_screen_cache);
+  dom::Window::CacheCallback splash_screen_cache_callback =
+      CacheUrlContentCallback(data.options.splash_screen_cache);
 
   window_ = new dom::Window(
       data.window_dimensions.width(), data.window_dimensions.height(),

@@ -142,6 +142,10 @@ const char kImageCacheSizeInBytes[] = "image_cache_size_in_bytes";
 // value is set, a default URL will be used.
 const char kInitialURL[] = "url";
 
+// Overrides the default storage partition with a custom partition URL to use
+// for local storage. The provided URL is canonicalized.
+const char kLocalStoragePartitionUrl[] = "local_storage_partition_url";
+
 // Determines the capacity of the remote typefaces cache which manages all
 // typefaces downloaded from a web page.
 const char kRemoteTypefaceCacheSizeInBytes[] =

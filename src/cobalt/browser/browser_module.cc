@@ -352,7 +352,9 @@ BrowserModule::~BrowserModule() {
 }
 
 void BrowserModule::Navigate(const GURL& url) {
-  TRACE_EVENT0("cobalt::browser", "BrowserModule::Navigate()");
+  DLOG(INFO) << "In BrowserModule::Navigate " << url;
+  TRACE_EVENT1("cobalt::browser", "BrowserModule::Navigate()", "url",
+               url.spec());
   // Reset the waitable event regardless of the thread. This ensures that the
   // webdriver won't incorrectly believe that the webmodule has finished loading
   // when it calls Navigate() and waits for the |web_module_loaded_| signal.
@@ -974,6 +976,7 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
       renderer_module_->pipeline()->TimeFence(close_time);
     }
     splash_screen_layer_.reset(NULL);
+    SubmitCurrentRenderTreeToRenderer();
   }
   splash_screen_.reset(NULL);
 }

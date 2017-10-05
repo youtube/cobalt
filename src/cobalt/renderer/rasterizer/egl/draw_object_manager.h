@@ -39,12 +39,17 @@ class DrawObjectManager {
  public:
   enum BlendType {
     // These draws use an external rasterizer which sets the GPU state.
-    kBlendExternal = 0,
+    kBlendExternal = 1,
 
     // These draws use the native rasterizer, and the appropriate state must
     // be set during execution.
-    kBlendNone,
-    kBlendSrcAlpha,
+    kBlendSrcAlpha = 2,
+    kBlendNone = 4,
+
+    // This blend mode allows more flexibility when merging draw calls. During
+    // rasterization, this type translates to kBlendNone, so make sure this
+    // enum sorts next to kBlendNone to avoid unnecessary state changes.
+    kBlendNoneOrSrcAlpha = kBlendNone | kBlendSrcAlpha,
   };
 
   DrawObjectManager(const base::Closure& reset_external_rasterizer,
