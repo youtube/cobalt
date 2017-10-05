@@ -14,24 +14,26 @@
 
 #include "starboard/player.h"
 
-#include "starboard/configuration.h"
-#include "starboard/log.h"
-#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#if !SB_HAS(PLAYER)
+#error "SbPlayerCreateWithUrl requires SB_HAS(PLAYER)."
+#endif
 
 #if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
 
-bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode) {
+SbPlayer SbPlayerCreateWithUrl(
+    const char* /* url */,
+    SbWindow /* window */,
+    SbMediaTime /* duration_pts */,
+    SbPlayerStatusFunc /* player_status_func */,
+    SbPlayerEncryptedMediaInitDataEncounteredCB /* cb */,
+    void* /* context */) {
   // Stub.
-  return false;
+  return kSbPlayerInvalid;
 }
 
-#else
-
-bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
-                                 SbMediaVideoCodec codec,
-                                 SbDrmSystem drm_system) {
-  return starboard::shared::starboard::player::filter::VideoDecoder::
-      OutputModeSupported(output_mode, codec, drm_system);
+// TODO: Actually move this to a separate file or get rid of these URL
+// player stubs altogether.
+void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system) { /* Stub */
 }
 
 #endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&

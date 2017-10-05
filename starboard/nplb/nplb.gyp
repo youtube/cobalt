@@ -148,6 +148,7 @@
         'once_test.cc',
         'optional_test.cc',
         'player_create_test.cc',
+        'player_create_with_url_test.cc',
         'random_helpers.cc',
         'rwlock_test.cc',
         'semaphore_test.cc',
