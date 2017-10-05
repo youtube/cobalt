@@ -68,7 +68,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = audio_decoder_config.bits_per_channel();
 
-#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#if SB_API_VERSION >= 6
   audio_header.audio_specific_config_size =
       static_cast<uint16_t>(audio_decoder_config.extra_data().size());
   if (audio_header.audio_specific_config_size == 0) {
@@ -76,7 +76,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
   } else {
     audio_header.audio_specific_config = &audio_decoder_config.extra_data()[0];
   }
-#else   // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#else   // SB_API_VERSION >= 6
   audio_header.audio_specific_config_size = static_cast<uint16_t>(
       std::min(audio_decoder_config.extra_data().size(),
                sizeof(audio_header.audio_specific_config)));
@@ -85,7 +85,7 @@ SbMediaAudioHeader MediaAudioConfigToSbMediaAudioHeader(
                  &audio_decoder_config.extra_data()[0],
                  audio_header.audio_specific_config_size);
   }
-#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#endif  // SB_API_VERSION >= 6
 
   return audio_header;
 }
