@@ -209,6 +209,8 @@ typedef enum SbKey {
   kSbKeyMediaFastForward = 0xE4,
 
 #if SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+  // Key codes from the DTV Application Software Environment,
+  //   http://www.atsc.org/wp-content/uploads/2015/03/a_100_4.pdf
   kSbKeyRed = 0x193,
   kSbKeyGreen = 0x194,
   kSbKeyYellow = 0x195,
@@ -219,8 +221,21 @@ typedef enum SbKey {
   kSbKeySubtitle = 0x1CC,
   kSbKeyClosedCaption = kSbKeySubtitle,
 
+  kSbKeyInfo = 0x1C9,
+  kSbKeyGuide = 0x1CA,
+
+  // Key codes from OCAP,
+  //   https://apps.cablelabs.com/specification/opencable-application-platform-ocap/
+  kSbKeyLast = 0x25f,
+  kSbKeyPreviousChannel = kSbKeyLast,
+
+  // Custom Starboard-defined keycodes.
+
   // A button that will directly launch the current application.
   kSbKeyLaunchThisApplication = 0x3000,
+
+  // A button that will switch between different available audio tracks.
+  kSbKeyMediaAudioTrack = 0x3001,
 #endif  // SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
 
   // Mouse buttons, starting with the left mouse button.

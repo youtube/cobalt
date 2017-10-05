@@ -71,6 +71,10 @@ This adds SbKey codes for:
   * Closed Caption key
   * Application launch key
   * Channel Up/Down keys
+  * Info key
+  * Guide key
+  * Last/Previous Channel key
+  * Media audio track select key
 
 ### `kSbEventTypeLowMemory`
 
