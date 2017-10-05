@@ -1,28 +1,77 @@
 <!DOCTYPE html>
 <html>
+
 <head>
-  <title>mtm Demo</title>
+  <title>Map-To-Mesh Demo</title>
+
   <style>
-    body {
-      background-color: rgb(255, 255, 255);
-      color: #0047ab;
-      font-size: 100px;
+    #v {
+      width: 100%;
+      height: 100%;
+      filter: map-to-mesh(equirectangular, 100deg 60deg,
+                          matrix3d(1, 0, 0, 0,
+                                   0, 1, 0, 0,
+                                   0, 0, 1, 0,
+                                   0, 0, 0, 1));
     }
-    .vid {
-      margin: 100px;
-      border: 10px solid blue;
-      width: 960px;
-      height: 540px;
-      filter: -cobalt-mtm(url(projection.msh), 100deg 60deg,
-                              matrix3d(1, 0, 0, 0,
-                                       0, 1, 0, 0,
-                                       0, 0, 1, 0,
-                                       0, 0, 0, 1));
+
+    .instructions {
+      position: absolute;
+      left: 0;
+      background-color: white;
+      color: black;
     }
   </style>
+
+  <script>
+    var degreesPerSecond = 90;
+    // The following mappings are done in this order:
+    // Up, Down, Left, Right
+
+    // Direction keys
+    camera3D.createKeyMapping(38, camera3D.DOM_CAMERA_PITCH, degreesPerSecond);
+    camera3D.createKeyMapping(40, camera3D.DOM_CAMERA_PITCH, -degreesPerSecond);
+    camera3D.createKeyMapping(37, camera3D.DOM_CAMERA_YAW, degreesPerSecond);
+    camera3D.createKeyMapping(39, camera3D.DOM_CAMERA_YAW, -degreesPerSecond);
+
+    // DPAD
+    camera3D.createKeyMapping(
+        0x800C, camera3D.DOM_CAMERA_PITCH, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x800D, camera3D.DOM_CAMERA_PITCH, -degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x800E, camera3D.DOM_CAMERA_YAW, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x800F, camera3D.DOM_CAMERA_YAW, -degreesPerSecond);
+
+    // Left joystick
+    camera3D.createKeyMapping(
+        0x8011, camera3D.DOM_CAMERA_PITCH, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8012, camera3D.DOM_CAMERA_PITCH, -degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8013, camera3D.DOM_CAMERA_YAW, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8014, camera3D.DOM_CAMERA_YAW, -degreesPerSecond);
+
+    // Right joystick
+    camera3D.createKeyMapping(
+        0x8015, camera3D.DOM_CAMERA_PITCH, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8016, camera3D.DOM_CAMERA_PITCH, -degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8017, camera3D.DOM_CAMERA_YAW, degreesPerSecond);
+    camera3D.createKeyMapping(
+        0x8018, camera3D.DOM_CAMERA_YAW, -degreesPerSecond);
+  </script>
 </head>
+
 <body>
-  <div>Mtm Demo!!!</div>
-  <video autoplay loop id="v" class="vid" src="progressive.mp4"></video>
+  <video autoplay loop id="v" src="progressive.mp4"></video>
+  <div class="instructions">
+    Use either the keyboard keys, direction keys, or analog joystick/thumbstick
+    to look around.
+  </div>
 </body>
+
 </html>
