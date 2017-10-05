@@ -58,6 +58,7 @@
         '<(DEPTH)/starboard/shared/directfb/window_internal.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rect_to_rect_tiled.cc',
         '<(DEPTH)/starboard/shared/starboard/blitter_blit_rects_to_rects.cc',
+        '<(DEPTH)/starboard/shared/stub/player_create_with_url.cc',
     ],
   },
 }
