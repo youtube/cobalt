@@ -48,11 +48,3 @@ class _PlatformConfig(config.starboard.PlatformConfigStarboard):
         'CXX_host': 'armv7l-tizen-linux-gnueabi-g++',
     }
     return env_variables
-
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return []
