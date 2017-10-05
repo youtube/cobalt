@@ -62,10 +62,10 @@ class ApplicationDispmanx
   Event* WaitForSystemEventWithTimeout(SbTime duration) SB_OVERRIDE;
   void WakeSystemEventWait() SB_OVERRIDE;
 
-#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+#if SB_API_VERSION >= 6
   bool IsStartImmediate() SB_OVERRIDE { return !HasPreloadSwitch(); }
   bool IsPreloadImmediate() SB_OVERRIDE { return HasPreloadSwitch(); }
-#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+#endif  // SB_API_VERSION >= 6
 
  private:
   // Returns whether DISPMANX has been initialized.

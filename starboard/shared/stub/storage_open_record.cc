@@ -15,10 +15,10 @@
 #include "starboard/storage.h"
 
 SbStorageRecord SbStorageOpenRecord(SbUser /*user*/
-#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION >= 6
                                     ,
                                     const char* /*name*/
-#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION >= 6
                                     ) {
   return kSbStorageInvalidRecord;
 }
