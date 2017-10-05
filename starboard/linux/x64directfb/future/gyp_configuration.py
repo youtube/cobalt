@@ -16,7 +16,7 @@
 import logging
 
 # Import the shared Linux platform configuration.
-from starboard.linux.shared import gyp_configuration
+import starboard.linux.x64directfb.gyp_configuration as gyp_configuration
 
 
 def CreatePlatformConfig():
