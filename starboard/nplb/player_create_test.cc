@@ -50,9 +50,9 @@ TEST(SbPlayerTest, SunnyDay) {
   audio_header.block_alignment = 4;
   audio_header.bits_per_sample = 32;
   audio_header.audio_specific_config_size = 0;
-#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#if SB_API_VERSION >= 6
   audio_header.audio_specific_config = NULL;
-#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#endif  // SB_API_VERSION >= 6
   audio_header.average_bytes_per_second = audio_header.samples_per_second *
                                           audio_header.number_of_channels *
                                           audio_header.bits_per_sample / 8;
