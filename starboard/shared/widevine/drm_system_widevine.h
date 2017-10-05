@@ -36,10 +36,10 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
       void* context,
       SbDrmSessionUpdateRequestFunc session_update_request_callback,
       SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
       ,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 6
       );  // NOLINT(whitespace/parens)
   ~SbDrmSystemWidevine() SB_OVERRIDE;
 
@@ -106,9 +106,9 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
   void* const context_;
   const SbDrmSessionUpdateRequestFunc session_update_request_callback_;
   const SbDrmSessionUpdatedFunc session_updated_callback_;
-#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
   const SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
-#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 6
 
   // Ticket is is expected to be set before each call to |GenerateKeyRequest|
   // and |AddKey|, so that it can be passed back through

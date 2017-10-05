@@ -32,7 +32,7 @@ SbWindow g_window;
 
 void SbEventHandle(const SbEvent* event) {
   switch (event->type) {
-#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+#if SB_API_VERSION >= 6
     case kSbEventTypePreload: {
       SB_LOG(INFO) << "PRELOAD";
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);

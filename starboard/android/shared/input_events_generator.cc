@@ -224,7 +224,7 @@ SbKey AInputEventToSbKey(AInputEvent* event) {
     case AKEYCODE_MEDIA_FAST_FORWARD:
       return kSbKeyMediaFastForward;
 
-#if SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+#if SB_API_VERSION >= 6
     // TV Remote specific
     case AKEYCODE_CHANNEL_UP:
       return kSbKeyChannelUp;
@@ -249,7 +249,7 @@ SbKey AInputEventToSbKey(AInputEvent* event) {
       return kSbKeyYellow;
     case AKEYCODE_PROG_BLUE:
       return kSbKeyBlue;
-#endif  // SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+#endif  // SB_API_VERSION >= 6
 
     // Whitespace
     case AKEYCODE_TAB:
@@ -660,7 +660,7 @@ SbKey ButtonStateToSbKey(int32_t button_state) {
 // Get an SbKeyModifiers from a button state
 unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
   unsigned int key_modifiers = kSbKeyModifiersNone;
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   if (button_state & AMOTION_EVENT_BUTTON_PRIMARY) {
     key_modifiers |= kSbKeyModifiersPointerButtonLeft;
   }
@@ -680,7 +680,7 @@ unsigned int ButtonStateToSbModifiers(unsigned int button_state) {
   return key_modifiers;
 }
 
-#if SB_API_VERSION < SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION < 6
 SbKey ScrollAxisToKey(float hscroll, float vscroll) {
   if (vscroll != 0) {
     return vscroll < 0 ? kSbKeyDown : kSbKeyUp;
@@ -705,7 +705,7 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
 
   data->window = window_;
   SB_DCHECK(SbWindowIsValid(data->window));
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   data->pressure = NAN;
   data->size = {NAN, NAN};
   data->tilt = {NAN, NAN};
@@ -748,7 +748,7 @@ bool InputEventsGenerator::ProcessPointerEvent(AInputEvent* android_event,
           android_event, AMOTION_EVENT_AXIS_VSCROLL, 0);  // down is -1
       float wheel =
           AMotionEvent_getAxisValue(android_event, AMOTION_EVENT_AXIS_WHEEL, 0);
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
       data->type = kSbInputEventTypeWheel;
       data->key = kSbKeyUnknown;
       data->delta.y = -vscroll;
