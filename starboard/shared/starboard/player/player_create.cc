@@ -30,6 +30,10 @@ using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 
+#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+// No implementation : use SbPlayerCreateWithUrl instead.
+#else
+
 SbPlayer SbPlayerCreate(SbWindow window,
                         SbMediaVideoCodec video_codec,
                         SbMediaAudioCodec audio_codec,
@@ -80,3 +84,6 @@ SbPlayer SbPlayerCreate(SbWindow window,
                              decoder_status_func, player_status_func, context,
                              handler.Pass());
 }
+
+#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
+        // SB_HAS(PLAYER_WITH_URL)
