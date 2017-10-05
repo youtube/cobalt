@@ -33,7 +33,12 @@ TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyChannelUp);
   EXPECT_NE(kSbKeyUnknown, kSbKeyChannelDown);
   EXPECT_NE(kSbKeyUnknown, kSbKeyClosedCaption);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyInfo);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyGuide);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyLast);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyPreviousChannel);
   EXPECT_NE(kSbKeyUnknown, kSbKeyLaunchThisApplication);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyMediaAudioTrack);
 #endif  //  SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
 }
 
