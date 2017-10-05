@@ -187,12 +187,12 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   }
 
   SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
-#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#if SB_API_VERSION >= 6
                       allocations.buffers(), allocations.buffer_sizes(),
-#else   // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#else   // SB_API_VERSION >= 6
                       const_cast<const void**>(allocations.buffers()),
                       const_cast<int*>(allocations.buffer_sizes()),
-#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#endif  // SB_API_VERSION >= 6
                       allocations.number_of_buffers(),
                       TimeDeltaToSbMediaTime(buffer->timestamp()),
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
