@@ -19,18 +19,18 @@
 #include "starboard/user.h"
 
 bool SbStorageDeleteRecord(SbUser user
-#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION >= 6
                            ,
                            const char* name
-#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION >= 6
                            ) {
   if (!SbUserIsValid(user)) {
     return false;
   }
 
-#if SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION < 6
   const char* name = NULL;
-#endif  // SB_API_VERSION < SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION < 6
 
   char path[SB_FILE_MAX_PATH];
   bool success = starboard::shared::starboard::GetUserStorageFilePath(

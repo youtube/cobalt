@@ -185,7 +185,7 @@ typedef enum SbSystemPlatformErrorType {
   // retried, otherwise the app should be stopped.
   kSbSystemPlatformErrorTypeConnectionError,
 
-#if SB_API_VERSION < SB_PLATFORM_ERROR_CLEANUP_API_VERSION
+#if SB_API_VERSION < 6
   // The current user is not signed in.
   kSbSystemPlatformErrorTypeUserSignedOut,
 
