@@ -23,6 +23,9 @@ namespace nplb {
 namespace {
 
 #if SB_HAS(PLAYER)
+#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+// This test does not apply. See player_create_with_url_test.cc instead.
+#else
 
 #if SB_HAS(GLES2)
 void GlesContextRunner(
@@ -97,6 +100,8 @@ TEST(SbPlayerTest, SunnyDay) {
   SbWindowDestroy(window);
 }
 
+#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
+        // SB_HAS(PLAYER_WITH_URL)
 #endif  // SB_HAS(PLAYER)
 
 }  // namespace
