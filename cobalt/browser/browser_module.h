@@ -393,7 +393,7 @@ class BrowserModule {
   network::NetworkModule network_module_;
 
   // Manages the three render trees, combines and renders them.
-  scoped_ptr<RenderTreeCombiner> render_tree_combiner_;
+  RenderTreeCombiner render_tree_combiner_;
   scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
