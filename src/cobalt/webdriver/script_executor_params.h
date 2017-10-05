@@ -34,13 +34,46 @@ namespace webdriver {
 // The results are forwarded to a ResultHandler instance.
 class ScriptExecutorParams : public script::Wrappable {
  public:
-  static scoped_refptr<ScriptExecutorParams> Create(
+  // |ScriptExecutorParams| will typically be used as a "root" Wrappable.  In
+  // order to prevent the underlying JavaScript object that |function_object_|
+  // wraps from being garbage collected, we must ensure the the |Wrappable|
+  // that references it (which is us) is reachable, which we accomplish by
+  // immediately calling |PreventGarbageCollection| on it.
+  // |GCPreventedParams| then manages this pre-gc-prevented
+  // |ScriptExecutorParams|.
+  struct GCPreventedParams {
+    GCPreventedParams(const scoped_refptr<ScriptExecutorParams>& params,
+                      script::GlobalEnvironment* global_environment)
+        : params(params), global_environment(global_environment) {}
+    GCPreventedParams(const GCPreventedParams&) = delete;
+    GCPreventedParams& operator=(const GCPreventedParams&) = delete;
+    GCPreventedParams(GCPreventedParams&& other)
+        : params(other.params), global_environment(other.global_environment) {
+      other.params = nullptr;
+    }
+    GCPreventedParams& operator=(GCPreventedParams&& other) {
+      global_environment->AllowGarbageCollection(params);
+      params = other.params;
+      other.params = nullptr;
+      return *this;
+    }
+    ~GCPreventedParams() {
+      if (params) {
+        global_environment->AllowGarbageCollection(params);
+      }
+    }
+
+    scoped_refptr<ScriptExecutorParams> params;
+    script::GlobalEnvironment* global_environment;
+  };
+
+  static GCPreventedParams Create(
       const scoped_refptr<script::GlobalEnvironment>& global_environment,
       const std::string& function_body, const std::string& json_args) {
     return Create(global_environment, function_body, json_args, base::nullopt);
   }
 
-  static scoped_refptr<ScriptExecutorParams> Create(
+  static GCPreventedParams Create(
       const scoped_refptr<script::GlobalEnvironment>& global_environment,
       const std::string& function_body, const std::string& json_args,
       base::optional<base::TimeDelta> async_timeout);

@@ -39,12 +39,17 @@ class DrawObjectManager {
  public:
   enum BlendType {
     // These draws use an external rasterizer which sets the GPU state.
-    kBlendExternal = 0,
+    kBlendExternal = 1,
 
     // These draws use the native rasterizer, and the appropriate state must
     // be set during execution.
-    kBlendNone,
-    kBlendSrcAlpha,
+    kBlendSrcAlpha = 2,
+    kBlendNone = 4,
+
+    // This blend mode allows more flexibility when merging draw calls. During
+    // rasterization, this type translates to kBlendNone, so make sure this
+    // enum sorts next to kBlendNone to avoid unnecessary state changes.
+    kBlendNoneOrSrcAlpha = kBlendNone | kBlendSrcAlpha,
   };
 
   DrawObjectManager(const base::Closure& reset_external_rasterizer,
@@ -117,7 +122,7 @@ class DrawObjectManager {
     BlendType blend_type;
     union {
       uint32_t draw_id;
-      mutable uint32_t dependencies;
+      uint32_t dependencies;
     };
   };
 
@@ -131,7 +136,7 @@ class DrawObjectManager {
   };
 
   typedef std::vector<DrawInfo> DrawList;
-  typedef std::vector<const DrawInfo*> SortedDrawList;
+  typedef std::vector<DrawInfo*> SortedDrawList;
 
   void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
       ShaderProgramManager* program_manager);
@@ -142,10 +147,11 @@ class DrawObjectManager {
 
   void RemoveDraws(DrawList* draw_list, uint32_t last_valid_draw_id);
 
-  void SortOffscreenDraws(const DrawList& draw_list,
+  void SortOffscreenDraws(DrawList* draw_list,
                           SortedDrawList* sorted_draw_list);
-  void SortOnscreenDraws(const DrawList& draw_list,
+  void SortOnscreenDraws(DrawList* draw_list,
                          SortedDrawList* sorted_draw_list);
+  void MergeSortedDraws(SortedDrawList* sorted_draw_list);
 
   base::Closure reset_external_rasterizer_;
   base::Closure flush_external_offscreen_draws_;

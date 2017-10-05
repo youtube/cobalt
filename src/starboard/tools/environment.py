@@ -28,6 +28,15 @@ PORT_ROOTS = [
     ["somewhere_else", "starboard"]
 ]
 
+It should also contain another variable, called TEST_TARGETS.  This variable
+should be a Python list containing names of test binaries you would like
+Starboard's unit test runner to run.  Example:
+
+TEST_TARGETS = [
+    'audio_test',
+    'base_test'
+]
+
 IF YOU ARE GOING TO USE STARBOARD FILES OUTSIDE OF STARBOARD, YOU NEED TO IMPORT
 THIS MODULE FIRST.  Otherwise, sys.path will not be configured properly, none of
 your code will work, and you'll be sad.
@@ -56,6 +65,9 @@ for new_path in PATHS:
   if new_path not in sys.path:
     sys.path.append(new_path)
 
+# Saved in global state so we only ever search for it once.
+_CONFIG_PATH = None
+
 
 def _GetStarboardConfigPath():
   """Gets the path to the "starboard_configuration.py" file from the host app.
@@ -66,29 +78,50 @@ def _GetStarboardConfigPath():
   Raises:
     RuntimeError: There is no configuration file.
   """
-  current_path = os.path.normpath(os.path.dirname(__file__))
-  while not os.path.exists(os.path.join(current_path,
-                                        "starboard_configuration.py")):
-    next_path = os.path.dirname(current_path)
-    if next_path == current_path:
-      current_path = None
-      break
-    current_path = next_path
-  config_path = current_path
+  global _CONFIG_PATH
 
-  if not config_path:
-    raise RuntimeError("No starboard configuration declared.")
+  if _CONFIG_PATH:
+    return _CONFIG_PATH
 
-  return config_path
+  else:
+    current_path = os.path.normpath(os.path.dirname(__file__))
+    while not os.path.exists(os.path.join(current_path,
+                                          "starboard_configuration.py")):
+      next_path = os.path.dirname(current_path)
+      if next_path == current_path:
+        current_path = None
+        break
+      current_path = next_path
+    config_path = current_path
+
+    if not config_path:
+      raise RuntimeError("No starboard configuration declared.")
+
+    _CONFIG_PATH = config_path
+    return config_path
+
+
+def _ImportConfigModule():
+  if "starboard_configuration" in sys.modules:
+    return sys.modules["starboard_configuration"]
+  else:
+    config_path = _GetStarboardConfigPath()
+    if config_path not in sys.path:
+      sys.path.append(config_path)
+    return importlib.import_module("starboard_configuration")
 
 
 def GetStarboardPortRoots():
   """Gets paths to the host app's Starboard port directories."""
   config_path = _GetStarboardConfigPath()
-  sys.path.append(config_path)
-  config_module = importlib.import_module("starboard_configuration")
+  config_module = _ImportConfigModule()
   port_roots = config_module.PORT_ROOTS
   port_root_paths = [os.path.abspath(os.path.join(
       config_path, os.sep.join(root))) for root in port_roots]
   return port_root_paths
+
+
+def GetTestTargets():
+  config_module = _ImportConfigModule()
+  return config_module.TEST_TARGETS
 

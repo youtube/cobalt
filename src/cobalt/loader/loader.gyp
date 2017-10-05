@@ -25,6 +25,8 @@
         'blob_fetcher.h',
         'cache_fetcher.cc',
         'cache_fetcher.h',
+        'cors_preflight.cc',
+        'cors_preflight.h',
         'decoder.h',
         'embedded_fetcher.cc',
         'embedded_fetcher.h',

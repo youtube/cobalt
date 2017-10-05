@@ -20,11 +20,12 @@
 namespace cobalt {
 namespace webdriver {
 
-scoped_refptr<ScriptExecutorParams> ScriptExecutorParams::Create(
+ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
     const scoped_refptr<script::GlobalEnvironment>& global_environment,
     const std::string& function_body, const std::string& json_args,
     base::optional<base::TimeDelta> async_timeout) {
   scoped_refptr<ScriptExecutorParams> params(new ScriptExecutorParams());
+  global_environment->PreventGarbageCollection(params);
   params->json_args_ = json_args;
 
   if (async_timeout) {
@@ -42,7 +43,8 @@ scoped_refptr<ScriptExecutorParams> ScriptExecutorParams::Create(
                                           &params->function_object_)) {
     DLOG(ERROR) << "Failed to create Function object";
   }
-  return params;
+  return {params, global_environment.get()};
 }
+
 }  // namespace webdriver
 }  // namespace cobalt
