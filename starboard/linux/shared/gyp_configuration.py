@@ -1,4 +1,4 @@
-# Copyright 2017 Google Inc. All Rights Reserved.
+# Copyright 2015 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -80,7 +80,5 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         test_filter.TestFilter(
             'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
         test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL)
+            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug')
     ]

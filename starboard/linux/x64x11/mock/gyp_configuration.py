@@ -17,7 +17,7 @@ import logging
 
 import config.starboard
 import gyp_utils
-import starboard.tools.testing.test_filter as test_filter
+
 
 def CreatePlatformConfig():
   try:
@@ -56,25 +56,3 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
-
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return [
-        test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
-        test_filter.TestFilter(
-            'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
-        test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL)
-    ]
