@@ -653,7 +653,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  if (status == PIPELINE_OK) {
+  if (status == PIPELINE_OK && player_) {
     player_->Seek(seek_time_);
   }
 }
