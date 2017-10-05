@@ -23,7 +23,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION >= 6
 
 TEST(SbStorageDeleteRecordTest, RainyDayInvalidUserValidName) {
   EXPECT_FALSE(SbStorageDeleteRecord(
@@ -34,13 +34,13 @@ TEST(SbStorageDeleteRecordTest, RainyDayInvalidUserNullName) {
   EXPECT_FALSE(SbStorageDeleteRecord(kSbUserInvalid, NULL));
 }
 
-#else  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#else  // SB_API_VERSION >= 6
 
 TEST(SbStorageDeleteRecordTest, RainyDayInvalidUser) {
   EXPECT_FALSE(SbStorageDeleteRecord(kSbUserInvalid));
 }
 
-#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION >= 6
 
 }  // namespace
 }  // namespace nplb

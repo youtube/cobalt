@@ -29,9 +29,9 @@
 struct SbStorageRecordPrivate {
   SbUser user;
   SbFile file;
-#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION >= 6
   std::string name;
-#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION >= 6
 };
 
 namespace starboard {

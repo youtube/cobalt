@@ -121,7 +121,7 @@ typedef enum SbInputEventType {
   // event is sent when the key or button being pressed is released.
   kSbInputEventTypeUnpress,
 
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   // Wheel movement. Provides relative movements of the |Mouse| wheel.
   kSbInputEventTypeWheel,
 #endif
@@ -176,7 +176,7 @@ typedef struct SbInputData {
   // not applicable.
   SbInputVector delta;
 
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   // The normalized pressure of the pointer input in the range of [0,1], where 0
   // and 1 represent the minimum and maximum pressure the hardware is capable of
   // detecting, respectively. Use NaN for devices that do not report pressure.

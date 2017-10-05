@@ -14,7 +14,7 @@
 
 #include "starboard/drm.h"
 
-#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -30,7 +30,7 @@ SbDrmSystem SbDrmCreateSystem(
   return kSbDrmSystemInvalid;
 }
 
-#else  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#else  // SB_API_VERSION >= 6
 
 SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -44,4 +44,4 @@ SbDrmSystem SbDrmCreateSystem(
   return kSbDrmSystemInvalid;
 }
 
-#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 6
