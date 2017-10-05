@@ -67,6 +67,8 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+#define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 #define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
@@ -459,7 +461,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
-#if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
+#if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
