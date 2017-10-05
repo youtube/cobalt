@@ -530,7 +530,7 @@ void WindowDriver::InitPointerEvent(dom::PointerEventInit* event) {
 
   event->set_pointer_type("mouse");
   event->set_pointer_id(kWebDriverMousePointerId);
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   event->set_width(0.0f);
   event->set_height(0.0f);
   event->set_pressure(pointer_buttons_ ? 0.5f : 0.0f);
