@@ -102,7 +102,7 @@ void SystemWindow::DispatchInputEvent(const SbInputData& data,
   // Starboard handily uses the Microsoft key mapping, which is also what Cobalt
   // uses.
   int key_code = static_cast<int>(data.key);
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   float pressure = data.pressure;
   uint32 modifiers = data.key_modifiers;
   if (((data.device_type == kSbInputDeviceTypeTouchPad) ||
@@ -159,7 +159,7 @@ void SystemWindow::HandlePointerInputEvent(const SbInputData& data) {
       DispatchInputEvent(data, input_event_type, false /* is_repeat */);
       break;
     }
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
     case kSbInputEventTypeWheel: {
       DispatchInputEvent(data, InputEvent::kWheel, false /* is_repeat */);
       break;

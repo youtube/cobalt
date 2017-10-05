@@ -77,7 +77,7 @@ COMPILE_ASSERT(static_cast<uint32_t>(kSbKeyModifiersNone) ==
                    static_cast<uint32_t>(kSbKeyModifiersShift) ==
                        system_window::InputEvent::kShiftKey,
                Mismatched_modifier_enums);
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
 COMPILE_ASSERT(static_cast<uint32_t>(kSbKeyModifiersPointerButtonLeft) ==
                        system_window::InputEvent::kLeftButton &&
                    static_cast<uint32_t>(kSbKeyModifiersPointerButtonRight) ==
@@ -89,7 +89,7 @@ COMPILE_ASSERT(static_cast<uint32_t>(kSbKeyModifiersPointerButtonLeft) ==
                    static_cast<uint32_t>(kSbKeyModifiersPointerButtonForward) ==
                        system_window::InputEvent::kForwardButton,
                Mismatched_modifier_enums);
-#endif
+#endif  // SB_API_VERSION >= 6
 
 void UpdateEventModifierInit(const system_window::InputEvent* input_event,
                              EventModifierInit* event) {
@@ -221,7 +221,7 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
       break;
   }
   pointer_event.set_pointer_id(input_event->device_id());
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   pointer_event.set_width(value_or(input_event->size().x(), 0.0f));
   pointer_event.set_height(value_or(input_event->size().y(), 0.0f));
   pointer_event.set_pressure(value_or(input_event->pressure(),
@@ -230,7 +230,7 @@ void InputDeviceManagerDesktop::HandlePointerEvent(
       value_or(static_cast<float>(input_event->tilt().x()), 0.0f));
   pointer_event.set_tilt_y(
       value_or(static_cast<float>(input_event->tilt().y()), 0.0f));
-#endif
+#endif  // SB_API_VERSION >= 6
   pointer_event.set_is_primary(true);
   pointer_event_callback_.Run(type, pointer_event);
 }

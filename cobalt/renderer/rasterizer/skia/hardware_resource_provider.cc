@@ -149,13 +149,10 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
 #if SB_HAS(GRAPHICS)
 namespace {
 
-#if SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
+#if SB_API_VERSION < 6
 int PlanesPerFormat(SbDecodeTargetFormat format) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
-#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
-    case kSbDecodeTargetFormat1PlaneUYVY:
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
       return 1;
     case kSbDecodeTargetFormat1PlaneBGRA:
       return 1;
@@ -168,26 +165,26 @@ int PlanesPerFormat(SbDecodeTargetFormat format) {
       return 0;
   }
 }
-#endif  // SB_API_VERSION < SB_DECODE_TARGET_PLANES_FOR_FORMAT
+#endif  // SB_API_VERSION < 6
 
 uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
     const SbDecodeTargetInfoPlane* plane_info) {
   switch (format) {
     case kSbDecodeTargetFormat1PlaneRGBA:
-#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
     // For UYVY, we will use a fragment shader where R = the first U, G = Y,
     // B = the second U, and A = V.
     case kSbDecodeTargetFormat1PlaneUYVY:
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 6
     {
       DCHECK_EQ(0, plane);
       return GL_RGBA;
     } break;
     case kSbDecodeTargetFormat2PlaneYUVNV12: {
       DCHECK_LT(plane, 2);
-#if SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
+#if SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
       // If this DCHECK fires, please set gl_texture_format, introduced
-      // in Starboard SB_DECODE_TARGET_FORMAT_VERSION.
+      // in Starboard SB_DECODE_TARGET_PLANE_FORMAT_VERSION.
       //
       // You probably want to set it to GL_ALPHA on plane 0 (luma) and
       // GL_LUMINANCE_ALPHA on plane 1 (chroma), which was the default before.
@@ -209,7 +206,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
           CHECK(false);
           return 0;
       }
-#else  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
+#else  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
       switch (plane) {
         case 0:
           return GL_ALPHA;
@@ -219,7 +216,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
           NOTREACHED();
           return GL_RGBA;
       }
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_FORMAT_VERSION
+#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
     } break;
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);
@@ -283,11 +280,11 @@ scoped_refptr<render_tree::Image>
       new DecodeTargetReferenceCounted(decode_target));
 
   // There is limited format support at this time.
-#if SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+#if SB_API_VERSION >= 6
   int planes_per_format = SbDecodeTargetNumberOfPlanesForFormat(info.format);
 #else
   int planes_per_format = PlanesPerFormat(info.format);
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANES_FOR_FORMAT
+#endif  // SB_API_VERSION >= 6
 
   for (int i = 0; i < planes_per_format; ++i) {
     const SbDecodeTargetInfoPlane& plane = info.planes[i];
@@ -318,11 +315,11 @@ scoped_refptr<render_tree::Image>
     // this in as supplementary data, as the |texture| object only knows that
     // it is RGBA.
     base::optional<AlternateRgbaFormat> alternate_rgba_format;
-#if SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
     if (info.format == kSbDecodeTargetFormat1PlaneUYVY) {
       alternate_rgba_format = AlternateRgbaFormat_UYVY;
     }
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_UYVY_SUPPORT_API_VERSION
+#endif  // SB_API_VERSION >= 6
 
     planes.push_back(make_scoped_refptr(new HardwareFrontendImage(
         texture.Pass(), alpha_format, cobalt_context_, gr_context_,
