@@ -71,13 +71,13 @@ bool WriteRecord(const scoped_ptr<starboard::StorageRecord>& record,
 
 scoped_ptr<starboard::StorageRecord> CreateRecord(
     const base::optional<std::string>& id) {
-#if SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#if SB_API_VERSION >= 6
   if (id) {
     return make_scoped_ptr(new starboard::StorageRecord(id->c_str()));
   }
-#else  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#else  // SB_API_VERSION >= 6
   UNREFERENCED_PARAMETER(id);
-#endif  // SB_API_VERSION >= SB_STORAGE_NAMES_API_VERSION
+#endif  // SB_API_VERSION >= 6
   return make_scoped_ptr(new starboard::StorageRecord());
 }
 

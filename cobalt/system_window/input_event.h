@@ -55,7 +55,7 @@ class InputEvent : public base::Event {
   InputEvent(Type type, int device_id, int key_code, uint32 modifiers,
              bool is_repeat, const math::PointF& position = math::PointF(),
              const math::PointF& delta = math::PointF()
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
                  ,
              float pressure = 0, const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF()
@@ -68,7 +68,7 @@ class InputEvent : public base::Event {
         is_repeat_(is_repeat),
         position_(position),
         delta_(delta)
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
         ,
         pressure_(pressure),
         size_(size),
@@ -84,7 +84,7 @@ class InputEvent : public base::Event {
   bool is_repeat() const { return is_repeat_; }
   const math::PointF& position() const { return position_; }
   const math::PointF& delta() const { return delta_; }
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   float pressure() const { return pressure_; }
   const math::PointF& size() const { return size_; }
   const math::PointF& tilt() const { return tilt_; }
@@ -100,7 +100,7 @@ class InputEvent : public base::Event {
   bool is_repeat_;
   math::PointF position_;
   math::PointF delta_;
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   float pressure_;
   math::PointF size_;
   math::PointF tilt_;
