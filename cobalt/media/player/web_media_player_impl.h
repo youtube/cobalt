@@ -214,6 +214,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
                                    bool* is_seeking) const;
   void OnEncryptedMediaInitDataEncountered(
       EmeInitDataType init_data_type, const std::vector<uint8_t>& init_data);
+  void OnEncryptedMediaInitDataEncounteredWrapper(
+      const char* init_data_type, const unsigned char* init_data,
+      unsigned int init_data_length);
 
   // Getter method to |client_|.
   WebMediaPlayerClient* GetClient();
