@@ -228,6 +228,7 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
+      navigate_count_(0),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -417,24 +418,27 @@ void BrowserModule::Navigate(const GURL& url) {
 
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
+  ++navigate_count_;
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = GetViewportSize();
 
   DestroySplashScreen(base::TimeDelta());
-  base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
-  if (fallback_splash_screen_url_ ||
-      (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
-    splash_screen_.reset(new SplashScreen(
-        application_state_,
-        base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
-                   base::Unretained(this)),
-        &network_module_, viewport_size, GetResourceProvider(),
-        kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
-        splash_screen_cache_.get(),
-        base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
-    lifecycle_observers_.AddObserver(splash_screen_.get());
+  if (options_.enable_splash_screen_on_reloads || navigate_count_ == 1) {
+    base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+    if (fallback_splash_screen_url_ ||
+        (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+      splash_screen_.reset(new SplashScreen(
+          application_state_,
+          base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
+                     base::Unretained(this)),
+          &network_module_, viewport_size, GetResourceProvider(),
+          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
+          splash_screen_cache_.get(),
+          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
+      lifecycle_observers_.AddObserver(splash_screen_.get());
+    }
   }
 
   // Create new WebModule.

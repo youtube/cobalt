@@ -597,6 +597,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
     options.web_module_options.enable_image_animations = false;
   }
+  if (command_line->HasSwitch(switches::kDisableSplashScreenOnReloads)) {
+    options.enable_splash_screen_on_reloads = false;
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {

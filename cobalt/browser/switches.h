@@ -24,6 +24,8 @@ extern const char kAllowHttp[];
 extern const char kAudioDecoderStub[];
 extern const char kCspMode[];
 extern const char kDebugConsoleMode[];
+extern const char kDisableImageAnimations[];
+extern const char kDisableSplashScreenOnReloads[];
 extern const char kDisableWebDriver[];
 extern const char kDisableWebmVp9[];
 extern const char kExtraWebFileDir[];
@@ -46,7 +48,6 @@ extern const char kVideoContainerSizeOverride[];
 extern const char kVideoDecoderStub[];
 extern const char kWebDriverListenIp[];
 extern const char kWebDriverPort[];
-extern const char kDisableImageAnimations[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
 extern const char kDisableNavigationWhitelist[];
