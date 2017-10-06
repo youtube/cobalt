@@ -139,6 +139,13 @@ void HardwareRasterizer::Impl::Submit(
   backend::RenderTargetEGL* render_target_egl =
       base::polymorphic_downcast<backend::RenderTargetEGL*>(
           render_target.get());
+
+  // Skip rendering if we lost the surface. This can happen just before suspend
+  // on Android, so now we're just waiting for the suspend to clean up.
+  if (render_target_egl->is_surface_bad()) {
+    return;
+  }
+
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
 
