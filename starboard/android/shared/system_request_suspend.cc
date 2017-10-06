@@ -14,15 +14,11 @@
 
 #include "starboard/system.h"
 
-#include "starboard/android/shared/jni_utils.h"
+#include "starboard/android/shared/jni_env_ext.h"
 
 using starboard::android::shared::JniEnvExt;
 
 void SbSystemRequestSuspend() {
   JniEnvExt* env = JniEnvExt::Get();
-
-  // Calling moveTaskToBack() will result in Android sending our application
-  // the APP_CMD_TERM_WINDOW event, which we handle by dispatching the Starboard
-  // kSbEventTypeSuspend event to the application.
-  env->CallActivityBooleanMethod("moveTaskToBack", "(Z)Z", false);
+  env->CallActivityVoidMethodOrAbort("requestSuspend", "()V");
 }
