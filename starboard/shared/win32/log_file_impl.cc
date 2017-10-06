@@ -83,10 +83,11 @@ void OpenLogFile(const char* path, const int creation_flags) {
 
   SbMutexAcquire(&log_mutex);
   CloseLogFileWithoutLock();
-  if ((path != nullptr) && (path != '\0')) {
+  if ((path != nullptr) && (path[0] != '\0')) {
     log_file = SbFileOpen(path, flags, nullptr, nullptr);
     SB_DCHECK(SbFileIsValid(log_file));
   }
+
   SbMutexRelease(&log_mutex);
 }
 
