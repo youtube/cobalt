@@ -98,27 +98,24 @@ void VideoDecoder::Update() {
 }
 
 bool VideoDecoder::TryToDeliverOneFrame() {
-  OMX_BUFFERHEADERTYPE* buffer = NULL;
+  scoped_refptr<VideoFrame> frame;
   {
     ScopedLock scoped_lock(mutex_);
-    if (!filled_buffers_.empty()) {
-      buffer = filled_buffers_.front();
+    if (filled_buffers_.empty()) {
+      return false;
     }
-  }
-  if (buffer) {
-    if (scoped_refptr<VideoFrame> frame = CreateFrame(buffer)) {
-      host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);
-      {
-        ScopedLock scoped_lock(mutex_);
-        SB_DCHECK(!filled_buffers_.empty());
-        filled_buffers_.pop();
-        freed_buffers_.push(buffer);
-      }
-      return true;
+    OMX_BUFFERHEADERTYPE* buffer = filled_buffers_.front();
+    frame = CreateFrame(buffer);
+    if (!frame) {
+      return false;
     }
-  }
 
-  return false;
+    SB_DCHECK(!filled_buffers_.empty());
+    filled_buffers_.pop();
+    freed_buffers_.push(buffer);
+  }
+  host_->OnDecoderStatusUpdate(kNeedMoreInput, frame);
+  return true;
 }
 
 // static
@@ -204,11 +201,11 @@ void VideoDecoder::RunLoop() {
       eos_written = component.WriteEOS();
       stream_ended = true;
     } else if (event->type == Event::kReset) {
+      ScopedLock scoped_lock(mutex_);
       component.Flush();
       stream_ended = false;
       eos_written = false;
 
-      ScopedLock scoped_lock(mutex_);
       while (!freed_buffers_.empty()) {
         component.DropOutputBuffer(freed_buffers_.front());
         freed_buffers_.pop();
@@ -228,6 +225,7 @@ void VideoDecoder::RunLoop() {
     delete event;
   }
 
+  ScopedLock scoped_lock(mutex_);
   while (!freed_buffers_.empty()) {
     component.DropOutputBuffer(freed_buffers_.front());
     freed_buffers_.pop();
