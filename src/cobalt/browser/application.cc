@@ -597,6 +597,9 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
     options.web_module_options.enable_image_animations = false;
   }
+  if (command_line->HasSwitch(switches::kDisableSplashScreenOnReloads)) {
+    options.enable_splash_screen_on_reloads = false;
+  }
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
   if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
@@ -732,9 +735,9 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
     case kSbEventTypeUnpause:
     case kSbEventTypeSuspend:
     case kSbEventTypeResume:
-#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
-#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+#endif  // SB_API_VERSION >= 6
       OnApplicationEvent(starboard_event->type);
       break;
     case kSbEventTypeNetworkConnect:
@@ -824,13 +827,13 @@ void Application::OnApplicationEvent(SbEventType event_type) {
       browser_module_->Resume();
       DLOG(INFO) << "Finished resuming.";
       break;
-#if SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+#if SB_API_VERSION >= 6
     case kSbEventTypeLowMemory:
       DLOG(INFO) << "Got low memory event.";
       browser_module_->ReduceMemory();
       DLOG(INFO) << "Finished reducing memory usage.";
       break;
-#endif  // SB_API_VERSION >= SB_LOW_MEMORY_EVENT_API_VERSION
+#endif  // SB_API_VERSION >= 6
     default:
       NOTREACHED() << "Unexpected event type: " << event_type;
       return;

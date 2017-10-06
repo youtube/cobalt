@@ -37,11 +37,11 @@ MediaKeySession::MediaKeySession(
     : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
-#if SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
+#if SB_API_VERSION >= 6
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
                      base::AsWeakPtr(this))
-#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION
-              )),
+#endif  // SB_API_VERSION >= 6
+                     )),
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),

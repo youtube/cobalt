@@ -36,7 +36,7 @@ void BaseEventHandler(const SbEvent* event) {
   static MessageLoopForUI* g_loop = NULL;
   static bool g_started = false;
   switch (event->type) {
-#if SB_API_VERSION >= SB_PRELOAD_API_VERSION
+#if SB_API_VERSION >= 6
     case kSbEventTypePreload: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 
@@ -55,7 +55,7 @@ void BaseEventHandler(const SbEvent* event) {
       g_started = true;
       break;
     }
-#endif  // SB_API_VERSION >= SB_PRELOAD_API_VERSION
+#endif  // SB_API_VERSION >= 6
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
 

@@ -228,6 +228,7 @@ BrowserModule::BrowserModule(const GURL& url,
       web_module_loaded_(true /* manually_reset */,
                          false /* initially_signalled */),
       web_module_recreated_callback_(options_.web_module_recreated_callback),
+      navigate_count_(0),
       navigate_time_("Time.Browser.Navigate", 0,
                      "The last time a navigation occurred."),
       on_load_event_time_("Time.Browser.OnLoadEvent", 0,
@@ -280,6 +281,16 @@ BrowserModule::BrowserModule(const GURL& url,
       base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
 #endif
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
+
+  // Create the main web module layer.
+  main_web_module_layer_ =
+      render_tree_combiner_.CreateLayer(kMainWebModuleZIndex);
+  // Create the splash screen layer.
+  splash_screen_layer_ = render_tree_combiner_.CreateLayer(kSplashScreenZIndex);
+// Create the debug console layer.
+#if defined(ENABLE_DEBUG_CONSOLE)
+  debug_console_layer_ = render_tree_combiner_.CreateLayer(kDebugConsoleZIndex);
+#endif
 
   // Setup our main web module to have the H5VCC API injected into it.
   DCHECK(!ContainsKey(options_.web_module_options.injected_window_attributes,
@@ -407,30 +418,27 @@ void BrowserModule::Navigate(const GURL& url) {
 
   // Wait until after the old WebModule is destroyed before setting the navigate
   // time so that it won't be included in the time taken to load the URL.
+  ++navigate_count_;
   navigate_time_ = base::TimeTicks::Now().ToInternalValue();
 
   // Show a splash screen while we're waiting for the web page to load.
   const math::Size& viewport_size = GetViewportSize();
 
   DestroySplashScreen(base::TimeDelta());
-  base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
-  if (fallback_splash_screen_url_ ||
-      (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
-    // Create the splash screen layer.
-    if (render_tree_combiner_) {
-      splash_screen_layer_ =
-          render_tree_combiner_->CreateLayer(kSplashScreenZIndex);
+  if (options_.enable_splash_screen_on_reloads || navigate_count_ == 1) {
+    base::optional<std::string> key = SplashScreenCache::GetKeyForStartUrl(url);
+    if (fallback_splash_screen_url_ ||
+        (key && splash_screen_cache_->IsSplashScreenCached(*key))) {
+      splash_screen_.reset(new SplashScreen(
+          application_state_,
+          base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
+                     base::Unretained(this)),
+          &network_module_, viewport_size, GetResourceProvider(),
+          kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
+          splash_screen_cache_.get(),
+          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
+      lifecycle_observers_.AddObserver(splash_screen_.get());
     }
-
-    splash_screen_.reset(new SplashScreen(
-        application_state_,
-        base::Bind(&BrowserModule::QueueOnSplashScreenRenderTreeProduced,
-                   base::Unretained(this)),
-        &network_module_, viewport_size, GetResourceProvider(),
-        kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
-        splash_screen_cache_.get(),
-        base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
-    lifecycle_observers_.AddObserver(splash_screen_.get());
   }
 
   // Create new WebModule.
@@ -594,8 +602,7 @@ void BrowserModule::OnRenderTreeProduced(
   if (splash_screen_ && !splash_screen_->ShutdownSignaled()) {
     splash_screen_->Shutdown();
   }
-  if (application_state_ == base::kApplicationStatePreloading ||
-      !render_tree_combiner_ || !main_web_module_layer_) {
+  if (application_state_ == base::kApplicationStatePreloading) {
     return;
   }
 
@@ -610,7 +617,7 @@ void BrowserModule::OnRenderTreeProduced(
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
   if (!splash_screen_) {
-    render_tree_combiner_->SetTimelineLayer(main_web_module_layer_.get());
+    render_tree_combiner_.SetTimelineLayer(main_web_module_layer_.get());
   }
   main_web_module_layer_->Submit(renderer_submission);
 
@@ -628,7 +635,7 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
 
   if (application_state_ == base::kApplicationStatePreloading ||
-      !render_tree_combiner_ || !splash_screen_layer_) {
+      !splash_screen_) {
     return;
   }
 
@@ -654,7 +661,7 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
 
   renderer_submission.on_rasterized_callback = base::Bind(
       &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
-  render_tree_combiner_->SetTimelineLayer(splash_screen_layer_.get());
+  render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
 #if defined(ENABLE_SCREENSHOT)
@@ -750,8 +757,7 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::OnDebugConsoleRenderTreeProduced()");
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  if (application_state_ == base::kApplicationStatePreloading ||
-      !render_tree_combiner_ || !debug_console_layer_) {
+  if (application_state_ == base::kApplicationStatePreloading) {
     return;
   }
 
@@ -967,18 +973,16 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
   }
   if (splash_screen_) {
     lifecycle_observers_.RemoveObserver(splash_screen_.get());
-  }
-  if (splash_screen_layer_) {
-    if (!close_time.is_zero()) {
+    if (!close_time.is_zero() && renderer_module_) {
       // Ensure that the renderer renders each frame up until the window.close()
       // is called on the splash screen's timeline, in order to ensure that the
       // splash screen shutdown transition plays out completely.
       renderer_module_->pipeline()->TimeFence(close_time);
     }
-    splash_screen_layer_.reset(NULL);
+    splash_screen_layer_->Reset();
     SubmitCurrentRenderTreeToRenderer();
+    splash_screen_.reset(NULL);
   }
-  splash_screen_.reset(NULL);
 }
 
 #if defined(ENABLE_WEBDRIVER)
@@ -1208,16 +1212,6 @@ void BrowserModule::InitializeSystemWindow() {
       RendererModuleWithCameraOptions(options_.renderer_module_options,
                                       input_device_manager_->camera_3d())));
 
-  render_tree_combiner_.reset(new RenderTreeCombiner());
-  // Create the main web module layer.
-  main_web_module_layer_ =
-      render_tree_combiner_->CreateLayer(kMainWebModuleZIndex);
-// Create the debug console layer.
-#if defined(ENABLE_DEBUG_CONSOLE)
-  debug_console_layer_ =
-      render_tree_combiner_->CreateLayer(kDebugConsoleZIndex);
-#endif
-
 #if defined(ENABLE_SCREENSHOT)
   screen_shot_writer_.reset(new ScreenShotWriter(renderer_module_->pipeline()));
 #endif  // defined(ENABLE_SCREENSHOT)
@@ -1273,15 +1267,9 @@ void BrowserModule::SuspendInternal(bool is_start) {
 
   // Clear out the render tree combiner so that it doesn't hold on to any
   // render tree resources either.
-  if (main_web_module_layer_) {
-    main_web_module_layer_->Reset();
-  }
-  if (splash_screen_layer_) {
-    splash_screen_layer_->Reset();
-  }
-  if (debug_console_layer_) {
-    debug_console_layer_->Reset();
-  }
+  main_web_module_layer_->Reset();
+  splash_screen_layer_->Reset();
+  debug_console_layer_->Reset();
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Note that the following function call will leak the GPU memory allocated.
@@ -1414,8 +1402,12 @@ void BrowserModule::ApplyAutoMemSettings() {
 }
 
 void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
+  if (!renderer_module_) {
+    return;
+  }
+
   base::optional<renderer::Submission> submission =
-      render_tree_combiner_->GetCurrentSubmission();
+      render_tree_combiner_.GetCurrentSubmission();
   if (submission) {
     renderer_module_->pipeline()->Submit(*submission);
   }

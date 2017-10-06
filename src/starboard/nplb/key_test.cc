@@ -24,7 +24,7 @@ TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaRewind);
   EXPECT_NE(kSbKeyUnknown, kSbKeyMediaFastForward);
 
-#if SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+#if SB_API_VERSION >= 6
   EXPECT_NE(kSbKeyUnknown, kSbKeyRed);
   EXPECT_NE(kSbKeyUnknown, kSbKeyGreen);
   EXPECT_NE(kSbKeyUnknown, kSbKeyYellow);
@@ -33,8 +33,13 @@ TEST(SbKeyTest, CanReference) {
   EXPECT_NE(kSbKeyUnknown, kSbKeyChannelUp);
   EXPECT_NE(kSbKeyUnknown, kSbKeyChannelDown);
   EXPECT_NE(kSbKeyUnknown, kSbKeyClosedCaption);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyInfo);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyGuide);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyLast);
+  EXPECT_NE(kSbKeyUnknown, kSbKeyPreviousChannel);
   EXPECT_NE(kSbKeyUnknown, kSbKeyLaunchThisApplication);
-#endif  //  SB_API_VERSION >= SB_NEW_KEYCODES_API_VERSION
+  EXPECT_NE(kSbKeyUnknown, kSbKeyMediaAudioTrack);
+#endif  //  SB_API_VERSION >= 6
 }
 
 }  // namespace

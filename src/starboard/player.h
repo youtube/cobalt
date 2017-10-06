@@ -242,11 +242,11 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 // |audio_header|: Note that the caller must provide a populated |audio_header|
 //   if the audio codec is |kSbMediaAudioCodecAac|. Otherwise, |audio_header|
 //   can be NULL. See media.h for the format of the |SbMediaAudioHeader| struct.
-#if SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#if SB_API_VERSION >= 6
 //   Note that |audio_specific_config| is a pointer and the content it points to
 //   is no longer valid after this function returns.  The implementation has to
 //   make a copy of the content if it is needed after the function returns.
-#endif  // SB_API_VERSION >= SB_AUDIO_SPECIFIC_CONFIG_AS_POINTER
+#endif  // SB_API_VERSION >= 6
 //
 // |sample_deallocator_func|: If not |NULL|, the player calls this function
 //   on an internal thread to free the sample buffers passed into
@@ -377,13 +377,13 @@ SB_EXPORT void SbPlayerSeek(SbPlayer player,
 SB_EXPORT void SbPlayerWriteSample(
     SbPlayer player,
     SbMediaType sample_type,
-#if SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#if SB_API_VERSION >= 6
     const void* const* sample_buffers,
     const int* sample_buffer_sizes,
-#else   // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#else   // SB_API_VERSION >= 6
     const void** sample_buffers,
     int* sample_buffer_sizes,
-#endif  // SB_API_VERSION >= SB_PLAYER_WRITE_SAMPLE_EXTRA_CONST_API_VERSION
+#endif  // SB_API_VERSION >= 6
     int number_of_sample_buffers,
     SbMediaTime sample_pts,
     const SbMediaVideoSampleInfo* video_sample_info,

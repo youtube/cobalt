@@ -606,7 +606,7 @@ unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   if (state & ShiftMask) {
     key_modifiers |= kSbKeyModifiersShift;
   }
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
   if (state & Button1Mask) {
     key_modifiers |= kSbKeyModifiersPointerButtonLeft;
   }
@@ -626,7 +626,7 @@ unsigned int XEventStateToSbKeyModifiers(unsigned int state) {
   return key_modifiers;
 }
 
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
 SbInputVector XButtonEventToSbInputVectorDelta(XButtonEvent* event) {
   SbInputVector delta = {0, 0};
   switch (event->button) {
@@ -1178,7 +1178,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       XButtonEvent* x_button_event = reinterpret_cast<XButtonEvent*>(x_event);
       bool is_press_event = ButtonPress == x_event->type;
       bool is_wheel_event = XButtonEventIsWheelEvent(x_button_event);
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
       if (is_wheel_event && !is_press_event) {
         // unpress events from the wheel are discarded.
         return NULL;
@@ -1193,7 +1193,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
           is_press_event ? kSbInputEventTypePress : kSbInputEventTypeUnpress;
       data->device_type = kSbInputDeviceTypeMouse;
       if (is_wheel_event) {
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
         data->pressure = NAN;
         data->size = {NAN, NAN};
         data->tilt = {NAN, NAN};
@@ -1218,7 +1218,7 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       SbMemorySet(data.get(), 0, sizeof(*data));
       data->window = FindWindow(x_motion_event->window);
       SB_DCHECK(SbWindowIsValid(data->window));
-#if SB_API_VERSION >= SB_POINTER_INPUT_API_VERSION
+#if SB_API_VERSION >= 6
       data->pressure = NAN;
       data->size = {NAN, NAN};
       data->tilt = {NAN, NAN};
