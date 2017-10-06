@@ -19,6 +19,7 @@
 #include <string>
 
 #include "starboard/android/shared/application_android.h"
+#include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/log_file_impl.h"
 #include "starboard/file.h"
 #include "starboard/shared/starboard/command_line.h"
@@ -26,6 +27,7 @@
 using starboard::android::shared::ApplicationAndroid;
 using starboard::shared::starboard::CommandLine;
 using starboard::android::shared::CloseLogFile;
+using starboard::android::shared::JniEnvExt;
 
 namespace {
 
@@ -68,5 +70,6 @@ void SbSystemRequestStop(int error_level) {
 
   CloseLogFile();
 
-  ANativeActivity_finish(ApplicationAndroid::Get()->GetActivity());
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallActivityVoidMethodOrAbort("requestStop", "()V");
 }
