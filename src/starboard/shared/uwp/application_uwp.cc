@@ -84,8 +84,8 @@ using Windows::UI::Popups::UICommandInvokedHandler;
 
 namespace {
 
-const HdcpProtection kHDCPProtectionMode =
-    HdcpProtection::OnWithTypeEnforcement;
+// Per Microsoft, HdcpProtection::On means HDCP 1.x required.
+const HdcpProtection kHDCPProtectionMode = HdcpProtection::On;
 
 const int kWinSockVersionMajor = 2;
 const int kWinSockVersionMinor = 2;

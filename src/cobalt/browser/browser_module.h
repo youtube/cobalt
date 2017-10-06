@@ -75,8 +75,8 @@ class BrowserModule {
         : web_module_options(web_options),
           command_line_auto_mem_settings(
               memory_settings::AutoMemSettings::kTypeCommandLine),
-          build_auto_mem_settings(
-              memory_settings::AutoMemSettings::kTypeBuild) {}
+          build_auto_mem_settings(memory_settings::AutoMemSettings::kTypeBuild),
+          enable_splash_screen_on_reloads(true) {}
     network::NetworkModule::Options network_module_options;
     renderer::RendererModule::Options renderer_module_options;
     storage::StorageManager::Options storage_manager_options;
@@ -89,6 +89,7 @@ class BrowserModule {
     memory_settings::AutoMemSettings build_auto_mem_settings;
     base::optional<GURL> fallback_splash_screen_url;
     base::optional<math::Size> requested_viewport_size;
+    bool enable_splash_screen_on_reloads;
   };
 
   // Type for a collection of URL handler callbacks that can potentially handle
@@ -393,7 +394,7 @@ class BrowserModule {
   network::NetworkModule network_module_;
 
   // Manages the three render trees, combines and renders them.
-  scoped_ptr<RenderTreeCombiner> render_tree_combiner_;
+  RenderTreeCombiner render_tree_combiner_;
   scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
@@ -422,6 +423,9 @@ class BrowserModule {
   // This will be called after the WebModule has been destroyed and recreated,
   // which could occur on navigation.
   base::Closure web_module_recreated_callback_;
+
+  // The total number of navigations that have occurred.
+  int navigate_count_;
 
   // The time when a URL navigation starts. This is recorded after the previous
   // WebModule is destroyed.

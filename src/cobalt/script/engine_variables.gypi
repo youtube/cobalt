@@ -15,5 +15,6 @@
 {
   'includes': [
     'mozjs-45/mozjs-45_variables.gypi',
+    'v8c/v8c_variables.gypi',
   ],
 }
