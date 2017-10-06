@@ -20,7 +20,7 @@
 
 // The API version implemented by this platform. This will generally be set to
 // the current value of SB_MAXIMUM_API_VERSION at the time of implementation.
-#define SB_API_VERSION 6
+#define SB_API_VERSION 7
 
 // --- Architecture Configuration --------------------------------------------
 
