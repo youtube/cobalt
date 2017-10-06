@@ -73,18 +73,16 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
 void OpenLogFile(const char* path, const int creation_flags) {
   SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
             (creation_flags & kSbFileCreateAlways));
-  SB_DLOG(INFO) << "Logging to [" << path << "]";
-  SbMutexAcquire(&log_mutex);
-
   CloseLogFile();
+  SB_DLOG(INFO) << "Logging to [" << path << "]";
 
   int flags = creation_flags | kSbFileWrite;
 
+  SbMutexAcquire(&log_mutex);
   if ((path != nullptr) && (path != '\0')) {
     log_file = SbFileOpen(path, flags, nullptr, nullptr);
     SB_DCHECK(SbFileIsValid(log_file));
   }
-
   SbMutexRelease(&log_mutex);
 }
 
