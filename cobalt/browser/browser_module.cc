@@ -1269,7 +1269,9 @@ void BrowserModule::SuspendInternal(bool is_start) {
   // render tree resources either.
   main_web_module_layer_->Reset();
   splash_screen_layer_->Reset();
+#if defined(ENABLE_DEBUG_CONSOLE)
   debug_console_layer_->Reset();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Note that the following function call will leak the GPU memory allocated.
