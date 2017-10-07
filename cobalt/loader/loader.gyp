@@ -97,12 +97,6 @@
         'embed_resources_as_header_files',
       ],
       'conditions': [
-        ['target_arch == "ps3"', {
-          'sources': [
-            'image/jpeg_image_decoder_ps3.cc',
-            'image/jpeg_image_decoder_ps3.h',
-          ],
-        }],
         ['enable_about_scheme == 1', {
           'defines': [ 'ENABLE_ABOUT_SCHEME' ],
           'sources': [
