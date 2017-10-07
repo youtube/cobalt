@@ -110,8 +110,14 @@ void BlockContainerBox::UpdateContentHeightAndMargins(
     // it depends on content height), and this element is not absolutely
     // positioned, the value [of "height"] computes to "auto".
     //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
-    child_layout_params.containing_block_size.set_height(
-        maybe_height.value_or(LayoutUnit()));
+    if (maybe_height) {
+      child_layout_params.containing_block_size.set_height(*maybe_height);
+    } else if (maybe_top && maybe_bottom) {
+      child_layout_params.containing_block_size.set_height(
+          containing_block_size.height() - *maybe_top - *maybe_bottom);
+    } else {
+      child_layout_params.containing_block_size.set_height(LayoutUnit());
+    }
   }
   scoped_ptr<FormattingContext> formatting_context =
       UpdateRectOfInFlowChildBoxes(child_layout_params);
