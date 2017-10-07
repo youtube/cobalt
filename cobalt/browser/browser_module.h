@@ -396,8 +396,10 @@ class BrowserModule {
   // Manages the three render trees, combines and renders them.
   RenderTreeCombiner render_tree_combiner_;
   scoped_ptr<RenderTreeCombiner::Layer> main_web_module_layer_;
-  scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
   scoped_ptr<RenderTreeCombiner::Layer> splash_screen_layer_;
+#if defined(ENABLE_DEBUG_CONSOLE)
+  scoped_ptr<RenderTreeCombiner::Layer> debug_console_layer_;
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
 
 #if defined(ENABLE_SCREENSHOT)
   // Helper object to create screen shots of the last layout tree.
