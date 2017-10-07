@@ -613,6 +613,8 @@ ComputedPositionOffsetProvider::ComputedPositionOffsetProvider(
 class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedHeightProvider(const PropertyValue* parent_computed_height,
+                         const PropertyValue* parent_computed_top,
+                         const PropertyValue* parent_computed_bottom,
                          const LengthValue* computed_font_size,
                          const LengthValue* root_computed_font_size,
                          const math::Size& viewport_size, bool out_of_flow);
@@ -627,6 +629,8 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
 
  private:
   const PropertyValue* parent_computed_height_;
+  const PropertyValue* parent_computed_top_;
+  const PropertyValue* parent_computed_bottom_;
   const LengthValue* computed_font_size_;
   const LengthValue* root_computed_font_size_;
   const math::Size& viewport_size_;
@@ -639,10 +643,14 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
 
 ComputedHeightProvider::ComputedHeightProvider(
     const PropertyValue* parent_computed_height,
+    const PropertyValue* parent_computed_top,
+    const PropertyValue* parent_computed_bottom,
     const LengthValue* computed_font_size,
     const LengthValue* root_computed_font_size, const math::Size& viewport_size,
     bool out_of_flow)
     : parent_computed_height_(parent_computed_height),
+      parent_computed_top_(parent_computed_top),
+      parent_computed_bottom_(parent_computed_bottom),
       computed_font_size_(computed_font_size),
       root_computed_font_size_(root_computed_font_size),
       viewport_size_(viewport_size),
@@ -725,7 +733,10 @@ void ComputedHeightProvider::VisitPercentage(PercentageValue* percentage) {
   // (i.e., it depends on content height), and this element is not absolutely
   // positioned, the value computes to "auto".
   //   https://www.w3.org/TR/CSS21/visudet.html#the-height-property
-  computed_height_ = (parent_computed_height_ == auto_value && !out_of_flow_)
+  computed_height_ = (parent_computed_height_ == auto_value &&
+                      (parent_computed_top_ == auto_value ||
+                       parent_computed_bottom_ == auto_value) &&
+                      !out_of_flow_)
                          ? auto_value
                          : percentage;
 }
@@ -2858,7 +2869,9 @@ void CalculateComputedStyleContext::HandleSpecifiedValue(
     } break;
     case kHeightProperty: {
       ComputedHeightProvider height_provider(
-          parent_computed_style_.height().get(), GetFontSize(),
+          parent_computed_style_.height().get(),
+          parent_computed_style_.top().get(),
+          parent_computed_style_.bottom().get(), GetFontSize(),
           GetRootFontSize(), GetViewportSizeOnePercent(),
           IsAbsolutelyPositioned());
       (*value)->Accept(&height_provider);
