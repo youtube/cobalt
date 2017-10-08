@@ -74,6 +74,9 @@ class VideoRendererImpl : public VideoRenderer,
   //    no longer accept more data.
   static const size_t kMaxCachedFrames = 12;
 
+  // Advances the clock, potentially dropping any expired frames.
+  void AdvanceTime(SbMediaTime media_time, bool audio_eos_reached);
+
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
                              const scoped_refptr<VideoFrame>& frame)
