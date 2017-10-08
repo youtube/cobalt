@@ -94,20 +94,8 @@ scoped_refptr<VideoFrame> VideoRendererImpl::GetCurrentFrame(
   if (frames_.empty()) {
     return last_displayed_frame_;
   }
-  // Remove any frames with timestamps earlier than |media_time|, but always
-  // keep at least one of the frames.
-  while (frames_.size() > 1 && frames_.front()->pts() < media_time) {
-    if (frames_.front() != last_displayed_frame_) {
-      ++dropped_frames_;
-    }
-    frames_.pop_front();
-  }
 
-  if (audio_eos_reached) {
-    while (frames_.size() > 1) {
-      frames_.pop_back();
-    }
-  }
+  AdvanceTime(media_time, audio_eos_reached);
 
   last_displayed_frame_ = frames_.front();
   return last_displayed_frame_;
@@ -157,11 +145,30 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
   need_more_input_ = (status == VideoDecoder::kNeedMoreInput);
 }
 
+void VideoRendererImpl::AdvanceTime(
+    SbMediaTime media_time, bool audio_eos_reached) {
+  while (frames_.size() > 1 && frames_.front()->pts() < media_time) {
+    if (frames_.front() != last_displayed_frame_) {
+      ++dropped_frames_;
+    }
+    frames_.pop_front();
+  }
+
+  if (audio_eos_reached) {
+    while (frames_.size() > 1) {
+      frames_.pop_back();
+    }
+  }
+}
+
 SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget(
     SbMediaTime media_time,
     bool audio_eos_reached) {
-  SB_UNREFERENCED_PARAMETER(media_time);
-  SB_UNREFERENCED_PARAMETER(audio_eos_reached);
+  {
+    ScopedLock lock(mutex_);
+    AdvanceTime(media_time, audio_eos_reached);
+  }
+
   if (decoder_) {
     return decoder_->GetCurrentDecodeTarget();
   } else {
