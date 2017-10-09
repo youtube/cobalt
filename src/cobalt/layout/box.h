@@ -699,8 +699,13 @@ class Box : public base::RefCounted<Box> {
   // Updates used values of "padding" properties.
   void UpdatePaddings(const LayoutParams& layout_params);
 
-  // Computes the rounded corners (if there are any) from the border radii.
-  base::optional<render_tree::RoundedCorners> ComputeRoundedCorners();
+  // Computes the normalized "outer" rounded corners (if there are any) from the
+  // border radii.
+  base::optional<render_tree::RoundedCorners> ComputeRoundedCorners() const;
+
+  // Computes the corresponding "inner" rounded corners.
+  base::optional<render_tree::RoundedCorners> ComputePaddingRoundedCorners(
+      const base::optional<render_tree::RoundedCorners>& rounded_corners) const;
 
   // Called after TryPlaceEllipsisOrProcessPlacedEllipsis() determines that the
   // box is impacted by the ellipsis. This handles both determining the location
@@ -736,7 +741,8 @@ class Box : public base::RefCounted<Box> {
   RenderAndAnimateBackgroundImageResult RenderAndAnimateBackgroundImage(
       const base::optional<render_tree::RoundedCorners>& rounded_corners);
   void RenderAndAnimateBoxShadow(
-      const base::optional<render_tree::RoundedCorners>& rounded_corners,
+      const base::optional<render_tree::RoundedCorners>& outer_rounded_corners,
+      const base::optional<render_tree::RoundedCorners>& inner_rounded_corners,
       render_tree::CompositionNode::Builder* border_node_builder,
       render_tree::animations::AnimateNode::Builder* animate_node_builder);
 

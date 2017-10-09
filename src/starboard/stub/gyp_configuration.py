@@ -46,3 +46,11 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         'CXX': self.host_compiler_environment['CXX_host'],
     })
     return env_variables
+
+  def GetTestFilters(self):
+    """Gets all tests to be excluded from a unit test run.
+
+    Returns:
+      A list of initialized TestFilter objects.
+    """
+    return []

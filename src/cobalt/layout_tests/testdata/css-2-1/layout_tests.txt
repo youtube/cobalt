@@ -43,6 +43,7 @@
 10-4-min-width-and-max-width-percentage-should-refer-containing-block-width
 10-5-percentage-of-auto-height-on-absolute-element-should-compute-to-percentage
 10-5-percentage-of-auto-height-should-compute-to-auto
+10-5-percentage-of-height-should-work-properly-with-top-and-bottom
 10-6-1-content-height-of-inline-boxes-matches-font-size
 10-6-2-replaced-box-height
 10-8-1-inline-box-with-non-normal-line-height-should-use-first-available-font-for-font-metrics

@@ -17,14 +17,19 @@
 #include <stdio.h>
 #include <windows.h>
 
+#include "starboard/shared/win32/log_file_impl.h"
+
 static const int kMaxLogLineChars = 16 * 1024;
+
+namespace sbwin32 = starboard::shared::win32;
 
 void SbLogRawFormat(const char* format, va_list arguments) {
   vfprintf(stderr, format, arguments);
   char log_buffer[kMaxLogLineChars];
   int result = vsprintf_s(log_buffer, kMaxLogLineChars, format, arguments);
-  if (result >= 0) {
+  if (result > 0) {
     OutputDebugStringA(log_buffer);
+    sbwin32::WriteToLogFile(log_buffer, result);
   } else {
     OutputDebugStringA("[log line too long]");
   }

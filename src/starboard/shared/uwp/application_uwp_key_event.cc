@@ -21,8 +21,6 @@
 using Windows::UI::Core::CoreWindow;
 using Windows::UI::Core::KeyEventArgs;
 using Windows::UI::Core::CoreVirtualKeyStates;
-using Windows::Security::ExchangeActiveSyncProvisioning::
-    EasClientDeviceInformation;
 using Windows::System::VirtualKey;
 
 namespace {
@@ -255,11 +253,7 @@ void ApplicationUwp::OnKeyEvent(
 
   data->window = window_;
   data->device_type = kSbInputDeviceTypeKeyboard;
-  // TODO: Devices might have colliding hashcodes. Some other unique int
-  // ID generation tool would be better.
-  auto device_information = ref new EasClientDeviceInformation();
-  Platform::String^ device_id_string = device_information->Id.ToString();
-  data->device_id = device_id_string->GetHashCode();
+  data->device_id = device_id();
   data->key = VirtualKeyToSbKey(args->VirtualKey);
 
   if (up) {

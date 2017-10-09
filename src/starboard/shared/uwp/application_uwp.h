@@ -20,11 +20,14 @@
 #include <unordered_map>
 
 #include "starboard/configuration.h"
+#include "starboard/input.h"
+#include "starboard/key.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/command_line.h"
 #include "starboard/shared/starboard/localized_strings.h"
+#include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/types.h"
 #include "starboard/window.h"
 
@@ -37,7 +40,16 @@ using Windows::Media::Protection::HdcpSession;
 // Returns win32's GetModuleFileName(). For cases where we'd like an argv[0].
 std::string GetArgvZero();
 
-class ApplicationUwp : public shared::starboard::Application {
+// Including <agile.h>, will eventually include <windows.h>, which includes
+// C:\Program Files (x86)\Windows Kits\10\Include\10.0.15063.0\um\processenv.h,
+// line 164 in processenv.h redefines GetCommandLine to GetCommandLineW if
+// UNICODE is defined.
+// This function was added so that it could be used as a work around when
+// GetCommandLine() needed to be called.
+starboard::CommandLine* GetCommandLinePointer(starboard::Application* app);
+
+class ApplicationUwp : public shared::starboard::Application,
+                       private AnalogThumbstickThread::Callback {
  public:
   ApplicationUwp();
   ~ApplicationUwp() SB_OVERRIDE;
@@ -117,6 +129,9 @@ class ApplicationUwp : public shared::starboard::Application {
   TimedEvent* GetNextDueTimedEvent() SB_OVERRIDE;
   SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE;
 
+  int device_id() const { return device_id_; }
+  void OnJoystickUpdate(SbKey key, SbInputVector value) SB_OVERRIDE;
+
   // These two functions should only be called while holding
   // |hdcp_session_mutex_|.
   Windows::Media::Protection::HdcpSession^ GetHdcpSession();
@@ -133,9 +148,13 @@ class ApplicationUwp : public shared::starboard::Application {
   std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
     timer_event_map_;
 
+  int device_id_;
+
   // |hdcp_session_| is locked by |hdcp_session_mutex_|.
   Mutex hdcp_session_mutex_;
   Windows::Media::Protection::HdcpSession^ hdcp_session_;
+
+  scoped_ptr<AnalogThumbstickThread> analog_thumbstick_thread_;
 };
 
 }  // namespace uwp

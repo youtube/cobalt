@@ -640,6 +640,11 @@ void HardwareRasterizer::Impl::Submit(
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
+  // Make sure the render target's framebuffer is bound before continuing.
+  // Skia will usually do this, but it is possible for some render trees to
+  // have non-skia draw calls only, in which case this needs to be done.
+  GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER,
+                            render_target_egl->GetPlatformHandle()));
 
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.

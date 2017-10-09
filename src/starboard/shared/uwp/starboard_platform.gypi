@@ -14,7 +14,12 @@
 {
   'variables': {
     'starboard_platform_dependent_files': [
+      'analog_thumbstick_input.cc',
+      'analog_thumbstick_input.h',
+      'analog_thumbstick_input_thread.cc',
+      'analog_thumbstick_input_thread.h',
       'application_uwp_key_event.cc',
+      'application_uwp_get_commandline_pointer.cc',
       'application_uwp.cc',
       'application_uwp.h',
       'async_utils.h',

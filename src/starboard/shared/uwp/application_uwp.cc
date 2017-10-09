@@ -25,13 +25,16 @@
 #include <vector>
 
 #include "starboard/event.h"
+#include "starboard/input.h"
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/shared/uwp/async_utils.h"
 #include "starboard/shared/uwp/window_internal.h"
+#include "starboard/shared/win32/log_file_impl.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
@@ -91,8 +94,19 @@ const int kWinSockVersionMajor = 2;
 const int kWinSockVersionMinor = 2;
 
 const char kDialParamPrefix[] = "cobalt-dial:?";
+const char kLogPathSwitch[] = "xb1_log_file";
 
 int main_return_value = 0;
+
+int MakeDeviceId() {
+  // TODO: Devices MIGHT have colliding hashcodes. Some other unique int
+  // ID generation tool would be better.
+  using Windows::Security::ExchangeActiveSyncProvisioning::
+      EasClientDeviceInformation;
+  auto device_information = ref new EasClientDeviceInformation();
+  Platform::String ^ device_id_string = device_information->Id.ToString();
+  return device_id_string->GetHashCode();
+}
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
@@ -147,6 +161,16 @@ bool ends_with(const std::string& full_string, const std::string& substring) {
     return false;
   }
   return std::equal(substring.rbegin(), substring.rend(), full_string.rbegin());
+}
+
+std::string GetBinaryName() {
+  std::string full_binary_path = GetArgvZero();
+  std::string::size_type index = full_binary_path.rfind(SB_FILE_SEP_CHAR);
+  if (index == std::string::npos) {
+    return full_binary_path;
+  }
+
+  return full_binary_path.substr(index + 1);
 }
 
 }  // namespace
@@ -274,7 +298,7 @@ ref class App sealed : public IFrameworkView {
   virtual void Uninitialize() { SbAudioSinkPrivate::TearDown(); }
 
   void OnSuspending(Platform::Object^ sender, SuspendingEventArgs^ args) {
-    SB_DLOG(INFO) << "Suspending";
+    SB_DLOG(INFO) << "Suspending application.";
     // Note if we dispatch "suspend" here before pause, application.cc
     // will inject the "pause" which will cause us to go async which
     // will cause us to not have completed the suspend operation before
@@ -380,6 +404,17 @@ ref class App sealed : public IFrameworkView {
         ApplicationUwp::Get()->SetCommandLine(
             static_cast<int>(argv_.size()), argv_.data());
       }
+
+      ApplicationUwp* application_uwp = ApplicationUwp::Get();
+      CommandLine* command_line =
+          ::starboard::shared::uwp::GetCommandLinePointer(application_uwp);
+      if (command_line->HasSwitch(kLogPathSwitch)) {
+        std::string switch_val = command_line->GetSwitchValue(kLogPathSwitch);
+        sbwin32::OpenLogInCacheDirectory(switch_val.c_str(),
+                                         kSbFileCreateAlways);
+      }
+      SB_LOG(INFO) << "Starting " << GetBinaryName();
+
       CoreWindow::GetForCurrentThread()->Activate();
       // Call DispatchStart async so the UWP system thinks we're activated.
       // Some tools seem to want the application to be activated before
@@ -456,7 +491,7 @@ namespace uwp {
 // If an argv[0] is required, fill it in with the result of
 // GetModuleFileName()
 std::string GetArgvZero() {
-  const size_t kMaxModuleNameSize = 256;
+  const size_t kMaxModuleNameSize = SB_FILE_MAX_NAME;
   wchar_t buffer[kMaxModuleNameSize];
   DWORD result = GetModuleFileName(NULL, buffer, kMaxModuleNameSize);
   std::string arg;
@@ -469,9 +504,15 @@ std::string GetArgvZero() {
 }
 
 ApplicationUwp::ApplicationUwp()
-    : window_(kSbWindowInvalid), localized_strings_(SbSystemGetLocaleId()) {}
+    : window_(kSbWindowInvalid),
+      localized_strings_(SbSystemGetLocaleId()),
+      device_id_(MakeDeviceId()) {
+  analog_thumbstick_thread_.reset(new AnalogThumbstickThread(this));
+}
 
-ApplicationUwp::~ApplicationUwp() {}
+ApplicationUwp::~ApplicationUwp() {
+  analog_thumbstick_thread_.reset(nullptr);
+}
 
 void ApplicationUwp::Initialize() {}
 
@@ -595,6 +636,42 @@ SbTimeMonotonic ApplicationUwp::GetNextTimedEventTargetTime() {
   SB_NOTIMPLEMENTED();
   return 0;
 }
+
+void ApplicationUwp::OnJoystickUpdate(SbKey key, SbInputVector input_vector) {
+  scoped_ptr<SbInputData> data(new SbInputData());
+  SbMemorySet(data.get(), 0, sizeof(*data));
+  data->window = window_;
+  data->type = kSbInputEventTypeMove;
+  data->device_type = kSbInputDeviceTypeGamepad;
+  data->device_id = device_id();
+  data->key = key;
+  data->character = 0;
+
+  data->key_modifiers = kSbKeyModifiersNone;
+  data->position = input_vector;
+
+  SbKeyLocation key_location = kSbKeyLocationUnspecified;
+  switch (key) {
+    case kSbKeyGamepadLeftStickLeft:
+    case kSbKeyGamepadLeftStickUp: {
+      key_location = kSbKeyLocationLeft;
+      break;
+    }
+    case kSbKeyGamepadRightStickLeft:
+    case kSbKeyGamepadRightStickUp: {
+      key_location = kSbKeyLocationRight;
+    }
+    default: {
+      SB_NOTREACHED();
+      break;
+    }
+  }
+
+  data->key_location = key_location;
+  Inject(new Event(kSbEventTypeInput, data.release(),
+                   &Application::DeleteDestructor<SbInputData>));
+}
+
 SbSystemPlatformError ApplicationUwp::OnSbSystemRaisePlatformError(
     SbSystemPlatformErrorType type,
     SbSystemPlatformErrorCallback callback,
