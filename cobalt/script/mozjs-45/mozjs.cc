@@ -60,7 +60,7 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 }
 
 int MozjsMain(int argc, char** argv) {
-  cobalt::script::StandaloneJavascriptRunner standalone_runner();
+  cobalt::script::StandaloneJavascriptRunner standalone_runner;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(
           standalone_runner.global_environment().get());
