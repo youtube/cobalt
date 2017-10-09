@@ -20,6 +20,7 @@
 #include "starboard/media.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/media/media_util.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/mock_audio_decoder.h"
 #include "starboard/thread.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -66,9 +67,10 @@ class AudioRendererImplTest : public ::testing::Test {
                                           kDefaultSamplesPerSecond);
     EXPECT_CALL(*audio_decoder_, Initialize(_))
         .WillOnce(SaveArg<0>(&output_cb_));
-    audio_renderer_.reset(
-        new AudioRendererImpl(make_scoped_ptr<AudioDecoder>(audio_decoder_),
-                              GetDefaultAudioHeader()));
+    audio_renderer_.reset(new AudioRendererImpl(
+        make_scoped_ptr<AudioDecoder>(audio_decoder_),
+        make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
+        GetDefaultAudioHeader()));
   }
 
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) {

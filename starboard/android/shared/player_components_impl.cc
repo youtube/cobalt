@@ -20,6 +20,7 @@
 #include "starboard/android/shared/video_renderer.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 
 namespace starboard {
 namespace shared {
@@ -55,12 +56,13 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                            audio_parameters.audio_header);
+  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+      make_scoped_ptr<AudioDecoder>(audio_decoder),
+      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
+      audio_parameters.audio_header);
 
   VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass(),
+      new VideoRendererImpl(make_scoped_ptr<VideoDecoderImpl>(video_decoder),
                             static_cast<MediaSynchronizer*>(audio_renderer));
 
   return scoped_ptr<PlayerComponents>(

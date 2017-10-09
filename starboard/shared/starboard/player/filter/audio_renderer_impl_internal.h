@@ -18,7 +18,6 @@
 #include <vector>
 
 #include "starboard/atomic.h"
-#include "starboard/audio_sink.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -28,6 +27,7 @@
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_resampler.h"
 #include "starboard/shared/starboard/player/filter/audio_time_stretcher.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -42,9 +42,12 @@ namespace filter {
 
 // A default implementation of |AudioRenderer| that only depends on the
 // |AudioDecoder| interface, rather than a platform specific implementation.
-class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
+class AudioRendererImpl : public AudioRenderer,
+                          private AudioRendererSink::RenderCallback,
+                          private JobQueue::JobOwner {
  public:
   AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
+                    scoped_ptr<AudioRendererSink> audio_renderer_sink,
                     const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
@@ -100,12 +103,14 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   // the sink buffer.
   static const size_t kFrameAppendUnit = 16384;
 
+  // AudioRendererSink methods
+  void OnUpdateSourceStatus(int* frames_in_buffer,
+                            int* offset_in_frames,
+                            bool* is_playing,
+                            bool* is_eos_reached) SB_OVERRIDE;
+  void OnConsumeFrames(int frames_consumed) SB_OVERRIDE;
+
   void CreateAudioSinkAndResampler();
-  void UpdateSourceStatus(int* frames_in_buffer,
-                          int* offset_in_frames,
-                          bool* is_playing,
-                          bool* is_eos_reached);
-  void ConsumeFrames(int frames_consumed);
   void LogFramesConsumed();
 
   void OnDecoderConsumed();
@@ -114,14 +119,6 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   void FillResamplerAndTimeStretcher();
   bool AppendAudioToFrameBuffer();
 
-  // SbAudioSink callbacks
-  static void UpdateSourceStatusFunc(int* frames_in_buffer,
-                                     int* offset_in_frames,
-                                     bool* is_playing,
-                                     bool* is_eos_reached,
-                                     void* context);
-  static void ConsumeFramesFunc(int frames_consumed, void* context);
-
   atomic_int32_t eos_state_;
   const int channels_;
   const SbMediaAudioSampleType sink_sample_type_;
@@ -129,15 +126,12 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
 
   scoped_ptr<AudioResampler> resampler_;
   AudioTimeStretcher time_stretcher_;
-  double volume_;
 
   std::vector<uint8_t> frame_buffer_;
   uint8_t* frame_buffers_[1];
 
   int32_t pending_decoder_outputs_;
   Closure log_frames_consumed_closure_;
-
-  SbAudioSink audio_sink_;
 
   bool can_accept_more_data_;
   bool process_audio_data_scheduled_;
@@ -149,6 +143,8 @@ class AudioRendererImpl : public AudioRenderer, private JobQueue::JobOwner {
   // performance by keeping track of whether we already have a fresh decoder,
   // and can thus avoid doing a full reset.
   bool decoder_needs_full_reset_;
+
+  scoped_ptr<AudioRendererSink> audio_renderer_sink_;
 };
 
 }  // namespace filter
