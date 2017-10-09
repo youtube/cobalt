@@ -53,7 +53,7 @@
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-#define SB_RELEASE_CANDIDATE_API_VERSION 6
+#define SB_RELEASE_CANDIDATE_API_VERSION 7
 
 // --- Experimental Feature Defines ------------------------------------------
 
