@@ -17,7 +17,6 @@
 #include <algorithm>
 
 #include "starboard/memory.h"
-#include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
 #include "starboard/shared/starboard/media/media_util.h"
 
 namespace starboard {
@@ -56,22 +55,25 @@ class IdentityAudioResampler : public AudioResampler {
 // when float32 is not supported.  To use kSbMediaAudioSampleTypeFloat32 will
 // cause an extra conversion from float32 to int16 before the samples are sent
 // to the audio sink.
-SbMediaAudioSampleType GetSinkAudioSampleType() {
-  return SbAudioSinkIsAudioSampleTypeSupported(kSbMediaAudioSampleTypeFloat32)
+SbMediaAudioSampleType GetSinkAudioSampleType(
+    AudioRendererSink* audio_renderer_sink) {
+  return audio_renderer_sink->IsAudioSampleTypeSupported(
+             kSbMediaAudioSampleTypeFloat32)
              ? kSbMediaAudioSampleTypeFloat32
              : kSbMediaAudioSampleTypeInt16;
 }
 
 }  // namespace
 
-AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
-                                     const SbMediaAudioHeader& audio_header)
+AudioRendererImpl::AudioRendererImpl(
+    scoped_ptr<AudioDecoder> decoder,
+    scoped_ptr<AudioRendererSink> audio_renderer_sink,
+    const SbMediaAudioHeader& audio_header)
     : eos_state_(kEOSNotReceived),
       channels_(audio_header.number_of_channels),
-      sink_sample_type_(GetSinkAudioSampleType()),
+      sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
       bytes_per_frame_(media::GetBytesPerSample(sink_sample_type_) * channels_),
       playback_rate_(1.0),
-      volume_(1.0),
       paused_(true),
       consume_frames_called_(false),
       seeking_(false),
@@ -82,12 +84,12 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
       frames_consumed_by_sink_(0),
       frames_consumed_set_at_(SbTimeGetMonotonicNow()),
       decoder_(decoder.Pass()),
-      audio_sink_(kSbAudioSinkInvalid),
       can_accept_more_data_(true),
       process_audio_data_scheduled_(false),
       process_audio_data_closure_(
           Bind(&AudioRendererImpl::ProcessAudioData, this)),
-      decoder_needs_full_reset_(false) {
+      decoder_needs_full_reset_(false),
+      audio_renderer_sink_(audio_renderer_sink.Pass()) {
   SB_DCHECK(decoder_ != NULL);
 
   frame_buffers_[0] = &frame_buffer_[0];
@@ -109,16 +111,13 @@ AudioRendererImpl::AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
   // ensure that implicit HEAAC is properly handled.
   int source_sample_rate = decoder_->GetSamplesPerSecond();
   int destination_sample_rate =
-      SbAudioSinkGetNearestSupportedSampleFrequency(source_sample_rate);
+      audio_renderer_sink_->GetNearestSupportedSampleFrequency(
+          source_sample_rate);
   time_stretcher_.Initialize(channels_, destination_sample_rate);
 }
 
 AudioRendererImpl::~AudioRendererImpl() {
   SB_DCHECK(BelongsToCurrentThread());
-
-  if (audio_sink_ != kSbAudioSinkInvalid) {
-    SbAudioSinkDestroy(audio_sink_);
-  }
 }
 
 void AudioRendererImpl::WriteSample(
@@ -180,10 +179,11 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
 
   playback_rate_.store(playback_rate);
 
-  if (audio_sink_) {
+  audio_renderer_sink_->SetPlaybackRate(playback_rate_.load() > 0.0 ? 1.0
+                                                                    : 0.0);
+  if (audio_renderer_sink_->HasStarted()) {
     // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
     // support play/pause.
-    audio_sink_->SetPlaybackRate(playback_rate_.load() > 0.0 ? 1.0 : 0.0);
     if (playback_rate_.load() > 0.0) {
       if (process_audio_data_scheduled_) {
         Remove(process_audio_data_closure_);
@@ -195,22 +195,17 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
 
 void AudioRendererImpl::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
-  volume_ = volume;
-  if (audio_sink_) {
-    audio_sink_->SetVolume(volume_);
-  }
+  audio_renderer_sink_->SetVolume(volume);
 }
 
 void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_pts >= 0);
 
-  SbAudioSinkDestroy(audio_sink_);
+  audio_renderer_sink_->Stop();
 
-  // Now the sink is destroyed and the callbacks will no longer be called, so
-  // the following modifications are safe without lock.
-  audio_sink_ = kSbAudioSinkInvalid;
-
+  // Now the sink is stopped and the callbacks will no longer be called, so the
+  // following modifications are safe without lock.
   if (resampler_) {
     resampler_.reset();
     time_stretcher_.FlushBuffers();
@@ -285,13 +280,40 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
          frames_played * kSbMediaTimeSecond / samples_per_second;
 }
 
+void AudioRendererImpl::OnUpdateSourceStatus(int* frames_in_buffer,
+                                             int* offset_in_frames,
+                                             bool* is_playing,
+                                             bool* is_eos_reached) {
+  *is_eos_reached = eos_state_.load() >= kEOSSentToSink;
+
+  *is_playing = !paused_.load() && !seeking_.load();
+
+  if (*is_playing) {
+    *frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
+                                         frames_consumed_by_sink_.load());
+    *offset_in_frames = frames_consumed_by_sink_.load() % kMaxCachedFrames;
+  } else {
+    *frames_in_buffer = *offset_in_frames = 0;
+  }
+}
+
+void AudioRendererImpl::OnConsumeFrames(int frames_consumed) {
+  frames_consumed_by_sink_.fetch_add(frames_consumed);
+  SB_DCHECK(frames_consumed_by_sink_.load() <= frames_sent_to_sink_.load());
+  frames_consumed_by_sink_since_last_get_current_time_.fetch_add(
+      frames_consumed);
+  frames_consumed_set_at_.store(SbTimeGetMonotonicNow());
+  consume_frames_called_.store(true);
+}
+
 void AudioRendererImpl::CreateAudioSinkAndResampler() {
   int source_sample_rate = decoder_->GetSamplesPerSecond();
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
 
   int destination_sample_rate =
-      SbAudioSinkGetNearestSupportedSampleFrequency(source_sample_rate);
+      audio_renderer_sink_->GetNearestSupportedSampleFrequency(
+          source_sample_rate);
 
   // AudioTimeStretcher only supports interleaved float32 samples.
   if (source_sample_rate != destination_sample_rate ||
@@ -308,44 +330,12 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
   }
 
   // TODO: Support planar only audio sink.
-  audio_sink_ = SbAudioSinkCreate(
+  audio_renderer_sink_->Start(
       channels_, destination_sample_rate, sink_sample_type_,
       kSbMediaAudioFrameStorageTypeInterleaved,
       reinterpret_cast<SbAudioSinkFrameBuffers>(frame_buffers_),
-      kMaxCachedFrames, &AudioRendererImpl::UpdateSourceStatusFunc,
-      &AudioRendererImpl::ConsumeFramesFunc, this);
-  SB_DCHECK(SbAudioSinkIsValid(audio_sink_));
-
-  // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
-  // support play/pause.
-  audio_sink_->SetPlaybackRate(playback_rate_.load() > 0.0 ? 1.0 : 0.0);
-  audio_sink_->SetVolume(volume_);
-}
-
-void AudioRendererImpl::UpdateSourceStatus(int* frames_in_buffer,
-                                           int* offset_in_frames,
-                                           bool* is_playing,
-                                           bool* is_eos_reached) {
-  *is_eos_reached = eos_state_.load() >= kEOSSentToSink;
-
-  *is_playing = !paused_.load() && !seeking_.load();
-
-  if (*is_playing) {
-    *frames_in_buffer = static_cast<int>(frames_sent_to_sink_.load() -
-                                         frames_consumed_by_sink_.load());
-    *offset_in_frames = frames_consumed_by_sink_.load() % kMaxCachedFrames;
-  } else {
-    *frames_in_buffer = *offset_in_frames = 0;
-  }
-}
-
-void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
-  frames_consumed_by_sink_.fetch_add(frames_consumed);
-  SB_DCHECK(frames_consumed_by_sink_.load() <= frames_sent_to_sink_.load());
-  frames_consumed_by_sink_since_last_get_current_time_.fetch_add(
-      frames_consumed);
-  frames_consumed_set_at_.store(SbTimeGetMonotonicNow());
-  consume_frames_called_.store(true);
+      kMaxCachedFrames, this);
+  SB_DCHECK(audio_renderer_sink_->HasStarted());
 }
 
 void AudioRendererImpl::LogFramesConsumed() {
@@ -388,7 +378,7 @@ void AudioRendererImpl::OnDecoderOutput() {
 void AudioRendererImpl::ProcessAudioData() {
   process_audio_data_scheduled_ = false;
 
-  if (!SbAudioSinkIsValid(audio_sink_)) {
+  if (!audio_renderer_sink_->HasStarted()) {
     CreateAudioSinkAndResampler();
   }
 
@@ -516,31 +506,6 @@ bool AudioRendererImpl::AppendAudioToFrameBuffer() {
   frames_sent_to_sink_.fetch_add(frames_appended);
 
   return frames_appended > 0;
-}
-
-// static
-void AudioRendererImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
-                                               int* offset_in_frames,
-                                               bool* is_playing,
-                                               bool* is_eos_reached,
-                                               void* context) {
-  AudioRendererImpl* audio_renderer = static_cast<AudioRendererImpl*>(context);
-  SB_DCHECK(audio_renderer);
-  SB_DCHECK(frames_in_buffer);
-  SB_DCHECK(offset_in_frames);
-  SB_DCHECK(is_playing);
-  SB_DCHECK(is_eos_reached);
-
-  audio_renderer->UpdateSourceStatus(frames_in_buffer, offset_in_frames,
-                                     is_playing, is_eos_reached);
-}
-
-// static
-void AudioRendererImpl::ConsumeFramesFunc(int frames_consumed, void* context) {
-  AudioRendererImpl* audio_renderer = static_cast<AudioRendererImpl*>(context);
-  SB_DCHECK(audio_renderer);
-
-  audio_renderer->ConsumeFrames(frames_consumed);
 }
 
 }  // namespace filter

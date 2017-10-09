@@ -19,6 +19,7 @@
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 namespace starboard {
@@ -67,9 +68,10 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     video_decoder.reset(ffmpeg_video_decoder);
   }
 
-  AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                            audio_parameters.audio_header);
+  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+      make_scoped_ptr<AudioDecoder>(audio_decoder),
+      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
+      audio_parameters.audio_header);
   VideoRendererImpl* video_renderer =
       new VideoRendererImpl(video_decoder.Pass());
 
