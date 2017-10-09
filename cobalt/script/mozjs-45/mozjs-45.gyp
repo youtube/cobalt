@@ -20,7 +20,6 @@
       'sources': [
         'conversion_helpers.cc',
         'mozjs_callback_interface.cc',
-        'mozjs_debugger.cc',
         'mozjs_engine.cc',
         'mozjs_exception_state.cc',
         'mozjs_global_environment.cc',
@@ -40,6 +39,7 @@
         'weak_heap_object_manager.h',
         'wrapper_factory.cc',
         'wrapper_private.cc',
+        '<(DEPTH)/cobalt/script/shared/stub_script_debugger.cc',
       ],
       'dependencies': [
         '<(DEPTH)/cobalt/script/script.gyp:script',
