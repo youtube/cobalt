@@ -24,6 +24,7 @@
         'v8c_global_environment.h',
         'v8c_source_code.cc',
         'v8c_source_code.h',
+        '<(DEPTH)/cobalt/script/shared/stub_script_debugger.cc',
       ],
       'dependencies': [
         '<(DEPTH)/v8/src/v8.gyp:v8',
