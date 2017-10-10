@@ -23,7 +23,6 @@ import gyp_utils
 import sdk_utils
 import starboard.tools.testing.test_filter as test_filter
 
-
 class PlatformConfig(config.starboard.PlatformConfigStarboard):
   """Starboard Android platform configuration."""
 

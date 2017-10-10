@@ -66,6 +66,9 @@ class RaspiPlatformConfig(config.starboard.PlatformConfigStarboard):
     })
     return env_variables
 
+  def WebdriverBenchmarksEnabled(self):
+    return True
+
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 
