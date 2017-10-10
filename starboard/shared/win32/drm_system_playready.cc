@@ -14,6 +14,7 @@
 
 #include "starboard/shared/win32/drm_system_playready.h"
 
+#include <cctype>
 #include <sstream>
 
 #include "starboard/configuration.h"
@@ -33,19 +34,39 @@ const bool kEnablePlayreadyLog = false;
 const bool kEnablePlayreadyLog = true;
 #endif  // defined(COBALT_BUILD_TYPE_GOLD)
 
-std::string GetHexRepresentation(const GUID& guid) {
+std::string GetHexRepresentation(const void* data, size_t size) {
   const char kHex[] = "0123456789ABCDEF";
 
-  std::stringstream ss;
-  const uint8_t* binary = reinterpret_cast<const uint8_t*>(&guid);
-  for (size_t i = 0; i < sizeof(guid); ++i) {
-    if (i != 0) {
-      ss << ' ';
+  std::stringstream representation;
+  std::stringstream ascii;
+  const uint8_t* binary = static_cast<const uint8_t*>(data);
+  bool new_line = true;
+  for (size_t i = 0; i < size; ++i) {
+    if (new_line) {
+      new_line = false;
+    } else {
+      representation << ' ';
     }
-    ss << kHex[binary[i] / 16] << kHex[binary[i] % 16];
+    ascii << (std::isprint(binary[i]) ? static_cast<char>(binary[i]) : '?');
+    representation << kHex[binary[i] / 16] << kHex[binary[i] % 16];
+    if (i % 16 == 15 && i != size - 1) {
+      representation << " (" << ascii.str() << ')' << std::endl;
+      std::stringstream empty;
+      ascii.swap(empty);  // Clear the ascii stream
+      new_line = true;
+    }
   }
 
-  return ss.str();
+  if (!ascii.str().empty()) {
+    representation << '(' << ascii.str() << ')' << std::endl;
+  }
+
+  return representation.str();
+}
+
+template <typename T>
+std::string GetHexRepresentation(const T& value) {
+  return GetHexRepresentation(&value, sizeof(T));
 }
 
 }  // namespace
@@ -92,7 +113,8 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
 
   SB_LOG_IF(INFO, kEnablePlayreadyLog)
       << "Send challenge for key id " << GetHexRepresentation(license->key_id())
-      << " in session " << session_id;
+      << " in session " << session_id << " with content" << std::endl
+      << GetHexRepresentation(challenge.data(), challenge.size());
 
   session_update_request_callback_(this, context_, ticket, session_id.c_str(),
                                    static_cast<int>(session_id.size()),
@@ -116,6 +138,10 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
     SB_NOTREACHED() << "Invalid session id " << session_id_copy;
     return;
   }
+  SB_LOG_IF(INFO, kEnablePlayreadyLog)
+      << "Adding playready response " << std::endl
+      << GetHexRepresentation(key, key_size);
+
   iter->second->UpdateLicense(key, key_size);
 
   if (iter->second->usable()) {
