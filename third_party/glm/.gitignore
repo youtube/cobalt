@@ -48,7 +48,7 @@ Makefile
 
 # Misc.
 *.log
+.DS_Store
 
 # local build(s)
 build*
-
