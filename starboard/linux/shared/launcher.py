@@ -55,7 +55,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def Run(self):
     """Runs launcher's executable."""
-
+    sys.stderr.write("{}\n".format(self.executable))
     proc = subprocess.Popen([self.executable] + self.target_command_line_params,
                             stdout=self.output_file, stderr=self.output_file)
     self.pid = proc.pid
@@ -67,5 +67,5 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if self.pid:
       try:
         os.kill(self.pid, signal.SIGTERM)
-      except OSError:  # Process is already dead
-        raise OSError("Process already closed.")
+      except OSError as e:
+        sys.stderr.write("Cannot kill launcher.  Process already closed.\n")
