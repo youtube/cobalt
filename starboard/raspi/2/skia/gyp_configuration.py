@@ -20,13 +20,26 @@ import sys
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(_SCRIPT_DIR, '../..'))
 
+import cobalt.tools.webdriver_benchmark_config as wb_config
 # pylint: disable=g-import-not-at-top
 from shared.gyp_configuration import RaspiPlatformConfig
 
 
 def CreatePlatformConfig():
   try:
-    return RaspiPlatformConfig('raspi-2-skia')
+    return RaspiTwoSkiaPlatformConfig('raspi-2-skia')
   except RuntimeError as e:
     logging.critical(e)
     return None
+
+
+class RaspiTwoSkiaPlatformConfig(RaspiPlatformConfig):
+
+  def __init__(self, platform):
+    super(RaspiTwoSkiaPlatformConfig, self).__init__(platform)
+
+  def GetWebdriverBenchmarksTargetParams(self):
+    params = super(RaspiTwoSkiaPlatformConfig,
+                   self).GetWebdriverBenchmarksTargetParams()
+    params.append(wb_config.DISABLE_SPLASH_SCREEN_ON_RELOADS)
+    return params
