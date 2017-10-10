@@ -65,8 +65,11 @@ def _GetLauncherForPlatform(platform):
     The module containing the platform's launcher implementation.
   """
 
-  gyp_module = GetGypModuleForPlatform(platform)
-  return gyp_module.CreatePlatformConfig().GetLauncher()
+  gyp_config = GetGypModuleForPlatform(platform).CreatePlatformConfig()
+  if not hasattr(gyp_config, "GetLauncher"):
+    return None
+  else:
+    return gyp_config.GetLauncher()
 
 
 def DynamicallyBuildOutDirectory(platform, config):
@@ -131,8 +134,25 @@ def LauncherFactory(platform, target_name, config, device_id, args,
 
   #  Creates launcher for provided platform if the platform has a valid port
   launcher_module = _GetLauncherForPlatform(platform)
-  return launcher_module.Launcher(platform, target_name, config, device_id,
-                                  args, output_file, out_directory)
+
+  #  TODO: Refactor when all old launchers have been deleted
+  #  If a platform that does not have a new launcher is provided, attempt
+  #  to create an adapter to the old one.
+  if not launcher_module:
+    old_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            os.pardir, os.pardir, "tools",
+                                            "lbshell"))
+    if os.path.exists(os.path.join(old_path, "app_launcher.py")):
+      sys.path.append(old_path)
+      bridge_module = importlib.import_module("app_launcher_bridge")
+      return bridge_module.LauncherAdapter(platform, target_name, config,
+                                           device_id, args, output_file,
+                                           out_directory)
+    else:
+      raise RuntimeError("No launcher implemented for the given platform.")
+  else:
+    return launcher_module.Launcher(platform, target_name, config, device_id,
+                                    args, output_file, out_directory)
 
 
 class AbstractLauncher(object):
