@@ -120,6 +120,10 @@ class GraphicsContextEGL : public GraphicsContext {
   bool IsCurrent() const { return is_current_; }
 
  private:
+  // Make the given surface the current surface. Do error detection in case
+  // the surface has become invalid (which can happen during shutdown).
+  void SafeEglMakeCurrent(RenderTargetEGL* surface);
+
   // Performs a test to determine if the pixel data returned by glReadPixels
   // needs to be vertically flipped or not.  This test is expensive, so it
   // caches the results the first time it is computed and simply returns the
