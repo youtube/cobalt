@@ -22,9 +22,15 @@ scoped_ptr<InputDeviceManager> InputDeviceManager::CreateFromWindow(
     const KeyboardEventCallback& keyboard_event_callback,
     const PointerEventCallback& pointer_event_callback,
     const WheelEventCallback& wheel_event_callback,
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    const InputEventCallback& input_event_callback,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     system_window::SystemWindow* system_window) {
   return scoped_ptr<InputDeviceManager>(new InputDeviceManagerDesktop(
       keyboard_event_callback, pointer_event_callback, wheel_event_callback,
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      input_event_callback,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window));
 }
 

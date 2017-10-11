@@ -22,6 +22,7 @@
 #include "base/threading/platform_thread.h"
 #include "base/time.h"
 #include "cobalt/browser/splash_screen_cache.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/loader/cache_fetcher.h"
 
 namespace cobalt {
@@ -60,7 +61,8 @@ SplashScreen::SplashScreen(
     const GURL& initial_main_web_module_url,
     SplashScreenCache* splash_screen_cache,
     const base::Callback<void(base::TimeDelta)>&
-        on_splash_screen_shutdown_complete)
+        on_splash_screen_shutdown_complete,
+    const dom::Window::GetSbWindowCallback& get_sb_window_callback)
     : render_tree_produced_callback_(render_tree_produced_callback),
       self_message_loop_(MessageLoop::current()),
       on_splash_screen_shutdown_complete_(on_splash_screen_shutdown_complete),
@@ -100,9 +102,10 @@ SplashScreen::SplashScreen(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,
       base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
-      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-      network_module, window_dimensions, 1.f /*video_pixel_ratio*/,
-      resource_provider, layout_refresh_rate, web_module_options));
+      get_sb_window_callback, NULL /* can_play_type_handler */,
+      NULL /* web_media_player_factory */, network_module, window_dimensions,
+      1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
+      web_module_options));
 }
 
 SplashScreen::~SplashScreen() {

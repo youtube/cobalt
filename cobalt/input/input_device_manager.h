@@ -15,6 +15,7 @@
 #ifndef COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 #define COBALT_INPUT_INPUT_DEVICE_MANAGER_H_
 
+#include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/camera_3d.h"
@@ -37,6 +38,11 @@ typedef base::Callback<void(base::Token type, const dom::PointerEventInit&)>
 typedef base::Callback<void(base::Token type, const dom::WheelEventInit&)>
     WheelEventCallback;
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+typedef base::Callback<void(base::Token type, const dom::InputEventInit&)>
+    InputEventCallback;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 // InputDeviceManager listens to events from platform-specific input devices
 // and maps them to platform-independent keyboard key events.
 class InputDeviceManager {
@@ -47,6 +53,9 @@ class InputDeviceManager {
       const KeyboardEventCallback& keyboard_event_callback,
       const PointerEventCallback& pointer_event_callback,
       const WheelEventCallback& wheel_event_callback,
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      const InputEventCallback& input_event_callback,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       system_window::SystemWindow* system_window);
 
   virtual ~InputDeviceManager() {}

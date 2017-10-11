@@ -19,6 +19,8 @@
 
 #include "cobalt/base/token.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/dom/input_event.h"
+#include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/pointer_event.h"
@@ -36,11 +38,17 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
     const KeyboardEventCallback& keyboard_event_callback,
     const PointerEventCallback& pointer_event_callback,
     const WheelEventCallback& wheel_event_callback,
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    const InputEventCallback& input_event_callback,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     system_window::SystemWindow* system_window)
     : system_window_(system_window),
-      input_event_callback_(
-          base::Bind(&InputDeviceManagerDesktop::HandleInputEvent,
+      system_window_input_event_callback_(
+          base::Bind(&InputDeviceManagerDesktop::HandleSystemWindowInputEvent,
                      base::Unretained(this))),
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      input_event_callback_(input_event_callback),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       keypress_generator_filter_(keyboard_event_callback),
       pointer_event_callback_(pointer_event_callback),
       wheel_event_callback_(wheel_event_callback) {
@@ -52,7 +60,8 @@ InputDeviceManagerDesktop::InputDeviceManagerDesktop(
   if (system_window_) {
     // Add this object's keyboard event callback to the system window.
     system_window_->event_dispatcher()->AddEventCallback(
-        system_window::InputEvent::TypeId(), input_event_callback_);
+        system_window::InputEvent::TypeId(),
+        system_window_input_event_callback_);
   }
 }
 
@@ -60,7 +69,8 @@ InputDeviceManagerDesktop::~InputDeviceManagerDesktop() {
   // If we have an associated system window, remove our callback from it.
   if (system_window_) {
     system_window_->event_dispatcher()->RemoveEventCallback(
-        system_window::InputEvent::TypeId(), input_event_callback_);
+        system_window::InputEvent::TypeId(),
+        system_window_input_event_callback_);
   }
 }
 
@@ -249,7 +259,23 @@ void InputDeviceManagerDesktop::HandleWheelEvent(
   wheel_event_callback_.Run(type, wheel_event);
 }
 
-void InputDeviceManagerDesktop::HandleInputEvent(const base::Event* event) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void InputDeviceManagerDesktop::HandleInputEvent(
+    const system_window::InputEvent* event) {
+  // Note: we currently treat all dom::InputEvents as input (never beforeinput).
+  base::Token type = base::Tokens::input();
+
+  dom::InputEventInit input_event;
+  input_event.set_data(event->input_text());
+  // We do not handle composition sessions currently, so isComposing should
+  // always be false.
+  input_event.set_is_composing(false);
+  input_event_callback_.Run(type, input_event);
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
+void InputDeviceManagerDesktop::HandleSystemWindowInputEvent(
+    const base::Event* event) {
   // The user has pressed a key on the keyboard.
   const system_window::InputEvent* input_event =
       base::polymorphic_downcast<const system_window::InputEvent*>(event);
@@ -299,9 +325,14 @@ void InputDeviceManagerDesktop::HandleInputEvent(const base::Event* event) {
     case system_window::InputEvent::kTouchpadUp:
       HandlePointerEvent(base::Tokens::pointerup(), input_event);
       break;
-    case system_window::InputEvent::kWheel: {
+    case system_window::InputEvent::kWheel:
       HandleWheelEvent(input_event);
-    }
+      break;
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    case system_window::InputEvent::kInput:
+      HandleInputEvent(input_event);
+      break;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     default:
       break;
   }

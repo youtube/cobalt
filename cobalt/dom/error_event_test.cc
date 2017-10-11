@@ -35,11 +35,17 @@
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "nb/pointer_arithmetic.h"
+#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
+// on screen keyboard.
+SbWindow GetNullSbWindow() { return NULL; }
+}  // namespace
 
 using ::cobalt::script::testing::FakeScriptValue;
 
@@ -70,7 +76,8 @@ class ErrorEventTest : public ::testing::Test {
             kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL)) {
+            base::Closure() /* window_minimize */, base::Bind(&GetNullSbWindow),
+            NULL, NULL)) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     global_environment_->CreateGlobalObject(window_,

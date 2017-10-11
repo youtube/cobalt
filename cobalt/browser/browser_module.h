@@ -39,6 +39,7 @@
 #include "cobalt/browser/url_handler.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/array_buffer.h"
+#include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
@@ -61,6 +62,7 @@
 #include "cobalt/debug/debug_server.h"
 #endif  // ENABLE_DEBUG_CONSOLE
 #include "starboard/configuration.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace browser {
@@ -204,6 +206,14 @@ class BrowserModule {
   // persist the user's preference.
   void SaveDebugConsoleMode();
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // Glue function to deal with the production of an input event from an on
+  // screen keyboard input device, and manage handing it off to the web module
+  // for interpretation.
+  void OnOnScreenKeyboardInputEventProduced(base::Token type,
+                                            const dom::InputEventInit& event);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
   // Glue function to deal with the production of a keyboard input event from a
   // keyboard input device, and manage handing it off to the web module for
   // interpretation.
@@ -220,6 +230,13 @@ class BrowserModule {
   // wheel input device, and manage handing it off to the web module for
   // interpretation.
   void OnWheelEventProduced(base::Token type, const dom::WheelEventInit& event);
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // Injects an on screen keyboard input event directly into the main web
+  // module.
+  void InjectOnScreenKeyboardInputEventToMainWebModule(
+      base::Token type, const dom::InputEventInit& event);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a key event directly into the main web module, useful for setting
   // up an input fuzzer whose input should be sent directly to the main

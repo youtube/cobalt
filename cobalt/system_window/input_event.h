@@ -15,6 +15,8 @@
 #ifndef COBALT_SYSTEM_WINDOW_INPUT_EVENT_H_
 #define COBALT_SYSTEM_WINDOW_INPUT_EVENT_H_
 
+#include <string>
+
 #include "cobalt/base/event.h"
 #include "cobalt/math/point_f.h"
 #include "starboard/event.h"
@@ -28,6 +30,7 @@ class InputEvent : public base::Event {
     kKeyDown,
     kKeyUp,
     kKeyMove,
+    kInput,
     kPointerDown,
     kPointerUp,
     kPointerMove,
@@ -60,7 +63,11 @@ class InputEvent : public base::Event {
              float pressure = 0, const math::PointF& size = math::PointF(),
              const math::PointF& tilt = math::PointF()
 #endif
-                 )
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+                 ,
+             const std::string& input_text = ""
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+             )
       : type_(type),
         device_id_(device_id),
         key_code_(key_code),
@@ -74,8 +81,14 @@ class InputEvent : public base::Event {
         size_(size),
         tilt_(tilt)
 #endif
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+        ,
+        input_text_(input_text)
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
   {
   }
+
+  ~InputEvent() {}
 
   Type type() const { return type_; }
   int key_code() const { return key_code_; }
@@ -89,6 +102,9 @@ class InputEvent : public base::Event {
   const math::PointF& size() const { return size_; }
   const math::PointF& tilt() const { return tilt_; }
 #endif
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  const std::string& input_text() const { return input_text_; }
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   BASE_EVENT_SUBCLASS(InputEvent);
 
@@ -105,6 +121,9 @@ class InputEvent : public base::Event {
   math::PointF size_;
   math::PointF tilt_;
 #endif
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  std::string input_text_;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 };
 
 // The Starboard Event handler SbHandleEvent should call this function on

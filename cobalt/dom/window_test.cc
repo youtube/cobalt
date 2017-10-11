@@ -28,11 +28,17 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/network_bridge/net_poster.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
+// on screen keyboard.
+SbWindow GetNullSbWindow() { return NULL; }
+}  // namespace
 
 class MockErrorCallback : public base::Callback<void(const std::string&)> {
  public:
@@ -59,7 +65,8 @@ class WindowTest : public ::testing::Test {
             kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL)) {}
+            base::Closure() /* window_minimize */, base::Bind(&GetNullSbWindow),
+            NULL, NULL)) {}
 
   ~WindowTest() OVERRIDE {}
 
