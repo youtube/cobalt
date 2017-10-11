@@ -35,6 +35,7 @@
 #include "cobalt/dom/history.h"
 #include "cobalt/dom/html_element.h"
 #include "cobalt/dom/html_element_context.h"
+#include "cobalt/dom/input_event.h"
 #include "cobalt/dom/keyboard_event.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_source.h"
@@ -104,6 +105,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const CloseCallback& window_close_callback,
                const base::Closure& window_minimize_callback,
+               const base::Callback<SbWindow()>& get_sb_window_callback,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
@@ -161,7 +163,13 @@ Window::Window(int width, int height, float device_pixel_ratio,
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
       window_minimize_callback_(window_minimize_callback),
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      on_screen_keyboard_(new OnScreenKeyboard(get_sb_window_callback)),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       splash_screen_cache_callback_(splash_screen_cache_callback) {
+#if !SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(get_sb_window_callback);
+#endif  // !SB_HAS(ON_SCREEN_KEYBOARD)
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
@@ -441,6 +449,11 @@ void Window::InjectEvent(const scoped_refptr<Event>& event) {
     } else {
       document_->DispatchEvent(event);
     }
+  } else if (event->GetWrappableType() == base::GetTypeId<InputEvent>()) {
+    // Dispatch any InputEvent directly to the OnScreenKeyboard element.
+    if (on_screen_keyboard_) {
+      on_screen_keyboard_->DispatchEvent(event);
+    }
   } else if (event->GetWrappableType() == base::GetTypeId<PointerEvent>() ||
              event->GetWrappableType() == base::GetTypeId<MouseEvent>() ||
              event->GetWrappableType() == base::GetTypeId<WheelEvent>()) {
@@ -591,6 +604,10 @@ void Window::CacheSplashScreen(const std::string& content) {
   }
   DLOG(INFO) << "Caching splash screen for URL " << location()->url();
   splash_screen_cache_callback_.Run(location()->url(), content);
+}
+
+const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
+  return on_screen_keyboard_;
 }
 
 Window::~Window() {

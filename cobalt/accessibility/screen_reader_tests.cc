@@ -26,7 +26,9 @@
 #include "cobalt/accessibility/tts_engine.h"
 #include "cobalt/browser/web_module.h"
 #include "cobalt/dom/element.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/test/document_loader.h"
+#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -127,6 +129,10 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
   base::WaitableEvent quit_event_;
   scoped_ptr<accessibility::ScreenReader> screen_reader_;
 };
+
+// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
+// on screen keyboard.
+SbWindow GetNullSbWindow() { return NULL; }
 }  // namespace
 
 TEST_P(TextAlternativeTest, TextAlternativeTest) {
@@ -173,9 +179,10 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::OnClose, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
-      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-      &network_module, kDefaultViewportSize, kDefaultVideoPixelRatio,
-      &resource_provider, kRefreshRate, web_module_options);
+      base::Bind(&GetNullSbWindow), NULL /* can_play_type_handler */,
+      NULL /* web_media_player_factory */, &network_module,
+      kDefaultViewportSize, kDefaultVideoPixelRatio, &resource_provider,
+      kRefreshRate, web_module_options);
 
   // Wait for the test to quit.
   quit_event_.Wait();
