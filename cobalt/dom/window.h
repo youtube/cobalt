@@ -34,6 +34,7 @@
 #include "cobalt/dom/html_element_context.h"
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_query_list.h"
+#include "cobalt/dom/on_screen_keyboard.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
@@ -85,6 +86,7 @@ class LocalStorageDatabase;
 class Location;
 class MediaSource;
 class Navigator;
+class OnScreenKeyboard;
 class Performance;
 class Screen;
 class Storage;
@@ -111,6 +113,7 @@ class Window : public EventTarget,
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
+  typedef base::Callback<SbWindow()> GetSbWindowCallback;
   enum ClockType { kClockTypeTestRunner, kClockTypeSystemTime };
 
   Window(
@@ -144,6 +147,7 @@ class Window : public EventTarget,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const CloseCallback& window_close_callback,
       const base::Closure& window_minimize_callback,
+      const base::Callback<SbWindow()>& get_sb_window_callback,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
@@ -339,6 +343,9 @@ class Window : public EventTarget,
     return preflight_cache_;
   }
 
+  // Custom on screen keyboard.
+  const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
+
   DEFINE_WRAPPABLE_TYPE(Window);
 
  private:
@@ -400,6 +407,9 @@ class Window : public EventTarget,
   const base::Closure ran_animation_frame_callbacks_callback_;
   const CloseCallback window_close_callback_;
   const base::Closure window_minimize_callback_;
+  const GetSbWindowCallback get_sb_window_callback_;
+
+  scoped_refptr<OnScreenKeyboard> on_screen_keyboard_;
 
   CacheCallback splash_screen_cache_callback_;
 
