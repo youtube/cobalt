@@ -1,12 +1,13 @@
-*.S
 *.a
 *.asm.s
 *.d
 *.gcda
 *.gcno
 *.o
+*.S
 *~
 .cproject
+.DS_Store
 .project
 .settings
 /*-*.mk
@@ -19,7 +20,6 @@
 /.docs
 /.install-*
 /.libs
-/Makefile
 /config.log
 /config.mk
 /docs/
@@ -47,6 +47,7 @@
 /ivfenc.dox
 /libvpx.so*
 /libvpx.ver
+/Makefile
 /samples.dox
 /test_intra_pred_speed
 /test_libvpx
