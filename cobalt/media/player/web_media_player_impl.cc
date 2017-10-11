@@ -211,8 +211,9 @@ URLSchemeForHistogram URLScheme(const GURL& url) {
 
 void WebMediaPlayerImpl::LoadMediaSource() {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadMediaSource");
-
   DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  DLOG(INFO) << "Start MEDIASOURCE playback";
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());
@@ -237,10 +238,10 @@ void WebMediaPlayerImpl::LoadProgressive(
     const GURL& url, scoped_ptr<BufferedDataSource> data_source,
     CORSMode cors_mode) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadProgressive");
-
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
   UMA_HISTOGRAM_ENUMERATION("Media.URLScheme", URLScheme(url), kMaxURLScheme);
+  DLOG(INFO) << "Start PROGRESSIVE playback";
 
   // Handle any volume changes that occured before load().
   SetVolume(GetClient()->Volume());

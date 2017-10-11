@@ -1125,6 +1125,8 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
 }
 
 void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
+  LOG_IF(INFO, event_name == base::Tokens::error())
+      << "onerror event fired with error " << (error_ ? error_->code() : 0);
   MLOG() << event_name;
   scoped_refptr<Event> event =
       new Event(event_name, Event::kNotBubbles, Event::kCancelable);
