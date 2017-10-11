@@ -72,7 +72,8 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
     decoder_->DecodeChunk(data, size);
   }
   void OnDone(Fetcher* fetcher) OVERRIDE {
-    UNREFERENCED_PARAMETER(fetcher);
+    DCHECK(fetcher);
+    decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
     loader_on_thread_->Signal();
   }

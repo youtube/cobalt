@@ -57,7 +57,6 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
     decoder_->DecodeChunkPassed(data.Pass());
   }
   void OnDone(Fetcher* fetcher) OVERRIDE {
-    UNREFERENCED_PARAMETER(fetcher);
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
