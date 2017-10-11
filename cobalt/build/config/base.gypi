@@ -462,9 +462,8 @@
     'platform_libraries%': [],
 
     # The only currently-supported Javascript engine is 'mozjs-45'.
-    # TODO: Figure out how to massage gyp the right way to make this work
-    # as expected, rather than requiring it to be set for each platform.
-    #'javascript_engine%': 'mozjs-45',
+    'default_javascript_engine': 'mozjs-45',
+    'javascript_engine%': '<(default_javascript_engine)',
 
     # Disable JIT and run in interpreter-only mode by default. It can be set
     # to 1 to run in JIT mode.  For SpiderMonkey in particular, we have found
