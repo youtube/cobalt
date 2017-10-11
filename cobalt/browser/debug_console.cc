@@ -167,7 +167,8 @@ DebugConsole::DebugConsole(
     network::NetworkModule* network_module, const math::Size& window_dimensions,
     render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
     const debug::Debugger::GetDebugServerCallback& get_debug_server_callback,
-    const script::JavaScriptEngine::Options& javascript_engine_options) {
+    const script::JavaScriptEngine::Options& javascript_engine_options,
+    const dom::Window::GetSbWindowCallback& get_sb_window_callback) {
   mode_ = GetInitialMode();
 
   WebModule::Options web_module_options;
@@ -194,9 +195,10 @@ DebugConsole::DebugConsole(
       base::Bind(&DebugConsole::OnError, base::Unretained(this)),
       WebModule::CloseCallback(), /* window_close_callback */
       base::Closure(),            /* window_minimize_callback */
-      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
-      network_module, window_dimensions, 1.f /*video_pixel_ratio*/,
-      resource_provider, layout_refresh_rate, web_module_options));
+      get_sb_window_callback, NULL /* can_play_type_handler */,
+      NULL /* web_media_player_factory */, network_module, window_dimensions,
+      1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
+      web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}
@@ -208,6 +210,16 @@ bool DebugConsole::FilterKeyEvent(base::Token type,
   web_module_->InjectKeyboardEvent(type, event);
   return false;
 }
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+bool DebugConsole::InjectOnScreenKeyboardInputEvent(
+    base::Token type, const dom::InputEventInit& event) {
+  // Assume here the full debug console is visible - pass all events to its
+  // web module, and return false to indicate the event has been consumed.
+  web_module_->InjectOnScreenKeyboardInputEvent(type, event);
+  return false;
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void DebugConsole::SetMode(int mode) {
   int mode_to_save;

@@ -23,6 +23,7 @@
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/web_module.h"
+#include "cobalt/dom/window.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -43,7 +44,8 @@ class SplashScreen : public LifecycleObserver {
                const GURL& initial_main_web_module_url,
                cobalt::browser::SplashScreenCache* splash_screen_cache,
                const base::Callback<void(base::TimeDelta)>&
-                   on_splash_screen_shutdown_complete);
+                   on_splash_screen_shutdown_complete,
+               const dom::Window::GetSbWindowCallback& get_sb_window_callback);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
