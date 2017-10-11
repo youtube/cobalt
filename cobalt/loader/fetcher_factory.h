@@ -50,6 +50,7 @@ class FetcherFactory {
 
   scoped_ptr<Fetcher> CreateSecureFetcher(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
+      RequestMode request_mode, const Origin& origin,
       Fetcher::Handler* handler);
 
   network::NetworkModule* network_module() const { return network_module_; }
