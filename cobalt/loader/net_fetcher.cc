@@ -17,6 +17,7 @@
 #include <string>
 
 #include "base/stringprintf.h"
+#include "cobalt/loader/cors_preflight.h"
 #include "cobalt/network/network_module.h"
 #include "net/url_request/url_fetcher.h"
 #if defined(OS_STARBOARD)
@@ -72,15 +73,23 @@ NetFetcher::NetFetcher(const GURL& url,
                        const csp::SecurityCallback& security_callback,
                        Handler* handler,
                        const network::NetworkModule* network_module,
-                       const Options& options)
+                       const Options& options, RequestMode request_mode,
+                       const Origin& origin)
     : Fetcher(handler),
       security_callback_(security_callback),
       ALLOW_THIS_IN_INITIALIZER_LIST(start_callback_(
-          base::Bind(&NetFetcher::Start, base::Unretained(this)))) {
+          base::Bind(&NetFetcher::Start, base::Unretained(this)))),
+      request_cross_origin_(false),
+      origin_(origin) {
   url_fetcher_.reset(
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->DiscardResponse();
+  if (request_mode == kCORSMode && !url.SchemeIs("data") &&
+      origin != Origin(url)) {
+    request_cross_origin_ = true;
+    url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
+  }
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()
@@ -124,6 +133,19 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
       return HandleError(msg).InvalidateThis();
     }
   }
+
+  // net::URLFetcher can not guarantee GetResponseHeaders() always return
+  // non-null pointer.
+  if (request_cross_origin_ &&
+      (!source->GetResponseHeaders() ||
+       !CORSPreflight::CORSCheck(*source->GetResponseHeaders(),
+                                 origin_.SerializedOrigin(), false))) {
+    std::string msg(base::StringPrintf(
+        "Cross origin request to %s was rejected by Same-Origin-Policy",
+        source->GetURL().spec().c_str()));
+    return HandleError(msg).InvalidateThis();
+  }
+
   last_url_origin_ = Origin(source->GetURL());
 }
 

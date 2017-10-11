@@ -43,14 +43,16 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
 FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      const base::Closure& external_typeface_load_event_callback,
-                     const std::string& language)
+                     const std::string& language,
+                     scoped_refptr<Location> document_location)
     : resource_provider_(resource_provider),
       remote_typeface_cache_(remote_typeface_cache),
       external_typeface_load_event_callback_(
           external_typeface_load_event_callback),
       language_(language),
       font_face_map_(new FontFaceMap()),
-      last_inactive_process_time_(base::TimeTicks::Now()) {}
+      last_inactive_process_time_(base::TimeTicks::Now()),
+      document_location_(document_location) {}
 
 void FontCache::SetFontFaceMap(scoped_ptr<FontFaceMap> font_face_map) {
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -308,7 +310,9 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
   // Retrieve the font from the remote typeface cache, potentially triggering a
   // load.
   scoped_refptr<loader::font::CachedRemoteTypeface> cached_remote_typeface =
-      remote_typeface_cache_->CreateCachedResource(url);
+      remote_typeface_cache_->CreateCachedResource(
+          url, document_location_ ? document_location_->OriginObject()
+                                  : loader::Origin());
 
   RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =
       requested_remote_typeface_cache_.find(url);

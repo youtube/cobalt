@@ -27,6 +27,7 @@
 #include "base/timer.h"
 #include "cobalt/dom/font_face.h"
 #include "cobalt/dom/font_list.h"
+#include "cobalt/dom/location.h"
 #include "cobalt/loader/font/remote_typeface_cache.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/glyph.h"
@@ -173,7 +174,8 @@ class FontCache {
   FontCache(render_tree::ResourceProvider** resource_provider,
             loader::font::RemoteTypefaceCache* remote_typeface_cache,
             const base::Closure& external_typeface_load_event_callback,
-            const std::string& language);
+            const std::string& language,
+            scoped_refptr<Location> document_location);
 
   // Set a new font face map. If it matches the old font face map then nothing
   // is done. Otherwise, it is updated with the new value and the remote
@@ -324,6 +326,10 @@ class FontCache {
 
   // Thread checker used to verify safe thread usage of the font cache.
   base::ThreadChecker thread_checker_;
+
+  // Font cache's corresponding document's location object. It can provide
+  // document's origin.
+  scoped_refptr<Location> document_location_;
 };
 
 }  // namespace dom

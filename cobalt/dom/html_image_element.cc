@@ -112,10 +112,11 @@ void HTMLImageElement::UpdateImageData() {
     // the img element to the completely available state, update the
     // presentation of the image appropriately, queue a task to fire a simple
     // event named load at the img element, and abort these steps.
-    cached_image = node_document()
-                       ->html_element_context()
-                       ->image_cache()
-                       ->CreateCachedResource(selected_source);
+    cached_image =
+        node_document()
+            ->html_element_context()
+            ->image_cache()
+            ->CreateCachedResource(selected_source, loader::Origin());
     if (cached_image->TryGetResource()) {
       PreventGarbageCollectionUntilEventIsDispatched(base::Tokens::load());
       return;

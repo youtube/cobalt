@@ -1408,7 +1408,7 @@ void HTMLElement::UpdateCachedBackgroundImagesFromComputedStyle() {
 
       scoped_refptr<loader::image::CachedImage> cached_image =
           html_element_context()->image_cache()->CreateCachedResource(
-              absolute_url);
+              absolute_url, loader::Origin());
       base::Closure loaded_callback = base::Bind(
           &HTMLElement::OnBackgroundImageLoaded, base::Unretained(this));
       cached_images.push_back(
