@@ -28,11 +28,7 @@ def main(request, response):
     if 'methods' in request.GET:
         response.headers.set("Access-Control-Allow-Methods", request.GET.first('methods'))
 
-    code_raw = request.GET.first('code', None)
-    if code_raw:
-        code = int(code_raw)
-    else:
-        code = None
+    code = request.GET.first('code', None)
     if request.method == 'OPTIONS':
         #Override the response code if we're in a preflight and it's asked
         if 'preflight' in request.GET:
@@ -40,7 +36,7 @@ def main(request, response):
 
         #Log that the preflight actually happened if we have an ident
         if 'token' in request.GET:
-            request.server.stash.put(request.GET['token'], True)
+            request.server.stash.put(request.GET['token'])
 
     if 'location' in request.GET:
         if code is None:
@@ -65,3 +61,4 @@ def main(request, response):
         return (code, "StatusText"), [], body
     else:
         return body
+
