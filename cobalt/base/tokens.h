@@ -64,6 +64,8 @@ namespace base {
     MacroOpWithNameOnly(focusout)                                    \
     MacroOpWithNameOnly(gotpointercapture)                           \
     MacroOpWithNameOnly(hashchange)                                  \
+    MacroOpWithNameOnly(hide)                                        \
+    MacroOpWithNameOnly(input)                                       \
     MacroOpWithNameOnly(keydown)                                     \
     MacroOpWithNameOnly(keypress)                                    \
     MacroOpWithNameOnly(keystatuseschange)                           \
@@ -109,6 +111,7 @@ namespace base {
     MacroOpWithNameOnly(securitypolicyviolation)                     \
     MacroOpWithNameOnly(seeked)                                      \
     MacroOpWithNameOnly(seeking)                                     \
+    MacroOpWithNameOnly(show)                                        \
     MacroOpWithNameOnly(soundend)                                    \
     MacroOpWithNameOnly(soundstart)                                  \
     MacroOpWithNameOnly(sourceclose)                                 \

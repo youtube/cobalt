@@ -30,10 +30,16 @@
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/window.h"
 
 namespace cobalt {
 namespace dom {
 namespace testing {
+namespace {
+// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
+// on screen keyboard.
+SbWindow GetNullSbWindow() { return NULL; }
+}  // namespace
 
 // A helper class for tests that brings up a dom::Window with a number of parts
 // stubbed out.
@@ -59,7 +65,8 @@ class StubWindow {
         dom::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
         base::Closure() /* ran_animation_frame_callbacks */,
         dom::Window::CloseCallback() /* window_close */,
-        base::Closure() /* window_minimize */, NULL, NULL);
+        base::Closure() /* window_minimize */, base::Bind(&GetNullSbWindow),
+        NULL, NULL);
     global_environment_->CreateGlobalObject(window_, &environment_settings_);
   }
 

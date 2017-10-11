@@ -41,7 +41,10 @@
 #include "cobalt/dom/element.h"
 #include "cobalt/dom/event.h"
 #include "cobalt/dom/global_stats.h"
+#include "cobalt/dom/input_event.h"
+#include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/pointer_event.h"
@@ -49,6 +52,7 @@
 #include "cobalt/dom/ui_event.h"
 #include "cobalt/dom/url.h"
 #include "cobalt/dom/wheel_event.h"
+#include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/h5vcc/h5vcc.h"
 #include "cobalt/layout/topmost_event_target.h"
@@ -127,6 +131,17 @@ class WebModule::Impl {
     return debug_server_module_->debug_server();
   }
 #endif  // ENABLE_DEBUG_CONSOLE
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // Called to inject an on screen keyboard input event into the web module.
+  // Event is directed at a specific element if the element is non-null.
+  // Otherwise, the currently focused element receives the event.
+  // If element is specified, we must be on the WebModule's message loop.
+  void InjectOnScreenKeyboardInputEvent(scoped_refptr<dom::Element> element,
+                                        base::Token type,
+                                        const dom::InputEventInit& event);
+
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Called to inject a keyboard event into the web module.
   // Event is directed at a specific element if the element is non-null.
@@ -553,7 +568,8 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
-      data.options.camera_3d, media_session_client_->GetMediaSession(),
+      data.get_sb_window_callback, data.options.camera_3d,
+      media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
 #if defined(ENABLE_TEST_RUNNER)
@@ -689,6 +705,16 @@ void WebModule::Impl::InjectInputEvent(scoped_refptr<dom::Element> element,
       window_->HasPendingAnimationFrameCallbacks(),
       layout_manager_->IsRenderTreePending());
 }
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
+    scoped_refptr<dom::Element> element, base::Token type,
+    const dom::InputEventInit& event) {
+  scoped_refptr<dom::InputEvent> input_event(
+      new dom::InputEvent(type, window_, event));
+  InjectInputEvent(element, input_event);
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
                                           base::Token type,
@@ -1073,6 +1099,7 @@ WebModule::WebModule(
     const OnErrorCallback& error_callback,
     const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
+    const dom::Window::GetSbWindowCallback& get_sb_window_callback,
     media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
@@ -1082,8 +1109,8 @@ WebModule::WebModule(
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
-      can_play_type_handler, web_media_player_factory, network_module,
-      window_dimensions, video_pixel_ratio, resource_provider,
+      get_sb_window_callback, can_play_type_handler, web_media_player_factory,
+      network_module, window_dimensions, video_pixel_ratio, resource_provider,
       kDOMMaxElementDepth, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
@@ -1149,6 +1176,23 @@ void WebModule::Initialize(const ConstructionData& data) {
   DCHECK_EQ(MessageLoop::current(), message_loop());
   impl_.reset(new Impl(data));
 }
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+
+void WebModule::InjectOnScreenKeyboardInputEvent(
+    base::Token type, const dom::InputEventInit& event) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardInputEvent()", "type",
+               type.c_str());
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardInputEvent,
+                            base::Unretained(impl_.get()),
+                            scoped_refptr<dom::Element>(), type, event));
+}
+
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::InjectKeyboardEvent(base::Token type,
                                     const dom::KeyboardEventInit& event) {
