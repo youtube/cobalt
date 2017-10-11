@@ -28,10 +28,6 @@
     # renderer.
     'scratch_surface_cache_size_in_bytes' : 0,
 
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs-45',
-    'cobalt_enable_jit': 0,
     'cobalt_media_source_2016': 1,
 
     # This atlas size works better than the auto-mem setting.
