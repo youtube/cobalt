@@ -23,11 +23,6 @@
     'compiler_flags': [
       '-march=armv7-a',
     ],
-
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs-45',
-    'cobalt_enable_jit': 0,
   },
 
   'target_defaults': {
