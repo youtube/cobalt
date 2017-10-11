@@ -109,12 +109,6 @@
         ],
       }],
 
-      ['cobalt_enable_jit != 1', {
-        'common_defines': [
-          'COBALT_DISABLE_JIT=1',
-        ],
-      }],
-
       # TODO: Remove once ps4 configuration todos are addressed.
       ['target_arch == "ps4" or sb_target_platform == "ps4"', {
         'common_defines': [
@@ -137,7 +131,17 @@
       }]
     ],
   },
-
+  # Required GYP massaging to allow |cobalt_enable_jit| to be a default
+  # variable.  Just pretend this is part of |variables| above.
+  'conditions': [
+    ['cobalt_enable_jit != 1', {
+      'variables': {
+        'common_defines': [
+          'COBALT_DISABLE_JIT=1',
+        ],
+      },
+    }],
+  ],
   'target_defaults': {
     'defines': [ '<@(common_defines)', ],
     'msvs_settings': {
