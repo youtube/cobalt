@@ -362,7 +362,7 @@ void TopmostEventTarget::MaybeSendPointerEvents(
       pointer_state->ClearPendingPointerCaptureTargetOverride(
           pointer_event->pointer_id());
     }
-    if (target_element) {
+    if (target_element && !is_touchpad_event) {
       SendCompatibilityMappingMouseEvent(target_element, event, pointer_event,
                                          event_init,
                                          &mouse_event_prevent_flags_);
