@@ -23,13 +23,12 @@ namespace loader {
 namespace {
 
 struct TextDecoderCallback {
-  void Callback(const std::string& value,
-                const loader::Origin& last_url_origin) {
+  void Callback(const std::string& value, const Origin& last_url_origin) {
     text = value;
     last_url_origin_ = last_url_origin;
   }
   std::string text;
-  loader::Origin last_url_origin_;
+  Origin last_url_origin_;
 };
 
 }  // namespace

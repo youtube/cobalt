@@ -41,7 +41,7 @@ class TextDecoderCallback {
  public:
   explicit TextDecoderCallback(base::RunLoop* run_loop) : run_loop_(run_loop) {}
 
-  void OnDone(const std::string& text, const loader::Origin&) {
+  void OnDone(const std::string& text, const Origin&) {
     text_ = text;
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }

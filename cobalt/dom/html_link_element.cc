@@ -140,7 +140,7 @@ void HTMLLinkElement::Obtain() {
       base::Bind(
           &loader::FetcherFactory::CreateSecureFetcher,
           base::Unretained(document->html_element_context()->fetcher_factory()),
-          absolute_url_, csp_callback),
+          absolute_url_, csp_callback, loader::kNoCORSMode, loader::Origin()),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));

@@ -123,7 +123,7 @@ Document::Document(HTMLElementContext* html_element_context,
       html_element_context_->resource_provider(),
       html_element_context_->remote_typeface_cache(),
       base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
-      html_element_context_->language()));
+      html_element_context_->language(), location_));
 
   if (HasBrowsingContext()) {
     if (html_element_context_->remote_typeface_cache()) {

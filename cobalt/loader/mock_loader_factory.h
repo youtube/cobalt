@@ -51,7 +51,7 @@ class MockLoaderFactory {
   scoped_ptr<Loader> CreateImageLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::ErrorCallback& error_callback) {
+      const image::ImageDecoder::ErrorCallback& error_callback, const Origin&) {
     return scoped_ptr<Loader>(
         CreateImageLoaderMock(url, url_security_callback, success_callback,
                               error_callback));
@@ -60,7 +60,8 @@ class MockLoaderFactory {
   scoped_ptr<Loader> CreateTypefaceLoader(
       const GURL& url, const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::ErrorCallback& error_callback) {
+      const font::TypefaceDecoder::ErrorCallback& error_callback,
+      const Origin&) {
     return scoped_ptr<Loader>(
         CreateTypefaceLoaderMock(url, url_security_callback, success_callback,
                                  error_callback));
