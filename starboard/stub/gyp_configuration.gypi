@@ -22,12 +22,6 @@
     # No GL drivers available.
     'gl_type': 'none',
 
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'javascript_engine': 'mozjs-45',
-
-    'cobalt_enable_jit': 0,
-
     'cobalt_media_source_2016': 1,
 
     # Define platform specific compiler and linker flags.
