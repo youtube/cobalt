@@ -26,6 +26,13 @@
 namespace cobalt {
 namespace loader {
 
+// https://fetch.spec.whatwg.org/#concept-request-mode
+// Right now Cobalt only needs two modes.
+enum RequestMode {
+  kNoCORSMode,
+  kCORSMode,
+};
+
 class Fetcher {
  public:
   class Handler {
@@ -64,7 +71,7 @@ class Fetcher {
   // Concrete Fetcher subclass should start fetching immediately in constructor.
   explicit Fetcher(Handler* handler) : handler_(handler) {}
 
-  const loader::Origin& last_url_origin() { return last_url_origin_; }
+  const Origin& last_url_origin() { return last_url_origin_; }
 
   // Concrete Fetcher subclass should cancel fetching in destructor.
   virtual ~Fetcher() = 0;
@@ -73,7 +80,7 @@ class Fetcher {
   Handler* handler() const { return handler_; }
 
   // used by html elements to check if resource is cross-origin.
-  loader::Origin last_url_origin_;
+  Origin last_url_origin_;
 
  private:
   Handler* handler_;

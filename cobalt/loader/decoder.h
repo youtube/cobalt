@@ -69,7 +69,7 @@ class Decoder {
 
   // Provides textdecoder with last url to prevent security leak if resource is
   // cross-origin.
-  virtual void SetLastURLOrigin(const loader::Origin&) {}
+  virtual void SetLastURLOrigin(const Origin&) {}
 };
 
 }  // namespace loader
