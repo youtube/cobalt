@@ -257,7 +257,7 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback),
+              csp_callback, loader::kNoCORSMode, loader::Origin()),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
                                 base::Unretained(this))),
@@ -298,7 +298,7 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback),
+              csp_callback, loader::kNoCORSMode, loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
@@ -323,7 +323,7 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback),
+              csp_callback, loader::kNoCORSMode, loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
