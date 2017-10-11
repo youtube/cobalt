@@ -17,7 +17,6 @@
 #ifndef COBALT_LOADER_CORS_PREFLIGHT_H_
 #define COBALT_LOADER_CORS_PREFLIGHT_H_
 
-#include <map>
 #include <string>
 #include <vector>
 
@@ -27,6 +26,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/threading/thread_checker.h"
+#include "cobalt/loader/cors_preflight_cache.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
 #include "net/http/http_request_headers.h"
@@ -45,7 +45,8 @@ class CORSPreflight : public net::URLFetcherDelegate {
   CORSPreflight(GURL url, net::URLFetcher::RequestType method,
                 const network::NetworkModule* network_module,
                 base::Closure success_callback, std::string origin,
-                base::Closure error_callback);
+                base::Closure error_callback,
+                scoped_refptr<CORSPreflightCache> preflight_cache);
   void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
   void set_force_preflight(bool forcepreflight) {
     force_preflight_ = forcepreflight;
@@ -74,7 +75,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
   // Call GetHeadersVector before to put server-allowed headers in vector.
   static bool IsSafeResponseHeader(
       const std::string& name,
-      std::vector<std::string>& CORS_exposed_header_name_list,
+      const std::vector<std::string>& CORS_exposed_header_name_list,
       bool credentials_mode_is_include);
   // This function populates input vector with headers extracted from
   // Access-Control-Expose-Headers header.
@@ -96,6 +97,7 @@ class CORSPreflight : public net::URLFetcherDelegate {
   std::string origin_;
   base::Closure error_callback_;
   base::Closure success_callback_;
+  scoped_refptr<CORSPreflightCache> preflight_cache_;
 };
 
 }  // namespace loader

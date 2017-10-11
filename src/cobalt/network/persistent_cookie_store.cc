@@ -32,8 +32,6 @@ const int kLatestCookieSchemaVersion = 1;
 const base::TimeDelta kMaxCookieLifetime = base::TimeDelta::FromDays(365 * 2);
 
 std::vector<net::CanonicalCookie*> GetAllCookies(sql::Connection* conn) {
-  base::Time maximum_expiry = base::Time::Now() + kMaxCookieLifetime;
-
   std::vector<net::CanonicalCookie*> actual_cookies;
   sql::Statement get_all(conn->GetCachedStatement(
       SQL_FROM_HERE,
@@ -41,25 +39,20 @@ std::vector<net::CanonicalCookie*> GetAllCookies(sql::Connection* conn) {
       "creation, expiration, last_access, secure, http_only "
       "FROM CookieTable"));
   while (get_all.Step()) {
-    base::Time expiry = base::Time::FromInternalValue(get_all.ColumnInt64(8));
-    if (expiry > maximum_expiry) {
-      expiry = maximum_expiry;
-    }
-
-    net::CanonicalCookie* cookie = net::CanonicalCookie::Create(
+    // We create a CanonicalCookie directly through its constructor instead of
+    // through CanonicalCookie::Create() and its sanitization because these
+    // values are just serialized from a former instance of a CanonicalCookie
+    // object that *was* created through CanonicalCookie::Create().
+    net::CanonicalCookie* cookie = new net::CanonicalCookie(
         GURL(get_all.ColumnString(0)), get_all.ColumnString(1),
         get_all.ColumnString(2), get_all.ColumnString(3),
         get_all.ColumnString(4), get_all.ColumnString(5),
         get_all.ColumnString(6),
-        base::Time::FromInternalValue(get_all.ColumnInt64(7)), expiry,
+        base::Time::FromInternalValue(get_all.ColumnInt64(7)),
+        base::Time::FromInternalValue(get_all.ColumnInt64(8)),
+        base::Time::FromInternalValue(get_all.ColumnInt64(9)),
         get_all.ColumnBool(10), get_all.ColumnBool(11));
-    if (cookie) {
-      cookie->SetLastAccessDate(
-          base::Time::FromInternalValue(get_all.ColumnInt64(9)));
-      actual_cookies.push_back(cookie);
-    } else {
-      DLOG(ERROR) << "Failed to create cookie.";
-    }
+    actual_cookies.push_back(cookie);
   }
 
   return actual_cookies;

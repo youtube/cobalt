@@ -28,6 +28,16 @@ namespace {
 SbMutex log_mutex = SB_MUTEX_INITIALIZER;
 SbFile log_file = kSbFileInvalid;
 
+// SbMutex is not reentrant, so factor out close log file functionality for use
+// by other functions.
+void CloseLogFileWithoutLock() {
+  if (SbFileIsValid(log_file)) {
+    SbFileFlush(log_file);
+    SbFileClose(log_file);
+    log_file = kSbFileInvalid;
+  }
+}
+
 }  // namespace
 
 namespace starboard {
@@ -36,13 +46,7 @@ namespace win32 {
 
 void CloseLogFile() {
   SbMutexAcquire(&log_mutex);
-
-  if (SbFileIsValid(log_file)) {
-    SbFileFlush(log_file);
-    SbFileClose(log_file);
-    log_file = kSbFileInvalid;
-  }
-
+  CloseLogFileWithoutLock();
   SbMutexRelease(&log_mutex);
 }
 
@@ -73,12 +77,12 @@ void OpenLogInCacheDirectory(const char* log_file_name, int creation_flags) {
 void OpenLogFile(const char* path, const int creation_flags) {
   SB_DCHECK((creation_flags & kSbFileOpenAlways) ||
             (creation_flags & kSbFileCreateAlways));
-  CloseLogFile();
   SB_DLOG(INFO) << "Logging to [" << path << "]";
 
   int flags = creation_flags | kSbFileWrite;
 
   SbMutexAcquire(&log_mutex);
+  CloseLogFileWithoutLock();
   if ((path != nullptr) && (path != '\0')) {
     log_file = SbFileOpen(path, flags, nullptr, nullptr);
     SB_DCHECK(SbFileIsValid(log_file));

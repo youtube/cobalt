@@ -1,4 +1,4 @@
-// Copyright 2015 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,9 +12,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2013/WD-cssom-20131205/#the-cssstylesheet-interface
+#include "starboard/log.h"
 
-interface CSSStyleSheet : StyleSheet {
-  [SameObject, RaisesException] readonly attribute CSSRuleList cssRules;
-  [RaisesException] unsigned long insertRule(DOMString rule, unsigned long index);
-};
+#include <stdio.h>
+#include <windows.h>
+
+#include "starboard/shared/uwp/log_file_impl.h"
+#include "starboard/string.h"
+
+namespace sbuwp = starboard::shared::uwp;
+
+void SbLogRaw(const char* message) {
+  fprintf(stderr, "%s", message);
+  OutputDebugStringA(message);
+  sbuwp::WriteToLogFile(
+      message, static_cast<int>(SbStringGetLength(message)));
+}

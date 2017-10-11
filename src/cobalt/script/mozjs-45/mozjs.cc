@@ -60,7 +60,7 @@ void SetupBindings(JSContext* context, JSObject* global_object) {
 }
 
 int MozjsMain(int argc, char** argv) {
-  cobalt::script::StandaloneJavascriptRunner standalone_runner();
+  cobalt::script::StandaloneJavascriptRunner standalone_runner;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(
           standalone_runner.global_environment().get());
@@ -88,7 +88,8 @@ int MozjsMain(int argc, char** argv) {
 
         // Execute the script and get the results of execution.
         std::string result;
-        bool success = global_environment->EvaluateScript(source, &result);
+        bool success = global_environment->EvaluateScript(
+            source, &result, false /*mute_errors*/);
         // Echo the results to stdout.
         if (!success) {
           std::cout << "Exception: ";

@@ -6,7 +6,7 @@
 
 #include <cmath>
 
-#include "base/trace_event/common/trace_event_common.h"
+#include "v8/src/tracing/trace_event_common.h"
 #include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 

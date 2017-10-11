@@ -113,7 +113,8 @@ public:
     {% set count = 0 %}
     {% for property in type.properties %}
       {% if not(property.optional) %}
-        {% set count = count + 1 %}
+        {# "count = count + 1" does not work with our version of jinja, use the loop index instead. #}
+        {% set count = loop.index + 1 %}
           {{property.name | to_title_case}}Set = 1 << {{count}},
       {% endif %}
     {% endfor %}

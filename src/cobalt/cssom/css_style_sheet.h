@@ -27,6 +27,7 @@
 #include "cobalt/cssom/mutation_observer.h"
 #include "cobalt/cssom/style_sheet.h"
 #include "cobalt/math/size.h"
+#include "cobalt/script/exception_state.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -48,11 +49,22 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // Web API: CSSStyleSheet
   //
   // Returns a read-only, live object representing the CSS rules.
-  const scoped_refptr<CSSRuleList>& css_rules();
+  const scoped_refptr<CSSRuleList>& css_rules(
+      cobalt::script::ExceptionState* exception_state);
+
+  // Bypass same origin policy to get css rules. This assumes that the request
+  // comes from same origin and should not be accessible to javascript code.
+  const scoped_refptr<CSSRuleList>& css_rules_same_origin();
 
   // Inserts a new rule into the current style sheet. This Web API takes a
   // string as input and parses it into a rule.
-  unsigned int InsertRule(const std::string& rule, unsigned int index);
+  unsigned int InsertRule(const std::string& rule, unsigned int index,
+                          cobalt::script::ExceptionState* exception_state);
+
+  // Insert css rules without disallowing cross-origin access. This should be
+  // used internally by Cobalt.
+  unsigned int InsertRuleSameOrigin(const std::string& rule,
+                                    unsigned int index);
 
   // Custom, not in any spec.
   //
@@ -82,12 +94,17 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // that is reset in EvaluateMediaRules().
   void OnMediaRuleMutation() { media_rules_changed_ = true; }
 
+  void SetOriginClean(bool origin_clean) { origin_clean_ = origin_clean; }
+
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
   ~CSSStyleSheet() OVERRIDE;
 
   scoped_refptr<CSSRuleList> css_rule_list_;
+
+  // Null scoped_refptr used when access to css rules should be blocked.
+  scoped_refptr<CSSRuleList> null_css_rule_list_;
 
   StyleSheetList* parent_style_sheet_list_;
   CSSParser* const css_parser_;
@@ -103,6 +120,11 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
 
   // Origin of this style sheet.
   Origin origin_;
+
+  // https://drafts.csswg.org/cssom/#concept-css-style-sheet-origin-clean-flag
+  // It is used to block cross-origin website's access to the fetched style
+  // sheet. It is only possible to be set false when creating a HTMLLinkElement
+  bool origin_clean_;
 
   // Since CSSRuleList is merely a proxy, it needs access to CSS rules stored
   // in the stylesheet.

@@ -31,7 +31,22 @@
     # Enable support for Intel VTune. Supported on ia32/x64 only
     'v8_enable_vtunejit%': 0,
     'v8_enable_i18n_support%': 1,
+
+    'test_isolation_mode': 'noop',
+    'v8_use_snapshot': 0,
+    'v8_optimized_debug': 0,
+    'v8_use_external_startup_data': 0,
+    # TODO: Enable i18n support.
+    'v8_enable_i18n_support': 0,
   },
+  # TODO: Remove after starboardization.
+  'target_defaults': {
+    'defines': [
+      'V8_OS_POSIX=1',
+      'V8_OS_LINUX=1',
+      'V8_TRAP_HANDLER_SUPPORTED=1',
+    ],
+   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi'],
   'targets': [
     {
@@ -65,9 +80,11 @@
             'd8_js2c',
           ],
         }],
+        # TODO: Remove OS=="starboard" after starboardization.
         ['(OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="netbsd" \
            or OS=="openbsd" or OS=="solaris" or OS=="android" \
-           or OS=="qnx" or OS=="aix")', {
+           or OS=="qnx" or OS=="aix" \
+           or OS=="starboard")', {
              'sources': [ 'd8-posix.cc', ]
            }],
         [ 'OS=="win"', {

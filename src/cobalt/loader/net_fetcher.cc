@@ -124,6 +124,7 @@ void NetFetcher::OnURLFetchResponseStarted(const net::URLFetcher* source) {
       return HandleError(msg).InvalidateThis();
     }
   }
+  last_url_origin_ = Origin(source->GetURL());
 }
 
 void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {

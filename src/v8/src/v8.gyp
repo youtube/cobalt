@@ -36,7 +36,21 @@
     'v8_experimental_extra_library_files%': [],
     'mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)mksnapshot<(EXECUTABLE_SUFFIX)',
     'v8_os_page_size%': 0,
+
+    'v8_use_snapshot': 0,
+    'v8_optimized_debug': 0,
+    'v8_use_external_startup_data': 0,
+    # TODO: Enable i18n support.
+    'v8_enable_i18n_support': 0,
   },
+  # TODO: Remove after starboardization.
+  'target_defaults': {
+    'defines': [
+      'V8_OS_POSIX=1',
+      'V8_OS_LINUX=1',
+      'V8_TRAP_HANDLER_SUPPORTED=1',
+    ],
+   },
   'includes': ['../gypfiles/toolchain.gypi', '../gypfiles/features.gypi', 'inspector/inspector.gypi'],
   'targets': [
     {
@@ -1708,7 +1722,8 @@
             'third_party/valgrind/valgrind.h',
           ],
         }],
-        ['v8_target_arch=="x64" and OS=="linux"', {
+        # TODO: Remove after starboardization.
+        ['v8_target_arch=="x64" and (OS=="linux" or OS=="starboard")', {
             'sources': ['trap-handler/handler-inside.cc']
         }],
         ['v8_target_arch=="ppc" or v8_target_arch=="ppc64"', {
@@ -1935,7 +1950,8 @@
             ],
           },
         }],
-        ['OS=="linux"', {
+        # TODO: Remove after starboardization.
+        ['OS=="linux" or OS=="starboard"', {
             'link_settings': {
               'libraries': [
                 '-ldl',

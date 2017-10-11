@@ -89,7 +89,7 @@ class Location : public script::Wrappable {
   const GURL& url() const { return url_utils_.url(); }
   void set_url(const GURL& url) { url_utils_.set_url(url); }
 
-  const URLUtils::Origin& OriginObject() const {
+  const loader::Origin& OriginObject() const {
     return url_utils_.OriginObject();
   }
 

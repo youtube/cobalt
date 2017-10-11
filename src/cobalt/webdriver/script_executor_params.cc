@@ -40,7 +40,8 @@ ScriptExecutorParams::GCPreventedParams ScriptExecutorParams::Create(
           function.c_str(), base::SourceLocation("[webdriver]", 1, 1));
 
   if (!global_environment->EvaluateScript(function_source, params.get(),
-                                          &params->function_object_)) {
+                                          &params->function_object_,
+                                          false /*mute_errors*/)) {
     DLOG(ERROR) << "Failed to create Function object";
   }
   return {params, global_environment.get()};

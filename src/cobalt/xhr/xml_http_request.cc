@@ -831,7 +831,7 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
   // 8. If CORS flag is set and actualResponse’s location URL includes
   // credentials, then return a network error.
   if (new_url.has_username() || new_url.has_password()) {
-    if (dom::URLUtils::Origin(new_url) != dom::URLUtils::Origin(request_url_)) {
+    if (loader::Origin(new_url) != loader::Origin(request_url_)) {
       DLOG(INFO) << "XHR is redirected to cross-origin url with credentials, "
                     "aborting request for security reasons.";
       HandleRequestError(kNetworkError);
@@ -865,11 +865,11 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
   // If CORS flag is set and actualResponse’s location URL’s origin is not
   // same origin with request’s current url’s origin, then set request’s
   // origin to a unique opaque origin.
-  if (dom::URLUtils::Origin(new_url) != dom::URLUtils::Origin(request_url_)) {
+  if (loader::Origin(new_url) != loader::Origin(request_url_)) {
     if (is_cross_origin_) {
-      origin_ = dom::URLUtils::Origin();
+      origin_ = loader::Origin();
     } else {
-      origin_ = dom::URLUtils::Origin(request_url_);
+      origin_ = loader::Origin(request_url_);
       is_cross_origin_ = true;
     }
   }
@@ -1087,9 +1087,8 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
 
   // We let data url fetch resources freely but with no response headers.
   is_data_url_ = is_data_url_ || request_url_.SchemeIs("data");
-  is_cross_origin_ =
-      (is_redirect_ && is_cross_origin_) ||
-      (origin_ != dom::URLUtils::Origin(request_url_) && !is_data_url_);
+  is_cross_origin_ = (is_redirect_ && is_cross_origin_) ||
+                     (origin_ != loader::Origin(request_url_) && !is_data_url_);
   is_redirect_ = false;
   // If the CORS flag is set, httpRequest’s method is neither `GET` nor `HEAD`
   // or httpRequest’s mode is "websocket", then append `Origin`/httpRequest’s
@@ -1106,7 +1105,8 @@ void XMLHttpRequest::StartRequest(const std::string& request_body) {
                    base::Unretained(this)),
         origin_.SerializedOrigin(),
         base::Bind(&XMLHttpRequest::CORSPreflightErrorCallback,
-                   base::Unretained(this))));
+                   base::Unretained(this)),
+        settings_->window()->get_preflight_cache()));
     corspreflight_->set_headers(request_headers_);
     // For cross-origin requests, don't send or save auth data / cookies unless
     // withCredentials was set.
@@ -1136,8 +1136,12 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  DCHECK(url_fetcher_);
-  url_fetcher_->Start();
+  if (!url_fetcher_) {
+    HandleRequestError(XMLHttpRequest::kNetworkError);
+  } else {
+    DCHECK(url_fetcher_);
+    url_fetcher_->Start();
+  }
 }
 
 std::ostream& operator<<(std::ostream& out, const XMLHttpRequest& xhr) {

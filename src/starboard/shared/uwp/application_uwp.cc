@@ -33,13 +33,14 @@
 #include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/uwp/analog_thumbstick_input_thread.h"
 #include "starboard/shared/uwp/async_utils.h"
+#include "starboard/shared/uwp/log_file_impl.h"
 #include "starboard/shared/uwp/window_internal.h"
-#include "starboard/shared/win32/log_file_impl.h"
 #include "starboard/shared/win32/thread_private.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
 #include "starboard/system.h"
 
+namespace sbuwp = starboard::shared::uwp;
 namespace sbwin32 = starboard::shared::win32;
 
 using Microsoft::WRL::ComPtr;
@@ -60,11 +61,13 @@ using Windows::ApplicationModel::Core::CoreApplicationView;
 using Windows::ApplicationModel::Core::IFrameworkView;
 using Windows::ApplicationModel::Core::IFrameworkViewSource;
 using Windows::ApplicationModel::SuspendingEventArgs;
+using Windows::Foundation::Collections::IVectorView;
 using Windows::Foundation::EventHandler;
 using Windows::Foundation::IAsyncOperation;
 using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
+using Windows::Globalization::Calendar;
 using Windows::Media::Protection::HdcpProtection;
 using Windows::Media::Protection::HdcpSession;
 using Windows::Media::Protection::HdcpSetProtectionResult;
@@ -72,6 +75,8 @@ using Windows::Networking::Connectivity::ConnectionProfile;
 using Windows::Networking::Connectivity::NetworkConnectivityLevel;
 using Windows::Networking::Connectivity::NetworkInformation;
 using Windows::Networking::Connectivity::NetworkStatusChangedEventHandler;
+using Windows::Storage::KnownFolders;
+using Windows::Storage::StorageFolder;
 using Windows::System::Threading::ThreadPoolTimer;
 using Windows::System::Threading::TimerElapsedHandler;
 using Windows::System::UserAuthenticationStatus;
@@ -410,8 +415,35 @@ ref class App sealed : public IFrameworkView {
           ::starboard::shared::uwp::GetCommandLinePointer(application_uwp);
       if (command_line->HasSwitch(kLogPathSwitch)) {
         std::string switch_val = command_line->GetSwitchValue(kLogPathSwitch);
-        sbwin32::OpenLogInCacheDirectory(switch_val.c_str(),
-                                         kSbFileCreateAlways);
+        sbuwp::OpenLogFile(
+            Windows::Storage::ApplicationData::Current->LocalCacheFolder,
+            switch_val.c_str());
+      } else {
+#if !defined(COBALT_BUILD_TYPE_GOLD)
+        // Log to a file on the last removable device available (probably the
+        // most recently added removable device).
+        try {
+          if (KnownFolders::RemovableDevices != nullptr) {
+            concurrency::create_task(
+                KnownFolders::RemovableDevices->GetFoldersAsync()).then(
+                [](IVectorView<StorageFolder^>^ results) {
+                  if (results->Size > 0) {
+                    StorageFolder^ folder = results->GetAt(results->Size - 1);
+                    Calendar^ now = ref new Calendar();
+                    char filename[128];
+                    SbStringFormatF(filename, sizeof(filename),
+                        "cobalt_log_%04d%02d%02d_%02d%02d%02d.txt",
+                        now->Year, now->Month, now->Day,
+                        now->Hour + now->FirstHourInThisPeriod,
+                        now->Minute, now->Second);
+                    sbuwp::OpenLogFile(folder, filename);
+                  }
+                });
+          }
+        } catch(Platform::Exception^) {
+          SB_LOG(ERROR) << "Unable to open log file in RemovableDevices";
+        }
+#endif
       }
       SB_LOG(INFO) << "Starting " << GetBinaryName();
 

@@ -335,6 +335,11 @@ INSTANTIATE_TEST_CASE_P(
     streams, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("streams",
         "'ReadableStream' in this")));
+
+INSTANTIATE_TEST_CASE_P(
+    cobalt_special, WebPlatformTest,
+    ::testing::ValuesIn(EnumerateWebPlatformTests("cobalt_special")));
+
 #endif  // !defined(COBALT_WIN)
 
 }  // namespace layout_tests

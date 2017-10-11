@@ -26,6 +26,7 @@ TEST(StyleSheetListTest, ItemAccess) {
   ASSERT_FALSE(style_sheet_list->Item(0).get());
 
   scoped_refptr<CSSStyleSheet> style_sheet = new CSSStyleSheet();
+  style_sheet->SetOriginClean(true);
   StyleSheetVector style_sheet_vector;
   style_sheet_vector.push_back(style_sheet);
   style_sheet_list = new StyleSheetList(style_sheet_vector, NULL);

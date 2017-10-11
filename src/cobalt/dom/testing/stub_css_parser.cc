@@ -22,7 +22,9 @@ scoped_refptr<cssom::CSSStyleSheet> StubCSSParser::ParseStyleSheet(
     const std::string& input, const base::SourceLocation& input_location) {
   UNREFERENCED_PARAMETER(input);
   UNREFERENCED_PARAMETER(input_location);
-  return new cssom::CSSStyleSheet();
+  cssom::CSSStyleSheet* new_style_sheet = new cssom::CSSStyleSheet();
+  new_style_sheet->SetOriginClean(true);
+  return new_style_sheet;
 }
 
 scoped_refptr<cssom::CSSRule> StubCSSParser::ParseRule(

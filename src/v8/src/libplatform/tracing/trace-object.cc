@@ -4,7 +4,7 @@
 
 #include "include/libplatform/v8-tracing.h"
 
-#include "base/trace_event/common/trace_event_common.h"
+#include "v8/src/tracing/trace_event_common.h"
 #include "include/v8-platform.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
