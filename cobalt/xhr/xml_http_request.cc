@@ -920,7 +920,7 @@ void XMLHttpRequest::HandleRequestError(
       << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
       << ") " << *this << std::endl
       << script::StackTraceToString(
-             settings_->global_environment()->GetStackTrace());
+             settings_->global_environment()->GetStackTrace(0 /*max_frames*/));
   stop_timeout_ = true;
   // Step 1
   TerminateRequest();

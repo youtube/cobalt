@@ -110,7 +110,7 @@ std::vector<WebPlatformTestInfo> EnumerateWebPlatformTests(
     bool success = global_environment->EvaluateScript(
         script::SourceCode::CreateSourceCode(
             precondition, base::SourceLocation(__FILE__, __LINE__, 1)),
-        &result, false /*mute_errors*/);
+        false /*mute_errors*/, &result);
 
     if (!success) {
       DLOG(ERROR) << "Failed to evaluate precondition: "
