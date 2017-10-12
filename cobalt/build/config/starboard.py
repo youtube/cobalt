@@ -16,6 +16,7 @@
 import logging
 import os
 
+import cobalt.tools.webdriver_benchmark_config as wb_config
 from config.base import Configs
 from config.base import PlatformConfigBase
 
@@ -89,3 +90,22 @@ class PlatformConfigStarboard(PlatformConfigBase):
         'enable_vr': vr_enabled,
     }
     return variables
+
+  def WebdriverBenchmarksEnabled(self):
+    """Determines if webdriver benchmarks are enabled or not.
+
+    Returns:
+      True if webdriver benchmarks can run on this platform, False if not.
+    """
+    return False
+
+  def GetDefaultSampleSize(self):
+    return wb_config.STANDARD_SIZE
+
+  def GetWebdriverBenchmarksTargetParams(self):
+    """Gets command line params to pass to the Cobalt executable."""
+    return []
+
+  def GetWebdriverBenchmarksParams(self):
+    """Gets command line params to pass to the webdriver benchmark script."""
+    return []
