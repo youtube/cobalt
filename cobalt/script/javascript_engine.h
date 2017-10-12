@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 #define COBALT_SCRIPT_JAVASCRIPT_ENGINE_H_
 
@@ -31,7 +32,7 @@ class JavaScriptEngine {
   struct Options {
     Options() : disable_jit(false), gc_threshold_bytes(1024*1024) {}
 
-    // Default false. When set to true then the javascript engine should
+    // Default false. When set to true then the JavaScript engine should
     // disable the just-in-time compiler.
     bool disable_jit;
 
@@ -51,8 +52,8 @@ class JavaScriptEngine {
       const Options& options = Options());
 
   // Updates the memory usage and returns the total memory that is reserved
-  // across all of the engines. This includes the part that is actually occupied
-  // by JS objects, and the part that is not yet.
+  // across all of the engines. This includes the part that is actually
+  // occupied by JavaScript objects, and the part that is not yet.
   // This function is defined per-implementation.
   static size_t UpdateMemoryStatsAndReturnReserved();
 
@@ -62,11 +63,11 @@ class JavaScriptEngine {
   // Kick off the engine's garbage collection synchronously.
   virtual void CollectGarbage() = 0;
 
-  // Indicate to the JS heap that extra bytes have been allocated by some
-  // Javascript object. This may mean collection needs to happen sooner.
+  // Indicate to the JavaScript heap that extra bytes have been allocated by
+  // some Javascript object. This may mean collection needs to happen sooner.
   virtual void ReportExtraMemoryCost(size_t bytes) = 0;
 
-  // Installs an ErrorHandler for listening to javascript errors.
+  // Installs an ErrorHandler for listening to JavaScript errors.
   // Returns true if the error handler could be installed. False otherwise.
   virtual bool RegisterErrorHandler(ErrorHandler handler) = 0;
 

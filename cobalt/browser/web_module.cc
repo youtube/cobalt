@@ -713,9 +713,9 @@ void WebModule::Impl::ExecuteJavascript(
   // JavaScript is being run. Track it in the global stats.
   dom::GlobalStats::GetInstance()->StartJavaScriptEvent();
 
-  // This should only be called for Cobalt javascript, errors not expected.
-  *result = script_runner_->Execute(script_utf8, script_location, out_succeeded,
-                                    true /*mute error reports*/);
+  // This should only be called for Cobalt JavaScript, errors not expected.
+  *result = script_runner_->Execute(script_utf8, script_location,
+                                    true /*mute_errors*/, out_succeeded);
 
   // JavaScript is done running. Stop tracking it in the global stats.
   dom::GlobalStats::GetInstance()->StopJavaScriptEvent();
