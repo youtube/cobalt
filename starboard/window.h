@@ -131,6 +131,18 @@ SB_EXPORT bool SbWindowGetSize(SbWindow window, SbWindowSize* size);
 // |window|: The SbWindow to retrieve the platform handle for.
 SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+// Determine if the on screen keyboard is shown.
+SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
+
+// Show the on screen keyboard. Fire kSbEventTypeWindowSizeChange if necessary.
+SB_EXPORT void SbWindowShowOnScreenKeyboard(SbWindow window);
+
+// Hide the on screen keyboard. Fire kSbEventTypeWindowSizeChange if necessary.
+SB_EXPORT void SbWindowHideOnScreenKeyboard(SbWindow window);
+
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 #ifdef __cplusplus
 }  // extern "C"
 #endif

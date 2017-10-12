@@ -1241,7 +1241,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
 #if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
       XConfigureEvent* x_configure_event =
           reinterpret_cast<XConfigureEvent*>(x_event);
-      SbEventWindowSizeChangedData* data = new SbEventWindowSizeChangedData();
+      scoped_ptr<SbEventWindowSizeChangedData> data(
+          new SbEventWindowSizeChangedData());
       data->window = FindWindow(x_configure_event->window);
       bool unhandled_resize = data->window->unhandled_resize;
       data->window->BeginComposite();
@@ -1255,7 +1256,8 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       SbWindowGetSize(data->window, &window_size);
       data->size = window_size;
       data->window->unhandled_resize = false;
-      return new Event(kSbEventTypeWindowSizeChanged, data, NULL);
+      return new Event(kSbEventTypeWindowSizeChanged, data.release(),
+                       &DeleteDestructor<SbInputData>);
 #else  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
       return NULL;
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
