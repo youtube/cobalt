@@ -187,7 +187,6 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   }
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -242,7 +241,6 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     pending_set_bounds_z_index_ = z_index;
     pending_set_bounds_rect_ = rect;
     return;
@@ -259,7 +257,6 @@ void StarboardPlayer::PrepareForSeek() {
   seek_pending_ = true;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -273,7 +270,6 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   decoder_buffer_cache_.ClearAll();
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     preroll_timestamp_ = time;
     return;
   }
@@ -298,7 +294,6 @@ void StarboardPlayer::SetVolume(float volume) {
   volume_ = volume;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -312,7 +307,6 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -330,8 +324,6 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 
   base::AutoLock auto_lock(lock_);
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
-
     if (video_frames_decoded) {
       *video_frames_decoded = cached_video_frames_decoded_;
     }
@@ -371,7 +363,6 @@ void StarboardPlayer::Suspend() {
 
   // Check if the player is already suspended.
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -403,8 +394,6 @@ void StarboardPlayer::Resume() {
     DCHECK(SbPlayerIsValid(player_));
     return;
   }
-
-  DCHECK(!SbPlayerIsValid(player_));
 
   decoder_buffer_cache_.StartResuming();
 
