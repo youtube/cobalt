@@ -69,8 +69,8 @@ void StandaloneJavascriptRunner::ExecuteAndPrintResult(
 
   // Execute the script and get the results of execution.
   std::string result;
-  bool success = global_environment_->EvaluateScript(source, &result,
-                                                     false /*mute_errors*/);
+  bool success = global_environment_->EvaluateScript(
+      source, false /*mute_errors*/, &result);
   // Echo the results to stdout.
   if (!success) {
     std::cout << "Exception: ";
