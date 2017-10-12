@@ -116,7 +116,7 @@
 #define SB_HAS_SSIZE_T 0
 
 // Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
+#define SB_HAS_MICROPHONE 1
 
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
