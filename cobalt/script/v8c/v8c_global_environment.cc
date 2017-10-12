@@ -55,8 +55,8 @@ void V8cGlobalEnvironment::CreateGlobalObject() {
 }
 
 bool V8cGlobalEnvironment::EvaluateScript(
-    const scoped_refptr<SourceCode>& source_code, std::string* out_result_utf8,
-    bool mute_errors) {
+    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
+    std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -100,9 +100,8 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
-    const scoped_refptr<Wrappable>& owning_object,
-    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle,
-    bool mute_errors) {
+    const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   // TODO: Implement this once we have |V8cObjectHandleHolder|.

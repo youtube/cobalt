@@ -34,7 +34,8 @@ class ExecutionStateImpl : public ExecutionState {
 };
 
 std::string ExecutionStateImpl::GetStackTrace() const {
-  return StackTraceToString(global_environment_->GetStackTrace());
+  return StackTraceToString(
+      global_environment_->GetStackTrace(0 /*max_frames*/));
 }
 
 }  // namespace
