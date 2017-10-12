@@ -86,6 +86,13 @@ typedef enum SbInputDeviceType {
   //
   // Produces |Move|, |Press|, and |Unpress| events.
   kSbInputDeviceTypeTouchPad,
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // Keyboard input from an on screen keyboard.
+  //
+  // Produces |Input| events.
+  kSbInputDeviceTypeOnScreenKeyboard,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbInputDeviceType;
 
 // The action that an input event represents.
@@ -125,6 +132,11 @@ typedef enum SbInputEventType {
   // Wheel movement. Provides relative movements of the |Mouse| wheel.
   kSbInputEventTypeWheel,
 #endif
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // https://w3c.github.io/uievents/#event-type-input
+  kSbInputEventTypeInput,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbInputEventType;
 
 // A 2-dimensional vector used to represent points and motion vectors.
@@ -194,6 +206,10 @@ typedef struct SbInputData {
   // towards the user (y). Use (NaN, NaN) for devices that do not report tilt.
   // This value is used for input events with device type mouse or touch screen.
   SbInputVector tilt;
+#endif
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // The text to input for events of type |Input|.
+  const char* input_text;
 #endif
 } SbInputData;
 

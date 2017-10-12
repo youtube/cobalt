@@ -70,6 +70,7 @@
 
 #define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
 #define SB_WINDOW_SIZE_CHANGED_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -554,6 +555,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_SPEECH_RECOGNIZER."
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
+
+#if SB_HAS(ON_SCREEN_KEYBOARD) && \
+    (SB_API_VERSION < SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION)
+#error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
+#endif
 
 // --- Derived Configuration -------------------------------------------------
 
