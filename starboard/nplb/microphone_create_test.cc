@@ -14,6 +14,7 @@
 
 #include "starboard/microphone.h"
 #include "starboard/nplb/microphone_helpers.h"
+#include "starboard/types.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace starboard {
@@ -170,9 +171,13 @@ TEST(SbMicrophoneCreateTest, RainyDayInvalidBufferSize_2G) {
     ASSERT_TRUE(SbMicrophoneIsSampleRateSupported(
         info_array[0].id, info_array[0].max_sample_rate_hz));
     // Create a microphone with 2 gigabytes buffer size.
+    int64_t kBufferSize64 = 2 * 1024 * 1024 * 1024LL;
+    // This should wrap around to a negative value due to int
+    // narrowing.
+    int kBufferSize = static_cast<int>(kBufferSize64);
     SbMicrophone microphone =
         SbMicrophoneCreate(info_array[0].id, info_array[0].max_sample_rate_hz,
-                           2 * 1024 * 1024 * 1024LL);
+                           kBufferSize);
     EXPECT_FALSE(SbMicrophoneIsValid(microphone));
     SbMicrophoneDestroy(microphone);
   }
