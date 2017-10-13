@@ -363,21 +363,6 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->scratch_surface_cache_size_in_bytes);
 }
 
-// Restrict navigation to a couple of whitelisted URLs by default.
-const char kYouTubeTvLocationPolicy[] =
-    "h5vcc-location-src "
-    "https://s.ytimg.com/yts/cobalt/ "
-    "https://www.youtube.com/tv "
-    "https://www.youtube.com/tv/ "
-    "https://web-green-qa.youtube.com/tv "
-    "https://web-green-qa.youtube.com/tv/ "
-    "https://web-release-qa.youtube.com/tv "
-    "https://web-release-qa.youtube.com/tv/ "
-#if defined(ENABLE_ABOUT_SCHEME)
-    "about: "
-#endif
-    "h5vcc:";
-
 struct NonTrivialStaticFields {
   NonTrivialStaticFields() : system_language(base::GetSystemLanguage()) {}
 
@@ -516,7 +501,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // User can specify an extra search path entry for files loaded via file://.
   options.web_module_options.extra_web_file_dir = GetExtraWebFileDir();
   SecurityFlags security_flags{csp::kCSPRequired, network::kHTTPSRequired};
-  options.web_module_options.location_policy = kYouTubeTvLocationPolicy;
   // Set callback to be notified when a navigation occurs that destroys the
   // underlying WebModule.
   options.web_module_recreated_callback =
@@ -609,13 +593,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       security_flags.https_requirement;
   options.web_module_options.require_csp = security_flags.csp_header_policy;
   options.web_module_options.csp_enforcement_mode = dom::kCspEnforcementEnable;
-
-  if (command_line->HasSwitch(browser::switches::kDisableNavigationWhitelist)) {
-    LOG(ERROR) << "\n"
-               << "  *** Disabling the default navigation whitelist! ***\n"
-               << "  *** Do not run in this mode in production!      ***";
-    options.web_module_options.location_policy = "h5vcc-location-src *";
-  }
 
   options.requested_viewport_size = requested_viewport_size;
   account_manager_.reset(new account::AccountManager());

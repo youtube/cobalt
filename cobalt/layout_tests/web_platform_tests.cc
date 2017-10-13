@@ -46,23 +46,22 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
  public:
   CspDelegatePermissive(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback)
-      : dom::CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
-                               require_csp, policy_changed_callback) {
+      : dom::CspDelegateSecure(violation_reporter.Pass(), url, require_csp,
+                               policy_changed_callback) {
     // Lies, but some checks in our parent require this.
     was_header_received_ = true;
   }
 
   static CspDelegate* Create(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
     UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(violation_reporter.Pass(), url,
-                                     location_policy, require_csp,
-                                     policy_changed_callback);
+                                     require_csp, policy_changed_callback);
   }
 
   bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
@@ -324,17 +323,15 @@ INSTANTIATE_TEST_CASE_P(cors, WebPlatformTest,
 
 INSTANTIATE_TEST_CASE_P(
     fetch, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch",
-        "'fetch' in this")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch", "'fetch' in this")));
 
 INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
 
-INSTANTIATE_TEST_CASE_P(
-    streams, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("streams",
-        "'ReadableStream' in this")));
+INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
+                        ::testing::ValuesIn(EnumerateWebPlatformTests(
+                            "streams", "'ReadableStream' in this")));
 
 INSTANTIATE_TEST_CASE_P(
     cobalt_special, WebPlatformTest,

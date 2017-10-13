@@ -48,7 +48,6 @@ extern const char kWebDriverListenIp[];
 extern const char kWebDriverPort[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-extern const char kDisableNavigationWhitelist[];
 extern const char kFPSPrint[];
 extern const char kFPSOverlay[];
 extern const char kImageCacheSizeInBytes[];

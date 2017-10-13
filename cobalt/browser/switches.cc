@@ -137,10 +137,6 @@ const char kFPSPrint[] = "fps_stdout";
 // frames has been collected.
 const char kFPSOverlay[] = "fps_overlay";
 
-// Disables the hard-coded navigation whitelist without disabling any other
-// security checks. This is enabled in production(gold) builds.
-const char kDisableNavigationWhitelist[] = "disable_navigation_whitelist";
-
 // Determines the capacity of the image cache which manages image surfaces
 // downloaded from a web page.  While it depends on the platform, often (and
 // ideally) these images are cached within GPU memory.
