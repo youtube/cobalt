@@ -110,10 +110,7 @@ class Window : public EventTarget,
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
-  enum ClockType {
-    kClockTypeTestRunner,
-    kClockTypeSystemTime
-  };
+  enum ClockType { kClockTypeTestRunner, kClockTypeSystemTime };
 
   Window(
       int width, int height, float device_pixel_ratio,
@@ -140,7 +137,6 @@ class Window : public EventTarget,
       const base::Callback<void(const std::string&)>& error_callback,
       network_bridge::CookieJar* cookie_jar,
       const network_bridge::PostSender& post_sender,
-      const std::string& default_security_policy,
       csp::CSPHeaderPolicy require_csp,
       dom::CspEnforcementType csp_enforcement_mode,
       const base::Closure& csp_policy_changed_callback,
