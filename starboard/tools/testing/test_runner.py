@@ -128,6 +128,8 @@ class TestRunner(object):
     final_targets[single_target] = []
 
     for platform_filter in platform_filters:
+      if platform_filter == test_filter.DISABLE_TESTING:
+        return {}
       if platform_filter.target_name == single_target:
         # Only filter the tests specifying our config or all configs.
         if platform_filter.config == config or not platform_filter.config:
@@ -166,6 +168,8 @@ class TestRunner(object):
       final_targets[target] = []
 
     for platform_filter in platform_filters:
+      if platform_filter == test_filter.DISABLE_TESTING:
+        return {}
       # Only filter the tests specifying our config or all configs.
       if platform_filter.config == config or not platform_filter.config:
         if platform_filter.test_name == test_filter.FILTER_ALL:
@@ -189,6 +193,9 @@ class TestRunner(object):
     Args:
       ninja_flags: Command line flags to pass to ninja.
     """
+    if not self.test_targets:
+      return
+
     args_list = ["ninja", "-C",
                  abstract_launcher.DynamicallyBuildOutDirectory(
                      self.platform, self.config)]

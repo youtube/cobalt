@@ -17,6 +17,7 @@
 # Constant to use for filtering all unit tests from a specific test executable.
 # Provide it as the "test_name" argument to TestFilter's constructor.
 FILTER_ALL = 'FILTER_ALL'
+DISABLE_TESTING = 'DISABLE_TESTING'
 
 
 class TestFilter(object):
