@@ -107,7 +107,7 @@ Document::Document(HTMLElementContext* html_element_context,
   csp_delegate_ =
       CspDelegateFactory::GetInstance()
           ->Create(options.csp_enforcement_mode, violation_reporter.Pass(),
-                   options.url, options.location_policy, options.require_csp,
+                   options.url, options.require_csp,
                    options.csp_policy_changed_callback,
                    options.csp_insecure_allowed_token)
           .Pass();

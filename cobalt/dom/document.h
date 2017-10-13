@@ -110,7 +110,6 @@ class Document : public Node,
             const base::optional<math::Size>& viewport_size,
             network_bridge::CookieJar* cookie_jar,
             const network_bridge::PostSender& post_sender,
-            const std::string& location_policy,
             csp::CSPHeaderPolicy require_csp,
             CspEnforcementType csp_enforcement_mode,
             const base::Closure& csp_policy_changed_callback,
@@ -124,7 +123,6 @@ class Document : public Node,
           viewport_size(viewport_size),
           cookie_jar(cookie_jar),
           post_sender(post_sender),
-          location_policy(location_policy),
           require_csp(require_csp),
           csp_enforcement_mode(csp_enforcement_mode),
           csp_policy_changed_callback(csp_policy_changed_callback),
@@ -140,7 +138,6 @@ class Document : public Node,
     base::optional<math::Size> viewport_size;
     network_bridge::CookieJar* cookie_jar;
     network_bridge::PostSender post_sender;
-    std::string location_policy;
     csp::CSPHeaderPolicy require_csp;
     CspEnforcementType csp_enforcement_mode;
     base::Closure csp_policy_changed_callback;

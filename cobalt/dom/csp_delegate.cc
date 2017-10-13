@@ -25,9 +25,8 @@ CspDelegate::~CspDelegate() {}
 
 CspDelegateSecure::CspDelegateSecure(
     scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-    const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+    csp::CSPHeaderPolicy require_csp,
     const base::Closure& policy_changed_callback) {
-  location_policy_ = location_policy;
   require_csp_ = require_csp;
   was_header_received_ = false;
   policy_changed_callback_ = policy_changed_callback;
@@ -39,7 +38,6 @@ CspDelegateSecure::CspDelegateSecure(
                                     base::Unretained(reporter_.get()));
   }
   csp_.reset(new csp::ContentSecurityPolicy(url, violation_callback));
-  SetLocationPolicy(location_policy_);
 }
 
 CspDelegateSecure::~CspDelegateSecure() {}
@@ -175,19 +173,6 @@ void CspDelegateSecure::OnReceiveHeader(const std::string& header,
       policy_changed_callback_.Run();
     }
   }
-}
-
-void CspDelegateSecure::SetLocationPolicy(const std::string& policy) {
-  if (!policy.length()) {
-    return;
-  }
-
-  if (policy.find(csp::ContentSecurityPolicy::kLocationSrc) ==
-      std::string::npos) {
-    LOG(FATAL) << csp::ContentSecurityPolicy::kLocationSrc << " not found in "
-               << policy;
-  }
-  csp_->SetNavigationPolicy(policy);
 }
 
 }  // namespace dom

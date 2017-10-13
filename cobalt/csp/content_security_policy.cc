@@ -212,11 +212,6 @@ void ContentSecurityPolicy::OnReceiveHeader(const std::string& header,
   AddPolicyFromHeaderValue(header, type, source);
 }
 
-void ContentSecurityPolicy::SetNavigationPolicy(const std::string& policy) {
-  navigation_policy_.reset(new DirectiveList(
-      this, base::StringPiece(policy), kHeaderTypeEnforce, kHeaderSourceHTTP));
-}
-
 bool ContentSecurityPolicy::UrlMatchesSelf(const GURL& url) const {
   return self_source_->Matches(url, kDidNotRedirect);
 }
@@ -493,16 +488,9 @@ bool ContentSecurityPolicy::AllowNavigateToSource(
     const GURL& url, ContentSecurityPolicy::RedirectStatus redirect_status,
     ContentSecurityPolicy::ReportingStatus reporting_status) const {
   // Note that this is a Cobalt-specific policy to prevent navigation
-  // to any unexpected URLs. Navigation is restrictive by default, as
-  // opposed to the permissive policy for other directives.
-
-  if (!navigation_policy_) {
-    DLOG(ERROR) << "SetNavigationFallbackPolicy() was not called.";
-    return false;
-  }
-  // TODO: Re-enable respecting the navigation whitelist.
-  return navigation_policy_->AllowNavigateToSource(url, redirect_status,
-                                                   reporting_status);
+  // to any unexpected URLs.
+  FOR_ALL_POLICIES_3(AllowNavigateToSource, url, redirect_status,
+                     reporting_status);
 }
 
 bool ContentSecurityPolicy::AllowStyleFromSource(

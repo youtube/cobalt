@@ -122,12 +122,6 @@ class WebModule : public LifecycleObserver {
     // Options to customize DOMSettings.
     dom::DOMSettings::Options dom_settings_options;
 
-    // Location policy to enforce, formatted as a Content Security Policy
-    // directive, e.g. "h5vcc-location-src 'self'"
-    // This is used to implement a navigation jail, so that location
-    // can't be changed from the whitelisted origins.
-    std::string location_policy;
-
     // Whether Cobalt is forbidden to render without receiving CSP headers.
     csp::CSPHeaderPolicy require_csp;
 
