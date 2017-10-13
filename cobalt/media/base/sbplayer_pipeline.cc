@@ -52,6 +52,7 @@ using base::TimeDelta;
 
 namespace {
 
+static const int kRetryDelayAtSuspendInMilliseconds = 100;
 const char kVideoDumpFileName[] = "video_content.dmp";
 
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
@@ -663,10 +664,15 @@ void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayerWithUrl");
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  if (stopped_) {
+    return;
+  }
+
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreatePlayerWithUrl, this, source_url));
+        base::Bind(&SbPlayerPipeline::CreatePlayerWithUrl, this, source_url),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -715,10 +721,15 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
 
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  if (stopped_) {
+    return;
+  }
+
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::SetDrmSystem, this, drm_system));
+        base::Bind(&SbPlayerPipeline::SetDrmSystem, this, drm_system),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -739,10 +750,15 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   DCHECK(audio_stream_);
   DCHECK(video_stream_);
 
+  if (stopped_) {
+    return;
+  }
+
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system));
+        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -813,9 +829,10 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status));
+        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
