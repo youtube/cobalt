@@ -601,9 +601,11 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   DCHECK(video_stream_);
 
   if (suspended_) {
-    message_loop_->PostTask(
+    SB_DLOG(INFO) << "CreatePlayer Repeat" << base::PlatformThread::GetName();
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system));
+        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system),
+        base::TimeDelta::FromMilliseconds(100));
     return;
   }
 
@@ -668,9 +670,12 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   if (suspended_) {
-    message_loop_->PostTask(
+    SB_DLOG(INFO) << "OnDemuxerInitialized Repeat"
+                  << base::PlatformThread::GetName();
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status));
+        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status),
+        base::TimeDelta::FromMilliseconds(100));
     return;
   }
 
