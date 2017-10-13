@@ -56,5 +56,5 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
         test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL, 'debug')
+            'starboard_platform_tests', test_filter.FILTER_ALL)
     ]
