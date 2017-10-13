@@ -104,8 +104,7 @@ class CspDelegateInsecure : public CspDelegate {
 class CspDelegateSecure : public CspDelegate {
  public:
   CspDelegateSecure(scoped_ptr<CspViolationReporter> violation_reporter,
-                    const GURL& url, const std::string& location_policy,
-                    csp::CSPHeaderPolicy require_csp,
+                    const GURL& url, csp::CSPHeaderPolicy require_csp,
                     const base::Closure& policy_changed_callback);
   ~CspDelegateSecure();
 
@@ -141,9 +140,6 @@ class CspDelegateSecure : public CspDelegate {
   void SetLocationPolicy(const std::string& policy);
 
   scoped_ptr<csp::ContentSecurityPolicy> csp_;
-
-  // Hardcoded policy to restrict navigation.
-  std::string location_policy_;
 
   // Helper class to send violation events to any reporting endpoints.
   scoped_ptr<CspViolationReporter> reporter_;

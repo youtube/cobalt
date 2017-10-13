@@ -107,9 +107,8 @@ void CspDelegateTest::SetUp() {
   mock_reporter_ = new StrictMock<MockViolationReporter>();
   scoped_ptr<CspViolationReporter> reporter(mock_reporter_);
 
-  csp_delegate_.reset(
-      new CspDelegateSecure(reporter.Pass(), origin, default_navigation_policy,
-                            csp::kCSPRequired, base::Closure()));
+  csp_delegate_.reset(new CspDelegateSecure(
+      reporter.Pass(), origin, csp::kCSPRequired, base::Closure()));
   std::string policy =
       base::StringPrintf("default-src none; %s 'self'", GetParam().directive);
   csp_delegate_->OnReceiveHeader(policy, csp::kHeaderTypeEnforce,
@@ -139,7 +138,7 @@ INSTANTIATE_TEST_CASE_P(CanLoad, CspDelegateTest, ValuesIn(s_params));
 TEST(CspDelegateFactoryTest, Secure) {
   scoped_ptr<CspDelegate> delegate = CspDelegateFactory::GetInstance()->Create(
       kCspEnforcementEnable, scoped_ptr<CspViolationReporter>(), GURL(),
-      std::string(), csp::kCSPRequired, base::Closure());
+      csp::kCSPRequired, base::Closure());
   EXPECT_TRUE(delegate != NULL);
 }
 
@@ -152,7 +151,7 @@ TEST(CspDelegateFactoryTest, InsecureBlocked) {
     scoped_ptr<CspDelegate> delegate =
         CspDelegateFactory::GetInstance()->Create(
             kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
-            std::string(), csp::kCSPRequired, base::Closure());
+            csp::kCSPRequired, base::Closure());
 
     scoped_ptr<CspDelegate> empty_delegate;
     EXPECT_EQ(empty_delegate, delegate.get());
@@ -166,7 +165,7 @@ TEST(CspDelegateFactoryTest, InsecureAllowed) {
   int token = CspDelegateFactory::GetInstance()->GetInsecureAllowedToken();
   scoped_ptr<CspDelegate> delegate = CspDelegateFactory::GetInstance()->Create(
       kCspEnforcementDisable, scoped_ptr<CspViolationReporter>(), GURL(),
-      std::string(), csp::kCSPRequired, base::Closure(), token);
+      csp::kCSPRequired, base::Closure(), token);
   EXPECT_TRUE(delegate != NULL);
 }
 

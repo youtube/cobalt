@@ -44,13 +44,14 @@ class CspDelegateFactory {
   scoped_ptr<CspDelegate> Create(
       CspEnforcementType type,
       scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token = 0);
 
   typedef CspDelegate* (*CspDelegateCreator)(
-      scoped_ptr<CspViolationReporter> violation_reporter, const GURL&,
-      const std::string&, csp::CSPHeaderPolicy, const base::Closure&, int);
+      scoped_ptr<CspViolationReporter> violation_reporter, const GURL& url,
+      csp::CSPHeaderPolicy require_csp,
+      const base::Closure& policy_chagned_callback, int insecure_allowed_token);
 
 #if !defined(COBALT_FORCE_CSP)
   // Allow tests to have the factory create a different delegate type.
