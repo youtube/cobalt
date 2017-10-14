@@ -188,7 +188,7 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
 // matching one of the EME initialization data types : "webm", "cenc", or
 // "keyids", |init_data| is the initialization data, and
 // |init_data_length| is the length of the data.
-typedef void(SbPlayerEncryptedMediaInitDataEncounteredCB)(
+typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
     SbPlayer player,
     void* context,
     const char* init_data_type,
