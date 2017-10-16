@@ -40,7 +40,9 @@ class StarboardPlayer {
  public:
   class Host {
    public:
+#if !SB_HAS(PLAYER_WITH_URL)
     virtual void OnNeedData(DemuxerStream::Type type) = 0;
+#endif  // !SB_HAS(PLAYER_WITH_URL)
     virtual void OnPlayerStatus(SbPlayerState state) = 0;
 
    protected:
@@ -73,8 +75,10 @@ class StarboardPlayer {
 
   void UpdateVideoResolution(int frame_width, int frame_height);
 
+#if !SB_HAS(PLAYER_WITH_URL)
   void WriteBuffer(DemuxerStream::Type type,
                    const scoped_refptr<DecoderBuffer>& buffer);
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   void SetBounds(int z_index, const gfx::Rect& rect);
 
   void PrepareForSeek();

@@ -66,6 +66,9 @@ struct StartTaskParameters {
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
   base::Closure output_mode_change_cb;
+#if SB_HAS(PLAYER_WITH_URL)
+  std::string source_url;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
@@ -145,12 +148,14 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
+
+#if !SB_HAS(PLAYER_WITH_URL)
   void OnDemuxerStreamRead(DemuxerStream::Type type,
                            DemuxerStream::Status status,
                            const scoped_refptr<DecoderBuffer>& buffer);
-
   // StarboardPlayer::Host implementation.
   void OnNeedData(DemuxerStream::Type type) OVERRIDE;
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   void OnPlayerStatus(SbPlayerState state) OVERRIDE;
 
   void UpdateDecoderConfig(DemuxerStream* stream);
@@ -339,7 +344,6 @@ void SbPlayerPipeline::Start(
     const base::Closure& output_mode_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
-  DCHECK(demuxer);
   DCHECK(!ended_cb.is_null());
   DCHECK(!error_cb.is_null());
   DCHECK(!seek_cb.is_null());
@@ -348,6 +352,9 @@ void SbPlayerPipeline::Start(
   DCHECK(!output_mode_change_cb.is_null());
 #if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
   DCHECK(!on_encrypted_media_init_data_encountered_cb.is_null());
+#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
+        // SB_HAS(PLAYER_WITH_URL)
+  DCHECK(demuxer);
 #endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
         // SB_HAS(PLAYER_WITH_URL)
   StartTaskParameters parameters;
@@ -359,7 +366,8 @@ void SbPlayerPipeline::Start(
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
   parameters.output_mode_change_cb = output_mode_change_cb;
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
+  parameters.source_url = source_url;
   on_encrypted_media_init_data_encountered_cb_ =
       base::Bind(&OnEncryptedMediaInitDataEncountered,
                  on_encrypted_media_init_data_encountered_cb);
@@ -367,11 +375,7 @@ void SbPlayerPipeline::Start(
   DCHECK(!set_drm_system_ready_cb_.is_null());
   set_drm_system_ready_cb_.Run(
       BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDrmSystem, this)));
-  message_loop_->PostTask(
-      FROM_HERE,
-      base::Bind(&SbPlayerPipeline::CreatePlayerWithUrl, this, source_url));
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
   set_eme_init_data_ready_cb.Run(base::Bind(
@@ -593,11 +597,15 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   duration_change_cb_ = parameters.duration_change_cb;
   output_mode_change_cb_ = parameters.output_mode_change_cb;
 
+#if SB_HAS(PLAYER_WITH_URL)
+  CreatePlayerWithUrl(parameters.source_url);
+#else   // SB_HAS(PLAYER_WITH_URL)
   const bool kEnableTextTracks = false;
   demuxer_->Initialize(this,
                        BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerInitialized, this)),
                        kEnableTextTracks);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void SbPlayerPipeline::SetVolumeTask(float volume) {
@@ -699,9 +707,6 @@ void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
       output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
     }
     output_mode_change_cb.Run();
-
-    UpdateDecoderConfig(audio_stream_);
-    UpdateDecoderConfig(video_stream_);
     return;
   }
 
@@ -886,6 +891,8 @@ void SbPlayerPipeline::OnDemuxerStopped() {
   base::ResetAndReturn(&stop_cb_).Run();
 }
 
+#if !SB_HAS(PLAYER_WITH_URL)
+
 void SbPlayerPipeline::OnDemuxerStreamRead(
     DemuxerStream::Type type, DemuxerStream::Status status,
     const scoped_refptr<DecoderBuffer>& buffer) {
@@ -969,6 +976,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
   DCHECK(stream);
   stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
+
+#endif  // !SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   DCHECK(message_loop_->BelongsToCurrentThread());

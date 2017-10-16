@@ -33,6 +33,9 @@ namespace {
 
 class DummyWebMediaPlayer : public WebMediaPlayer {
  private:
+#if SB_HAS(PLAYER_WITH_URL)
+  void LoadUrl(const GURL& url) OVERRIDE {}
+#else   // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() OVERRIDE {}
   void LoadProgressive(const GURL& url,
                        scoped_ptr<BufferedDataSource> data_source,
@@ -41,6 +44,7 @@ class DummyWebMediaPlayer : public WebMediaPlayer {
     UNREFERENCED_PARAMETER(data_source);
     UNREFERENCED_PARAMETER(cors_mode);
   }
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void CancelLoad() OVERRIDE {}
 
   // Playback controls.
