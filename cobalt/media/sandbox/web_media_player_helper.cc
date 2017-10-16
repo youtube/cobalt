@@ -58,7 +58,11 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module)
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
+// TODO: Investigate a better way to exclude this when SB_HAS(PLAYER_WITH_URL)
+//       is enabled.
+#if !SB_HAS(PLAYER_WITH_URL)
   player_->LoadMediaSource();
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   player_->Play();
 }
 
@@ -71,8 +75,12 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
   scoped_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
       base::MessageLoopProxy::current(), video_url, csp::SecurityCallback(),
       fetcher_factory->network_module()));
+// TODO: Investigate a better way to exclude this when SB_HAS(PLAYER_WITH_URL)
+//       is enabled.
+#if !SB_HAS(PLAYER_WITH_URL)
   player_->LoadProgressive(video_url, data_source.Pass(),
                            WebMediaPlayer::kCORSModeUnspecified);
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   player_->Play();
 }
 
