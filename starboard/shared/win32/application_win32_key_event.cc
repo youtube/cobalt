@@ -195,7 +195,7 @@ Application::Event* ApplicationWin32::ProcessWinKeyEvent(SbWindow window,
   data->key = VirtualKeyCodeToSbKey(w_param);
 
   const bool was_down = ((l_param & (1 << 30)) != 0);
-  const bool up = msg != WM_KEYDOWN && msg == WM_SYSKEYDOWN;
+  const bool up = msg != WM_KEYDOWN && msg != WM_SYSKEYDOWN;
 
   data->type = up ? kSbInputEventTypeUnpress : kSbInputEventTypePress;
 
