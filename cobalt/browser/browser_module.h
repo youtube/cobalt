@@ -496,6 +496,11 @@ class BrowserModule {
   // when it is not already active.
   base::OneShotTimer<BrowserModule> on_error_retry_timer_;
 
+  // Set when we've posted a system error for network failure until we receive
+  // the next navigation. This is used to suppress retrying the current URL on
+  // resume until the error retry occurs.
+  bool waiting_for_error_retry_;
+
   // Set when the application is about to quit. May be set from a thread other
   // than the one hosting this object, and read from another.
   bool will_quit_;
