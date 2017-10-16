@@ -953,6 +953,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.is_empty()) {
     return;
   }
+#if SB_HAS(PLAYER_WITH_URL)
+  // TODO: Investigate if we have to support csp for url player.
+  player_->LoadUrl(url);
+#else   // SB_HAS(PLAYER_WITH_URL)
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
@@ -966,6 +970,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     player_->LoadProgressive(url, data_source.Pass(),
                              WebMediaPlayer::kCORSModeUnspecified);
   }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
