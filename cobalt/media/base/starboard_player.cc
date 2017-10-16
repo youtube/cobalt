@@ -173,6 +173,8 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
   frame_height_ = frame_height;
 }
 
+#if !SB_HAS(PLAYER_WITH_URL)
+
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -238,6 +240,8 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                       type == DemuxerStream::VIDEO ? &video_info : NULL,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
+
+#endif  // !SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   if (state_ == kSuspended) {
@@ -548,6 +552,9 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
 void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
+// TODO: Remove decoder status related function on a broader scope when
+//       PLAYER_WITH_URL is defined.
+#if !SB_HAS(PLAYER_WITH_URL)
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (player_ != player || ticket != ticket_) {
@@ -580,6 +587,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   }
 
   host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
+#endif  // !SB_HAS(PLAYER_WITH_URL)
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
