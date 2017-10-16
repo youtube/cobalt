@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7296b783_a4e3165a",
+        "filename": "src/cobalt/media/base/sbplayer_pipeline.cc",
+        "patchSetId": 1
+      },
+      "lineNbr": 602,
+      "author": {
+        "id": 5056
+      },
+      "writtenOn": "2017-10-16T19:36:29Z",
+      "side": 1,
+      "message": "I\u0027d add \n\n  if (stopped_) {\n    return;\n  }\n\nhere to ensure that the posted task won\u0027t be run after Stop() is called.",
+      "revId": "8cfeb7755302c5cda7f1b2bdaec1af95cf54c253",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
