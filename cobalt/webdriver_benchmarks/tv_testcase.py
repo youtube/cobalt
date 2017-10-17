@@ -335,10 +335,6 @@ class TvTestCase(unittest.TestCase):
     start_time = time.time()
     advertisement_encountered = self.find_elements(tv.AD_SHOWING)
     while self.find_elements(tv.AD_SHOWING):
-      if self.find_elements(tv.SKIP_AD_BUTTON_CAN_SKIP):
-        self.send_keys(keys.Keys.ENTER)
-        self.wait_for_processing_complete(False)
-        break
       if time.time() - start_time > AD_TIMEOUT_SECONDS:
         break
       time.sleep(0.1)
