@@ -35,7 +35,6 @@
 
 #include <cmath>
 
-#include "base/cpu.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 
@@ -239,7 +238,7 @@ float SincResampler::Convolve(const float* input_ptr, const float* k1,
                                 double kernel_interpolation_factor);
 #if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
   static const ConvolveProc kConvolveProc =
-      base::CPU().has_sse() ? Convolve_SSE : Convolve_C;
+      Convolve_SSE;
 #elif defined(ARCH_CPU_ARM_FAMILY) && defined(USE_NEON)
   static const ConvolveProc kConvolveProc = Convolve_NEON;
 #else
