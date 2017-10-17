@@ -14,22 +14,27 @@ developer, you should probably ignore the sections titled "GN Instructions" for
 now.
 
 
+## Documentation
+
+See [`src/starboard/doc`](doc) for more detailed documentation.
+
+
 ## Interesting Source Locations
 
 All source locations are specified relative to `src/starboard/` (this directory).
 
-  * `.` - This is the root directory for the Starboard project, and contains all
-    the public headers that Starboard defines.
-  * `examples/` - Example code demonstrating various aspects of Starboard API
-    usage.
-  * `stub/` - The home of the Stub Starboard implementation. This contains a
-    `starboard_platform.gyp` file that defines a library with all the source
-    files needed to provide a complete linkable Starboard implementation.
-  * `nplb/` - "No Platform Left Behind," Starboard's platform verification test
-    suite.
-  * `shared/` - The home of all code that can be shared between Starboard
-    implementations. Subdirectories delimit code that can be shared between
-    platforms that share some facet of their OS API.
+  * [`.`](.) - This is the root directory for the Starboard project, and
+    contains all the public headers that Starboard defines.
+  * [`examples/`](examples) - Example code demonstrating various aspects of
+    Starboard API usage.
+  * [`stub/`](stub) - The home of the Stub Starboard implementation. This
+    contains a `starboard_platform.gyp` file that defines a library with all the
+    source files needed to provide a complete linkable Starboard implementation.
+  * [`nplb/`](nplb) - "No Platform Left Behind," Starboard's platform
+    verification test suite.
+  * [`shared/`](shared) - The home of all code that can be shared between
+    Starboard implementations. Subdirectories delimit code that can be shared
+    between platforms that share some facet of their OS API.
 
 
 ## Quick Guide to Starting a Port
