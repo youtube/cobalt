@@ -247,8 +247,22 @@ class TestRunner(object):
 
     signal.signal(signal.SIGINT, Abort)
     sys.stdout.write("Starting {}\n".format(target_name))
-    launcher.Run()
-    output = reader.GetLines()
+
+    # In the event of an error in the launcher, we cannot exit. Doing so will
+    # cause the reader to hang.
+    success = True
+    try:
+      launcher.Run()
+    except Exception as e:
+      success = False
+      sys.stderr.write("Error while running {}:\n".format(target_name))
+      sys.stderr.write("{}\n".format(e))
+    finally:
+      if success:
+        output = reader.GetLines()
+      else:
+        reader.Kill()
+        output = []
 
     return self._CollectTestResults(output, target_name)
 
@@ -417,8 +431,13 @@ def main():
       " as you would on the command line between a set of double quotation"
       " marks.")
 
-  extra_args = {}
   args = arg_parser.parse_args()
+
+  # Extra arguments for the test target
+  extra_args = {}
+  if args.target_params:
+    extra_args["target_params"] = args.target_params.split(" ")
+
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, extra_args,
                       args.out_directory)
