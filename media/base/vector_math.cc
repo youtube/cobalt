@@ -5,7 +5,6 @@
 #include "media/base/vector_math.h"
 #include "media/base/vector_math_testing.h"
 
-#include "base/cpu.h"
 #include "base/logging.h"
 #include "build/build_config.h"
 
@@ -27,7 +26,7 @@ void FMAC(const float src[], float scale, int len, float dest[]) {
                                  float dest[]);
 #if defined(ARCH_CPU_X86_FAMILY) && defined(__SSE__)
   static const VectorFMACProc kVectorFMACProc =
-      base::CPU().has_sse() ? FMAC_SSE : FMAC_C;
+      FMAC_SSE;
 #else
   static const VectorFMACProc kVectorFMACProc = FMAC_C;
 #endif
