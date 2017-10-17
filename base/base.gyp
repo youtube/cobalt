@@ -183,7 +183,6 @@
         'containers/mru_cache_unittest.cc',
         'containers/small_map_unittest.cc',
         'containers/stack_container_unittest.cc',
-        'cpu_unittest.cc',
         'debug/leak_tracker_unittest.cc',
         'debug/stack_trace_unittest.cc',
         'debug/trace_event_unittest.cc',
