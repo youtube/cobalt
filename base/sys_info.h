@@ -67,8 +67,6 @@ class BASE_EXPORT SysInfo {
   //      whereas a x86-64 kernel on the same CPU will return "x86_64"
   static std::string OperatingSystemArchitecture();
 
-  // Avoid using this. Use base/cpu.h to get information about the CPU instead.
-  // http://crbug.com/148884
   // Returns the CPU model name of the system. If it can not be figured out,
   // an empty string is returned.
   static std::string CPUModelName();
