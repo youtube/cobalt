@@ -489,7 +489,7 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
       } break;
       case Image::YUV_2PLANE_BT709: {
         std::vector<TextureInfo> texture_infos;
-#if SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#if SB_API_VERSION >= 7
         switch (image.textures[0].texture->GetFormat()) {
           case GL_ALPHA:
             texture_infos.push_back(TextureInfo("y", "a"));
@@ -514,10 +514,10 @@ TexturedMeshRenderer::ProgramInfo TexturedMeshRenderer::GetBlitProgram(
           default:
             NOTREACHED();
         }
-#else  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#else  // SB_API_VERSION >= 7
         texture_infos.push_back(TextureInfo("y", "a"));
         texture_infos.push_back(TextureInfo("uv", "ba"));
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#endif  // SB_API_VERSION >= 7
         result = MakeBlitProgram(
             color_matrix, texture_infos,
             CreateFragmentShader(texture_target, texture_infos));
