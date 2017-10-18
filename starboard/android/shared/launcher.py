@@ -173,16 +173,17 @@ class AdbAmMonitorWatcher(object):
 class Launcher(abstract_launcher.AbstractLauncher):
   """Run an application on Android."""
 
-  def __init__(self, platform, target_name, config, device_id, args,
-               output_file, out_directory):
+  def __init__(self, platform, target_name, config, device_id, **kwargs):
 
     super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   args, output_file, out_directory)
+                                   **kwargs)
 
     if not self.device_id:
       self.device_id = self._IdentifyDevice()
 
     self.adb_builder = AdbCommandBuilder(self.device_id)
+
+    self.out_directory = os.path.split(self.GetTargetPath())[0]
 
     self.executable_dir_path = os.path.join(self.out_directory, 'lib')
 
@@ -465,7 +466,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('logcat', '-G', '2M')
 
     logcat_process = self._PopenAdb(
-        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE)
+        'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT)
 
     # The return code for binaries run on Android is fetched from an exitcode
     # file on the device.  This return_code variable will be assigned the
@@ -516,14 +518,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
         # Note we cannot use "for line in logcat_process.stdout" because
         # that uses a large buffer which will cause us to deadlock.
         line = logcat_process.stdout.readline()
+        # Some crashes are not caught by the crash monitor thread, but
+        # They do produce the following string in logcat before they exit.
+        if 'beginning of crash' in line:
+          sys.stderr.write('***Application Crashed***\n')
+          break
         if not line:
           break
         else:
           self._WriteLine(line)
 
-      logcat_process.kill()
-
     finally:
+      logcat_process.kill()
       self._CallAdb('forward', '--remove-all')
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
