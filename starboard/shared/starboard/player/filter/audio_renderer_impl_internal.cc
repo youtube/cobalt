@@ -382,6 +382,8 @@ void AudioRendererImpl::ProcessAudioData() {
     CreateAudioSinkAndResampler();
   }
 
+  SB_DCHECK(resampler_);
+
   // Loop until no audio is appended, i.e. AppendAudioToFrameBuffer() returns
   // false.
   while (AppendAudioToFrameBuffer()) {
