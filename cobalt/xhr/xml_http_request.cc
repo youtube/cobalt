@@ -909,6 +909,7 @@ dom::CspDelegate* XMLHttpRequest::csp_delegate() const {
 
 void XMLHttpRequest::TerminateRequest() {
   error_ = true;
+  corspreflight_.reset(NULL);
   url_fetcher_.reset(NULL);
 }
 
@@ -1136,10 +1137,7 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  if (!url_fetcher_) {
-    HandleRequestError(XMLHttpRequest::kNetworkError);
-  } else {
-    DCHECK(url_fetcher_);
+  if (url_fetcher_) {
     url_fetcher_->Start();
   }
 }
