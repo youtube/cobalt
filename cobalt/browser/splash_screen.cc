@@ -100,7 +100,7 @@ SplashScreen::SplashScreen(
       *url_to_pass, initial_application_state, render_tree_produced_callback_,
       base::Bind(&OnError), on_window_close,
       base::Closure(),  // window_minimize_callback
-      &stub_media_module_, network_module, window_dimensions,
+      NULL /* media_module */, network_module, window_dimensions,
       1.f /*video_pixel_ratio*/, resource_provider, layout_refresh_rate,
       web_module_options));
 }

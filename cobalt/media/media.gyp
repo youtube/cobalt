@@ -27,8 +27,6 @@
         'media_module.cc',
         'media_module.h',
         'media_module_<(sb_media_platform).cc',
-        'media_module_stub.cc',
-        'media_module_stub.h',
         'shell_media_platform_<(sb_media_platform).cc',
         'shell_media_platform_<(sb_media_platform).h',
         'shell_video_data_allocator_common.cc',
