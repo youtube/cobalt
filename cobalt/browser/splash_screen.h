@@ -23,7 +23,6 @@
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/web_module.h"
-#include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -79,8 +78,6 @@ class SplashScreen : public LifecycleObserver {
   // Run when window.close() is called by the WebModule.
   void OnWindowClosed();
   void OnWindowClosedInternal();
-
-  media::MediaModuleStub stub_media_module_;
 
   WebModule::OnRenderTreeProducedCallback render_tree_produced_callback_;
 

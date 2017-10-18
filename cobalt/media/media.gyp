@@ -26,8 +26,6 @@
         'fetcher_buffered_data_source.h',
         'media_module.cc',
         'media_module.h',
-        'media_module_stub.cc',
-        'media_module_stub.h',
         'shell_video_data_allocator_common.cc',
         'shell_video_data_allocator_common.h',
         'web_media_player_factory.h',

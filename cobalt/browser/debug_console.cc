@@ -194,7 +194,7 @@ DebugConsole::DebugConsole(
                     base::Bind(&DebugConsole::OnError, base::Unretained(this)),
                     WebModule::CloseCallback(), /* window_close_callback */
                     base::Closure(),            /* window_minimize_callback */
-                    &stub_media_module_, network_module, window_dimensions,
+                    NULL /* media_module */, network_module, window_dimensions,
                     1.f /*video_pixel_ratio*/, resource_provider,
                     layout_refresh_rate, web_module_options));
 }

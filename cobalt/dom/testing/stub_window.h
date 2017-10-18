@@ -25,7 +25,6 @@
 #include "cobalt/dom/window.h"
 #include "cobalt/dom_parser/parser.h"
 #include "cobalt/loader/fetcher_factory.h"
-#include "cobalt/media/media_module_stub.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/script/global_environment.h"
@@ -46,7 +45,6 @@ class StubWindow {
         dom_parser_(new dom_parser::Parser(base::Bind(&StubErrorCallback))),
         fetcher_factory_(new loader::FetcherFactory(&network_module_)),
         local_storage_database_(NULL),
-        stub_media_module_(new media::MediaModuleStub()),
         url_("about:blank"),
         dom_stat_tracker_(new dom::DomStatTracker("StubWindow")) {
     engine_ = script::JavaScriptEngine::CreateEngine();
@@ -54,8 +52,7 @@ class StubWindow {
     window_ = new dom::Window(
         1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
         dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
-        NULL, &local_storage_database_, stub_media_module_.get(),
-        stub_media_module_.get(), NULL, NULL, NULL, NULL,
+        NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL, NULL,
         dom_stat_tracker_.get(), url_, "", "en-US",
         base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
         NULL, network_bridge::PostSender(),
@@ -82,7 +79,6 @@ class StubWindow {
   network::NetworkModule network_module_;
   scoped_ptr<loader::FetcherFactory> fetcher_factory_;
   dom::LocalStorageDatabase local_storage_database_;
-  scoped_ptr<media::MediaModule> stub_media_module_;
   GURL url_;
   scoped_ptr<dom::DomStatTracker> dom_stat_tracker_;
   script::EnvironmentSettings environment_settings_;

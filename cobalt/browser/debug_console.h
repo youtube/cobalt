@@ -26,7 +26,6 @@
 #include "cobalt/browser/web_module.h"
 #include "cobalt/debug/debug_hub.h"
 #include "cobalt/dom/keyboard_event_init.h"
-#include "cobalt/media/media_module_stub.h"
 #include "googleurl/src/gurl.h"
 
 namespace cobalt {
@@ -85,8 +84,6 @@ class DebugConsole : public LifecycleObserver {
   void OnError(const GURL& /* url */, const std::string& error) {
     LOG(ERROR) << error;
   }
-
-  media::MediaModuleStub stub_media_module_;
 
   // The current console visibility mode.  The mutex is required since the debug
   // console's visibility mode may be accessed from both the WebModule thread
