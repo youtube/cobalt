@@ -38,24 +38,21 @@ import starboard.tools.abstract_launcher as abstract_launcher
 class Launcher(abstract_launcher.AbstractLauncher):
   """Class for launching Cobalt/tools on Linux."""
 
-  def __init__(self, platform, target_name, config, device_id, args,
-               output_file, out_directory):
+  def __init__(self, platform, target_name, config, device_id, **kwargs):
     super(Launcher, self).__init__(platform, target_name, config, device_id,
-                                   args, output_file, out_directory)
+                                   **kwargs)
     if not self.device_id:
       if socket.has_ipv6:  #  If the device supports IPv6:
         self.device_id = "::1"  #  Use the only IPv6 loopback address
       else:
         self.device_id = socket.gethostbyname("localhost")
 
-    self.executable = abstract_launcher.GetDefaultTargetPath(
-        platform, config, target_name)
-
+    self.executable = self.GetTargetPath()
     self.pid = None
 
   def Run(self):
     """Runs launcher's executable."""
-    sys.stderr.write("{}\n".format(self.executable))
+
     proc = subprocess.Popen([self.executable] + self.target_command_line_params,
                             stdout=self.output_file, stderr=self.output_file)
     self.pid = proc.pid

@@ -33,6 +33,7 @@ import re
 import signal
 import subprocess
 import threading
+import traceback
 
 import starboard.tools.abstract_launcher as abstract_launcher
 import starboard.tools.command_line as command_line
@@ -91,11 +92,11 @@ class TestRunner(object):
   """Runs unit tests."""
 
   def __init__(self, platform, config, device_id, single_target,
-               args, out_directory):
+               target_params, out_directory):
     self.platform = platform
     self.config = config
     self.device_id = device_id
-    self.args = args
+    self.target_params = target_params
     self.out_directory = out_directory
 
     # If a particular test binary has been provided, configure only that one.
@@ -196,9 +197,13 @@ class TestRunner(object):
     if not self.test_targets:
       return
 
-    args_list = ["ninja", "-C",
-                 abstract_launcher.DynamicallyBuildOutDirectory(
-                     self.platform, self.config)]
+    if self.out_directory:
+      build_dir = self.out_directory
+    else:
+      build_dir = abstract_launcher.DynamicallyBuildOutDirectory(
+          self.platform, self.config)
+
+    args_list = ["ninja", "-C", build_dir]
     args_list.extend([test_name for test_name in self.test_targets])
     if ninja_flags:
       args_list.append(ninja_flags)
@@ -228,13 +233,13 @@ class TestRunner(object):
 
     # Filter the specified tests for this platform, if any
     if self.test_targets[target_name]:
-      self.args["target_params"] = ["--gtest_filter=-{}".format(":".join(
-          self.test_targets[target_name]))]
+      self.target_params.append("--gtest_filter=-{}".format(":".join(
+          self.test_targets[target_name])))
 
     launcher = abstract_launcher.LauncherFactory(
         self.platform, target_name, self.config,
-        self.device_id, self.args, output_file=write_pipe,
-        out_directory=self.out_directory)
+        device_id=self.device_id, target_params=self.target_params,
+        output_file=write_pipe, out_directory=self.out_directory)
 
     reader = TestLineReader(read_pipe, write_pipe)
     #  If we need to manually exit the test runner at any point,
@@ -248,34 +253,29 @@ class TestRunner(object):
     signal.signal(signal.SIGINT, Abort)
     sys.stdout.write("Starting {}\n".format(target_name))
 
-    # In the event of an error in the launcher, we cannot exit. Doing so will
-    # cause the reader to hang.
-    success = True
+    return_code = 1
     try:
-      launcher.Run()
+      return_code = launcher.Run()
     except Exception as e:
-      success = False
       sys.stderr.write("Error while running {}:\n".format(target_name))
-      sys.stderr.write("{}\n".format(e))
+      traceback.print_exc(file=sys.stderr)
     finally:
-      if success:
-        output = reader.GetLines()
-      else:
-        reader.Kill()
-        output = []
+      output = reader.GetLines()
 
-    return self._CollectTestResults(output, target_name)
+    return self._CollectTestResults(output, target_name, return_code)
 
-  def _CollectTestResults(self, results, target_name):
+  def _CollectTestResults(self, results, target_name, return_code):
     """Collects passing and failing tests for one test binary.
 
     Args:
       results: A list containing each line of test results.
       target_name: The name of the test target being run.
+      return_code: The return code of the test binary,
 
     Returns:
-      A tuple of length 5, of the format (target_name, number_of_total_tests,
-        number_of_passed_tests, number_of_failed_tests, list_of_failed_tests).
+      A tuple of length 6, of the format (target_name, number_of_total_tests,
+        number_of_passed_tests, number_of_failed_tests, list_of_failed_tests,
+        return_code).
     """
 
     total_count = 0
@@ -298,7 +298,8 @@ class TestRunner(object):
         # Descriptions of all failed tests appear after this line
         failed_tests = self._CollectFailedTests(results[idx + 1:])
 
-    return (target_name, total_count, passed_count, failed_count, failed_tests)
+    return (target_name, total_count, passed_count, failed_count, failed_tests,
+            return_code)
 
   def _CollectFailedTests(self, lines):
     """Collects the names of all failed tests.
@@ -329,7 +330,7 @@ class TestRunner(object):
     total_passed_count = 0
     total_failed_count = 0
 
-    # If the number of run or passed tests from a test binary cannot be
+    # If the number of run tests from a test binary cannot be
     # determined, assume an error occured while running it.
     error = False
 
@@ -342,33 +343,39 @@ class TestRunner(object):
       passed_count = result_set[2]
       failed_count = result_set[3]
       failed_tests = result_set[4]
+      return_code = result_set[5]
 
-      print "{}:".format(target_name)
-      if run_count == 0 or passed_count == 0:
+      test_status = "SUCCEEDED"
+      if return_code != 0:
         error = True
-        print "  ERROR OCCURED DURING TEST RUN (Did the test binary crash?)"
-      else:
-        print "  TOTAL TESTS RUN: {}".format(run_count)
-        total_run_count += run_count
-        print "  PASSED: {}".format(passed_count)
-        total_passed_count += passed_count
-        if failed_count > 0:
-          print "  FAILED: {}".format(failed_count)
-          total_failed_count += failed_count
-          print "\n  FAILED TESTS:"
-          for line in failed_tests:
-            print "    {}".format(line)
+        test_status = "FAILED"
+
+      print "{}: {}.".format(target_name, test_status)
+      if run_count == 0:
+        print"  Results not available.  Did the test crash?\n"
+        continue
+
+      print "  TOTAL TESTS RUN: {}".format(run_count)
+      total_run_count += run_count
+      print "  PASSED: {}".format(passed_count)
+      total_passed_count += passed_count
+      if failed_count > 0:
+        print "  FAILED: {}".format(failed_count)
+        total_failed_count += failed_count
+        print "\n  FAILED TESTS:"
+        for line in failed_tests:
+          print "    {}".format(line)
       # Print a single newline to separate results from each test run
       print
 
-    status = "SUCCEEDED"
+    overall_status = "SUCCEEDED"
     result = True
 
-    if total_failed_count > 0 or error:
-      status = "FAILED"
+    if error or total_failed_count > 0:
+      overall_status = "FAILED"
       result = False
 
-    print "TEST RUN {}.".format(status)
+    print "TEST RUN {}.".format(overall_status)
     print "  TOTAL TESTS RUN: {}".format(total_run_count)
     print "  TOTAL TESTS PASSED: {}".format(total_passed_count)
     print "  TOTAL TESTS FAILED: {}".format(total_failed_count)
@@ -434,13 +441,12 @@ def main():
   args = arg_parser.parse_args()
 
   # Extra arguments for the test target
-  extra_args = {}
+  target_params = []
   if args.target_params:
-    extra_args["target_params"] = args.target_params.split(" ")
+    target_params = args.target_params.split(" ")
 
   runner = TestRunner(args.platform, args.config, args.device_id,
-                      args.target_name, extra_args,
-                      args.out_directory)
+                      args.target_name, target_params, args.out_directory)
   # If neither build nor run has been specified, assume the client
   # just wants to run.
   if not args.build and not args.run:
