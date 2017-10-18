@@ -20,7 +20,6 @@
 #include "base/run_loop.h"
 #include "base/synchronization/waitable_event.h"
 #include "cobalt/browser/web_module.h"
-#include "cobalt/media/media_module_stub.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 
@@ -64,10 +63,6 @@ browser::WebModule::LayoutResults SnapshotURL(
   net_options.https_requirement = network::kHTTPSOptional;
   network::NetworkModule network_module(net_options);
 
-  // We do not support a media module in this mode.
-  scoped_ptr<media::MediaModule> stub_media_module(
-      new media::MediaModuleStub());
-
   // Use 128M of image cache to minimize the effect of image loading.
   const size_t kImageCacheCapacity = 128 * 1024 * 1024;
 
@@ -87,7 +82,7 @@ browser::WebModule::LayoutResults SnapshotURL(
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
-      base::Closure() /* window_minimize_callback */, stub_media_module.get(),
+      base::Closure() /* window_minimize_callback */, NULL /* media_module */,
       &network_module, viewport_size, 1.f, resource_provider, 60.0f,
       web_module_options);
 
