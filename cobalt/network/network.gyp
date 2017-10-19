@@ -79,6 +79,9 @@
             'ENABLE_NETWORK_LOGGING',
           ],
         }],
+        ['cobalt_enable_lib == 1', {
+          'defines' : ['COBALT_ENABLE_LIB'],
+        }],
       ],
       'export_dependent_settings': [
         '<(DEPTH)/net/net.gyp:net',
