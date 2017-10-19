@@ -18,7 +18,7 @@
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 
 bool SbPlayerOutputModeSupportedWithUrl(SbPlayerOutputMode output_mode) {
   // Stub.
@@ -34,5 +34,4 @@ bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
       OutputModeSupported(output_mode, codec, drm_system);
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
