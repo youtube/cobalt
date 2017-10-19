@@ -70,7 +70,7 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
   player_ = NULL;
 }
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const std::string& url, SbWindow window, Host* host,
@@ -146,8 +146,7 @@ StarboardPlayer::StarboardPlayer(
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::~StarboardPlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -355,12 +354,11 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   }
 }
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
   SbPlayerSetDrmSystem(player_, drm_system);
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::Suspend() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -401,13 +399,11 @@ void StarboardPlayer::Resume() {
 
   decoder_buffer_cache_.StartResuming();
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   CreatePlayerWithUrl(url_);
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   CreatePlayer();
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   base::AutoLock auto_lock(lock_);
   state_ = kResuming;
@@ -431,7 +427,7 @@ ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
 
 }  // namespace
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 
 // static
 void StarboardPlayer::EncryptedMediaInitDataEncounteredCB(
@@ -522,8 +518,7 @@ void StarboardPlayer::CreatePlayer() {
   }
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
@@ -662,7 +657,7 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                  helper->callback_helper_, sample_buffer));
 }
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputModeWithUrl(
     bool prefer_decode_to_texture) {
@@ -720,7 +715,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 
   return output_mode;
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }  // namespace media
 }  // namespace cobalt
