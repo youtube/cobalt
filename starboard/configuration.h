@@ -466,6 +466,10 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
+#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < SB_PLAYER_WITH_URL_API_VERSION
+#error "SB_HAS_PLAYER_WITH_URL is not supported in this API version."
+#endif
+
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \
                             SB_HAS(4_CORES) || SB_HAS(6_CORES))) || \
     (SB_HAS(1_CORE) &&                                              \

@@ -22,8 +22,7 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER) && SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && \
-    SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER) && SB_HAS(PLAYER_WITH_URL)
 TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowOptions window_options;
   SbWindowSetDefaultOptions(&window_options);
@@ -57,8 +56,7 @@ TEST(SbPlayerUrlTest, SunnyDay) {
   SbWindowDestroy(window);
 }
 
-#endif  // SB_HAS(PLAYER) && SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER) && SB_HAS(PLAYER_WITH_URL)
 
 }  // namespace
 }  // namespace nplb
