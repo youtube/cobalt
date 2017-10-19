@@ -49,7 +49,7 @@ class StarboardPlayer {
     ~Host() {}
   };
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   typedef base::Callback<void(const char*, const unsigned char*, unsigned)>
       OnEncryptedMediaInitDataEncounteredCB;
 
@@ -59,16 +59,14 @@ class StarboardPlayer {
                   bool prefer_decode_to_texture,
                   const OnEncryptedMediaInitDataEncounteredCB&
                       encrypted_media_init_data_encountered_cb);
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   StarboardPlayer(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                   const AudioDecoderConfig& audio_config,
                   const VideoDecoderConfig& video_config, SbWindow window,
                   SbDrmSystem drm_system, Host* host,
                   SbPlayerSetBoundsHelper* set_bounds_helper,
                   bool prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   ~StarboardPlayer();
 
   bool IsValid() const { return SbPlayerIsValid(player_); }
@@ -89,10 +87,9 @@ class StarboardPlayer {
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
                base::TimeDelta* media_time);
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   void SetDrmSystem(SbDrmSystem drm_system);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   void Suspend();
   void Resume();
@@ -134,16 +131,14 @@ class StarboardPlayer {
   typedef std::map<const void*, std::pair<scoped_refptr<DecoderBuffer>, int> >
       DecodingBuffers;
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
 
   void CreatePlayerWithUrl(const std::string& url);
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   void ClearDecoderBufferCache();
 
@@ -159,7 +154,7 @@ class StarboardPlayer {
   static void DeallocateSampleCB(SbPlayer player, void* context,
                                  const void* sample_buffer);
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for the URL player.
   static SbPlayerOutputMode ComputeSbPlayerOutputModeWithUrl(
       bool prefer_decode_to_texture);
@@ -167,15 +162,13 @@ class StarboardPlayer {
   static void EncryptedMediaInitDataEncounteredCB(
       SbPlayer player, void* context, const char* init_data_type,
       const unsigned char* init_data, unsigned int init_data_length);
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   // Returns the output mode that should be used for a video with the given
   // specifications.
   static SbPlayerOutputMode ComputeSbPlayerOutputMode(
       SbMediaVideoCodec codec, SbDrmSystem drm_system,
       bool prefer_decode_to_texture);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   // The following variables are initialized in the ctor and never changed.
   std::string url_;
   const scoped_refptr<base::MessageLoopProxy> message_loop_;

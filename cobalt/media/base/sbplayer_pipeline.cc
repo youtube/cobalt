@@ -90,12 +90,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
              const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
              const OnEncryptedMediaInitDataEncounteredCB&
                  on_encrypted_media_init_data_encountered_cb,
              const std::string& source_url,
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-             // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
              const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
@@ -137,14 +136,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                      const TextTrackConfig& config) OVERRIDE;
   void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE;
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   void CreatePlayerWithUrl(const std::string& source_url);
   void SetDrmSystem(SbDrmSystem drm_system);
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-  // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer(SbDrmSystem drm_system);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
@@ -225,11 +222,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::Closure duration_change_cb_;
   base::Closure output_mode_change_cb_;
   base::optional<bool> decode_to_texture_output_mode_;
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   StarboardPlayer::OnEncryptedMediaInitDataEncounteredCB
       on_encrypted_media_init_data_encountered_cb_;
-#endif  //  SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        //  SB_HAS(PLAYER_WITH_URL)
+#endif  //  SB_HAS(PLAYER_WITH_URL)
 
   // Demuxer reference used for setting the preload value.
   Demuxer* demuxer_;
@@ -302,7 +298,7 @@ void SbPlayerPipeline::Resume() {
   waitable_event.Wait();
 }
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 void OnEncryptedMediaInitDataEncountered(
     const Pipeline::OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered,
@@ -324,20 +320,18 @@ void OnEncryptedMediaInitDataEncountered(
   on_encrypted_media_init_data_encountered.Run(init_data_type_enum,
                                                init_data_vec);
 }
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::Start(
     Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
     const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
     const OnEncryptedMediaInitDataEncounteredCB&
         on_encrypted_media_init_data_encountered_cb,
     const std::string& source_url,
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
     const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
     const PipelineStatusCB& seek_cb, const BufferingStateCB& buffering_state_cb,
     const base::Closure& duration_change_cb,
@@ -350,13 +344,11 @@ void SbPlayerPipeline::Start(
   DCHECK(!buffering_state_cb.is_null());
   DCHECK(!duration_change_cb.is_null());
   DCHECK(!output_mode_change_cb.is_null());
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!on_encrypted_media_init_data_encountered_cb.is_null());
-#else   // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#else   // SB_HAS(PLAYER_WITH_URL)
   DCHECK(demuxer);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
@@ -667,7 +659,7 @@ void SbPlayerPipeline::RemoveTextStream(DemuxerStream* text_stream) {
   NOTREACHED();
 }
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayerWithUrl");
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -746,8 +738,7 @@ void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
     player_->SetDrmSystem(drm_system);
   }
 }
-#else  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-// SB_HAS(PLAYER_WITH_URL)
+#else  // SB_HAS(PLAYER_WITH_URL)
 void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
@@ -813,11 +804,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   seek_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 // Does not apply.
 #else
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerInitialized");
@@ -867,8 +857,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   CreatePlayer(kSbDrmSystemInvalid);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
