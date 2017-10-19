@@ -52,8 +52,7 @@ typedef ::media::WebMediaPlayerDelegate WebMediaPlayerDelegate;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
 // TODO: Collapse MediaModule into ShellMediaPlatform.
-class MediaModule : public CanPlayTypeHandler,
-                    public WebMediaPlayerFactory,
+class MediaModule : public WebMediaPlayerFactory,
                     public WebMediaPlayerDelegate {
  public:
   struct Options {
@@ -75,6 +74,9 @@ class MediaModule : public CanPlayTypeHandler,
   static math::Size CalculateOutputResolution(
       system_window::SystemWindow* system_window,
       const base::optional<math::Size>& output_resolution_override);
+  // MediaModule implementation should implement this function to allow creation
+  // of CanPlayTypeHandler.
+  static scoped_ptr<CanPlayTypeHandler> CreateCanPlayTypeHandler();
 
   virtual ~MediaModule() {}
 

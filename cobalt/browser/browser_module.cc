@@ -223,6 +223,7 @@ BrowserModule::BrowserModule(const GURL& url,
           new ResourceProviderArrayBufferAllocator(GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+      can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(&storage_manager_, event_dispatcher_,
                       options_.network_module_options),
       web_module_loaded_(true /* manually_reset */,
@@ -483,8 +484,9 @@ void BrowserModule::Navigate(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      media_module_.get(), &network_module_, viewport_size, video_pixel_ratio,
-      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
+      can_play_type_handler_.get(), media_module_.get(), &network_module_,
+      viewport_size, video_pixel_ratio, GetResourceProvider(),
+      kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -1237,7 +1239,7 @@ void BrowserModule::UpdateFromSystemWindow() {
 
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());
-    web_module_->SetMediaModule(media_module_.get());
+    web_module_->SetWebMediaPlayerFactory(media_module_.get());
     web_module_->SetSize(size, video_pixel_ratio);
   }
 }

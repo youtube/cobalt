@@ -44,15 +44,8 @@ typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
 
-class MediaModuleStarboard : public MediaModule {
+class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
-  MediaModuleStarboard(system_window::SystemWindow* system_window,
-                       render_tree::ResourceProvider* resource_provider,
-                       const Options& options)
-      : options_(options),
-        system_window_(system_window),
-        media_platform_(resource_provider) {}
-
   std::string CanPlayType(const std::string& mime_type,
                           const std::string& key_system) OVERRIDE {
     SbMediaSupportType type =
@@ -68,6 +61,17 @@ class MediaModuleStarboard : public MediaModule {
     NOTREACHED();
     return "";
   }
+};
+
+class MediaModuleStarboard : public MediaModule {
+ public:
+  MediaModuleStarboard(system_window::SystemWindow* system_window,
+                       render_tree::ResourceProvider* resource_provider,
+                       const Options& options)
+      : options_(options),
+        system_window_(system_window),
+        media_platform_(resource_provider) {}
+
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
       WebMediaPlayerClient* client) OVERRIDE {
     TRACK_MEMORY_SCOPE("Media");
@@ -122,6 +126,10 @@ scoped_ptr<MediaModule> MediaModule::Create(
   TRACK_MEMORY_SCOPE("Media");
   return make_scoped_ptr<MediaModule>(
       new MediaModuleStarboard(system_window, resource_provider, options));
+}
+
+scoped_ptr<CanPlayTypeHandler> MediaModule::CreateCanPlayTypeHandler() {
+  return make_scoped_ptr<CanPlayTypeHandler>(new CanPlayTypeHandlerStarboard);
 }
 
 }  // namespace media

@@ -77,10 +77,6 @@ class HTMLElementContext {
   media::CanPlayTypeHandler* can_play_type_handler() {
     return can_play_type_handler_;
   }
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    can_play_type_handler_ = can_play_type_handler;
-  }
   media::WebMediaPlayerFactory* web_media_player_factory() {
     return web_media_player_factory_;
   }

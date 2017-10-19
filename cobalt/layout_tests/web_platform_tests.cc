@@ -159,6 +159,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   options.output_resolution_override = kDefaultViewportSize;
   scoped_ptr<media::MediaModule> media_module(
       media::MediaModule::Create(NULL, &resource_provider, options));
+  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler(
+      media::MediaModule::CreateCanPlayTypeHandler());
 
   dom::CspDelegateFactory::GetInstance()->OverrideCreator(
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
@@ -178,9 +180,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
-      base::Closure() /* window_minimize_callback */, media_module.get(),
-      &network_module, kDefaultViewportSize, 1.f, &resource_provider, 60.0f,
-      web_module_options);
+      base::Closure() /* window_minimize_callback */,
+      can_play_type_handler.get(), media_module.get(), &network_module,
+      kDefaultViewportSize, 1.f, &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
