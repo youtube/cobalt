@@ -366,7 +366,7 @@ void SbPlayerPipeline::Start(
   set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
   DCHECK(!set_drm_system_ready_cb_.is_null());
   set_drm_system_ready_cb_.Run(
-      BindToCurrentLoop(base::Bind(&SbPlayerPipeline::SetDrmSystem, this)));
+      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
@@ -716,24 +716,13 @@ void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
 void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::SetDrmSystem");
 
-  DCHECK(message_loop_->BelongsToCurrentThread());
-
-  if (stopped_) {
+  base::AutoLock auto_lock(lock_);
+  if (!player_) {
+    DLOG(INFO)
+        << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
     return;
   }
 
-  if (suspended_) {
-    message_loop_->PostDelayedTask(
-        FROM_HERE,
-        base::Bind(&SbPlayerPipeline::SetDrmSystem, this, drm_system),
-        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
-    return;
-  }
-
-  // TODO:  Check |suspended_| here as the pipeline can be suspended before the
-  // DRM is set.
-  SB_DCHECK(player_)
-      << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
   if (player_->IsValid()) {
     player_->SetDrmSystem(drm_system);
   }
