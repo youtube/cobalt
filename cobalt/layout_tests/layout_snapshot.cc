@@ -82,7 +82,8 @@ browser::WebModule::LayoutResults SnapshotURL(
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
-      base::Closure() /* window_minimize_callback */, NULL /* media_module */,
+      base::Closure() /* window_minimize_callback */,
+      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
       &network_module, viewport_size, 1.f, resource_provider, 60.0f,
       web_module_options);
 

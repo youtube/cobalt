@@ -22,12 +22,12 @@ namespace media {
 
 class CanPlayTypeHandler {
  public:
+  virtual ~CanPlayTypeHandler() {}
   virtual std::string CanPlayType(const std::string& mime_type,
                                   const std::string& key_system) = 0;
 
  protected:
   CanPlayTypeHandler() {}
-  ~CanPlayTypeHandler() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CanPlayTypeHandler);
