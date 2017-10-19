@@ -182,7 +182,7 @@ typedef void (*SbPlayerDeallocateSampleFunc)(SbPlayer player,
                                              void* context,
                                              const void* sample_buffer);
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 // Callback to queue an encrypted event for initialization data
 // encountered in media data. |init_data_type| should be a string
 // matching one of the EME initialization data types : "webm", "cenc", or
@@ -217,6 +217,43 @@ static SB_C_INLINE bool SbPlayerIsValid(SbPlayer player) {
 }
 
 // --- Functions -------------------------------------------------------------
+
+#if SB_HAS(PLAYER_WITH_URL)
+
+// Creates a URL-based SbPlayer that will be displayed on |window| for
+// the specified URL |url|, acquiring all resources needed to operate
+// it, and returning an opaque handle to it. The expectation is that a
+// new player will be created and destroyed for every playback.
+//
+// In many ways this function is similar to SbPlayerCreate, but it is
+// missing the input arguments related to the configuration and format
+// of the audio and video stream, as well as the DRM system. The DRM
+// system for a player created with SbPlayerCreateWithUrl can be set
+// after creation using SbPlayerSetDrmSystem. Because the DRM system
+// is not available at the time of SbPlayerCreateWithUrl, it takes in
+// a callback, |encrypted_media_init_data_encountered_cb|, which is
+// run when encrypted media initial data is encountered.
+SB_EXPORT SbPlayer
+SbPlayerCreateWithUrl(const char* url,
+                      SbWindow window,
+                      SbMediaTime duration_pts,
+                      SbPlayerStatusFunc player_status_func,
+                      SbPlayerEncryptedMediaInitDataEncounteredCB
+                          encrypted_media_init_data_encountered_cb,
+                      void* context);
+
+// Sets the DRM system of a running URL-based SbPlayer created with
+// SbPlayerCreateWithUrl. This may only be run once for a given
+// SbPlayer.
+SB_EXPORT void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system);
+
+// Returns true if the given URL player output mode is supported by
+// the platform.  If this function returns true, it is okay to call
+// SbPlayerCreate() with the given |output_mode|.
+SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
+    SbPlayerOutputMode output_mode);
+
+#else  // SB_HAS(PLAYER_WITH_URL)
 
 // Creates a player that will be displayed on |window| for the specified
 // |video_codec| and |audio_codec|, acquiring all resources needed to operate
@@ -306,49 +343,14 @@ SbPlayerCreate(SbWindow window,
                void* context,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* context_provider);
-
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
-// Creates a URL-based SbPlayer that will be displayed on |window| for
-// the specified URL |url|, acquiring all resources needed to operate
-// it, and returning an opaque handle to it. The expectation is that a
-// new player will be created and destroyed for every playback.
-//
-// In many ways this function is similar to SbPlayerCreate, but it is
-// missing the input arguments related to the configuration and format
-// of the audio and video stream, as well as the DRM system. The DRM
-// system for a player created with SbPlayerCreateWithUrl can be set
-// after creation using SbPlayerSetDrmSystem. Because the DRM system
-// is not available at the time of SbPlayerCreateWithUrl, it takes in
-// a callback, |encrypted_media_init_data_encountered_cb|, which is
-// run when encrypted media initial data is encountered.
-SB_EXPORT SbPlayer
-SbPlayerCreateWithUrl(const char* url,
-                      SbWindow window,
-                      SbMediaTime duration_pts,
-                      SbPlayerStatusFunc player_status_func,
-                      SbPlayerEncryptedMediaInitDataEncounteredCB
-                          encrypted_media_init_data_encountered_cb,
-                      void* context);
-
-// Sets the DRM system of a running URL-based SbPlayer created with
-// SbPlayerCreateWithUrl. This may only be run once for a given
-// SbPlayer.
-SB_EXPORT void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system);
-
-// Returns true if the given URL player output mode is supported by
-// the platform.  If this function returns true, it is okay to call
-// SbPlayerCreate() with the given |output_mode|.
-SB_EXPORT bool SbPlayerOutputModeSupportedWithUrl(
-    SbPlayerOutputMode output_mode);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION  &&
-        // SB_HAS(PLAYER_WITH_URL)
-
 // Returns true if the given player output mode is supported by the platform.
 // If this function returns true, it is okay to call SbPlayerCreate() with
 // the given |output_mode|.
 SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
                                            SbMediaVideoCodec codec,
                                            SbDrmSystem drm_system);
+
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 // Destroys |player|, freeing all associated resources. Each callback must
 // receive one more callback to say that the player was destroyed. Callbacks

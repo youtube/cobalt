@@ -18,7 +18,7 @@
 #error "SbPlayerCreateWithUrl requires SB_HAS(PLAYER)."
 #endif
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 
 SbPlayer SbPlayerCreateWithUrl(
     const char* /* url */,
@@ -36,5 +36,4 @@ SbPlayer SbPlayerCreateWithUrl(
 void SbPlayerSetDrmSystem(SbPlayer player, SbDrmSystem drm_system) { /* Stub */
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
