@@ -54,6 +54,8 @@
           'containers/mru_cache.h',
           'containers/small_map.h',
           'containers/stack_container.h',
+          'cpu.cc',
+          'cpu.h',
           'critical_closure.h',
           'debug/alias.cc',
           'debug/alias.h',
