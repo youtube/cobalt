@@ -49,7 +49,8 @@
 #include "cobalt/layout/layout_manager.h"
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/math/size.h"
-#include "cobalt/media/media_module.h"
+#include "cobalt/media/can_play_type_handler.h"
+#include "cobalt/media/web_media_player_factory.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/script/global_environment.h"
@@ -207,7 +208,8 @@ class WebModule : public LifecycleObserver {
             const OnErrorCallback& error_callback,
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
-            media::MediaModule* media_module,
+            media::CanPlayTypeHandler* can_play_type_handler,
+            media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
             const math::Size& window_dimensions, float video_pixel_ratio,
             render_tree::ResourceProvider* resource_provider,
@@ -260,7 +262,8 @@ class WebModule : public LifecycleObserver {
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
+  void SetWebMediaPlayerFactory(
+      media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
   void SetJavascriptGcThreshold(int64_t bytes);
@@ -288,7 +291,8 @@ class WebModule : public LifecycleObserver {
         const OnErrorCallback& error_callback,
         const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
-        media::MediaModule* media_module,
+        media::CanPlayTypeHandler* can_play_type_handler,
+        media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
         const math::Size& window_dimensions, float video_pixel_ratio,
         render_tree::ResourceProvider* resource_provider,
@@ -300,7 +304,8 @@ class WebModule : public LifecycleObserver {
           error_callback(error_callback),
           window_close_callback(window_close_callback),
           window_minimize_callback(window_minimize_callback),
-          media_module(media_module),
+          can_play_type_handler(can_play_type_handler),
+          web_media_player_factory(web_media_player_factory),
           network_module(network_module),
           window_dimensions(window_dimensions),
           video_pixel_ratio(video_pixel_ratio),
@@ -315,7 +320,8 @@ class WebModule : public LifecycleObserver {
     OnErrorCallback error_callback;
     const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
-    media::MediaModule* media_module;
+    media::CanPlayTypeHandler* can_play_type_handler;
+    media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;
     math::Size window_dimensions;
     float video_pixel_ratio;

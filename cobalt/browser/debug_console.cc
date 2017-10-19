@@ -188,15 +188,15 @@ DebugConsole::DebugConsole(
       base::Bind(&CreateDebugHub,
                  base::Bind(&DebugConsole::GetMode, base::Unretained(this)),
                  get_debug_server_callback);
-  web_module_.reset(
-      new WebModule(GURL(kInitialDebugConsoleUrl), initial_application_state,
-                    render_tree_produced_callback,
-                    base::Bind(&DebugConsole::OnError, base::Unretained(this)),
-                    WebModule::CloseCallback(), /* window_close_callback */
-                    base::Closure(),            /* window_minimize_callback */
-                    NULL /* media_module */, network_module, window_dimensions,
-                    1.f /*video_pixel_ratio*/, resource_provider,
-                    layout_refresh_rate, web_module_options));
+  web_module_.reset(new WebModule(
+      GURL(kInitialDebugConsoleUrl), initial_application_state,
+      render_tree_produced_callback,
+      base::Bind(&DebugConsole::OnError, base::Unretained(this)),
+      WebModule::CloseCallback(), /* window_close_callback */
+      base::Closure(),            /* window_minimize_callback */
+      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      network_module, window_dimensions, 1.f /*video_pixel_ratio*/,
+      resource_provider, layout_refresh_rate, web_module_options));
 }
 
 DebugConsole::~DebugConsole() {}
