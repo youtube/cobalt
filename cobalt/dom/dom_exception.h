@@ -32,7 +32,8 @@ class DOMException : public script::ScriptException {
     // If the error name does not have a corresponding code, set the code to 0.
     kNone = 0,
     kIndexSizeErr = 1,
-    kNoModificationAllowedError = 7,
+    kInvalidCharacterErr = 5,
+    kNoModificationAllowedErr = 7,
     kNotFoundErr = 8,
     kNotSupportedErr = 9,
     kInvalidStateErr = 11,
