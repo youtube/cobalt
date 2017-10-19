@@ -173,9 +173,9 @@ TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::OnClose, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
-      NULL /* media_module */, &network_module, kDefaultViewportSize,
-      kDefaultVideoPixelRatio, &resource_provider, kRefreshRate,
-      web_module_options);
+      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      &network_module, kDefaultViewportSize, kDefaultVideoPixelRatio,
+      &resource_provider, kRefreshRate, web_module_options);
 
   // Wait for the test to quit.
   quit_event_.Wait();

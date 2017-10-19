@@ -184,7 +184,8 @@ class WebModule::Impl {
 
   void SetSize(math::Size window_dimensions, float video_pixel_ratio);
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-  void SetMediaModule(media::MediaModule* media_module);
+  void SetWebMediaPlayerFactory(
+      media::WebMediaPlayerFactory* web_media_player_factory);
   void SetImageCacheCapacity(int64_t bytes);
   void SetRemoteTypefaceCacheCapacity(int64_t bytes);
   void SetJavascriptGcThreshold(int64_t bytes);
@@ -527,8 +528,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       dom_parser_.get(), fetcher_factory_.get(), &resource_provider_,
       animated_image_tracker_.get(), image_cache_.get(),
       reduced_image_cache_capacity_manager_.get(), remote_typeface_cache_.get(),
-      mesh_cache_.get(), local_storage_database_.get(), data.media_module,
-      data.media_module, execution_state_.get(), script_runner_.get(),
+      mesh_cache_.get(), local_storage_database_.get(),
+      data.can_play_type_handler, data.web_media_player_factory,
+      execution_state_.get(), script_runner_.get(),
       global_environment_->script_value_factory(), media_source_registry_.get(),
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
@@ -558,9 +560,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
   DCHECK(window_weak_);
 
   environment_settings_.reset(new dom::DOMSettings(
-      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module,
-      data.media_module, window_, media_source_registry_.get(),
-      blob_registry_.get(), data.media_module, javascript_engine_.get(),
+      kDOMMaxElementDepth, fetcher_factory_.get(), data.network_module, window_,
+      media_source_registry_.get(), blob_registry_.get(),
+      data.can_play_type_handler, javascript_engine_.get(),
       global_environment_.get(), &mutation_observer_task_manager_,
       data.options.dom_settings_options));
   DCHECK(environment_settings_);
@@ -863,11 +865,9 @@ void WebModule::Impl::SetCamera3D(
   window_->SetCamera3D(camera_3d);
 }
 
-void WebModule::Impl::SetMediaModule(media::MediaModule* media_module) {
-  window_->set_can_play_type_handler(media_module);
-  window_->set_web_media_player_factory(media_module);
-  environment_settings_->set_media_module(media_module);
-  environment_settings_->set_can_play_type_handler(media_module);
+void WebModule::Impl::SetWebMediaPlayerFactory(
+    media::WebMediaPlayerFactory* web_media_player_factory) {
+  window_->set_web_media_player_factory(web_media_player_factory);
 }
 
 void WebModule::Impl::SetApplicationState(base::ApplicationState state) {
@@ -1048,16 +1048,18 @@ WebModule::WebModule(
     const OnErrorCallback& error_callback,
     const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
-    media::MediaModule* media_module, network::NetworkModule* network_module,
-    const math::Size& window_dimensions, float video_pixel_ratio,
-    render_tree::ResourceProvider* resource_provider, float layout_refresh_rate,
-    const Options& options)
+    media::CanPlayTypeHandler* can_play_type_handler,
+    media::WebMediaPlayerFactory* web_media_player_factory,
+    network::NetworkModule* network_module, const math::Size& window_dimensions,
+    float video_pixel_ratio, render_tree::ResourceProvider* resource_provider,
+    float layout_refresh_rate, const Options& options)
     : thread_(options.name.c_str()) {
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
-      media_module, network_module, window_dimensions, video_pixel_ratio,
-      resource_provider, kDOMMaxElementDepth, layout_refresh_rate, options);
+      can_play_type_handler, web_media_player_factory, network_module,
+      window_dimensions, video_pixel_ratio, resource_provider,
+      kDOMMaxElementDepth, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation
   // object on that thread.
@@ -1258,10 +1260,12 @@ void WebModule::SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d) {
                             base::Unretained(impl_.get()), camera_3d));
 }
 
-void WebModule::SetMediaModule(media::MediaModule* media_module) {
+void WebModule::SetWebMediaPlayerFactory(
+    media::WebMediaPlayerFactory* web_media_player_factory) {
   message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::SetMediaModule,
-                            base::Unretained(impl_.get()), media_module));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::SetWebMediaPlayerFactory,
+                 base::Unretained(impl_.get()), web_media_player_factory));
 }
 
 void WebModule::SetImageCacheCapacity(int64_t bytes) {

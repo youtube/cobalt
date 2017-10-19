@@ -44,6 +44,8 @@
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
+#include "cobalt/media/can_play_type_handler.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -389,6 +391,9 @@ class BrowserModule {
 
   // Controls all media playback related objects/resources.
   scoped_ptr<media::MediaModule> media_module_;
+
+  // Allows checking if particular media type can be played.
+  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
 
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
