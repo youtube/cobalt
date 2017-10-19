@@ -30,7 +30,7 @@ using starboard::shared::starboard::player::filter::
     FilterBasedPlayerWorkerHandler;
 using starboard::shared::starboard::player::PlayerWorker;
 
-#if SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION && SB_HAS(PLAYER_WITH_URL)
+#if SB_HAS(PLAYER_WITH_URL)
 // No implementation : use SbPlayerCreateWithUrl instead.
 #else
 
@@ -85,5 +85,4 @@ SbPlayer SbPlayerCreate(SbWindow window,
                              handler.Pass());
 }
 
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
