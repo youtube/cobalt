@@ -217,6 +217,7 @@ v8.log
 /third_party/llvm-allocated-type
 /third_party/llvm-build
 /third_party/lss
+/third_party/material-design-lite
 /third_party/mingw-w64
 /third_party/mkl
 /third_party/mt19937ar
@@ -245,6 +246,7 @@ v8.log
 /third_party/pywebsocket/src
 /third_party/repo-hooks
 /third_party/ruby
+/third_party/repo-publishing-toolkit
 /third_party/safe_browsing/testing
 /third_party/scons-2.0.1
 /third_party/sfntly
