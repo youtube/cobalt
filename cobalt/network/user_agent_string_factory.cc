@@ -18,9 +18,20 @@
 
 #include "base/string_util.h"
 #include "base/stringprintf.h"
+#if defined(COBALT_ENABLE_LIB)
+#include "cobalt/network/lib/exported/user_agent.h"
+#endif
 #include "cobalt/version.h"
 
 #include "cobalt_build_id.h"  // NOLINT(build/include)
+
+#if defined(COBALT_ENABLE_LIB)
+namespace {
+// Max length including null terminator.
+const size_t kUserAgentPlatformMaxSuffixLength = 128;
+char g_user_agent_platform_suffix[kUserAgentPlatformMaxSuffixLength] = {0};
+}  // namespace
+#endif  // defined(COBALT_ENABLE_LIB)
 
 namespace cobalt {
 namespace network {
@@ -120,6 +131,13 @@ std::string UserAgentStringFactory::CreatePlatformString() {
     platform += architecture_tokens_;
   }
 
+#if defined(COBALT_ENABLE_LIB)
+  if (g_user_agent_platform_suffix[0] != '\0') {
+    platform += "; ";
+    platform += g_user_agent_platform_suffix;
+  }
+#endif  // defined(COBALT_ENABLE_LIB)
+
   return platform;
 }
 
@@ -161,3 +179,18 @@ std::string UserAgentStringFactory::CreateConnectionTypeString() {
 
 }  // namespace network
 }  // namespace cobalt
+
+#if defined(COBALT_ENABLE_LIB)
+// Allow host app to append a suffix to the reported platform name.
+bool CbLibUserAgentSetPlatformNameSuffix(const char* suffix) {
+  size_t suffix_length = base::strlcpy(g_user_agent_platform_suffix, suffix,
+                                       kUserAgentPlatformMaxSuffixLength);
+  if (suffix_length >= kUserAgentPlatformMaxSuffixLength) {
+    // If the suffix is too large then nothing is appended to the platform.
+    g_user_agent_platform_suffix[0] = '\0';
+    return false;
+  }
+
+  return true;
+}
+#endif  // defined(COBALT_ENABLE_LIB)
