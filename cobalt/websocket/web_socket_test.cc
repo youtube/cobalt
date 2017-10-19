@@ -39,7 +39,7 @@ class FakeSettings : public dom::DOMSettings {
  public:
   FakeSettings()
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
-                         NULL, NULL),
+                         NULL),
         base_("https://example.com") {
     this->set_network_module(NULL);
   }

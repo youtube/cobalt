@@ -304,11 +304,6 @@ class Window : public EventTarget,
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
 
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    html_element_context_->set_can_play_type_handler(can_play_type_handler);
-  }
-
   void set_web_media_player_factory(
       media::WebMediaPlayerFactory* web_media_player_factory) {
     html_element_context_->set_web_media_player_factory(
