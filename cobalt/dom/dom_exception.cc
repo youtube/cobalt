@@ -25,7 +25,9 @@ const char* GetErrorName(DOMException::ExceptionCode code) {
       return "";
     case DOMException::kIndexSizeErr:
       return "IndexSizeError";
-    case DOMException::kNoModificationAllowedError:
+    case DOMException::kInvalidCharacterErr:
+      return "InvalidCharacterError";
+    case DOMException::kNoModificationAllowedErr:
       return "NoModificationAllowedError";
     case DOMException::kNotFoundErr:
       return "NotFoundError";
