@@ -289,15 +289,23 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
-std::string Window::Btoa(const std::string& string_to_encode) {
+std::string Window::Btoa(const std::string& string_to_encode,
+                         script::ExceptionState* exception_state) {
   std::string output;
-  base::Base64Encode(string_to_encode, &output);
+  if (!base::Base64Encode(string_to_encode, &output)) {
+    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    return std::string();
+  }
   return output;
 }
 
-std::string Window::Atob(const std::string& encoded_string) {
+std::string Window::Atob(const std::string& encoded_string,
+                         script::ExceptionState* exception_state) {
   std::string output;
-  base::Base64Decode(encoded_string, &output);
+  if (!base::Base64Decode(encoded_string, &output)) {
+    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    return std::string();
+  }
   return output;
 }
 
