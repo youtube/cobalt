@@ -88,6 +88,7 @@ class StarboardPlayer {
                base::TimeDelta* media_time);
 
 #if SB_HAS(PLAYER_WITH_URL)
+  base::TimeDelta GetDuration();
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
