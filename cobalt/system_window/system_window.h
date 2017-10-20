@@ -59,6 +59,11 @@ class SystemWindow {
   // Handles a single Starboard input event, dispatching any appropriate events.
   void HandleInputEvent(const SbInputData& data);
 
+  // Returns the primary SystemWindow currently in use by the application.
+  // Only one SystemWindow is currently supported, and this method will return
+  // that window, or |nullptr| if it does not exist.
+  static SystemWindow* PrimaryWindow();
+
  private:
   void UpdateModifiers(SbKey key, bool pressed);
   InputEvent::Modifiers GetModifiers();
