@@ -12,6 +12,7 @@ EXPORTS
     CbLibMainSetCallbackRegistrationReadyCallback
     CbLibMainSetOnCobaltInitializedCallback
     CbLibMainSetHandleEventCallback
+    CbLibMainGetSbWindow
 
     ; From cobalt/render/rasterizer/lib/exported/graphics.h:
     CbLibGraphicsSetContextCreatedCallback

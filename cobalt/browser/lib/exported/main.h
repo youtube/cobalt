@@ -20,6 +20,7 @@
 
 #include "starboard/event.h"
 #include "starboard/export.h"
+#include "starboard/window.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,6 +46,16 @@ SB_EXPORT_PLATFORM void CbLibMainSetOnCobaltInitializedCallback(
 // Starboard. Returns true if the client consumed |event|; false otherwise.
 SB_EXPORT_PLATFORM void CbLibMainSetHandleEventCallback(
     void* context, CbLibMainHandleEventCallback callback);
+
+// Returns a reference to the system window's underlying Starboard window, or
+// nullptr if the system window does not exist.
+//
+// The system window may be destroyed and recreated during Cobalt's application
+// life-cycle E.G. if a Suspend/Resume event occurs.  For this reason, clients
+// should not cache references returned by this call.  A client which requires
+// long-term access to the system window should re-query the reference each time
+// it is needed.
+SB_EXPORT_PLATFORM SbWindow CbLibMainGetSbWindow();
 
 #ifdef __cplusplus
 }  // extern "C"
