@@ -1692,12 +1692,14 @@ namespace {
 // https://www.w3.org/TR/eme-initdata-registry/#registry.
 std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
   switch (init_data_type) {
-    case media::kEmeInitDataTypeWebM:
-      return "webm";
     case media::kEmeInitDataTypeCenc:
       return "cenc";
+    case media::kEmeInitDataTypeFairplay:
+      return "fairplay";
     case media::kEmeInitDataTypeKeyIds:
       return "keyids";
+    case media::kEmeInitDataTypeWebM:
+      return "webm";
     default:
       LOG(WARNING) << "Unknown EME initialization data type.";
       return "";

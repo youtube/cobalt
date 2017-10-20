@@ -305,12 +305,14 @@ void OnEncryptedMediaInitDataEncountered(
     const char* init_data_type, const unsigned char* init_data,
     unsigned int init_data_length) {
   media::EmeInitDataType init_data_type_enum;
-  if (!SbStringCompareAll(init_data_type, "webm")) {
-    init_data_type_enum = media::kEmeInitDataTypeWebM;
-  } else if (!SbStringCompareAll(init_data_type, "cenc")) {
+  if (!SbStringCompareAll(init_data_type, "cenc")) {
     init_data_type_enum = media::kEmeInitDataTypeCenc;
+  } else if (!SbStringCompareAll(init_data_type, "fairplay")) {
+    init_data_type_enum = media::kEmeInitDataTypeFairplay;
   } else if (!SbStringCompareAll(init_data_type, "keyids")) {
     init_data_type_enum = media::kEmeInitDataTypeKeyIds;
+  } else if (!SbStringCompareAll(init_data_type, "webm")) {
+    init_data_type_enum = media::kEmeInitDataTypeWebM;
   } else {
     LOG(WARNING) << "Unknown EME initialization data type.";
     return;
