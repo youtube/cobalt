@@ -15,14 +15,6 @@
 #include <EGL/egl.h>
 #include <GLES2/gl2.h>
 
-#if defined(GL_GLEXT_PROTOTYPES)
-#include <GLES2/gl2ext.h>
-#endif
-
-#if defined(GLES3_SUPPORTED)
-#include <GLES3/gl3.h>
-#endif
-
 #include "third_party/skia/include/gpu/gl/GrGLInterface.h"
 #include "third_party/skia/src/gpu/gl/GrGLAssembleInterface.h"
 #include "third_party/skia/src/gpu/gl/GrGLUtil.h"
@@ -32,37 +24,8 @@
     return reinterpret_cast<GrGLFuncPtr>(&gl##F); \
   }
 
-#define REGISTER_GL_FUNCTION_SUFFIX(F, SUFFIX)                   \
-  if (0 == strcmp("gl" #F, name) || 0 == strcmp("gl" #F #SUFFIX, name)) { \
-    return reinterpret_cast<GrGLFuncPtr>(&gl##F##SUFFIX); \
-  }
-
 GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   SkASSERT(NULL == ctx);
-
-#if defined(GL_GLEXT_PROTOTYPES)
-  REGISTER_GL_FUNCTION_SUFFIX(BindVertexArray, OES);
-  REGISTER_GL_FUNCTION_SUFFIX(DeleteVertexArrays, OES);
-  REGISTER_GL_FUNCTION_SUFFIX(GenVertexArrays, OES);
-  REGISTER_GL_FUNCTION_SUFFIX(MapBuffer, OES);
-  REGISTER_GL_FUNCTION_SUFFIX(UnmapBuffer, OES);
-  REGISTER_GL_FUNCTION_SUFFIX(InsertEventMarker, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(PushGroupMarker, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(PopGroupMarker, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(MapBufferRange, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(FlushMappedBufferRange, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(DiscardFramebuffer, EXT);
-  REGISTER_GL_FUNCTION_SUFFIX(RenderbufferStorageMultisample, APPLE);
-  REGISTER_GL_FUNCTION_SUFFIX(ResolveMultisampleFramebuffer, APPLE);
-  REGISTER_GL_FUNCTION_SUFFIX(TexStorage2D, EXT);
-#endif  // defined(GL_GLEXT_PROTOTYPES)
-
-#if defined(GLES3_SUPPORTED)
-  REGISTER_GL_FUNCTION(BlitFramebuffer);
-  REGISTER_GL_FUNCTION(InvalidateFramebuffer);
-  REGISTER_GL_FUNCTION(InvalidateSubFramebuffer);
-  REGISTER_GL_FUNCTION(GetStringi);
-#endif  // defined(GLES3_SUPPORTED)
 
   // Make non-extension GL function addresses available without having
   // to go through eglGetProcAddress() if possible.
@@ -115,6 +78,7 @@ GrGLFuncPtr GetGLProc(void* ctx, const char name[]) {
   REGISTER_GL_FUNCTION(GetBufferParameteriv);
   REGISTER_GL_FUNCTION(GetError);
   REGISTER_GL_FUNCTION(GetFramebufferAttachmentParameteriv);
+  REGISTER_GL_FUNCTION(GetIntegerv);
   REGISTER_GL_FUNCTION(GetIntegerv);
   REGISTER_GL_FUNCTION(GetProgramInfoLog);
   REGISTER_GL_FUNCTION(GetProgramiv);
