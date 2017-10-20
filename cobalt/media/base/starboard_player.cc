@@ -355,6 +355,20 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
+base::TimeDelta StarboardPlayer::GetDuration() {
+  base::AutoLock auto_lock(lock_);
+  if (state_ == kSuspended) {
+    return base::TimeDelta();
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
+
+  SbPlayerInfo info;
+  SbPlayerGetInfo(player_, &info);
+  DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
+  return SbMediaTimeToTimeDelta(info.duration_pts);
+}
+
 void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
   SbPlayerSetDrmSystem(player_, drm_system);
 }
