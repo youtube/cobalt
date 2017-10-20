@@ -974,8 +974,8 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStatePresenting:
 #if SB_HAS(PLAYER_WITH_URL)
-      buffering_state_cb_.Run(kHaveMetadata);
       duration_ = player_->GetDuration();
+      buffering_state_cb_.Run(kHaveMetadata);
 #endif  // SB_HAS(PLAYER_WITH_URL)
       buffering_state_cb_.Run(kPrerollCompleted);
       if (!seek_cb_.is_null()) {
