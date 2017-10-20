@@ -211,6 +211,10 @@ void SystemWindow::HandleInputEvent(const SbInputData& data) {
   }
 }
 
+SystemWindow* SystemWindow::PrimaryWindow() {
+  return g_the_window;
+}
+
 void HandleInputEvent(const SbEvent* event) {
   if (event->type != kSbEventTypeInput) {
     return;
