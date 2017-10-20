@@ -21,6 +21,28 @@
       background-color: white;
       color: black;
     }
+
+    @keyframes blink {
+      from {background-color: white;}
+      to {background-color: black;}
+    }
+
+    .spinner {
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      animation: blink 1s infinite alternate;
+      width: 20px;
+      height: 20px;
+    }
+
+    #fps {
+      position: absolute;
+      left: 50px;
+      bottom: 0;
+      background-color: white;
+      color: black;
+    }
   </style>
 
   <script>
@@ -63,6 +85,37 @@
         0x8017, camera3D.DOM_CAMERA_YAW, degreesPerSecond);
     camera3D.createKeyMapping(
         0x8018, camera3D.DOM_CAMERA_YAW, -degreesPerSecond);
+
+    // Update the frame rate counter at a regular interval.
+    function UpdateFPS() {
+      if ('h5vcc' in window && 'cVal' in window.h5vcc) {
+        // Query Cobalt for the average amount of time between the start of
+        // each frame.  Translate that into a framerate and then update a
+        // framerate counter on the window.
+        var average_frame_time_in_us = window.h5vcc.cVal.getValue(
+            'Renderer.Rasterize.DurationInterval.Avg');
+        if (!average_frame_time_in_us || average_frame_time_in_us <= 0) {
+          // In older versions of Cobalt use a different name for the framerate
+          // counter, so try falling back to that if the first fails.
+          average_frame_time_in_us = window.h5vcc.cVal.getValue(
+              'Renderer.Rasterize.Duration.Avg');
+        }
+
+        if (average_frame_time_in_us && average_frame_time_in_us > 0) {
+          // Convert frame time into frame rate (by taking the inverse).
+          // We also multiply by 1000000 to convert from microseconds to
+          // seconds.
+          var average_frames_per_second =
+              Math.round(1000000.0 / average_frame_time_in_us);
+
+          // Update the display with our calculated frame rate.
+          var fps_counter = document.getElementById('fps');
+          fps_counter.innerHTML = 'FPS: ' + average_frames_per_second;
+        }
+      }
+      window.setTimeout(UpdateFPS, 1000);
+    }
+    window.setTimeout(UpdateFPS, 1000);
   </script>
 </head>
 
@@ -72,6 +125,14 @@
     Use either the keyboard keys, direction keys, or analog joystick/thumbstick
     to look around.
   </div>
+  <!-- The spinner is required in order to get around an implementation detail
+       of the 'Renderer.Rasterize.DurationInterval.Avg' cval that we rely on
+       for measuring the framerate.  In a nutshell, that cval is only updated
+       when a CSS animation is active, but not when a video is playing, even
+       though both of these things result in a continual re-rasterization of
+       the UI/video. -->
+  <div class="spinner"></div>
+  <div id="fps"></div>
 </body>
 
 </html>
