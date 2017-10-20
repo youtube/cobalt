@@ -27,7 +27,8 @@ namespace {
 
 #if SB_API_VERSION == SB_EXPERIMENTAL_API_VERSION
 const char kStarboardStabilitySuffix[] = "-Experimental";
-#elif SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
+#elif defined(SB_RELEASE_CANDIDATE_API_VERSION) && \
+    SB_API_VERSION >= SB_RELEASE_CANDIDATE_API_VERSION && \
     SB_API_VERSION < SB_EXPERIMENTAL_API_VERSION
 const char kStarboardStabilitySuffix[] = "-ReleaseCandidate";
 #else
