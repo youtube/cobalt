@@ -19,10 +19,11 @@ import tv
 import tv_testcase_runner
 import tv_testcase_util
 
+import default_query_param_constants
 try:
   import custom_query_param_constants as query_param_constants
 except ImportError:
-  import default_query_param_constants as query_param_constants
+  query_param_constants = default_query_param_constants
 
 # selenium imports
 # pylint: disable=C0103
@@ -82,8 +83,11 @@ class TvTestCase(unittest.TestCase):
     global _is_initialized
     if not _is_initialized:
       # Initialize the tests.
-      query_params = query_param_constants.INIT_QUERY_PARAMS
-      triggers_reload = query_param_constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
+      constants = query_param_constants
+      if not constants.INIT_QUERY_PARAMS_URL.startswith(self.get_default_url()):
+        constants = default_query_param_constants
+      query_params = constants.INIT_QUERY_PARAMS
+      triggers_reload = constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
       self.load_tv(query_params=query_params, triggers_reload=triggers_reload)
       _is_initialized = True
 
