@@ -896,7 +896,8 @@ void WebMediaPlayerImpl::OnPipelineSeek(PipelineStatus status) {
   if (state_.paused)
     state_.paused_time = pipeline_->GetMediaTime();
 
-  GetClient()->TimeChanged();
+  const bool eos_played = false;
+  GetClient()->TimeChanged(eos_played);
 }
 
 void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
@@ -905,7 +906,8 @@ void WebMediaPlayerImpl::OnPipelineEnded(PipelineStatus status) {
     OnPipelineError(status);
     return;
   }
-  GetClient()->TimeChanged();
+  const bool eos_played = true;
+  GetClient()->TimeChanged(eos_played);
 }
 
 void WebMediaPlayerImpl::OnPipelineError(PipelineStatus error) {
