@@ -267,9 +267,11 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
   timeout_set(&event, &SbSocketWaiterPrivate::LibeventTimeoutCallback, this);
   event_base_set(base_, &event);
 
-  struct timeval tv;
-  ToTimevalDuration(duration, &tv);
-  timeout_add(&event, &tv);
+  if (duration < kSbTimeMax) {
+    struct timeval tv;
+    ToTimevalDuration(duration, &tv);
+    timeout_add(&event, &tv);
+  }
 
   waiting_ = true;
   event_base_loop(base_, 0);
@@ -279,9 +281,11 @@ SbSocketWaiterResult SbSocketWaiterPrivate::WaitTimed(SbTime duration) {
       woken_up_ ? kSbSocketWaiterResultWokenUp : kSbSocketWaiterResultTimedOut;
   woken_up_ = false;
 
-  // We clean this up, in case we were bewakened early, to prevent a suprious
-  // wake-up later.
-  timeout_del(&event);
+  if (duration < kSbTimeMax) {
+    // We clean this up, in case we were awakened early, to prevent a spurious
+    // wake-up later.
+    timeout_del(&event);
+  }
 
   return result;
 }
