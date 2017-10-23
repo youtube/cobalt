@@ -360,9 +360,10 @@ void StarboardPlayer::Resume() {
 
   decoder_buffer_cache_.StartResuming();
 
+  base::AutoLock auto_lock(lock_);
+
   CreatePlayer();
 
-  base::AutoLock auto_lock(lock_);
   state_ = kResuming;
 }
 
