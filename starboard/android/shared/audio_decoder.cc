@@ -74,6 +74,7 @@ void* IncrementPointerByBytes(void* pointer, int offset) {
 
 }  // namespace
 
+// TODO: Re-order ctor initialization list according to the declaration order.
 AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
                            const SbMediaAudioHeader& audio_header,
                            SbDrmSystem drm_system)
@@ -81,8 +82,9 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
       audio_codec_(audio_codec),
       audio_header_(audio_header),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
-      sample_type_(GetSupportedSampleType()),
       decoder_thread_(kSbThreadInvalid),
+      media_codec_bridge_(NULL),
+      sample_type_(GetSupportedSampleType()),
       pending_work_size_(0),
       output_sample_rate_(audio_header.samples_per_second),
       output_channel_count_(audio_header.number_of_channels) {
@@ -226,7 +228,7 @@ void AudioDecoder::DecoderThreadFunc() {
     bool did_work = false;
     did_work |= ProcessOneInputBuffer(&pending_work);
     SbAtomicNoBarrier_Store(&pending_work_size_, pending_work.size());
-    did_work |= ProcessOneOutputBuffer();
+    did_work |= DequeueAndProcessOutputBuffer();
 
     if (event.type == Event::kInvalid && !did_work) {
       SbThreadSleep(kSbTimeMillisecond);
@@ -265,8 +267,7 @@ void AudioDecoder::TeardownCodec() {
 
 bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   SB_DCHECK(pending_work);
-  std::deque<Event>& pending_work_ = *pending_work;
-  if (pending_work_.empty()) {
+  if (pending_work->empty()) {
     return false;
   }
 
@@ -308,21 +309,22 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     pending_work->pop_front();
   }
 
+  SB_DCHECK(event.type == Event::kWriteCodecConfig ||
+            event.type == Event::kWriteInputBuffer ||
+            event.type == Event::kWriteEndOfStream);
+  const scoped_refptr<InputBuffer>& input_buffer = event.input_buffer;
   const void* data = NULL;
   int size = 0;
   if (event.type == Event::kWriteCodecConfig) {
     data = audio_header_.audio_specific_config;
     size = audio_header_.audio_specific_config_size;
   } else if (event.type == Event::kWriteInputBuffer) {
-    const scoped_refptr<InputBuffer>& input_buffer = event.input_buffer;
     data = input_buffer->data();
     size = input_buffer->size();
     VERBOSE_MEDIA_LOG() << "T2: pts " << input_buffer->pts();
   } else if (event.type == Event::kWriteEndOfStream) {
     data = NULL;
     size = 0;
-  } else {
-    SB_NOTREACHED();
   }
 
   if (!input_buffer_already_written) {
@@ -344,11 +346,11 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_CODEC_CONFIG);
   } else if (event.type == Event::kWriteInputBuffer) {
-    jlong pts_us = ConvertSbMediaTimeToMicroseconds(event.input_buffer->pts());
-    if (drm_system_ && event.input_buffer->drm_info()) {
+    jlong pts_us = ConvertSbMediaTimeToMicroseconds(input_buffer->pts());
+    if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
-          dequeue_input_result.index, kNoOffset,
-          *event.input_buffer->drm_info(), pts_us);
+          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+          pts_us);
 
       if (status == MEDIA_CODEC_NO_KEY) {
         SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
@@ -359,7 +361,6 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
         pending_queue_input_buffer_task_ = {dequeue_input_result, event};
         return false;
       }
-
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
@@ -368,8 +369,6 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_END_OF_STREAM);
-  } else {
-    SB_NOTREACHED();
   }
 
   if (status != MEDIA_CODEC_OK) {
@@ -381,46 +380,56 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   return true;
 }
 
-bool AudioDecoder::ProcessOneOutputBuffer() {
-  SB_DCHECK(output_cb_.is_valid());
+bool AudioDecoder::DequeueAndProcessOutputBuffer() {
   SB_CHECK(media_codec_bridge_);
 
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
-    if (dequeue_output_result.index >= 0) {
-      media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index,
-                                               false);
-    }
-    stream_ended_ = true;
-    {
-      starboard::ScopedLock lock(decoded_audios_mutex_);
-      decoded_audios_.push(new DecodedAudio());
-    }
-    Schedule(output_cb_);
-    return false;
+    SB_DCHECK(dequeue_output_result.index >= 0);
   }
 
   if (dequeue_output_result.index < 0) {
     if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
-      AudioOutputFormatResult output_format =
-          media_codec_bridge_->GetAudioOutputFormat();
-      if (output_format.status == MEDIA_CODEC_ERROR) {
-        SB_LOG(ERROR) << "|getOutputFormat| failed";
-        return false;
-      }
-      output_sample_rate_ = output_format.sample_rate;
-      output_channel_count_ = output_format.channel_count;
+      RefreshOutputFormat();
       return true;
     }
 
+    if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED) {
+      SB_DLOG(INFO) << "Output buffers changed, trying to dequeue again.";
+      return true;
+    }
+
+    // Don't bother logging a try again later status, it will happen a lot.
     if (dequeue_output_result.status !=
         MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
       SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
                     << dequeue_output_result.status;
     }
     return false;
+  }
+
+  ProcessOutputBuffer(dequeue_output_result);
+  return true;
+}
+
+void AudioDecoder::ProcessOutputBuffer(
+    const DequeueOutputResult& dequeue_output_result) {
+  SB_DCHECK(media_codec_bridge_);
+  SB_DCHECK(output_cb_.is_valid());
+
+  if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
+    media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index,
+                                             false);
+    stream_ended_ = true;
+    {
+      starboard::ScopedLock lock(decoded_audios_mutex_);
+      decoded_audios_.push(new DecodedAudio());
+    }
+
+    Schedule(output_cb_);
+    return;
   }
 
   ScopedJavaByteBuffer byte_buffer(
@@ -458,8 +467,17 @@ bool AudioDecoder::ProcessOneOutputBuffer() {
   }
 
   media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index, false);
+}
 
-  return true;
+void AudioDecoder::RefreshOutputFormat() {
+  AudioOutputFormatResult output_format =
+      media_codec_bridge_->GetAudioOutputFormat();
+  if (output_format.status == MEDIA_CODEC_ERROR) {
+    SB_LOG(ERROR) << "|getOutputFormat| failed";
+    return;
+  }
+  output_sample_rate_ = output_format.sample_rate;
+  output_channel_count_ = output_format.channel_count;
 }
 
 }  // namespace shared
