@@ -446,8 +446,13 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
     seek_cb_ = seek_cb;
     seek_time_ = time;
   }
+#if SB_HAS(PLAYER_WITH_URL)
+  player_->Seek(seek_time_);
+#else  //  SB_HAS(PLAYER_WITH_URL)
   demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
+
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 bool SbPlayerPipeline::HasAudio() const {
