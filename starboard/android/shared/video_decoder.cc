@@ -73,6 +73,7 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
 
 }  // namespace
 
+// TODO: Re-order ctor initialization list according to the declaration order.
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
@@ -240,9 +241,6 @@ void VideoDecoder::DecoderThreadFunc() {
   // |kWriteEndOfStream| only, and is only accessed from the decoder thread,
   // so it does not need to be thread-safe.
   std::deque<Event> pending_work;
-  // A queue of media codec output buffers that we have taken from the media
-  // codec bridge.
-  std::deque<OutputBufferHandle> output_buffer_handles;
 
   // We will switch off each iteration between attempting to enqueue an input
   // buffer and then handling owned output buffers, and attempting to dequeue
@@ -265,7 +263,7 @@ void VideoDecoder::DecoderThreadFunc() {
       SB_LOG(INFO) << "Reset event occurred.";
       // |media_codec_bridge_->Flush| will reclaim the actual output buffers,
       // so we just need to forget that we have these handles.
-      output_buffer_handles.clear();
+      dequeue_output_results_.clear();
       jint status = media_codec_bridge_->Flush();
       if (status != MEDIA_CODEC_OK) {
         SB_LOG(ERROR) << "Failed to flush video media codec.";
@@ -278,7 +276,7 @@ void VideoDecoder::DecoderThreadFunc() {
       did_work |= ProcessOneInputBuffer(&pending_work);
       work_type = kAttemptHandleOutputBuffer;
     } else if (work_type == kAttemptHandleOutputBuffer) {
-      did_work |= ProcessOneOutputBuffer(&output_buffer_handles);
+      did_work |= DequeueAndProcessOutputBuffer();
       work_type = kAttemptHandleInputBuffer;
     } else {
       SB_NOTREACHED();
@@ -288,10 +286,10 @@ void VideoDecoder::DecoderThreadFunc() {
     // to drop them, render them, or hold them.  If our host does anything
     // with at least one frame, then we consider that work, and will do
     // another loop iteration immediately.
-    size_t previous_size = output_buffer_handles.size();
+    size_t previous_size = dequeue_output_results_.size();
     host_->HandleDecodedFrames(media_codec_bridge_.get(),
-                               &output_buffer_handles);
-    did_work |= (output_buffer_handles.size() != previous_size);
+                               &dequeue_output_results_);
+    did_work |= (dequeue_output_results_.size() != previous_size);
 
     if (event.type == Event::kInvalid && !did_work) {
       SbThreadSleep(kSbTimeMillisecond);
@@ -305,6 +303,7 @@ void VideoDecoder::JoinOnDecoderThread() {
     event_queue_.Clear();
     event_queue_.PushBack(Event(Event::kReset));
     SbThreadJoin(decoder_thread_, NULL);
+    event_queue_.Clear();
   }
   decoder_thread_ = kSbThreadInvalid;
 }
@@ -375,28 +374,31 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   }
 
   jint status;
-  if (!is_eos && drm_system_ && input_buffer->drm_info()) {
-    status = media_codec_bridge_->QueueSecureInputBuffer(
-        dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
-        ConvertSbMediaTimeToMicroseconds(input_buffer->pts()));
+  if (!is_eos) {
+    jlong pts_us = ConvertSbMediaTimeToMicroseconds(input_buffer->pts());
+    if (drm_system_ && input_buffer->drm_info()) {
+      status = media_codec_bridge_->QueueSecureInputBuffer(
+          dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
+          pts_us);
 
-    if (status == MEDIA_CODEC_NO_KEY) {
-      SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
-                       "MEDIA_CODEC_NO_KEY, will try again later.";
-      // We will try this input buffer again later after |drm_system_| tries
-      // to take care of our key.
-      SB_DCHECK(!pending_queue_input_buffer_task_);
-      pending_queue_input_buffer_task_ = {dequeue_input_result, event};
-      return false;
+      if (status == MEDIA_CODEC_NO_KEY) {
+        SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
+                         "MEDIA_CODEC_NO_KEY, will try again later.";
+        // We will try this input buffer again later after |drm_system_| tries
+        // to take care of our key.
+        SB_DCHECK(!pending_queue_input_buffer_task_);
+        pending_queue_input_buffer_task_ = {dequeue_input_result, event};
+        return false;
+      }
+    } else {
+      status = media_codec_bridge_->QueueInputBuffer(
+          dequeue_input_result.index, kNoOffset, input_buffer->size(), pts_us,
+          kNoBufferFlags);
     }
-  } else if (is_eos) {
+  } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, 0, kNoPts,
                                                    BUFFER_FLAG_END_OF_STREAM);
-  } else {
-    status = media_codec_bridge_->QueueInputBuffer(
-        dequeue_input_result.index, kNoOffset, input_buffer->size(),
-        ConvertSbMediaTimeToMicroseconds(input_buffer->pts()), kNoBufferFlags);
   }
 
   if (status != MEDIA_CODEC_OK) {
@@ -408,21 +410,19 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   return true;
 }
 
-bool VideoDecoder::ProcessOneOutputBuffer(
-    std::deque<OutputBufferHandle>* output_buffer_handles) {
-  SB_DCHECK(output_buffer_handles);
+bool VideoDecoder::DequeueAndProcessOutputBuffer() {
   SB_CHECK(media_codec_bridge_);
+
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
+  if (dequeue_output_result.flags == BUFFER_FLAG_END_OF_STREAM) {
+    SB_DCHECK(dequeue_output_result.index >= 0);
+  }
+
   if (dequeue_output_result.index < 0) {
     if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
-      SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
-      // Record the latest width/height of the decoded input.
-      SurfaceDimensions output_dimensions =
-          media_codec_bridge_->GetOutputDimensions();
-      frame_width_ = output_dimensions.width;
-      frame_height_ = output_dimensions.height;
+      RefreshOutputFormat();
       return true;
     }
 
@@ -440,16 +440,23 @@ bool VideoDecoder::ProcessOneOutputBuffer(
     return false;
   }
 
-  SbMediaTime out_pts = ConvertMicrosecondsToSbMediaTime(
-      dequeue_output_result.presentation_time_microseconds);
-
-  OutputBufferHandle output_buffer_handle = {
-      dequeue_output_result.index,
-      dequeue_output_result.presentation_time_microseconds,
-      dequeue_output_result.flags};
-  output_buffer_handles->push_back(output_buffer_handle);
-
+  ProcessOutputBuffer(dequeue_output_result);
   return true;
+}
+
+void VideoDecoder::ProcessOutputBuffer(
+    const DequeueOutputResult& dequeue_output_result) {
+  dequeue_output_results_.push_back(dequeue_output_result);
+}
+
+void VideoDecoder::RefreshOutputFormat() {
+  SB_DCHECK(media_codec_bridge_);
+  SB_DLOG(INFO) << "Output format changed, trying to dequeue again.";
+  // Record the latest width/height of the decoded input.
+  SurfaceDimensions output_dimensions =
+      media_codec_bridge_->GetOutputDimensions();
+  frame_width_ = output_dimensions.width;
+  frame_height_ = output_dimensions.height;
 }
 
 namespace {

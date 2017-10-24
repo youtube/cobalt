@@ -102,10 +102,19 @@ class AudioDecoder
   void TeardownCodec();
 
   bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
-  bool ProcessOneOutputBuffer();
+  // Attempt to dequeue a media codec output buffer.  Returns whether the
+  // processing should continue.  If a valid buffer is dequeued, it will call
+  // ProcessOutputBuffer() internally.  It is the responsibility of
+  // ProcessOutputBuffer() to release the output buffer back to the system.
+  bool DequeueAndProcessOutputBuffer();
+  void ProcessOutputBuffer(const DequeueOutputResult& output);
+  void RefreshOutputFormat();
 
   Closure output_cb_;
   Closure consumed_cb_;
+
+  // Working thread to avoid lengthy decoding work block the player thread.
+  SbThread decoder_thread_;
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbMediaAudioSampleType sample_type_;
@@ -117,8 +126,6 @@ class AudioDecoder
 
   DrmSystem* drm_system_;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
   // Events are processed in a queue, except for when handling events of type
   // |kReset|, which are allowed to cut to the front.
   EventQueue<Event> event_queue_;
