@@ -91,10 +91,10 @@ class Node : public EventTarget {
  public:
   // Web API: Node
   // NodeType values as defined by Web API Node.nodeType.
-  typedef uint16 NodeType;  // Work around lack of strongly-typed enums
-                            // in C++03.
-  enum NodeTypeInternal {   // A name is given only to pacify the compiler.
-                            // Use |NodeType| instead.
+  // Work around lack of strongly-typed enums in C++03.
+  typedef uint16 NodeType;
+  // A name that is given only to pacify the compiler. Use |NodeType| instead.
+  enum NodeTypeInternal : uint16 {
     kElementNode = 1,
     kTextNode = 3,
     kCdataSectionNode = 4,
