@@ -15,8 +15,8 @@
 """Class for configuring Webdriver Benchmarks."""
 
 
+PERFORMANCE_TEST = 'performance'
 SANITY_TEST = 'sanity'
-DEFAULT_TEST = 'default'
 
 # WEBDRIVER SCRIPT CONFIGURATION PARAMETERS
 MINIMAL_SIZE = 'minimal'
