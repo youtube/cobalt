@@ -36,9 +36,10 @@
   // the user agent
   readonly attribute Navigator navigator;
 
-  // base64 encoding and decoding
-  [RaisesException] DOMString btoa(DOMString string_to_encode);
-  [RaisesException] DOMString atob(DOMString encoded_string);
+  // https://html.spec.whatwg.org/multipage/webappapis.html#dom-btoa
+  [RaisesException] DOMString btoa(DOMString stringToEncode);
+  // https://html.spec.whatwg.org/multipage/webappapis.html#dom-atob
+  [RaisesException] ByteString atob(DOMString encodedString);
 
   // Custom, not in any spec.
   //

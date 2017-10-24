@@ -17,6 +17,7 @@
 
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
@@ -99,6 +100,17 @@ inline void ToJSValue(JSContext* context, const std::string& in_string,
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string);
+
+// std::vector<uint8_t> -> JSValue
+// Note that this conversion is specifically for the Web IDL type ByteString.
+// Ideally, conversion requests would be explicit in what type they wanted to
+// convert to, however it is currently solely based on input type.
+inline void ToJSValue(JSContext* context, const std::vector<uint8_t>& in_data,
+                      JS::MutableHandleValue out_value) {
+  JSString* js_string = JS_NewStringCopyN(
+      context, reinterpret_cast<const char*>(in_data.data()), in_data.size());
+  out_value.setString(js_string);
+}
 
 // base::Token -> JSValue
 inline void ToJSValue(JSContext* context, const base::Token& token,
