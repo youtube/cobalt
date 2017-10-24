@@ -131,12 +131,6 @@ class MediaCodecBridge {
   SB_DISALLOW_COPY_AND_ASSIGN(MediaCodecBridge);
 };
 
-struct OutputBufferHandle {
-  jint index;
-  SbTime pts_microseconds;
-  jint flags;
-};
-
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard

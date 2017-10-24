@@ -149,6 +149,8 @@ DrmSystem::DecryptStatus DrmSystem::Decrypt(InputBuffer* buffer) {
   // The actual decryption will take place by calling |queueSecureInputBuffer|
   // in the decoders.  Our existence implies that there is enough information
   // to perform the decryption.
+  // TODO: Returns kRetry when |UpdateSession| is not called at all to allow the
+  //       player worker to handle the retry logic.
   return kSuccess;
 }
 
