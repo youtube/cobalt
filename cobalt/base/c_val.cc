@@ -48,7 +48,9 @@ CValManager::~CValManager() {
   delete registered_vars_;
 }
 
-void CValManager::RegisterCVal(const CValDetail::CValBase* cval) {
+void CValManager::RegisterCVal(
+    const CValDetail::CValBase* cval,
+    scoped_refptr<base::RefCountedThreadSafeLock>* value_lock) {
   base::AutoLock auto_lock(cvals_lock_);
 
   // CVals cannot share name.  If this assert is triggered, we are trying to
@@ -57,6 +59,7 @@ void CValManager::RegisterCVal(const CValDetail::CValBase* cval) {
   DCHECK(registered_vars_->find(cval->GetName()) == registered_vars_->end());
 
   (*registered_vars_)[cval->GetName()] = cval;
+  *value_lock = value_lock_refptr_;
 }
 
 void CValManager::UnregisterCVal(const CValDetail::CValBase* cval) {
