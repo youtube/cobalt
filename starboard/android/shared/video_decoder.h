@@ -103,10 +103,13 @@ class VideoDecoder
   // Attempt to enqueue the front of |pending_work| into a MediaCodec input
   // buffer.  Returns true if a buffer was queued.
   bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
-  // Attempt to dequeue a media codec output buffer into
-  // |output_buffer_handles|.  Returns whether a buffer was dequeued.
-  bool ProcessOneOutputBuffer(
-      std::deque<OutputBufferHandle>* output_buffer_handles);
+  // Attempt to dequeue a media codec output buffer.  Returns whether the
+  // processing should continue.  If a valid buffer is dequeued, it will call
+  // ProcessOutputBuffer() internally.  It is the responsibility of
+  // ProcessOutputBuffer() to release the output buffer back to the system.
+  bool DequeueAndProcessOutputBuffer();
+  void ProcessOutputBuffer(const DequeueOutputResult& output);
+  void RefreshOutputFormat();
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
@@ -156,6 +159,10 @@ class VideoDecoder
   // reinitialize upon receiving the first input buffer, since HDR metadata is
   // unforunately not provided to us at initialization time.
   bool has_written_buffer_since_reset_;
+
+  // A queue of media codec output buffers that we have taken from the media
+  // codec bridge.  It is only accessed from the |decoder_thread_|.
+  std::deque<DequeueOutputResult> dequeue_output_results_;
 };
 
 }  // namespace shared
