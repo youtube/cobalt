@@ -299,14 +299,14 @@ std::string Window::Btoa(const std::string& string_to_encode,
   return output;
 }
 
-std::string Window::Atob(const std::string& encoded_string,
-                         script::ExceptionState* exception_state) {
+std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
+                                  script::ExceptionState* exception_state) {
   std::string output;
   if (!base::Base64Decode(encoded_string, &output)) {
     DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
-    return std::string();
+    return {};
   }
-  return output;
+  return {output.begin(), output.end()};
 }
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,
