@@ -437,8 +437,10 @@ class CValManager {
   ~CValManager();
 
   // Called in CVal constructors to register/deregister themselves with the
-  // system.
-  void RegisterCVal(const CValDetail::CValBase* cval);
+  // system.  Registering a CVal will also provide that CVal with a value lock
+  // to lock when it modifies its value.
+  void RegisterCVal(const CValDetail::CValBase* cval,
+                    scoped_refptr<base::RefCountedThreadSafeLock>* value_lock);
   void UnregisterCVal(const CValDetail::CValBase* cval);
 
 #if defined(ENABLE_DEBUG_C_VAL)
@@ -523,7 +525,6 @@ class CValImpl : public CValBase {
     CommonConstructor();
   }
   virtual ~CValImpl() {
-    base::AutoLock auto_lock(value_lock_refptr_->GetLock());
     if (registered_) {
       CValManager::GetInstance()->UnregisterCVal(this);
     }
@@ -610,8 +611,7 @@ class CValImpl : public CValBase {
   void RegisterWithManager() {
     if (!registered_) {
       CValManager* manager = CValManager::GetInstance();
-      manager->RegisterCVal(this);
-      value_lock_refptr_ = manager->value_lock_refptr_;
+      manager->RegisterCVal(this, &value_lock_refptr_);
       registered_ = true;
     }
   }
