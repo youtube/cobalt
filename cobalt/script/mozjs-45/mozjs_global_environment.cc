@@ -233,8 +233,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   if (success && out_opaque_handle) {
     JS::RootedObject js_object(context_);
     JS_ValueToObject(context_, result_value, &js_object);
-    MozjsObjectHandleHolder mozjs_object_holder(js_object, context_,
-                                                wrapper_factory());
+    MozjsObjectHandleHolder mozjs_object_holder(context_, js_object);
     out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
   }
   return success;
@@ -496,8 +495,7 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   // corresponding object, then the null value must be used instead.
   //   https://www.w3.org/TR/html5/webappapis.html#runtime-script-errors
   if (exception.isObject()) {
-    error_report.error.reset(
-        new MozjsValueHandleHolder(exception, context_, wrapper_factory()));
+    error_report.error.reset(new MozjsValueHandleHolder(context_, exception));
   }
   error_report.is_muted = report->isMuted;
 

@@ -81,8 +81,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_callback_function = MozjsCallbackHolderClass(
-      object, context, global_environment->wrapper_factory());
+  *out_callback_function = MozjsCallbackHolderClass(context, object);
 }
 
 }  // namespace mozjs

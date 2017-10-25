@@ -45,8 +45,8 @@ class MozjsScriptValueFactory : public ScriptValueFactory {
     JS::RootedObject promise_wrapper(
         context, PromiseWrapper::Create(context, global_object));
     DCHECK(promise_wrapper);
-    scoped_ptr<ScriptPromiseType> promise(new MozjsPromiseHolderType(
-        promise_wrapper, context, global_environment_->wrapper_factory()));
+    scoped_ptr<ScriptPromiseType> promise(
+        new MozjsPromiseHolderType(context, promise_wrapper));
     return promise.Pass();
   }
 

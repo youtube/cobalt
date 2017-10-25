@@ -23,9 +23,8 @@
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
 #include "cobalt/script/mozjs-45/wrapper_private.h"
 #include "cobalt/script/script_value.h"
-#include "third_party/mozjs-45/js/src/jsapi.h"
-
 #include "nb/memory_scope.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {
@@ -45,21 +44,16 @@ class MozjsUserObjectHolder
 
   MozjsUserObjectHolder()
       : context_(NULL),
-        wrapper_factory_(NULL),
         prevent_garbage_collection_count_(0) {}
 
-  MozjsUserObjectHolder(JS::HandleObject object, JSContext* context,
-                        WrapperFactory* wrapper_factory)
-      : handle_(MozjsUserObjectType(context, object)),
-        context_(context),
-        wrapper_factory_(wrapper_factory),
+  MozjsUserObjectHolder(JSContext* context, JS::HandleObject object)
+      : context_(context),
+        handle_(MozjsUserObjectType(context, object)),
         prevent_garbage_collection_count_(0) {}
 
-  MozjsUserObjectHolder(JS::HandleValue value, JSContext* context,
-                        WrapperFactory* wrapper_factory)
-      : handle_(MozjsUserObjectType(context, value)),
-        context_(context),
-        wrapper_factory_(wrapper_factory),
+  MozjsUserObjectHolder(JSContext* context, JS::HandleValue value)
+      : context_(context),
+        handle_(MozjsUserObjectType(context, value)),
         prevent_garbage_collection_count_(0) {}
 
   ~MozjsUserObjectHolder() {
@@ -121,7 +115,7 @@ class MozjsUserObjectHolder
     JSAutoRequest auto_request(context_);
     JS::RootedValue rooted_value(context_, js_value());
     return make_scoped_ptr<BaseClass>(
-        new MozjsUserObjectHolder(rooted_value, context_, wrapper_factory_));
+        new MozjsUserObjectHolder(context_, rooted_value));
   }
 
   bool EqualTo(const BaseClass& other) const OVERRIDE {
@@ -157,7 +151,6 @@ class MozjsUserObjectHolder
 
   JSContext* context_;
   base::optional<MozjsUserObjectType> handle_;
-  WrapperFactory* wrapper_factory_;
   int prevent_garbage_collection_count_;
   base::optional<JS::Value> persistent_root_;
 };
