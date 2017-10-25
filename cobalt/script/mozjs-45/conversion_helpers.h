@@ -649,8 +649,8 @@ inline void FromJSValue(
 
   JS::RootedObject implementing_object(context, &value.toObject());
   DCHECK(implementing_object);
-  *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
-      implementing_object, context, global_environment->wrapper_factory());
+  *out_callback_interface =
+      MozjsCallbackInterfaceHolder<T>(context, implementing_object);
 }
 
 template <typename T>

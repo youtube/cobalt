@@ -104,8 +104,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK(js_object);
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_holder = MozjsObjectHandleHolder(js_object, context,
-                                        global_environment->wrapper_factory());
+  *out_holder = MozjsObjectHandleHolder(context, js_object);
 }
 
 // ValueHandle -> JSValue
@@ -133,8 +132,7 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
       << "Unexpected conversion flags found.";
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_holder = MozjsValueHandleHolder(value, context,
-                                       global_environment->wrapper_factory());
+  *out_holder = MozjsValueHandleHolder(context, value);
 }
 
 }  // namespace mozjs
