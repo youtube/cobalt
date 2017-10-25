@@ -164,11 +164,16 @@ void VideoDecoder::TeardownCodec() {
   }
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    ScopedLock lock(decode_target_mutex_);
-    if (SbDecodeTargetIsValid(decode_target_)) {
-      DecodeTargetRelease(decode_target_graphics_context_provider_,
-                          decode_target_);
+    SbDecodeTarget decode_target_to_release;
+    {
+      ScopedLock lock(decode_target_mutex_);
+      decode_target_to_release = decode_target_;
       decode_target_ = kSbDecodeTargetInvalid;
+    }
+
+    if (SbDecodeTargetIsValid(decode_target_to_release)) {
+      DecodeTargetRelease(decode_target_graphics_context_provider_,
+                          decode_target_to_release);
     }
   }
 }
