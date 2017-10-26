@@ -18,16 +18,10 @@
 
 import os
 import platform
-import sys
 import unittest
 
+import _env  # pylint: disable=unused-import
 import flatten_idls
-
-# This needs to be set before calling flatten_idls._FlattenInterfaces
-script_dir = os.path.dirname(__file__)
-sys.path.append(os.path.join(script_dir, os.pardir, os.pardir, os.pardir,
-                             'third_party', 'blink', 'Source', 'bindings',
-                             'scripts'))
 
 
 def _TestDataPath():
@@ -40,6 +34,7 @@ def _TestDataPathGenerator(files):
     yield os.path.join(test_data_path, f)
 
 
+@unittest.skip('Test has bitrotted.')
 class FlattenedInterfacesTest(unittest.TestCase):
 
   def testFlattenIdl(self):
