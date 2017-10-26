@@ -101,7 +101,7 @@ WebInspector.FilmStripView.Dialog=function(filmStripFrame,zeroTime)
 WebInspector.FilmStripView.Dialog.prototype={_resize:function()
 {if(!this._dialog){this._dialog=new WebInspector.Dialog();this.show(this._dialog.element);this._dialog.setWrapsContent(true);this._dialog.show();}
 this._dialog.contentResized();},_keyDown:function(event)
-{switch(event.keyIdentifier){case"Left":if(WebInspector.isMac()&&event.metaKey)
+{switch(event.key){case"Left":if(WebInspector.isMac()&&event.metaKey)
 this._onFirstFrame();else
 this._onPrevFrame();break;case"Right":if(WebInspector.isMac()&&event.metaKey)
 this._onLastFrame();else
