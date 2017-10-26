@@ -15,41 +15,41 @@
 
 import unittest
 
-import bootstrap_path  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import
 from cobalt.build.path_conversion import ConvertPath
 
 
 class PathConversionTest(unittest.TestCase):
 
   def testNoop(self):
-    self.assertEquals(ConvertPath('this/is/a/path.txt'), 'this/is/a/path.txt')
+    self.assertEqual(ConvertPath('this/is/a/path.txt'), 'this/is/a/path.txt')
 
   def testOutputDirectory(self):
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath('this/is/a/path.txt', output_directory='another/location'),
         'another/location/path.txt')
 
   def testAddPrefix(self):
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath('this/is/a/path.txt', output_prefix='banana_'),
         'this/is/a/banana_path.txt')
 
   def testChangeExtension(self):
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath('this/is/a/path.txt', output_extension='clown'),
         'this/is/a/path.clown')
 
   def testSlashes(self):
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath('this\\is\\a\\path.txt', forward_slashes=True),
         'this/is/a/path.txt')
 
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath('this\\is\\a\\path.txt', forward_slashes=False),
         'this\\is\\a\\path.txt')
 
   def testBaseDirectory(self):
-    self.assertEquals(
+    self.assertEqual(
         ConvertPath(
             'if/this/is/a/path.txt',
             output_directory='then/that',
