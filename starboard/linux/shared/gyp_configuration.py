@@ -87,3 +87,10 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         test_filter.TestFilter(
             'starboard_platform_tests', test_filter.FILTER_ALL)
     ]
+
+  def GetTestEnvVariables(self):
+    return {
+        'base_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
+        'crypto_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
+        'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
+    }

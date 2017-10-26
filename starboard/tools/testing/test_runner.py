@@ -98,20 +98,21 @@ class TestRunner(object):
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
+    self._platform_config = abstract_launcher.GetGypModuleForPlatform(
+        platform).CreatePlatformConfig()
 
     # If a particular test binary has been provided, configure only that one.
     if single_target:
-      self.test_targets = self._GetSingleTestTarget(platform, config,
-                                                    single_target)
+      self.test_targets = self._GetSingleTestTarget(single_target)
     else:
-      self.test_targets = self._GetTestTargets(platform, config)
+      self.test_targets = self._GetTestTargets()
 
-  def _GetSingleTestTarget(self, platform, config, single_target):
+    self.test_env_vars = self._GetAllTestEnvVariables()
+
+  def _GetSingleTestTarget(self, single_target):
     """Sets up a single test target for a given platform and configuration.
 
     Args:
-      platform: The platform on which the tests are run, ex. "linux-x64x11"
-      config:  The configuration of the binary, ex. "devel" or "qa".
       single_target:  The name of a test target to run.
 
     Returns:
@@ -122,8 +123,7 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    gyp_module = abstract_launcher.GetGypModuleForPlatform(platform)
-    platform_filters = gyp_module.CreatePlatformConfig().GetTestFilters()
+    platform_filters = self._platform_config.GetTestFilters()
 
     final_targets = {}
     final_targets[single_target] = []
@@ -133,7 +133,7 @@ class TestRunner(object):
         return {}
       if platform_filter.target_name == single_target:
         # Only filter the tests specifying our config or all configs.
-        if platform_filter.config == config or not platform_filter.config:
+        if platform_filter.config == self.config or not platform_filter.config:
           if platform_filter.test_name == test_filter.FILTER_ALL:
             # If the provided target name has been filtered,
             # nothing will be run.
@@ -147,20 +147,15 @@ class TestRunner(object):
 
     return final_targets
 
-  def _GetTestTargets(self, platform, config):
+  def _GetTestTargets(self):
     """Collects all test targets for a given platform and configuration.
-
-    Args:
-      platform: The platform on which the tests are run, ex. "linux-x64x11".
-      config:  The configuration of the binary, ex. "devel" or "qa".
 
     Returns:
       A mapping from names of test binaries to lists of filters for
         each test binary.  If a test binary has no filters, its list is
         empty.
     """
-    gyp_module = abstract_launcher.GetGypModuleForPlatform(platform)
-    platform_filters = gyp_module.CreatePlatformConfig().GetTestFilters()
+    platform_filters = self._platform_config.GetTestFilters()
 
     final_targets = {}
 
@@ -172,7 +167,7 @@ class TestRunner(object):
       if platform_filter == test_filter.DISABLE_TESTING:
         return {}
       # Only filter the tests specifying our config or all configs.
-      if platform_filter.config == config or not platform_filter.config:
+      if platform_filter.config == self.config or not platform_filter.config:
         if platform_filter.test_name == test_filter.FILTER_ALL:
           # Filter the whole test binary
           del final_targets[platform_filter.target_name]
@@ -181,6 +176,10 @@ class TestRunner(object):
               platform_filter.test_name)
 
     return final_targets
+
+  def _GetAllTestEnvVariables(self):
+    """Gets all environment variables used for tests on the given platform."""
+    return self._platform_config.GetTestEnvVariables()
 
   def _BuildSystemInit(self):
     """Runs GYP on the target platform/config."""
@@ -226,6 +225,9 @@ class TestRunner(object):
       A tuple containing tests results (See "_CollectTestResults()").
     """
 
+    # Get the environment variables for the test target
+    env = self.test_env_vars.get(target_name, {})
+
     # Set up a pipe for processing test output
     read_fd, write_fd = os.pipe()
     read_pipe = os.fdopen(read_fd, "r")
@@ -239,7 +241,8 @@ class TestRunner(object):
     launcher = abstract_launcher.LauncherFactory(
         self.platform, target_name, self.config,
         device_id=self.device_id, target_params=self.target_params,
-        output_file=write_pipe, out_directory=self.out_directory)
+        output_file=write_pipe, out_directory=self.out_directory,
+        env_variables=env)
 
     reader = TestLineReader(read_pipe, write_pipe)
     #  If we need to manually exit the test runner at any point,

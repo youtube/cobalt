@@ -91,7 +91,7 @@ def DynamicallyBuildOutDirectory(platform, config):
 
 def LauncherFactory(platform, target_name, config, device_id=None,
                     target_params=None, output_file=None,
-                    out_directory=None):
+                    out_directory=None, env_variables=None):
   """Creates the proper launcher based upon command line args.
 
   Args:
@@ -104,6 +104,7 @@ def LauncherFactory(platform, target_name, config, device_id=None,
       None, sys.stdout is used.
     out_directory: Directory containing the executable target. If None is
       provided, the path to the directory is dynamically generated.
+    env_variables:  Environment variables for the executable
 
   Returns:
     An instance of the concrete launcher class for the desired platform.
@@ -127,13 +128,15 @@ def LauncherFactory(platform, target_name, config, device_id=None,
       bridge_module = importlib.import_module("app_launcher_bridge")
       return bridge_module.LauncherAdapter(
           platform, target_name, config, device_id, target_params=target_params,
-          output_file=output_file, out_directory=out_directory)
+          output_file=output_file, out_directory=out_directory,
+          env_variables=env_variables)
     else:
       raise RuntimeError("No launcher implemented for the given platform.")
   else:
     return launcher_module.Launcher(
         platform, target_name, config, device_id, target_params=target_params,
-        output_file=output_file, out_directory=out_directory)
+        output_file=output_file, out_directory=out_directory,
+        env_variables=env_variables)
 
 
 class AbstractLauncher(object):
@@ -157,9 +160,14 @@ class AbstractLauncher(object):
     self.output_file = output_file
 
     target_command_line_params = kwargs.get("target_params", None)
-    if not target_command_line_params:
+    if target_command_line_params is None:
       target_command_line_params = []
     self.target_command_line_params = target_command_line_params
+
+    env_variables = kwargs.get("env_variables", None)
+    if env_variables is None:
+      env_variables = {}
+    self.env_variables = env_variables
 
     # Launchers that need different startup timeout times should reassign
     # this variable during initialization.
