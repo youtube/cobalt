@@ -163,6 +163,15 @@ HRESULT CoreWindowNativeWindow::createSwapChain(ID3D11Device *device,
     swapChainDesc.Scaling = DXGI_SCALING_STRETCH;
     swapChainDesc.AlphaMode             = DXGI_ALPHA_MODE_UNSPECIFIED;
 
+#if defined(STARBOARD)
+    // Normally for UWP on XB1, the swap chain surface should always be 1080p,
+    // regardless of the actual output resolution. However, by using a special
+    // surface format (R10G10B10A2), it is possible to use other resolutions
+    // that will be passed to the output without scaling.
+    swapChainDesc.Format = DXGI_FORMAT_R10G10B10A2_UNORM;
+    swapChainDesc.AlphaMode = DXGI_ALPHA_MODE_IGNORE;
+#endif
+
     *swapChain = nullptr;
 
     ComPtr<IDXGISwapChain1> newSwapChain;
