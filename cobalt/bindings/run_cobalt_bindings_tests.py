@@ -26,8 +26,7 @@ import argparse
 import os
 import sys
 
-import bootstrap_path  # pylint: disable=unused-import
-
+import _env  # pylint: disable=unused-import
 from cobalt.bindings.idl_compiler_cobalt import IdlCompilerCobalt
 from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
 from webkitpy.bindings.bindings_tests import run_bindings_tests
