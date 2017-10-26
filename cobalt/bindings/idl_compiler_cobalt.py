@@ -21,8 +21,7 @@ from optparse import OptionParser
 import os
 import pickle
 
-import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
-
+import _env  # pylint: disable=unused-import
 from idl_compiler import IdlCompiler
 from utilities import ComponentInfoProviderCobalt
 from utilities import idl_filename_to_interface_name

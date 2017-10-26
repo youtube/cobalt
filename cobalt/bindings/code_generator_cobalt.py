@@ -22,8 +22,7 @@ from datetime import date
 import os
 import sys
 
-import bootstrap_path  # pylint: disable=unused-import
-
+import _env  # pylint: disable=unused-import
 from cobalt.bindings import path_generator
 from cobalt.bindings.contexts import ContextBuilder
 from cobalt.bindings.name_conversion import get_interface_name
