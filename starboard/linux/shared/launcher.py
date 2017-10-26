@@ -48,13 +48,19 @@ class Launcher(abstract_launcher.AbstractLauncher):
         self.device_id = socket.gethostbyname("localhost")
 
     self.executable = self.GetTargetPath()
+
+    env = os.environ.copy()
+    env.update(self.env_variables)
+    self.full_env = env
+
     self.pid = None
 
   def Run(self):
     """Runs launcher's executable."""
 
     proc = subprocess.Popen([self.executable] + self.target_command_line_params,
-                            stdout=self.output_file, stderr=self.output_file)
+                            stdout=self.output_file, stderr=self.output_file,
+                            env=self.full_env)
     self.pid = proc.pid
     proc.wait()
     return proc.returncode
