@@ -252,6 +252,8 @@ void VideoDecoder::DecoderThreadFunc() {
   MediaCodecWorkType work_type = kAttemptHandleInputBuffer;
 
   for (;;) {
+    // TODO: Replace |event_queue_| with a plain locked std::queue and only call
+    // swap() when |pending_work| is empty to avoid unnecessary locks.
     Event event = event_queue_.PollFront();
 
     if (event.type == Event::kWriteInputBuffer ||
@@ -354,27 +356,35 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
 
   SB_DCHECK(event.type == Event::kWriteInputBuffer ||
             event.type == Event::kWriteEndOfStream);
+
   scoped_refptr<InputBuffer> input_buffer = event.input_buffer;
-  bool is_eos = event.type == Event::kWriteEndOfStream;
-  SB_DCHECK(!is_eos || pending_work->empty());
+  if (event.type == Event::kWriteEndOfStream) {
+    SB_DCHECK(pending_work->empty());
+  }
+  const void* data = NULL;
+  int size = 0;
+  if (event.type == Event::kWriteInputBuffer) {
+    data = input_buffer->data();
+    size = input_buffer->size();
+  } else if (event.type == Event::kWriteEndOfStream) {
+    data = NULL;
+    size = 0;
+  }
 
   // Don't bother rewriting the same data if we already did it last time we
   // were called and had it stored in |pending_queue_input_buffer_task_|.
-  if (!input_buffer_already_written) {
+  if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
     ScopedJavaByteBuffer byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
-    if (!is_eos && (byte_buffer.IsNull() ||
-                    byte_buffer.capacity() < input_buffer->size())) {
+    if (byte_buffer.IsNull() || byte_buffer.capacity() < size) {
       SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
       return false;
     }
-    if (!is_eos) {
-      byte_buffer.CopyInto(input_buffer->data(), input_buffer->size());
-    }
+    byte_buffer.CopyInto(data, size);
   }
 
   jint status;
-  if (!is_eos) {
+  if (event.type == Event::kWriteInputBuffer) {
     jlong pts_us = ConvertSbMediaTimeToMicroseconds(input_buffer->pts());
     if (drm_system_ && input_buffer->drm_info()) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
@@ -392,8 +402,7 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
       }
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
-          dequeue_input_result.index, kNoOffset, input_buffer->size(), pts_us,
-          kNoBufferFlags);
+          dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
     }
   } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
