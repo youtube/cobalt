@@ -1,4 +1,5 @@
-# Copyright 2016 Google Inc. All Rights Reserved.
+#
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,17 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Compile an .idl file to Cobalt mozjs bindings (.h and .cpp files).
+#
+"""Ask the parent directory to load the project environment."""
 
-Calls into idl_compiler_cobalt.shared_main specifying the SpiderMonkey
-CodeGenerator class.
-"""
-
+from imp import load_source
+from os import path
 import sys
 
-import _env  # pylint: disable=unused-import
-from cobalt.bindings.idl_compiler_cobalt import generate_bindings
-from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
-
-if __name__ == '__main__':
-  sys.exit(generate_bindings(CodeGeneratorMozjs45))
+_ENV = path.abspath(path.join(path.dirname(__file__), path.pardir, '_env.py'))
+if not path.exists(_ENV):
+  print '%s: Can\'t find repo root.\nMissing parent: %s' % (__file__, _ENV)
+  sys.exit(1)
+load_source('', _ENV)

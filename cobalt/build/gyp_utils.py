@@ -24,7 +24,7 @@ import sys
 import urllib
 import urllib2
 
-import bootstrap_path  # pylint: disable=unused-import
+import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
 from starboard.tools import platform
 

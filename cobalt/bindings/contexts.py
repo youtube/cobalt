@@ -18,6 +18,7 @@ Extract the relevant information from the IdlParser objects and store them in
 dicts that will be used by Jinja in JS bindings generation.
 """
 
+import _env  # pylint: disable=unused-import
 from idl_definitions import IdlTypedef
 from idl_types import IdlPromiseType
 from idl_types import IdlSequenceType
