@@ -62,7 +62,7 @@ this._device=device;},_createBrowserSection:function()
 function updateViewMoreTitle()
 {viewMore.textContent=pages.classList.contains("device-view-more-toggled")?WebInspector.UIString("View less tabs\u2026"):WebInspector.UIString("View more tabs\u2026");}
 function newTabKeyDown(event)
-{if(event.keyIdentifier==="Enter"){event.consume(true);openNewTab();}}
+{if(event.key==="Enter"){event.consume(true);openNewTab();}}
 function openNewTab()
 {if(section.browser){InspectorFrontendHost.openRemotePage(section.browser.id,newTabInput.value.trim()||"about:blank");newTabInput.value="";}}},_updateBrowserSection:function(section,browser)
 {if(!section.browser||section.browser.adbBrowserName!==browser.adbBrowserName||section.browser.adbBrowserVersion!==browser.adbBrowserVersion){if(browser.adbBrowserVersion)
