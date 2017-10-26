@@ -207,6 +207,8 @@ void AudioDecoder::DecoderThreadFunc() {
   // TODO: Revisit |stream_ended_| logic.  It should be guarded by a lock and
   // a flag should be also set inside WriteEndOfStream().
   while (!stream_ended_) {
+    // TODO: Replace |event_queue_| with a plain locked std::queue and only call
+    // swap() when |pending_work| is empty to avoid unnecessary locks.
     Event event = event_queue_.PollFront();
 
     if (event.type == Event::kWriteInputBuffer ||
@@ -313,6 +315,9 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
             event.type == Event::kWriteInputBuffer ||
             event.type == Event::kWriteEndOfStream);
   const scoped_refptr<InputBuffer>& input_buffer = event.input_buffer;
+  if (event.type == Event::kWriteEndOfStream) {
+    SB_DCHECK(pending_work->empty());
+  }
   const void* data = NULL;
   int size = 0;
   if (event.type == Event::kWriteCodecConfig) {
@@ -327,17 +332,16 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
     size = 0;
   }
 
-  if (!input_buffer_already_written) {
+  // Don't bother rewriting the same data if we already did it last time we
+  // were called and had it stored in |pending_queue_input_buffer_task_|.
+  if (!input_buffer_already_written && event.type != Event::kWriteEndOfStream) {
     ScopedJavaByteBuffer byte_buffer(
         media_codec_bridge_->GetInputBuffer(dequeue_input_result.index));
     if (byte_buffer.IsNull() || byte_buffer.capacity() < size) {
       SB_LOG(ERROR) << "Unable to write to MediaCodec input buffer.";
       return false;
     }
-
-    if (data) {
-      byte_buffer.CopyInto(data, size);
-    }
+    byte_buffer.CopyInto(data, size);
   }
 
   jint status;
@@ -365,7 +369,7 @@ bool AudioDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
     }
-  } else if (event.type == Event::kWriteEndOfStream) {
+  } else {
     status = media_codec_bridge_->QueueInputBuffer(dequeue_input_result.index,
                                                    kNoOffset, size, kNoPts,
                                                    BUFFER_FLAG_END_OF_STREAM);
