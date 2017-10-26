@@ -683,7 +683,7 @@ Document.prototype.deepElementFromPoint=function(x,y)
 {var node=this.elementFromPoint(x,y);while(node&&node.shadowRoot)
 node=node.shadowRoot.elementFromPoint(x,y);return node;}
 function isEnterKey(event)
-{return event.keyCode!==229&&event.keyIdentifier==="Enter";}
+{return event.keyCode!==229&&event.key==="Enter";}
 function isEscKey(event)
 {return event.keyCode===27;}
 function consumeEvent(e)
