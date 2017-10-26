@@ -231,7 +231,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
     return device_name
 
   def _LaunchCrowIfNecessary(self):
-    if self.device_id or self._GetAdbDevices():
+    if self.device_id:
       return
 
     # Note that we just leave Crow running, since we uninstall/reinstall
