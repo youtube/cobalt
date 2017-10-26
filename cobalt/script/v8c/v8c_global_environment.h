@@ -25,6 +25,9 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/script/global_environment.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/v8c/interface_data.h"
+#include "cobalt/script/v8c/weak_heap_object_manager.h"
+#include "cobalt/script/v8c/wrapper_factory.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8.h"
 
@@ -45,6 +48,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   ~V8cGlobalEnvironment() override;
 
   void CreateGlobalObject() override;
+  template <typename GlobalInterface>
+  void CreateGlobalObject(
+      const scoped_refptr<GlobalInterface>& global_interface,
+      EnvironmentSettings* environment_settings);
 
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
                       std::string* out_result_utf8) override;
@@ -88,6 +95,18 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
     return v8::Local<v8::Context>::New(isolate_, context_);
   }
 
+  InterfaceData* GetInterfaceData(int key) {
+    DCHECK_GE(key, 0);
+    if (key >= cached_interface_data_.size()) {
+      cached_interface_data_.resize(key + 1);
+    }
+    return &cached_interface_data_[key];
+  }
+
+  WrapperFactory* wrapper_factory() { return wrapper_factory_.get(); }
+
+  WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
+
  private:
   base::ThreadChecker thread_checker_;
   v8::Isolate* isolate_;
@@ -95,6 +114,11 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   int garbage_collection_count_;
 
   v8::Global<v8::Object> global_object_;
+  scoped_ptr<WrapperFactory> wrapper_factory_;
+
+  WeakHeapObjectManager weak_object_manager_;
+
+  std::vector<InterfaceData> cached_interface_data_;
 
   EnvironmentSettings* environment_settings_;
 
