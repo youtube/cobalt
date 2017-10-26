@@ -1,0 +1,101 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$$ This should be no larger than MAX_ARITY in base/bind.h.pump.
+$var MAX_ARITY = 7
+
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// clang-format off
+
+#ifndef COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
+#define COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_
+
+#include "base/logging.h"
+#include "cobalt/script/callback_function.h"
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/weak_heap_object.h"
+#include "nb/memory_scope.h"
+#include "v8/include/v8.h"
+
+namespace cobalt {
+namespace script {
+namespace v8c {
+
+// First, we forward declare the Callback class template. This informs the
+// compiler that the template only has 1 type parameter which is the base
+// CallbackFunction template class with parameters.
+//
+// See base/callback.h.pump for further discussion on this pattern.
+template <typename Sig>
+class V8cCallbackFunction;
+
+$range ARITY 0..MAX_ARITY
+$for ARITY [[
+$range ARG 1..ARITY
+
+
+$if ARITY == 0 [[
+template <typename R>
+class V8cCallbackFunction<R(void)>
+    : public CallbackFunction<R(void)> {
+]] $else [[
+template <typename R, $for ARG , [[typename A$(ARG)]]>
+class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
+    : public CallbackFunction<R($for ARG , [[A$(ARG)]])> {
+]]
+
+ public:
+  typedef CallbackFunction<R($for ARG , [[A$(ARG)]])> BaseType;
+
+  V8cCallbackFunction(V8cGlobalEnvironment* env, v8::Local<v8::Value> function)
+    : env_(env), weak_function_(env, function) {
+      DCHECK(env_);
+      DCHECK(function->IsFunction());
+  }
+
+  CallbackResult<R> Run($for ARG , [[
+
+      typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
+      const OVERRIDE {
+    NOTIMPLEMENTED();
+    CallbackResult<R> callback_result;
+    return callback_result;
+  }
+
+  v8::Local<v8::Value> value() const { return weak_function_.GetValue(); }
+
+ private:
+  V8cGlobalEnvironment* env_;
+  WeakHeapObject weak_function_;
+};
+
+]]
+
+template <typename Signature>
+struct TypeTraits<CallbackFunction<Signature> > {
+  typedef V8cUserObjectHolder<V8cCallbackFunction<Signature> > ConversionType;
+  typedef const ScriptValue<CallbackFunction<Signature> >* ReturnType;
+};
+
+}  // namespace v8c
+}  // namespace script
+}  // namespace cobalt
+
+#endif  // COBALT_SCRIPT_V8C_V8C_CALLBACK_FUNCTION_H_

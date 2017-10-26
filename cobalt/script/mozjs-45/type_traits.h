@@ -23,7 +23,7 @@ template <typename T>
 struct TypeTraits {
   // The type to convert into from a JS Value in the bindings implementation.
   typedef T ConversionType;
-  // Type type returned from a Cobalt implementation of a bound function.
+  // The type returned from a Cobalt implementation of a bound function.
   typedef T ReturnType;
 };
 

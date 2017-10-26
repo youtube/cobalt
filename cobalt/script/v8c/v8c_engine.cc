@@ -77,6 +77,8 @@ V8cEngine::V8cEngine(const Options& options)
 
   isolate_ = v8::Isolate::New(params);
   CHECK(isolate_);
+
+  DCHECK(v8::Isolate::GetNumberOfDataSlots() >= 1);
 }
 
 V8cEngine::~V8cEngine() {
