@@ -219,7 +219,7 @@ DevToolsAPIImpl.prototype = {
     },
 
     /**
-     * @param {{type: string, keyIdentifier: string, keyCode: number, modifiers: number}} event
+     * @param {{type: string, key: string, keyCode: number, modifiers: number}} event
      */
     keyEventUnhandled: function(event)
     {
