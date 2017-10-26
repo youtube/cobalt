@@ -973,7 +973,7 @@ void BrowserModule::DestroySplashScreen(base::TimeDelta close_time) {
   }
   if (splash_screen_) {
     lifecycle_observers_.RemoveObserver(splash_screen_.get());
-    if (!close_time.is_zero() && renderer_module_) {
+    if (!close_time.is_zero() && renderer_module_ && renderer_module_->pipeline()) {
       // Ensure that the renderer renders each frame up until the window.close()
       // is called on the splash screen's timeline, in order to ensure that the
       // splash screen shutdown transition plays out completely.
@@ -1404,7 +1404,7 @@ void BrowserModule::ApplyAutoMemSettings() {
 }
 
 void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
-  if (!renderer_module_) {
+  if (!renderer_module_ || !renderer_module_->pipeline()) {
     return;
   }
 
