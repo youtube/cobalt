@@ -301,6 +301,12 @@ class BrowserModule {
   // Initializes the system window, and all components that require it.
   void InitializeSystemWindow();
 
+  // Instantiates a renderer module and dependent objects.
+  void InstantiateRendererModule();
+
+  // Destroys the renderer module and dependent objects.
+  void DestroyRendererModule();
+
   // Updates all components that have already been created with information
   // resulting from the creation of the system window.
   void UpdateFromSystemWindow();

@@ -109,9 +109,6 @@ class RendererModule {
                           const Options& options);
   ~RendererModule();
 
-  void Suspend();
-  void Resume();
-
   renderer::Pipeline* pipeline() { return pipeline_.get(); }
   const scoped_refptr<renderer::backend::RenderTarget> render_target() {
     return display_->GetRenderTarget();
