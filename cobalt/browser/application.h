@@ -70,6 +70,11 @@ class Application {
   // Called to handle a deep link event.
   void OnDeepLinkEvent(const base::Event* event);
 
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  // Called to handle a window size change event.
+  void OnWindowSizeChangedEvent(const base::Event* event);
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
   // Called when a navigation occurs in the BrowserModule.
   void WebModuleRecreated();
 
@@ -85,6 +90,9 @@ class Application {
   // Event callbacks.
   base::EventCallback network_event_callback_;
   base::EventCallback deep_link_event_callback_;
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  base::EventCallback window_size_change_event_callback_;
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
   // Thread checkers to ensure that callbacks for network and application events
   // always occur on the same thread.
