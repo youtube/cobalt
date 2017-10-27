@@ -12,23 +12,15 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 """Abstraction for running Cobalt development tools."""
 
+import abc
 import importlib
 import os
 import sys
 
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.dirname(__file__))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
-
-import abc
-
+import _env  # pylint: disable=unused-import
 import starboard.tools.platform as platform_module
 
 
@@ -222,4 +214,3 @@ class AbstractLauncher(object):
       out_directory = DynamicallyBuildOutDirectory(self.platform, self.config)
 
     return os.path.abspath(os.path.join(out_directory, self.target_name))
-
