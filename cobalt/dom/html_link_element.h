@@ -53,6 +53,9 @@ class HTMLLinkElement : public HTMLElement {
   std::string href() const { return GetAttribute("href").value_or(""); }
   void set_href(const std::string& value) { SetAttribute("href", value); }
 
+  base::optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::optional<std::string>& value);
+
   // Custom, not in any spec.
   //
   scoped_refptr<HTMLLinkElement> AsHTMLLinkElement() OVERRIDE { return this; }
@@ -93,7 +96,11 @@ class HTMLLinkElement : public HTMLElement {
   // The style sheet associated with this element.
   scoped_refptr<cssom::StyleSheet> style_sheet_;
 
+  // The origin of fetch request's final destination.
   loader::Origin fetched_last_url_origin_;
+
+  // The request mode for the fetch request.
+  loader::RequestMode request_mode_;
 };
 
 }  // namespace dom
