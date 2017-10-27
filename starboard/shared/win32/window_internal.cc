@@ -20,6 +20,13 @@ SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options,
                                  HWND window_handle)
     : width(options->size.width),
       height(options->size.height),
-      window_handle_(window_handle) {}
+      window_handle_(window_handle) {
+  RECT window_client_rect;
+
+  if (GetClientRect(window_handle_, &window_client_rect)) {
+    width = window_client_rect.right - window_client_rect.left;
+    height = window_client_rect.bottom - window_client_rect.top;
+  }
+}
 
 SbWindowPrivate::~SbWindowPrivate() {}
