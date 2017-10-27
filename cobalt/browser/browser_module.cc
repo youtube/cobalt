@@ -278,8 +278,9 @@ BrowserModule::BrowserModule(const GURL& url,
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
   timeout_polling_thread_.Start();
   timeout_polling_thread_.message_loop()->PostDelayedTask(
-      FROM_HERE, base::Bind(&BrowserModule::OnPollForRenderTimeout,
-                            base::Unretained(this), url),
+      FROM_HERE,
+      base::Bind(&BrowserModule::OnPollForRenderTimeout, base::Unretained(this),
+                 url),
       base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
 #endif
   TRACE_EVENT0("cobalt::browser", "BrowserModule::BrowserModule()");
@@ -697,6 +698,25 @@ void BrowserModule::OnWindowMinimize() {
 
   SbSystemRequestSuspend();
 }
+
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
+  math::Size math_size(size.width, size.height);
+  if (web_module_) {
+    web_module_->SetSize(math_size, size.video_pixel_ratio);
+  }
+#if defined(ENABLE_DEBUG_CONSOLE)
+  if (debug_console_) {
+    debug_console_->web_module().SetSize(math_size, size.video_pixel_ratio);
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+  if (splash_screen_) {
+    splash_screen_->web_module().SetSize(math_size, size.video_pixel_ratio);
+  }
+
+  return;
+}
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
 #if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
@@ -1135,12 +1155,10 @@ void BrowserModule::OnRendererSubmissionRasterized() {
 void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
   SbTime last_render_timestamp = static_cast<SbTime>(SbAtomicAcquire_Load64(
       non_trivial_global_variables.Get().last_render_timestamp));
-  base::Time last_render =
-      base::Time::FromSbTime(last_render_timestamp);
-  bool timeout_expiration =
-      base::Time::Now() -
-          base::TimeDelta::FromSeconds(kLastRenderTimeoutSeconds) >
-      last_render;
+  base::Time last_render = base::Time::FromSbTime(last_render_timestamp);
+  bool timeout_expiration = base::Time::Now() - base::TimeDelta::FromSeconds(
+                                                    kLastRenderTimeoutSeconds) >
+                            last_render;
   bool timeout_response_trigger = false;
   if (timeout_expiration) {
     // The timeout only triggers if the timeout expiration has been detected
@@ -1171,8 +1189,9 @@ void BrowserModule::OnPollForRenderTimeout(const GURL& url) {
     }
   } else {
     timeout_polling_thread_.message_loop()->PostDelayedTask(
-        FROM_HERE, base::Bind(&BrowserModule::OnPollForRenderTimeout,
-                              base::Unretained(this), url),
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnPollForRenderTimeout,
+                   base::Unretained(this), url),
         base::TimeDelta::FromSeconds(kRenderTimeOutPollingDelaySeconds));
   }
 }
@@ -1421,6 +1440,13 @@ void BrowserModule::SubmitCurrentRenderTreeToRenderer() {
   if (submission) {
     renderer_module_->pipeline()->Submit(*submission);
   }
+}
+
+SbWindow BrowserModule::GetSbWindow() {
+  if (!system_window_) {
+    return NULL;
+  }
+  return system_window_->GetSbWindow();
 }
 
 }  // namespace browser
