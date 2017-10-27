@@ -48,7 +48,7 @@ class Application {
   typedef SbEventDataDestructor EventHandledCallback;
 
   // Signature for a function that will be called at the beginning of Teardown.
-  typedef void(*TeardownCallback)(void);
+  typedef void (*TeardownCallback)(void);
 
   // Enumeration of states that the application can be in.
   enum State {
@@ -212,6 +212,15 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  // Inject a window size change event.
+  //
+  // |context|: A context value to pass to |callback| on event completion. Must
+  // not be NULL if callback is not NULL.
+  // |callback|: A function to call on event completion, from the main thread.
+  void WindowSizeChanged(void* context, EventHandledCallback callback);
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
   // Schedules an event into the event queue.  May be called from an external
   // thread.
   SbEventId Schedule(SbEventCallback callback,
@@ -282,9 +291,7 @@ class Application {
   // |DispatchAndDelete| to maintain consistency of the application state.
   // Returns whether to keep servicing the event queue, i.e. false means to
   // abort the event queue.
-  virtual bool DispatchNextEvent() {
-    return DispatchAndDelete(GetNextEvent());
-  }
+  virtual bool DispatchNextEvent() { return DispatchAndDelete(GetNextEvent()); }
 
   // Injects an event into the queue, such that it will be returned from
   // GetNextEvent(), giving ownership of the event. NULL is valid, and will just
