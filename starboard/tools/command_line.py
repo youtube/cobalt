@@ -51,10 +51,6 @@ def CreateParser():
       '--device_id',
       help='Devkit or IP address for the target device.')
   arg_parser.add_argument(
-      '-t',
-      '--target_name',
-      help='Name of executable target.')
-  arg_parser.add_argument(
       '--target_params',
       help='Command line arguments to pass to the executable.'
            ' Because different executables could have differing command'
