@@ -839,8 +839,10 @@ void PopulateBaseStyleForOutlineNode(
 }
 
 void SetupOutlineNodeFromStyleWithOutset(
+    const math::RectF& rect,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder, float outset_width) {
+  rect_node_builder->rect = rect;
   rect_node_builder->rect.Outset(outset_width, outset_width);
   if (outset_width != 0) {
     rect_node_builder->border =
@@ -851,10 +853,11 @@ void SetupOutlineNodeFromStyleWithOutset(
 }
 
 void SetupOutlineNodeFromStyle(
+    const math::RectF& rect,
     const scoped_refptr<const cssom::CSSComputedStyleData>& style,
     RectNode::Builder* rect_node_builder) {
   SetupOutlineNodeFromStyleWithOutset(
-      style, rect_node_builder,
+      rect, style, rect_node_builder,
       GetUsedNonNegativeLength(style->outline_width()).toFloat());
 }
 }  // namespace
@@ -1406,10 +1409,10 @@ void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
   RectNode::Builder rect_node_builder(rect);
   bool has_animated_outline = HasAnimatedOutline(animations());
   if (has_animated_outline) {
-    SetupOutlineNodeFromStyleWithOutset(computed_style(), &rect_node_builder,
-                                        0);
+    SetupOutlineNodeFromStyleWithOutset(rect, computed_style(),
+                                        &rect_node_builder, 0);
   } else {
-    SetupOutlineNodeFromStyle(computed_style(), &rect_node_builder);
+    SetupOutlineNodeFromStyle(rect, computed_style(), &rect_node_builder);
   }
 
   scoped_refptr<RectNode> outline_node(new RectNode(rect_node_builder.Pass()));
@@ -1418,7 +1421,7 @@ void Box::RenderAndAnimateOutline(CompositionNode::Builder* border_node_builder,
 
   if (has_animated_outline) {
     AddAnimations<RectNode>(base::Bind(&PopulateBaseStyleForOutlineNode),
-                            base::Bind(&SetupOutlineNodeFromStyle),
+                            base::Bind(&SetupOutlineNodeFromStyle, rect),
                             *css_computed_style_declaration(), outline_node,
                             animate_node_builder);
   }
