@@ -24,19 +24,21 @@ from starboard.tools import command_line
 
 def main():
   parser = command_line.CreateParser()
+  parser.add_argument(
+      "-t",
+      "--target_name",
+      required=True,
+      help="Name of executable target.")
   args = parser.parse_args()
-  extra_args = {}
 
-  if not args.device_id:
-    args.device_id = None
-
-  extra_args = {}
+  target_params = []
   if args.target_params:
-    extra_args["target_params"] = args.target_params.split(" ")
+    target_params = args.target_params.split(" ")
 
   launcher = abstract_launcher.LauncherFactory(
       args.platform, args.target_name, args.config,
-      args.device_id, extra_args, out_directory=args.out_directory)
+      device_id=args.device_id, target_params=target_params,
+      out_directory=args.out_directory)
   return launcher.Run()
 
 if __name__ == "__main__":
