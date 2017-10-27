@@ -39,6 +39,7 @@
 #include "cobalt/base/localized_strings.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
+#include "cobalt/base/window_size_changed_event.h"
 #include "cobalt/browser/memory_settings/auto_mem_settings.h"
 #include "cobalt/browser/memory_tracker/tool.h"
 #include "cobalt/browser/switches.h"
@@ -568,8 +569,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   if (command_line->HasSwitch(switches::kMemoryTracker)) {
     std::string command_arg =
         command_line->GetSwitchValueASCII(switches::kMemoryTracker);
-    memory_tracker_tool_ =
-        memory_tracker::CreateMemoryTrackerTool(command_arg);
+    memory_tracker_tool_ = memory_tracker::CreateMemoryTrackerTool(command_arg);
   }
 
   if (command_line->HasSwitch(switches::kDisableImageAnimations)) {
@@ -614,7 +614,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
                                      deep_link_event_callback_);
-
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  window_size_change_event_callback_ = base::Bind(
+      &Application::OnWindowSizeChangedEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
+                                     window_size_change_event_callback_);
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -669,9 +674,12 @@ Application::~Application() {
   // Unregister event callbacks.
   event_dispatcher_.RemoveEventCallback(network::NetworkEvent::TypeId(),
                                         network_event_callback_);
-  event_dispatcher_.RemoveEventCallback(
-      base::DeepLinkEvent::TypeId(), deep_link_event_callback_);
-
+  event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
+                                        deep_link_event_callback_);
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
+                                        window_size_change_event_callback_);
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
   app_status_ = kShutDownAppStatus;
 }
 
@@ -725,6 +733,15 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= 6
       OnApplicationEvent(starboard_event->type);
       break;
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+    case kSbEventTypeWindowSizeChanged:
+      DispatchEventInternal(new base::WindowSizeChangedEvent(
+          static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
+              ->window,
+          static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
+              ->size));
+      break;
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
     case kSbEventTypeNetworkConnect:
       DispatchEventInternal(
           new network::NetworkEvent(network::NetworkEvent::kConnection));
@@ -835,6 +852,15 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
   }
 }
 
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+void Application::OnWindowSizeChangedEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
+  const base::WindowSizeChangedEvent* window_size_change_event =
+      base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
+  browser_module_->OnWindowSizeChanged(window_size_change_event->size());
+}
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
 void Application::WebModuleRecreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
 #if defined(ENABLE_WEBDRIVER)
@@ -888,9 +914,8 @@ void Application::RegisterUserLogs() {
                             &app_suspend_count_, sizeof(app_suspend_count_));
     base::UserLog::Register(base::UserLog::kAppResumeCountIndex, "ResumeCnt",
                             &app_resume_count_, sizeof(app_resume_count_));
-    base::UserLog::Register(base::UserLog::kNetworkStatusIndex,
-                            "NetworkStatus", &network_status_,
-                            sizeof(network_status_));
+    base::UserLog::Register(base::UserLog::kNetworkStatusIndex, "NetworkStatus",
+                            &network_status_, sizeof(network_status_));
     base::UserLog::Register(base::UserLog::kNetworkConnectCountIndex,
                             "ConnectCnt", &network_connect_count_,
                             sizeof(network_connect_count_));

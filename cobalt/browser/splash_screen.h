@@ -74,6 +74,8 @@ class SplashScreen : public LifecycleObserver {
   // Returns whether Shutdown() has been called before or not.
   bool ShutdownSignaled() const { return shutdown_signaled_; }
 
+  WebModule& web_module() { return *web_module_; }
+
  private:
   // Run when window.close() is called by the WebModule.
   void OnWindowClosed();
