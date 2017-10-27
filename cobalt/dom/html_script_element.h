@@ -51,6 +51,9 @@ class HTMLScriptElement : public HTMLElement {
   bool async() const { return GetBooleanAttribute("async"); }
   void set_async(bool value) { SetBooleanAttribute("async", value); }
 
+  base::optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::optional<std::string>& value);
+
   std::string nonce() const { return GetAttribute("nonce").value_or(""); }
   void set_nonce(const std::string& value) { SetAttribute("nonce", value); }
 
@@ -141,6 +144,9 @@ class HTMLScriptElement : public HTMLElement {
 
   // Whether or not the script should execute at all.
   bool should_execute_;
+
+  // The request mode for the fetch request.
+  loader::RequestMode request_mode_;
 
   // Will be compared with document's origin to derive mute_errors flag
   // javascript parser takes in to record if the error reqort should be muted

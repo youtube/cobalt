@@ -18,4 +18,5 @@ interface HTMLLinkElement : HTMLElement {
   attribute DOMString href;
   attribute DOMString rel;
   attribute DOMString type;
+  attribute DOMString? crossOrigin;
 };
