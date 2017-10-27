@@ -141,6 +141,13 @@ void Application::InjectLowMemoryEvent() {
 #endif  // SB_API_VERSION >= 6
 }
 
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+void Application::WindowSizeChanged(void* context,
+                                    EventHandledCallback callback) {
+  Inject(new Event(kSbEventTypeWindowSizeChanged, context, callback));
+}
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
 SbEventId Application::Schedule(SbEventCallback callback,
                                 void* context,
                                 SbTimeMonotonic delay) {
