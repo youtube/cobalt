@@ -13,31 +13,24 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 """Cross-platform unit test runner."""
 
-import importlib
-import os
-import sys
-
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                          os.pardir))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
 import cStringIO
+import os
 import re
 import signal
 import subprocess
+import sys
 import threading
 import traceback
 
-import starboard.tools.abstract_launcher as abstract_launcher
-import starboard.tools.command_line as command_line
-import starboard.tools.testing.test_filter as test_filter
+import _env  # pylint: disable=unused-import
+from starboard.tools import abstract_launcher
+from starboard.tools import command_line
+from starboard.tools import environment
+from starboard.tools.testing import test_filter
+
 
 _TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
                       r"test cases? ran. \(.* ms total\)")
@@ -248,6 +241,7 @@ class TestRunner(object):
     #  If we need to manually exit the test runner at any point,
     #  ensure that the launcher is killed properly first.
     def Abort(signum, frame):
+      del signum, frame  # Unused.
       launcher.Kill()
       reader.Kill()
       sys.stderr.write("TEST RUN STOPPED VIA MANUAL EXIT\n")
@@ -259,7 +253,7 @@ class TestRunner(object):
     return_code = 1
     try:
       return_code = launcher.Run()
-    except Exception as e:
+    except Exception:  # pylint: disable=broad-except
       sys.stderr.write("Error while running {}:\n".format(target_name))
       traceback.print_exc(file=sys.stderr)
     finally:
@@ -475,4 +469,3 @@ def main():
 
 if __name__ == "__main__":
   sys.exit(main())
-

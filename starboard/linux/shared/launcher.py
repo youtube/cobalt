@@ -14,25 +14,14 @@
 # limitations under the License.
 """Linux implementation of Starboard launcher abstraction."""
 
-import importlib
 import os
-import sys
-
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir,
-                                          os.pardir, "tools"))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
-
 import signal
 import socket
 import subprocess
+import sys
 
-import starboard.tools.abstract_launcher as abstract_launcher
+import _env  # pylint: disable=unused-import
+from starboard.tools import abstract_launcher
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -70,5 +59,5 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if self.pid:
       try:
         os.kill(self.pid, signal.SIGTERM)
-      except OSError as e:
+      except OSError:
         sys.stderr.write("Cannot kill launcher.  Process already closed.\n")
