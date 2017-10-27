@@ -12,29 +12,22 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#
 """Android implementation of Starboard launcher abstraction."""
 
-import importlib
-import os
-import sys
-
-if 'environment' in sys.modules:
-  environment = sys.modules['environment']
-else:
-  env_path = os.path.abspath(os.path.dirname(__file__))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module('environment')
-
 import hashlib
+import os
 import Queue
 import re
 import socket
 import subprocess
-import time
+import sys
 import threading
+import time
 
-import starboard.tools.abstract_launcher as abstract_launcher
+import _env  # pylint: disable=unused-import
+from starboard.tools import abstract_launcher
+
 
 # Content directory, relative to the executable path
 # The executable path is typically in OUTDIR/lib and the content
@@ -323,7 +316,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
                                      apk_metadata.st_mtime)
     app_checksum.update(apk_hash_input)
 
-    for root, dirs, files in os.walk(self.host_content_path):
+    for root, _, files in os.walk(self.host_content_path):
       for content_file in files:
         file_path = os.path.join(root, content_file)
         file_metadata = os.stat(file_path)

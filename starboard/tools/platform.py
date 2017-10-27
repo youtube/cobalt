@@ -16,21 +16,12 @@
 """Functionality to enumerate and represent starboard ports."""
 
 import importlib
-import os
-import sys
-
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(os.path.dirname(__file__))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
-
 import logging
+import os
 import re
 
+import _env  # pylint: disable=unused-import
+from starboard.tools import environment
 
 # The list of files that must be present in a directory to allow it to be
 # considered a valid port.
@@ -126,9 +117,9 @@ class PlatformInfo(object):
 
     Load the python module named |module_name| relative to |root_module|.
     Args:
-      module: Name of a python module to load. If None, load the platform
-          directory as a python module.
       root_module: An already-loaded module
+      module_name: Name of a python module to load. If None, load the platform
+          directory as a python module.
     Returns:
       A module loaded with importlib.import_module
     Throws:
