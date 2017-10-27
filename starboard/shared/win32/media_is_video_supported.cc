@@ -14,133 +14,91 @@
 
 #include "starboard/shared/starboard/media/media_support_internal.h"
 
-#include <sstream>
-
-#include "starboard/common/scoped_ptr.h"
-#include "starboard/configuration.h"
-#include "starboard/media.h"
-#include "starboard/once.h"
-#include "starboard/shared/win32/error_utils.h"
-#include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/media_foundation_utils.h"
-#include "starboard/shared/win32/media_transform.h"
-#include "starboard/shared/win32/video_transform.h"
-#include "starboard/window.h"
-
-// #define ENABLE_VP9_DECODER
-
-using Microsoft::WRL::ComPtr;
-using starboard::scoped_ptr;
-using starboard::ScopedLock;
-using starboard::shared::win32::CheckResult;
-using starboard::shared::win32::kVideoFormat_YV12;
-using starboard::shared::win32::MediaTransform;
-using starboard::shared::win32::TryCreateVP9Transform;
+#include <d3d11.h>
+#include <mfapi.h>
+#include <mfidl.h>
+#include <wrl/client.h>
 
 namespace {
 
-class VideoSupported {
- public:
-  static VideoSupported* GetSingleton();
-  bool IsVideoSupported(SbMediaVideoCodec video_codec,
-                        int frame_width,
-                        int frame_height,
-                        int64_t bitrate,
-                        int fps) {
-    // Is resolution out of range?
-    if (frame_width > max_width_ || frame_height > max_height_) {
-      return false;
-    }
-    // Is bitrate in range?
-    if (bitrate > SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND) {
-      return false;
-    }
-    if (fps > 60) {
-      return false;
-    }
-    if (video_codec == kSbMediaVideoCodecH264) {
-      return true;
-    }
-    if ((video_codec == kSbMediaVideoCodecVp9) && AllowVp9Decoder()) {
-      return IsVp9Supported(frame_width, frame_height);
-    }
-    return false;
-  }
-
- private:
-  static bool AllowVp9Decoder() {
-#ifdef ENABLE_VP9_DECODER
-    return true;
-#else
-    return false;
-#endif
-  }
-
-  static bool DetectVp9Supported(int width, int height) {
-    scoped_ptr<MediaTransform> vp9_decoder =
-        TryCreateVP9Transform(kVideoFormat_YV12, width, height);
-    return !!vp9_decoder.get();
-  }
-
-  bool IsVp9Supported(int width, int height) {
-    // When width/height is zero then this is a special value to mean
-    // IsVP9 available at all? Therefore detect the general case by
-    // testing the specific case of 1024 x 768.
-    if ((width == 0) && (height == 0)) {
-      return DetectVp9Supported(1024, 768);
-    }
-
-    Key key = {width, height};
-    ScopedLock lock(mutex_);
-    auto it = vpn_size_cache_.find(key);
-    if (it != vpn_size_cache_.end()) {
-      return it->second;
-    } else {
-      const bool vp9_valid = DetectVp9Supported(width, height);
-      vpn_size_cache_[key] = vp9_valid;
-      return vp9_valid;
-    }
-  }
-
-  VideoSupported() : max_width_(0), max_height_(0) {
-    Construct();
-  }
-
-  void Construct() {
-    SbWindowOptions sb_window_options;
-    SbWindowSetDefaultOptions(&sb_window_options);
-    max_width_ = sb_window_options.size.width;
-    max_height_ = sb_window_options.size.height;
-  }
-
-  struct Key {
-    int width = 0;
-    int height = 0;
-    bool operator<(const Key& other) const {
-      if (width != other.width) {
-        return width < other.width;
-      }
-      return height < other.height;
-    }
-  };
-
-  starboard::Mutex mutex_;
-  using Vp9SizeCache = std::map<Key, bool>;
-  Vp9SizeCache vpn_size_cache_;
-  int max_width_;
-  int max_height_;
+#if SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+// Cache the VP9 support status since the check may be expensive.
+enum Vp9Support {
+  kVp9SupportUnknown,
+  kVp9SupportYes,
+  kVp9SupportNo
 };
+Vp9Support s_vp9_support = kVp9SupportUnknown;
 
-SB_ONCE_INITIALIZE_FUNCTION(VideoSupported, VideoSupported::GetSingleton);
+// Check for VP9 support. Since this is used by a starboard function, it
+// cannot depend on other modules (e.g. ANGLE).
+bool IsVp9Supported() {
+  if (s_vp9_support == kVp9SupportUnknown) {
+    // Try initializing the VP9 decoder to determine if it is supported.
+    HRESULT hr;
 
-}  // namespace.
+    Microsoft::WRL::ComPtr<ID3D11Device> d3d_device;
+    hr = D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr, 0,
+                           nullptr, 0, D3D11_SDK_VERSION,
+                           d3d_device.GetAddressOf(), nullptr, nullptr);
+
+    UINT reset_token = 0;
+    Microsoft::WRL::ComPtr<IMFDXGIDeviceManager> device_manager;
+    if (SUCCEEDED(hr)) {
+      hr = MFCreateDXGIDeviceManager(&reset_token,
+                                     device_manager.GetAddressOf());
+    }
+    if (SUCCEEDED(hr)) {
+      hr = device_manager->ResetDevice(d3d_device.Get(), reset_token);
+    }
+
+    Microsoft::WRL::ComPtr<IMFTransform> transform;
+    if (SUCCEEDED(hr)) {
+      hr = CoCreateInstance(CLSID_MSVPxDecoder, nullptr, CLSCTX_INPROC_SERVER,
+                            IID_PPV_ARGS(transform.GetAddressOf()));
+    }
+    if (SUCCEEDED(hr)) {
+      hr = transform->ProcessMessage(MFT_MESSAGE_SET_D3D_MANAGER,
+                                     ULONG_PTR(device_manager.Get()));
+    }
+
+    s_vp9_support = SUCCEEDED(hr) ? kVp9SupportYes : kVp9SupportNo;
+  }
+  return s_vp9_support == kVp9SupportYes;
+}
+#else  // SB_HAS(MEDIA_WEBM_VP9_SUPPORT)
+bool IsVp9Supported() {
+  return false;
+}
+#endif
+
+}  // namespace
 
 SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int frame_width,
                                        int frame_height,
                                        int64_t bitrate,
                                        int fps) {
-  bool supported = VideoSupported::GetSingleton()->IsVideoSupported(
-      video_codec, frame_width, frame_height, bitrate, fps);
-  return supported;
+  // Only certain codecs support 4K resolution.
+  const bool supports_4k = video_codec == kSbMediaVideoCodecVp9;
+  const int max_width = supports_4k ? 3840 : 1920;
+  const int max_height = supports_4k ? 2160 : 1080;
+  if (frame_width > max_width || frame_height > max_height) {
+    return false;
+  }
+
+  // Is bitrate in range?
+  if (bitrate > SB_MEDIA_MAX_VIDEO_BITRATE_IN_BITS_PER_SECOND) {
+    return false;
+  }
+  if (fps > 60) {
+    return false;
+  }
+  if (video_codec == kSbMediaVideoCodecH264) {
+    return true;
+  }
+  if (video_codec == kSbMediaVideoCodecVp9) {
+    return IsVp9Supported();
+  }
+  return false;
 }
