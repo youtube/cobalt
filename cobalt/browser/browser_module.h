@@ -161,6 +161,11 @@ class BrowserModule {
   void CheckMemory(const int64_t& used_cpu_memory,
                    const base::optional<int64_t>& used_gpu_memory);
 
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  // Called when a kSbEventTypeWindowSizeChange event is fired.
+  void OnWindowSizeChanged(const SbWindowSize& size);
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   static void CoreDumpHandler(void* browser_module_as_void);
@@ -324,6 +329,9 @@ class BrowserModule {
   // |render_tree_combiner_| and submits it to the pipeline in the renderer
   // module.
   void SubmitCurrentRenderTreeToRenderer();
+
+  // Get the SbWindow via |system_window_| or potentially NULL.
+  SbWindow GetSbWindow();
 
   // TODO:
   //     WeakPtr usage here can be avoided if BrowserModule has a thread to

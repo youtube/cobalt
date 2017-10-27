@@ -69,6 +69,7 @@
         'tokens.cc',
         'tokens.h',
         'type_id.h',
+        'window_size_changed_event.h',
         'unicode/character.cc',
         'unicode/character.h',
         'unicode/character_values.h',
