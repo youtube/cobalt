@@ -89,17 +89,28 @@ TEST_P(LayoutTest, LayoutTest) {
 
   scoped_refptr<render_tree::animations::AnimateNode> animate_node =
       new render_tree::animations::AnimateNode(layout_results.render_tree);
-  scoped_refptr<render_tree::Node> animated_tree =
-      animate_node->Apply(layout_results.layout_time).animated->source();
+
+  scoped_refptr<render_tree::animations::AnimateNode> animated_node =
+      animate_node->Apply(layout_results.layout_time).animated;
+
+  // We reapply the animation application with the exact same layout time as
+  // before.  This is an extra sanity check to ensure that the animated results
+  // are deterministic.
+  scoped_refptr<render_tree::animations::AnimateNode> twice_animated_node =
+      animated_node->Apply(layout_results.layout_time).animated;
+  EXPECT_EQ(animated_node, twice_animated_node);
+
+  scoped_refptr<render_tree::Node> static_render_tree =
+      twice_animated_node->source();
 
   bool results =
-      pixel_tester.TestTree(animated_tree, GetParam().base_file_path);
+      pixel_tester.TestTree(static_render_tree, GetParam().base_file_path);
 
   if (CommandLine::ForCurrentProcess()->HasSwitch(switches::kRebaseline) ||
       (!results &&
        CommandLine::ForCurrentProcess()->HasSwitch(
            switches::kRebaselineFailedTests))) {
-    pixel_tester.Rebaseline(animated_tree, GetParam().base_file_path);
+    pixel_tester.Rebaseline(static_render_tree, GetParam().base_file_path);
   }
 
   EXPECT_TRUE(results);
