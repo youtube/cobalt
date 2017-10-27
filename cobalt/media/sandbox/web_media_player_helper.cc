@@ -73,12 +73,12 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
   player_->SetRate(1.0);
   scoped_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
       base::MessageLoopProxy::current(), video_url, csp::SecurityCallback(),
-      fetcher_factory->network_module()));
+      fetcher_factory->network_module(), loader::kNoCORSMode,
+      loader::Origin()));
 // TODO: Investigate a better way to exclude this when SB_HAS(PLAYER_WITH_URL)
 //       is enabled.
 #if !SB_HAS(PLAYER_WITH_URL)
-  player_->LoadProgressive(video_url, data_source.Pass(),
-                           WebMediaPlayer::kCORSModeUnspecified);
+  player_->LoadProgressive(video_url, data_source.Pass());
 #endif  // !SB_HAS(PLAYER_WITH_URL)
   player_->Play();
 }

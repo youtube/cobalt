@@ -116,8 +116,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 #else   // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() OVERRIDE;
   void LoadProgressive(const GURL& url,
-                       scoped_ptr<BufferedDataSource> data_source,
-                       CORSMode cors_mode) OVERRIDE;
+                       scoped_ptr<BufferedDataSource> data_source) OVERRIDE;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CancelLoad() OVERRIDE;
 
