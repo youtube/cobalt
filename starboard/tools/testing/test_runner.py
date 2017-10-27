@@ -430,6 +430,10 @@ def main():
       " If both the \"--build\" and \"--run\" flags are not"
       " provided, this is the default.")
   arg_parser.add_argument(
+      "-t",
+      "--target_name",
+      help="Name of executable target.")
+  arg_parser.add_argument(
       "--ninja_flags",
       help="Flags to pass to the ninja build system. Provide them exactly"
       " as you would on the command line between a set of double quotation"
