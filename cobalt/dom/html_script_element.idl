@@ -19,6 +19,7 @@ interface HTMLScriptElement : HTMLElement {
   attribute DOMString type;
   attribute DOMString charset;
   attribute boolean async;
+  attribute DOMString? crossOrigin;
   // From Content Security Policy spec.
   attribute DOMString nonce;
 
