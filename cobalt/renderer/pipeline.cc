@@ -509,6 +509,13 @@ void Pipeline::InitializeRasterizerThread(
 void Pipeline::ShutdownSubmissionQueue() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownSubmissionQueue()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+
+  // Clear out our time fence data, especially |post_fence_submission_| which
+  // may refer to a render tree.
+  time_fence_ = base::nullopt;
+  post_fence_submission_ = base::nullopt;
+  post_fence_receipt_time_ = base::nullopt;
+
   // Stop and shutdown the raterizer timer.  If we won't have a submission
   // queue anymore, we won't be able to rasterize anymore.
   rasterize_timer_ = base::nullopt;
@@ -529,6 +536,9 @@ void Pipeline::ShutdownSubmissionQueue() {
 void Pipeline::ShutdownRasterizerThread() {
   TRACE_EVENT0("cobalt::renderer", "Pipeline::ShutdownRasterizerThread()");
   DCHECK(rasterizer_thread_checker_.CalledOnValidThread());
+
+  // Shutdown the FPS overlay which may reference render trees.
+  fps_overlay_ = base::nullopt;
 
   // Submit a black fullscreen rect node to clear the display before shutting
   // down.  This can be helpful if we quit while playing a video via
