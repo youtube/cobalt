@@ -25,6 +25,8 @@
 #include "base/optional.h"
 #include "base/synchronization/lock.h"
 #include "cobalt/csp/content_security_policy.h"
+#include "cobalt/loader/fetcher.h"
+#include "cobalt/loader/origin.h"
 #include "cobalt/network/network_module.h"
 #include "googleurl/src/gurl.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
@@ -70,7 +72,8 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   FetcherBufferedDataSource(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
       const GURL& url, const csp::SecurityCallback& security_callback,
-      network::NetworkModule* network_module);
+      network::NetworkModule* network_module, loader::RequestMode requset_mode,
+      loader::Origin origin);
   ~FetcherBufferedDataSource() OVERRIDE;
 
   // DataSource methods.
@@ -153,6 +156,11 @@ class FetcherBufferedDataSource : public BufferedDataSource,
 
   csp::SecurityCallback security_callback_;
   scoped_refptr<CancelableClosure> cancelable_create_fetcher_closure_;
+
+  loader::RequestMode request_mode_;
+  loader::Origin document_origin_;
+  // True if the origin is allowed to fetch resource data.
+  bool is_origin_safe_;
 };
 
 }  // namespace media

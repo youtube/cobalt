@@ -88,8 +88,7 @@ class WebMediaPlayer {
 #else   // SB_HAS(PLAYER_WITH_URL)
   virtual void LoadMediaSource() = 0;
   virtual void LoadProgressive(const GURL& url,
-                               scoped_ptr<BufferedDataSource> data_source,
-                               CORSMode cors_mode) = 0;
+                               scoped_ptr<BufferedDataSource> data_source) = 0;
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   virtual void CancelLoad() = 0;
