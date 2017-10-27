@@ -54,7 +54,8 @@ SbWindowPrivate::SbWindowPrivate(Display* display,
       video_picture(None),
       gl_window(None),
       gl_picture(None),
-      display(display) {
+      display(display),
+      unhandled_resize(false) {
   // Request a 32-bit depth visual for our Window.
   XVisualInfo x_visual_info = {0};
   XMatchVisualInfo(display, DefaultScreen(display), 32, TrueColor,
@@ -148,6 +149,7 @@ void SbWindowPrivate::BeginComposite() {
       window_attributes.height != height) {
     width = window_attributes.width;
     height = window_attributes.height;
+    unhandled_resize = true;
     if (composition_pixmap != None) {
       XFreePixmap(display, composition_pixmap);
       composition_pixmap = None;
