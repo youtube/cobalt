@@ -88,6 +88,10 @@ struct SbWindowPrivate {
 
   // The height of this window.
   int height;
+
+  // If there has been a resize that has not been handled by the application
+  // yet.
+  bool unhandled_resize;
 };
 
 #endif  // STARBOARD_SHARED_X11_WINDOW_INTERNAL_H_
