@@ -28,9 +28,13 @@ namespace loader {
 
 // https://fetch.spec.whatwg.org/#concept-request-mode
 // Right now Cobalt only needs two modes.
+// We mix credentials mode with request mode for simplicity.
+// https://fetch.spec.whatwg.org/#concept-request-credentials-mode
 enum RequestMode {
   kNoCORSMode,
-  kCORSMode,
+  kCORSModeOmitCredentials,
+  kCORSModeSameOriginCredentials,
+  kCORSModeIncludeCredentials,
 };
 
 class Fetcher {

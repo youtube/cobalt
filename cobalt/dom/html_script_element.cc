@@ -40,6 +40,22 @@ namespace {
 
 bool PermitAnyURL(const GURL&, bool) { return true; }
 
+loader::RequestMode GetRequestMode(
+    const base::optional<std::string>& cross_origin_attribute) {
+  // https://html.spec.whatwg.org/#cors-settings-attribute
+  if (cross_origin_attribute) {
+    if (*cross_origin_attribute == "use-credentials") {
+      return loader::kCORSModeIncludeCredentials;
+    } else {
+      // The invalid value default of crossorigin is Anonymous state, leading to
+      // "same-origin" credentials mode.
+      return loader::kCORSModeSameOriginCredentials;
+    }
+  }
+  // crossorigin attribute's missing value default is No CORS state, leading to
+  // "no-cors" request mode.
+  return loader::kNoCORSMode;
+}
 }  // namespace
 
 // static
@@ -56,6 +72,26 @@ HTMLScriptElement::HTMLScriptElement(Document* document)
       prevent_garbage_collection_count_(0),
       should_execute_(true) {
   DCHECK(document->html_element_context()->script_runner());
+}
+
+base::optional<std::string> HTMLScriptElement::cross_origin() const {
+  base::optional<std::string> cross_origin_attribute =
+      GetAttribute("crossOrigin");
+  if (cross_origin_attribute &&
+      (*cross_origin_attribute != "anonymous" &&
+       *cross_origin_attribute != "use-credentials")) {
+    return std::string();
+  }
+  return cross_origin_attribute;
+}
+
+void HTMLScriptElement::set_cross_origin(
+    const base::optional<std::string>& value) {
+  if (value) {
+    SetAttribute("crossOrigin", *value);
+  } else {
+    RemoveAttribute("crossOrigin");
+  }
 }
 
 void HTMLScriptElement::OnInsertedIntoDocument() {
@@ -239,8 +275,11 @@ void HTMLScriptElement::Prepare() {
                    CspDelegate::kScript);
   }
 
-  // Clear origin before start.
+  // Clear fetched resource's origin before start.
   fetched_last_url_origin_ = loader::Origin();
+
+  // Determine request mode from crossorigin attribute.
+  request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
 
   switch (load_option_) {
     case 2: {
@@ -257,7 +296,9 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback, loader::kNoCORSMode, loader::Origin()),
+              csp_callback, request_mode_,
+              document_->location() ? document_->location()->OriginObject()
+                                    : loader::Origin()),
           base::Bind(&loader::TextDecoder::Create,
                      base::Bind(&HTMLScriptElement::OnSyncLoadingDone,
                                 base::Unretained(this))),
@@ -298,7 +339,9 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback, loader::kNoCORSMode, loader::Origin()),
+              csp_callback, request_mode_,
+              document_->location() ? document_->location()->OriginObject()
+                                    : loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
@@ -323,7 +366,9 @@ void HTMLScriptElement::Prepare() {
           base::Bind(
               &loader::FetcherFactory::CreateSecureFetcher,
               base::Unretained(html_element_context()->fetcher_factory()), url_,
-              csp_callback, loader::kNoCORSMode, loader::Origin()),
+              csp_callback, request_mode_,
+              document_->location() ? document_->location()->OriginObject()
+                                    : loader::Origin()),
           scoped_ptr<loader::Decoder>(new loader::TextDecoder(base::Bind(
               &HTMLScriptElement::OnLoadingDone, base::Unretained(this)))),
           base::Bind(&HTMLScriptElement::OnLoadingError,
@@ -531,6 +576,7 @@ void HTMLScriptElement::Execute(const std::string& content,
   // the script settings object of the script element's Document's Window
   // object.
   bool mute_errors =
+      request_mode_ == loader::kNoCORSMode &&
       fetched_last_url_origin_ != document_->location()->OriginObject();
   html_element_context()->script_runner()->Execute(
       content, script_location, mute_errors, NULL /*out_succeeded*/);
