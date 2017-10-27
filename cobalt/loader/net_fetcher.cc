@@ -85,10 +85,18 @@ NetFetcher::NetFetcher(const GURL& url,
       net::URLFetcher::Create(url, options.request_method, this));
   url_fetcher_->SetRequestContext(network_module->url_request_context_getter());
   url_fetcher_->DiscardResponse();
-  if (request_mode == kCORSMode && !url.SchemeIs("data") &&
+  if (request_mode != kNoCORSMode && !url.SchemeIs("data") &&
       origin != Origin(url)) {
     request_cross_origin_ = true;
     url_fetcher_->AddExtraRequestHeader("Origin:" + origin.SerializedOrigin());
+  }
+  if ((request_cross_origin_ &&
+       (request_mode == kCORSModeSameOriginCredentials)) ||
+      request_mode == kCORSModeOmitCredentials) {
+    const uint32 kDisableCookiesLoadFlags =
+        net::LOAD_NORMAL | net::LOAD_DO_NOT_SAVE_COOKIES |
+        net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
+    url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
 
   // Delay the actual start until this function is complete. Otherwise we might
