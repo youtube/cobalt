@@ -1238,8 +1238,27 @@ shared::starboard::Application::Event* ApplicationX11::XEventToEvent(
       return NULL;
     }
     case ConfigureNotify: {
-      // Ignore window size, position, border, and stacking order events.
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+      XConfigureEvent* x_configure_event =
+          reinterpret_cast<XConfigureEvent*>(x_event);
+      SbEventWindowSizeChangedData* data = new SbEventWindowSizeChangedData();
+      data->window = FindWindow(x_configure_event->window);
+      bool unhandled_resize = data->window->unhandled_resize;
+      data->window->BeginComposite();
+      unhandled_resize |= data->window->unhandled_resize;
+      if (!unhandled_resize) {
+        // Ignore move events.
+        return NULL;
+      }
+      // Get the current window size.
+      SbWindowSize window_size;
+      SbWindowGetSize(data->window, &window_size);
+      data->size = window_size;
+      data->window->unhandled_resize = false;
+      return new Event(kSbEventTypeWindowSizeChanged, data, NULL);
+#else  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
       return NULL;
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
     }
     case SelectionNotify: {
       XSelectionEvent* x_selection_event =

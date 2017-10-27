@@ -19,6 +19,11 @@ exactly once for SbPlayers created with a URL. Also, since URL players will not
 expose codec information, use a custom SbPlayerOutputModeSupportedWithUrl() to
 query player output mode support.
 
+### Add kSbEventTypeWindowSizeChanged
+
+An event indicating that an SbWindow's size has changed. The event data is
+SbEventWindowSizeChangedData, containing a SbWindow and SbWindowSize.
+
 ## Version 7
 
 ### `SbDecodeTargetInfoPlane` can specify color plane information
