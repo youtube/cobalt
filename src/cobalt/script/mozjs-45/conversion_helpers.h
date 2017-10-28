@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
@@ -121,7 +122,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_boolean);
-  // ToBoolean implements the ECMAScript ToBoolean operation.
+  // |JS::ToBoolean| implements the ECMAScript ToBoolean operation.
+  // Note that |JS::ToBoolean| will handle the case in which |value| is of
+  // type Symbol without throwing.
   *out_boolean = JS::ToBoolean(value);
 }
 
@@ -197,6 +200,12 @@ inline void FromJSValue(
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
 
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   int32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
@@ -226,6 +235,13 @@ inline void FromJSValue(
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   double to_number;
   JS::ToNumber(context, value, &to_number);
 
@@ -294,6 +310,12 @@ inline void FromJSValue(
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
 
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   uint32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
@@ -326,6 +348,12 @@ inline void FromJSValue(
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
 
   uint64_t out;
   // This produces and IDL unsigned long long.
@@ -382,6 +410,13 @@ inline void FromJSValue(
   DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
       << "Unexpected conversion flags found.";
   DCHECK(out_number);
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   double double_value;
   if (!JS::ToNumber(context, value, &double_value)) {
     exception_state->SetSimpleException(kNotNumberType);

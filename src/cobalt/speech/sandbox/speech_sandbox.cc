@@ -75,7 +75,7 @@ void SpeechSandbox::StartRecognition(
     const dom::DOMSettings::Options& dom_settings_options) {
   scoped_ptr<script::EnvironmentSettings> environment_settings(
       new dom::DOMSettings(kDOMMaxElementDepth, NULL, network_module_.get(),
-                           NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                           NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                            dom_settings_options));
   DCHECK(environment_settings);
 

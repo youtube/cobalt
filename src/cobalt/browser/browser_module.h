@@ -44,6 +44,8 @@
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
 #include "cobalt/layout/layout_manager.h"
+#include "cobalt/media/can_play_type_handler.h"
+#include "cobalt/media/media_module.h"
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
@@ -390,6 +392,9 @@ class BrowserModule {
   // Controls all media playback related objects/resources.
   scoped_ptr<media::MediaModule> media_module_;
 
+  // Allows checking if particular media type can be played.
+  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler_;
+
   // Sets up the network component for requesting internet resources.
   network::NetworkModule network_module_;
 
@@ -495,6 +500,11 @@ class BrowserModule {
   // The timer for the next call to OnErrorRetry(). It is started in OnError()
   // when it is not already active.
   base::OneShotTimer<BrowserModule> on_error_retry_timer_;
+
+  // Set when we've posted a system error for network failure until we receive
+  // the next navigation. This is used to suppress retrying the current URL on
+  // resume until the error retry occurs.
+  bool waiting_for_error_retry_;
 
   // Set when the application is about to quit. May be set from a thread other
   // than the one hosting this object, and read from another.

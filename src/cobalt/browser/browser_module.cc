@@ -223,6 +223,7 @@ BrowserModule::BrowserModule(const GURL& url,
           new ResourceProviderArrayBufferAllocator(GetResourceProvider())),
       array_buffer_cache_(new dom::ArrayBuffer::Cache(3 * 1024 * 1024)),
 #endif  // defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
+      can_play_type_handler_(media::MediaModule::CreateCanPlayTypeHandler()),
       network_module_(&storage_manager_, event_dispatcher_,
                       options_.network_module_options),
       web_module_loaded_(true /* manually_reset */,
@@ -255,6 +256,7 @@ BrowserModule::BrowserModule(const GURL& url,
       render_timeout_count_(0),
 #endif
       on_error_retry_count_(0),
+      waiting_for_error_retry_(false),
       will_quit_(false),
       application_state_(initial_application_state),
       splash_screen_cache_(new SplashScreenCache()),
@@ -354,9 +356,7 @@ BrowserModule::BrowserModule(const GURL& url,
 
 BrowserModule::~BrowserModule() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
-  if (on_error_retry_timer_.IsRunning()) {
-    on_error_retry_timer_.Stop();
-  }
+  on_error_retry_timer_.Stop();
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
 #endif
@@ -384,9 +384,10 @@ void BrowserModule::Navigate(const GURL& url) {
     return;
   }
 
-  if (on_error_retry_timer_.IsRunning()) {
-    on_error_retry_timer_.Stop();
-  }
+  // Clear error handling once we're told to navigate, either because it's the
+  // retry from the error or something decided we should navigate elsewhere.
+  on_error_retry_timer_.Stop();
+  waiting_for_error_retry_ = false;
 
   // Navigations aren't allowed if the app is suspended. If this is the case,
   // simply set the pending navigate url, which will cause the navigation to
@@ -483,8 +484,9 @@ void BrowserModule::Navigate(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      media_module_.get(), &network_module_, viewport_size, video_pixel_ratio,
-      GetResourceProvider(), kLayoutMaxRefreshFrequencyInHz, options));
+      can_play_type_handler_.get(), media_module_.get(), &network_module_,
+      viewport_size, video_pixel_ratio, GetResourceProvider(),
+      kLayoutMaxRefreshFrequencyInHz, options));
   lifecycle_observers_.AddObserver(web_module_.get());
   if (!web_module_recreated_callback_.is_null()) {
     web_module_recreated_callback_.Run();
@@ -891,6 +893,7 @@ void BrowserModule::OnError(const GURL& url, const std::string& error) {
 void BrowserModule::OnErrorRetry() {
   ++on_error_retry_count_;
   on_error_retry_time_ = base::TimeTicks::Now();
+  waiting_for_error_retry_ = true;
   TryURLHandlers(
       GURL("h5vcc://network-failure?retry-url=" + pending_navigate_url_));
 }
@@ -1236,7 +1239,7 @@ void BrowserModule::UpdateFromSystemWindow() {
 
   if (web_module_) {
     web_module_->SetCamera3D(input_device_manager_->camera_3d());
-    web_module_->SetMediaModule(media_module_.get());
+    web_module_->SetWebMediaPlayerFactory(media_module_.get());
     web_module_->SetSize(size, video_pixel_ratio);
   }
 }
@@ -1335,8 +1338,8 @@ void BrowserModule::StartOrResumeInternalPostStateUpdate() {
   TRACE_EVENT0("cobalt::browser",
                "BrowserModule::StartOrResumeInternalPostStateUpdate");
   // If there's a navigation that's pending, then attempt to navigate to its
-  // specified URL now.
-  if (!pending_navigate_url_.empty()) {
+  // specified URL now, unless we're still waiting for an error retry.
+  if (!pending_navigate_url_.empty() && !waiting_for_error_retry_) {
     Navigate(GURL(pending_navigate_url_));
   }
 }

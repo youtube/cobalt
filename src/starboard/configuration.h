@@ -53,7 +53,8 @@
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-#define SB_RELEASE_CANDIDATE_API_VERSION 7
+// The following will be uncommented when an API version is a release candidate.
+// #define SB_RELEASE_CANDIDATE_API_VERSION 8
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -68,7 +69,6 @@
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
-#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 

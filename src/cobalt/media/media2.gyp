@@ -29,8 +29,6 @@
         'fetcher_buffered_data_source.h',
         'media_module.cc',
         'media_module.h',
-        'media_module_stub.cc',
-        'media_module_stub.h',
         'media_module_starboard.cc',
 
         'base/audio_codecs.cc',
