@@ -19,7 +19,12 @@
 
 #include <jni.h>
 
+#include <string>
+#include <unordered_map>
+#include <vector>
+
 #include "starboard/log.h"
+#include "starboard/mutex.h"
 
 namespace starboard {
 namespace android {
@@ -52,6 +57,12 @@ class DrmSystem : public ::SbDrmSystemPrivate {
                                  const void* content,
                                  int content_size,
                                  const char* url);
+  void CallDrmSessionKeyStatusesChangedCallback(
+      const void* session_id,
+      int session_id_size,
+      const std::vector<SbDrmKeyId>& drm_key_ids,
+      const std::vector<SbDrmKeyStatus>& drm_key_statuses);
+  void OnInsufficientOutputProtection();
 
   bool is_valid() const {
     return j_media_drm_bridge_ != NULL && j_media_crypto_ != NULL;
@@ -66,6 +77,10 @@ class DrmSystem : public ::SbDrmSystemPrivate {
 
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
+
+  Mutex mutex_;
+  std::unordered_map<std::string, std::vector<SbDrmKeyId> > cached_drm_key_ids_;
+  bool hdcp_lost_;
 };
 
 }  // namespace shared

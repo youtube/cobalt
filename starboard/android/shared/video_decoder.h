@@ -56,6 +56,7 @@ class VideoDecoder
                             decode_target_graphics_context_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
+  void Initialize(const Closure& error_cb) SB_OVERRIDE;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
@@ -110,10 +111,12 @@ class VideoDecoder
   bool DequeueAndProcessOutputBuffer();
   void ProcessOutputBuffer(const DequeueOutputResult& output);
   void RefreshOutputFormat();
+  void HandleError(const char* action_name, jint status);
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
+  Closure error_cb_;
   VideoRenderer* host_;
   DrmSystem* drm_system_;
 
