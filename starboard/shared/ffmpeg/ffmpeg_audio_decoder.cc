@@ -62,10 +62,12 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb) {
+void AudioDecoder::Initialize(const Closure& output_cb,
+                              const Closure& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb.is_valid());
   SB_DCHECK(!output_cb_.is_valid());
+  SB_UNREFERENCED_PARAMETER(error_cb);
 
   output_cb_ = output_cb;
 }

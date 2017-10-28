@@ -42,7 +42,7 @@ class MockAudioDecoder : public AudioDecoder {
         storage_type_(storage_type),
         samples_per_second_(sample_per_second) {}
 
-  MOCK_METHOD1(Initialize, void(const Closure&));
+  MOCK_METHOD2(Initialize, void(const Closure&, const Closure&));
   MOCK_METHOD2(Decode, void(const InputBuffer&, const Closure&));
   MOCK_METHOD0(WriteEndOfStream, void());
   MOCK_METHOD0(Read, scoped_refptr<DecodedAudio>());

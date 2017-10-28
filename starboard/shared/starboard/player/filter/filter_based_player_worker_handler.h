@@ -61,6 +61,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   void Stop() SB_OVERRIDE;
 
   void Update();
+  void OnError();
 
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
