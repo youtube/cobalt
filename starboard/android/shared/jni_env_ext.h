@@ -52,6 +52,22 @@ struct JniEnvExt : public JNIEnv {
   // Returns the CobaltActivity object.
   jobject GetActivityObject();
 
+  // Lookup the class of an object and find a field in it.
+  jfieldID GetStaticFieldIDOrAbort(jclass clazz,
+                                   const char* name,
+                                   const char* sig) {
+    jfieldID field = GetStaticFieldID(clazz, name, sig);
+    AbortOnException();
+    return field;
+  }
+
+  jint GetEnumValueOrAbort(jclass clazz, const char* name) {
+    jfieldID field = GetStaticFieldIDOrAbort(clazz, name, "I");
+    jint enum_value = GetStaticIntField(clazz, field);
+    AbortOnException();
+    return enum_value;
+  }
+
   // Lookup the class of an object and find a method in it.
   jmethodID GetObjectMethodIDOrAbort(jobject obj,
                                      const char* name,

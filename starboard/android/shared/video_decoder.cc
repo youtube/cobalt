@@ -48,6 +48,37 @@ const jint kNoBufferFlags = 0;
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
 
+// TODO: Merge this once Android decoders are unified
+const char* GetNameForMediaCodecStatus(jint status) {
+  switch (status) {
+    case MEDIA_CODEC_OK:
+      return "MEDIA_CODEC_OK";
+    case MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER:
+      return "MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER";
+    case MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER:
+      return "MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER";
+    case MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED:
+      return "MEDIA_CODEC_OUTPUT_BUFFERS_CHANGED";
+    case MEDIA_CODEC_OUTPUT_FORMAT_CHANGED:
+      return "MEDIA_CODEC_OUTPUT_FORMAT_CHANGED";
+    case MEDIA_CODEC_INPUT_END_OF_STREAM:
+      return "MEDIA_CODEC_INPUT_END_OF_STREAM";
+    case MEDIA_CODEC_OUTPUT_END_OF_STREAM:
+      return "MEDIA_CODEC_OUTPUT_END_OF_STREAM";
+    case MEDIA_CODEC_NO_KEY:
+      return "MEDIA_CODEC_NO_KEY";
+    case MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION:
+      return "MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION";
+    case MEDIA_CODEC_ABORT:
+      return "MEDIA_CODEC_ABORT";
+    case MEDIA_CODEC_ERROR:
+      return "MEDIA_CODEC_ERROR";
+    default:
+      SB_NOTREACHED();
+      return "MEDIA_CODEC_ERROR_UNKNOWN";
+  }
+}
+
 // Determine if two |SbMediaMasteringMetadata|s are equal.
 bool Equal(const SbMediaMasteringMetadata& lhs,
            const SbMediaMasteringMetadata& rhs) {
@@ -103,6 +134,12 @@ VideoDecoder::~VideoDecoder() {
   JoinOnDecoderThread();
   TeardownCodec();
   ClearVideoWindow();
+}
+
+void VideoDecoder::Initialize(const Closure& error_cb) {
+  SB_DCHECK(!error_cb_.is_valid());
+  SB_DCHECK(error_cb.is_valid());
+  error_cb_ = error_cb;
 }
 
 void VideoDecoder::SetHost(VideoRenderer* host) {
@@ -344,11 +381,7 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
         media_codec_bridge_->DequeueInputBuffer(kDequeueTimeout);
     event = pending_work->front();
     if (dequeue_input_result.index < 0) {
-      if (dequeue_input_result.status !=
-          MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
-        SB_LOG(ERROR) << "|dequeueInputBuffer| failed with status: "
-                      << dequeue_input_result.status;
-      }
+      HandleError("dequeueInputBuffer", dequeue_input_result.status);
       return false;
     }
     pending_work->pop_front();
@@ -390,16 +423,6 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
       status = media_codec_bridge_->QueueSecureInputBuffer(
           dequeue_input_result.index, kNoOffset, *input_buffer->drm_info(),
           pts_us);
-
-      if (status == MEDIA_CODEC_NO_KEY) {
-        SB_DLOG(INFO) << "|queueSecureInputBuffer| failed with status: "
-                         "MEDIA_CODEC_NO_KEY, will try again later.";
-        // We will try this input buffer again later after |drm_system_| tries
-        // to take care of our key.
-        SB_DCHECK(!pending_queue_input_buffer_task_);
-        pending_queue_input_buffer_task_ = {dequeue_input_result, event};
-        return false;
-      }
     } else {
       status = media_codec_bridge_->QueueInputBuffer(
           dequeue_input_result.index, kNoOffset, size, pts_us, kNoBufferFlags);
@@ -411,8 +434,10 @@ bool VideoDecoder::ProcessOneInputBuffer(std::deque<Event>* pending_work) {
   }
 
   if (status != MEDIA_CODEC_OK) {
-    SB_LOG(ERROR) << "|queue(Secure)?InputBuffer| failed with status: "
-                  << status;
+    HandleError("queue(Secure)?InputBuffer", status);
+    // TODO: Stop the decoding loop on fatal error.
+    SB_DCHECK(!pending_queue_input_buffer_task_);
+    pending_queue_input_buffer_task_ = {dequeue_input_result, event};
     return false;
   }
 
@@ -440,12 +465,7 @@ bool VideoDecoder::DequeueAndProcessOutputBuffer() {
       return true;
     }
 
-    // Don't bother logging a try again later status, it will happen a lot.
-    if (dequeue_output_result.status !=
-        MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
-      SB_LOG(ERROR) << "|dequeueOutputBuffer| failed with status: "
-                    << dequeue_output_result.status;
-    }
+    HandleError("dequeueOutputBuffer", dequeue_output_result.status);
     return false;
   }
 
@@ -467,6 +487,34 @@ void VideoDecoder::RefreshOutputFormat() {
       media_codec_bridge_->GetOutputDimensions();
   frame_width_ = output_dimensions.width;
   frame_height_ = output_dimensions.height;
+}
+
+void VideoDecoder::HandleError(const char* action_name, jint status) {
+  SB_DCHECK(status != MEDIA_CODEC_OK);
+
+  bool retry = false;
+  if (status == MEDIA_CODEC_DEQUEUE_INPUT_AGAIN_LATER) {
+    // Don't bother logging a try again later status, it happens a lot.
+    return;
+  } else if (status == MEDIA_CODEC_DEQUEUE_OUTPUT_AGAIN_LATER) {
+    // Don't bother logging a try again later status, it happens a lot.
+    return;
+  } else if (status == MEDIA_CODEC_NO_KEY) {
+    retry = true;
+  } else if (status == MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
+    drm_system_->OnInsufficientOutputProtection();
+  } else {
+    error_cb_.Run();
+  }
+
+  if (retry) {
+    SB_LOG(INFO) << "|" << action_name << "| failed with status: "
+                 << GetNameForMediaCodecStatus(status)
+                 << ", will try again after a delay.";
+  } else {
+    SB_LOG(ERROR) << "|" << action_name << "| failed with status: "
+                  << GetNameForMediaCodecStatus(status) << ".";
+  }
 }
 
 namespace {

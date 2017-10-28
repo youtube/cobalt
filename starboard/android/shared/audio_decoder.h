@@ -46,7 +46,8 @@ class AudioDecoder
                SbDrmSystem drm_system);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Initialize(const Closure& output_cb) SB_OVERRIDE;
+  void Initialize(const Closure& output_cb,
+                  const Closure& error_cb) SB_OVERRIDE;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const Closure& consumed_cb) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
@@ -109,8 +110,10 @@ class AudioDecoder
   bool DequeueAndProcessOutputBuffer();
   void ProcessOutputBuffer(const DequeueOutputResult& output);
   void RefreshOutputFormat();
+  void HandleError(const char* action_name, jint status);
 
   Closure output_cb_;
+  Closure error_cb_;
   Closure consumed_cb_;
 
   // Working thread to avoid lengthy decoding work block the player thread.

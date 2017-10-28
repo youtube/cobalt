@@ -20,7 +20,21 @@
 
 namespace {
 
+using starboard::android::shared::DrmSystem;
+using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
+
 const char kNoUrl[] = "";
+
+// Using all capital names to be consistent with other Android media statuses.
+// They are defined in the same order as in their Java counterparts.  Their
+// values should be kept in consistent with their Java counterparts defined in
+// android.media.MediaDrm.KeyStatus.
+const jint MEDIA_DRM_KEY_STATUS_EXPIRED = 1;
+const jint MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR = 4;
+const jint MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED = 2;
+const jint MEDIA_DRM_KEY_STATUS_PENDING = 3;
+const jint MEDIA_DRM_KEY_STATUS_USABLE = 0;
 
 }  // namespace
 
@@ -33,8 +47,6 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
     jbyteArray j_session_id,
     jint request_type,
     jbyteArray j_message) {
-  using starboard::android::shared::DrmSystem;
-
   jbyte* session_id_elements = env->GetByteArrayElements(j_session_id, NULL);
   jsize session_id_size = env->GetArrayLength(j_session_id);
 
@@ -49,6 +61,66 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnSessionMessage(
   drm_system->CallUpdateRequestCallback(ticket, session_id_elements,
                                         session_id_size, message_elements,
                                         message_size, kNoUrl);
+  env->ReleaseByteArrayElements(j_session_id, session_id_elements, JNI_ABORT);
+  env->ReleaseByteArrayElements(j_message, message_elements, JNI_ABORT);
+}
+
+extern "C" SB_EXPORT_PLATFORM void
+Java_foo_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
+    JniEnvExt* env,
+    jobject unused_this,
+    jlong native_media_drm_bridge,
+    jbyteArray j_session_id,
+    jobjectArray j_key_status_array,
+    jboolean j_has_new_usable_key) {
+  jbyte* session_id_elements = env->GetByteArrayElements(j_session_id, NULL);
+  jsize session_id_size = env->GetArrayLength(j_session_id);
+
+  SB_DCHECK(session_id_elements);
+
+  jsize length = env->GetArrayLength(j_key_status_array);
+  std::vector<SbDrmKeyId> drm_key_ids(length);
+  std::vector<SbDrmKeyStatus> drm_key_statuses(length);
+
+  for (jsize i = 0; i < length; ++i) {
+    jobject j_key_status =
+        env->GetObjectArrayElementOrAbort(j_key_status_array, i);
+    jbyteArray j_key_id = static_cast<jbyteArray>(
+        env->CallObjectMethodOrAbort(j_key_status, "getKeyId", "()[B"));
+
+    jbyte* key_id_elements = env->GetByteArrayElements(j_key_id, NULL);
+    jsize key_id_size = env->GetArrayLength(j_key_id);
+    SB_DCHECK(key_id_elements);
+
+    SB_DCHECK(key_id_size <= sizeof(drm_key_ids[i].identifier));
+    SbMemoryCopy(drm_key_ids[i].identifier, key_id_elements, key_id_size);
+    env->ReleaseByteArrayElements(j_key_id, key_id_elements, JNI_ABORT);
+    drm_key_ids[i].identifier_size = key_id_size;
+
+    jint j_status_code =
+        env->CallIntMethodOrAbort(j_key_status, "getStatusCode", "()I");
+    if (j_status_code == MEDIA_DRM_KEY_STATUS_EXPIRED) {
+      drm_key_statuses[i] = kSbDrmKeyStatusExpired;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_INTERNAL_ERROR) {
+      drm_key_statuses[i] = kSbDrmKeyStatusError;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_OUTPUT_NOT_ALLOWED) {
+      drm_key_statuses[i] = kSbDrmKeyStatusRestricted;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_PENDING) {
+      drm_key_statuses[i] = kSbDrmKeyStatusPending;
+    } else if (j_status_code == MEDIA_DRM_KEY_STATUS_USABLE) {
+      drm_key_statuses[i] = kSbDrmKeyStatusUsable;
+    } else {
+      SB_NOTREACHED();
+      drm_key_statuses[i] = kSbDrmKeyStatusError;
+    }
+  }
+
+  DrmSystem* drm_system = reinterpret_cast<DrmSystem*>(native_media_drm_bridge);
+  SB_DCHECK(drm_system);
+  drm_system->CallDrmSessionKeyStatusesChangedCallback(
+      session_id_elements, session_id_size, drm_key_ids, drm_key_statuses);
+
+  env->ReleaseByteArrayElements(j_session_id, session_id_elements, JNI_ABORT);
 }
 
 namespace starboard {
@@ -74,7 +146,8 @@ DrmSystem::DrmSystem(
       session_updated_callback_(session_updated_callback),
       key_statuses_changed_callback_(key_statuses_changed_callback),
       j_media_drm_bridge_(NULL),
-      j_media_crypto_(NULL) {
+      j_media_crypto_(NULL),
+      hdcp_lost_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   j_media_drm_bridge_ = env->CallStaticObjectMethodOrAbort(
       "foo/cobalt/media/MediaDrmBridge", "create",
@@ -141,6 +214,17 @@ void DrmSystem::CloseSession(const void* session_id, int session_id_size) {
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jbyteArray> j_session_id(
       ByteArrayFromRaw(session_id, session_id_size));
+  std::string session_id_as_string(
+      static_cast<const char*>(session_id),
+      static_cast<const char*>(session_id) + session_id_size);
+
+  {
+    ScopedLock scoped_lock(mutex_);
+    auto iter = cached_drm_key_ids_.find(session_id_as_string);
+    if (iter != cached_drm_key_ids_.end()) {
+      cached_drm_key_ids_.erase(iter);
+    }
+  }
   env->CallVoidMethodOrAbort(j_media_drm_bridge_, "closeSession", "([B)V",
                              j_session_id.Get());
 }
@@ -165,6 +249,52 @@ void DrmSystem::CallUpdateRequestCallback(int ticket,
                                           const char* url) {
   update_request_callback_(this, context_, ticket, session_id, session_id_size,
                            content, content_size, url);
+}
+
+void DrmSystem::CallDrmSessionKeyStatusesChangedCallback(
+    const void* session_id,
+    int session_id_size,
+    const std::vector<SbDrmKeyId>& drm_key_ids,
+    const std::vector<SbDrmKeyStatus>& drm_key_statuses) {
+  SB_DCHECK(drm_key_ids.size() == drm_key_statuses.size());
+
+  std::string session_id_as_string(
+      static_cast<const char*>(session_id),
+      static_cast<const char*>(session_id) + session_id_size);
+
+  bool hdcp_lost = false;
+  {
+    ScopedLock scoped_lock(mutex_);
+    cached_drm_key_ids_[session_id_as_string] = drm_key_ids;
+    hdcp_lost = hdcp_lost_;
+  }
+
+  if (hdcp_lost) {
+    OnInsufficientOutputProtection();
+    return;
+  }
+
+  key_statuses_changed_callback_(this, context_, session_id, session_id_size,
+                                 static_cast<int>(drm_key_ids.size()),
+                                 drm_key_ids.data(), drm_key_statuses.data());
+}
+
+void DrmSystem::OnInsufficientOutputProtection() {
+  // HDCP has lost, update the statuses of all keys in all known sessions to be
+  // restricted.
+  ScopedLock scoped_lock(mutex_);
+  hdcp_lost_ = true;
+  for (auto& iter : cached_drm_key_ids_) {
+    const std::string& session_id = iter.first;
+    const std::vector<SbDrmKeyId>& drm_key_ids = iter.second;
+    std::vector<SbDrmKeyStatus> drm_key_statuses(drm_key_ids.size(),
+                                                 kSbDrmKeyStatusRestricted);
+
+    key_statuses_changed_callback_(this, context_, session_id.data(),
+                                   session_id.size(),
+                                   static_cast<int>(drm_key_ids.size()),
+                                   drm_key_ids.data(), drm_key_statuses.data());
+  }
 }
 
 }  // namespace shared
