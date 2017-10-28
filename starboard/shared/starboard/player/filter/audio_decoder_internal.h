@@ -44,7 +44,8 @@ class AudioDecoder {
   // that a further call of Read() returns valid output until Reset() is called.
   // Note that |output_cb| is always called asynchronously on the calling job
   // queue.
-  virtual void Initialize(const Closure& output_cb) = 0;
+  virtual void Initialize(const Closure& output_cb,
+                          const Closure& error_cb) = 0;
 
   // Decode the encoded audio data stored in |input_buffer|.  Whenever the input
   // is consumed and the decoder is ready to accept a new input, it calls

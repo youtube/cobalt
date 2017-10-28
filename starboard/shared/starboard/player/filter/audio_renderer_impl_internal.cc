@@ -105,8 +105,6 @@ AudioRendererImpl::AudioRendererImpl(
     Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
 
-  decoder_->Initialize(Bind(&AudioRendererImpl::OnDecoderOutput, this));
-
   // TODO: Initialize |time_stretcher_| after the first decoded audio output to
   // ensure that implicit HEAAC is properly handled.
   int source_sample_rate = decoder_->GetSamplesPerSecond();
@@ -118,6 +116,11 @@ AudioRendererImpl::AudioRendererImpl(
 
 AudioRendererImpl::~AudioRendererImpl() {
   SB_DCHECK(BelongsToCurrentThread());
+}
+
+void AudioRendererImpl::Initialize(const Closure& error_cb) {
+  decoder_->Initialize(Bind(&AudioRendererImpl::OnDecoderOutput, this),
+                       error_cb);
 }
 
 void AudioRendererImpl::WriteSample(
