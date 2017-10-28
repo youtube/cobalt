@@ -51,6 +51,7 @@ class AudioRendererImpl : public AudioRenderer,
                     const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
+  void Initialize(const Closure& error_cb) SB_OVERRIDE;
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
 
