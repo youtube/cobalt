@@ -37,7 +37,8 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
                const SbMediaAudioHeader& audio_header);
   ~AudioDecoder() SB_OVERRIDE;
 
-  void Initialize(const Closure& output_cb) SB_OVERRIDE;
+  void Initialize(const Closure& output_cb,
+                  const Closure& error_cb) SB_OVERRIDE;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
               const Closure& consumed_cb) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
