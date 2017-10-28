@@ -52,6 +52,7 @@ using base::TimeDelta;
 
 namespace {
 
+static const int kRetryDelayAtSuspendInMilliseconds = 100;
 const char kVideoDumpFileName[] = "video_content.dmp";
 
 // Used to post parameters to SbPlayerPipeline::StartTask() as the number of
@@ -65,6 +66,9 @@ struct StartTaskParameters {
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
   base::Closure output_mode_change_cb;
+#if SB_HAS(PLAYER_WITH_URL)
+  std::string source_url;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 };
 
 // SbPlayerPipeline is a PipelineBase implementation that uses the SbPlayer
@@ -86,6 +90,11 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
              const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+#if SB_HAS(PLAYER_WITH_URL)
+             const OnEncryptedMediaInitDataEncounteredCB&
+                 on_encrypted_media_init_data_encountered_cb,
+             const std::string& source_url,
+#endif  // SB_HAS(PLAYER_WITH_URL)
              const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
@@ -127,16 +136,23 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                      const TextTrackConfig& config) OVERRIDE;
   void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE;
 
+#if SB_HAS(PLAYER_WITH_URL)
+  void CreatePlayerWithUrl(const std::string& source_url);
+  void SetDrmSystem(SbDrmSystem drm_system);
+#else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer(SbDrmSystem drm_system);
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void OnDemuxerInitialized(PipelineStatus status);
   void OnDemuxerSeeked(PipelineStatus status);
   void OnDemuxerStopped();
+
+#if !SB_HAS(PLAYER_WITH_URL)
   void OnDemuxerStreamRead(DemuxerStream::Type type,
                            DemuxerStream::Status status,
                            const scoped_refptr<DecoderBuffer>& buffer);
-
   // StarboardPlayer::Host implementation.
   void OnNeedData(DemuxerStream::Type type) OVERRIDE;
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   void OnPlayerStatus(SbPlayerState state) OVERRIDE;
 
   void UpdateDecoderConfig(DemuxerStream* stream);
@@ -206,6 +222,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   base::Closure duration_change_cb_;
   base::Closure output_mode_change_cb_;
   base::optional<bool> decode_to_texture_output_mode_;
+#if SB_HAS(PLAYER_WITH_URL)
+  StarboardPlayer::OnEncryptedMediaInitDataEncounteredCB
+      on_encrypted_media_init_data_encountered_cb_;
+#endif  //  SB_HAS(PLAYER_WITH_URL)
 
   // Demuxer reference used for setting the preload value.
   Demuxer* demuxer_;
@@ -278,25 +298,59 @@ void SbPlayerPipeline::Resume() {
   waitable_event.Wait();
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+void OnEncryptedMediaInitDataEncountered(
+    const Pipeline::OnEncryptedMediaInitDataEncounteredCB&
+        on_encrypted_media_init_data_encountered,
+    const char* init_data_type, const unsigned char* init_data,
+    unsigned int init_data_length) {
+  media::EmeInitDataType init_data_type_enum;
+  if (!SbStringCompareAll(init_data_type, "cenc")) {
+    init_data_type_enum = media::kEmeInitDataTypeCenc;
+  } else if (!SbStringCompareAll(init_data_type, "fairplay")) {
+    init_data_type_enum = media::kEmeInitDataTypeFairplay;
+  } else if (!SbStringCompareAll(init_data_type, "keyids")) {
+    init_data_type_enum = media::kEmeInitDataTypeKeyIds;
+  } else if (!SbStringCompareAll(init_data_type, "webm")) {
+    init_data_type_enum = media::kEmeInitDataTypeWebM;
+  } else {
+    LOG(WARNING) << "Unknown EME initialization data type.";
+    return;
+  }
+  std::vector<uint8_t> init_data_vec(init_data, init_data + init_data_length);
+  DCHECK(!on_encrypted_media_init_data_encountered.is_null());
+  on_encrypted_media_init_data_encountered.Run(init_data_type_enum,
+                                               init_data_vec);
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 void SbPlayerPipeline::Start(
     Demuxer* demuxer, const SetDrmSystemReadyCB& set_drm_system_ready_cb,
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
     const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+#if SB_HAS(PLAYER_WITH_URL)
+    const OnEncryptedMediaInitDataEncounteredCB&
+        on_encrypted_media_init_data_encountered_cb,
+    const std::string& source_url,
+#endif  // SB_HAS(PLAYER_WITH_URL)
     const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
     const PipelineStatusCB& seek_cb, const BufferingStateCB& buffering_state_cb,
     const base::Closure& duration_change_cb,
     const base::Closure& output_mode_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
-  DCHECK(demuxer);
   DCHECK(!ended_cb.is_null());
   DCHECK(!error_cb.is_null());
   DCHECK(!seek_cb.is_null());
   DCHECK(!buffering_state_cb.is_null());
   DCHECK(!duration_change_cb.is_null());
   DCHECK(!output_mode_change_cb.is_null());
-
+#if SB_HAS(PLAYER_WITH_URL)
+  DCHECK(!on_encrypted_media_init_data_encountered_cb.is_null());
+#else   // SB_HAS(PLAYER_WITH_URL)
+  DCHECK(demuxer);
+#endif  // SB_HAS(PLAYER_WITH_URL)
   StartTaskParameters parameters;
   parameters.demuxer = demuxer;
   parameters.set_drm_system_ready_cb = set_drm_system_ready_cb;
@@ -306,6 +360,16 @@ void SbPlayerPipeline::Start(
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
   parameters.output_mode_change_cb = output_mode_change_cb;
+#if SB_HAS(PLAYER_WITH_URL)
+  parameters.source_url = source_url;
+  on_encrypted_media_init_data_encountered_cb_ =
+      base::Bind(&OnEncryptedMediaInitDataEncountered,
+                 on_encrypted_media_init_data_encountered_cb);
+  set_drm_system_ready_cb_ = parameters.set_drm_system_ready_cb;
+  DCHECK(!set_drm_system_ready_cb_.is_null());
+  set_drm_system_ready_cb_.Run(
+      base::Bind(&SbPlayerPipeline::SetDrmSystem, this));
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
   set_eme_init_data_ready_cb.Run(base::Bind(
@@ -382,8 +446,13 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
     seek_cb_ = seek_cb;
     seek_time_ = time;
   }
+#if SB_HAS(PLAYER_WITH_URL)
+  player_->Seek(seek_time_);
+#else  //  SB_HAS(PLAYER_WITH_URL)
   demuxer_->Seek(time, BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerSeeked, this)));
+
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 bool SbPlayerPipeline::HasAudio() const {
@@ -527,11 +596,15 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   duration_change_cb_ = parameters.duration_change_cb;
   output_mode_change_cb_ = parameters.output_mode_change_cb;
 
+#if SB_HAS(PLAYER_WITH_URL)
+  CreatePlayerWithUrl(parameters.source_url);
+#else   // SB_HAS(PLAYER_WITH_URL)
   const bool kEnableTextTracks = false;
   demuxer_->Initialize(this,
                        BindToCurrentLoop(base::Bind(
                            &SbPlayerPipeline::OnDemuxerInitialized, this)),
                        kEnableTextTracks);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void SbPlayerPipeline::SetVolumeTask(float volume) {
@@ -593,6 +666,75 @@ void SbPlayerPipeline::RemoveTextStream(DemuxerStream* text_stream) {
   NOTREACHED();
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+void SbPlayerPipeline::CreatePlayerWithUrl(const std::string& source_url) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayerWithUrl");
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  if (stopped_) {
+    return;
+  }
+
+  if (suspended_) {
+    message_loop_->PostDelayedTask(
+        FROM_HERE,
+        base::Bind(&SbPlayerPipeline::CreatePlayerWithUrl, this, source_url),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
+    return;
+  }
+
+  // TODO:  Check |suspended_| here as the pipeline can be suspended before the
+  // player is created.  In this case we should delay creating the player as the
+  // creation of player may fail.
+
+  {
+    base::AutoLock auto_lock(lock_);
+    DLOG(INFO) << "StarboardPlayer created with url: " << source_url;
+    player_.reset(new StarboardPlayer(
+        message_loop_, source_url, window_, this, set_bounds_helper_.get(),
+        *decode_to_texture_output_mode_,
+        on_encrypted_media_init_data_encountered_cb_));
+    SetPlaybackRateTask(playback_rate_);
+    SetVolumeTask(volume_);
+  }
+
+  if (player_->IsValid()) {
+    base::Closure output_mode_change_cb;
+    {
+      base::AutoLock auto_lock(lock_);
+      DCHECK(!output_mode_change_cb_.is_null());
+      output_mode_change_cb = base::ResetAndReturn(&output_mode_change_cb_);
+    }
+    output_mode_change_cb.Run();
+    return;
+  }
+
+  player_.reset();
+
+  PipelineStatusCB seek_cb;
+  {
+    base::AutoLock auto_lock(lock_);
+    DCHECK(!seek_cb_.is_null());
+    seek_cb = base::ResetAndReturn(&seek_cb_);
+  }
+  seek_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
+}
+
+void SbPlayerPipeline::SetDrmSystem(SbDrmSystem drm_system) {
+  TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::SetDrmSystem");
+
+  base::AutoLock auto_lock(lock_);
+  if (!player_) {
+    DLOG(INFO)
+        << "Player not set before calling SbPlayerPipeline::SetDrmSystem";
+    return;
+  }
+
+  if (player_->IsValid()) {
+    player_->SetDrmSystem(drm_system);
+  }
+}
+#else  // SB_HAS(PLAYER_WITH_URL)
 void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
@@ -600,10 +742,15 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   DCHECK(audio_stream_);
   DCHECK(video_stream_);
 
+  if (stopped_) {
+    return;
+  }
+
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system));
+        base::Bind(&SbPlayerPipeline::CreatePlayer, this, drm_system),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -653,7 +800,12 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   seek_cb.Run(DECODER_ERROR_NOT_SUPPORTED);
 }
 
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
+#if SB_HAS(PLAYER_WITH_URL)
+// Does not apply.
+#else
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::OnDemuxerInitialized");
 
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -668,9 +820,10 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   if (suspended_) {
-    message_loop_->PostTask(
+    message_loop_->PostDelayedTask(
         FROM_HERE,
-        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status));
+        base::Bind(&SbPlayerPipeline::OnDemuxerInitialized, this, status),
+        TimeDelta::FromMilliseconds(kRetryDelayAtSuspendInMilliseconds));
     return;
   }
 
@@ -700,6 +853,7 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
   }
 
   CreatePlayer(kSbDrmSystemInvalid);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void SbPlayerPipeline::OnDemuxerSeeked(PipelineStatus status) {
@@ -721,6 +875,8 @@ void SbPlayerPipeline::OnDemuxerStopped() {
 
   base::ResetAndReturn(&stop_cb_).Run();
 }
+
+#if !SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::OnDemuxerStreamRead(
     DemuxerStream::Type type, DemuxerStream::Status status,
@@ -806,6 +962,8 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
   stream->Read(base::Bind(&SbPlayerPipeline::OnDemuxerStreamRead, this, type));
 }
 
+#endif  // !SB_HAS(PLAYER_WITH_URL)
+
 void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
@@ -820,6 +978,10 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePrerolling:
       break;
     case kSbPlayerStatePresenting:
+#if SB_HAS(PLAYER_WITH_URL)
+      duration_ = player_->GetDuration();
+      buffering_state_cb_.Run(kHaveMetadata);
+#endif  // SB_HAS(PLAYER_WITH_URL)
       buffering_state_cb_.Run(kPrerollCompleted);
       if (!seek_cb_.is_null()) {
         PipelineStatusCB seek_cb;

@@ -14,6 +14,7 @@
 
 #include "starboard/shared/win32/drm_system_playready.h"
 
+#include <cctype>
 #include <sstream>
 
 #include "starboard/configuration.h"
@@ -27,25 +28,41 @@ namespace win32 {
 
 namespace {
 
-#if defined(COBALT_BUILD_TYPE_GOLD)
-const bool kEnablePlayreadyLog = false;
-#else  // defined(COBALT_BUILD_TYPE_GOLD)
-const bool kEnablePlayreadyLog = true;
-#endif  // defined(COBALT_BUILD_TYPE_GOLD)
+const bool kLogPlayreadyChallengeResponse = false;
 
-std::string GetHexRepresentation(const GUID& guid) {
+std::string GetHexRepresentation(const void* data, size_t size) {
   const char kHex[] = "0123456789ABCDEF";
 
-  std::stringstream ss;
-  const uint8_t* binary = reinterpret_cast<const uint8_t*>(&guid);
-  for (size_t i = 0; i < sizeof(guid); ++i) {
-    if (i != 0) {
-      ss << ' ';
+  std::stringstream representation;
+  std::stringstream ascii;
+  const uint8_t* binary = static_cast<const uint8_t*>(data);
+  bool new_line = true;
+  for (size_t i = 0; i < size; ++i) {
+    if (new_line) {
+      new_line = false;
+    } else {
+      representation << ' ';
     }
-    ss << kHex[binary[i] / 16] << kHex[binary[i] % 16];
+    ascii << (std::isprint(binary[i]) ? static_cast<char>(binary[i]) : '?');
+    representation << kHex[binary[i] / 16] << kHex[binary[i] % 16];
+    if (i % 16 == 15 && i != size - 1) {
+      representation << " (" << ascii.str() << ')' << std::endl;
+      std::stringstream empty;
+      ascii.swap(empty);  // Clear the ascii stream
+      new_line = true;
+    }
   }
 
-  return ss.str();
+  if (!ascii.str().empty()) {
+    representation << '(' << ascii.str() << ')' << std::endl;
+  }
+
+  return representation.str();
+}
+
+template <typename T>
+std::string GetHexRepresentation(const T& value) {
+  return GetHexRepresentation(&value, sizeof(T));
 }
 
 }  // namespace
@@ -90,9 +107,11 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
     return;
   }
 
-  SB_LOG_IF(INFO, kEnablePlayreadyLog)
-      << "Send challenge for key id " << GetHexRepresentation(license->key_id())
-      << " in session " << session_id;
+  SB_LOG(INFO) << "Send challenge for key id "
+               << GetHexRepresentation(license->key_id()) << " in session "
+               << session_id;
+  SB_LOG_IF(INFO, kLogPlayreadyChallengeResponse)
+      << GetHexRepresentation(challenge.data(), challenge.size());
 
   session_update_request_callback_(this, context_, ticket, session_id.c_str(),
                                    static_cast<int>(session_id.size()),
@@ -116,21 +135,28 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
     SB_NOTREACHED() << "Invalid session id " << session_id_copy;
     return;
   }
-  iter->second->UpdateLicense(key, key_size);
 
-  if (iter->second->usable()) {
-    SB_LOG_IF(INFO, kEnablePlayreadyLog)
-        << "Successfully add key for key id "
-        << GetHexRepresentation(iter->second->key_id()) << " in session "
-        << session_id_copy;
+  scoped_refptr<License> license = iter->second;
+
+  SB_LOG(INFO) << "Adding playready response for key id "
+               << GetHexRepresentation(license->key_id());
+  SB_LOG_IF(INFO, kLogPlayreadyChallengeResponse)
+      << GetHexRepresentation(key, key_size);
+
+  license->UpdateLicense(key, key_size);
+
+  if (license->usable()) {
+    SB_LOG(INFO) << "Successfully add key for key id "
+                 << GetHexRepresentation(license->key_id()) << " in session "
+                 << session_id_copy;
     {
       ScopedLock lock(mutex_);
-      successful_requests_[iter->first] = iter->second;
+      successful_requests_[iter->first] = license;
     }
     session_updated_callback_(this, context_, ticket, session_id,
                               session_id_size, true);
 
-    GUID key_id = iter->second->key_id();
+    GUID key_id = license->key_id();
     SbDrmKeyId drm_key_id;
     SB_DCHECK(sizeof(drm_key_id.identifier) >= sizeof(key_id));
     SbMemoryCopy(&drm_key_id, &key_id, sizeof(key_id));
@@ -138,13 +164,33 @@ void SbDrmSystemPlayready::UpdateSession(int ticket,
     SbDrmKeyStatus key_status = kSbDrmKeyStatusUsable;
     key_statuses_changed_callback_(this, context_, session_id, session_id_size,
                                    1, &drm_key_id, &key_status);
+    pending_requests_.erase(iter);
   } else {
-    SB_LOG_IF(INFO, kEnablePlayreadyLog)
-        << "Failed to add key for session " << session_id_copy;
+    SB_LOG(INFO) << "Failed to add key for session " << session_id_copy;
+    // Don't report it as a failure as otherwise the JS player is going to
+    // terminate the video.
     session_updated_callback_(this, context_, ticket, session_id,
-                              session_id_size, false);
+                              session_id_size, true);
+    // When UpdateLicense() fails, the |license| must have generated a new
+    // challenge internally.  Send this challenge again.
+    const std::string& challenge = license->license_challenge();
+    if (challenge.empty()) {
+      SB_NOTREACHED();
+      return;
+    }
+
+    SB_LOG(INFO) << "Send challenge again for key id "
+                 << GetHexRepresentation(license->key_id()) << " in session "
+                 << session_id;
+    SB_LOG_IF(INFO, kLogPlayreadyChallengeResponse)
+        << GetHexRepresentation(challenge.data(), challenge.size());
+
+    // We have use |kSbDrmTicketInvalid| as the license challenge is not a
+    // result of GenerateSessionUpdateRequest().
+    session_update_request_callback_(
+        this, context_, kSbDrmTicketInvalid, session_id, session_id_size,
+        challenge.c_str(), static_cast<int>(challenge.size()), NULL);
   }
-  pending_requests_.erase(iter);
 }
 
 void SbDrmSystemPlayready::CloseSession(const void* session_id,

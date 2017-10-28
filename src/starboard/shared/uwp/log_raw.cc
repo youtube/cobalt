@@ -24,7 +24,22 @@ namespace sbuwp = starboard::shared::uwp;
 
 void SbLogRaw(const char* message) {
   fprintf(stderr, "%s", message);
-  OutputDebugStringA(message);
   sbuwp::WriteToLogFile(
       message, static_cast<int>(SbStringGetLength(message)));
+
+  // OutputDebugStringA may stall for multiple seconds if the output string is
+  // too long. Split |message| into shorter strings for output.
+  char buffer[512];
+  for (;;) {
+    errno_t result = strncpy_s(buffer, message, _TRUNCATE);
+    if (result == 0) {
+      OutputDebugStringA(buffer);
+      break;
+    } else if (result == STRUNCATE) {
+      OutputDebugStringA(buffer);
+      message += sizeof(buffer) - 1;
+    } else {
+      break;
+    }
+  }
 }

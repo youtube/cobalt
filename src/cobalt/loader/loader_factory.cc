@@ -43,11 +43,12 @@ LoaderFactory::LoaderFactory(FetcherFactory* fetcher_factory,
 scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     const image::ImageDecoder::SuccessCallback& success_callback,
-    const image::ImageDecoder::ErrorCallback& error_callback) {
+    const image::ImageDecoder::ErrorCallback& error_callback,
+    const Origin& origin) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback),
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin),
       scoped_ptr<Decoder>(new image::ThreadedImageDecoderProxy(
           resource_provider_, success_callback, error_callback,
           load_thread_.message_loop())),
@@ -61,11 +62,12 @@ scoped_ptr<Loader> LoaderFactory::CreateImageLoader(
 scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     const font::TypefaceDecoder::SuccessCallback& success_callback,
-    const font::TypefaceDecoder::ErrorCallback& error_callback) {
+    const font::TypefaceDecoder::ErrorCallback& error_callback,
+    const Origin& origin) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback),
+      MakeFetcherCreator(url, url_security_callback, kCORSMode, origin),
       scoped_ptr<Decoder>(new font::TypefaceDecoder(
           resource_provider_, success_callback, error_callback)),
       error_callback,
@@ -79,11 +81,12 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
 scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
     const mesh::MeshDecoder::SuccessCallback& success_callback,
-    const mesh::MeshDecoder::ErrorCallback& error_callback) {
+    const mesh::MeshDecoder::ErrorCallback& error_callback,
+    const Origin& origin) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback),
+      MakeFetcherCreator(url, url_security_callback, kNoCORSMode, origin),
       scoped_ptr<Decoder>(new mesh::MeshDecoder(
           resource_provider_, success_callback, error_callback)),
       error_callback,
@@ -94,12 +97,13 @@ scoped_ptr<Loader> LoaderFactory::CreateMeshLoader(
 }
 
 Loader::FetcherCreator LoaderFactory::MakeFetcherCreator(
-    const GURL& url, const csp::SecurityCallback& url_security_callback) {
+    const GURL& url, const csp::SecurityCallback& url_security_callback,
+    RequestMode request_mode, const Origin& origin) {
   DCHECK(thread_checker_.CalledOnValidThread());
 
   return base::Bind(&FetcherFactory::CreateSecureFetcher,
                     base::Unretained(fetcher_factory_), url,
-                    url_security_callback);
+                    url_security_callback, request_mode, origin);
 }
 
 void LoaderFactory::Suspend() {

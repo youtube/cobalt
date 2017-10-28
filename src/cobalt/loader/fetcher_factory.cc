@@ -92,12 +92,14 @@ FetcherFactory::FetcherFactory(
 
 scoped_ptr<Fetcher> FetcherFactory::CreateFetcher(const GURL& url,
                                                   Fetcher::Handler* handler) {
-  return CreateSecureFetcher(url, csp::SecurityCallback(), handler).Pass();
+  return CreateSecureFetcher(url, csp::SecurityCallback(), kNoCORSMode,
+                             Origin(), handler)
+      .Pass();
 }
 
 scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
     const GURL& url, const csp::SecurityCallback& url_security_callback,
-    Fetcher::Handler* handler) {
+    RequestMode request_mode, const Origin& origin, Fetcher::Handler* handler) {
   DLOG(INFO) << "Fetching: " << ClipUrl(url, 60);
 
   if (!url.is_valid()) {
@@ -111,8 +113,8 @@ scoped_ptr<Fetcher> FetcherFactory::CreateSecureFetcher(
       network_module_) {
     NetFetcher::Options options;
     return scoped_ptr<Fetcher>(new NetFetcher(url, url_security_callback,
-                                              handler, network_module_,
-                                              options));
+                                              handler, network_module_, options,
+                                              request_mode, origin));
   }
 
   if (url.SchemeIs("blob") && !blob_resolver_.is_null()) {

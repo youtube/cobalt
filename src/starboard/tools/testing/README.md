@@ -77,3 +77,6 @@ configurations.
 
 To filter out all tests for a particular target, provide
 "test_filter.FILTER_ALL" as the test name.
+
+To disable unit testing for all targets and all configurations, return a list
+containing "test_filter.DISABLE_TESTING".

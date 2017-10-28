@@ -207,11 +207,7 @@ std::string HTMLMediaElement::CanPlayType(const std::string& mime_type) {
 
 std::string HTMLMediaElement::CanPlayType(const std::string& mime_type,
                                           const std::string& key_system) {
-  if (!html_element_context()->can_play_type_handler()) {
-    DLOG(ERROR) << __FUNCTION__ << "(" << mime_type << ", " << key_system
-                << "): Media playback in PRELOADING is not supported.";
-    return "";
-  }
+  DCHECK(html_element_context()->can_play_type_handler());
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
   DLOG_IF(ERROR, !key_system.empty())
@@ -953,6 +949,10 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
   if (url.is_empty()) {
     return;
   }
+#if SB_HAS(PLAYER_WITH_URL)
+  // TODO: Investigate if we have to support csp for url player.
+  player_->LoadUrl(url);
+#else   // SB_HAS(PLAYER_WITH_URL)
   if (url.spec() == SourceURL()) {
     player_->LoadMediaSource();
   } else {
@@ -966,6 +966,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     player_->LoadProgressive(url, data_source.Pass(),
                              WebMediaPlayer::kCORSModeUnspecified);
   }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 
 void HTMLMediaElement::ClearMediaPlayer() {
@@ -1125,6 +1126,8 @@ void HTMLMediaElement::ScheduleTimeupdateEvent(bool periodic_event) {
 }
 
 void HTMLMediaElement::ScheduleOwnEvent(base::Token event_name) {
+  LOG_IF(INFO, event_name == base::Tokens::error())
+      << "onerror event fired with error " << (error_ ? error_->code() : 0);
   MLOG() << event_name;
   scoped_refptr<Event> event =
       new Event(event_name, Event::kNotBubbles, Event::kCancelable);
@@ -1528,7 +1531,7 @@ void HTMLMediaElement::ReadyStateChanged() {
   EndProcessingMediaPlayerCallback();
 }
 
-void HTMLMediaElement::TimeChanged() {
+void HTMLMediaElement::TimeChanged(bool eos_played) {
   DCHECK(player_);
   if (!player_) {
     return;
@@ -1554,8 +1557,9 @@ void HTMLMediaElement::TimeChanged() {
   // When the current playback position reaches the end of the media resource
   // when the direction of playback is forwards, then the user agent must follow
   // these steps:
-  if (!SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur &&
-      playback_rate_ > 0) {
+  eos_played |=
+      !SbDoubleIsNan(dur) && (0.0f != dur) && now >= dur && playback_rate_ > 0;
+  if (eos_played) {
     // If the media element has a loop attribute specified and does not have a
     // current media controller,
     if (loop()) {
@@ -1689,12 +1693,14 @@ namespace {
 // https://www.w3.org/TR/eme-initdata-registry/#registry.
 std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
   switch (init_data_type) {
-    case media::kEmeInitDataTypeWebM:
-      return "webm";
     case media::kEmeInitDataTypeCenc:
       return "cenc";
+    case media::kEmeInitDataTypeFairplay:
+      return "fairplay";
     case media::kEmeInitDataTypeKeyIds:
       return "keyids";
+    case media::kEmeInitDataTypeWebM:
+      return "webm";
     default:
       LOG(WARNING) << "Unknown EME initialization data type.";
       return "";

@@ -15,6 +15,7 @@
 #ifndef COBALT_MEDIA_BASE_PIPELINE_H_
 #define COBALT_MEDIA_BASE_PIPELINE_H_
 
+#include <string>
 #include <vector>
 
 #include "base/callback.h"
@@ -83,6 +84,10 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   };
 
   typedef base::Callback<void(BufferingState)> BufferingStateCB;
+#if SB_HAS(PLAYER_WITH_URL)
+  typedef base::Callback<void(EmeInitDataType, const std::vector<uint8_t>&)>
+      OnEncryptedMediaInitDataEncounteredCB;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   static scoped_refptr<Pipeline> Create(
       PipelineWindow window,
@@ -118,6 +123,11 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
                      const SetEMEInitDataReadyCB& set_eme_init_data_ready_cb,
 #endif  // COBALT_MEDIA_ENABLE_VIDEO_DUMPER
+#if SB_HAS(PLAYER_WITH_URL)
+                     const OnEncryptedMediaInitDataEncounteredCB&
+                         encrypted_media_init_data_encountered_cb,
+                     const std::string& source_url,
+#endif  // SB_HAS(PLAYER_WITH_URL)
                      const PipelineStatusCB& ended_cb,
                      const PipelineStatusCB& error_cb,
                      const PipelineStatusCB& seek_cb,

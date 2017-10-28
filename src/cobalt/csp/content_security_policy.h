@@ -140,7 +140,6 @@ class ContentSecurityPolicy {
   void OnReceiveHeaders(const ResponseHeaders& headers);
   void OnReceiveHeader(const std::string& header, HeaderType header_type,
                        HeaderSource header_source);
-  void SetNavigationPolicy(const std::string& header);
 
   bool UrlMatchesSelf(const GURL& url) const;
   bool SchemeMatchesSelf(const GURL& url) const;
@@ -261,7 +260,6 @@ class ContentSecurityPolicy {
                                 HeaderSource source);
 
   PolicyList policies_;
-  scoped_ptr<DirectiveList> navigation_policy_;
   scoped_ptr<Source> self_source_;
   std::string self_scheme_;
   std::string disable_eval_error_message_;

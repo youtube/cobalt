@@ -17,11 +17,13 @@
 
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
@@ -99,6 +101,17 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  std::string* out_string);
 
+// std::vector<uint8_t> -> JSValue
+// Note that this conversion is specifically for the Web IDL type ByteString.
+// Ideally, conversion requests would be explicit in what type they wanted to
+// convert to, however it is currently solely based on input type.
+inline void ToJSValue(JSContext* context, const std::vector<uint8_t>& in_data,
+                      JS::MutableHandleValue out_value) {
+  JSString* js_string = JS_NewStringCopyN(
+      context, reinterpret_cast<const char*>(in_data.data()), in_data.size());
+  out_value.setString(js_string);
+}
+
 // base::Token -> JSValue
 inline void ToJSValue(JSContext* context, const base::Token& token,
                       JS::MutableHandleValue out_value) {
@@ -121,7 +134,9 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
   DCHECK_EQ(conversion_flags, kNoConversionFlags)
       << "No conversion flags supported.";
   DCHECK(out_boolean);
-  // ToBoolean implements the ECMAScript ToBoolean operation.
+  // |JS::ToBoolean| implements the ECMAScript ToBoolean operation.
+  // Note that |JS::ToBoolean| will handle the case in which |value| is of
+  // type Symbol without throwing.
   *out_boolean = JS::ToBoolean(value);
 }
 
@@ -197,6 +212,12 @@ inline void FromJSValue(
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
 
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   int32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
@@ -226,6 +247,13 @@ inline void FromJSValue(
                                  (sizeof(T) > 4),
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   double to_number;
   JS::ToNumber(context, value, &to_number);
 
@@ -294,6 +322,12 @@ inline void FromJSValue(
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
 
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   uint32_t out;
   // Convert a JavaScript value to an integer type as specified by the
   // ECMAScript standard.
@@ -326,6 +360,12 @@ inline void FromJSValue(
                              T>::type* = NULL) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(out_number);
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
 
   uint64_t out;
   // This produces and IDL unsigned long long.
@@ -382,6 +422,13 @@ inline void FromJSValue(
   DCHECK_EQ(conversion_flags & ~kConversionFlagsNumeric, 0)
       << "Unexpected conversion flags found.";
   DCHECK(out_number);
+
+  if (UNLIKELY(value.isSymbol())) {
+    exception_state->SetSimpleException(
+        kTypeError, "Cannot convert a Symbol value to a number");
+    return;
+  }
+
   double double_value;
   if (!JS::ToNumber(context, value, &double_value)) {
     exception_state->SetSimpleException(kNotNumberType);
@@ -602,8 +649,8 @@ inline void FromJSValue(
 
   JS::RootedObject implementing_object(context, &value.toObject());
   DCHECK(implementing_object);
-  *out_callback_interface = MozjsCallbackInterfaceHolder<T>(
-      implementing_object, context, global_environment->wrapper_factory());
+  *out_callback_interface =
+      MozjsCallbackInterfaceHolder<T>(context, implementing_object);
 }
 
 template <typename T>

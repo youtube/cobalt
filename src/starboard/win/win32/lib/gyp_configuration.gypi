@@ -14,8 +14,6 @@
 
 {
   'variables': {
-    'javascript_engine': 'mozjs-45',
-    'cobalt_enable_jit': 0,
     # TODO: In theory, there are tools that can combine static libraries into
     # thick static libraries with all their transitive dependencies. Using
     # shared_library here can have unexpected consequences. Explore building

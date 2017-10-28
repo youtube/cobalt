@@ -55,7 +55,7 @@ void V8cGlobalEnvironment::CreateGlobalObject() {
 }
 
 bool V8cGlobalEnvironment::EvaluateScript(
-    const scoped_refptr<SourceCode>& source_code,
+    const scoped_refptr<SourceCode>& source_code, bool mute_errors,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
@@ -65,22 +65,31 @@ bool V8cGlobalEnvironment::EvaluateScript(
   v8::Local<v8::Context> context = context_.Get(isolate_);
   v8::Context::Scope scope(context);
 
-  v8::TryCatch try_catch(isolate_);
-  // TODO: Also pass in a |v8::ScriptOrigin|.
   V8cSourceCode* v8c_source_code =
       base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
+  const base::SourceLocation& source_location = v8c_source_code->location();
+
+  v8::TryCatch try_catch(isolate_);
+  v8::ScriptOrigin script_origin(
+      v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked(),
+      v8::Integer::New(isolate_, source_location.line_number),
+      v8::Integer::New(isolate_, source_location.column_number),
+      v8::Boolean::New(isolate_, !mute_errors));
   v8::Local<v8::String> source =
       v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
                               v8::NewStringType::kNormal)
           .ToLocalChecked();
 
-  auto maybe_script = v8::Script::Compile(context, source);
+  v8::MaybeLocal<v8::Script> maybe_script =
+      v8::Script::Compile(context, source);
   v8::Local<v8::Script> script;
   if (!maybe_script.ToLocal(&script)) {
     return false;
   }
 
-  auto maybe_result = script->Run(context);
+  v8::MaybeLocal<v8::Value> maybe_result = script->Run(context);
   v8::Local<v8::Value> result;
   if (!maybe_result.ToLocal(&result)) {
     return false;
@@ -95,7 +104,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
-    const scoped_refptr<Wrappable>& owning_object,
+    const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
     base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());

@@ -30,3 +30,4 @@ def CreatePlatformConfig():
   except RuntimeError as e:
     logging.critical(e)
     return None
+

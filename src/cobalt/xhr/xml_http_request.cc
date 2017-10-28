@@ -909,6 +909,7 @@ dom::CspDelegate* XMLHttpRequest::csp_delegate() const {
 
 void XMLHttpRequest::TerminateRequest() {
   error_ = true;
+  corspreflight_.reset(NULL);
   url_fetcher_.reset(NULL);
 }
 
@@ -920,7 +921,7 @@ void XMLHttpRequest::HandleRequestError(
       << __FUNCTION__ << " (" << RequestErrorTypeName(request_error_type)
       << ") " << *this << std::endl
       << script::StackTraceToString(
-             settings_->global_environment()->GetStackTrace());
+             settings_->global_environment()->GetStackTrace(0 /*max_frames*/));
   stop_timeout_ = true;
   // Step 1
   TerminateRequest();
@@ -1136,10 +1137,7 @@ void XMLHttpRequest::CORSPreflightErrorCallback() {
 }
 
 void XMLHttpRequest::CORSPreflightSuccessCallback() {
-  if (!url_fetcher_) {
-    HandleRequestError(XMLHttpRequest::kNetworkError);
-  } else {
-    DCHECK(url_fetcher_);
+  if (url_fetcher_) {
     url_fetcher_->Start();
   }
 }

@@ -65,9 +65,8 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
 
   void Consume(ComPtr<IMFSample> sample) {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
-    VideoFramePtr frame_output =
-        VideoFrameFactory::Construct(sample, display_aperture_,
-        video_blt_interfaces_);
+    VideoFramePtr frame_output = VideoFrameFactory::Construct(
+        sample, display_aperture_, video_blt_interfaces_);
     output_queue_.push(frame_output);
   }
 
@@ -77,7 +76,8 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
     RECT rect = {};
     MFVideoArea aperture;
     HRESULT hr = type->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE,
-        reinterpret_cast<UINT8*>(&aperture), sizeof(MFVideoArea), nullptr);
+                               reinterpret_cast<UINT8*>(&aperture),
+                               sizeof(MFVideoArea), nullptr);
     if (SUCCEEDED(hr)) {
       display_aperture_.left = aperture.OffsetX.value;
       display_aperture_.right = rect.left + aperture.Area.cx;
@@ -88,8 +88,7 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
 
     uint32_t width;
     uint32_t height;
-    hr = MFGetAttributeSize(type.Get(), MF_MT_FRAME_SIZE,
-                            &width, &height);
+    hr = MFGetAttributeSize(type.Get(), MF_MT_FRAME_SIZE, &width, &height);
     if (SUCCEEDED(hr)) {
       display_aperture_.left = 0;
       display_aperture_.top = 0;
@@ -152,8 +151,8 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
 
     UINT32 width;
     UINT32 height;
-    hr = MFGetAttributeSize(output_type.Get(), MF_MT_FRAME_SIZE,
-                            &width, &height);
+    hr = MFGetAttributeSize(output_type.Get(), MF_MT_FRAME_SIZE, &width,
+                            &height);
 
     display_aperture_.left = 0;
     display_aperture_.top = 0;
@@ -212,8 +211,8 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
 
     device_context.As(&video_blt_interfaces_.video_context_);
     video_blt_interfaces_.video_context_->VideoProcessorSetStreamFrameFormat(
-        video_blt_interfaces_.video_processor_.Get(),
-        0, D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
+        video_blt_interfaces_.video_processor_.Get(), 0,
+        D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
 
     // https://msdn.microsoft.com/en-us/library/windows/desktop/hh447754(v=vs.85).aspx
     // "for example, if you provide your own pixel shader for the video
@@ -221,8 +220,8 @@ class AbstractWin32VideoDecoderImpl : public AbstractWin32VideoDecoder {
     // processing."
     // We do have our own pixel shader, so we do want to disable anything
     // like this.
-    video_blt_interfaces_.video_context_->
-        VideoProcessorSetStreamAutoProcessingMode(
+    video_blt_interfaces_.video_context_
+        ->VideoProcessorSetStreamAutoProcessingMode(
             video_blt_interfaces_.video_processor_.Get(), 0, false);
   }
 

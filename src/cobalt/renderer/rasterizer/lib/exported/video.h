@@ -23,7 +23,7 @@ extern "C" {
 #endif
 
 // Functions to be called to set callbacks to receive updates to video rendering
-// parameters. By default, this callbacks are not set and warnings will be
+// parameters. By default, these callbacks are not set and warnings will be
 // when an unhandled parameter change happens. To unset them again, any of these
 // setter functions can be called with a null callback function pointer.
 
@@ -33,13 +33,24 @@ typedef enum {
   kCbLibVideoProjectionTypeMesh = 2,
 } CbLibVideoProjectionType;
 
-// If projection_type is Rectangular or Mesh, this signals the start of off-
-// screen video playback. If it is None, this signals the end of playback.
-typedef void (*CbLibVideoUpdateProjectionTypeCallback)(
-    void* context, CbLibVideoProjectionType projection_type);
+typedef enum {
+  kCbLibVideoStereoModeMono = 0,
+  kCbLibVideoStereoModeStereoLeftRight = 1,
+  kCbLibVideoStereoModeStereoTopBottom = 2,
+  kCbLibVideoStereoModeStereoLeftRightUnadjustedCoordinates = 3,
+} CbLibVideoStereoMode;
 
-SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateProjectionType(
-    void* context, CbLibVideoUpdateProjectionTypeCallback callback);
+// If projection_type is Rectangular or Mesh, this signals the start of off-
+// screen video playback and also sets the stereo_mode of the video texture.
+// If it is None, this signals the end of playback and stereo_mode can be
+// ignored.
+typedef void (*CbLibVideoUpdateProjectionTypeAndStereoModeCallback)(
+    void* context, CbLibVideoProjectionType projection_type,
+    CbLibVideoStereoMode stereo_mode);
+
+SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateProjectionTypeAndStereoMode(
+    void* context,
+    CbLibVideoUpdateProjectionTypeAndStereoModeCallback callback);
 
 typedef enum {
   kCbLibVideoMeshDrawModeTriangles = 0,
@@ -65,26 +76,18 @@ typedef void (*CbLibVideoUpdateMeshesCallback)(void* context,
 SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateMeshes(
     void* context, CbLibVideoUpdateMeshesCallback callback);
 
-typedef enum {
-  kCbLibVideoStereoModeMono = 0,
-  kCbLibVideoStereoModeStereoLeftRight = 1,
-  kCbLibVideoStereoModeStereoTopBottom = 2,
-  kCbLibVideoStereoModeStereoLeftRightUnadjustedCoordinates = 3,
-} CbLibVideoStereoMode;
-
-// Called when the layout of the different stereo views changes on the video
-// texture.
-typedef void (*CbLibVideoUpdateStereoModeCallback)(
-    void* context, CbLibVideoStereoMode stereo_mode);
-
-SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateStereoMode(
-    void* context, CbLibVideoUpdateStereoModeCallback callback);
-
 // Called to set the RGB video texture ID.
 typedef void (*CbLibVideoUpdateRgbTextureIdCallback)(void* context, int id);
 
 SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateRgbTextureId(
     void* context, CbLibVideoUpdateRgbTextureIdCallback callback);
+
+// Called to set aspect ratio of the video (width over height).
+typedef void (*CbLibVideoUpdateAspectRatioCallback)(void* context,
+                                                    float aspect_ratio);
+
+SB_EXPORT_PLATFORM void CbLibVideoSetOnUpdateAspectRatio(
+    void* context, CbLibVideoUpdateAspectRatioCallback callback);
 
 #ifdef __cplusplus
 }  // extern "C"

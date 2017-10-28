@@ -98,7 +98,6 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const base::Callback<void(const std::string&)>& error_callback,
                network_bridge::CookieJar* cookie_jar,
                const network_bridge::PostSender& post_sender,
-               const std::string& default_security_policy,
                csp::CSPHeaderPolicy require_csp,
                CspEnforcementType csp_enforcement_mode,
                const base::Closure& csp_policy_changed_callback,
@@ -137,10 +136,9 @@ Window::Window(int width, int height, float device_pixel_ratio,
               base::Bind(&Window::FireHashChangeEvent, base::Unretained(this)),
               performance_->timing()->GetNavigationStartClock(),
               navigation_callback, ParseUserAgentStyleSheet(css_parser),
-              math::Size(width_, height_), cookie_jar, post_sender,
-              default_security_policy, require_csp, csp_enforcement_mode,
-              csp_policy_changed_callback, csp_insecure_allowed_token,
-              dom_max_element_depth)))),
+              math::Size(width_, height_), cookie_jar, post_sender, require_csp,
+              csp_enforcement_mode, csp_policy_changed_callback,
+              csp_insecure_allowed_token, dom_max_element_depth)))),
       document_loader_(NULL),
       history_(new History()),
       navigator_(new Navigator(user_agent, language, media_session,
@@ -291,16 +289,24 @@ const scoped_refptr<Screen>& Window::screen() { return screen_; }
 
 scoped_refptr<Crypto> Window::crypto() const { return crypto_; }
 
-std::string Window::Btoa(const std::string& string_to_encode) {
+std::string Window::Btoa(const std::string& string_to_encode,
+                         script::ExceptionState* exception_state) {
   std::string output;
-  base::Base64Encode(string_to_encode, &output);
+  if (!base::Base64Encode(string_to_encode, &output)) {
+    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    return std::string();
+  }
   return output;
 }
 
-std::string Window::Atob(const std::string& encoded_string) {
+std::vector<uint8_t> Window::Atob(const std::string& encoded_string,
+                                  script::ExceptionState* exception_state) {
   std::string output;
-  base::Base64Decode(encoded_string, &output);
-  return output;
+  if (!base::Base64Decode(encoded_string, &output)) {
+    DOMException::Raise(DOMException::kInvalidCharacterErr, exception_state);
+    return {};
+  }
+  return {output.begin(), output.end()};
 }
 
 int Window::SetTimeout(const WindowTimers::TimerCallbackArg& handler,

@@ -35,11 +35,6 @@ namespace starboard {
 namespace shared {
 namespace uwp {
 
-using Windows::Media::Protection::HdcpSession;
-
-// Returns win32's GetModuleFileName(). For cases where we'd like an argv[0].
-std::string GetArgvZero();
-
 // Including <agile.h>, will eventually include <windows.h>, which includes
 // C:\Program Files (x86)\Windows Kits\10\Include\10.0.15063.0\um\processenv.h,
 // line 164 in processenv.h redefines GetCommandLine to GetCommandLineW if
@@ -62,9 +57,7 @@ class ApplicationUwp : public shared::starboard::Application,
 
   bool DestroyWindow(SbWindow window);
 
-  void DispatchStart() {
-    shared::starboard::Application::DispatchStart();
-  }
+  void DispatchStart() { shared::starboard::Application::DispatchStart(); }
 
   // public for IFrameworkView subclass
   void SetCommandLine(int argc, const char** argv) {
@@ -80,13 +73,27 @@ class ApplicationUwp : public shared::starboard::Application,
     return core_window_;
   }
 
+  Platform::Agile<Windows::UI::Core::CoreDispatcher> GetDispatcher() const {
+    return dispatcher_;
+  }
+
+  Platform::Agile<Windows::Media::SystemMediaTransportControls>
+      GetTransportControls() const {
+    return transport_controls_;
+  }
+
   // public for IFrameworkView subclass
   void SetCoreWindow(Windows::UI::Core::CoreWindow^ window) {
     core_window_ = window;
+
+    dispatcher_ = window->Dispatcher;
+    transport_controls_ =
+        Windows::Media::SystemMediaTransportControls::GetForCurrentView();
   }
 
   void OnKeyEvent(Windows::UI::Core::CoreWindow^ sender,
-      Windows::UI::Core::KeyEventArgs^ args, bool up);
+                  Windows::UI::Core::KeyEventArgs^ args,
+                  bool up);
 
   void Inject(Event* event) SB_OVERRIDE;
 
@@ -95,19 +102,11 @@ class ApplicationUwp : public shared::starboard::Application,
   }
 
   SbSystemPlatformError OnSbSystemRaisePlatformError(
-     SbSystemPlatformErrorType type,
-     SbSystemPlatformErrorCallback callback,
-     void* user_data);
+      SbSystemPlatformErrorType type,
+      SbSystemPlatformErrorCallback callback,
+      void* user_data);
 
   void OnSbSystemClearPlatformError(SbSystemPlatformError handle);
-
-  // Schedules a lambda to run on the main thread and returns immediately.
-  template<typename T>
-  void RunInMainThreadAsync(const T& lambda) {
-    core_window_->Dispatcher->RunAsync(
-      CoreDispatcherPriority::Normal,
-      ref new DispatchedHandler(lambda));
-  }
 
   Platform::String^ GetString(const char* id, const char* fallback) const;
 
@@ -141,12 +140,16 @@ class ApplicationUwp : public shared::starboard::Application,
   SbWindow window_;
   Platform::Agile<Windows::UI::Core::CoreWindow> core_window_;
 
+  Platform::Agile<Windows::UI::Core::CoreDispatcher> dispatcher_;
+  Platform::Agile<Windows::Media::SystemMediaTransportControls>
+      transport_controls_;
+
   shared::starboard::LocalizedStrings localized_strings_;
 
   Mutex mutex_;
   // |timer_event_map_| is locked by |mutex_|.
   std::unordered_map<SbEventId, Windows::System::Threading::ThreadPoolTimer^>
-    timer_event_map_;
+      timer_event_map_;
 
   int device_id_;
 

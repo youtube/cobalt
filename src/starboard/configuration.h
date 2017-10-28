@@ -53,7 +53,8 @@
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
-#define SB_RELEASE_CANDIDATE_API_VERSION 7
+// The following will be uncommented when an API version is a release candidate.
+// #define SB_RELEASE_CANDIDATE_API_VERSION 8
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -67,8 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
+#define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
-#define SB_DECODE_TARGET_PLANE_FORMAT_VERSION SB_RELEASE_CANDIDATE_API_VERSION
 
 // --- Common Detected Features ----------------------------------------------
 
@@ -459,9 +461,13 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "Your platform must define SB_HAS_TIME_THREAD_NOW in API 3 or later."
 #endif
 
-#if defined(SB_IS_PLAYER_COMPOSITITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
+#if defined(SB_IS_PLAYER_COMPOSITED) || defined(SB_IS_PLAYER_PUNCHED_OUT) || \
     defined(SB_IS_PLAYER_PRODUCING_TEXTURE)
 #error "New versions of Starboard specify player output mode at runtime."
+#endif
+
+#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < SB_PLAYER_WITH_URL_API_VERSION
+#error "SB_HAS_PLAYER_WITH_URL is not supported in this API version."
 #endif
 
 #if (SB_HAS(MANY_CORES) && (SB_HAS(1_CORE) || SB_HAS(2_CORES) ||    \

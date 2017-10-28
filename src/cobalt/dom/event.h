@@ -40,7 +40,13 @@ class Event : public script::Wrappable {
   // Web API: Event
   // EventPhase values as defined by Web API Event.eventPhase.
   //
-  enum EventPhase { kNone, kCapturingPhase, kAtTarget, kBubblingPhase };
+  typedef uint16 EventPhase;
+  enum EventPhaseInternal : uint16 {
+    kNone,
+    kCapturingPhase,
+    kAtTarget,
+    kBubblingPhase
+  };
 
   // Custom, not in any spec.
   //

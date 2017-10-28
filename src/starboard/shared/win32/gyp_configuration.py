@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+import imp
 import logging
 import os
 import sys
@@ -18,9 +19,8 @@ import sys
 import config.starboard
 
 from starboard.tools.paths import STARBOARD_ROOT
+import starboard.shared.win32.sdk_configuration as sdk_configuration
 import starboard.tools.testing.test_filter as test_filter
-
-import sdk_configuration
 
 def _QuotePath(path):
   return '"' + path + '"'

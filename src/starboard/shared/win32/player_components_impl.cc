@@ -15,6 +15,7 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/win32/audio_decoder.h"
 #include "starboard/shared/win32/video_decoder.h"
@@ -43,12 +44,13 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
       video_parameters.decode_target_graphics_context_provider,
       video_parameters.drm_system);
 
-  AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                            audio_parameters.audio_header);
+  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+      make_scoped_ptr<AudioDecoder>(audio_decoder),
+      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
+      audio_parameters.audio_header);
 
   VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(scoped_ptr<VideoDecoderImpl>(video_decoder).Pass());
+      new VideoRendererImpl(make_scoped_ptr<VideoDecoderImpl>(video_decoder));
 
   return scoped_ptr<PlayerComponents>(
       new PlayerComponents(audio_renderer, video_renderer));

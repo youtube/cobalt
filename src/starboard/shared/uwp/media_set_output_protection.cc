@@ -44,7 +44,8 @@ bool SbMediaSetOutputProtection(bool should_enable_dhcp) {
 
   SbTimeMonotonic tock = SbTimeGetMonotonicNow();
   SB_LOG(INFO) << "Output protection is "
-    << (is_hdcp_on ? "enabled" : "disabled") << ".  Toggling HDCP took "
-    << (tock - tick) / kSbTimeMillisecond << " milliseconds.";
+               << (is_hdcp_on ? "enabled" : "disabled")
+               << ".  Toggling HDCP took " << (tock - tick) / kSbTimeMillisecond
+               << " milliseconds.";
   return hdcp_success;
 }

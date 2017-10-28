@@ -17,6 +17,7 @@
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 
 namespace starboard {
@@ -42,12 +43,13 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
   VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
       video_parameters.video_codec, video_parameters.job_queue);
 
-  AudioRendererImpl* audio_renderer =
-      new AudioRendererImpl(scoped_ptr<AudioDecoder>(audio_decoder).Pass(),
-                            audio_parameters.audio_header);
+  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+      make_scoped_ptr<AudioDecoder>(audio_decoder),
+      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
+      audio_parameters.audio_header);
 
-  VideoRendererImpl* video_renderer = new VideoRendererImpl(
-      scoped_ptr<HostedVideoDecoder>(video_decoder).Pass());
+  VideoRendererImpl* video_renderer =
+      new VideoRendererImpl(make_scoped_ptr<HostedVideoDecoder>(video_decoder));
 
   return scoped_ptr<PlayerComponents>(
       new PlayerComponents(audio_renderer, video_renderer));

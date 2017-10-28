@@ -46,23 +46,22 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
  public:
   CspDelegatePermissive(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback)
-      : dom::CspDelegateSecure(violation_reporter.Pass(), url, location_policy,
-                               require_csp, policy_changed_callback) {
+      : dom::CspDelegateSecure(violation_reporter.Pass(), url, require_csp,
+                               policy_changed_callback) {
     // Lies, but some checks in our parent require this.
     was_header_received_ = true;
   }
 
   static CspDelegate* Create(
       scoped_ptr<dom::CspViolationReporter> violation_reporter, const GURL& url,
-      const std::string& location_policy, csp::CSPHeaderPolicy require_csp,
+      csp::CSPHeaderPolicy require_csp,
       const base::Closure& policy_changed_callback,
       int insecure_allowed_token) {
     UNREFERENCED_PARAMETER(insecure_allowed_token);
     return new CspDelegatePermissive(violation_reporter.Pass(), url,
-                                     location_policy, require_csp,
-                                     policy_changed_callback);
+                                     require_csp, policy_changed_callback);
   }
 
   bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
@@ -160,6 +159,8 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
   options.output_resolution_override = kDefaultViewportSize;
   scoped_ptr<media::MediaModule> media_module(
       media::MediaModule::Create(NULL, &resource_provider, options));
+  scoped_ptr<media::CanPlayTypeHandler> can_play_type_handler(
+      media::MediaModule::CreateCanPlayTypeHandler());
 
   dom::CspDelegateFactory::GetInstance()->OverrideCreator(
       dom::kCspEnforcementEnable, CspDelegatePermissive::Create);
@@ -179,9 +180,9 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
                  MessageLoop::current()),
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
-      base::Closure() /* window_minimize_callback */, media_module.get(),
-      &network_module, kDefaultViewportSize, 1.f, &resource_provider, 60.0f,
-      web_module_options);
+      base::Closure() /* window_minimize_callback */,
+      can_play_type_handler.get(), media_module.get(), &network_module,
+      kDefaultViewportSize, 1.f, &resource_provider, 60.0f, web_module_options);
   run_loop.Run();
   const std::string extract_results =
       "document.getElementById(\"__testharness__results__\").textContent;";
@@ -324,17 +325,15 @@ INSTANTIATE_TEST_CASE_P(cors, WebPlatformTest,
 
 INSTANTIATE_TEST_CASE_P(
     fetch, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch",
-        "'fetch' in this")));
+    ::testing::ValuesIn(EnumerateWebPlatformTests("fetch", "'fetch' in this")));
 
 INSTANTIATE_TEST_CASE_P(
     mediasession, WebPlatformTest,
     ::testing::ValuesIn(EnumerateWebPlatformTests("mediasession")));
 
-INSTANTIATE_TEST_CASE_P(
-    streams, WebPlatformTest,
-    ::testing::ValuesIn(EnumerateWebPlatformTests("streams",
-        "'ReadableStream' in this")));
+INSTANTIATE_TEST_CASE_P(streams, WebPlatformTest,
+                        ::testing::ValuesIn(EnumerateWebPlatformTests(
+                            "streams", "'ReadableStream' in this")));
 
 INSTANTIATE_TEST_CASE_P(
     cobalt_special, WebPlatformTest,

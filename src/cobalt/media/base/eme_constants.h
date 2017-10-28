@@ -15,9 +15,10 @@ namespace media {
 // http://w3c.github.io/encrypted-media/initdata-format-registry.html#registry
 enum EmeInitDataType {
   kEmeInitDataTypeUnknown,
-  kEmeInitDataTypeWebM,
   kEmeInitDataTypeCenc,
-  kEmeInitDataTypeKeyIds
+  kEmeInitDataTypeFairplay,
+  kEmeInitDataTypeKeyIds,
+  kEmeInitDataTypeWebM,
 };
 
 // Defines bitmask values that specify codecs used in Encrypted Media Extension

@@ -35,7 +35,7 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
   // WebMediaPlayerClient methods
   void NetworkStateChanged() OVERRIDE {}
   void ReadyStateChanged() OVERRIDE {}
-  void TimeChanged() OVERRIDE {}
+  void TimeChanged(bool) OVERRIDE {}
   void DurationChanged() OVERRIDE {}
   void OutputModeChanged() OVERRIDE {}
   void PlaybackStateChanged() OVERRIDE {}
@@ -48,9 +48,8 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const OVERRIDE { return ""; }
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void EncryptedMediaInitDataEncountered(EmeInitDataType init_data_type,
-                                         const unsigned char* init_data,
-                                         unsigned init_data_length) OVERRIDE {}
+  void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,
+                                         unsigned) OVERRIDE {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 };
 
@@ -58,7 +57,11 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(MediaModule* media_module)
     : client_(new WebMediaPlayerClientStub),
       player_(media_module->CreateWebMediaPlayer(client_)) {
   player_->SetRate(1.0);
+// TODO: Investigate a better way to exclude this when SB_HAS(PLAYER_WITH_URL)
+//       is enabled.
+#if !SB_HAS(PLAYER_WITH_URL)
   player_->LoadMediaSource();
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   player_->Play();
 }
 
@@ -71,8 +74,12 @@ WebMediaPlayerHelper::WebMediaPlayerHelper(
   scoped_ptr<BufferedDataSource> data_source(new FetcherBufferedDataSource(
       base::MessageLoopProxy::current(), video_url, csp::SecurityCallback(),
       fetcher_factory->network_module()));
+// TODO: Investigate a better way to exclude this when SB_HAS(PLAYER_WITH_URL)
+//       is enabled.
+#if !SB_HAS(PLAYER_WITH_URL)
   player_->LoadProgressive(video_url, data_source.Pass(),
                            WebMediaPlayer::kCORSModeUnspecified);
+#endif  // !SB_HAS(PLAYER_WITH_URL)
   player_->Play();
 }
 

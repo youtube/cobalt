@@ -44,7 +44,8 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
 
   NetFetcher(const GURL& url, const csp::SecurityCallback& security_callback,
              Handler* handler, const network::NetworkModule* network_module,
-             const Options& options);
+             const Options& options, RequestMode request_mode,
+             const Origin& origin);
   ~NetFetcher() OVERRIDE;
 
   // net::URLFetcherDelegate interface
@@ -85,6 +86,12 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
   // Ensure we can cancel any in-flight Start() task if we are destroyed
   // after being constructed, but before Start() runs.
   base::CancelableClosure start_callback_;
+
+  // True if request mode is CORS and request URL's origin is different from
+  // request's origin.
+  bool request_cross_origin_;
+  // The request's origin.
+  Origin origin_;
 
   DISALLOW_COPY_AND_ASSIGN(NetFetcher);
 };

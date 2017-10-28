@@ -63,6 +63,9 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     launcher_module = imp.load_source('launcher', module_path)
     return launcher_module
 
+  def WebdriverBenchmarksEnabled(self):
+    return True
+
   def GetTestFilters(self):
     """Gets all tests to be excluded from a unit test run.
 

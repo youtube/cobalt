@@ -182,9 +182,9 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
     } break;
     case kSbDecodeTargetFormat2PlaneYUVNV12: {
       DCHECK_LT(plane, 2);
-#if SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#if SB_API_VERSION >= 7
       // If this DCHECK fires, please set gl_texture_format, introduced
-      // in Starboard SB_DECODE_TARGET_PLANE_FORMAT_VERSION.
+      // in Starboard 7.
       //
       // You probably want to set it to GL_ALPHA on plane 0 (luma) and
       // GL_LUMINANCE_ALPHA on plane 1 (chroma), which was the default before.
@@ -206,7 +206,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
           CHECK(false);
           return 0;
       }
-#else  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#else  // SB_API_VERSION >= 7
       switch (plane) {
         case 0:
           return GL_ALPHA;
@@ -216,7 +216,7 @@ uint32_t DecodeTargetFormatToGLFormat(SbDecodeTargetFormat format, int plane,
           NOTREACHED();
           return GL_RGBA;
       }
-#endif  // SB_API_VERSION >= SB_DECODE_TARGET_PLANE_FORMAT_VERSION
+#endif  // SB_API_VERSION >= 7
     } break;
     case kSbDecodeTargetFormat3PlaneYUVI420: {
       DCHECK_LT(plane, 3);

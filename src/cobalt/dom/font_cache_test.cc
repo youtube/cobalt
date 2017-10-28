@@ -87,7 +87,7 @@ FontCacheTest::FontCacheTest()
                              ALLOW_THIS_IN_INITIALIZER_LIST(base::Bind(
                                  &FontCacheTest::DummyOnTypefaceLoadEvent,
                                  base::Unretained(this))),
-                             "en-US")) {}
+                             "en-US", NULL)) {}
 
 TEST_F(FontCacheTest, FindPostscriptFont) {
   const std::string family_name("Dancing Script");

@@ -107,7 +107,7 @@ Document::Document(HTMLElementContext* html_element_context,
   csp_delegate_ =
       CspDelegateFactory::GetInstance()
           ->Create(options.csp_enforcement_mode, violation_reporter.Pass(),
-                   options.url, options.location_policy, options.require_csp,
+                   options.url, options.require_csp,
                    options.csp_policy_changed_callback,
                    options.csp_insecure_allowed_token)
           .Pass();
@@ -123,7 +123,7 @@ Document::Document(HTMLElementContext* html_element_context,
       html_element_context_->resource_provider(),
       html_element_context_->remote_typeface_cache(),
       base::Bind(&Document::OnTypefaceLoadEvent, base::Unretained(this)),
-      html_element_context_->language()));
+      html_element_context_->language(), location_));
 
   if (HasBrowsingContext()) {
     if (html_element_context_->remote_typeface_cache()) {

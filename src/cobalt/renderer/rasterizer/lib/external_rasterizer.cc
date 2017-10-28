@@ -106,10 +106,10 @@ struct CallbackUpdate<CallbackSetter<Ret, Args...>, Setter, ErrorMessage> {
                      kWarningMessageDidNotSet##instance_name>;
 
 INSTANCE_CALLBACK_UPDATE(UpdateMeshes, CbLibVideoSetOnUpdateMeshes);
-INSTANCE_CALLBACK_UPDATE(UpdateStereoMode, CbLibVideoSetOnUpdateStereoMode);
 INSTANCE_CALLBACK_UPDATE(UpdateRgbTextureId, CbLibVideoSetOnUpdateRgbTextureId);
-INSTANCE_CALLBACK_UPDATE(UpdateProjectionType,
-                         CbLibVideoSetOnUpdateProjectionType);
+INSTANCE_CALLBACK_UPDATE(UpdateProjectionTypeAndStereoMode,
+                         CbLibVideoSetOnUpdateProjectionTypeAndStereoMode);
+INSTANCE_CALLBACK_UPDATE(UpdateAspectRatio, CbLibVideoSetOnUpdateAspectRatio);
 INSTANCE_CALLBACK_UPDATE(GraphicsContextCreated,
                          CbLibGraphicsSetContextCreatedCallback);
 INSTANCE_CALLBACK_UPDATE(BeginRenderFrame,
@@ -119,11 +119,12 @@ INSTANCE_CALLBACK_UPDATE(EndRenderFrame,
 #undef INSTANCE_CALLBACK_UPDATE
 
 UpdateMeshes::LazyCallback g_update_meshes_callback = LAZY_INSTANCE_INITIALIZER;
-UpdateStereoMode::LazyCallback g_update_stereo_mode_callback =
-    LAZY_INSTANCE_INITIALIZER;
 UpdateRgbTextureId::LazyCallback g_update_rgb_texture_id_callback =
     LAZY_INSTANCE_INITIALIZER;
-UpdateProjectionType::LazyCallback g_update_projection_type_callback =
+UpdateProjectionTypeAndStereoMode::LazyCallback
+    g_update_projection_type_and_stereo_mode_callback =
+        LAZY_INSTANCE_INITIALIZER;
+UpdateAspectRatio::LazyCallback g_update_aspect_ratio_callback =
     LAZY_INSTANCE_INITIALIZER;
 GraphicsContextCreated::LazyCallback g_graphics_context_created_callback =
     LAZY_INSTANCE_INITIALIZER;
@@ -200,7 +201,6 @@ class ExternalRasterizer::Impl {
   // host directly.
   scoped_refptr<backend::RenderTarget> video_offscreen_render_target_;
   scoped_ptr<backend::TextureEGL> video_texture_;
-
   CbLibVideoProjectionType video_projection_type_;
   scoped_refptr<skia::HardwareMesh> left_eye_video_mesh_;
   scoped_refptr<skia::HardwareMesh> right_eye_video_mesh_;
@@ -210,6 +210,8 @@ class ExternalRasterizer::Impl {
   // of the buffer for the main RenderTarget should aim to be within some small
   // delta of this whenever a new RenderTree is rendered.
   cobalt::math::Size target_main_render_target_size_;
+  int video_width_;
+  int video_height_;
 };
 
 ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
@@ -229,6 +231,8 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0),
+      video_width_(-1),
+      video_height_(-1),
       target_main_render_target_size_(1, 1) {
   CHECK(!g_external_rasterizer_impl);
   g_external_rasterizer_impl = this;
@@ -286,25 +290,34 @@ void ExternalRasterizer::Impl::Submit(
       new_projection_type = kCbLibVideoProjectionTypeMesh;
     }
 
-    if (video_projection_type_ != new_projection_type) {
+    if (video_projection_type_ != new_projection_type ||
+        filter->stereo_mode() != video_stereo_mode_) {
+      // Note the above condition will always be true when playback has not
+      // started.
       video_projection_type_ = new_projection_type;
-      g_update_projection_type_callback.Get().Run(video_projection_type_);
+      video_stereo_mode_ = filter->stereo_mode();
+      g_update_projection_type_and_stereo_mode_callback.Get().Run(
+          video_projection_type_,
+          static_cast<CbLibVideoStereoMode>(video_stereo_mode_));
     }
 
-    if (filter->stereo_mode() != video_stereo_mode_) {
-      video_stereo_mode_ = filter->stereo_mode();
-      g_update_stereo_mode_callback.Get().Run(
-          static_cast<CbLibVideoStereoMode>(video_stereo_mode_));
+    const scoped_refptr<render_tree::Node>& video_render_tree =
+        map_to_mesh_search.found_node->data().source;
+    math::SizeF resolutionf = video_render_tree->GetBounds().size();
+    int width = static_cast<int>(resolutionf.width());
+    int height = static_cast<int>(resolutionf.height());
+
+    if (video_width_ != width || video_height_ != height) {
+      g_update_aspect_ratio_callback.Get().Run(
+          width > 0 && height > 0 ?  // Avoid division by zero.
+              resolutionf.width() / resolutionf.height()
+                                  : 0.0f);
+      video_width_ = width;
+      video_height_ = height;
     }
 
     if (video_projection_type_ == kCbLibVideoProjectionTypeMesh) {
       // Use resolution to lookup custom mesh map.
-      const scoped_refptr<render_tree::Node>& video_render_tree =
-          map_to_mesh_search.found_node->data().source;
-      math::SizeF resolutionf = video_render_tree->GetBounds().size();
-      int width = static_cast<int>(resolutionf.width());
-      int height = static_cast<int>(resolutionf.height());
-
       math::Size resolution(width, height);
       scoped_refptr<skia::HardwareMesh> left_eye_video_mesh(
           base::polymorphic_downcast<skia::HardwareMesh*>(
@@ -346,7 +359,9 @@ void ExternalRasterizer::Impl::Submit(
   } else {
     if (video_projection_type_ != kCbLibVideoProjectionTypeNone) {
       video_projection_type_ = kCbLibVideoProjectionTypeNone;
-      g_update_projection_type_callback.Get().Run(video_projection_type_);
+      g_update_projection_type_and_stereo_mode_callback.Get().Run(
+          video_projection_type_, kCbLibVideoStereoModeMono);
+      video_width_ = video_height_ = -1;
     }
   }
 
@@ -526,13 +541,6 @@ void CbLibVideoSetOnUpdateMeshes(void* context,
                : base::Bind(&UpdateMeshes::DefaultImplementation);
 }
 
-void CbLibVideoSetOnUpdateStereoMode(
-    void* context, CbLibVideoUpdateStereoModeCallback callback) {
-  g_update_stereo_mode_callback.Get() =
-      callback ? base::Bind(callback, context)
-               : base::Bind(&UpdateStereoMode::DefaultImplementation);
-}
-
 void CbLibVideoSetOnUpdateRgbTextureId(
     void* context, CbLibVideoUpdateRgbTextureIdCallback callback) {
   g_update_rgb_texture_id_callback.Get() =
@@ -540,11 +548,20 @@ void CbLibVideoSetOnUpdateRgbTextureId(
                : base::Bind(&UpdateRgbTextureId::DefaultImplementation);
 }
 
-void CbLibVideoSetOnUpdateProjectionType(
-    void* context, CbLibVideoUpdateProjectionTypeCallback callback) {
-  g_update_projection_type_callback.Get() =
+void CbLibVideoSetOnUpdateProjectionTypeAndStereoMode(
+    void* context,
+    CbLibVideoUpdateProjectionTypeAndStereoModeCallback callback) {
+  g_update_projection_type_and_stereo_mode_callback.Get() =
       callback ? base::Bind(callback, context)
-               : base::Bind(&UpdateProjectionType::DefaultImplementation);
+               : base::Bind(
+                     &UpdateProjectionTypeAndStereoMode::DefaultImplementation);
+}
+
+void CbLibVideoSetOnUpdateAspectRatio(
+    void* context, CbLibVideoUpdateAspectRatioCallback callback) {
+  g_update_aspect_ratio_callback.Get() =
+      callback ? base::Bind(callback, context)
+               : base::Bind(&UpdateAspectRatio::DefaultImplementation);
 }
 
 void CbLibGraphicsSetContextCreatedCallback(

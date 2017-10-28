@@ -110,8 +110,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyModelName: {
       EasClientDeviceInformation^ current_device_info =
           ref new EasClientDeviceInformation();
-      std::string sku =
-        platformStringToString(current_device_info->SystemSku);
+      std::string sku = platformStringToString(current_device_info->SystemSku);
 
       std::string friendly_name;
 

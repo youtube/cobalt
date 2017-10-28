@@ -65,8 +65,11 @@ def _GetLauncherForPlatform(platform):
     The module containing the platform's launcher implementation.
   """
 
-  gyp_module = GetGypModuleForPlatform(platform)
-  return gyp_module.CreatePlatformConfig().GetLauncher()
+  gyp_config = GetGypModuleForPlatform(platform).CreatePlatformConfig()
+  if not hasattr(gyp_config, "GetLauncher"):
+    return None
+  else:
+    return gyp_config.GetLauncher()
 
 
 def DynamicallyBuildOutDirectory(platform, config):
@@ -86,38 +89,21 @@ def DynamicallyBuildOutDirectory(platform, config):
   return path
 
 
-def GetDefaultTargetPath(platform, config, target_name):
-  """Constructs the default path to an executable target.
-
-  The default path takes the form of:
-
-    "/path/to/out/<platform>_<config>/target_name"
-
-  Args:
-    platform: The platform to run the executable on, ex. "linux-x64x11".
-    config: The build configuration, ex. "qa".
-    target_name:  The name of the executable target, ex. "cobalt"
-
-  Returns:
-    The path to an executable target.
-  """
-  return os.path.join(DynamicallyBuildOutDirectory(platform, config),
-                      target_name)
-
-
-def LauncherFactory(platform, target_name, config, device_id, args,
-                    output_file=sys.stdout, out_directory=None):
+def LauncherFactory(platform, target_name, config, device_id=None,
+                    target_params=None, output_file=None,
+                    out_directory=None):
   """Creates the proper launcher based upon command line args.
 
   Args:
     platform:  The platform on which the app will run.
     target_name:  The name of the executable target (ex. "cobalt").
     config:  Type of configuration used by the launcher (ex. "qa", "devel").
-    device_id:  The identifier for the devkit being used.
-    args:  Any extra arguments to be passed on a platform-specific basis.
-    output_file:  The open file to which the launcher should write its output.
-    out_directory:  Path to directory where tool/test targets and/or their
-      components are stored.
+    device_id:  The identifier for the devkit being used.  Can be None.
+    target_params: Command line arguments to the executable.  Can be None.
+    output_file: Open file object used for storing the launcher's output. If
+      None, sys.stdout is used.
+    out_directory: Directory containing the executable target. If None is
+      provided, the path to the directory is dynamically generated.
 
   Returns:
     An instance of the concrete launcher class for the desired platform.
@@ -126,13 +112,28 @@ def LauncherFactory(platform, target_name, config, device_id, args,
     RuntimeError: The platform does not exist, or there is no project root.
   """
 
-  if not out_directory:
-    out_directory = DynamicallyBuildOutDirectory(platform, config)
-
   #  Creates launcher for provided platform if the platform has a valid port
   launcher_module = _GetLauncherForPlatform(platform)
-  return launcher_module.Launcher(platform, target_name, config, device_id,
-                                  args, output_file, out_directory)
+
+  #  TODO: Refactor when all old launchers have been deleted
+  #  If a platform that does not have a new launcher is provided, attempt
+  #  to create an adapter to the old one.
+  if not launcher_module:
+    old_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                            os.pardir, os.pardir, "tools",
+                                            "lbshell"))
+    if os.path.exists(os.path.join(old_path, "app_launcher.py")):
+      sys.path.append(old_path)
+      bridge_module = importlib.import_module("app_launcher_bridge")
+      return bridge_module.LauncherAdapter(
+          platform, target_name, config, device_id, target_params=target_params,
+          output_file=output_file, out_directory=out_directory)
+    else:
+      raise RuntimeError("No launcher implemented for the given platform.")
+  else:
+    return launcher_module.Launcher(
+        platform, target_name, config, device_id, target_params=target_params,
+        output_file=output_file, out_directory=out_directory)
 
 
 class AbstractLauncher(object):
@@ -140,18 +141,25 @@ class AbstractLauncher(object):
 
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, platform, target_name, config, device_id,
-               args, output_file, out_directory):
+  def __init__(self, platform, target_name, config, device_id, **kwargs):
     self.platform = platform
     self.target_name = target_name
     self.config = config
     self.device_id = device_id
-    self.args = args
-    self.out_directory = out_directory
+    self.out_directory = kwargs.get("out_directory", None)
+
+    #  The following pattern makes sure that variables will be initialized
+    #  properly whether a kwarg is passed in with a value of None or it
+    #  is not passed in at all.
+    output_file = kwargs.get("output_file", None)
+    if not output_file:
+      output_file = sys.stdout
     self.output_file = output_file
-    self.target_command_line_params = []
-    if "target_params" in args:
-      self.target_command_line_params.extend(args["target_params"])
+
+    target_command_line_params = kwargs.get("target_params", None)
+    if not target_command_line_params:
+      target_command_line_params = []
+    self.target_command_line_params = target_command_line_params
 
     # Launchers that need different startup timeout times should reassign
     # this variable during initialization.
@@ -189,3 +197,21 @@ class AbstractLauncher(object):
       (Host, port) tuple for use in connecting to the target device.
     """
     return self.device_id, port
+
+  def GetTargetPath(self):
+    """Constructs the path to an executable target.
+
+    The default path returned by this method takes the form of:
+
+      "/path/to/out/<platform>_<config>/target_name"
+
+    Returns:
+      The path to an executable target.
+    """
+    if self.out_directory:
+      out_directory = self.out_directory
+    else:
+      out_directory = DynamicallyBuildOutDirectory(self.platform, self.config)
+
+    return os.path.abspath(os.path.join(out_directory, self.target_name))
+

@@ -111,12 +111,12 @@ if(resizer.__position!==left[i]){resizer.__position=left[i];resizer.style.left=l
 this.creationNode.makeNormal();var emptyData={};for(var column in this._columns)
 emptyData[column]=null;this.creationNode=new WebInspector.CreationDataGridNode(emptyData,hasChildren);this.rootNode().appendChild(this.creationNode);},_keyDown:function(event)
 {if(!this.selectedNode||event.shiftKey||event.metaKey||event.ctrlKey||this._editing)
-return;var handled=false;var nextSelectedNode;if(event.keyIdentifier==="Up"&&!event.altKey){nextSelectedNode=this.selectedNode.traversePreviousNode(true);while(nextSelectedNode&&!nextSelectedNode.selectable)
-nextSelectedNode=nextSelectedNode.traversePreviousNode(true);handled=nextSelectedNode?true:false;}else if(event.keyIdentifier==="Down"&&!event.altKey){nextSelectedNode=this.selectedNode.traverseNextNode(true);while(nextSelectedNode&&!nextSelectedNode.selectable)
-nextSelectedNode=nextSelectedNode.traverseNextNode(true);handled=nextSelectedNode?true:false;}else if(event.keyIdentifier==="Left"){if(this.selectedNode.expanded){if(event.altKey)
+return;var handled=false;var nextSelectedNode;if(event.key==="Up"&&!event.altKey){nextSelectedNode=this.selectedNode.traversePreviousNode(true);while(nextSelectedNode&&!nextSelectedNode.selectable)
+nextSelectedNode=nextSelectedNode.traversePreviousNode(true);handled=nextSelectedNode?true:false;}else if(event.key==="Down"&&!event.altKey){nextSelectedNode=this.selectedNode.traverseNextNode(true);while(nextSelectedNode&&!nextSelectedNode.selectable)
+nextSelectedNode=nextSelectedNode.traverseNextNode(true);handled=nextSelectedNode?true:false;}else if(event.key==="Left"){if(this.selectedNode.expanded){if(event.altKey)
 this.selectedNode.collapseRecursively();else
 this.selectedNode.collapse();handled=true;}else if(this.selectedNode.parent&&!this.selectedNode.parent._isRoot){handled=true;if(this.selectedNode.parent.selectable){nextSelectedNode=this.selectedNode.parent;handled=nextSelectedNode?true:false;}else if(this.selectedNode.parent)
-this.selectedNode.parent.collapse();}}else if(event.keyIdentifier==="Right"){if(!this.selectedNode.revealed){this.selectedNode.reveal();handled=true;}else if(this.selectedNode.hasChildren){handled=true;if(this.selectedNode.expanded){nextSelectedNode=this.selectedNode.children[0];handled=nextSelectedNode?true:false;}else{if(event.altKey)
+this.selectedNode.parent.collapse();}}else if(event.key==="Right"){if(!this.selectedNode.revealed){this.selectedNode.reveal();handled=true;}else if(this.selectedNode.hasChildren){handled=true;if(this.selectedNode.expanded){nextSelectedNode=this.selectedNode.children[0];handled=nextSelectedNode?true:false;}else{if(event.altKey)
 this.selectedNode.expandRecursively();else
 this.selectedNode.expand();}}}else if(event.keyCode===8||event.keyCode===46){if(this._deleteCallback){handled=true;this._deleteCallback(this.selectedNode);}}else if(isEnterKey(event)){if(this._editCallback){handled=true;this._startEditing(this.selectedNode._element.children[this._nextEditableColumn(-1)]);}}
 if(nextSelectedNode){nextSelectedNode.reveal();nextSelectedNode.select();}

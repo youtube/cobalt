@@ -15,22 +15,9 @@
 #include "starboard/log.h"
 
 #include <stdio.h>
-#include <windows.h>
-
-#include "starboard/shared/uwp/log_file_impl.h"
-
-static const int kMaxLogLineChars = 16 * 1024;
-
-namespace sbuwp = starboard::shared::uwp;
 
 void SbLogRawFormat(const char* format, va_list arguments) {
-  vfprintf(stderr, format, arguments);
-  char log_buffer[kMaxLogLineChars];
-  int result = vsprintf_s(log_buffer, kMaxLogLineChars, format, arguments);
-  if (result > 0) {
-    OutputDebugStringA(log_buffer);
-    sbuwp::WriteToLogFile(log_buffer, result);
-  } else {
-    OutputDebugStringA("[log line too long]");
-  }
+  char log_buffer[16 * 1024];
+  vsnprintf_s(log_buffer, _TRUNCATE, format, arguments);
+  SbLogRaw(log_buffer);
 }

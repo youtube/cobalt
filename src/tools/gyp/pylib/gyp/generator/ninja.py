@@ -77,7 +77,8 @@ generator_supports_multiple_toolsets = True
 is_linux = platform.system() == 'Linux'
 is_windows = platform.system() == 'Windows'
 
-microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future']
+microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future',
+    'xb1-youtubetv']
 sony_flavors = ['ps3', 'ps4']
 windows_host_flavors = microsoft_flavors + sony_flavors
 

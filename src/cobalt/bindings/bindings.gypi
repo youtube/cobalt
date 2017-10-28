@@ -64,6 +64,20 @@
       '../script/engine_variables.gypi',
       '../../third_party/blink/Source/bindings/scripts/scripts.gypi',
     ],
+    'variables': {
+      # Legend has it that experienced Chrome developers can actually nest
+      # variables up to four levels.  Here, we keep things simple and only do
+      # three.  We do this because "engine_variables.gypi" will create another
+      # variables scope and then branch on |javascript_engine|, which requires
+      # a default value to be provided one level lower.
+      'variables': {
+        'javascript_engine%': '<(default_javascript_engine)',
+      },
+      # Specify a default component for generated window IDL. This should be
+      # removed when the concept of 'components' in the blink IDL parsing scripts
+      # is refactored out, since it doesn't really apply to Cobalt.
+      'window_component%': 'dom',
+    },
 
     # Define these variables in the including .gyp file and their lists will get
     # merged in, giving some control to how the bindings are built.
@@ -104,12 +118,6 @@
     # Constructors will be an event in the unsupported property mechanism.
     'unsupported_interface_idl_files': [],
 
-    # Specify a default component for generated window IDL. This should be
-    # removed when the concept of 'components' in the blink IDL parsing scripts
-    # is refactored out, since it doesn't really apply to Cobalt.
-    'variables': {
-      'window_component%': 'dom',
-    },
     'window_component%': '<(window_component)',
 
     'prefix': '<(generated_bindings_prefix)',

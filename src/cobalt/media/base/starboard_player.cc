@@ -14,6 +14,9 @@
 
 #include "cobalt/media/base/starboard_player.h"
 
+#include <string>
+#include <vector>
+
 #include "base/bind.h"
 #include "base/compiler_specific.h"
 #include "base/debug/trace_event.h"
@@ -67,6 +70,44 @@ void StarboardPlayer::CallbackHelper::ResetPlayer() {
   player_ = NULL;
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+StarboardPlayer::StarboardPlayer(
+    const scoped_refptr<base::MessageLoopProxy>& message_loop,
+    const std::string& url, SbWindow window, Host* host,
+    SbPlayerSetBoundsHelper* set_bounds_helper, bool prefer_decode_to_texture,
+    const OnEncryptedMediaInitDataEncounteredCB&
+        on_encrypted_media_init_data_encountered_cb)
+    : url_(url),
+      message_loop_(message_loop),
+      callback_helper_(
+          new CallbackHelper(ALLOW_THIS_IN_INITIALIZER_LIST(this))),
+      window_(window),
+      drm_system_(kSbDrmSystemInvalid),
+      host_(host),
+      set_bounds_helper_(set_bounds_helper),
+      frame_width_(1),
+      frame_height_(1),
+      ticket_(SB_PLAYER_INITIAL_TICKET),
+      volume_(1.0),
+      playback_rate_(0.0),
+      seek_pending_(false),
+      state_(kPlaying),
+      on_encrypted_media_init_data_encountered_cb_(
+          on_encrypted_media_init_data_encountered_cb) {
+  DCHECK(host_);
+  DCHECK(set_bounds_helper_);
+
+  output_mode_ = ComputeSbPlayerOutputModeWithUrl(prefer_decode_to_texture);
+
+  CreatePlayerWithUrl(url_);
+
+  message_loop->PostTask(
+      FROM_HERE,
+      base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
+                 callback_helper_));
+}
+#else
+
 StarboardPlayer::StarboardPlayer(
     const scoped_refptr<base::MessageLoopProxy>& message_loop,
     const AudioDecoderConfig& audio_config,
@@ -105,6 +146,7 @@ StarboardPlayer::StarboardPlayer(
       base::Bind(&StarboardPlayer::CallbackHelper::ClearDecoderBufferCache,
                  callback_helper_));
 }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 StarboardPlayer::~StarboardPlayer() {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -130,6 +172,8 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
   frame_height_ = frame_height;
 }
 
+#if !SB_HAS(PLAYER_WITH_URL)
+
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
@@ -144,7 +188,6 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   }
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -197,9 +240,10 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                       drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
 
+#endif  // !SB_HAS(PLAYER_WITH_URL)
+
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     pending_set_bounds_z_index_ = z_index;
     pending_set_bounds_rect_ = rect;
     return;
@@ -216,7 +260,6 @@ void StarboardPlayer::PrepareForSeek() {
   seek_pending_ = true;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -230,7 +273,6 @@ void StarboardPlayer::Seek(base::TimeDelta time) {
   decoder_buffer_cache_.ClearAll();
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     preroll_timestamp_ = time;
     return;
   }
@@ -255,7 +297,6 @@ void StarboardPlayer::SetVolume(float volume) {
   volume_ = volume;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -269,7 +310,6 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   playback_rate_ = playback_rate;
 
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -287,8 +327,6 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
 
   base::AutoLock auto_lock(lock_);
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
-
     if (video_frames_decoded) {
       *video_frames_decoded = cached_video_frames_decoded_;
     }
@@ -316,12 +354,31 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   }
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+base::TimeDelta StarboardPlayer::GetDuration() {
+  base::AutoLock auto_lock(lock_);
+  if (state_ == kSuspended) {
+    return base::TimeDelta();
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
+
+  SbPlayerInfo info;
+  SbPlayerGetInfo(player_, &info);
+  DCHECK_NE(info.duration_pts, SB_PLAYER_NO_DURATION);
+  return SbMediaTimeToTimeDelta(info.duration_pts);
+}
+
+void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
+  SbPlayerSetDrmSystem(player_, drm_system);
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 void StarboardPlayer::Suspend() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   // Check if the player is already suspended.
   if (state_ == kSuspended) {
-    DCHECK(!SbPlayerIsValid(player_));
     return;
   }
 
@@ -354,11 +411,13 @@ void StarboardPlayer::Resume() {
     return;
   }
 
-  DCHECK(!SbPlayerIsValid(player_));
-
   decoder_buffer_cache_.StartResuming();
 
+#if SB_HAS(PLAYER_WITH_URL)
+  CreatePlayerWithUrl(url_);
+#else   // SB_HAS(PLAYER_WITH_URL)
   CreatePlayer();
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   base::AutoLock auto_lock(lock_);
   state_ = kResuming;
@@ -379,7 +438,55 @@ ShellVideoFrameProvider::OutputMode ToVideoFrameProviderOutputMode(
   NOTREACHED();
   return ShellVideoFrameProvider::kOutputModeInvalid;
 }
+
 }  // namespace
+
+#if SB_HAS(PLAYER_WITH_URL)
+
+// static
+void StarboardPlayer::EncryptedMediaInitDataEncounteredCB(
+    SbPlayer player, void* context, const char* init_data_type,
+    const unsigned char* init_data, unsigned int init_data_length) {
+  StarboardPlayer* helper = static_cast<StarboardPlayer*>(context);
+  DCHECK(!helper->on_encrypted_media_init_data_encountered_cb_.is_null());
+  helper->on_encrypted_media_init_data_encountered_cb_.Run(
+      init_data_type, init_data, init_data_length);
+}
+
+void StarboardPlayer::CreatePlayerWithUrl(const std::string& url) {
+  TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayerWithUrl");
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  DCHECK(!on_encrypted_media_init_data_encountered_cb_.is_null());
+  DLOG(INFO) << "SbPlayerCreateWithUrl passed url " << url;
+  player_ = SbPlayerCreateWithUrl(
+      url.c_str(), window_, SB_PLAYER_NO_DURATION,
+      &StarboardPlayer::PlayerStatusCB,
+      &StarboardPlayer::EncryptedMediaInitDataEncounteredCB, this);
+  DCHECK(SbPlayerIsValid(player_));
+
+  if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
+    // If the player is setup to decode to texture, then provide Cobalt with
+    // a method of querying that texture.
+    ShellMediaPlatform::Instance()
+        ->GetVideoFrameProvider()
+        ->SetGetCurrentSbDecodeTargetFunction(
+            base::Bind(&StarboardPlayer::GetCurrentSbDecodeTarget,
+                       base::Unretained(this)));
+  }
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ToVideoFrameProviderOutputMode(output_mode_));
+
+  set_bounds_helper_->SetPlayer(this);
+
+  if (pending_set_bounds_z_index_ && pending_set_bounds_rect_) {
+    SetBounds(*pending_set_bounds_z_index_, *pending_set_bounds_rect_);
+    pending_set_bounds_z_index_ = base::nullopt_t();
+    pending_set_bounds_rect_ = base::nullopt_t();
+  }
+}
+
+#else
 
 void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
@@ -425,6 +532,8 @@ void StarboardPlayer::CreatePlayer() {
   }
 }
 
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
 SbDecodeTarget StarboardPlayer::GetCurrentSbDecodeTarget() {
   return SbPlayerGetCurrentFrame(player_);
 }
@@ -452,6 +561,9 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
 void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
                                       SbPlayerDecoderState state, int ticket) {
+// TODO: Remove decoder status related function on a broader scope when
+//       PLAYER_WITH_URL is defined.
+#if !SB_HAS(PLAYER_WITH_URL)
   DCHECK(message_loop_->BelongsToCurrentThread());
 
   if (player_ != player || ticket != ticket_) {
@@ -484,6 +596,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   }
 
   host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
+#endif  // !SB_HAS(PLAYER_WITH_URL)
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
@@ -558,6 +671,35 @@ void StarboardPlayer::DeallocateSampleCB(SbPlayer player, void* context,
                  helper->callback_helper_, sample_buffer));
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+// static
+SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputModeWithUrl(
+    bool prefer_decode_to_texture) {
+  // Try to choose the output mode according to the passed in value of
+  // |prefer_decode_to_texture|.  If the preferred output mode is unavailable
+  // though, fallback to an output mode that is available.
+  SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
+  if (SbPlayerOutputModeSupportedWithUrl(kSbPlayerOutputModePunchOut)) {
+    output_mode = kSbPlayerOutputModePunchOut;
+  }
+  if ((prefer_decode_to_texture || output_mode == kSbPlayerOutputModeInvalid) &&
+      SbPlayerOutputModeSupportedWithUrl(kSbPlayerOutputModeDecodeToTexture)) {
+    output_mode = kSbPlayerOutputModeDecodeToTexture;
+  }
+  CHECK_NE(kSbPlayerOutputModeInvalid, output_mode);
+
+#if defined(COBALT_ENABLE_LIB)
+  // When Cobalt is used as a library, it doesn't control the
+  // screen and so punch-out cannot be assumed.  You will need
+  // to implement decode-to-texture support if you wish to use
+  // Cobalt as a library and play videos with it.
+  CHECK_EQ(kSbPlayerOutputModeDecodeToTexture, output_mode)
+#endif  // defined(COBALT_ENABLE_LIB)
+
+  return output_mode;
+}
+#else
+
 // static
 SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
     SbMediaVideoCodec codec, SbDrmSystem drm_system,
@@ -587,6 +729,6 @@ SbPlayerOutputMode StarboardPlayer::ComputeSbPlayerOutputMode(
 
   return output_mode;
 }
-
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }  // namespace media
 }  // namespace cobalt

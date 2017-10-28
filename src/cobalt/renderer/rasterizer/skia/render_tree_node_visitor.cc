@@ -1156,11 +1156,10 @@ void DrawSolidRoundedRectBorderToRenderTarget(
     const render_tree::RoundedCorners& rounded_corners,
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
-    const render_tree::Border& border) {
+    const render_tree::ColorRGBA& color) {
   SkPaint paint;
   paint.setAntiAlias(true);
 
-  const render_tree::ColorRGBA& color = border.top.color;
   float alpha = color.a();
   alpha *= draw_state->opacity;
   paint.setARGB(alpha * 255, color.r() * 255, color.g() * 255, color.b() * 255);
@@ -1173,6 +1172,205 @@ void DrawSolidRoundedRectBorderToRenderTarget(
   draw_state->render_target->drawDRRect(
       RoundedRectToSkia(rect, rounded_corners),
       RoundedRectToSkia(content_rect, inner_rounded_corners), paint);
+}
+
+namespace {
+bool IsCircle(const math::SizeF& size,
+              const render_tree::RoundedCorners& rounded_corners) {
+  if (size.width() != size.height()) {
+    return false;
+  }
+
+  float radius = size.width() * 0.5f;
+  // Corners cannot be "more round" than a circle, so we check using >= rather
+  // than == here.
+  return rounded_corners.AllCornersGE(
+      render_tree::RoundedCorner(radius, radius));
+}
+
+bool AllBorderSidesShareSameProperties(const render_tree::Border& border) {
+  return (border.top == border.left && border.top == border.right &&
+          border.top == border.bottom);
+}
+
+base::optional<SkPoint> CalculateIntersectionPoint(const SkPoint& a,
+                                                   const SkPoint& b,
+                                                   const SkPoint& c,
+                                                   const SkPoint& d) {
+  // Given 2 lines, each represented by 2 points (points a and b lie on line 1
+  // and points c and d lie on line 2), calculates the intersection point of
+  // these 2 lines if they intersect.
+  const float ab_width = b.x() - a.x();
+  const float ab_height = b.y() - a.y();
+  const float cd_width = d.x() - c.x();
+  const float cd_height = d.y() - c.y();
+  base::optional<SkPoint> intersection;
+
+  const float determinant = (ab_width * cd_height) - (ab_height * cd_width);
+  if (determinant) {
+    const float param =
+        ((c.x() - a.x()) * cd_height - (c.y() - a.y()) * cd_width) /
+        determinant;
+    intersection =
+        SkPoint({a.x() + param * ab_width, a.y() + param * ab_height});
+  }
+
+  return intersection;
+}
+}  // namespace
+
+void SetUpDrawStateClipPath(RenderTreeNodeVisitorDrawState* draw_state,
+                            const SkPoint* points) {
+  draw_state->render_target->restore();
+  draw_state->render_target->save();
+
+  SkPath path;
+  path.addPoly(points, 4, true);
+
+  draw_state->render_target->clipPath(path, SkRegion::kIntersect_Op, true);
+}
+
+void DrawSolidRoundedRectBorderByEdge(
+    RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
+    const render_tree::RoundedCorners& rounded_corners,
+    const math::RectF& content_rect,
+    const render_tree::RoundedCorners& inner_rounded_corners,
+    const render_tree::Border& border) {
+  // Render each border edge seperately using SkCanvas::clipPath() to clip out
+  // each edge's region from the overall RRect.
+  // Divide the area into 4 trapezoids, each represented by 4 points that
+  // encompass the clipped out region for a border edge (including the rounded
+  // corners). Draw within each clipped out region seperately.
+  //       A ___________ B
+  //        |\_________/|
+  //        ||E       F||
+  //        ||         ||
+  //        ||G_______H||
+  //        |/_________\|
+  //       C             D
+  // NOTE: As described in
+  // https://www.w3.org/TR/css3-background/#corner-transitions, the spec does
+  // not give an exact function for calculating the center of color/style
+  // transitions between adjoining borders, so the following math resembles
+  // Chrome: https://cs.chromium.org/BoxBorderPainter::ClipBorderSidePolygon.
+  // The center of a transition (represented by points E, F, G and H above) is
+  // calculated by finding the intersection point of 2 lines:
+  // 1) The line consisting of the outer point (ex: point A, B, C or D) and this
+  // outer point adjusted by the corresponding edge's border width (inner
+  // point).
+  // 2) The line consisting of the inner point adjusted by the corresponding
+  // edge's border radius in the x-direction and the inner point adjusted by the
+  // corresponding edge's border radius in the y-direction.
+  // If no intersection point exists, the transition center is just the inner
+  // point.
+
+  base::optional<SkPoint> intersection;
+  // Top Left
+  const SkPoint top_left_outer = {rect.x(), rect.y()};
+  SkPoint top_left_inner = {rect.x() + border.left.width,
+                            rect.y() + border.top.width};
+
+  if (!inner_rounded_corners.top_left.IsSquare()) {
+    intersection = CalculateIntersectionPoint(
+        top_left_outer, top_left_inner,
+        SkPoint({top_left_inner.x() + inner_rounded_corners.top_left.horizontal,
+                 top_left_inner.y()}),
+        SkPoint(
+            {top_left_inner.x(),
+             top_left_inner.y() + inner_rounded_corners.top_left.vertical}));
+    if (intersection) {
+      top_left_inner = SkPoint({intersection->x(), intersection->y()});
+    }
+  }
+
+  // Top Right
+  const SkPoint top_right_outer = {rect.right(), rect.y()};
+  SkPoint top_right_inner = {rect.right() - border.right.width,
+                             rect.y() + border.top.width};
+
+  if (!inner_rounded_corners.top_right.IsSquare()) {
+    intersection = CalculateIntersectionPoint(
+        top_right_outer, top_right_inner,
+        SkPoint(
+            {top_right_inner.x() - inner_rounded_corners.top_right.horizontal,
+             top_right_inner.y()}),
+        SkPoint(
+            {top_right_inner.x(),
+             top_right_inner.y() + inner_rounded_corners.top_right.vertical}));
+    if (intersection) {
+      top_right_inner = SkPoint({intersection->x(), intersection->y()});
+    }
+  }
+
+  // Bottom Left
+  const SkPoint bottom_left_outer = {rect.x(), rect.bottom()};
+  SkPoint bottom_left_inner = {rect.x() + border.left.width,
+                               rect.bottom() - border.bottom.width};
+
+  if (!inner_rounded_corners.bottom_left.IsSquare()) {
+    intersection = CalculateIntersectionPoint(
+        bottom_left_outer, bottom_left_inner,
+        SkPoint({bottom_left_inner.x() +
+                     inner_rounded_corners.bottom_left.horizontal,
+                 bottom_left_inner.y()}),
+        SkPoint({bottom_left_inner.x(),
+                 bottom_left_inner.y() -
+                     inner_rounded_corners.bottom_left.vertical}));
+    if (intersection) {
+      bottom_left_inner = SkPoint({intersection->x(), intersection->y()});
+    }
+  }
+
+  // Bottom Right
+  const SkPoint bottom_right_outer = {rect.right(), rect.bottom()};
+  SkPoint bottom_right_inner = {rect.right() - border.right.width,
+                                rect.bottom() - border.bottom.width};
+
+  if (!inner_rounded_corners.bottom_right.IsSquare()) {
+    intersection = CalculateIntersectionPoint(
+        bottom_right_outer, bottom_right_inner,
+        SkPoint({bottom_right_inner.x() -
+                     inner_rounded_corners.bottom_right.horizontal,
+                 bottom_right_inner.y()}),
+        SkPoint({bottom_right_inner.x(),
+                 bottom_right_inner.y() -
+                     inner_rounded_corners.bottom_right.vertical}));
+    if (intersection) {
+      bottom_right_inner = SkPoint({intersection->x(), intersection->y()});
+    }
+  }
+
+  // Top
+  SkPoint top_points[4] = {top_left_outer, top_left_inner,     // A, E
+                           top_right_inner, top_right_outer};  // F, B
+  SetUpDrawStateClipPath(draw_state, top_points);
+  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
+                                           content_rect, inner_rounded_corners,
+                                           border.top.color);
+
+  // Left
+  SkPoint left_points[4] = {top_left_outer, bottom_left_outer,   // A, C
+                            bottom_left_inner, top_left_inner};  // G, E
+  SetUpDrawStateClipPath(draw_state, left_points);
+  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
+                                           content_rect, inner_rounded_corners,
+                                           border.left.color);
+
+  // Bottom
+  SkPoint bottom_points[4] = {bottom_left_inner, bottom_left_outer,     // G, C
+                              bottom_right_outer, bottom_right_inner};  // D, H
+  SetUpDrawStateClipPath(draw_state, bottom_points);
+  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
+                                           content_rect, inner_rounded_corners,
+                                           border.bottom.color);
+
+  // Right
+  SkPoint right_points[4] = {top_right_inner, bottom_right_inner,   // F, H
+                             bottom_right_outer, top_right_outer};  // D, B
+  SetUpDrawStateClipPath(draw_state, right_points);
+  DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
+                                           content_rect, inner_rounded_corners,
+                                           border.right.color);
 }
 
 void DrawSolidRoundedRectBorderSoftware(
@@ -1196,9 +1394,18 @@ void DrawSolidRoundedRectBorderSoftware(
   RenderTreeNodeVisitorDrawState sub_draw_state(*draw_state);
   sub_draw_state.render_target = &canvas;
 
-  DrawSolidRoundedRectBorderToRenderTarget(&sub_draw_state, canvas_rect,
-                                           rounded_corners, canvas_content_rect,
-                                           inner_rounded_corners, border);
+  if (AllBorderSidesShareSameProperties(border)) {
+    // If all 4 edges share the same border properties, render the whole RRect
+    // at once.
+    DrawSolidRoundedRectBorderToRenderTarget(
+        &sub_draw_state, canvas_rect, rounded_corners, canvas_content_rect,
+        inner_rounded_corners, border.top.color);
+  } else {
+    DrawSolidRoundedRectBorderByEdge(&sub_draw_state, canvas_rect,
+                                     rounded_corners, canvas_content_rect,
+                                     inner_rounded_corners, border);
+  }
+
   canvas.flush();
 
   SkPaint render_target_paint;
@@ -1207,56 +1414,26 @@ void DrawSolidRoundedRectBorderSoftware(
                                         &render_target_paint);
 }
 
-namespace {
-bool IsCircle(const math::SizeF& size,
-              const render_tree::RoundedCorners& rounded_corners) {
-  if (size.width() != size.height()) {
-    return false;
-  }
-
-  float radius = size.width() * 0.5f;
-  // Corners cannot be "more round" than a circle, so we check using >= rather
-  // than == here.
-  return rounded_corners.AllCornersGE(
-      render_tree::RoundedCorner(radius, radius));
-}
-
-bool ValidateSolidBorderProperties(const render_tree::Border& border) {
-  if ((border.top == border.left) &&
-      (border.top == border.right) &&
-      (border.top == border.bottom) &&
-      (border.top.style == render_tree::kBorderStyleSolid)) {
-    return true;
-  } else {
-    DLOG(ERROR) << "Border sides have different properties: " << border;
-    return false;
-  }
-}
-
-}  // namespace
-
 void DrawSolidRoundedRectBorder(
     RenderTreeNodeVisitorDrawState* draw_state, const math::RectF& rect,
     const render_tree::RoundedCorners& rounded_corners,
     const math::RectF& content_rect,
     const render_tree::RoundedCorners& inner_rounded_corners,
     const render_tree::Border& border) {
-  // We only support rendering of rounded corner borders if each side has
-  // the same properties.
-  DCHECK(ValidateSolidBorderProperties(border));
-
-  if (IsCircle(rect.size(), rounded_corners)) {
-    // We are able to render circular borders using hardware, so introduce
-    // a special case for them.
-    DrawSolidRoundedRectBorderToRenderTarget(draw_state, rect, rounded_corners,
-                                             content_rect,
-                                             inner_rounded_corners, border);
+  if (IsCircle(rect.size(), rounded_corners) &&
+      AllBorderSidesShareSameProperties(border)) {
+    // We are able to render circular borders, whose edges have the same
+    // properties, using hardware, so introduce a special case for them.
+    DrawSolidRoundedRectBorderToRenderTarget(
+        draw_state, rect, rounded_corners, content_rect, inner_rounded_corners,
+        border.top.color);
   } else {
     // For now we fallback to software for drawing most rounded corner borders,
     // with some situations specified above being special cased. The reason we
     // do this is to limit then number of shaders that need to be implemented.
-    NOTIMPLEMENTED() << "Warning: Software rasterizing a solid rectangle "
-                        "border.";
+    NOTIMPLEMENTED() << "Warning: Software rasterizing either a solid "
+                        "rectangle, oval or circle border with different "
+                        "properties.";
     DrawSolidRoundedRectBorderSoftware(draw_state, rect, rounded_corners,
                                        content_rect, inner_rounded_corners,
                                        border);

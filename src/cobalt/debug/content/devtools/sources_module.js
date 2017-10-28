@@ -156,7 +156,7 @@ InspectorFrontendHost.copyText(text);},registerShortcuts:function(registerShortc
 {if(!this._statusMessageElement)
 this._statusMessageElement=this.element.createChild("div","callstack-info status");if(typeof status==="string"){this._statusMessageElement.textContent=status;}else{this._statusMessageElement.removeChildren();this._statusMessageElement.appendChild(status);}},_keyDown:function(event)
 {if(event.altKey||event.shiftKey||event.metaKey||event.ctrlKey)
-return;if(event.keyIdentifier==="Up"&&this._selectPreviousCallFrameOnStack()||event.keyIdentifier==="Down"&&this._selectNextCallFrameOnStack())
+return;if(event.key==="Up"&&this._selectPreviousCallFrameOnStack()||event.key==="Down"&&this._selectNextCallFrameOnStack())
 event.consume(true);},__proto__:WebInspector.SidebarPane.prototype}
 WebInspector.CallStackSidebarPane.CallFrame=function(callFrame,asyncCallFrame)
 {WebInspector.UIList.Item.call(this,WebInspector.beautifyFunctionName(callFrame.functionName),"");WebInspector.debuggerWorkspaceBinding.createCallFrameLiveLocation(callFrame,this._update.bind(this));this._callFrame=callFrame;this._asyncCallFrame=asyncCallFrame;}
@@ -549,7 +549,7 @@ return;if(this._popoverAnchorBox._highlightDescriptor)
 this.textEditor.removeHighlight(this._popoverAnchorBox._highlightDescriptor);delete this._popoverAnchorBox;},_addBreakpointDecoration:function(lineNumber,columnNumber,condition,enabled,mutedWhileEditing)
 {var breakpoint={condition:condition,enabled:enabled,columnNumber:columnNumber};this.textEditor.setAttribute(lineNumber,"breakpoint",breakpoint);var disabled=!enabled||mutedWhileEditing;this.textEditor.addBreakpoint(lineNumber,disabled,!!condition);},_removeBreakpointDecoration:function(lineNumber)
 {this.textEditor.removeAttribute(lineNumber,"breakpoint");this.textEditor.removeBreakpoint(lineNumber);},_onKeyDown:function(event)
-{if(event.keyIdentifier==="U+001B"){if(this._popoverHelper.isPopoverVisible()){this._popoverHelper.hidePopover();event.consume();}}},_editBreakpointCondition:function(lineNumber,breakpoint)
+{if(event.key==="U+001B"){if(this._popoverHelper.isPopoverVisible()){this._popoverHelper.hidePopover();event.consume();}}},_editBreakpointCondition:function(lineNumber,breakpoint)
 {this._conditionElement=this._createConditionElement(lineNumber);this.textEditor.addDecoration(lineNumber,this._conditionElement);function finishEditing(committed,element,newText)
 {this.textEditor.removeDecoration(lineNumber,this._conditionElement);delete this._conditionEditorElement;delete this._conditionElement;if(!committed)
 return;if(breakpoint)

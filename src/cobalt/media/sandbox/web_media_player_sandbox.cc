@@ -74,7 +74,7 @@ struct Args {
 
   void PopBack() {
     if (!buffs_.empty()) {
-      delete buffs_.back();
+      delete[] buffs_.back();
       buffs_.pop_back();
     }
   }

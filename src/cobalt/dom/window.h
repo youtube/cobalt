@@ -16,6 +16,7 @@
 #define COBALT_DOM_WINDOW_H_
 
 #include <string>
+#include <vector>
 
 #include "base/callback.h"
 #include "base/hash_tables.h"
@@ -110,10 +111,7 @@ class Window : public EventTarget,
   typedef base::Callback<void(base::TimeDelta)> CloseCallback;
   typedef UrlRegistry<MediaSource> MediaSourceRegistry;
   typedef base::Callback<bool(const GURL&, const std::string&)> CacheCallback;
-  enum ClockType {
-    kClockTypeTestRunner,
-    kClockTypeSystemTime
-  };
+  enum ClockType { kClockTypeTestRunner, kClockTypeSystemTime };
 
   Window(
       int width, int height, float device_pixel_ratio,
@@ -140,7 +138,6 @@ class Window : public EventTarget,
       const base::Callback<void(const std::string&)>& error_callback,
       network_bridge::CookieJar* cookie_jar,
       const network_bridge::PostSender& post_sender,
-      const std::string& default_security_policy,
       csp::CSPHeaderPolicy require_csp,
       dom::CspEnforcementType csp_enforcement_mode,
       const base::Closure& csp_policy_changed_callback,
@@ -235,9 +232,11 @@ class Window : public EventTarget,
   scoped_refptr<Crypto> crypto() const;
 
   // base64 encoding and decoding
-  std::string Btoa(const std::string& string_to_encode);
+  std::string Btoa(const std::string& string_to_encode,
+                   script::ExceptionState* exception_state);
 
-  std::string Atob(const std::string& encoded_string);
+  std::vector<uint8_t> Atob(const std::string& encoded_string,
+                            script::ExceptionState* exception_state);
 
   // Web API: WindowTimers (implements)
   //   https://www.w3.org/TR/html5/webappapis.html#timers
@@ -305,11 +304,6 @@ class Window : public EventTarget,
   void SetSize(int width, int height, float device_pixel_ratio);
 
   void SetCamera3D(const scoped_refptr<input::Camera3D>& camera_3d);
-
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    html_element_context_->set_can_play_type_handler(can_play_type_handler);
-  }
 
   void set_web_media_player_factory(
       media::WebMediaPlayerFactory* web_media_player_factory) {

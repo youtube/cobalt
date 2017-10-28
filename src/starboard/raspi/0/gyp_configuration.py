@@ -20,13 +20,23 @@ import sys
 _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(_SCRIPT_DIR, '..'))
 
+import cobalt.tools.webdriver_benchmark_config as wb_config
 # pylint: disable=g-import-not-at-top
 from shared.gyp_configuration import RaspiPlatformConfig
 
 
 def CreatePlatformConfig():
   try:
-    return RaspiPlatformConfig('raspi-0')
+    return RaspiZeroPlatformConfig('raspi-0')
   except RuntimeError as e:
     logging.critical(e)
     return None
+
+
+class RaspiZeroPlatformConfig(RaspiPlatformConfig):
+
+  def __init__(self, platform):
+    super(RaspiZeroPlatformConfig, self).__init__(platform)
+
+  def GetDefaultSampleSize(self):
+    return wb_config.REDUCED_SIZE

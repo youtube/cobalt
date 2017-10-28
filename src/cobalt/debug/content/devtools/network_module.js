@@ -11,7 +11,7 @@ return;var text=input.value.trim();finish.call(this);if(text)
 onAccept(text);else
 this._update();}
 function keydown(event)
-{if(isEnterKey(event)){event.consume();commit.call(this);}else if(event.keyCode===WebInspector.KeyboardShortcut.Keys.Esc.code||event.keyIdentifier==="U+001B"){event.consume();finish.call(this);this._update();}}},_addBlockedURL:function(url)
+{if(isEnterKey(event)){event.consume();commit.call(this);}else if(event.keyCode===WebInspector.KeyboardShortcut.Keys.Esc.code||event.key==="U+001B"){event.consume();finish.call(this);this._update();}}},_addBlockedURL:function(url)
 {var blocked=this._blockedURLsSetting.get();blocked.push(url);this._blockedURLsSetting.set(blocked);},_removeBlockedURL:function(index)
 {var blocked=this._blockedURLsSetting.get();blocked.splice(index,1);this._blockedURLsSetting.set(blocked);},_changeBlockedURL:function(index,url)
 {var blocked=this._blockedURLsSetting.get();blocked.splice(index,1,url);this._blockedURLsSetting.set(blocked);},_removeAll:function()
@@ -678,7 +678,7 @@ var root=new TreeOutline(true);root.element.classList.add("outline-disclosure");
 WebInspector.RequestHeadersView.prototype={_updateFilter:function()
 {var text=this._filterInput.value;this._requestHeaderFilterSetting.set(text);this._filterRegex=text?new RegExp(text.escapeForRegExp(),"i"):null;this._updateHeaders();},_onFilterKeyDown:function(event)
 {var text=this._filterInput.value;if(!text)
-return;if(event.keyCode===WebInspector.KeyboardShortcut.Keys.Esc.code||event.keyIdentifier==="U+001B"){event.consume(true);this._filterInput.value="";this._updateFilter();}},_updateHeaders:function()
+return;if(event.keyCode===WebInspector.KeyboardShortcut.Keys.Esc.code||event.key==="U+001B"){event.consume(true);this._filterInput.value="";this._updateFilter();}},_updateHeaders:function()
 {this._refreshRequestHeaders();this._refreshResponseHeaders();},wasShown:function()
 {this._request.addEventListener(WebInspector.NetworkRequest.Events.RemoteAddressChanged,this._refreshRemoteAddress,this);this._request.addEventListener(WebInspector.NetworkRequest.Events.RequestHeadersChanged,this._refreshRequestHeaders,this);this._request.addEventListener(WebInspector.NetworkRequest.Events.ResponseHeadersChanged,this._refreshResponseHeaders,this);this._request.addEventListener(WebInspector.NetworkRequest.Events.FinishedLoading,this._refreshHTTPInformation,this);this._refreshURL();this._refreshQueryString();this._updateHeaders();this._refreshHTTPInformation();this._refreshRemoteAddress();},willHide:function()
 {this._request.removeEventListener(WebInspector.NetworkRequest.Events.RemoteAddressChanged,this._refreshRemoteAddress,this);this._request.removeEventListener(WebInspector.NetworkRequest.Events.RequestHeadersChanged,this._refreshRequestHeaders,this);this._request.removeEventListener(WebInspector.NetworkRequest.Events.ResponseHeadersChanged,this._refreshResponseHeaders,this);this._request.removeEventListener(WebInspector.NetworkRequest.Events.FinishedLoading,this._refreshHTTPInformation,this);},_formatHeader:function(name,value)

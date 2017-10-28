@@ -274,7 +274,7 @@ bool Application::DispatchAndDelete(Application::Event* event) {
         return true;
       }
 
-      if (state() == kStatePaused) {
+      if (state() == kStatePaused || state() == kStatePreloading) {
         Inject(new Event(kSbEventTypeSuspend, NULL, NULL));
         Inject(scoped_event.release());
         return true;

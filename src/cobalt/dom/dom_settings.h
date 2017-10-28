@@ -23,7 +23,6 @@
 #include "cobalt/dom/url_registry.h"
 #include "cobalt/dom/url_utils.h"
 #include "cobalt/media/can_play_type_handler.h"
-#include "cobalt/media/media_module.h"
 #include "cobalt/script/environment_settings.h"
 #include "cobalt/speech/microphone.h"
 
@@ -68,7 +67,6 @@ class DOMSettings : public script::EnvironmentSettings {
   DOMSettings(const int max_dom_element_depth,
               loader::FetcherFactory* fetcher_factory,
               network::NetworkModule* network_module,
-              media::MediaModule* media_module,
               const scoped_refptr<Window>& window,
               MediaSourceRegistry* media_source_registry,
               Blob::Registry* blob_registry,
@@ -101,10 +99,6 @@ class DOMSettings : public script::EnvironmentSettings {
     network_module_ = network_module;
   }
   network::NetworkModule* network_module() const { return network_module_; }
-  media::MediaModule* media_module() const { return media_module_; }
-  void set_media_module(media::MediaModule* media_module) {
-    media_module_ = media_module;
-  }
   script::JavaScriptEngine* javascript_engine() const {
     return javascript_engine_;
   }
@@ -116,10 +110,6 @@ class DOMSettings : public script::EnvironmentSettings {
   }
   media::CanPlayTypeHandler* can_play_type_handler() const {
     return can_play_type_handler_;
-  }
-  void set_can_play_type_handler(
-      media::CanPlayTypeHandler* can_play_type_handler) {
-    can_play_type_handler_ = can_play_type_handler;
   }
   MutationObserverTaskManager* mutation_observer_task_manager() const {
     return mutation_observer_task_manager_;
@@ -137,7 +127,6 @@ class DOMSettings : public script::EnvironmentSettings {
   const speech::Microphone::Options microphone_options_;
   loader::FetcherFactory* fetcher_factory_;
   network::NetworkModule* network_module_;
-  media::MediaModule* media_module_;
   scoped_refptr<Window> window_;
   ArrayBuffer::Allocator* array_buffer_allocator_;
   ArrayBuffer::Cache* array_buffer_cache_;
