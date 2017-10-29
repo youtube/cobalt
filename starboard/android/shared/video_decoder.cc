@@ -425,10 +425,10 @@ bool VideoDecoder::DequeueAndProcessOutputBuffer() {
   DequeueOutputResult dequeue_output_result =
       media_codec_bridge_->DequeueOutputBuffer(kDequeueTimeout);
 
-  if (dequeue_output_result.flags == BUFFER_FLAG_END_OF_STREAM) {
-    SB_DCHECK(dequeue_output_result.index >= 0);
-  }
-
+  // Note that if the |index| field of |DequeueOutputResult| is negative, then
+  // all fields other than |status| and |index| are invalid.  This is
+  // especially important, as the Java side of |MediaCodecBridge| will reuse
+  // objects for returned results behind the scenes.
   if (dequeue_output_result.index < 0) {
     if (dequeue_output_result.status == MEDIA_CODEC_OUTPUT_FORMAT_CHANGED) {
       RefreshOutputFormat();
@@ -455,6 +455,7 @@ bool VideoDecoder::DequeueAndProcessOutputBuffer() {
 
 void VideoDecoder::ProcessOutputBuffer(
     const DequeueOutputResult& dequeue_output_result) {
+  SB_DCHECK(dequeue_output_result.index >= 0);
   dequeue_output_results_.push_back(dequeue_output_result);
 }
 
