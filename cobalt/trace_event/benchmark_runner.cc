@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include <cstdio>
 #include <map>
 
@@ -25,19 +26,18 @@ namespace {
 using cobalt::trace_event::Benchmark;
 using cobalt::trace_event::BenchmarkResultsMap;
 
-PRINTF_FORMAT(1, 2) void Output(const char* fmt, ...) {
-  va_list ap;
-  va_start(ap, fmt);
-
-  std::vfprintf(stdout, fmt, ap);
-
-  va_end(ap);
-
+void Output(const char* message) {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  // Logging is compiled out in gold, so write directly to stdout instead.
+  // There is no need to synchronize, as nothing else will be logging.
+  std::fputs(message, stdout);
   std::fflush(stdout);
+#else
+  RAW_LOG(INFO, message);
+#endif
 }
 
 void JsonPrint(const BenchmarkResultsMap& benchmarks) {
-  Output("---Benchmark Results Start---\n");
   scoped_ptr<base::DictionaryValue> compilation(new base::DictionaryValue);
   for (BenchmarkResultsMap::const_iterator benchmark = benchmarks.begin();
        benchmark != benchmarks.end(); ++benchmark) {
@@ -75,16 +75,13 @@ void JsonPrint(const BenchmarkResultsMap& benchmarks) {
   std::string print_string;
   base::JSONWriter::WriteWithOptions(
       compilation.get(), base::JSONWriter::OPTIONS_PRETTY_PRINT, &print_string);
-  Output("%s", print_string.c_str());
 
-  Output("---Benchmark Results End---\n");
+  std::string result = "---Benchmark Results Start---\n" + print_string +
+                       "---Benchmark Results End---\n";
+  Output(result.c_str());
 }
 
 int RunnerMain(int argc, char** argv) {
-#if defined(NDEBUG)
-  // Get rid of all log output so we only see benchmark results.
-  logging::SetMinLogLevel(logging::LOG_FATAL);
-#endif
   BenchmarkResultsMap benchmarks =
       cobalt::trace_event::BenchmarkRegistrar::GetInstance()
           ->ExecuteBenchmarks();
