@@ -14,6 +14,11 @@
 
 #include "starboard/system.h"
 
+#include <netdb.h>
+#include <linux/if.h>  // NOLINT(build/include_alpha)
+#include <sys/ioctl.h>
+#include <sys/socket.h>
+
 #include "starboard/log.h"
 #include "starboard/string.h"
 
@@ -29,6 +34,48 @@ bool CopyStringAndTestIfSuccess(char* out_value,
     return false;
   SbStringCopy(out_value, from_value, value_length);
   return true;
+}
+
+bool GetPlatformUuid(char* out_value, int value_length) {
+  struct ifreq interface;
+  struct ifconf config;
+  char buf[1024];
+
+  int fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_IP);
+  if (fd == -1) {
+    return false;
+  }
+  config.ifc_len = sizeof(buf);
+  config.ifc_buf = buf;
+  int result = ioctl(fd, SIOCGIFCONF, &config);
+  if (result == -1) {
+    return false;
+  }
+
+  struct ifreq* cur_interface = config.ifc_req;
+  const struct ifreq* const end = cur_interface +
+      (config.ifc_len / sizeof(struct ifreq));
+
+  for (; cur_interface != end; ++cur_interface) {
+    SbStringCopy(interface.ifr_name,
+        cur_interface->ifr_name,
+        sizeof(cur_interface->ifr_name));
+    if (ioctl(fd, SIOCGIFFLAGS, &interface) == -1) {
+      continue;
+    }
+    if (interface.ifr_flags & IFF_LOOPBACK) {
+      continue;
+    }
+    if (ioctl(fd, SIOCGIFHWADDR, &interface) == -1) {
+      continue;
+    }
+    SbStringFormatF(out_value, value_length, "%x:%x:%x:%x:%x:%x",
+        interface.ifr_addr.sa_data[0], interface.ifr_addr.sa_data[1],
+        interface.ifr_addr.sa_data[2], interface.ifr_addr.sa_data[3],
+        interface.ifr_addr.sa_data[4], interface.ifr_addr.sa_data[5]);
+    return true;
+  }
+  return false;
 }
 
 }  // namespace
@@ -57,8 +104,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, kPlatformName);
 
     case kSbSystemPropertyPlatformUuid:
-      SB_NOTIMPLEMENTED();
-      return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
+      return GetPlatformUuid(out_value, value_length);
 
     default:
       SB_DLOG(WARNING) << __FUNCTION__
