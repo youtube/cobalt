@@ -21,37 +21,48 @@ per-tool basis.
 
 import argparse
 
+import _env  # pylint: disable=unused-import
+from starboard.tools import build
+import starboard.tools.config
+import starboard.tools.platform
+
 
 def CreateParser():
   """Returns an argparse.ArgumentParser object set up for Starboard tools."""
   arg_parser = argparse.ArgumentParser(
-      description="Runs application/tool executables.")
+      description='Runs application/tool executables.')
+  default_config, default_platform = build.GetDefaultConfigAndPlatform()
   arg_parser.add_argument(
-      "-p",
-      "--platform",
+      '-p',
+      '--platform',
+      choices=starboard.tools.platform.GetAllNames(),
+      default=default_platform,
+      required=not default_platform,
       help="Device platform, eg 'linux-x64x11'.")
   arg_parser.add_argument(
-      "-c",
-      "--config",
-      choices=["debug", "devel", "qa", "gold"],
+      '-c',
+      '--config',
+      choices=starboard.tools.config.GetAll(),
+      default=default_config,
+      required=not default_config,
       help="Build config (eg, 'qa' or 'devel')")
   arg_parser.add_argument(
-      "-d",
-      "--device_id",
-      help="Devkit or IP address for the target device.")
+      '-d',
+      '--device_id',
+      help='Devkit or IP address for the target device.')
   arg_parser.add_argument(
-      "-t",
-      "--target_name",
-      help="Name of executable target.")
+      '-t',
+      '--target_name',
+      help='Name of executable target.')
   arg_parser.add_argument(
-      "--target_params",
-      help="Command line arguments to pass to the executable."
-           " Because different executables could have differing command"
-           " line syntax, list all arguments exactly as you would to the"
-           " executable between a set of double quotation marks.")
+      '--target_params',
+      help='Command line arguments to pass to the executable.'
+           ' Because different executables could have differing command'
+           ' line syntax, list all arguments exactly as you would to the'
+           ' executable between a set of double quotation marks.')
   arg_parser.add_argument(
-      "-o",
-      "--out_directory",
-      help="Directory containing tool binaries or their components."
-           " Automatically derived if absent.")
+      '-o',
+      '--out_directory',
+      help='Directory containing tool binaries or their components.'
+           ' Automatically derived if absent.')
   return arg_parser

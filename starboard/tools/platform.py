@@ -89,6 +89,19 @@ def GetAllPorts():
   return _GetAllPlatforms(port_root_paths)
 
 
+def GetAllNames():
+  """Gets a list of all valid Starboard platform names.
+
+  Returns:
+    List of valid platform names.
+  """
+  return sorted(GetAllPorts().keys())
+
+
+def IsValid(platform):
+  return platform in GetAllNames()
+
+
 class PlatformInfo(object):
   """Information about a specific starboard port."""
 
