@@ -181,8 +181,13 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     case kSbSystemPathExecutableFile:
       return GetExecutablePath(out_path, path_size);
 
+  case kSbSystemPathFontConfigurationDirectory:
+  case kSbSystemPathFontDirectory:
+      return false;
+
     default:
-      SB_NOTIMPLEMENTED();
+      SB_NOTIMPLEMENTED() << "SbSystemGetPath not implemented for "
+                          << path_id;
       return false;
   }
 
