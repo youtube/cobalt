@@ -394,7 +394,8 @@ bool SourceBufferStream::Append(const BufferQueue& buffers) {
 
   DVLOG(1) << __func__ << " " << GetStreamTypeName()
            << ": done. ranges_=" << RangesToString(ranges_);
-  DCHECK(IsRangeListSorted(ranges_));
+  // TODO: Investigate if the following DCHECK should be restored.
+  // DCHECK(IsRangeListSorted(ranges_));
   DCHECK(OnlySelectedRangeIsSeeked());
   return true;
 }
