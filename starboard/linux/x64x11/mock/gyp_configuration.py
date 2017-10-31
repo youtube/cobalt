@@ -15,9 +15,10 @@
 
 import logging
 
-import config.starboard
+import config.base
 import gyp_utils
 import starboard.tools.testing.test_filter as test_filter
+
 
 def CreatePlatformConfig():
   try:
@@ -27,7 +28,7 @@ def CreatePlatformConfig():
     return None
 
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard mock platform configuration."""
 
   def __init__(self, platform):
