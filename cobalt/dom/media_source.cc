@@ -348,5 +348,12 @@ void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   }
 }
 
+void MediaSource::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  event_queue_.TraceMembers(tracer);
+  tracer->Trace(source_buffers_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

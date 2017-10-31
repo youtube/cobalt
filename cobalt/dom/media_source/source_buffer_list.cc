@@ -122,6 +122,17 @@ void SourceBufferList::Clear() {
   ScheduleEvent(base::Tokens::removesourcebuffer());
 }
 
+void SourceBufferList::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  if (event_queue_) {
+    event_queue_->TraceMembers(tracer);
+  }
+  for (const auto& source_buffer : source_buffers_) {
+    tracer->Trace(source_buffer);
+  }
+}
+
 void SourceBufferList::ScheduleEvent(base::Token event_name) {
   scoped_refptr<Event> event = new Event(event_name);
   event->set_target(this);

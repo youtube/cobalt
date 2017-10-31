@@ -152,6 +152,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
   // Called by MediaSource
   void DurationChanged(double duration, bool request_seek);
