@@ -55,7 +55,8 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
                       base::optional<OpaqueHandleHolder::Reference>*
                           out_opaque_handle) override;
 
-  std::vector<StackFrame> GetStackTrace(int max_frames = 0) override;
+  std::vector<StackFrame> GetStackTrace(int max_frames) override;
+  using GlobalEnvironment::GetStackTrace;
 
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) override;
