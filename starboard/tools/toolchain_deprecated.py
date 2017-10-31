@@ -4,39 +4,32 @@
 """Starboard's abstract Toolchain which is implemented for each platform."""
 
 import abc
-import imp
-import logging
-import os
-
-import starboard
-from starboard.tools import paths
-from starboard.tools import platform
 
 
 class ABCMetaSingleton(abc.ABCMeta):
   instances = {}
 
-  def __call__(self, *args, **kwargs):
-    if self not in self.instances:
-      self.instances[self] = super(ABCMetaSingleton, self).__call__(
+  def __call__(cls, *args, **kwargs):
+    if cls not in cls.instances:
+      cls.instances[cls] = super(ABCMetaSingleton, cls).__call__(
           *args, **kwargs)
-    return self.instances[self]
+    return cls.instances[cls]
 
 
 class Toolchain(object):
   """This is an abstract interface of the Toolchain."""
-  """ TODO: move variables / commands
-        AR / _HOST
-        ARFLAGS / _HOST
-        ARTHINFLAGS / _HOST
-        CC / CC_HOST
-        CXX / CXX_HOST
-        LD / LD_HOST
-        RC / RC_HOST
-     And / or implement NinjaWriter.WriteSources & GenerateOutputForConfig body
-     here.
-"""
   __metaclass__ = ABCMetaSingleton
+
+  # TODO: move variables / commands
+  #   AR / _HOST
+  #   ARFLAGS / _HOST
+  #   ARTHINFLAGS / _HOST
+  #   CC / CC_HOST
+  #   CXX / CXX_HOST
+  #   LD / LD_HOST
+  #   RC / RC_HOST
+  # And / or implement NinjaWriter.WriteSources & GenerateOutputForConfig body
+  # here.
 
   @abc.abstractmethod
   def Define(self, d):
@@ -85,6 +78,7 @@ class Toolchain(object):
 
 
 class PrecompiledHeader:
+  """Abstract precompiled header settings class."""
   __metaclass__ = abc.ABCMeta
 
   @abc.abstractmethod
