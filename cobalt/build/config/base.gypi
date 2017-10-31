@@ -561,12 +561,6 @@
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
-
-    # Set to 1 to enable MediaKeySession::keyStatuses and
-    # MediaKeySession::onkeystatuseschange support.  This requires that
-    # SB_API_VERSION is greater than or equal to
-    # SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION.
-    'cobalt_encrypted_media_extension_enable_key_statuses_update%': 1,
   },
 
   'target_defaults': {
@@ -639,11 +633,6 @@
         'defines': [
           'COBALT_GC_ZEAL=1',
           'JS_GC_ZEAL=1',
-        ],
-      }],
-      ['cobalt_encrypted_media_extension_enable_key_statuses_update == 1', {
-        'defines': [
-          'COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE=1',
         ],
       }],
       ['final_executable_type=="shared_library"', {

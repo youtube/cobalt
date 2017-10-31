@@ -23,7 +23,6 @@
     "cobalt_copy_debug_console",
     "cobalt_copy_test_data",
     "cobalt_enable_jit",
-    "cobalt_encrypted_media_extension_enable_key_statuses_update",
     "cobalt_fastbuild",
     "cobalt_media_source_2016",
     "custom_media_session_client",

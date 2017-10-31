@@ -40,11 +40,11 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   typedef base::Callback<void()> SessionUpdateRequestDidNotGenerateCallback;
   typedef base::Callback<void()> SessionUpdatedCallback;
   typedef base::Callback<void()> SessionDidNotUpdateCallback;
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
   typedef base::Callback<void(const std::vector<std::string>& key_ids,
                               const std::vector<SbDrmKeyStatus>& key_statuses)>
       SessionUpdateKeyStatusesCallback;
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
   // Flyweight that provides RAII semantics for sessions.
   // Most of logic is implemented by |DrmSystem| and thus sessions must be
@@ -89,31 +89,31 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
    private:
     // Private API for |DrmSystem|.
     Session(DrmSystem* drm_system
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
             ,
             SessionUpdateKeyStatusesCallback update_key_statuses_callback
-#endif  // SB_API_VERSION >= 6
+#endif          // SB_HAS(DRM_KEY_STATUSES)
             );  // NOLINT(whitespace/parens)
     void set_id(const std::string& id) { id_ = id; }
     const SessionUpdateRequestGeneratedCallback&
     update_request_generated_callback() const {
       return update_request_generated_callback_;
     }
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
     const SessionUpdateKeyStatusesCallback& update_key_statuses_callback()
         const {
       return update_key_statuses_callback_;
     }
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
     DrmSystem* const drm_system_;
     bool closed_;
     base::optional<std::string> id_;
     // Supports spontaneous invocations of |SbDrmSessionUpdateRequestFunc|.
     SessionUpdateRequestGeneratedCallback update_request_generated_callback_;
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
     SessionUpdateKeyStatusesCallback update_key_statuses_callback_;
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
     friend class DrmSystem;
 
@@ -126,9 +126,9 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
   SbDrmSystem wrapped_drm_system() { return wrapped_drm_system_; }
 
   scoped_ptr<Session> CreateSession(
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
       SessionUpdateKeyStatusesCallback session_update_key_statuses_callback
-#endif  // SB_API_VERSION >= 6
+#endif    // SB_HAS(DRM_KEY_STATUSES)
       );  // NOLINT(whitespace/parens)
 
  private:
@@ -169,11 +169,11 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
       int ticket, const base::optional<std::string>& session_id,
       scoped_array<uint8> message, int message_size);
   void OnSessionUpdated(int ticket, bool succeeded);
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
   void OnSessionKeyStatusChanged(
       const std::string& session_id, const std::vector<std::string>& key_ids,
       const std::vector<SbDrmKeyStatus>& key_statuses);
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
   // Called on any thread, parameters need to be copied immediately.
   static void OnSessionUpdateRequestGeneratedFunc(
@@ -184,12 +184,12 @@ class DrmSystem : public base::RefCounted<DrmSystem> {
                                    void* context, int ticket,
                                    const void* session_id,
                                    int session_id_length, bool succeeded);
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
   static void OnSessionKeyStatusesChangedFunc(
       SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
       int session_id_size, int number_of_keys, const SbDrmKeyId* key_ids,
       const SbDrmKeyStatus* key_statuses);
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
   const SbDrmSystem wrapped_drm_system_;
   MessageLoop* const message_loop_;
