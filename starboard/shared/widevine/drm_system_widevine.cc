@@ -85,17 +85,17 @@ SbDrmSystemWidevine::SbDrmSystemWidevine(
     void* context,
     SbDrmSessionUpdateRequestFunc session_update_request_callback,
     SbDrmSessionUpdatedFunc session_updated_callback
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
     ,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
     )
     : context_(context),
       session_update_request_callback_(session_update_request_callback),
       session_updated_callback_(session_updated_callback),
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
       key_statuses_changed_callback_(key_statuses_changed_callback),
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
       ticket_(kSbDrmTicketInvalid),
       ticket_thread_id_(SbThreadGetId()),
       buffer_(new BufferImpl()),
@@ -172,7 +172,7 @@ void SbDrmSystemWidevine::UpdateSession(
                             ticket,
                             session_id, session_id_size, succeeded);
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 #if ENABLE_KEY_STATUSES_CALLBACK
   std::set<std::string> key_ids =
       cdm_->GetKeys(reinterpret_cast<const char*>(session_id), session_id_size);
@@ -192,7 +192,7 @@ void SbDrmSystemWidevine::UpdateSession(
                                  sb_key_ids.size(), sb_key_ids.data(),
                                  sb_key_statuses.data());
 #endif  // ENABLE_KEY_STATUSES_CALLBACK
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 void SbDrmSystemWidevine::CloseSession(const void* session_id,
@@ -307,7 +307,7 @@ void SbDrmSystemWidevine::SendKeyError(const char* web_session_id,
                                        int32_t web_session_id_length,
                                        cdm::MediaKeyError error_code,
                                        uint32_t system_code) {
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 #if ENABLE_KEY_STATUSES_CALLBACK
   // CDM may call this method in response to |GenerateKeyRequest| and |AddKey|,
   // as well as spontaneously.
@@ -330,7 +330,7 @@ void SbDrmSystemWidevine::SendKeyError(const char* web_session_id,
                                  web_session_id_length, sb_key_ids.size(),
                                  sb_key_ids.data(), sb_key_statuses.data());
 #endif  // ENABLE_KEY_STATUSES_CALLBACK
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 namespace {

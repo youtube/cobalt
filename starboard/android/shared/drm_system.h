@@ -29,7 +29,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
  public:
   DrmSystem(void* context,
             SbDrmSessionUpdateRequestFunc update_request_callback,
-            SbDrmSessionUpdatedFunc session_updated_callback);
+            SbDrmSessionUpdatedFunc session_updated_callback,
+            SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
   ~DrmSystem() SB_OVERRIDE;
   void GenerateSessionUpdateRequest(int ticket,
@@ -60,6 +61,8 @@ class DrmSystem : public ::SbDrmSystemPrivate {
   void* context_;
   SbDrmSessionUpdateRequestFunc update_request_callback_;
   SbDrmSessionUpdatedFunc session_updated_callback_;
+  // TODO: Update key statuses to Cobalt.
+  SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback_;
 
   jobject j_media_drm_bridge_;
   jobject j_media_crypto_;
