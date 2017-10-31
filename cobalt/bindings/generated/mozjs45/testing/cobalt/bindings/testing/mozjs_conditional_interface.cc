@@ -684,4 +684,6 @@ namespace {
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
+
+
 #endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
