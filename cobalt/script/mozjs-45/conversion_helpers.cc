@@ -14,9 +14,8 @@
 
 #include "cobalt/script/mozjs-45/conversion_helpers.h"
 
-#include "third_party/mozjs-45/js/src/jsapi.h"
-
 #include "nb/memory_scope.h"
+#include "third_party/mozjs-45/js/src/jsapi.h"
 
 namespace cobalt {
 namespace script {

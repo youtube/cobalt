@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_SOURCE_CODE_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_SOURCE_CODE_H_
 
