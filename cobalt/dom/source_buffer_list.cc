@@ -89,5 +89,16 @@ void SourceBufferList::Clear() {
   }
 }
 
+void SourceBufferList::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  if (event_queue_) {
+    event_queue_->TraceMembers(tracer);
+  }
+  for (const auto& source_buffer : source_buffers_) {
+    tracer->Trace(source_buffer);
+  }
+}
+
 }  // namespace dom
 }  // namespace cobalt
