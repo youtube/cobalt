@@ -74,6 +74,11 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // Set |max_frames| to 0 to retrieve all available frames. Otherwise
   // return at most |max_frames|.
   virtual std::vector<StackFrame> GetStackTrace(int max_frames) = 0;
+  // Our style guide bans default arguments for virtual functions, however we
+  // ended up taking a dependency on them in our bindings code before it was
+  // caught. Instead, provide a non-virtual overload that wraps virtual
+  // |GetStackTrace(int)| to make everyone happy.
+  std::vector<StackFrame> GetStackTrace() { return GetStackTrace(0); }
 
   // Prevent this wrappable's associated JS wrapper object from being garbage
   // collected. AllowGarbageCollection must be called some time afterwards or

@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 
@@ -59,7 +60,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
                       base::optional<OpaqueHandleHolder::Reference>*
                           out_opaque_handle) OVERRIDE;
 
-  std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
+  std::vector<StackFrame> GetStackTrace(int max_frames) OVERRIDE;
+  using GlobalEnvironment::GetStackTrace;
 
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
