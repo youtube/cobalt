@@ -35,7 +35,7 @@ def CreateParser():
   arg_parser.add_argument(
       '-p',
       '--platform',
-      choices=starboard.tools.platform.GetAllNames(),
+      choices=starboard.tools.platform.GetAll(),
       default=default_platform,
       required=not default_platform,
       help="Device platform, eg 'linux-x64x11'.")
