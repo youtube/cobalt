@@ -64,12 +64,15 @@ jbyteArray ByteArrayFromRaw(const void* data, int size) {
 
 }  // namespace
 
-DrmSystem::DrmSystem(void* context,
-                     SbDrmSessionUpdateRequestFunc update_request_callback,
-                     SbDrmSessionUpdatedFunc session_updated_callback)
+DrmSystem::DrmSystem(
+    void* context,
+    SbDrmSessionUpdateRequestFunc update_request_callback,
+    SbDrmSessionUpdatedFunc session_updated_callback,
+    SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback)
     : context_(context),
       update_request_callback_(update_request_callback),
       session_updated_callback_(session_updated_callback),
+      key_statuses_changed_callback_(key_statuses_changed_callback),
       j_media_drm_bridge_(NULL),
       j_media_crypto_(NULL) {
   JniEnvExt* env = JniEnvExt::Get();
@@ -167,24 +170,3 @@ void DrmSystem::CallUpdateRequestCallback(int ticket,
 }  // namespace shared
 }  // namespace android
 }  // namespace starboard
-
-SbDrmSystem SbDrmCreateSystem(
-    const char* key_system,
-    void* context,
-    SbDrmSessionUpdateRequestFunc update_request_callback,
-    SbDrmSessionUpdatedFunc session_updated_callback) {
-  using starboard::android::shared::DrmSystem;
-  using starboard::android::shared::IsWidevine;
-
-  if (!IsWidevine(key_system)) {
-    return kSbDrmSystemInvalid;
-  }
-
-  DrmSystem* drm_system =
-      new DrmSystem(context, update_request_callback, session_updated_callback);
-  if (!drm_system->is_valid()) {
-    delete drm_system;
-    return kSbDrmSystemInvalid;
-  }
-  return drm_system;
-}
