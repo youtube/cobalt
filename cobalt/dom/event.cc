@@ -100,5 +100,10 @@ void Event::InitEventInternal(base::Token type, bool bubbles, bool cancelable) {
   default_prevented_ = false;
 }
 
+void Event::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(target_);
+  tracer->Trace(current_target_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

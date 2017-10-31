@@ -85,5 +85,11 @@ void SourceBuffer::Abort(script::ExceptionState* exception_state) {
 
 void SourceBuffer::Close() { media_source_ = NULL; }
 
+void SourceBuffer::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  tracer->Trace(media_source_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

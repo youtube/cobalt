@@ -126,6 +126,8 @@ class Event : public script::Wrappable {
     return immediate_propagation_stopped_;
   }
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(Event);
 
  private:

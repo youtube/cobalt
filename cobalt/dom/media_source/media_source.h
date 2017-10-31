@@ -121,6 +121,8 @@ class MediaSource : public EventTarget {
   void SetSourceBufferActive(SourceBuffer* source_buffer, bool is_active);
   HTMLMediaElement* GetMediaElement() const;
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(MediaSource);
 
  private:

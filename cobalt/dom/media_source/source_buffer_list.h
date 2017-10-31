@@ -83,6 +83,8 @@ class SourceBufferList : public EventTarget {
   bool Contains(const scoped_refptr<SourceBuffer>& source_buffer) const;
   void Clear();
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(SourceBufferList);
 
  private:
