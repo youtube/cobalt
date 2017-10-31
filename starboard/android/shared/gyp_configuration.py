@@ -15,16 +15,16 @@
 
 from __future__ import print_function
 
-import os
 import imp
+import os
 
-import config.starboard
+import config.base
 import gyp_utils
 import sdk_utils
 import starboard.tools.testing.test_filter as test_filter
 
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Android platform configuration."""
 
   # TODO: make ASAN work with NDK tools and enable it by default

@@ -46,7 +46,7 @@ def _CheckPlatform(key, raw_value, value):
 
   logging.warning("Environment variable '%s' is '%s', which is invalid.",
                   key, raw_value)
-  logging.warning('Valid platforms: %s', starboard.tools.platform.GetAllNames())
+  logging.warning('Valid platforms: %s', starboard.tools.platform.GetAll())
   return False
 
 
