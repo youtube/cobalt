@@ -52,22 +52,22 @@ class TvTestCase(unittest.TestCase):
   with an internal class with the same name.
   """
 
-  class WindowDriverCreatedTimeoutException(BaseException):
+  class WindowDriverCreatedTimeoutException(Exception):
     """Exception thrown when WindowDriver was not created in time."""
 
-  class WebModuleLoadedTimeoutException(BaseException):
+  class WebModuleLoadedTimeoutException(Exception):
     """Exception thrown when WebModule was not loaded in time."""
 
-  class ProcessingTimeoutException(BaseException):
+  class ProcessingTimeoutException(Exception):
     """Exception thrown when processing did not complete in time."""
 
-  class HtmlScriptElementExecuteTimeoutException(BaseException):
+  class HtmlScriptElementExecuteTimeoutException(Exception):
     """Exception thrown when processing did not complete in time."""
 
-  class TitleCardHiddenTimeoutException(BaseException):
+  class TitleCardHiddenTimeoutException(Exception):
     """Exception thrown when title card did not disappear in time."""
 
-  class SurveyShelfLimitExceededException(BaseException):
+  class SurveyShelfLimitExceededException(Exception):
     """Exception thrown when too many surveys are encountered."""
 
   @classmethod
