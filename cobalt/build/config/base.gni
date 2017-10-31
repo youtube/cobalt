@@ -523,14 +523,6 @@ if (!defined(cobalt_media_buffer_video_budget_4k)) {
   cobalt_media_buffer_video_budget_4k = "(60 * 1024 * 1024)"
 }
 
-# Set to true to enable MediaKeySession::keyStatuses and
-# MediaKeySession::onkeystatuseschange support.  This requires that
-# SB_API_VERSION is greater than or equal to
-# SB_DRM_KEY_STATUSES_UPDATE_SUPPORT_API_VERSION.
-if (!defined(cobalt_encrypted_media_extension_enable_key_statuses_update)) {
-  cobalt_encrypted_media_extension_enable_key_statuses_update = true
-}
-
 # Enables embedding Cobalt as a shared library within another app. This
 # requires a 'lib' starboard implementation for the corresponding platform.
 if (!defined(cobalt_enable_lib)) {
