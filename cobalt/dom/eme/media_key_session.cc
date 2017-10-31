@@ -223,6 +223,13 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Close() {
   return promise.Pass();
 }
 
+void MediaKeySession::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  tracer->Trace(key_status_map_);
+  event_queue_.TraceMembers(tracer);
+}
+
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestGenerated(

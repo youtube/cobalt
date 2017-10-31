@@ -44,6 +44,8 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue> {
   void Enqueue(const scoped_refptr<Event>& event);
   void CancelAllEvents();
 
+  void TraceMembers(script::Tracer* tracer);
+
  private:
   typedef std::vector<scoped_refptr<Event> > Events;
   void DispatchEvents();

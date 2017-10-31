@@ -50,6 +50,12 @@ void EventQueue::CancelAllEvents() {
   events_.clear();
 }
 
+void EventQueue::TraceMembers(script::Tracer* tracer) {
+  for (const auto& event : events_) {
+    tracer->Trace(event);
+  }
+}
+
 void EventQueue::DispatchEvents() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 

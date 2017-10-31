@@ -97,6 +97,8 @@ class MediaSource : public EventTarget {
   // Methods used by HTMLMediaElement
   void SetReadyState(MediaSourceReadyState ready_state);
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(MediaSource);
 
  private:

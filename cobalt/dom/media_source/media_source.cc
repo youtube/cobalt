@@ -516,6 +516,16 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
   return attached_element_;
 }
 
+void MediaSource::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  event_queue_.TraceMembers(tracer);
+  tracer->Trace(attached_element_);
+  tracer->Trace(source_buffers_);
+  tracer->Trace(active_source_buffers_);
+  tracer->Trace(live_seekable_range_);
+}
+
 void MediaSource::SetReadyState(MediaSourceReadyState ready_state) {
   if (ready_state == kMediaSourceReadyStateClosed) {
     chunk_demuxer_ = NULL;

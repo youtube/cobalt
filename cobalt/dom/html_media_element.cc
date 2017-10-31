@@ -684,6 +684,19 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   }
 }
 
+void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
+  HTMLElement::TraceMembers(tracer);
+
+  event_queue_.TraceMembers(tracer);
+
+  tracer->Trace(played_time_ranges_);
+  tracer->Trace(media_source_);
+  tracer->Trace(error_);
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  tracer->Trace(media_keys_);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+}
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
   MLOG() << "DurationChanged(" << duration << ", " << request_seek << ")";
