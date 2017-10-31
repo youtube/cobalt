@@ -37,11 +37,11 @@ MediaKeySession::MediaKeySession(
     : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
                      base::AsWeakPtr(this))
-#endif  // SB_API_VERSION >= 6
-                     )),
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+              )),  // NOLINT(whitespace/parens)
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
@@ -297,6 +297,13 @@ void MediaKeySession::OnSessionUpdated(
 
   // 8.2. Resolve promise.
   promise_reference->value().Resolve();
+
+#if !SB_HAS(DRM_KEY_STATUSES)
+  // When key statuses is not enabled, send a "keystatuseschange" anyway so the
+  // JS app knows that |keyStatuses| will no longer be updated.
+  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
+  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
+#endif  // !SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -307,6 +314,13 @@ void MediaKeySession::OnSessionDidNotUpdate(
   //
   // TODO: Introduce Starboard API that allows CDM to propagate error codes.
   promise_reference->value().Reject(new DOMException(DOMException::kNone));
+
+#if !SB_HAS(DRM_KEY_STATUSES)
+  // When key statuses is not enabled, send a "keystatuseschange" anyway so the
+  // JS app knows that |keyStatuses| will no longer be updated.
+  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
+  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
+#endif  // !SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
@@ -356,6 +370,7 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
 
   // 5. Queue a task to fire a simple event named keystatuseschange at the
   //    session.
+  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
   event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
 
   // 6. Queue a task to run the Attempt to Resume Playback If Necessary

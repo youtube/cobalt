@@ -24,6 +24,16 @@ namespace eme {
 
 namespace {
 
+std::string ConvertKeyIdToAscii(const std::string& key_id) {
+  const char kHexChars[] = "0123456789ABCDEF";
+  std::string key_id_in_ascii;
+  for (auto ch : key_id) {
+    key_id_in_ascii += kHexChars[static_cast<unsigned char>(ch) / 16];
+    key_id_in_ascii += kHexChars[static_cast<unsigned char>(ch) % 16];
+  }
+  return key_id_in_ascii;
+}
+
 std::string ConvertKeyStatusToString(MediaKeyStatus key_status) {
   switch (key_status) {
     case kMediaKeyStatusUsable:
@@ -56,6 +66,13 @@ BufferSource ConvertStringToBufferSource(const std::string& str) {
 }
 
 }  // namespace
+
+void MediaKeyStatusMap::Add(const std::string& key_id,
+                            MediaKeyStatus key_status) {
+  LOG(INFO) << "MediaKeyStatusMap::Add()  " << ConvertKeyIdToAscii(key_id)
+            << " => " << ConvertKeyStatusToString(key_status);
+  key_statuses_[key_id] = key_status;
+}
 
 void MediaKeyStatusMap::ForEach(const ForEachCallbackArg& callback) {
   ForEachCallbackArg::Reference reference(this, callback);

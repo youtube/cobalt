@@ -1483,7 +1483,7 @@ void HTMLMediaElement::ConfigureMediaControls() {
 
 void HTMLMediaElement::MediaEngineError(scoped_refptr<MediaError> error) {
   MLOG() << error->code();
-  DLOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
+  LOG(WARNING) << "HTMLMediaElement::MediaEngineError " << error->code();
 
   // 1 - The user agent should cancel the fetching process.
   StopPeriodicTimers();
