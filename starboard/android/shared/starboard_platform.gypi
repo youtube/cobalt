@@ -65,6 +65,7 @@
         'directory_get_next.cc',
         'directory_internal.h',
         'directory_open.cc',
+        'drm_create_system.cc',
         'drm_system.cc',
         'drm_system.h',
         'file_can_open.cc',

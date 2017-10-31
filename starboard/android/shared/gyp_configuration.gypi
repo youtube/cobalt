@@ -42,7 +42,6 @@
 
     'cobalt_media_source_2016': 1,
     'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
-    'cobalt_encrypted_media_extension_enable_key_statuses_update': 0,
 
     # On Android, we almost never want to actually terminate the process, so
     # instead indicate that we would instead like to be suspended when users
