@@ -46,9 +46,7 @@ class MediaKeyStatusMap : public script::Wrappable {
 
   void Clear() { key_statuses_.clear(); }
 
-  void Add(const std::string& key_id, MediaKeyStatus key_status) {
-    key_statuses_[key_id] = key_status;
-  }
+  void Add(const std::string& key_id, MediaKeyStatus key_status);
 
   // Web IDL: MediaKeyStatusMap.
   //
