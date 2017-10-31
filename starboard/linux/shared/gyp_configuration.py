@@ -16,12 +16,12 @@
 import imp
 import os
 
-import config.starboard
+import config.base
 import gyp_utils
 import starboard.tools.testing.test_filter as test_filter
 
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Linux platform configuration."""
 
   def __init__(self,

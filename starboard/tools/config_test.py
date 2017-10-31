@@ -18,22 +18,23 @@
 
 import unittest
 
-import config as config_module
+import config
 
 
 class ConfigTest(unittest.TestCase):
 
   def testGetAll(self):
-    configs = config_module.GetAll()
-    self.assertNotEqual(0, len(configs))
+    config_names = config.GetAll()
+    self.assertNotEqual(0, len(config_names))
 
   def testIsValid(self):
-    configs = config_module.GetAll()
-    for config in configs:
-      self.assertTrue(config_module.IsValid(config))
-      self.assertTrue(config_module.IsValid(config.lower()))
-      self.assertFalse(config_module.IsValid(config.upper()))
-    self.assertFalse(config_module.IsValid('invalidconfig'))
+    config_names = config.GetAll()
+    for config_name in config_names:
+      self.assertTrue(config.IsValid(config_name))
+      self.assertTrue(config.IsValid(config_name.lower()))
+      self.assertFalse(config.IsValid(config_name.upper()))
+    self.assertFalse(config.IsValid('invalidconfig'))
+
 
 if __name__ == '__main__':
   unittest.main()

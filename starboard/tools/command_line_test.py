@@ -26,7 +26,7 @@ import starboard.tools.platform
 
 
 _A_CONFIG = starboard.tools.config.GetAll()[0]
-_A_PLATFORM = starboard.tools.platform.GetAllNames()[0]
+_A_PLATFORM = starboard.tools.platform.GetAll()[0]
 
 
 def _RestoreMapping(target, source):
