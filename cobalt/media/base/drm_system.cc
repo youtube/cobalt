@@ -20,7 +20,7 @@
 namespace cobalt {
 namespace media {
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 DrmSystem::Session::Session(
     DrmSystem* drm_system,
     SessionUpdateKeyStatusesCallback update_key_statuses_callback)
@@ -29,10 +29,10 @@ DrmSystem::Session::Session(
       closed_(false) {
   DCHECK(!update_key_statuses_callback_.is_null());
 }
-#else   // SB_API_VERSION >= 6
+#else   // SB_HAS(DRM_KEY_STATUSES)
 DrmSystem::Session::Session(DrmSystem* drm_system)
     : drm_system_(drm_system), closed_(false) {}
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 DrmSystem::Session::~Session() {
   if (id_ && !closed_) {
@@ -77,11 +77,11 @@ DrmSystem::DrmSystem(const char* key_system)
     : wrapped_drm_system_(SbDrmCreateSystem(key_system, this,
                                             OnSessionUpdateRequestGeneratedFunc,
                                             OnSessionUpdatedFunc
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
                                             ,
                                             OnSessionKeyStatusesChangedFunc
-#endif  // SB_API_VERSION >= 6
-                                            )),
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+                                            )),  // NOLINT(whitespace/parens)
       message_loop_(MessageLoop::current()),
       ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)),
       weak_this_(weak_ptr_factory_.GetWeakPtr()),
@@ -92,17 +92,17 @@ DrmSystem::DrmSystem(const char* key_system)
 
 DrmSystem::~DrmSystem() { SbDrmDestroySystem(wrapped_drm_system_); }
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession(
     SessionUpdateKeyStatusesCallback session_update_key_statuses_callback) {
   return make_scoped_ptr(
       new Session(this, session_update_key_statuses_callback));
 }
-#else   // SB_API_VERSION >= 6
+#else   // SB_HAS(DRM_KEY_STATUSES)
 scoped_ptr<DrmSystem::Session> DrmSystem::CreateSession() {
   return make_scoped_ptr(new Session(this));
 }
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 void DrmSystem::GenerateSessionUpdateRequest(
     Session* session, const std::string& type, const uint8_t* init_data,
@@ -226,7 +226,7 @@ void DrmSystem::OnSessionUpdated(int ticket, bool succeeded) {
   ticket_to_session_update_map_.erase(session_update_iterator);
 }
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 void DrmSystem::OnSessionKeyStatusChanged(
     const std::string& session_id, const std::vector<std::string>& key_ids,
     const std::vector<SbDrmKeyStatus>& key_statuses) {
@@ -241,7 +241,7 @@ void DrmSystem::OnSessionKeyStatusChanged(
 
   session->update_key_statuses_callback().Run(key_ids, key_statuses);
 }
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // static
 void DrmSystem::OnSessionUpdateRequestGeneratedFunc(
@@ -283,7 +283,7 @@ void DrmSystem::OnSessionUpdatedFunc(SbDrmSystem wrapped_drm_system,
                             drm_system->weak_this_, ticket, succeeded));
 }
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 // static
 void DrmSystem::OnSessionKeyStatusesChangedFunc(
     SbDrmSystem wrapped_drm_system, void* context, const void* session_id,
@@ -315,7 +315,7 @@ void DrmSystem::OnSessionKeyStatusesChangedFunc(
       base::Bind(&DrmSystem::OnSessionKeyStatusChanged, drm_system->weak_this_,
                  session_id_copy, key_ids_copy, key_statuses_copy));
 }
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 }  // namespace media
 }  // namespace cobalt

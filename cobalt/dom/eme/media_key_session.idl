@@ -19,7 +19,6 @@ interface MediaKeySession : EventTarget {
   // TODO: Implement |expiration|.
   // readonly attribute unrestricted double expiration;
   readonly attribute Promise<void> closed;
-  [Conditional=COBALT_ENCRYPTED_MEDIA_EXTENSION_ENABLE_KEY_STATUSES_UPDATE]
   readonly attribute MediaKeyStatusMap keyStatuses;
   attribute EventHandler onkeystatuseschange;
   attribute EventHandler onmessage;
