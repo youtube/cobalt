@@ -50,6 +50,12 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
+  // |script::GlobalEnvironment| will dispatch to this implementation in the
+  // create_global_object_impl block of the bindings interface template.
+  template <typename GlobalInterface>
+  void CreateGlobalObject(
+      const scoped_refptr<GlobalInterface>& global_interface,
+      EnvironmentSettings* environment_settings);
 
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
                       std::string* out_result_utf8) OVERRIDE;
@@ -105,13 +111,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   base::hash_set<Wrappable*>* visited_wrappables() {
     return &visited_wrappables_;
-  }
-
-  // Used for CallWith=EnvironmentSettings
-  void SetEnvironmentSettings(EnvironmentSettings* environment_settings) {
-    DCHECK(!environment_settings_);
-    DCHECK(environment_settings);
-    environment_settings_ = environment_settings;
   }
 
   EnvironmentSettings* GetEnvironmentSettings() const {

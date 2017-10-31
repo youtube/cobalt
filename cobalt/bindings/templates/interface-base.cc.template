@@ -84,22 +84,12 @@ namespace {{component}} {
 {% for component in components|reverse %}
 }  // namespace {{component}}
 {% endfor %}
+
 {% if is_global_interface %}
-
-namespace cobalt {
-namespace script {
-
-template<>
-void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
-    const scoped_refptr<{{impl_class}}>& global_interface,
-    EnvironmentSettings* environment_settings) {
 {% block create_global_object_impl %}
 {% endblock create_global_object_impl %}
-}
-
-}  // namespace script
-}  // namespace cobalt
 {% endif %}
+
 {% if conditional %}
 #endif  // defined({{conditional}})
 {% endif %}
