@@ -69,10 +69,8 @@
 
 #if defined(OS_STARBOARD)
 
-#if SB_HAS(PLAYER)
 #define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
-#endif  // SB_HAS(PLAYER)
 
 #endif  // defined(OS_STARBOARD)
 
