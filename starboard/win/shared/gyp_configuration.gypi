@@ -175,7 +175,7 @@
            },
            'VCLinkerTool': {
              'AdditionalDependencies': ['dbghelp.lib'],
-             'LinkIncremental': '2',  # INCREMENTAL:YES
+             'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
        },
@@ -191,7 +191,7 @@
            },
            'VCLinkerTool': {
              'AdditionalDependencies': ['dbghelp.lib'],
-             'LinkIncremental': '2',  # INCREMENTAL:YES
+             'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
        },
