@@ -57,28 +57,6 @@ const float kMaxRate = 16.0f;
 // Prefix for histograms related to Encrypted Media Extensions.
 const char* kMediaEme = "Media.EME.";
 
-#if defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
-// On some platforms, the underlying media player can hang if we keep seeking to
-// a position that is near the end of the video. So we ignore any seeks near the
-// end of stream position when the current playback position is also near the
-// end of the stream. In this case, "near the end of stream" means "position
-// greater than or equal to duration() - kEndOfStreamEpsilonInSeconds".
-const double kEndOfStreamEpsilonInSeconds = 2.;
-
-bool IsNearTheEndOfStream(const media::WebMediaPlayerImpl* wmpi,
-                          double position) {
-  float duration = wmpi->GetDuration();
-  if (base::IsFinite(duration)) {
-    // If video is very short, we always treat a position as near the end.
-    if (duration <= kEndOfStreamEpsilonInSeconds)
-      return true;
-    if (position >= duration - kEndOfStreamEpsilonInSeconds)
-      return true;
-  }
-  return false;
-}
-#endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
-
 base::TimeDelta ConvertSecondsToTimestamp(float seconds) {
   float microseconds = seconds * base::Time::kMicrosecondsPerSecond;
   float integer = ceilf(microseconds);
@@ -360,16 +338,6 @@ bool WebMediaPlayerImpl::SupportsSave() const {
 
 void WebMediaPlayerImpl::Seek(float seconds) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
-
-#if defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
-  // Ignore any seek request that is near the end of the stream when the
-  // current playback position is also near the end of the stream to avoid
-  // a hang in the MediaEngine.
-  if (IsNearTheEndOfStream(this, GetCurrentTime()) &&
-      IsNearTheEndOfStream(this, seconds)) {
-    return;
-  }
-#endif  // defined(COBALT_SKIP_SEEK_REQUEST_NEAR_END)
 
   if (state_.starting || state_.seeking) {
     state_.pending_seek = true;
