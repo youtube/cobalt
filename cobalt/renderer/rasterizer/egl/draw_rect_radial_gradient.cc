@@ -68,12 +68,13 @@ DrawRectRadialGradient::DrawRectRadialGradient(GraphicsState* graphics_state,
   get_scratch_texture.Run(lookup_size, &texture_info);
   lookup_texture_ = texture_info.texture;
   lookup_region_ = texture_info.region;
-  if (texture_info.is_new) {
-    InitializeLookupTexture(brush);
-  }
 
   // Add the geometry if a lookup texture was available.
   if (lookup_texture_) {
+    if (texture_info.is_new) {
+      InitializeLookupTexture(brush);
+    }
+
     attributes_.reserve(kVertexCount);
     math::PointF offset_center(brush.center());
     math::PointF offset_scale(1.0f / std::max(brush.radius_x(), 0.001f),
