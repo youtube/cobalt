@@ -14,6 +14,14 @@
 # limitations under the License.
 """Initialization for the config package."""
 
+import sys
+
+import _env  # pylint: disable=unused-import
+import base
 from base import GetPlatformConfig
-from base import VALID_BUILD_CONFIGS
-from base import VALID_PLATFORMS
+import starboard
+
+# This bit of voodoo fakes out the config.starboard module so that legacy
+# platforms will still GYP properly.
+sys.modules['config.starboard'] = starboard
+starboard.PlatformConfigStarboard = base.PlatformConfigBase

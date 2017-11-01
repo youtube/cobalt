@@ -18,13 +18,17 @@
 
 import sys
 
-import gyp_utils
+import _env  # pylint: disable=unused-import
+from starboard.tools import platform
 
 
 def main():
-  platforms = gyp_utils.GetAllPlatforms()
-  print platforms[sys.argv[1]].path
+  platform_info = platform.Get(sys.argv[1])
+  if not platform_info:
+    return 1
+  print platform_info.path
+  return 0
 
 
 if __name__ == '__main__':
-  main()
+  sys.exit(main())
