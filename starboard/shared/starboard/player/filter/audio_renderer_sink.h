@@ -28,11 +28,11 @@ class AudioRendererSink {
  public:
   class RenderCallback {
    public:
-    virtual void OnUpdateSourceStatus(int* frames_in_buffer,
-                                      int* offset_in_frames,
-                                      bool* is_playing,
-                                      bool* is_eos_reached) = 0;
-    virtual void OnConsumeFrames(int frames_consumed) = 0;
+    virtual void GetSourceStatus(int* frames_in_buffer,
+                                 int* offset_in_frames,
+                                 bool* is_playing,
+                                 bool* is_eos_reached) = 0;
+    virtual void ConsumeFrames(int frames_consumed) = 0;
 
    protected:
     ~RenderCallback() {}
