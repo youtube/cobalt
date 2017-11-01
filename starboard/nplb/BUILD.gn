@@ -12,6 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# TODO: change to //starboard eventually.
+import("//cobalt/build/config/base.gni")
 import("//starboard/build/deploy.gni")
 
 group("all") {
@@ -151,7 +153,7 @@ test("nplb") {
     "mutex_destroy_test.cc",
     "once_test.cc",
     "optional_test.cc",
-    "player_create_test.cc",
+    "player_create_with_url_test.cc",
     "random_helpers.cc",
     "rwlock_test.cc",
     "semaphore_test.cc",
@@ -261,6 +263,15 @@ test("nplb") {
     "window_get_platform_handle_test.cc",
     "window_get_size_test.cc",
   ]
+
+  # TODO: find a way to remove this dependence on Cobalt.
+  if (sb_media_platform == "starboard") {
+    sources += [
+      "player_create_test.cc",
+      "player_output_mode_supported_test.cc",
+    ]
+  }
+
   # Include private C headers, if present.
   private_sources = exec_script("//starboard/tools/find_private_files.py",
                                 [

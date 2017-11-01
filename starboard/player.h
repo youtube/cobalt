@@ -21,8 +21,6 @@
 
 #include "starboard/configuration.h"
 
-#if SB_HAS(PLAYER)
-
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/export.h"
@@ -519,7 +517,5 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 #ifdef __cplusplus
 }  // extern "C"
 #endif
-
-#endif  // SB_HAS(PLAYER)
 
 #endif  // STARBOARD_PLAYER_H_
