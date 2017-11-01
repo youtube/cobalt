@@ -26,7 +26,6 @@ import urllib2
 
 import _env  # pylint: disable=unused-import
 from cobalt.tools import paths
-from starboard.tools import platform
 
 _CLANG_REVISION = '298539-1'
 _CLANG_VERSION = '5.0.0'
@@ -35,13 +34,6 @@ _SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
 
 _VERSION_SERVER_URL = 'https://carbon-airlock-95823.appspot.com/build_version/generate'  # pylint:disable=line-too-long
 _XSSI_PREFIX = ")]}'\n"
-
-# The list of directories, relative to "src/", to search through for ports.
-_PORT_SEARCH_PATH = [
-    'starboard',
-    os.path.join('starboard', 'port'),
-    os.path.join('third_party', 'starboard'),
-]
 
 # The path to the build.id file that preserves a build ID.
 BUILD_ID_PATH = os.path.abspath(os.path.join(_SCRIPT_DIR, 'build.id'))
@@ -275,50 +267,3 @@ def GetConstantValue(file_path, constant_name):
   expression = match.group(1)
   value = eval(expression)  # pylint:disable=eval-used
   return value
-
-
-def _FindAllPlatforms():
-  """Workhorse for GetAllPlatforms().
-
-  Search through directories listed in _PORT_SEARCH_PATH to find valid
-  ports, so that they can be added to the VALID_PLATFORMS list. This
-  allows gyp_cobalt to register new ports without needing to modify
-  code in src/cobalt/.
-
-  Returns:
-    A dictionary of name->PlatformInfo.
-
-  """
-
-  result = {}
-  search_path = [os.path.realpath(os.path.join(paths.REPOSITORY_ROOT, x))
-                 for x in _PORT_SEARCH_PATH]
-
-  # Ignore search path directories inside other search path directories.
-  exclusion_set = set(search_path)
-
-  for entry in search_path:
-    if not os.path.isdir(entry):
-      continue
-    for platform_info in platform.PlatformInfo.EnumeratePorts(entry,
-                                                              exclusion_set):
-      if platform_info.port_name in result:
-        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
-                      platform_info.port_name, result[platform_info.port_name],
-                      platform_info.path)
-      result[platform_info.port_name] = platform_info
-
-  return result
-
-
-# Global cache of TPP so the filesystem walk is only done once, and the values
-# are always consistent.
-_ALL_PLATFORMS = None
-
-
-def GetAllPlatforms():
-  """Return valid platform definitions found by scanning the source tree."""
-  global _ALL_PLATFORMS
-  if _ALL_PLATFORMS is None:
-    _ALL_PLATFORMS = _FindAllPlatforms()
-  return _ALL_PLATFORMS
