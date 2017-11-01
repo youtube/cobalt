@@ -280,10 +280,10 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
          frames_played * kSbMediaTimeSecond / samples_per_second;
 }
 
-void AudioRendererImpl::OnUpdateSourceStatus(int* frames_in_buffer,
-                                             int* offset_in_frames,
-                                             bool* is_playing,
-                                             bool* is_eos_reached) {
+void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
+                                        int* offset_in_frames,
+                                        bool* is_playing,
+                                        bool* is_eos_reached) {
   *is_eos_reached = eos_state_.load() >= kEOSSentToSink;
 
   *is_playing = !paused_.load() && !seeking_.load();
@@ -297,7 +297,7 @@ void AudioRendererImpl::OnUpdateSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRendererImpl::OnConsumeFrames(int frames_consumed) {
+void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
   frames_consumed_by_sink_.fetch_add(frames_consumed);
   SB_DCHECK(frames_consumed_by_sink_.load() <= frames_sent_to_sink_.load());
   frames_consumed_by_sink_since_last_get_current_time_.fetch_add(

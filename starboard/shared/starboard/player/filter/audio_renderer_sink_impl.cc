@@ -127,7 +127,7 @@ void AudioRendererSinkImpl::UpdateSourceStatusFunc(int* frames_in_buffer,
   SB_DCHECK(is_playing);
   SB_DCHECK(is_eos_reached);
 
-  audio_renderer_sink->render_callback_->OnUpdateSourceStatus(
+  audio_renderer_sink->render_callback_->GetSourceStatus(
       frames_in_buffer, offset_in_frames, is_playing, is_eos_reached);
 }
 
@@ -139,7 +139,7 @@ void AudioRendererSinkImpl::ConsumeFramesFunc(int frames_consumed,
   SB_DCHECK(audio_renderer_sink);
   SB_DCHECK(audio_renderer_sink->render_callback_);
 
-  audio_renderer_sink->render_callback_->OnConsumeFrames(frames_consumed);
+  audio_renderer_sink->render_callback_->ConsumeFrames(frames_consumed);
 }
 
 }  // namespace filter
