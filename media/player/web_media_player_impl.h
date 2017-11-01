@@ -68,14 +68,6 @@
 #include "media/player/web_media_player_delegate.h"
 #include "ui/gfx/size.h"
 
-#if defined(OS_STARBOARD)
-
-#if SB_HAS(PLAYER)
-#define COBALT_SKIP_SEEK_REQUEST_NEAR_END
-#endif  // SB_HAS(PLAYER)
-
-#endif  // defined(OS_STARBOARD)
-
 namespace media {
 
 class AudioRendererSink;
