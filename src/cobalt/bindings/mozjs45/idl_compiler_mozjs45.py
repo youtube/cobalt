@@ -19,8 +19,7 @@ CodeGenerator class.
 
 import sys
 
-import bootstrap_path  # pylint: disable=unused-import
-
+import _env  # pylint: disable=unused-import
 from cobalt.bindings.idl_compiler_cobalt import generate_bindings
 from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
 

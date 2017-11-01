@@ -86,6 +86,7 @@
 #include "starboard/export.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
+#include "starboard/window.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -212,6 +213,12 @@ typedef enum SbEventType {
   // to respond to or handle this event, it is only advisory.
   kSbEventTypeLowMemory,
 #endif  // SB_API_VERSION >= 6
+
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+  // The size or position of a SbWindow has changed. The data is
+  // SbEventWindowSizeChangedData.
+  kSbEventTypeWindowSizeChanged,
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
@@ -241,6 +248,14 @@ typedef struct SbEventStartData {
   // The startup link, if any.
   const char* link;
 } SbEventStartData;
+
+#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+// Event data for kSbEventTypeWindowSizeChanged events.
+typedef struct SbEventWindowSizeChangedData {
+  SbWindow window;
+  SbWindowSize size;
+} SbEventWindowSizeChangedData;
+#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
 #define kSbEventIdInvalid (SbEventId)0
 

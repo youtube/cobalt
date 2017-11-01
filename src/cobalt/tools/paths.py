@@ -17,6 +17,7 @@
 
 import os
 
+import _env  # pylint: disable=unused-import
 import cobalt
 import starboard.tools.paths
 

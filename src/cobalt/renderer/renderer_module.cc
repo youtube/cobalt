@@ -57,22 +57,6 @@ RendererModule::RendererModule(system_window::SystemWindow* system_window,
                                const Options& options)
     : system_window_(system_window), options_(options) {
   TRACE_EVENT0("cobalt::renderer", "RendererModule::RendererModule()");
-  Resume();
-}
-
-RendererModule::~RendererModule() {}
-
-void RendererModule::Suspend() {
-  TRACE_EVENT0("cobalt::renderer", "RendererModule::Suspend()");
-  pipeline_.reset();
-  graphics_context_.reset();
-  display_.reset();
-  graphics_system_.reset();
-}
-
-void RendererModule::Resume() {
-  TRACE_EVENT0("cobalt::renderer", "RendererModule::Resume()");
-
   // Load up the platform's default graphics system.
   {
     TRACE_EVENT0("cobalt::renderer", "backend::CreateDefaultGraphicsSystem()");
@@ -110,6 +94,10 @@ void RendererModule::Resume() {
         options_.submit_even_if_render_tree_is_unchanged,
         renderer::Pipeline::kClearToBlack, pipeline_options));
   }
+}
+
+RendererModule::~RendererModule() {
+  TRACE_EVENT0("cobalt::renderer", "RendererModule::~RendererModule");
 }
 
 }  // namespace renderer

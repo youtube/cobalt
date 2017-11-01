@@ -17,16 +17,21 @@
 
 #include "starboard/shared/uwp/application_uwp.h"
 #include "starboard/shared/uwp/window_internal.h"
+#include "third_party/angle/include/angle_windowsstore.h"
 
 using Windows::UI::Core::CoreWindow;
 
-// TODO: Make sure the width and height here behave well given that we want
-// 1080 video, but perhaps 4k UI where applicable.
-SbWindowPrivate::SbWindowPrivate(const SbWindowOptions* options)
-    : width(options->size.width),
-      height(options->size.height) {
-  egl_native_window_ = reinterpret_cast<EGLNativeWindowType>(
+SbWindowPrivate::SbWindowPrivate(int width, int height)
+    : width(width),
+      height(height) {
+  angle_property_set = ref new Windows::Foundation::Collections::PropertySet();
+  angle_property_set->Insert(
+      ref new Platform::String(EGLNativeWindowTypeProperty),
       starboard::shared::uwp::ApplicationUwp::Get()->GetCoreWindow().Get());
+  angle_property_set->Insert(
+      ref new Platform::String(EGLRenderSurfaceSizeProperty),
+      Windows::Foundation::PropertyValue::CreateSize(
+          Windows::Foundation::Size(width, height)));
 }
 
 SbWindowPrivate::~SbWindowPrivate() {}

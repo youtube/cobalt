@@ -22,10 +22,12 @@
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
-  explicit SbWindowPrivate(const SbWindowOptions* options);
+  SbWindowPrivate(int width, int height);
   ~SbWindowPrivate();
 
-  EGLNativeWindowType egl_native_window() const { return egl_native_window_; }
+  EGLNativeWindowType egl_native_window() const {
+    return reinterpret_cast<EGLNativeWindowType>(angle_property_set);
+  }
 
   // The width of this window.
   int width;
@@ -34,7 +36,7 @@ struct SbWindowPrivate {
   int height;
 
  private:
-  EGLNativeWindowType egl_native_window_;
+  Windows::Foundation::Collections::PropertySet^ angle_property_set;
 };
 
 #endif  // STARBOARD_SHARED_UWP_WINDOW_INTERNAL_H_

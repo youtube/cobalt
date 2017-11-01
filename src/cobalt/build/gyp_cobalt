@@ -21,7 +21,7 @@ import shlex
 import sys
 import textwrap
 
-import bootstrap_path
+import _env  # pylint: disable=unused-import
 import cobalt
 from cobalt.build import config
 from cobalt.build import gyp_utils

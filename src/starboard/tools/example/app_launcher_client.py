@@ -15,19 +15,9 @@
 # limitations under the License.
 """Client to launch executables via the new launcher logic."""
 
-import importlib
-import os
 import sys
 
-if "environment" in sys.modules:
-  environment = sys.modules["environment"]
-else:
-  env_path = os.path.abspath(
-      os.path.join(os.path.dirname(__file__), os.pardir))
-  if env_path not in sys.path:
-    sys.path.append(env_path)
-  environment = importlib.import_module("environment")
-
+import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
 from starboard.tools import command_line
 

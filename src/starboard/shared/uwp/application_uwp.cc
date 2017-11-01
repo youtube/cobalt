@@ -14,12 +14,12 @@
 
 #include "starboard/shared/uwp/application_uwp.h"
 
+#include <D3D11.h>
 #include <WinSock2.h>
 #include <mfapi.h>
 #include <ppltasks.h>
 #include <windows.h>
 #include <windows.system.display.h>
-#include <D3D11.h>
 
 #include <memory>
 #include <string>
@@ -66,9 +66,12 @@ using Windows::ApplicationModel::SuspendingEventArgs;
 using Windows::Foundation::Collections::IVectorView;
 using Windows::Foundation::EventHandler;
 using Windows::Foundation::IAsyncOperation;
+using Windows::Foundation::Metadata::ApiInformation;
 using Windows::Foundation::TimeSpan;
 using Windows::Foundation::TypedEventHandler;
 using Windows::Foundation::Uri;
+using Windows::Graphics::Display::Core::HdmiDisplayInformation;
+using Windows::Graphics::Display::DisplayInformation;
 using Windows::Globalization::Calendar;
 using Windows::Media::Protection::HdcpProtection;
 using Windows::Media::Protection::HdcpSession;
@@ -91,6 +94,7 @@ using Windows::UI::Popups::IUICommand;
 using Windows::UI::Popups::MessageDialog;
 using Windows::UI::Popups::UICommand;
 using Windows::UI::Popups::UICommandInvokedHandler;
+using Windows::UI::ViewManagement::ApplicationView;
 
 namespace {
 
@@ -637,7 +641,7 @@ Application::Event* ApplicationUwp::GetNextEvent() {
   return nullptr;
 }
 
-SbWindow ApplicationUwp::CreateWindowForUWP(const SbWindowOptions* options) {
+SbWindow ApplicationUwp::CreateWindowForUWP(const SbWindowOptions*) {
   // TODO: Determine why SB_DCHECK(IsCurrentThread()) fails in nplb, fix it,
   // and add back this check.
 
@@ -645,7 +649,33 @@ SbWindow ApplicationUwp::CreateWindowForUWP(const SbWindowOptions* options) {
     return kSbWindowInvalid;
   }
 
-  window_ = new SbWindowPrivate(options);
+  // Get the logical resolution in pixels. See section "Bounds" in
+  // https://docs.microsoft.com/en-us/uwp/api/windows.ui.core.corewindow.
+  Windows::Foundation::Rect bounds_in_dips =
+      CoreWindow::GetForCurrentThread()->Bounds;
+  float dpi = DisplayInformation::GetForCurrentView()->LogicalDpi;
+  int width = static_cast<int>(bounds_in_dips.Width * dpi / 96.0f);
+  int height = static_cast<int>(bounds_in_dips.Height * dpi / 96.0f);
+
+  // For UWP on XB1, the logical resolution is always 1080p, regardless of the
+  // actual output resolution -- section "Scale factor and adaptive layout" in
+  // "https://docs.microsoft.com/en-us/windows/uwp/input-and-devices/
+  // designing-for-tv". However, if the swap chain uses a special surface
+  // format (R10G10B10A2), it can be passed to the output without scaling.
+  bool supports_hdmi_api = ApiInformation::IsApiContractPresent(
+      "Windows.Foundation.UniversalApiContract", 4);
+  bool is_fullscreen = ApplicationView::GetForCurrentView()->IsFullScreenMode;
+  if (supports_hdmi_api && is_fullscreen) {
+    // This reports the actual output resolution.
+    auto display_info = HdmiDisplayInformation::GetForCurrentView();
+    auto current_mode = display_info->GetCurrentDisplayMode();
+    width = static_cast<int>(current_mode->ResolutionWidthInRawPixels);
+    height = static_cast<int>(current_mode->ResolutionHeightInRawPixels);
+  }
+
+  SB_LOG(INFO) << "Window resolution is " << width << " x " << height;
+
+  window_ = new SbWindowPrivate(width, height);
   return window_;
 }
 
@@ -774,6 +804,7 @@ void ApplicationUwp::OnJoystickUpdate(SbKey key, SbInputVector input_vector) {
     case kSbKeyGamepadRightStickLeft:
     case kSbKeyGamepadRightStickUp: {
       key_location = kSbKeyLocationRight;
+      break;
     }
     default: {
       SB_NOTREACHED();

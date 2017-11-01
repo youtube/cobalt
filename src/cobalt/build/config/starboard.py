@@ -91,6 +91,10 @@ class PlatformConfigStarboard(PlatformConfigBase):
     }
     return variables
 
+  def GetTestEnvVariables(self):
+    """Gets a dict of environment variables needed by unit test binaries."""
+    return {}
+
   def WebdriverBenchmarksEnabled(self):
     """Determines if webdriver benchmarks are enabled or not.
 

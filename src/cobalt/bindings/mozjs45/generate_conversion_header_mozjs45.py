@@ -15,8 +15,7 @@
 
 import sys
 
-import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
-
+import _env  # pylint: disable=unused-import
 from cobalt.bindings.generate_conversion_header import generate_header
 from cobalt.bindings.mozjs45.code_generator_mozjs45 import CodeGeneratorMozjs45
 

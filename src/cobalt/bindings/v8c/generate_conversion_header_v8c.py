@@ -15,8 +15,7 @@
 
 import sys
 
-import bootstrap_path  # pylint: disable=g-bad-import-order,unused-import
-
+import _env  # pylint: disable=unused-import
 from cobalt.bindings.generate_conversion_header import generate_header
 from cobalt.bindings.v8c.code_generator_v8c import CodeGeneratorV8c
 

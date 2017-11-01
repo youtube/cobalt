@@ -80,3 +80,19 @@ To filter out all tests for a particular target, provide
 
 To disable unit testing for all targets and all configurations, return a list
 containing "test_filter.DISABLE_TESTING".
+
+## Environment Variables
+
+If a platform requires extra environment variables in order to run tests
+properly, implement a method called "GetTestEnvVariables()" in the same
+PlatformConfig mentioned above.  There is an example of this method in
+"../../linux/x64x11/shared/gyp_configuration.py" as well.  The method should
+return a dictionary that maps test binary names to dictionaries of
+environment variables that they need.  Example:
+
+  def GetTestEnvVariables(self):
+    return {
+        'base_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
+        'crypto_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'},
+        'net_unittests': {'ASAN_OPTIONS': 'detect_leaks=0'}
+    }

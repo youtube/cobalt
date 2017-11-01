@@ -69,6 +69,7 @@
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
 #define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#define SB_WINDOW_SIZE_CHANGED_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
@@ -537,6 +538,16 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if defined(SB_MEDIA_GPU_BUFFER_BUDGET)
 #error "SB_MEDIA_GPU_BUFFER_BUDGET is deprecated."
 #endif  // defined(SB_MEDIA_GPU_BUFFER_BUDGET)
+
+#if SB_API_VERSION >= 6
+#if defined(SB_HAS_DRM_KEY_STATUSES)
+#if !SB_HAS(DRM_KEY_STATUSES)
+#error "SB_HAS_DRM_KEY_STATUSES is required for Starboard 6 or later."
+#endif  // !SB_HAS(DRM_KEY_STATUSES)
+#else   // defined(SB_HAS_DRM_KEY_STATUSES)
+#define SB_HAS_DRM_KEY_STATUSES 1
+#endif  // defined(SB_HAS_DRM_KEY_STATUSES)
+#endif  // SB_API_VERSION >= 6
 
 #if SB_API_VERSION >= 5
 #if !defined(SB_HAS_SPEECH_RECOGNIZER)

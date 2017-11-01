@@ -52,14 +52,14 @@ typedef struct SbDrmSubSampleMapping {
   int32_t encrypted_byte_count;
 } SbDrmSubSampleMapping;
 
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 typedef struct SbDrmKeyId {
   // The ID of the license (or key) required to decrypt this sample. For
   // PlayReady, this is the license GUID in packed little-endian binary form.
   uint8_t identifier[16];
   int identifier_size;
 } SbDrmKeyId;
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // All the optional information needed per sample for encrypted samples.
 typedef struct SbDrmSampleInfo {
@@ -121,7 +121,7 @@ typedef void (*SbDrmSessionUpdatedFunc)(SbDrmSystem drm_system,
 // A callback for notifications that the status of one or more keys in a session
 // has been changed.  All keys of the session and their new status will be
 // passed along.  Any keys not in the list is considered as deleted.
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     SbDrmSystem drm_system,
     void* context,
@@ -130,7 +130,7 @@ typedef void (*SbDrmSessionKeyStatusesChangedFunc)(
     int number_of_keys,
     const SbDrmKeyId* key_ids,
     const SbDrmKeyStatus* key_statuses);
-#endif  // SB_API_VERSION >= 6
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // --- Constants -------------------------------------------------------------
 
@@ -171,7 +171,7 @@ static SB_C_FORCE_INLINE bool SbDrmTicketIsValid(int ticket) {
 // SbDrmGenerateSessionUpdateRequest() is called.
 // |session_updated_callback|: A function that is called every time after
 // SbDrmUpdateSession() is called.
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
 
 SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     const char* key_system,
@@ -180,7 +180,7 @@ SB_EXPORT SbDrmSystem SbDrmCreateSystem(
     SbDrmSessionUpdatedFunc session_updated_callback,
     SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-#else  // SB_API_VERSION >= 6
+#else  // SB_HAS(DRM_KEY_STATUSES)
 
 SB_EXPORT SbDrmSystem
 SbDrmCreateSystem(const char* key_system,
@@ -188,7 +188,7 @@ SbDrmCreateSystem(const char* key_system,
                   SbDrmSessionUpdateRequestFunc update_request_callback,
                   SbDrmSessionUpdatedFunc session_updated_callback);
 
-#endif  // SB_API_VERSION >= SB_DRM_KEY_STATUS_UPDATE_SUPPORT_API_VERSION
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 
 // Asynchronously generates a session update request payload for
 // |initialization_data|, of |initialization_data_size|, in case sensitive
