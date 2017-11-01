@@ -15,7 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_PUBLIC_H_
 #define STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_PUBLIC_H_
 
-#include "starboard/atomic.h"
+#include "starboard/types.h"
 
 // The utility functions defined here use atomics and spin-locks to allow for
 // easy lazy initialization in a thread-safe way.
@@ -23,8 +23,10 @@
 // An InitializedState should be treated as an opaque type that can be
 // initialized to kInitializedStateUninitialized and then passed into the
 // functions in this file to transition it first to a "initializing" state and
-// then an "initialized" state.
-typedef SbAtomic32 InitializedState;
+// then an "initialized" state.  Note that this is intended to be used as a
+// SbAtomic32, however due to technical reasons we can't include
+// "starboard/atomic.h".
+typedef int32_t InitializedState;
 #define INITIALIZED_STATE_UNINITIALIZED 1
 
 #endif  // STARBOARD_SHARED_STARBOARD_LAZY_INITIALIZATION_PUBLIC_H_
