@@ -14,10 +14,6 @@
 
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
-
 bool SbPlayerSetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) {
   return false;
 }

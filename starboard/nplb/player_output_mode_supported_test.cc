@@ -21,9 +21,15 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER)
+#if SB_HAS(PLAYER_WITH_URL)
+// This test does not apply. SbPlayerOutputModeWithUrl is defined instead of
+// SbPlayerOutputModeSupported.
+#else  // SB_HAS(PLAYER_WITH_URL)
 
 TEST(SbPlayerOutputModeSupportedTest, SunnyDay) {
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
   // We should support either decode-to-texture or punch-out mode.
   SbPlayerOutputMode output_mode = kSbPlayerOutputModeInvalid;
   if (SbPlayerOutputModeSupported(kSbPlayerOutputModeDecodeToTexture,
@@ -37,12 +43,15 @@ TEST(SbPlayerOutputModeSupportedTest, SunnyDay) {
 }
 
 TEST(SbPlayerOutputModeSupportedTest, RainyDayInvalid) {
+  SbMediaVideoCodec kVideoCodec = kSbMediaVideoCodecH264;
+  SbDrmSystem kDrmSystem = kSbDrmSystemInvalid;
+
   bool result = SbPlayerOutputModeSupported(kSbPlayerOutputModeInvalid,
                                             kVideoCodec, kDrmSystem);
   EXPECT_FALSE(result);
 }
 
-#endif  // SB_HAS(PLAYER)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 }  // namespace
 }  // namespace nplb
