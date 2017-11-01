@@ -91,6 +91,8 @@
 5-0-border-radius-4-values-with-border-only
 5-0-border-radius-circle-with-background-color-and-border
 5-0-border-radius-circle-with-background-image-and-border
+5-0-border-radius-circle-with-irrational-out-of-bounds-radius
+5-0-border-radius-circle-with-out-of-bounds-radius
 5-0-border-radius-with-background-color
 5-0-border-radius-with-background-color-and-border
 5-0-border-radius-with-background-image
