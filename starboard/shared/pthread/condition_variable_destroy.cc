@@ -17,11 +17,20 @@
 #include <pthread.h>
 
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/starboard/lazy_initialization_internal.h"
+
+using starboard::shared::starboard::IsInitialized;
 
 bool SbConditionVariableDestroy(SbConditionVariable* condition) {
   if (!condition) {
     return false;
   }
 
-  return IsSuccess(pthread_cond_destroy(condition));
+  if (!IsInitialized(&condition->initialized_state)) {
+    // If the condition variable is not initialized yet, then there is nothing
+    // to destroy so vacuously return true.
+    return true;
+  }
+
+  return IsSuccess(pthread_cond_destroy(&condition->condition));
 }
