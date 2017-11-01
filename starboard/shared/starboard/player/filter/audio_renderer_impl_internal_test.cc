@@ -270,8 +270,8 @@ TEST_F(AudioRendererImplTest, SunnyDay) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
@@ -284,13 +284,13 @@ TEST_F(AudioRendererImplTest, SunnyDay) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GT(new_media_time, media_time);
 
@@ -335,8 +335,8 @@ TEST_F(AudioRendererImplTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
 
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
@@ -350,13 +350,13 @@ TEST_F(AudioRendererImplTest, SunnyDayWithDoublePlaybackRateAndInt16Samples) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GT(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GT(new_media_time, media_time);
 
@@ -387,8 +387,8 @@ TEST_F(AudioRendererImplTest, StartPlayBeforePreroll) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
@@ -401,13 +401,13 @@ TEST_F(AudioRendererImplTest, StartPlayBeforePreroll) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
 
@@ -523,8 +523,8 @@ TEST_F(AudioRendererImplTest, MoreNumberOfOuputBuffersThanInputBuffers) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
@@ -537,13 +537,13 @@ TEST_F(AudioRendererImplTest, MoreNumberOfOuputBuffersThanInputBuffers) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
 
@@ -600,8 +600,8 @@ TEST_F(AudioRendererImplTest, LessNumberOfOuputBuffersThanInputBuffers) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
@@ -614,13 +614,13 @@ TEST_F(AudioRendererImplTest, LessNumberOfOuputBuffersThanInputBuffers) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
   media_time = new_media_time;
 
   const int remaining_frames = frames_in_buffer - frames_to_consume;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
 
@@ -660,8 +660,8 @@ TEST_F(AudioRendererImplTest, Seek) {
   int offset_in_frames;
   bool is_playing;
   bool is_eos_reached;
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
@@ -675,7 +675,7 @@ TEST_F(AudioRendererImplTest, Seek) {
 
   EXPECT_FALSE(audio_renderer_->IsEndOfStreamPlayed());
 
-  renderer_callback_->OnConsumeFrames(frames_to_consume);
+  renderer_callback_->ConsumeFrames(frames_to_consume);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, media_time);
   Seek(seek_time);
@@ -688,14 +688,14 @@ TEST_F(AudioRendererImplTest, Seek) {
   audio_renderer_->Play();
   SendDecoderOutput(new DecodedAudio);
 
-  renderer_callback_->OnUpdateSourceStatus(&frames_in_buffer, &offset_in_frames,
-                                           &is_playing, &is_eos_reached);
+  renderer_callback_->GetSourceStatus(&frames_in_buffer, &offset_in_frames,
+                                      &is_playing, &is_eos_reached);
   EXPECT_GT(frames_in_buffer, 0);
   EXPECT_GE(offset_in_frames, 0);
   EXPECT_TRUE(is_playing);
   EXPECT_TRUE(is_eos_reached);
   const int remaining_frames = frames_in_buffer - offset_in_frames;
-  renderer_callback_->OnConsumeFrames(remaining_frames);
+  renderer_callback_->ConsumeFrames(remaining_frames);
   new_media_time = audio_renderer_->GetCurrentTime();
   EXPECT_GE(new_media_time, seek_time);
 
