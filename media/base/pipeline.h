@@ -27,20 +27,7 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
-#if defined(OS_STARBOARD)
-#if SB_HAS(PLAYER)
-
-#define COBALT_USE_SBPLAYER_PIPELINE
-
-#endif  // SB_HAS(PLAYER)
-#endif  // defined(OS_STARBOARD)
-
-#if defined(COBALT_USE_SBPLAYER_PIPELINE)
-#include "starboard/window.h"
-typedef SbWindow PipelineWindow;
-#else   // defined(COBALT_USE_SBPLAYER_PIPELINE)
 typedef void* PipelineWindow;
-#endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
 namespace media {
 
