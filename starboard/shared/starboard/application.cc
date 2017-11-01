@@ -160,7 +160,6 @@ void Application::Cancel(SbEventId id) {
   CancelTimedEvent(id);
 }
 
-#if SB_HAS(PLAYER)
 void Application::HandleFrame(SbPlayer player,
                               const scoped_refptr<VideoFrame>& frame,
                               int z_index,
@@ -170,7 +169,6 @@ void Application::HandleFrame(SbPlayer player,
                               int height) {
   AcceptFrame(player, frame, z_index, x, y, width, height);
 }
-#endif  // SB_HAS(PLAYER)
 
 void Application::SetStartLink(const char* start_link) {
   SB_DCHECK(IsCurrentThread());

@@ -14,10 +14,6 @@
 
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "SbPlayerCreateWithUrl requires SB_HAS(PLAYER)."
-#endif
-
 #if SB_HAS(PLAYER_WITH_URL)
 
 SbPlayer SbPlayerCreateWithUrl(

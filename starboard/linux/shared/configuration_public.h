@@ -259,14 +259,6 @@
 
 // --- Media Configuration ---------------------------------------------------
 
-// Specifies whether this platform has support for a possibly-decrypting
-// elementary stream player for at least H.264/AAC (and AES-128-CTR, if
-// decrypting). A player is responsible for ingesting an audio and video
-// elementary stream, optionally-encrypted, and ultimately producing
-// synchronized audio/video. If a player is defined, it must choose one of the
-// supported composition methods below.
-#define SB_HAS_PLAYER 1
-
 // The maximum audio bitrate the platform can decode.  The following value
 // equals to 5M bytes per seconds which is more than enough for compressed
 // audio.

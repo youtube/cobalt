@@ -14,10 +14,6 @@
 
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
-
 void SbPlayerSetBounds(SbPlayer /*player*/,
                        int /*z_index*/,
                        int /*x*/,
