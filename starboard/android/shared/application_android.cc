@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "starboard/accessibility.h"
-#include "starboard/shared/starboard/command_line.h"
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/android/shared/input_events_generator.h"
 #include "starboard/android/shared/jni_env_ext.h"
@@ -36,6 +35,7 @@
 #include "starboard/log.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/command_line.h"
 #include "starboard/string.h"
 
 namespace starboard {
@@ -386,6 +386,9 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
 extern "C" void android_main(struct android_app* state) {
   JniEnvExt::Initialize(state->activity);
 
+  std::string thread_name = "starboard_main";
+  pthread_setname_np(pthread_self(), thread_name.c_str());
+
   std::vector<char*> args;
   GetArgs(state, &args);
 
@@ -414,6 +417,10 @@ extern "C" void android_main(struct android_app* state) {
   for (std::vector<char*>::iterator it = args.begin(); it != args.end(); ++it) {
     SbMemoryDeallocate(*it);
   }
+
+  // The "starboard_main" thread needs to be explicitly shutdown here because it
+  // was not created with SbThreadCreate() like the other native threads.
+  JniEnvExt::OnThreadShutdown();
 }
 
 // static
