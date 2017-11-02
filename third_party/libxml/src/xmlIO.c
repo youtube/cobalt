@@ -1636,7 +1636,7 @@ xmlCreateZMemBuff( int compression ) {
 	xmlFreeZMemBuff( buff );
 	buff = NULL;
 	xmlStrPrintf(msg, 500,
-		    (const xmlChar *) "xmlCreateZMemBuff:  %s %d\n",
+		    "xmlCreateZMemBuff:  %s %d\n",
 		    "Error initializing compression context.  ZLIB error:",
 		    z_err );
 	xmlIOErr(XML_IO_WRITE, (const char *) msg);

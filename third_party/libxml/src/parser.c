@@ -348,7 +348,6 @@ static void
 xmlFatalErr(xmlParserCtxtPtr ctxt, xmlParserErrors error, const char *info)
 {
     const char *errmsg;
-    char errstr[129] = "";
 
     if ((ctxt != NULL) && (ctxt->disableSAX != 0) &&
         (ctxt->instate == XML_PARSER_EOF))
@@ -535,15 +534,17 @@ xmlFatalErr(xmlParserCtxtPtr ctxt, xmlParserErrors error, const char *info)
         default:
             errmsg = "Unregistered error message";
     }
-    if (info == NULL)
-        XML_SNPRINTF(errstr, 128, "%s\n", errmsg);
-    else
-        XML_SNPRINTF(errstr, 128, "%s: %%s\n", errmsg);
     if (ctxt != NULL)
 	ctxt->errNo = error;
-    __xmlRaiseError(NULL, NULL, NULL, ctxt, NULL, XML_FROM_PARSER, error,
-                    XML_ERR_FATAL, NULL, 0, info, NULL, NULL, 0, 0, &errstr[0],
-                    info);
+    if (info == NULL) {
+        __xmlRaiseError(NULL, NULL, NULL, ctxt, NULL, XML_FROM_PARSER, error,
+                        XML_ERR_FATAL, NULL, 0, info, NULL, NULL, 0, 0, "%s\n",
+                        errmsg);
+    } else {
+        __xmlRaiseError(NULL, NULL, NULL, ctxt, NULL, XML_FROM_PARSER, error,
+                        XML_ERR_FATAL, NULL, 0, info, NULL, NULL, 0, 0, "%s: %s\n",
+                        errmsg, info);
+    }
     if (ctxt != NULL) {
 	ctxt->wellFormed = 0;
 	if (ctxt->recovery == 0)
@@ -559,7 +560,7 @@ xmlFatalErr(xmlParserCtxtPtr ctxt, xmlParserErrors error, const char *info)
  *
  * Handle a fatal parser error, i.e. violating Well-Formedness constraints
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlFatalErrMsg(xmlParserCtxtPtr ctxt, xmlParserErrors error,
                const char *msg)
 {
@@ -587,7 +588,7 @@ xmlFatalErrMsg(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a warning.
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlWarningMsg(xmlParserCtxtPtr ctxt, xmlParserErrors error,
               const char *msg, const xmlChar *str1, const xmlChar *str2)
 {
@@ -625,7 +626,7 @@ xmlWarningMsg(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a validity error.
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlValidityError(xmlParserCtxtPtr ctxt, xmlParserErrors error,
               const char *msg, const xmlChar *str1, const xmlChar *str2)
 {
@@ -665,7 +666,7 @@ xmlValidityError(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a fatal parser error, i.e. violating Well-Formedness constraints
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlFatalErrMsgInt(xmlParserCtxtPtr ctxt, xmlParserErrors error,
                   const char *msg, int val)
 {
@@ -695,7 +696,7 @@ xmlFatalErrMsgInt(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a fatal parser error, i.e. violating Well-Formedness constraints
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlFatalErrMsgStrIntStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
                   const char *msg, const xmlChar *str1, int val,
 		  const xmlChar *str2)
@@ -725,7 +726,7 @@ xmlFatalErrMsgStrIntStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a fatal parser error, i.e. violating Well-Formedness constraints
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlFatalErrMsgStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
                   const char *msg, const xmlChar * val)
 {
@@ -754,7 +755,7 @@ xmlFatalErrMsgStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a non fatal parser error
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlErrMsgStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
                   const char *msg, const xmlChar * val)
 {
@@ -779,7 +780,7 @@ xmlErrMsgStr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a fatal parser error, i.e. violating Well-Formedness constraints
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlNsErr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
          const char *msg,
          const xmlChar * info1, const xmlChar * info2,
@@ -808,7 +809,7 @@ xmlNsErr(xmlParserCtxtPtr ctxt, xmlParserErrors error,
  *
  * Handle a namespace warning error
  */
-static void
+static void LIBXML_ATTR_FORMAT(3,0)
 xmlNsWarn(xmlParserCtxtPtr ctxt, xmlParserErrors error,
          const char *msg,
          const xmlChar * info1, const xmlChar * info2,
@@ -5481,7 +5482,7 @@ xmlParseEntityDecl(xmlParserCtxtPtr ctxt) {
 	    skipped = SKIP_BLANKS;
 	    if (skipped == 0) {
 		xmlFatalErrMsg(ctxt, XML_ERR_SPACE_REQUIRED,
-			       "Space required after '%'\n");
+			       "Space required after '%%'\n");
 	    }
 	    isParameter = 1;
 	}
