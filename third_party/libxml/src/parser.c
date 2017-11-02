@@ -7721,7 +7721,7 @@ xmlParseEntityRef(xmlParserCtxtPtr ctxt) {
      * not contain a <.
      */
     else if ((ctxt->instate == XML_PARSER_ATTRIBUTE_VALUE) &&
-	     (ent != NULL) && 
+	     (ent != NULL) &&
 	     (ent->etype != XML_INTERNAL_PREDEFINED_ENTITY)) {
 	if (((ent->checked & 1) || (ent->checked == 0)) &&
 	     (ent->content != NULL) && (xmlStrchr(ent->content, '<'))) {
@@ -8431,7 +8431,8 @@ xmlParseInternalSubset(xmlParserCtxtPtr ctxt) {
      * We should be at the end of the DOCTYPE declaration.
      */
     if (RAW != '>') {
-	xmlFatalErr(ctxt, XML_ERR_DOCTYPE_NOT_FINISHED, NULL);
+    	xmlFatalErr(ctxt, XML_ERR_DOCTYPE_NOT_FINISHED, NULL);
+        return;
     }
     NEXT;
 }
