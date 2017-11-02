@@ -19,8 +19,13 @@ scoped_refptr<StreamParserBuffer> StreamParserBuffer::CreateEOSBuffer() {
 scoped_refptr<StreamParserBuffer> StreamParserBuffer::CopyFrom(
     Allocator* allocator, const uint8_t* data, int data_size, bool is_key_frame,
     Type type, TrackId track_id) {
-  return make_scoped_refptr(new StreamParserBuffer(
-      allocator, data, data_size, is_key_frame, type, track_id));
+  scoped_refptr<StreamParserBuffer> stream_parser_buffer =
+      make_scoped_refptr(new StreamParserBuffer(allocator, data, data_size,
+                                                is_key_frame, type, track_id));
+  if (!stream_parser_buffer->has_data()) {
+    return NULL;
+  }
+  return stream_parser_buffer;
 }
 
 DecodeTimestamp StreamParserBuffer::GetDecodeTimestamp() const {
@@ -49,6 +54,9 @@ StreamParserBuffer::StreamParserBuffer(Allocator* allocator,
       config_id_(kInvalidConfigId),
       track_id_(track_id),
       is_duration_estimated_(false) {
+  if (allocations().number_of_buffers() == 0) {
+    return;
+  }
   // TODO(scherkus): Should DataBuffer constructor accept a timestamp and
   // duration to force clients to set them? Today they end up being zero which
   // is both a common and valid value and could lead to bugs.

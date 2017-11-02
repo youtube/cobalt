@@ -115,7 +115,11 @@ bool EsAdapterVideo::OnNewBuffer(
 
   has_valid_frame_ = true;
 
-  if (discarded_frame_count_ > 0) ReplaceDiscardedFrames(stream_parser_buffer);
+  if (discarded_frame_count_ > 0) {
+    if (!ReplaceDiscardedFrames(stream_parser_buffer)) {
+      return false;
+    }
+  }
 
   buffer_list_.push_back(stream_parser_buffer);
   ProcessPendingBuffers(false);
@@ -210,6 +214,9 @@ void EsAdapterVideo::ReplaceDiscardedFrames(
         stream_parser_buffer->data(), stream_parser_buffer->data_size(),
         stream_parser_buffer->is_key_frame(), stream_parser_buffer->type(),
         stream_parser_buffer->track_id());
+    if (!frame) {
+      return false;
+    }
     frame->SetDecodeTimestamp(dts);
     frame->set_timestamp(pts);
     frame->set_duration(pts_delta);
@@ -218,6 +225,7 @@ void EsAdapterVideo::ReplaceDiscardedFrames(
     dts += dts_delta;
   }
   discarded_frame_count_ = 0;
+  return true;
 }
 
 }  // namespace mp2t

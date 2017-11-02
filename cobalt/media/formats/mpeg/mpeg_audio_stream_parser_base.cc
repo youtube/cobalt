@@ -233,6 +233,9 @@ int MPEGAudioStreamParserBase::ParseFrame(const uint8_t* data, int size,
   scoped_refptr<StreamParserBuffer> buffer =
       StreamParserBuffer::CopyFrom(buffer_allocator_, data, frame_size, true,
                                    DemuxerStream::AUDIO, kMpegAudioTrackId);
+  if (!buffer) {
+    return -1;
+  }
   buffer->set_timestamp(timestamp_helper_->GetTimestamp());
   buffer->set_duration(timestamp_helper_->GetFrameDuration(sample_count));
   buffers->push_back(buffer);

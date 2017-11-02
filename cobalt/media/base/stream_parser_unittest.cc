@@ -52,6 +52,7 @@ static void GenerateBuffers(const int* decode_timestamps,
   for (int i = 0; decode_timestamps[i] != kEnd; ++i) {
     scoped_refptr<StreamParserBuffer> buffer = StreamParserBuffer::CopyFrom(
         kFakeData, sizeof(kFakeData), true, type, track_id);
+    DCHECK(buffer);
     buffer->SetDecodeTimestamp(
         DecodeTimestamp::FromMicroseconds(decode_timestamps[i]));
     queue->push_back(buffer);
