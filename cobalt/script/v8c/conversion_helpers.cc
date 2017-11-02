@@ -27,20 +27,6 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   NOTIMPLEMENTED();
 }
 
-// OpaqueHandle -> JSValue
-void ToJSValue(v8::Isolate* isolate,
-               const OpaqueHandleHolder* opaque_handle_holder,
-               v8::Local<v8::Value>* out_value) {
-  NOTIMPLEMENTED();
-}
-
-// JSValue -> OpaqueHandle
-void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 V8cObjectHandleHolder* out_holder) {
-  NOTIMPLEMENTED();
-}
-
 // ValueHandle -> JSValue
 void ToJSValue(v8::Isolate* isolate,
                const ValueHandleHolder* value_handle_holder,

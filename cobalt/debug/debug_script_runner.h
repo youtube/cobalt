@@ -22,8 +22,8 @@
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/callback_function.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -47,8 +47,8 @@ class DebugScriptRunner : public script::Wrappable {
 
   // Callback to create a JavaScript Runtime.RemoteObject from an opaque JS
   // object.
-  typedef script::CallbackFunction<std::string(
-      const script::OpaqueHandleHolder*, const std::string&)>
+  typedef script::CallbackFunction<std::string(const script::ValueHandleHolder*,
+                                               const std::string&)>
       CreateRemoteObjectCallback;
   typedef script::ScriptValue<CreateRemoteObjectCallback>
       CreateRemoteObjectCallbackHolder;
@@ -61,7 +61,7 @@ class DebugScriptRunner : public script::Wrappable {
   // calling the |create_remote_object_callback_| script function.
   // https://developer.chrome.com/devtools/docs/protocol/1.1/runtime#type-RemoteObject
   base::optional<std::string> CreateRemoteObject(
-      const script::OpaqueHandleHolder* object, const std::string& params);
+      const script::ValueHandleHolder* object, const std::string& params);
 
   // Runs |command| on the JavaScript |runtimeInspector| object, passing in
   // |json_params| and putting the result in |json_result|.

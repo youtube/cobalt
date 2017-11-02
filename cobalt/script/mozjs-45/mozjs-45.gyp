@@ -33,7 +33,6 @@
         'mozjs_exception_state.h',
         'mozjs_global_environment.cc',
         'mozjs_global_environment.h',
-        'mozjs_object_handle.h',
         'mozjs_property_enumerator.cc',
         'mozjs_property_enumerator.h',
         'mozjs_script_value_factory.cc',

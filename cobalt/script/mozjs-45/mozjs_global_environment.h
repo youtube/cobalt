@@ -61,11 +61,10 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
                       std::string* out_result_utf8) OVERRIDE;
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
-                      const scoped_refptr<Wrappable>& owning_object,
-                      bool mute_errors,
-                      base::optional<OpaqueHandleHolder::Reference>*
-                          out_opaque_handle) OVERRIDE;
+  bool EvaluateScript(
+      const scoped_refptr<SourceCode>& script_utf8,
+      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) OVERRIDE;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) OVERRIDE;
   using GlobalEnvironment::GetStackTrace;

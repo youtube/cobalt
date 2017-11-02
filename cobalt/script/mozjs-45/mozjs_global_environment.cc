@@ -222,7 +222,7 @@ bool MozjsGlobalEnvironment::EvaluateScript(
 bool MozjsGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
+    base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
   JSAutoRequest auto_request(context_);
@@ -231,11 +231,9 @@ bool MozjsGlobalEnvironment::EvaluateScript(
   JS::RootedValue result_value(context_);
   bool success =
       EvaluateScriptInternal(source_code, mute_errors, &result_value);
-  if (success && out_opaque_handle) {
-    JS::RootedObject js_object(context_);
-    JS_ValueToObject(context_, result_value, &js_object);
-    MozjsObjectHandleHolder mozjs_object_holder(context_, js_object);
-    out_opaque_handle->emplace(owning_object.get(), mozjs_object_holder);
+  if (success && out_value_handle) {
+    MozjsValueHandleHolder mozjs_value_holder(context_, result_value);
+    out_value_handle->emplace(owning_object.get(), mozjs_value_holder);
   }
   return success;
 }

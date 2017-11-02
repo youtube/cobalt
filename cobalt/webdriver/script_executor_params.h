@@ -23,7 +23,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/time.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -78,7 +78,7 @@ class ScriptExecutorParams : public script::Wrappable {
       const std::string& function_body, const std::string& json_args,
       base::optional<base::TimeDelta> async_timeout);
 
-  const script::OpaqueHandleHolder* function_object() {
+  const script::ValueHandleHolder* function_object() {
     return function_object_ ? &function_object_->referenced_value() : NULL;
   }
   const std::string& json_args() { return json_args_; }
@@ -88,7 +88,7 @@ class ScriptExecutorParams : public script::Wrappable {
 
  private:
   std::string function_body_;
-  base::optional<script::OpaqueHandleHolder::Reference> function_object_;
+  base::optional<script::ValueHandleHolder::Reference> function_object_;
   std::string json_args_;
   base::optional<int32_t> async_timeout_;
 };
