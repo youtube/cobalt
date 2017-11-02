@@ -21,10 +21,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/script/error_report.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/stack_frame.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -64,12 +64,12 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
 
   // Evaluate the JavaScript source code. Returns true on success,
   // false if there is an exception.
-  // Set |out_opaque_handle| to be a reference to the result of the evaluation
+  // Set |out_value_handle| to be a reference to the result of the evaluation
   // of the script that is owned by |owner|.
   virtual bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-      base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) = 0;
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
 
   // Returns the stack trace as a vector of individual frames.
   // Set |max_frames| to 0 to retrieve all available frames. Otherwise
