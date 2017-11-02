@@ -122,13 +122,15 @@ class ExitFileWatch(object):
       p = subprocess.Popen(
           self.adb_builder.Build('shell', 'cat', self.exitcode_path),
           stdout=_DEV_NULL,
-          stderr=_DEV_NULL)
+          stderr=_DEV_NULL,
+          close_fds=True)
       if 0 == p.wait():
         self.done_queue.put(_QUEUE_CODE_EXITED)
         # This log line will wake up the main thread
         subprocess.call(
             self.adb_builder.Build('shell', 'log', '-t', 'starboard',
-                                   'exitcode file created'))
+                                   'exitcode file created'),
+            close_fds=True)
         break
       time.sleep(1)
 
@@ -141,7 +143,8 @@ class AdbAmMonitorWatcher(object):
     self.process = subprocess.Popen(
         adb_builder.Build('shell', 'am', 'monitor'),
         stdout=subprocess.PIPE,
-        stderr=_DEV_NULL)
+        stderr=_DEV_NULL,
+        close_fds=True)
     self.thread = threading.Thread(target=self._Run)
     self.thread.start()
     self.done_queue = done_queue
@@ -160,7 +163,8 @@ class AdbAmMonitorWatcher(object):
         # This log line will wake up the main thread
         subprocess.call(
             self.adb_builder.Build('shell', 'log', '-t', 'starboard',
-                                   'am monitor detected crash'))
+                                   'am monitor detected crash'),
+            close_fds=True)
 
 
 class Launcher(abstract_launcher.AbstractLauncher):
@@ -187,13 +191,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self.host_content_path = os.path.join(
         self.out_directory, _DIR_SOURCE_ROOT_DIRECTORY_RELATIVE_PATH)
 
+    # This flag is set when the main Run() loop exits.  If Kill() is called
+    # after this flag is set, it will not do anything.
+    self.killed = threading.Event()
+
   def _GetAdbDevices(self):
     """Returns a list of names of connected devices, or empty list if none."""
 
     # Does not use the ADBCommandBuilder class because this command should be
     # run without targeting a specific device.
     p = subprocess.Popen(['adb', 'devices'], stderr=_DEV_NULL,
-                         stdout=subprocess.PIPE)
+                         stdout=subprocess.PIPE, close_fds=True)
     result = p.stdout.readlines()[1:-1]
     p.wait()
 
@@ -201,8 +209,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     for device in result:
       name_info = device.split('\t')
       # Some devices may not have authorization for USB debugging.
-      if 'unauthorized' not in name_info[1]:
-        names.append(name_info[0])
+      try:
+        if 'unauthorized' not in name_info[1]:
+          names.append(name_info[0])
+      # Sometimes happens when device is found, even though none are connected.
+      except IndexError:
+        continue
     return names
 
   def _IdentifyDevice(self):
@@ -279,7 +291,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _Call(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL)
+    subprocess.call(args, stdout=_DEV_NULL, stderr=_DEV_NULL,
+                    close_fds=True)
 
   def _CallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
@@ -287,14 +300,16 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def _CheckCall(self, *args):
     sys.stderr.write('{}\n'.format(' '.join(args)))
-    subprocess.check_call(args, stdout=_DEV_NULL, stderr=_DEV_NULL)
+    subprocess.check_call(args, stdout=_DEV_NULL, stderr=_DEV_NULL,
+                          close_fds=True)
 
   def _CheckCallAdb(self, *in_args):
     args = self.adb_builder.Build(*in_args)
     self._CheckCall(*args)
 
   def _PopenAdb(self, *args, **kwargs):
-    return subprocess.Popen(self.adb_builder.Build(*args), **kwargs)
+    return subprocess.Popen(self.adb_builder.Build(*args), close_fds=True,
+                            **kwargs)
 
   def _CalculateAppChecksum(self):
     """Calculates a checksum using metadata from local Android app files.
@@ -336,10 +351,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Returns:
       The checksum on the device, or None if there isn't one.
     """
-    p = subprocess.Popen(
-        self.adb_builder.Build('shell', 'cat', target_checksum_path),
-        stdout=subprocess.PIPE,
-        stderr=_DEV_NULL)
+    p = self._PopenAdb('shell', 'cat', target_checksum_path,
+                       stdout=subprocess.PIPE,
+                       stderr=_DEV_NULL)
 
     for line in p.stdout:
       checksum_result = re.search(_RE_CHECKSUM, line)
@@ -444,6 +458,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   def Run(self):
 
+    # The return code for binaries run on Android is fetched from an exitcode
+    # file on the device.  This return_code variable will be assigned the
+    # value in that file, or left at 1 in the event of a crash or early exit.
+    return_code = 1
+
+    # Setup for running executable
     self._SetupEnvironment()
     self._CheckCallAdb('logcat', '-c')
 
@@ -458,15 +478,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
     # will not flush quickly enough and output will be cut off.
     self._CheckCallAdb('logcat', '-G', '2M')
 
+    #  Ctrl + C will kill this process
     logcat_process = self._PopenAdb(
         'logcat', '-s', 'starboard:*', stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT)
 
-    # The return code for binaries run on Android is fetched from an exitcode
-    # file on the device.  This return_code variable will be assigned the
-    # value in that file, or left at 1 in the event of a crash or early exit.
-    return_code = 1
-
+    # Actually running executable
     try:
       args = [_APP_START_INTENT]
 
@@ -516,16 +533,18 @@ class Launcher(abstract_launcher.AbstractLauncher):
         if 'beginning of crash' in line:
           sys.stderr.write('***Application Crashed***\n')
           break
-        if not line:
+        if not line:  # Logcat exited
           break
         else:
           self._WriteLine(line)
 
     finally:
-      logcat_process.kill()
+      self._Shutdown()
       self._CallAdb('forward', '--remove-all')
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
+      self._CloseOutputFile()
+      self.killed.set()
 
     return return_code
 
@@ -534,12 +553,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
   # TODO:  Ensure this is always a clean exit on CTRL + C
   def Kill(self):
-    self.output_file.write('***Killing Launcher***\n')
-    self._Shutdown()
-    try:
-      self._CheckCallAdb('shell', 'echo', '1', '>', self.exit_code_path)
-    except AttributeError:  # exit_code_path isn't defined yet, so ignore it.
-      pass
+    if not self.killed.is_set():
+      sys.stderr.write('***Killing Launcher***\n')
+      try:
+        self._CheckCallAdb('shell', 'echo', '1', '>', self.exit_code_path)
+      except AttributeError:  # exit_code_path isn't defined yet, so ignore it.
+        pass
+    else:
+      sys.stderr.write('Cannot kill launcher: already dead.\n')
 
   def _WriteLine(self, line):
     """Write log output to stdout."""
