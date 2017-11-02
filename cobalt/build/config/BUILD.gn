@@ -30,6 +30,8 @@ config("compiler_defaults") {
     "COBALT",
     "COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=$allocate_on_demand",
     "COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=$cobalt_media_buffer_initial_capacity",
+    "COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080p=$cobalt_media_buffer_max_capacity_1080p",
+    "COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=$cobalt_media_buffer_max_capacity_4k",
     "COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=$cobalt_media_buffer_allocation_unit",
     "COBALT_MEDIA_BUFFER_ALIGNMENT=$cobalt_media_buffer_alignment",
     "COBALT_MEDIA_BUFFER_PADDING=$cobalt_media_buffer_padding",

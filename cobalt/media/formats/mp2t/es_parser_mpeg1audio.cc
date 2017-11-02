@@ -79,6 +79,9 @@ bool EsParserMpeg1Audio::ParseFromEsQueue() {
         StreamParserBuffer::CopyFrom(mpeg1audio_frame.data,
                                      mpeg1audio_frame.size, is_key_frame,
                                      DemuxerStream::AUDIO, kMp2tAudioTrackId);
+    if (!stream_parser_buffer) {
+      return false;
+    }
     stream_parser_buffer->set_timestamp(current_pts);
     stream_parser_buffer->set_duration(frame_duration);
     emit_buffer_cb_.Run(stream_parser_buffer);

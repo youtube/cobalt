@@ -44,6 +44,7 @@ StreamParserBuffer::BufferQueue GenerateFakeBuffers(const int* frame_pts_ms,
     buffers[k] =
         StreamParserBuffer::CopyFrom(dummy_buffer, arraysize(dummy_buffer),
                                      is_key_frame[k], DemuxerStream::VIDEO, 0);
+    ASSERT_TRUE(buffers[k]);
     if (frame_pts_ms[k] < 0) {
       buffers[k]->set_timestamp(kNoTimestamp);
     } else {

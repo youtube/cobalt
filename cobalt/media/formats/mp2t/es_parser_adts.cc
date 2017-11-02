@@ -145,6 +145,9 @@ bool EsParserAdts::ParseFromEsQueue() {
         StreamParserBuffer::CopyFrom(adts_frame.data, adts_frame.size,
                                      is_key_frame, DemuxerStream::AUDIO,
                                      kMp2tAudioTrackId);
+    if (!stream_parser_buffer) {
+      return false;
+    }
     stream_parser_buffer->set_timestamp(current_pts);
     stream_parser_buffer->SetDecodeTimestamp(
         DecodeTimestamp::FromPresentationTime(current_pts));

@@ -93,6 +93,7 @@ class MediaSource : public EventTarget {
   void RemoveSourceBuffer(const scoped_refptr<SourceBuffer>& source_buffer,
                           script::ExceptionState* exception_state);
 
+  void EndOfStreamAlgorithm(MediaSourceEndOfStreamError error);
   void EndOfStream(script::ExceptionState* exception_state);
   void EndOfStream(MediaSourceEndOfStreamError error,
                    script::ExceptionState* exception_state);

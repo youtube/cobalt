@@ -122,7 +122,8 @@ SourceBufferState::SourceBufferState(
     scoped_ptr<StreamParser> stream_parser,
     scoped_ptr<FrameProcessor> frame_processor,
     const CreateDemuxerStreamCB& create_demuxer_stream_cb,
-    const scoped_refptr<MediaLog>& media_log)
+    const scoped_refptr<MediaLog>& media_log,
+    DecoderBuffer::Allocator* buffer_allocator)
     : num_missing_track_logs_(0),
       create_demuxer_stream_cb_(create_demuxer_stream_cb),
       timestamp_offset_during_append_(NULL),
@@ -133,7 +134,8 @@ SourceBufferState::SourceBufferState(
       state_(UNINITIALIZED),
       append_in_progress_(false),
       first_init_segment_received_(false),
-      auto_update_timestamp_offset_(false) {
+      auto_update_timestamp_offset_(false),
+      buffer_allocator_(buffer_allocator) {
   DCHECK(!create_demuxer_stream_cb_.is_null());
   DCHECK(frame_processor_);
 }
@@ -729,6 +731,7 @@ bool SourceBufferState::OnNewConfigs(
       }
 
       tracks->tracks()[i]->set_id(stream->media_track_id());
+      buffer_allocator_->UpdateVideoConfig(video_config);
       success &= stream->UpdateVideoConfig(video_config, media_log_);
     } else {
       MEDIA_LOG(ERROR, media_log_) << "Error: unsupported media track type "

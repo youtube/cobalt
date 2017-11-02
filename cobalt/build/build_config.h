@@ -50,4 +50,28 @@
 #endif  // COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K <
         //     COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P
 
+#if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != 0
+#if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P <  \
+    (COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P + \
+     COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#error cobalt_media_buffer_max_capacity_1080p has to be greater than the sum \
+           of cobalt_media_buffer_video_budget_1080p + \
+           cobalt_media_buffer_non_video_budget
+#endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P <
+        // (COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P +
+        // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P != 0
+
+#if COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != 0
+#if COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K <  \
+    (COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K + \
+     COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#error cobalt_media_buffer_max_capacity_4k has to be greater than the sum of \
+           cobalt_media_buffer_video_budget_4k + \
+           cobalt_media_buffer_non_video_budget
+#endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K <
+        // (COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K +
+        // COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET)
+#endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K != 0
+
 #endif  // COBALT_BUILD_BUILD_CONFIG_H_

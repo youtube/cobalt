@@ -237,6 +237,7 @@ scoped_refptr<DecoderBuffer> CreateFakeVideoBufferForTest(
   scoped_refptr<DecoderBuffer> buffer =
       DecoderBuffer::CopyFrom(static_cast<const uint8_t*>(pickle.data()),
                               static_cast<int>(pickle.size()));
+  DCHECK(buffer);
   buffer->set_timestamp(timestamp);
   buffer->set_duration(duration);
   buffer->set_is_key_frame(true);
