@@ -270,6 +270,7 @@ class ChunkDemuxerTest : public ::testing::Test {
       DCHECK_EQ(len, 32);
       const uint8_t* const buf = reinterpret_cast<const uint8_t*>(str);
       text_track_entry = DecoderBuffer::CopyFrom(buf, len);
+      ASSERT_TRUE(text_track_entry);
       tracks_element_size += text_track_entry->data_size();
     }
 

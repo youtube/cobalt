@@ -235,6 +235,9 @@ bool EsParserH264::EmitFrame(int64_t access_unit_pos, int access_unit_size,
   scoped_refptr<StreamParserBuffer> stream_parser_buffer =
       StreamParserBuffer::CopyFrom(es, access_unit_size, is_key_frame,
                                    DemuxerStream::VIDEO, kMp2tVideoTrackId);
+  if (!stream_parser_buffer) {
+    return false;
+  }
   stream_parser_buffer->SetDecodeTimestamp(current_timing_desc.dts);
   stream_parser_buffer->set_timestamp(current_timing_desc.pts);
   return es_adapter_.OnNewBuffer(stream_parser_buffer);

@@ -17,6 +17,8 @@
 
 #include "base/compiler_specific.h"
 #include "cobalt/media/base/decoder_buffer.h"
+#include "cobalt/media/base/video_decoder_config.h"
+#include "cobalt/media/base/video_resolution.h"
 #include "nb/bidirectional_fit_reuse_allocator.h"
 #include "nb/starboard_memory_allocator.h"
 #include "starboard/common/scoped_ptr.h"
@@ -40,12 +42,14 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
                        intptr_t context) override;
   void Free(Allocations allocations) override;
 
+  void UpdateVideoConfig(const VideoDecoderConfig& video_config);
+
  private:
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
-  class ReuseAllcator : public nb::BidirectionalFitReuseAllocator {
+  class ReuseAllocator : public nb::BidirectionalFitReuseAllocator {
    public:
-    ReuseAllcator(Allocator* fallback_allocator, std::size_t initial_capacity,
-                  std::size_t allocation_increment);
+    ReuseAllocator(Allocator* fallback_allocator, std::size_t initial_capacity,
+                   std::size_t allocation_increment, std::size_t max_capacity);
 
     FreeBlockSet::iterator FindBestFreeBlock(
         std::size_t size, std::size_t alignment, intptr_t context,
@@ -53,11 +57,13 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
         bool* allocate_from_front) override;
   };
 
-  void UpdateAllocationRecord(std::size_t blocks = 1) const;
+  // Update the Allocation record, and return false if allocation exceeds the
+  // max buffer capacity, or true otherwise.
+  bool UpdateAllocationRecord(std::size_t blocks = 1) const;
 
   starboard::Mutex mutex_;
   nb::StarboardMemoryAllocator fallback_allocator_;
-  starboard::scoped_ptr<ReuseAllcator> reuse_allcator_;
+  starboard::scoped_ptr<ReuseAllocator> reuse_allocator_;
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 };
 

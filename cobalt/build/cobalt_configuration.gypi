@@ -413,6 +413,17 @@
     # reducing fragmentation and can avoid failures to allocate incrementally.
     # This can be set to 0.
     'cobalt_media_buffer_initial_capacity%': 21 * 1024 * 1024,
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is no larger than 1080p. If 0, then memory can grow
+    # without bound. This must be larger than sum of 1080p video budget and non-
+    # video budget.
+    'cobalt_media_buffer_max_capacity_1080p%': 36 * 1024 * 1024,
+    # The maximum amount of memory that will be used to store media buffers when
+    # video resolution is no larger than 4k. If 0, then memory can grow
+    # without bound. This must be larger than sum of 4k video budget and non-
+    # video budget.
+    'cobalt_media_buffer_max_capacity_4k%': 65 * 1024 * 1024,
+
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.
     # This can be set to 0, in which case the media stack will allocate extra
@@ -527,6 +538,8 @@
       'COBALT',
       'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
       'COBALT_MEDIA_BUFFER_INITIAL_CAPACITY=<(cobalt_media_buffer_initial_capacity)',
+      'COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P=<(cobalt_media_buffer_max_capacity_1080p)',
+      'COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K=<(cobalt_media_buffer_max_capacity_4k)',
       'COBALT_MEDIA_BUFFER_ALLOCATION_UNIT=<(cobalt_media_buffer_allocation_unit)',
       'COBALT_MEDIA_BUFFER_ALIGNMENT=<(cobalt_media_buffer_alignment)',
       'COBALT_MEDIA_BUFFER_PADDING=<(cobalt_media_buffer_padding)',

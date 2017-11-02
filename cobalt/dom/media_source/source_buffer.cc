@@ -481,7 +481,7 @@ void SourceBuffer::AppendError() {
 
   ScheduleEvent(base::Tokens::error());
   ScheduleEvent(base::Tokens::updateend());
-  media_source_->EndOfStream(kMediaSourceEndOfStreamErrorDecode, NULL);
+  media_source_->EndOfStreamAlgorithm(kMediaSourceEndOfStreamErrorDecode);
 }
 
 void SourceBuffer::OnRemoveTimer() {
