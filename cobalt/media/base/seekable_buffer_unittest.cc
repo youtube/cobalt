@@ -241,6 +241,7 @@ TEST_F(SeekableBufferTest, GetCurrentChunk) {
   const int kSeekSize = kWriteSize / 3;
 
   scoped_refptr<DataBuffer> buffer = DataBuffer::CopyFrom(data_, kWriteSize);
+  DCHECK(buffer);
 
   const uint8_t* data;
   int size;
@@ -344,6 +345,7 @@ TEST_F(SeekableBufferTest, GetTime) {
             buffer_.current_time().ToInternalValue());
 
   scoped_refptr<DataBuffer> buffer = DataBuffer::CopyFrom(data_, kWriteSize);
+  DCHECK(buffer);
 
   for (size_t i = 0; i < arraysize(tests); ++i) {
     buffer->set_timestamp(

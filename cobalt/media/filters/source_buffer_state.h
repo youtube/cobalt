@@ -43,7 +43,8 @@ class MEDIA_EXPORT SourceBufferState {
   SourceBufferState(scoped_ptr<StreamParser> stream_parser,
                     scoped_ptr<FrameProcessor> frame_processor,
                     const CreateDemuxerStreamCB& create_demuxer_stream_cb,
-                    const scoped_refptr<MediaLog>& media_log);
+                    const scoped_refptr<MediaLog>& media_log,
+                    DecoderBuffer::Allocator* buffer_allocator);
 
   ~SourceBufferState();
 
@@ -230,6 +231,8 @@ class MEDIA_EXPORT SourceBufferState {
   // TODO(wolenetz): Refactor this function while integrating April 29, 2014
   // changes to MSE spec. See http://crbug.com/371499.
   bool auto_update_timestamp_offset_;
+
+  DecoderBuffer::Allocator* buffer_allocator_;
 
   DISALLOW_COPY_AND_ASSIGN(SourceBufferState);
 };
