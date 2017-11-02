@@ -17,7 +17,7 @@
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
 
-using cobalt::script::OpaqueHandleHolder;
+using cobalt::script::ValueHandleHolder;
 using ::testing::_;
 using ::testing::Invoke;
 using ::testing::Return;
@@ -70,12 +70,12 @@ TEST_F(EvaluateScriptTest, ThreeArguments) {
   EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, NULL));
 
   // Call with non-null, but unset optional handle.
-  base::optional<OpaqueHandleHolder::Reference> opaque_handle;
-  EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, &opaque_handle));
-  ASSERT_FALSE(opaque_handle->referenced_value().IsNull());
+  base::optional<ValueHandleHolder::Reference> value_handle;
+  EXPECT_TRUE(EvaluateScript(script, arbitrary_interface_mock, &value_handle));
+  ASSERT_FALSE(value_handle->referenced_value().IsNull());
 
   EXPECT_CALL(test_mock(), object_property())
-      .WillOnce(Return(&opaque_handle->referenced_value()));
+      .WillOnce(Return(&value_handle->referenced_value()));
   std::string result;
   EXPECT_TRUE(EvaluateScript("test.objectProperty == 21;", &result));
   EXPECT_STREQ("true", result.c_str());

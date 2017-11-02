@@ -30,8 +30,8 @@ $var MAX_MEMBERS = 4
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
-#include "cobalt/script/v8c/v8c_object_handle.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 
 // Conversion to/from Value for IDL union types.
 

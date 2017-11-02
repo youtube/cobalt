@@ -57,7 +57,7 @@ DebugServer::~DebugServer() {
 }
 
 base::optional<std::string> DebugServer::CreateRemoteObject(
-    const script::OpaqueHandleHolder* object, const std::string& params) {
+    const script::ValueHandleHolder* object, const std::string& params) {
   DCHECK(thread_checker_.CalledOnValidThread());
   return script_runner_->CreateRemoteObject(object, params);
 }

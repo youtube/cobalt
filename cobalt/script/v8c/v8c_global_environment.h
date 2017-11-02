@@ -56,11 +56,10 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
                       std::string* out_result_utf8) override;
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
-                      const scoped_refptr<Wrappable>& owning_object,
-                      bool mute_errors,
-                      base::optional<OpaqueHandleHolder::Reference>*
-                          out_opaque_handle) override;
+  bool EvaluateScript(
+      const scoped_refptr<SourceCode>& script_utf8,
+      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
   std::vector<StackFrame> GetStackTrace(int max_frames) override;
   using GlobalEnvironment::GetStackTrace;

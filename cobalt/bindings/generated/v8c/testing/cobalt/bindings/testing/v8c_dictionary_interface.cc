@@ -24,8 +24,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/derived_dictionary.h"
 #include "cobalt/bindings/testing/dictionary_with_dictionary_member.h"
 #include "cobalt/bindings/testing/test_dictionary.h"
@@ -54,10 +54,10 @@ using cobalt::bindings::testing::DictionaryWithDictionaryMember;
 using cobalt::bindings::testing::TestDictionary;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
 using cobalt::script::v8c::FromJSValue;

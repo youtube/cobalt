@@ -43,7 +43,7 @@ DebugScriptRunner::DebugScriptRunner(
 }
 
 base::optional<std::string> DebugScriptRunner::CreateRemoteObject(
-    const script::OpaqueHandleHolder* object, const std::string& params) {
+    const script::ValueHandleHolder* object, const std::string& params) {
   // Callback function should have been set by runtime.js.
   DCHECK(create_remote_object_callback_);
 

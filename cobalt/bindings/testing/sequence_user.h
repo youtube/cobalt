@@ -18,9 +18,9 @@
 #include <string>
 
 #include "cobalt/bindings/testing/arbitrary_interface.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/sequence.h"
 #include "cobalt/script/union_type.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
