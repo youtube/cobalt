@@ -45,10 +45,10 @@ DecoderBufferAllocator::DecoderBufferAllocator() {
   DLOG(INFO) << "Allocated media buffer pool on demand.";
 #else   // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
   TRACK_MEMORY_SCOPE("Media");
-
-  reuse_allcator_.reset(new ReuseAllcator(&fallback_allocator_,
-                                          COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
-                                          COBALT_MEDIA_BUFFER_ALLOCATION_UNIT));
+  reuse_allocator_.reset(new ReuseAllocator(
+      &fallback_allocator_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
+      COBALT_MEDIA_BUFFER_ALLOCATION_UNIT,
+      COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P));
   DLOG(INFO) << "Allocated " << COBALT_MEDIA_BUFFER_INITIAL_CAPACITY
              << " bytes for media buffer pool as its initial buffer.";
 #endif  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
@@ -63,9 +63,9 @@ DecoderBufferAllocator::~DecoderBufferAllocator() {
 
   starboard::ScopedLock scoped_lock(mutex_);
 
-  if (reuse_allcator_) {
-    DCHECK_EQ(reuse_allcator_->GetAllocated(), 0);
-    reuse_allcator_.reset();
+  if (reuse_allocator_) {
+    DCHECK_EQ(reuse_allocator_->GetAllocated(), 0);
+    reuse_allocator_.reset();
   }
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
@@ -77,29 +77,40 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   starboard::ScopedLock scoped_lock(mutex_);
 
-  if (!reuse_allcator_) {
-    reuse_allcator_.reset(new ReuseAllcator(
+  if (!reuse_allocator_) {
+    reuse_allocator_.reset(new ReuseAllocator(
         &fallback_allocator_, COBALT_MEDIA_BUFFER_INITIAL_CAPACITY,
-        COBALT_MEDIA_BUFFER_ALLOCATION_UNIT));
+        COBALT_MEDIA_BUFFER_ALLOCATION_UNIT,
+        COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P));
     DLOG(INFO) << "Returned " << COBALT_MEDIA_BUFFER_INITIAL_CAPACITY
                << " bytes from media buffer pool to system.";
   }
 
   if (!kEnableMultiblockAllocate || kEnableAllocationLog) {
-    void* p = reuse_allcator_->Allocate(size, alignment);
+    void* p = reuse_allocator_->Allocate(size, alignment);
     LOG_IF(INFO, kEnableAllocationLog)
         << "======== Media Allocation Log " << p << " " << size << " "
         << alignment << " " << context;
-    UpdateAllocationRecord();
+    if (!UpdateAllocationRecord()) {
+      // UpdateAllocationRecord may fail with non-NULL p when capacity is
+      // exceeded.
+      reuse_allocator_->Free(p);
+      return Allocations();
+    }
     return Allocations(p, size);
   }
 
   std::size_t allocated_size = size;
   void* p =
-      reuse_allcator_->AllocateBestBlock(alignment, context, &allocated_size);
+      reuse_allocator_->AllocateBestBlock(alignment, context, &allocated_size);
   DCHECK_LE(allocated_size, size);
   if (allocated_size == size) {
-    UpdateAllocationRecord();
+    if (!UpdateAllocationRecord()) {
+      // UpdateAllocationRecord may fail with non-NULL p when capacity is
+      // exceeded.
+      reuse_allocator_->Free(p);
+      return Allocations();
+    }
     return Allocations(p, size);
   }
 
@@ -107,17 +118,28 @@ DecoderBuffer::Allocator::Allocations DecoderBufferAllocator::Allocate(
   std::vector<int> buffer_sizes = {static_cast<int>(allocated_size)};
   size -= allocated_size;
 
+  bool update_allocation_record_failed = false;
   while (size > 0) {
     allocated_size = size;
-    void* p =
-        reuse_allcator_->AllocateBestBlock(alignment, context, &allocated_size);
+    void* p = reuse_allocator_->AllocateBestBlock(alignment, context,
+                                                  &allocated_size);
+    if (!UpdateAllocationRecord()) {
+      update_allocation_record_failed = true;
+      reuse_allocator_->Free(p);
+      break;
+    }
     DCHECK_LE(allocated_size, size);
     buffers.push_back(p);
     buffer_sizes.push_back(allocated_size);
 
     size -= allocated_size;
   }
-  UpdateAllocationRecord(buffers.size());
+  if (update_allocation_record_failed) {
+    for (auto& p : buffers) {
+      reuse_allocator_->Free(p);
+    }
+    return Allocations();
+  }
   return Allocations(static_cast<int>(buffers.size()), buffers.data(),
                      buffer_sizes.data());
 #else   // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
@@ -131,20 +153,20 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
   starboard::ScopedLock scoped_lock(mutex_);
 
-  DCHECK(reuse_allcator_);
+  DCHECK(reuse_allocator_);
 
   if (kEnableAllocationLog) {
     DCHECK_EQ(allocations.number_of_buffers(), 1);
     LOG(INFO) << "======== Media Allocation Log " << allocations.buffers()[0];
   }
   for (int i = 0; i < allocations.number_of_buffers(); ++i) {
-    reuse_allcator_->Free(allocations.buffers()[i]);
+    reuse_allocator_->Free(allocations.buffers()[i]);
   }
 #if COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
-  if (reuse_allcator_->GetAllocated() == 0) {
-    DLOG(INFO) << "Freed " << reuse_allcator_->GetCapacity()
+  if (reuse_allocator_->GetAllocated() == 0) {
+    DLOG(INFO) << "Freed " << reuse_allocator_->GetCapacity()
                << " bytes of media buffer pool `on demand`.";
-    reuse_allcator_.reset();
+    reuse_allocator_.reset();
   }
 #endif  // COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND
 #else   // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
@@ -154,15 +176,26 @@ void DecoderBufferAllocator::Free(Allocations allocations) {
 #endif  // COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
 }
 
-DecoderBufferAllocator::ReuseAllcator::ReuseAllcator(
+void DecoderBufferAllocator::UpdateVideoConfig(
+    const VideoDecoderConfig& config) {
+  if (!reuse_allocator_) {
+    return;
+  }
+  VideoResolution resolution = GetVideoResolution(config.visible_rect().size());
+  if (reuse_allocator_->max_capacity() && resolution > kVideoResolution1080p) {
+    reuse_allocator_->set_max_capacity(COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K);
+  }
+}
+
+DecoderBufferAllocator::ReuseAllocator::ReuseAllocator(
     Allocator* fallback_allocator, std::size_t initial_capacity,
-    std::size_t allocation_increment)
+    std::size_t allocation_increment, std::size_t max_capacity)
     : BidirectionalFitReuseAllocator(fallback_allocator, initial_capacity,
                                      kSmallAllocationThreshold,
-                                     allocation_increment) {}
+                                     allocation_increment, max_capacity) {}
 
-DecoderBufferAllocator::ReuseAllcator::FreeBlockSet::iterator
-DecoderBufferAllocator::ReuseAllcator::FindBestFreeBlock(
+DecoderBufferAllocator::ReuseAllocator::FreeBlockSet::iterator
+DecoderBufferAllocator::ReuseAllocator::FindBestFreeBlock(
     std::size_t size, std::size_t alignment, intptr_t context,
     FreeBlockSet::iterator begin, FreeBlockSet::iterator end,
     bool* allocate_from_front) {
@@ -196,7 +229,7 @@ DecoderBufferAllocator::ReuseAllcator::FindBestFreeBlock(
   return end;
 }
 
-void DecoderBufferAllocator::UpdateAllocationRecord(
+bool DecoderBufferAllocator::UpdateAllocationRecord(
     std::size_t blocks /*= 1*/) const {
 #if !defined(COBALT_BUILD_TYPE_GOLD)
   // This code is not quite multi-thread safe but is safe enough for tracking
@@ -206,14 +239,14 @@ void DecoderBufferAllocator::UpdateAllocationRecord(
   static std::size_t max_blocks = 1;
 
   bool new_max_reached = false;
-  if (reuse_allcator_->GetAllocated() >
+  if (reuse_allocator_->GetAllocated() >
       max_allocated + kAllocationRecordGranularity) {
-    max_allocated = reuse_allcator_->GetAllocated();
+    max_allocated = reuse_allocator_->GetAllocated();
     new_max_reached = true;
   }
-  if (reuse_allcator_->GetCapacity() >
+  if (reuse_allocator_->GetCapacity() >
       max_capacity + kAllocationRecordGranularity) {
-    max_capacity = reuse_allcator_->GetCapacity();
+    max_capacity = reuse_allocator_->GetCapacity();
     new_max_reached = true;
   }
   if (blocks > max_blocks) {
@@ -227,9 +260,21 @@ void DecoderBufferAllocator::UpdateAllocationRecord(
                   << "  Max Blocks: " << max_blocks;
     // TODO: Enable the following line once PrintAllocations() accepts max line
     // as a parameter.
-    // reuse_allcator_->PrintAllocations();
+    // reuse_allocator_->PrintAllocations();
   }
 #endif  // !defined(COBALT_BUILD_TYPE_GOLD)
+#if COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P > 0 || \
+    COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0
+  if (reuse_allocator_->CapacityExceeded()) {
+    SB_LOG(ERROR) << "Cobalt media buffer capacity "
+                  << reuse_allocator_->GetCapacity()
+                  << " exceeded max capacity "
+                  << reuse_allocator_->max_capacity();
+    return false;
+  }
+#endif  // COBALT_MEDIA_BUFFER_MAX_CAPACITY_1080P > 0 ||
+        // COBALT_MEDIA_BUFFER_MAX_CAPACITY_4K > 0
+  return true;
 }
 
 }  // namespace media

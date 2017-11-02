@@ -632,7 +632,7 @@ ChunkDemuxer::Status ChunkDemuxer::AddId(const std::string& id,
       new SourceBufferState(stream_parser.Pass(), frame_processor.Pass(),
                             base::Bind(&ChunkDemuxer::CreateDemuxerStream,
                                        base::Unretained(this), id),
-                            media_log_));
+                            media_log_, buffer_allocator_));
 
   SourceBufferState::NewTextTrackCB new_text_track_cb;
 
@@ -1027,6 +1027,11 @@ void ChunkDemuxer::MarkEndOfStream(PipelineStatus status) {
 void ChunkDemuxer::UnmarkEndOfStream() {
   DVLOG(1) << "UnmarkEndOfStream()";
   base::AutoLock auto_lock(lock_);
+  // When we exceed the max buffer capacity we have |state_| PARSE_ERROR.
+  // Returning early causes a playback error.
+  if (state_ == PARSE_ERROR) {
+    return;
+  }
   DCHECK_EQ(state_, ENDED);
 
   ChangeState_Locked(INITIALIZED);
