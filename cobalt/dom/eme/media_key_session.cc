@@ -305,12 +305,12 @@ void MediaKeySession::OnSessionUpdated(
   // 8.2. Resolve promise.
   promise_reference->value().Resolve();
 
-#if !SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_KEY_STATUSES)
   // When key statuses is not enabled, send a "keystatuseschange" anyway so the
   // JS app knows that |keyStatuses| will no longer be updated.
   LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
   event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -322,12 +322,12 @@ void MediaKeySession::OnSessionDidNotUpdate(
   // TODO: Introduce Starboard API that allows CDM to propagate error codes.
   promise_reference->value().Reject(new DOMException(DOMException::kNone));
 
-#if !SB_HAS(DRM_KEY_STATUSES)
+#if SB_HAS(DRM_KEY_STATUSES)
   // When key statuses is not enabled, send a "keystatuseschange" anyway so the
   // JS app knows that |keyStatuses| will no longer be updated.
   LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
   event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
+#endif  // SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
