@@ -214,3 +214,7 @@ class AbstractLauncher(object):
       out_directory = DynamicallyBuildOutDirectory(self.platform, self.config)
 
     return os.path.abspath(os.path.join(out_directory, self.target_name))
+
+  def _CloseOutputFile(self):
+    if self.output_file != sys.stdout and not self.output_file.closed:
+      self.output_file.close()
