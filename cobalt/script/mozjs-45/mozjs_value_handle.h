@@ -39,8 +39,8 @@ class MozjsValueHandle : public ValueHandle {
   bool WasCollected() const { return handle_.WasCollected(); }
 
  private:
-  MozjsValueHandle(JSContext* context, JS::HandleValue object)
-      : handle_(context, object) {}
+  MozjsValueHandle(JSContext* context, JS::HandleValue value)
+      : handle_(context, value) {}
   ~MozjsValueHandle() {}
 
   WeakHeapObject handle_;

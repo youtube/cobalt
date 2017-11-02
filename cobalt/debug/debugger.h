@@ -28,8 +28,8 @@
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/debugger_event_target.h"
 #include "cobalt/script/callback_function.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {

@@ -187,7 +187,7 @@ TEST_F(PlatformObjectBindingsTest, ReturnDerivedClassWrapper) {
 }
 
 TEST_F(PlatformObjectBindingsTest, ReturnCorrectWrapperForObjectType) {
-  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  typedef ScriptObjectOwner<script::ValueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
   // Store the Wrappable object as an opaque handle.
@@ -207,7 +207,7 @@ TEST_F(PlatformObjectBindingsTest, ReturnCorrectWrapperForObjectType) {
 }
 
 TEST_F(UserObjectBindingsTest, PassUserObjectforObjectType) {
-  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  typedef ScriptObjectOwner<script::ValueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
   EXPECT_TRUE(EvaluateScript("var obj = new Object();", NULL));
@@ -222,7 +222,7 @@ TEST_F(UserObjectBindingsTest, PassUserObjectforObjectType) {
 }
 
 TEST_F(UserObjectBindingsTest, NullObject) {
-  typedef ScriptObjectOwner<script::OpaqueHandleHolder> ObjectOwner;
+  typedef ScriptObjectOwner<script::ValueHandleHolder> ObjectOwner;
   ObjectOwner object_owner(&test_mock());
 
   EXPECT_CALL(test_mock(), set_object_property(_))

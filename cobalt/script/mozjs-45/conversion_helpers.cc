@@ -58,52 +58,6 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   *out_string = utf8_chars;
 }
 
-// OpaqueHandle -> JSValue
-void ToJSValue(JSContext* context,
-               const OpaqueHandleHolder* opaque_handle_holder,
-               JS::MutableHandleValue out_value) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  JS::RootedObject js_object(context);
-  if (opaque_handle_holder) {
-    // Downcast to MozjsObjectHandleHolder so we can get the JS object.
-    const MozjsObjectHandleHolder* mozjs_object_handle_holder =
-        base::polymorphic_downcast<const MozjsObjectHandleHolder*>(
-            opaque_handle_holder);
-    js_object = mozjs_object_handle_holder->js_object();
-  }
-  out_value.setObjectOrNull(js_object);
-}
-
-// JSValue -> OpaqueHandle
-void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 MozjsObjectHandleHolder* out_holder) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
-      << "Unexpected conversion flags found.";
-  // https://www.w3.org/TR/WebIDL/#es-object
-  // 1. If Type(V) is not Object, throw a TypeError
-  // If the condition listed above is true, then the exception that we throw
-  // differs depending on whether the non-object is null or not.  Thus, we
-  // perform this check in two separate steps below.
-  if (!value.isObjectOrNull()) {
-    exception_state->SetSimpleException(kNotObjectType);
-    return;
-  }
-  if (value.isNull()) {
-    // Set an exception if this is not nullable.
-    if (!(conversion_flags & kConversionFlagNullable)) {
-      exception_state->SetSimpleException(kNotNullableType);
-    }
-    // Return here even for the non-exception case.
-    return;
-  }
-
-  JS::RootedObject js_object(context, &value.toObject());
-  DCHECK(js_object);
-  *out_holder = MozjsObjectHandleHolder(context, js_object);
-}
-
 // ValueHandle -> JSValue
 void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
                JS::MutableHandleValue out_value) {
@@ -125,9 +79,36 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  MozjsValueHandleHolder* out_holder) {
   TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
+  DCHECK_EQ(conversion_flags & ~kConversionFlagsValueHandle, 0)
       << "Unexpected conversion flags found.";
-  *out_holder = MozjsValueHandleHolder(context, value);
+
+  // If |value| is expected to be an IDL object, then we are supposed to throw
+  // if we get something that isn't of type Object or null.  Otherwise, we can
+  // just accept anything.
+  if (conversion_flags & kConversionFlagObjectOnly) {
+    // https://www.w3.org/TR/WebIDL/#es-object
+    // 1. If Type(V) is not Object, throw a TypeError
+    // If the condition listed above is true, then the exception that we throw
+    // differs depending on whether the non-object is null or not.  Thus, we
+    // perform this check in two separate steps below.
+    if (!value.isObjectOrNull()) {
+      exception_state->SetSimpleException(kNotObjectType);
+      return;
+    }
+    if (value.isNull()) {
+      // Set an exception if this is not nullable.
+      if (!(conversion_flags & kConversionFlagNullable)) {
+        exception_state->SetSimpleException(kNotNullableType);
+      }
+      // Return here even for the non-exception case.
+      return;
+    }
+
+    DCHECK(value.isObject());
+    *out_holder = MozjsValueHandleHolder(context, value);
+  } else {
+    *out_holder = MozjsValueHandleHolder(context, value);
+  }
 }
 
 }  // namespace mozjs

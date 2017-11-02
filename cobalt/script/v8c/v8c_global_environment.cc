@@ -20,9 +20,9 @@
 #include "base/lazy_instance.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
-#include "cobalt/script/v8c/v8c_object_handle.h"
 #include "cobalt/script/v8c/v8c_source_code.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -108,7 +108,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
+    base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -147,9 +147,9 @@ bool V8cGlobalEnvironment::EvaluateScript(
     return false;
   }
 
-  if (out_opaque_handle) {
-    V8cObjectHandleHolder v8c_object_handle_holder(this, result);
-    out_opaque_handle->emplace(owning_object.get(), v8c_object_handle_holder);
+  if (out_value_handle) {
+    V8cValueHandleHolder v8c_value_handle_holder(this, result);
+    out_value_handle->emplace(owning_object.get(), v8c_value_handle_holder);
   }
 
   return true;

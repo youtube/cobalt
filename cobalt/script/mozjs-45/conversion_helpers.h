@@ -29,7 +29,6 @@
 #include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
@@ -58,6 +57,7 @@ enum ConversionFlags {
   kConversionFlagTreatNullAsEmptyString = 1 << 2,
   kConversionFlagTreatUndefinedAsEmptyString = 1 << 3,
   kConversionFlagClamped = 1 << 4,
+  kConversionFlagObjectOnly = 1 << 5,
 
   // Valid conversion flags for numeric values.
   kConversionFlagsNumeric = kConversionFlagRestricted | kConversionFlagClamped,
@@ -68,6 +68,10 @@ enum ConversionFlags {
 
   // Valid conversion flags for objects.
   kConversionFlagsObject = kConversionFlagNullable,
+
+  // Valid conversion flags for ValueHandles.
+  kConversionFlagsValueHandle =
+      kConversionFlagObjectOnly | kConversionFlagNullable,
 
   // Valid conversion flags for callback functions.
   kConversionFlagsCallbackFunction = kConversionFlagNullable,
@@ -492,16 +496,6 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
                 exception_state, &(out_optional->value()));
   }
 }
-
-// OpaqueHandle -> JSValue
-void ToJSValue(JSContext* context,
-               const OpaqueHandleHolder* opaque_handle_holder,
-               JS::MutableHandleValue out_value);
-
-// JSValue -> OpaqueHandle
-void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 MozjsObjectHandleHolder* out_holder);
 
 // ValueHandle -> JSValue
 void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,

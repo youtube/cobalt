@@ -20,7 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "cobalt/script/opaque_handle.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace script {
@@ -43,7 +43,7 @@ class Scope {
 
   // An opaque handle to the underlying JavaScript object encapsulating the
   // scope.
-  virtual const OpaqueHandleHolder* GetObject() = 0;
+  virtual const ValueHandleHolder* GetObject() = 0;
 
   // The type of the scope object. One of the enumerated values in |Type|.
   // Devtools expects a string, which can be obtained from the
