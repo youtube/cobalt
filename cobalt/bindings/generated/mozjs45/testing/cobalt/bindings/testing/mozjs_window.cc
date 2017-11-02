@@ -1077,7 +1077,6 @@ void MozjsGlobalEnvironment::CreateGlobalObject(
   DCHECK(!environment_settings_);
   DCHECK(environment_settings);
   environment_settings_ = environment_settings;
-  SetEnvironmentSettings(environment_settings);
   EvaluateAutomatics();
 
   wrapper_factory_->RegisterWrappableType(
