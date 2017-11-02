@@ -34,7 +34,7 @@ class FakeGlobalEnvironment : public GlobalEnvironment {
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& /*script_utf8*/,
       const scoped_refptr<Wrappable>& /*owning_object*/, bool /*mute_errors*/,
-      base::optional<OpaqueHandleHolder::Reference>* /*out_opaque_handle*/)
+      base::optional<ValueHandleHolder::Reference>* /*out_value_handle*/)
       OVERRIDE {
     return false;
   }

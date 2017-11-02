@@ -24,8 +24,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/v8c_arbitrary_interface.h"
@@ -56,10 +56,10 @@ using cobalt::bindings::testing::V8cArbitraryInterface;
 using cobalt::bindings::testing::V8cBaseInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
 using cobalt::script::v8c::FromJSValue;

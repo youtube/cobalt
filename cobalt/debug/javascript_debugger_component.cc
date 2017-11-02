@@ -336,7 +336,7 @@ JSONObject JavaScriptDebuggerComponent::CreateCallFrameData(
   call_frame_data->Set(kScopeChain, scope_chain_data.release());
 
   // Add the "this" object data.
-  const script::OpaqueHandleHolder* this_object = call_frame->GetThis();
+  const script::ValueHandleHolder* this_object = call_frame->GetThis();
   if (this_object) {
     JSONObject this_object_data(connector_->CreateRemoteObject(this_object));
     call_frame_data->Set(kThis, this_object_data.release());
@@ -364,7 +364,7 @@ JSONList JavaScriptDebuggerComponent::CreateCallStackData(
 JSONObject JavaScriptDebuggerComponent::CreateScopeData(
     const scoped_ptr<script::Scope>& scope) {
   DCHECK(scope);
-  const script::OpaqueHandleHolder* scope_object = scope->GetObject();
+  const script::ValueHandleHolder* scope_object = scope->GetObject();
   JSONObject scope_data(new base::DictionaryValue());
   scope_data->Set(kObject,
                   connector_->CreateRemoteObject(scope_object).release());

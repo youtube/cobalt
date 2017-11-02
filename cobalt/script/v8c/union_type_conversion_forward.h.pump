@@ -25,11 +25,11 @@ $var MAX_MEMBERS = 4
 #ifndef COBALT_SCRIPT_V8C_UNION_TYPE_CONVERSION_FORWARD_H_
 #define COBALT_SCRIPT_V8C_UNION_TYPE_CONVERSION_FORWARD_H_
 
-#include "cobalt/script/v8c/v8c_exception_state.h"
-#include "cobalt/script/v8c/v8c_object_handle.h"
-#include "cobalt/script/v8c/v8c_user_object_holder.h"
-#include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/union_type.h"
+#include "cobalt/script/v8c/type_traits.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
+#include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 
 // Forward declaration for ToJSValue and FromJSValue for IDL union types.
 

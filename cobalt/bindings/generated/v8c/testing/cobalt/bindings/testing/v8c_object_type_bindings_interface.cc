@@ -24,8 +24,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
@@ -60,10 +60,10 @@ using cobalt::bindings::testing::V8cBaseInterface;
 using cobalt::bindings::testing::V8cDerivedInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
 using cobalt::script::v8c::FromJSValue;
@@ -211,9 +211,9 @@ void v8cSet_objectProperty(
   WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
   ObjectTypeBindingsInterface* impl = static_cast<ObjectTypeBindingsInterface*>(wrapper_private->wrappable<ObjectTypeBindingsInterface>());
 
-  TypeTraits<::cobalt::script::OpaqueHandle>::ConversionType conversion_value;
+  TypeTraits<::cobalt::script::ValueHandle>::ConversionType conversion_value;
   V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagNullable), &exception_state, &conversion_value);
+  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagNullable | kConversionFlagObjectOnly), &exception_state, &conversion_value);
   impl->set_object_property(
     conversion_value
   );

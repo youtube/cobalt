@@ -2,6 +2,7 @@
 //     pump.py union_type_conversion_forward.h.pump
 // DO NOT EDIT BY HAND!!!
 
+
 // Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -22,8 +23,8 @@
 #include "cobalt/script/union_type.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
-#include "cobalt/script/v8c/v8c_object_handle.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 
 // Forward declaration for ToJSValue and FromJSValue for IDL union types.
 

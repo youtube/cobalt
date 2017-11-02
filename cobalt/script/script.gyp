@@ -35,7 +35,6 @@
         'global_object_proxy.h',
         'javascript_engine.h',
         'logging_exception_state.h',
-        'opaque_handle.h',
         'promise.h',
         'property_enumerator.h',
         'scope.h',

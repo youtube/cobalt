@@ -33,8 +33,8 @@
 #include "cobalt/debug/json_object.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace debug {
@@ -108,7 +108,7 @@ class DebugServer {
 
   // Creates a Runtime.RemoteObject corresponding to an opaque JS object.
   base::optional<std::string> CreateRemoteObject(
-      const script::OpaqueHandleHolder* object, const std::string& params);
+      const script::ValueHandleHolder* object, const std::string& params);
 
   // Called by the debug components when an event occurs.
   // Serializes the method and params object to a JSON string and

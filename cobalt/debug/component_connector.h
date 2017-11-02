@@ -20,8 +20,8 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/debug/debug_server.h"
 #include "cobalt/debug/json_object.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_debugger.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace debug {
@@ -55,8 +55,8 @@ class ComponentConnector {
   // JavaScript object created by |script_runner_| with commands.
   bool RunScriptFile(const std::string& filename);
 
-  // Creates a Runtime.Remote object from an OpaqueHandleHolder.
-  JSONObject CreateRemoteObject(const script::OpaqueHandleHolder* object);
+  // Creates a Runtime.Remote object from an ValueHandleHolder.
+  JSONObject CreateRemoteObject(const script::ValueHandleHolder* object);
 
   // Sends an event to the |DebugServer| referenced by this object.
   void SendEvent(const std::string& method, const JSONObject& params);
