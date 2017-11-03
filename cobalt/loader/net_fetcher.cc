@@ -29,6 +29,16 @@
 #endif  // SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
 #endif  // OS_STARBOARD
 
+#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+
+namespace cobalt {
+namespace loader {
+std::string CobaltFetchMaybeAddHeader(const GURL& url);
+}  // namespace loader
+}  // namespace cobalt
+
+#endif  // defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+
 namespace cobalt {
 namespace loader {
 
@@ -98,6 +108,13 @@ NetFetcher::NetFetcher(const GURL& url,
         net::LOAD_DO_NOT_SEND_COOKIES | net::LOAD_DO_NOT_SEND_AUTH_DATA;
     url_fetcher_->SetLoadFlags(kDisableCookiesLoadFlags);
   }
+
+#if defined(COBALT_ENABLE_XHR_HEADER_FILTERING)
+  std::string added_header = CobaltFetchMaybeAddHeader(url);
+  if (!added_header.empty()) {
+    url_fetcher_->AddExtraRequestHeader(added_header);
+  }
+#endif
 
   // Delay the actual start until this function is complete. Otherwise we might
   // call handler's callbacks at an unexpected time- e.g. receiving OnError()

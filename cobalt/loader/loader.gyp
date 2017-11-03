@@ -108,6 +108,19 @@
             'about_fetcher.h',
           ]
         }],
+        ['enable_xhr_header_filtering == 1', {
+          'dependencies': [
+            '<@(cobalt_platform_dependencies)',
+          ],
+          'defines': [
+            'COBALT_ENABLE_XHR_HEADER_FILTERING',
+          ],
+          'direct_dependent_settings': {
+            'defines': [
+              'COBALT_ENABLE_XHR_HEADER_FILTERING',
+            ],
+          },
+        }],
       ],
     },
 
