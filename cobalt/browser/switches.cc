@@ -155,6 +155,11 @@ const char kLocalStoragePartitionUrl[] = "local_storage_partition_url";
 const char kRemoteTypefaceCacheSizeInBytes[] =
     "remote_typeface_cache_size_in_bytes";
 
+// Causes the remote typeface cache to be retained when Cobalt is suspended, so
+// that they don't need to be re-downloaded when Cobalt is resumed.
+const char kRetainRemoteTypefaceCacheDuringSuspend[] =
+    "retain_remote_typeface_cache_during_suspend";
+
 // Determines the capacity of the scratch surface cache.  The scratch surface
 // cache facilitates the reuse of temporary offscreen surfaces within a single
 // frame.  This setting is only relevant when using the hardware-accelerated

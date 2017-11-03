@@ -28,6 +28,7 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/browser/splash_screen_cache.h"
 #include "cobalt/browser/stack_size_constants.h"
 #include "cobalt/browser/switches.h"
@@ -218,7 +219,7 @@ class WebModule::Impl {
   class DocumentLoadedObserver;
 
   // Purge all resource caches owned by the WebModule.
-  void PurgeResourceCaches();
+  void PurgeResourceCaches(bool should_retain_remote_typeface_cache);
 
   // Disable callbacks in all resource caches owned by the WebModule.
   void DisableCallbacksInResourceCaches();
@@ -272,6 +273,9 @@ class WebModule::Impl {
 
   // Object that provides renderer resources like images and fonts.
   render_tree::ResourceProvider* resource_provider_;
+  // The type id of resource provider being used by the WebModule. Whenever this
+  // changes, the caches may have obsolete data and must be blown away.
+  base::TypeId resource_provider_type_id_;
 
   // CSS parser.
   scoped_ptr<css_parser::Parser> css_parser_;
@@ -378,6 +382,8 @@ class WebModule::Impl {
   scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
 
   base::Closure on_before_unload_fired_but_not_handled;
+
+  bool should_retain_remote_typeface_cache_on_suspend_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -402,7 +408,8 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
 WebModule::Impl::Impl(const ConstructionData& data)
     : name_(data.options.name),
       is_running_(false),
-      resource_provider_(data.resource_provider) {
+      resource_provider_(data.resource_provider),
+      resource_provider_type_id_(data.resource_provider->GetTypeId()) {
   // Currently we rely on a platform to explicitly specify that it supports
   // the map-to-mesh filter via the ENABLE_MAP_TO_MESH define (and the
   // 'enable_map_to_mesh' gyp variable).  When we have better support for
@@ -444,6 +451,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
 
   on_before_unload_fired_but_not_handled =
       data.options.on_before_unload_fired_but_not_handled;
+
+  should_retain_remote_typeface_cache_on_suspend_ =
+      data.options.should_retain_remote_typeface_cache_on_suspend;
 
   fetcher_factory_.reset(new loader::FetcherFactory(
       data.network_module, data.options.extra_web_file_dir,
@@ -874,6 +884,14 @@ void WebModule::Impl::SetResourceProvider(
     render_tree::ResourceProvider* resource_provider) {
   resource_provider_ = resource_provider;
   if (resource_provider_) {
+    base::TypeId resource_provider_type_id = resource_provider_->GetTypeId();
+    // Check for if the resource provider type id has changed. If it has, then
+    // anything contained within the caches is invalid and must be purged.
+    if (resource_provider_type_id_ != resource_provider_type_id) {
+      PurgeResourceCaches(false);
+    }
+    resource_provider_type_id_ = resource_provider_type_id;
+
     loader_factory_->Resume(resource_provider_);
 
     // Permit render trees to be generated again.  Layout will have been
@@ -908,7 +926,7 @@ void WebModule::Impl::SuspendLoaders(bool update_application_state) {
 
   // Purge the resource caches before running any suspend logic. This will force
   // any pending callbacks that the caches are batching to run.
-  PurgeResourceCaches();
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_suspend_);
 
   // Stop the generation of render trees.
   layout_manager_->Suspend();
@@ -937,7 +955,7 @@ void WebModule::Impl::FinishSuspend() {
   // Clear out all resource caches. We need to do this after we abort all
   // in-progress loads, and after we clear all document references, or they will
   // still be referenced and won't be cleared from the cache.
-  PurgeResourceCaches();
+  PurgeResourceCaches(should_retain_remote_typeface_cache_on_suspend_);
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   // The debug overlay may be holding onto a render tree, clear that out.
@@ -965,7 +983,8 @@ void WebModule::Impl::ReduceMemory() {
     return;
   }
 
-  PurgeResourceCaches();
+  // Retain the remote typeface cache when reducing memory.
+  PurgeResourceCaches(true /*should_retain_remote_typeface_cache*/);
   window_->document()->PurgeCachedResources();
 
   // Force garbage collection in |javascript_engine_|.
@@ -1002,9 +1021,14 @@ void WebModule::Impl::InjectBeforeUnloadEvent() {
   }
 }
 
-void WebModule::Impl::PurgeResourceCaches() {
+void WebModule::Impl::PurgeResourceCaches(
+    bool should_retain_remote_typeface_cache) {
   image_cache_->Purge();
-  remote_typeface_cache_->Purge();
+  if (should_retain_remote_typeface_cache) {
+    remote_typeface_cache_->ProcessPendingCallbacks();
+  } else {
+    remote_typeface_cache_->Purge();
+  }
   mesh_cache_->Purge();
 }
 
@@ -1036,6 +1060,7 @@ WebModule::Options::Options()
       animated_image_decode_thread_priority(base::kThreadPriority_Low),
       video_playback_rate_multiplier(1.f),
       enable_image_animations(true),
+      should_retain_remote_typeface_cache_on_suspend(false),
       can_fetch_cache(false) {}
 
 WebModule::WebModule(
