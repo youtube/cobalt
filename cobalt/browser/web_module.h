@@ -180,6 +180,10 @@ class WebModule : public LifecycleObserver {
     // is true to enable them.
     bool enable_image_animations;
 
+    // Whether or not to retain the remote typeface cache when the app enters
+    // the suspend state.
+    bool should_retain_remote_typeface_cache_on_suspend;
+
     // The splash screen cache object, owned by the BrowserModule.
     SplashScreenCache* splash_screen_cache;
 

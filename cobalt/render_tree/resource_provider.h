@@ -20,6 +20,7 @@
 
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/base/type_id.h"
 #include "cobalt/render_tree/font.h"
 #include "cobalt/render_tree/font_provider.h"
 #include "cobalt/render_tree/glyph_buffer.h"
@@ -49,6 +50,10 @@ class ResourceProvider {
   static const size_t kMaxTypefaceDataSize = 30 * 1024 * 1024;  // 30 MB
 
   virtual ~ResourceProvider() {}
+
+  // Returns an ID that is unique to the ResourceProvider type.  This can be
+  // used to polymorphically identify what type of ResourceProvider this is.
+  virtual base::TypeId GetTypeId() const = 0;
 
   // Blocks until it can be guaranteed that all resource-related operations have
   // completed.  This might be important if we would like to ensure that memory

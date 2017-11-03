@@ -219,6 +219,10 @@ class ResourceProviderStub : public ResourceProvider {
       : release_image_data_(release_image_data) {}
   ~ResourceProviderStub() OVERRIDE {}
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<ResourceProviderStub>();
+  }
+
   void Finish() OVERRIDE {}
 
   bool PixelFormatSupported(PixelFormat pixel_format) OVERRIDE {
