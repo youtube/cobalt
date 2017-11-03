@@ -242,6 +242,7 @@ void MozjsEngine::TimerGarbageCollect() {
   CollectGarbage();
 }
 
+// static
 bool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op,
                                   void* data) {
   JSRuntime* runtime = JS_GetRuntime(context);
@@ -257,6 +258,7 @@ bool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op,
   return true;
 }
 
+// static
 void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
                              void* data) {
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
@@ -281,6 +283,7 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
   }
 }
 
+// static
 void MozjsEngine::FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                    bool is_compartment, void* data) {
   TRACE_EVENT0("cobalt::script", "MozjsEngine::FinalizeCallback()");
