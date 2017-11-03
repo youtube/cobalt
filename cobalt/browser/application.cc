@@ -474,6 +474,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     options.web_module_options.javascript_engine_options.disable_jit = true;
   }
 
+  if (command_line->HasSwitch(
+          browser::switches::kRetainRemoteTypefaceCacheDuringSuspend)) {
+    options.web_module_options.should_retain_remote_typeface_cache_on_suspend =
+        true;
+  }
+
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(browser::switches::kNullSavegame)) {
     options.storage_manager_options.savegame_options.factory =

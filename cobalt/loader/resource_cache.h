@@ -424,6 +424,10 @@ class ResourceCache {
 
   void Purge();
 
+  // Processes all pending callbacks regardless of the state of
+  // |callback_blocking_loading_resource_set_|.
+  void ProcessPendingCallbacks();
+
   void DisableCallbacks();
 
  private:
@@ -465,9 +469,6 @@ class ResourceCache {
   // Calls ProcessPendingCallbacks() if
   // |callback_blocking_loading_resource_set_| is empty.
   void ProcessPendingCallbacksIfUnblocked();
-  // Processes all pending callbacks regardless of the state of
-  // |callback_blocking_loading_resource_set_|.
-  void ProcessPendingCallbacks();
 
   // The name of this resource cache object, useful while debugging.
   const std::string name_;
@@ -641,6 +642,30 @@ void ResourceCache<CacheType>::Purge() {
 }
 
 template <typename CacheType>
+void ResourceCache<CacheType>::ProcessPendingCallbacks() {
+  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
+
+  // If callbacks are disabled, simply return.
+  if (are_callbacks_disabled_) {
+    return;
+  }
+
+  is_processing_pending_callbacks_ = true;
+  while (!pending_callback_map_.empty()) {
+    ResourceCallbackInfo& callback_info = pending_callback_map_.front().second;
+
+    // To avoid the last reference of this object getting deleted in the
+    // callbacks.
+    scoped_refptr<CachedResourceType> holder(callback_info.cached_resource);
+    callback_info.cached_resource->RunCallbacks(callback_info.callback_type);
+
+    pending_callback_map_.erase(pending_callback_map_.begin());
+  }
+  is_processing_pending_callbacks_ = false;
+  count_pending_callbacks_ = 0;
+}
+
+template <typename CacheType>
 void ResourceCache<CacheType>::DisableCallbacks() {
   DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
   are_callbacks_disabled_ = true;
@@ -785,30 +810,6 @@ void ResourceCache<CacheType>::ProcessPendingCallbacksIfUnblocked() {
           non_callback_blocking_loading_resource_set_);
     }
   }
-}
-
-template <typename CacheType>
-void ResourceCache<CacheType>::ProcessPendingCallbacks() {
-  DCHECK(resource_cache_thread_checker_.CalledOnValidThread());
-
-  // If callbacks are disabled, simply return.
-  if (are_callbacks_disabled_) {
-    return;
-  }
-
-  is_processing_pending_callbacks_ = true;
-  while (!pending_callback_map_.empty()) {
-    ResourceCallbackInfo& callback_info = pending_callback_map_.front().second;
-
-    // To avoid the last reference of this object getting deleted in the
-    // callbacks.
-    scoped_refptr<CachedResourceType> holder(callback_info.cached_resource);
-    callback_info.cached_resource->RunCallbacks(callback_info.callback_type);
-
-    pending_callback_map_.erase(pending_callback_map_.begin());
-  }
-  is_processing_pending_callbacks_ = false;
-  count_pending_callbacks_ = 0;
 }
 
 }  // namespace loader

@@ -55,6 +55,7 @@ extern const char kInitialURL[];
 extern const char kLocalStoragePartitionUrl[];
 extern const char kOffscreenTargetCacheSizeInBytes[];
 extern const char kRemoteTypefaceCacheSizeInBytes[];
+extern const char kRetainRemoteTypefaceCacheDuringSuspend[];
 extern const char kScratchSurfaceCacheSizeInBytes[];
 extern const char kSkiaCacheSizeInBytes[];
 extern const char kSoftwareSurfaceCacheSizeInBytes[];
