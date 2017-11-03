@@ -20,7 +20,10 @@
 
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/pthread/is_success.h"
+#include "starboard/shared/starboard/lazy_initialization_internal.h"
 #include "starboard/time.h"
+
+using starboard::shared::starboard::EnsureInitialized;
 
 SbConditionVariableResult SbConditionVariableWaitTimed(
     SbConditionVariable* condition,
@@ -34,19 +37,33 @@ SbConditionVariableResult SbConditionVariableWaitTimed(
     timeout = 0;
   }
 
+#if !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  SbTime timeout_time = SbTimeGetMonotonicNow() + timeout;
+#else  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+  int64_t timeout_time = SbTimeToPosix(SbTimeGetNow()) + timeout;
+#endif  // !SB_HAS_QUIRK(NO_CONDATTR_SETCLOCK_SUPPORT)
+
   // Detect overflow if timeout is near kSbTimeMax. Since timeout can't be
   // negative at this point, if it goes negative after adding now, we know we've
   // gone over. Especially posix now, which has a 400 year advantage over
   // Chromium (Windows) now.
-  int64_t posix_time = SbTimeToPosix(SbTimeGetNow()) + timeout;
-  if (posix_time < 0) {
-    posix_time = kSbInt64Max;
+  if (timeout_time < 0) {
+    timeout_time = kSbInt64Max;
   }
 
   struct timespec timeout_ts;
-  ToTimespec(&timeout_ts, posix_time);
+  ToTimespec(&timeout_ts, timeout_time);
 
-  int result = pthread_cond_timedwait(condition, mutex, &timeout_ts);
+  if (!EnsureInitialized(&condition->initialized_state)) {
+    // The condition variable is set to SB_CONDITION_VARIABLE_INITIALIZER and
+    // is uninitialized, so call SbConditionVariableCreate() to initialize the
+    // condition variable. SbConditionVariableCreate() is responsible for
+    // marking the variable as initialized.
+    SbConditionVariableCreate(condition, mutex);
+  }
+
+  int result =
+      pthread_cond_timedwait(&condition->condition, mutex, &timeout_ts);
   if (IsSuccess(result)) {
     return kSbConditionVariableSignaled;
   }
