@@ -36,6 +36,10 @@ namespace render_tree {
 
 class MockResourceProvider : public ResourceProvider {
  public:
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<MockResourceProvider>();
+  }
+
   MOCK_METHOD0(Finish, void());
   MOCK_METHOD1(PixelFormatSupported, bool(PixelFormat pixel_format));
   MOCK_METHOD1(AlphaFormatSupported, bool(AlphaFormat alpha_format));

@@ -34,6 +34,10 @@ class SoftwareResourceProvider : public render_tree::ResourceProvider {
   explicit SoftwareResourceProvider(bool purge_skia_font_caches_on_destruction);
   ~SoftwareResourceProvider() OVERRIDE;
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<SoftwareResourceProvider>();
+  }
+
   void Finish() OVERRIDE{};
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;
