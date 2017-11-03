@@ -139,8 +139,8 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
   }
 
   audio_renderer_->Pause();
-  audio_renderer_->Seek(seek_to_pts);
   video_renderer_->Seek(seek_to_pts);
+  audio_renderer_->Seek(seek_to_pts);
   return true;
 }
 
