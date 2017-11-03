@@ -232,7 +232,7 @@ class WebModule : public LifecycleObserver {
 
   // Call this to inject a beforeunload event into the web module. If
   // this event is not handled by the web application,
-  // on_before_unload_fired_but_not_handled will be called.
+  // |on_before_unload_fired_but_not_handled_| will be called.
   void InjectBeforeUnloadEvent();
 
   // Call this to execute Javascript code in this web module.  The calling
