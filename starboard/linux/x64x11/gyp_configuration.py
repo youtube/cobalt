@@ -16,7 +16,7 @@
 import logging
 
 from starboard.linux.shared import gyp_configuration
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang

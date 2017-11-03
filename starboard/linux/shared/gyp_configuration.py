@@ -18,7 +18,7 @@ import os
 
 import config.base
 import gyp_utils
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.testing import test_filter
 
 
 class PlatformConfig(config.base.PlatformConfigBase):
