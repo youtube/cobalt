@@ -302,23 +302,32 @@ std::vector<StackFrame> MozjsGlobalEnvironment::GetStackTrace(int max_frames) {
 void MozjsGlobalEnvironment::PreventGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   DCHECK(thread_checker_.CalledOnValidThread());
+
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
   WrapperPrivate* wrapper_private =
       WrapperPrivate::GetFromWrappable(wrappable, context_, wrapper_factory());
-  JS::RootedObject proxy(context_, wrapper_private->js_object_proxy());
-  kept_alive_objects_.insert(CachedWrapperMultiMap::value_type(
-      wrappable.get(), JS::Heap<JSObject*>(proxy)));
+  // Attempt to insert a |Wrappable*| -> wrapper mapping into
+  // |kept_alive_objects_|...
+  auto insert_result = kept_alive_objects_.insert(
+      {wrappable.get(),
+       {JS::Heap<JSObject*>(wrapper_private->js_object_proxy()), 1}});
+  // ...and if it was already there, just increment the count.
+  if (!insert_result.second) {
+    insert_result.first->second.count++;
+  }
 }
 
 void MozjsGlobalEnvironment::AllowGarbageCollection(
     const scoped_refptr<Wrappable>& wrappable) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
-  CachedWrapperMultiMap::iterator it =
-      kept_alive_objects_.find(wrappable.get());
+
+  auto it = kept_alive_objects_.find(wrappable.get());
   DCHECK(it != kept_alive_objects_.end());
-  if (it != kept_alive_objects_.end()) {
+  it->second.count--;
+  DCHECK(it->second.count >= 0);
+  if (it->second.count == 0) {
     kept_alive_objects_.erase(it);
   }
 }
@@ -523,41 +532,42 @@ void MozjsGlobalEnvironment::ReportError(const char* message,
   }
 }
 
-void MozjsGlobalEnvironment::TraceFunction(JSTracer* trace, void* data) {
-  MozjsGlobalEnvironment* global_object_environment =
-      reinterpret_cast<MozjsGlobalEnvironment*>(data);
-  if (global_object_environment->global_object_proxy_) {
-    JS_CallObjectTracer(trace, &global_object_environment->global_object_proxy_,
+void MozjsGlobalEnvironment::TraceFunction(JSTracer* tracer, void* data) {
+  MozjsGlobalEnvironment* global_environment =
+      static_cast<MozjsGlobalEnvironment*>(data);
+  if (global_environment->global_object_proxy_) {
+    JS_CallObjectTracer(tracer, &global_environment->global_object_proxy_,
                         "MozjsGlobalEnvironment");
   }
 
-  for (int i = 0; i < global_object_environment->cached_interface_data_.size();
-       i++) {
-    InterfaceData& data = global_object_environment->cached_interface_data_[i];
-    if (data.prototype) {
-      JS_CallObjectTracer(trace, &data.prototype, "MozjsGlobalEnvironment");
+  for (auto& interface_data : global_environment->cached_interface_data_) {
+    if (interface_data.prototype) {
+      JS_CallObjectTracer(tracer, &interface_data.prototype,
+                          "MozjsGlobalEnvironment");
     }
-    if (data.interface_object) {
-      JS_CallObjectTracer(trace, &data.interface_object,
+    if (interface_data.interface_object) {
+      JS_CallObjectTracer(tracer, &interface_data.interface_object,
                           "MozjsGlobalEnvironment");
     }
   }
 
-  for (CachedWrapperMultiMap::iterator it =
-           global_object_environment->kept_alive_objects_.begin();
-       it != global_object_environment->kept_alive_objects_.end(); ++it) {
-    JS_CallObjectTracer(trace, &it->second, "MozjsGlobalEnvironment");
+  auto& kept_alive_objects_ = global_environment->kept_alive_objects_;
+  for (auto& pair : kept_alive_objects_) {
+    auto& counted_heap_object = pair.second;
+    DCHECK(counted_heap_object.count > 0);
+    JS_CallObjectTracer(tracer, &counted_heap_object.heap_object,
+                        "MozjsGlobalEnvironment");
   }
 }
 
 bool MozjsGlobalEnvironment::CheckEval(JSContext* context) {
   TRACK_MEMORY_SCOPE("Javascript");
-  MozjsGlobalEnvironment* global_object_proxy = GetFromContext(context);
-  DCHECK(global_object_proxy);
-  if (!global_object_proxy->report_eval_.is_null()) {
-    global_object_proxy->report_eval_.Run();
+  MozjsGlobalEnvironment* global_environment = GetFromContext(context);
+  DCHECK(global_environment);
+  if (!global_environment->report_eval_.is_null()) {
+    global_environment->report_eval_.Run();
   }
-  return global_object_proxy->eval_enabled_;
+  return global_environment->eval_enabled_;
 }
 
 }  // namespace mozjs

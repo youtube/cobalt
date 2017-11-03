@@ -16,6 +16,7 @@
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "base/hash_tables.h"
@@ -144,6 +145,21 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void ReportError(const char* message, JSErrorReport* report);
 
  private:
+  // Helper struct to ensure the context is destroyed in the correct order
+  // relative to the MozjsGlobalEnvironment's other members.
+  struct ContextDestructor {
+    explicit ContextDestructor(JSContext** context) : context(context) {}
+    ~ContextDestructor() { JS_DestroyContext(*context); }
+    JSContext** const context;
+  };
+
+  struct CountedHeapObject {
+    CountedHeapObject(const JS::Heap<JSObject*>& heap_object, int count)
+        : heap_object(heap_object), count(count) {}
+    JS::Heap<JSObject*> heap_object;
+    int count;
+  };
+
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
                               bool mute_errors,
                               JS::MutableHandleValue out_result);
@@ -153,22 +169,11 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   static void TraceFunction(JSTracer* trace, void* data);
 
-  // Helper struct to ensure the context is destroyed in the correct order
-  // relative to the MozjsGlobalEnvironment's other members.
-  struct ContextDestructor {
-    explicit ContextDestructor(JSContext** context) : context(context) {}
-    ~ContextDestructor() { JS_DestroyContext(*context); }
-    JSContext** const context;
-  };
-
-  typedef base::hash_multimap<Wrappable*, JS::Heap<JSObject*> >
-      CachedWrapperMultiMap;
-
   base::ThreadChecker thread_checker_;
   JSContext* context_;
   int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;
-  CachedWrapperMultiMap kept_alive_objects_;
+  std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
   std::vector<InterfaceData> cached_interface_data_;
 
