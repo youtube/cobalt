@@ -22,23 +22,13 @@
 
 #include <pthread.h>
 
-#include "starboard/shared/starboard/lazy_initialization_public.h"
-
 // --- SbConditionVariable ---
 
 // Transparent Condition Variable handle.
-// It is customized from the plain pthread_cont_t object because we
-// need to ensure that each condition variable is initialized to use
-// CLOCK_MONOTONIC, which is not the default (and the default is used
-// when PTHREAD_COND_INITIALIZER is set).
-typedef struct SbConditionVariable {
-  InitializedState initialized_state;
-  pthread_cond_t condition;
-} SbConditionVariable;
+typedef pthread_cond_t SbConditionVariable;
 
 // Condition Variable static initializer.
-#define SB_CONDITION_VARIABLE_INITIALIZER \
-  { INITIALIZED_STATE_UNINITIALIZED, 0 }
+#define SB_CONDITION_VARIABLE_INITIALIZER PTHREAD_COND_INITIALIZER
 
 // --- SbMutex ---
 

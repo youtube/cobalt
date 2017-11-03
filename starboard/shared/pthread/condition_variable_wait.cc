@@ -17,9 +17,6 @@
 #include <pthread.h>
 
 #include "starboard/shared/pthread/is_success.h"
-#include "starboard/shared/starboard/lazy_initialization_internal.h"
-
-using starboard::shared::starboard::EnsureInitialized;
 
 SbConditionVariableResult SbConditionVariableWait(
     SbConditionVariable* condition,
@@ -28,15 +25,7 @@ SbConditionVariableResult SbConditionVariableWait(
     return kSbConditionVariableFailed;
   }
 
-  if (!EnsureInitialized(&condition->initialized_state)) {
-    // The condition variable is set to SB_CONDITION_VARIABLE_INITIALIZER and
-    // is uninitialized, so call SbConditionVariableCreate() to initialize the
-    // condition variable. SbConditionVariableCreate() is responsible for
-    // marking the variable as initialized.
-    SbConditionVariableCreate(condition, mutex);
-  }
-
-  if (IsSuccess(pthread_cond_wait(&condition->condition, mutex))) {
+  if (IsSuccess(pthread_cond_wait(condition, mutex))) {
     return kSbConditionVariableSignaled;
   }
 
