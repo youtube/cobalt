@@ -26,7 +26,7 @@ base::StaticAtomicSequenceNumber s_z_index;
 }  // namespace
 
 void SbPlayerSetBoundsHelper::SetPlayer(StarboardPlayer* player) {
-  base::Lock lock_;
+  base::AutoLock auto_lock(lock_);
   player_ = player;
 }
 

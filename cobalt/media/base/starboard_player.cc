@@ -333,6 +333,11 @@ void StarboardPlayer::Suspend() {
   preroll_timestamp_ = SbMediaTimeToTimeDelta(info.current_media_pts);
 
   set_bounds_helper_->SetPlayer(NULL);
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
+      ShellVideoFrameProvider::kOutputModeInvalid);
+  ShellMediaPlatform::Instance()->GetVideoFrameProvider()
+      ->ResetGetCurrentSbDecodeTargetFunction();
+
   SbPlayerDestroy(player_);
 
   player_ = kSbPlayerInvalid;
