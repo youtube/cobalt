@@ -16,8 +16,8 @@
 import logging
 
 # Import the shared Linux platform configuration.
-import starboard.linux.shared.gyp_configuration as gyp_configuration
-import starboard.tools.testing.test_filter as test_filter
+from starboard.linux.shared import gyp_configuration
+from starboard.tools.testing import test_filter
 
 
 def CreatePlatformConfig():
