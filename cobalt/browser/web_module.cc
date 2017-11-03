@@ -151,7 +151,7 @@ class WebModule::Impl {
 
   // Called to inject a beforeunload event into the web module. If
   // this event is not handled by the web application,
-  // on_before_unload_fired_but_not_handled will be called. The event
+  // |on_before_unload_fired_but_not_handled_| will be called. The event
   // is not directed at a specific element.
   void InjectBeforeUnloadEvent();
 
@@ -378,7 +378,7 @@ class WebModule::Impl {
 
   scoped_ptr<layout::TopmostEventTarget> topmost_event_target_;
 
-  base::Closure on_before_unload_fired_but_not_handled;
+  base::Closure on_before_unload_fired_but_not_handled_;
 };
 
 class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
@@ -444,7 +444,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
                    base::Unretained(data.options.splash_screen_cache));
   }
 
-  on_before_unload_fired_but_not_handled =
+  on_before_unload_fired_but_not_handled_ =
       data.options.on_before_unload_fired_but_not_handled;
 
   fetcher_factory_.reset(new loader::FetcherFactory(
@@ -1001,8 +1001,8 @@ void WebModule::Impl::InjectBeforeUnloadEvent() {
   DCHECK(thread_checker_.CalledOnValidThread());
   if (window_ && window_->HasEventListener(base::Tokens::beforeunload())) {
     window_->DispatchEvent(new dom::Event(base::Tokens::beforeunload()));
-  } else if (!on_before_unload_fired_but_not_handled.is_null()) {
-    on_before_unload_fired_but_not_handled.Run();
+  } else if (!on_before_unload_fired_but_not_handled_.is_null()) {
+    on_before_unload_fired_but_not_handled_.Run();
   }
 }
 
