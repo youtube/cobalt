@@ -69,9 +69,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
-  base::optional<std::string> cross_origin() const;
-  void set_cross_origin(const base::optional<std::string>& value);
-
   enum NetworkState {
     kNetworkEmpty,
     kNetworkIdle,
@@ -334,8 +331,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
-
-  loader::RequestMode request_mode_;
 };
 
 }  // namespace dom

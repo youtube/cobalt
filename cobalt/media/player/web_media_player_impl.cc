@@ -259,7 +259,8 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
-    const GURL& url, scoped_ptr<BufferedDataSource> data_source) {
+    const GURL& url, scoped_ptr<BufferedDataSource> data_source,
+    CORSMode cors_mode) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadProgressive");
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
