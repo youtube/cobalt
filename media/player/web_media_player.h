@@ -85,8 +85,7 @@ class WebMediaPlayer {
 
   virtual void LoadMediaSource() = 0;
   virtual void LoadProgressive(const GURL& url,
-                               scoped_ptr<BufferedDataSource> data_source,
-                               CORSMode cors_mode) = 0;
+                               scoped_ptr<BufferedDataSource> data_source) = 0;
   virtual void CancelLoad() = 0;
 
   // Playback controls.
