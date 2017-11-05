@@ -267,8 +267,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 
 void WebMediaPlayerImpl::LoadProgressive(
     const GURL& url,
-    scoped_ptr<BufferedDataSource> data_source,
-    CORSMode cors_mode) {
+    scoped_ptr<BufferedDataSource> data_source) {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   DCHECK(filter_collection_);
 
