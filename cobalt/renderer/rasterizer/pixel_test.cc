@@ -190,7 +190,7 @@ TEST_F(PixelTest, CircleViaRoundedCorners) {
 // These particular rounded corner values were found to cause a crash problem
 // with some rasterizers, this test is added to prevent a regression.
 TEST_F(PixelTest, AlmostCircleViaRoundedCorners) {
-  RoundedCorner rounded_corner(11.9999504, 11.9999504);
+  RoundedCorner rounded_corner(11.9999504f, 11.9999504f);
   scoped_ptr<RoundedCorners> rounded_corners(
       new RoundedCorners(rounded_corner));
   TestTree(new RectNode(
