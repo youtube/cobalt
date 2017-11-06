@@ -19,13 +19,6 @@
   'variables': {
     'target_arch%': 'x64',
     'target_os': 'linux',
-    #'starboard_path%': 'starboard/linux/x64x11',
-
-    'in_app_dial%': 1,
-
-    # This should have a default value in cobalt/base.gypi. See the comment
-    # there for acceptable values for this variable.
-    'cobalt_media_source_2016': 1,
 
     'platform_libraries': [
       '-lasound',

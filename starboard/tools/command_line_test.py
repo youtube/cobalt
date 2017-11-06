@@ -36,9 +36,12 @@ def _RestoreMapping(target, source):
 
 
 def _ClearEnviron():
-  del os.environ['BUILD_CONFIGURATION']
-  del os.environ['BUILD_TYPE']
-  del os.environ['BUILD_PLATFORM']
+  if 'BUILD_CONFIGURATION' in os.environ:
+    del os.environ['BUILD_CONFIGURATION']
+  if 'BUILD_TYPE' in os.environ:
+    del os.environ['BUILD_TYPE']
+  if 'BUILD_PLATFORM' in os.environ:
+    del os.environ['BUILD_PLATFORM']
 
 
 def _SetEnvironConfig(config):
