@@ -350,6 +350,8 @@
       4265,
       # Inconsistent DLL linkage
       4273,
+      # Double -> float truncation. Not enabled on other compilers.
+      4305,
       # cast truncates constant value.
       # We do not care.
       4310,
