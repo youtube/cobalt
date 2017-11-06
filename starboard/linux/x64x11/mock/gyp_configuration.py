@@ -13,29 +13,20 @@
 # limitations under the License.
 """Starboard mock platform configuration for gyp_cobalt."""
 
-import logging
-
-import config.base
-import gyp_utils
-import starboard.tools.testing.test_filter as test_filter
-
-
-def CreatePlatformConfig():
-  try:
-    return PlatformConfig('linux-x64x11-mock')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+from starboard.build import clang
+from starboard.build import platform_configuration
+from starboard.tools import build
+from starboard.tools.testing import test_filter
 
 
-class PlatformConfig(config.base.PlatformConfigBase):
+class PlatformConfig(platform_configuration.PlatformConfiguration):
   """Starboard mock platform configuration."""
 
   def __init__(self, platform):
     super(PlatformConfig, self).__init__(platform)
     goma_supports_compiler = True
-    self.host_compiler_environment = gyp_utils.GetHostCompilerEnvironment(
-        goma_supports_compiler)
+    self.host_compiler_environment = build.GetHostCompilerEnvironment(
+        clang.GetClangSpecification(), goma_supports_compiler)
 
   def GetBuildFormat(self):
     return 'ninja,qtcreator_ninja'
@@ -44,7 +35,7 @@ class PlatformConfig(config.base.PlatformConfigBase):
     return super(PlatformConfig, self).GetVariables(configuration, use_clang=1)
 
   def GetGeneratorVariables(self, configuration):
-    _ = configuration
+    del configuration
     generator_variables = {
         'qtcreator_session_name_prefix': 'cobalt',
     }
@@ -59,23 +50,13 @@ class PlatformConfig(config.base.PlatformConfigBase):
     return env_variables
 
   def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
+    filters = super(PlatformConfig, self).GetTestFilters()
+    filters.extend([
+        test_filter.TestFilter(
+            'starboard_platform_tests', test_filter.FILTER_ALL),
+    ])
+    return filters
 
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return [
-        test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
-        test_filter.TestFilter(
-            'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
-        test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-        test_filter.TestFilter(
-            'starboard_platform_tests', test_filter.FILTER_ALL)
-    ]
+
+def CreatePlatformConfig():
+  return PlatformConfig('linux-x64x11-mock')

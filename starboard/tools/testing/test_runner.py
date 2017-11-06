@@ -27,8 +27,8 @@ import traceback
 
 import _env  # pylint: disable=unused-import
 from starboard.tools import abstract_launcher
+from starboard.tools import build
 from starboard.tools import command_line
-from starboard.tools import environment
 from starboard.tools.testing import test_filter
 
 
@@ -37,6 +37,34 @@ _TOTAL_TESTS_REGEX = (r"\[==========\] (.*) tests? from .*"
 _TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
 _TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
 _SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
+
+
+def _FilterTests(target_list, filters, config_name):
+  """Returns a Mapping of test targets -> filtered tests."""
+
+  targets = {}
+  for target in target_list:
+    targets[target] = []
+
+  for platform_filter in filters:
+    if platform_filter == test_filter.DISABLE_TESTING:
+      return {}
+
+    # Only filter the tests specifying our config or all configs.
+    if platform_filter.config and platform_filter.config != config_name:
+      continue
+
+    target_name = platform_filter.target_name
+    if platform_filter.test_name == test_filter.FILTER_ALL:
+      if target_name in targets:
+        # Filter the whole test binary
+        del targets[target_name]
+    else:
+      if target_name not in targets:
+        continue
+      targets[target_name].append(platform_filter.test_name)
+
+  return targets
 
 
 class TestLineReader(object):
@@ -109,7 +137,7 @@ class TestLauncher(object):
     """Kills the running launcher."""
     try:
       self.launcher.Kill()
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
       sys.stderr.write("Error while killing {}:\n".format(
           self.launcher.target_name))
       traceback.print_exc(file=sys.stderr)
@@ -126,7 +154,7 @@ class TestLauncher(object):
     return_code = 1
     try:
       return_code = self.launcher.Run()
-    except Exception:
+    except Exception:  # pylint: disable=broad-except
       sys.stderr.write("Error while running {}:\n".format(
           self.launcher.target_name))
       traceback.print_exc(file=sys.stderr)
@@ -146,14 +174,15 @@ class TestRunner(object):
   """Runs unit tests."""
 
   def __init__(self, platform, config, device_id, single_target,
-               target_params, out_directory):
+               target_params, out_directory, application_name=None):
     self.platform = platform
     self.config = config
     self.device_id = device_id
     self.target_params = target_params
     self.out_directory = out_directory
-    self._platform_config = abstract_launcher.GetGypModuleForPlatform(
-        platform).CreatePlatformConfig()
+    self._platform_config = build.GetPlatformConfig(platform)
+    self._app_config = self._platform_config.GetApplicationConfiguration(
+        application_name)
     self.threads = []
 
     # If a particular test binary has been provided, configure only that one.
@@ -178,29 +207,15 @@ class TestRunner(object):
       RuntimeError:  The specified test binary has been disabled for the given
         platform and configuration.
     """
-    platform_filters = self._platform_config.GetTestFilters()
+    targets = _FilterTests([single_target], self._GetTestFilters(), self.config)
+    if not targets:
+      # If the provided target name has been filtered,
+      # nothing will be run.
+      sys.stderr.write(
+          "\"{}\" has been filtered; no tests will be run.\n".format(
+              single_target))
 
-    final_targets = {}
-    final_targets[single_target] = []
-
-    for platform_filter in platform_filters:
-      if platform_filter == test_filter.DISABLE_TESTING:
-        return {}
-      if platform_filter.target_name == single_target:
-        # Only filter the tests specifying our config or all configs.
-        if platform_filter.config == self.config or not platform_filter.config:
-          if platform_filter.test_name == test_filter.FILTER_ALL:
-            # If the provided target name has been filtered,
-            # nothing will be run.
-            sys.stderr.write(
-                "\"{}\" has been filtered; no tests will be run.\n".format(
-                    platform_filter.target_name))
-            del final_targets[platform_filter.target_name]
-          else:
-            final_targets[single_target].append(
-                platform_filter.test_name)
-
-    return final_targets
+    return targets
 
   def _GetTestTargets(self):
     """Collects all test targets for a given platform and configuration.
@@ -210,31 +225,34 @@ class TestRunner(object):
         each test binary.  If a test binary has no filters, its list is
         empty.
     """
-    platform_filters = self._platform_config.GetTestFilters()
+    targets = self._platform_config.GetTestTargets()
+    targets.extend(self._app_config.GetTestTargets())
+    targets = list(set(targets))
 
-    final_targets = {}
-
-    all_targets = environment.GetTestTargets()
-    for target in all_targets:
-      final_targets[target] = []
-
-    for platform_filter in platform_filters:
-      if platform_filter == test_filter.DISABLE_TESTING:
-        return {}
-      # Only filter the tests specifying our config or all configs.
-      if platform_filter.config == self.config or not platform_filter.config:
-        if platform_filter.test_name == test_filter.FILTER_ALL:
-          # Filter the whole test binary
-          del final_targets[platform_filter.target_name]
-        else:
-          final_targets[platform_filter.target_name].append(
-              platform_filter.test_name)
+    final_targets = _FilterTests(targets, self._GetTestFilters(), self.config)
+    if not final_targets:
+      sys.stderr.write("All tests were filtered; no tests will be run.\n")
 
     return final_targets
 
+  def _GetTestFilters(self):
+    filters = self._platform_config.GetTestFilters()
+    if not filters:
+      filters = []
+    app_filters = self._app_config.GetTestFilters()
+    if app_filters:
+      filters.extend(app_filters)
+    return filters
+
   def _GetAllTestEnvVariables(self):
     """Gets all environment variables used for tests on the given platform."""
-    return self._platform_config.GetTestEnvVariables()
+    env_variables = self._platform_config.GetTestEnvVariables()
+    for test, test_env in self._app_config.GetTestEnvVariables().iteritems():
+      if test in env_variables:
+        env_variables[test].update(test_env)
+      else:
+        env_variables[test] = test_env
+    return env_variables
 
   def _BuildTests(self, ninja_flags):
     """Builds all specified test binaries.
@@ -491,6 +509,11 @@ def main():
       "--target_name",
       help="Name of executable target.")
   arg_parser.add_argument(
+      "-a",
+      "--application_name",
+      default="cobalt",  # TODO: Pass this in explicitly.
+      help="Name of the application to run tests under, e.g. 'cobalt'.")
+  arg_parser.add_argument(
       "--ninja_flags",
       help="Flags to pass to the ninja build system. Provide them exactly"
       " as you would on the command line between a set of double quotation"
@@ -504,7 +527,8 @@ def main():
     target_params = args.target_params.split(" ")
 
   runner = TestRunner(args.platform, args.config, args.device_id,
-                      args.target_name, target_params, args.out_directory)
+                      args.target_name, target_params, args.out_directory,
+                      args.application_name)
 
   def Abort(signum, frame):
     del signum, frame  # Unused.

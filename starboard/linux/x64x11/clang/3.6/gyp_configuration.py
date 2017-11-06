@@ -11,16 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 X11 Clang 3.6 platform configuration for gyp_cobalt."""
+"""Starboard Linux X64 X11 Clang 3.6 platform configuration."""
 
-import logging
-
-# Import the shared Linux platform configuration.
-from starboard.linux.shared import gyp_configuration
+from starboard.linux.shared import gyp_configuration as shared_configuration
 
 
-class PlatformConfig(gyp_configuration.PlatformConfig):
-  """Starboard Linux platform configuration."""
+class PlatformConfig(shared_configuration.LinuxConfiguration):
+  """Starboard Linux X64 X11 Clang 3.6 platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=True):
     super(PlatformConfig, self).__init__(
@@ -35,8 +32,4 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
 
 
 def CreatePlatformConfig():
-  try:
-    return PlatformConfig('linux-x64x11-clang-3-6')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+  return PlatformConfig('linux-x64x11-clang-3-6')
