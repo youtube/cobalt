@@ -26,7 +26,7 @@ import time
 import urllib
 import zipfile
 
-import gyp_utils
+from starboard.tools import build
 
 # The API level of NDK standalone toolchain to install. This should be the
 # minimum API level on which the app is expected to run. If some feature from a
@@ -52,7 +52,7 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 _SDK_URL = 'https://dl.google.com/android/repository/tools_r25.2.3-linux.zip'
 
 _SCRIPT_CTIME = os.path.getctime(__file__)
-_COBALT_TOOLCHAINS_DIR = gyp_utils.GetToolchainsDir()
+_COBALT_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
 # The path to the Android SDK if placed inside of cobalt-toolchains
 _COBALT_TOOLCHAINS_SDK_DIR = os.path.join(_COBALT_TOOLCHAINS_DIR, 'AndroidSdk')
@@ -294,7 +294,7 @@ def _DownloadInstallOrUpdateSdk():
     try:
       p.stdin.write('y\n')
     except IOError:
-      logging.warning("There were no SDK licenses to accept.")
+      logging.warning('There were no SDK licenses to accept.')
 
   p.wait()
 

@@ -21,53 +21,31 @@ import os
 import sys
 
 import _env  # pylint: disable=unused-import
-import starboard.tools.platform as platform_module
+from starboard.tools import build
 
 
-def GetGypModuleForPlatform(platform):
-  """Gets the module containing a platform's GYP configuration.
-
-  Args:
-    platform:  Platform on which the app will be run, ex. "linux-x64x11".
-
-  Returns:
-    The module containing the platform's GYP configuration.
-
-  Raises:
-    RuntimeError:  The specified platform does not exist.
-  """
-  if platform_module.IsValid(platform):
-    platform_path = platform_module.Get(platform).path
-    if platform_path not in sys.path:
-      sys.path.append(platform_path)
-    gyp_module = importlib.import_module("gyp_configuration")
-    return gyp_module
-  else:
-    raise RuntimeError("Specified platform does not exist.")
-
-
-def _GetLauncherForPlatform(platform):
+def _GetLauncherForPlatform(platform_name):
   """Gets the module containing a platform's concrete launcher implementation.
 
   Args:
-    platform: Platform on which the app will be run, ex. "linux-x64x11".
+    platform_name: Platform on which the app will be run, ex. "linux-x64x11".
 
   Returns:
     The module containing the platform's launcher implementation.
   """
 
-  gyp_config = GetGypModuleForPlatform(platform).CreatePlatformConfig()
+  gyp_config = build.GetPlatformConfig(platform_name)
   if not hasattr(gyp_config, "GetLauncher"):
     return None
   else:
     return gyp_config.GetLauncher()
 
 
-def DynamicallyBuildOutDirectory(platform, config):
+def DynamicallyBuildOutDirectory(platform_name, config):
   """Constructs the location used to store executable targets/their components.
 
   Args:
-    platform: The platform to run the executable on, ex. "linux-x64x11".
+    platform_name: The platform to run the executable on, ex. "linux-x64x11".
     config: The build configuration, ex. "qa".
 
   Returns:
@@ -76,17 +54,17 @@ def DynamicallyBuildOutDirectory(platform, config):
   path = os.path.abspath(
       os.path.join(os.path.dirname(__file__),
                    os.pardir, os.pardir, "out",
-                   "{}_{}".format(platform, config)))
+                   "{}_{}".format(platform_name, config)))
   return path
 
 
-def LauncherFactory(platform, target_name, config, device_id=None,
+def LauncherFactory(platform_name, target_name, config, device_id=None,
                     target_params=None, output_file=None,
                     out_directory=None, env_variables=None):
   """Creates the proper launcher based upon command line args.
 
   Args:
-    platform:  The platform on which the app will run.
+    platform_name:  The platform on which the app will run.
     target_name:  The name of the executable target (ex. "cobalt").
     config:  Type of configuration used by the launcher (ex. "qa", "devel").
     device_id:  The identifier for the devkit being used.  Can be None.
@@ -105,7 +83,7 @@ def LauncherFactory(platform, target_name, config, device_id=None,
   """
 
   #  Creates launcher for provided platform if the platform has a valid port
-  launcher_module = _GetLauncherForPlatform(platform)
+  launcher_module = _GetLauncherForPlatform(platform_name)
 
   #  TODO: Refactor when all old launchers have been deleted
   #  If a platform that does not have a new launcher is provided, attempt
@@ -118,16 +96,16 @@ def LauncherFactory(platform, target_name, config, device_id=None,
       sys.path.append(old_path)
       bridge_module = importlib.import_module("app_launcher_bridge")
       return bridge_module.LauncherAdapter(
-          platform, target_name, config, device_id, target_params=target_params,
-          output_file=output_file, out_directory=out_directory,
-          env_variables=env_variables)
+          platform_name, target_name, config, device_id,
+          target_params=target_params, output_file=output_file,
+          out_directory=out_directory, env_variables=env_variables)
     else:
       raise RuntimeError("No launcher implemented for the given platform.")
   else:
     return launcher_module.Launcher(
-        platform, target_name, config, device_id, target_params=target_params,
-        output_file=output_file, out_directory=out_directory,
-        env_variables=env_variables)
+        platform_name, target_name, config, device_id,
+        target_params=target_params, output_file=output_file,
+        out_directory=out_directory, env_variables=env_variables)
 
 
 class AbstractLauncher(object):
@@ -135,8 +113,8 @@ class AbstractLauncher(object):
 
   __metaclass__ = abc.ABCMeta
 
-  def __init__(self, platform, target_name, config, device_id, **kwargs):
-    self.platform = platform
+  def __init__(self, platform_name, target_name, config, device_id, **kwargs):
+    self.platform_name = platform_name
     self.target_name = target_name
     self.config = config
     self.device_id = device_id
@@ -214,7 +192,8 @@ class AbstractLauncher(object):
     if self.out_directory:
       out_directory = self.out_directory
     else:
-      out_directory = DynamicallyBuildOutDirectory(self.platform, self.config)
+      out_directory = DynamicallyBuildOutDirectory(self.platform_name,
+                                                   self.config)
 
     return os.path.abspath(os.path.join(out_directory, self.target_name))
 

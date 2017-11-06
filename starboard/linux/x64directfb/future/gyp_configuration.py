@@ -13,20 +13,9 @@
 # limitations under the License.
 """Starboard Linux X64 DirectFB future platform configuration for gyp_cobalt."""
 
-import logging
-
-# Import the shared Linux platform configuration.
-import starboard.linux.x64directfb.gyp_configuration as gyp_configuration
+from starboard.linux.x64directfb import gyp_configuration as linux_configuration
 
 
 def CreatePlatformConfig():
-  try:
-    return gyp_configuration.PlatformConfig(
-        'linux-x64directfb-future',
-        # Unfortunately, some memory leaks outside of our control, and difficult
-        # to pattern match with ASAN's suppression list, appear in DirectFB
-        # builds, and so this must be disabled.
-        asan_enabled_by_default=False)
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+  return linux_configuration.CobaltLinuxX64DirectFbConfiguration(
+      'linux-x64directfb-future')

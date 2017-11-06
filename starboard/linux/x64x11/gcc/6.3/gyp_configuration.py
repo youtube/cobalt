@@ -13,18 +13,15 @@
 # limitations under the License.
 """Starboard Linux X64 X11 gcc 6.3 platform configuration for gyp_cobalt."""
 
-import logging
 import os
 import subprocess
 
 
-# pylint: disable=import-self,g-import-not-at-top
-import gyp_utils
-# Import the shared Linux platform configuration.
-from starboard.linux.shared import gyp_configuration
+from starboard.linux.shared import gyp_configuration as shared_configuration
+from starboard.tools import build
 
 
-class PlatformConfig(gyp_configuration.PlatformConfig):
+class PlatformConfig(shared_configuration.LinuxConfiguration):
   """Starboard Linux platform configuration."""
 
   def __init__(self, platform, asan_enabled_by_default=False):
@@ -35,7 +32,7 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
     script_path = os.path.dirname(os.path.realpath(__file__))
     subprocess.call(
         os.path.join(script_path, 'download_gcc.sh'), cwd=script_path)
-    self.toolchain_dir = os.path.join(gyp_utils.GetToolchainsDir(),
+    self.toolchain_dir = os.path.join(build.GetToolchainsDir(),
                                       'x86_64-linux-gnu-gcc-6.3.0', 'gcc')
 
   def GetVariables(self, configuration):
@@ -56,8 +53,4 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
 
 
 def CreatePlatformConfig():
-  try:
-    return PlatformConfig('linux-x64x11-gcc-6-3')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+  return PlatformConfig('linux-x64x11-gcc-6-3')
