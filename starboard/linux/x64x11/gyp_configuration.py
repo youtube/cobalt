@@ -11,12 +11,9 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Linux X64 X11 platform configuration for gyp_cobalt."""
+"""Starboard Linux X64 X11 platform configuration."""
 
-import logging
-
-from starboard.linux.shared import gyp_configuration
-from starboard.tools.testing import test_filter
+from starboard.linux.shared import gyp_configuration as shared_configuration
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -25,10 +22,14 @@ from starboard.tools.toolchain import cp
 from starboard.tools.toolchain import touch
 
 
-class PlatformConfig(gyp_configuration.PlatformConfig):
+class LinuxX64X11Configuration(shared_configuration.LinuxConfiguration):
+  """Starboard Linux X64 X11 platform configuration."""
 
-  def __init__(self):
-    super(PlatformConfig, self).__init__('linux-x64x11')
+  def __init__(self, platform_name='linux-x64x11',
+               asan_enabled_by_default=True,
+               goma_supports_compiler=True):
+    super(LinuxX64X11Configuration, self).__init__(
+        platform_name, asan_enabled_by_default, goma_supports_compiler)
 
   def GetTargetToolchain(self):
     return self.GetHostToolchain()
@@ -50,30 +51,6 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
         bash.Shell(),
     ]
 
-  def GetTestFilters(self):
-    """Gets all tests to be excluded from a unit test run.
-
-    Returns:
-      A list of initialized TestFilter objects.
-    """
-    return [
-        test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
-        test_filter.TestFilter(
-            'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
-        test_filter.TestFilter(
-            'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
-        test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
-        test_filter.TestFilter(
-            'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
-    ]
-
 
 def CreatePlatformConfig():
-  try:
-    return PlatformConfig()
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+  return LinuxX64X11Configuration()

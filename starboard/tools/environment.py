@@ -28,14 +28,16 @@ PORT_ROOTS = [
     ["somewhere_else", "starboard"]
 ]
 
-It should also contain another variable, called TEST_TARGETS.  This variable
-should be a Python list containing names of test binaries you would like
-Starboard's unit test runner to run.  Example:
+It should also contain another variable, called APPLICATIONS.  This variable
+should be a Python Mapping containing names of applications you want to support
+mapped to functions that will construct their ApplicationConfiguration subclass
+with all appropriate discovery and fallback logic.
 
-TEST_TARGETS = [
-    'audio_test',
-    'base_test'
-]
+Example:
+
+APPLICATIONS = {
+    'cobalt': cobalt.build.CreateCobaltConfiguration,
+}
 
 IF YOU ARE GOING TO USE STARBOARD FILES OUTSIDE OF STARBOARD, YOU NEED TO IMPORT
 THIS MODULE FIRST.  Otherwise, sys.path will not be configured properly, none of
@@ -121,7 +123,7 @@ def GetStarboardPortRoots():
   return port_root_paths
 
 
-def GetTestTargets():
+def GetApplicationClass(application_name):
+  """Gets the class or function that constructs the ApplicationConfiguration."""
   config_module = _ImportConfigModule()
-  return config_module.TEST_TARGETS
-
+  return config_module.APPLICATIONS.get(application_name)
