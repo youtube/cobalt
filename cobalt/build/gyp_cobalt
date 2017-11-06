@@ -72,7 +72,6 @@ def _ParseCommandLineArguments(argv):
                       action='append',
                       choices=config.GetAll(),
                       default=[default_config] if default_config else [],
-                      required=not default_config,
                       help='Specifies build configurations. Supported '
                       'configurations are %s. Can be specified multiple '
                       'times, creates all configurations if nothing is '
