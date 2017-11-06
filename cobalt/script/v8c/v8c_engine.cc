@@ -33,9 +33,6 @@ namespace script {
 namespace v8c {
 namespace {
 
-// Trigger garbage collection this many seconds after the last one.
-const int kGarbageCollectionIntervalSeconds = 60;
-
 SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
 v8::Platform* g_platform = nullptr;
 v8::ArrayBuffer::Allocator* g_array_buffer_allocator = nullptr;
