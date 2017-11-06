@@ -27,6 +27,7 @@
         '<(DEPTH)/cobalt/script/shared/stub_script_debugger.cc',
       ],
       'dependencies': [
+        '<(DEPTH)/cobalt/script/script.gyp:script',
         '<(DEPTH)/v8/src/v8.gyp:v8',
         '<(DEPTH)/v8/src/v8.gyp:v8_libplatform',
       ],
