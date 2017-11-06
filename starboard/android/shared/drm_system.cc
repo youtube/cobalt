@@ -71,8 +71,7 @@ Java_foo_cobalt_media_MediaDrmBridge_nativeOnKeyStatusChange(
     jobject unused_this,
     jlong native_media_drm_bridge,
     jbyteArray j_session_id,
-    jobjectArray j_key_status_array,
-    jboolean j_has_new_usable_key) {
+    jobjectArray j_key_status_array) {
   jbyte* session_id_elements = env->GetByteArrayElements(j_session_id, NULL);
   jsize session_id_size = env->GetArrayLength(j_session_id);
 
