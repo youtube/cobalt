@@ -34,9 +34,6 @@ namespace script {
 namespace mozjs {
 namespace {
 
-// Trigger garbage collection this many seconds after the last one.
-const int kGarbageCollectionIntervalSeconds = 60;
-
 JSSecurityCallbacks security_callbacks = {
     MozjsGlobalEnvironment::CheckEval,  // contentSecurityPolicyAllows
     NULL,  // JSSubsumesOp - Added in SpiderMonkey 31
@@ -190,12 +187,6 @@ MozjsEngine::MozjsEngine(const Options& options)
   JS_SetErrorReporter(runtime_, ReportErrorHandler);
 
   EngineStats::GetInstance()->EngineCreated();
-
-  if (MessageLoop::current()) {
-    gc_timer_.Start(FROM_HERE, base::TimeDelta::FromSeconds(
-                                   kGarbageCollectionIntervalSeconds),
-                    this, &MozjsEngine::TimerGarbageCollect);
-  }
 }
 
 MozjsEngine::~MozjsEngine() {
@@ -237,11 +228,6 @@ void MozjsEngine::SetGcThreshold(int64_t bytes) {
   runtime_->gc.setMaxMallocBytes(static_cast<size_t>(bytes));
 }
 
-void MozjsEngine::TimerGarbageCollect() {
-  TRACE_EVENT0("cobalt::script", "MozjsEngine::TimerGarbageCollect()");
-  CollectGarbage();
-}
-
 // static
 bool MozjsEngine::ContextCallback(JSContext* context, unsigned context_op,
                                   void* data) {
@@ -264,10 +250,6 @@ void MozjsEngine::GCCallback(JSRuntime* runtime, JSGCStatus status,
   MozjsEngine* engine = reinterpret_cast<MozjsEngine*>(data);
   if (status == JSGC_END) {
     engine->accumulated_extra_memory_cost_ = 0;
-    // Reset the GC timer to avoid having the timed GC come soon after this one.
-    if (engine->gc_timer_.IsRunning()) {
-      engine->gc_timer_.Reset();
-    }
   }
   if (!engine->context_) {
     return;

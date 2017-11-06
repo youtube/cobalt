@@ -38,7 +38,6 @@ class MozjsEngine : public JavaScriptEngine {
   void SetGcThreshold(int64_t bytes) OVERRIDE;
 
  private:
-  void TimerGarbageCollect();
   static bool ContextCallback(JSContext* context, unsigned context_op,
                               void* data);
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
@@ -58,9 +57,6 @@ class MozjsEngine : public JavaScriptEngine {
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
-
-  // Used to trigger a garbage collection periodically.
-  base::RepeatingTimer<MozjsEngine> gc_timer_;
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;
