@@ -12,29 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Finds and prints the Clang base path.
 
 If Clang is not present, it will be downloaded.
 """
 
-import os.path
-import sys
-
-sys.path.append(
-    os.path.realpath(
-        os.path.join(
-            os.path.dirname(__file__), os.pardir, os.pardir, os.pardir)))
-from cobalt.build.gyp_utils import EnsureClangAvailable  # pylint: disable=g-import-not-at-top
-from cobalt.build.gyp_utils import GetClangBasePath
-from cobalt.build.gyp_utils import GetClangBinPath
+import _env  # pylint: disable=unused-import
+from starboard.build import clang
+from starboard.tools import build
 
 
 def main():
-  base_dir = GetClangBasePath()
-  bin_path = GetClangBinPath()
-  EnsureClangAvailable(base_dir, bin_path)
-  print os.path.join(base_dir, 'llvm-build', 'Release+Asserts')
+  print build.EnsureClangAvailable(clang.GetClangSpecification())
+
 
 if __name__ == '__main__':
   main()
