@@ -42,8 +42,12 @@ def _ImportModule(path, root_module, module_name=None):
   # From the relative path to the |root_module|'s directory, construct a full
   # python package name and attempt to load it.
   relative_path = os.path.relpath(path, os.path.dirname(root_module.__file__))
-  components = os.path.normpath(relative_path).split(os.sep)
-  components = [root_module.__name__] + components
+  full_path = os.path.join(root_module.__name__, relative_path)
+
+  # This normpath may collapse out the root module. This is generally OK as long
+  # as we stay within the workspace, as _env will add the workspace root to the
+  # system import path.
+  components = os.path.normpath(full_path).split(os.sep)
   if module_name:
     components.append(module_name)
   full_package_name = '.'.join(components)
