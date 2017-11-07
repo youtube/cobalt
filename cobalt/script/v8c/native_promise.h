@@ -16,8 +16,13 @@
 #define COBALT_SCRIPT_V8C_NATIVE_PROMISE_H_
 
 #include "cobalt/script/promise.h"
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/v8c/type_traits.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "v8/include/v8.h"
 
 namespace cobalt {
 namespace script {
@@ -36,9 +41,9 @@ inline void ToJSValue(v8::Isolate* isolate,
 // Shared functionality for NativePromise<T>. Does not implement the Resolve
 // function, since that needs to be specialized for Promise<T>.
 template <typename T>
-class NativePromise : public Promise<T> {
+class NativePromise : public ScopedPersistent<v8::Value>, public Promise<T> {
  public:
-  // ScriptObject boilerplate.
+  // ScriptValue boilerplate.
   typedef Promise<T> BaseType;
 
   // Handle special case T=void, by swapping the input parameter |T| for
@@ -55,15 +60,81 @@ class NativePromise : public Promise<T> {
       typename std::conditional<std::is_same<T, void>::value,
                                 PromiseResultUndefined, T>::type;
 
-  void Resolve(const ResolveType& value) const override { NOTIMPLEMENTED(); }
+  NativePromise(v8::Isolate* isolate, v8::Local<v8::Value> resolver)
+      : isolate_(isolate), ScopedPersistent(isolate, resolver) {}
 
-  void Reject() const override { NOTIMPLEMENTED(); }
+  void Resolve(const ResolveType& value) const override {
+    if (this->IsEmpty()) {
+      return;
+    }
+
+    EntryScope entry_scope(isolate_);
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    v8::Local<v8::Promise::Resolver> promise_resolver =
+        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Value> converted_value;
+    ToJSValue(isolate_, value, &converted_value);
+    v8::Maybe<bool> reject_result =
+        promise_resolver->Resolve(context, converted_value);
+    DCHECK(reject_result.FromJust());
+  }
+
+  void Reject() const override {
+    if (this->IsEmpty()) {
+      return;
+    }
+
+    EntryScope entry_scope(isolate_);
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    v8::Local<v8::Promise::Resolver> promise_resolver =
+        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Maybe<bool> reject_result =
+        promise_resolver->Reject(context, v8::Undefined(isolate_));
+    DCHECK(reject_result.FromJust());
+  }
+
   void Reject(SimpleExceptionType exception) const override {
-    NOTIMPLEMENTED();
+    if (this->IsEmpty()) {
+      return;
+    }
+
+    EntryScope entry_scope(isolate_);
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    v8::Local<v8::Promise::Resolver> promise_resolver =
+        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Value> error_result = CreateErrorObject(isolate_, exception);
+    v8::Maybe<bool> reject_result =
+        promise_resolver->Reject(context, error_result);
+    DCHECK(reject_result.FromJust());
   }
+
   void Reject(const scoped_refptr<ScriptException>& result) const override {
-    NOTIMPLEMENTED();
+    if (this->IsEmpty()) {
+      return;
+    }
+
+    EntryScope entry_scope(isolate_);
+    v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+    v8::Local<v8::Promise::Resolver> promise_resolver =
+        v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_));
+    v8::Local<v8::Value> converted_result;
+    ToJSValue(isolate_, result, &converted_result);
+    v8::Maybe<bool> reject_result =
+        promise_resolver->Reject(context, converted_result);
+    DCHECK(reject_result.FromJust());
   }
+
+  v8::Local<v8::Promise> promise() const {
+    return v8::Local<v8::Promise::Resolver>::Cast(this->Get().Get(isolate_))
+        ->GetPromise();
+  }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 template <typename T>
@@ -78,7 +149,19 @@ template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
                       const ScriptValue<Promise<T>>* promise_holder,
                       v8::Local<v8::Value>* out_value) {
-  NOTIMPLEMENTED();
+  if (!promise_holder) {
+    *out_value = v8::Null(isolate);
+    return;
+  }
+
+  const V8cUserObjectHolder<NativePromise<T>>* user_object_holder =
+      base::polymorphic_downcast<const V8cUserObjectHolder<NativePromise<T>>*>(
+          promise_holder);
+  const NativePromise<T>* native_promise =
+      base::polymorphic_downcast<const NativePromise<T>*>(
+          user_object_holder->GetScriptValue());
+  DCHECK(native_promise);
+  *out_value = native_promise->promise();
 }
 
 // Explicitly defer to the const version here so that a more generic non-const
@@ -88,7 +171,8 @@ template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
                       ScriptValue<Promise<T>>* promise_holder,
                       v8::Local<v8::Value>* out_value) {
-  NOTIMPLEMENTED();
+  ToJSValue(isolate, const_cast<const ScriptValue<Promise<T>>*>(promise_holder),
+            out_value);
 }
 
 // Destroys |promise_holder| as soon as the conversion is done.
@@ -98,7 +182,7 @@ template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
                       scoped_ptr<ScriptValue<Promise<T>>> promise_holder,
                       v8::Local<v8::Value>* out_value) {
-  NOTIMPLEMENTED();
+  ToJSValue(isolate, promise_holder.get(), out_value);
 }
 
 }  // namespace v8c
