@@ -40,13 +40,13 @@ function CommandInput(elem) {
 
 // The blinking cursor is always on the character immediately after the
 // insertion/deletion position.
-CommandInput.prototype.insertCharBehindCursor = function(c) {
+CommandInput.prototype.insertStringBehindCursor = function(c) {
   var cmd = this.currCommand;
   var pos = this.cursorPos;
   this.currCommand = cmd.substring(0, pos);
   this.currCommand += c;
   this.currCommand += cmd.substring(pos, cmd.length);
-  this.cursorPos += 1;
+  this.cursorPos += c.length;
   this.updateText();
 }
 
