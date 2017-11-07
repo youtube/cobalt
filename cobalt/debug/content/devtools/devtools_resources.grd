@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="UTF-8"?><grit current_release="1" latest_public_release="0">
+<?xml version="1.0" encoding="UTF-8"?><grit current_release="1" latest_public_release="0" output_all_resource_defines="false">
   <outputs>
     <output filename="grit/devtools_resources.h" type="rc_header">
       <emit emit_type="prepend"/>
@@ -10,112 +10,119 @@
   </outputs>
   <release seq="1">
     <includes>
-      <include file="inspector.css" name="INSPECTOR_CSS" type="BINDATA"/>
+      <include file="${compressed_protocol_file}" name="COMPRESSED_PROTOCOL_JSON" type="BINDATA" use_base_dir="false"/>
+    
       <include file="inspector.html" name="INSPECTOR_HTML" type="BINDATA"/>
       <include file="inspector.js" name="INSPECTOR_JS" type="BINDATA"/>
-      <include file="toolbox.css" name="TOOLBOX_CSS" type="BINDATA"/>
       <include file="toolbox.html" name="TOOLBOX_HTML" type="BINDATA"/>
       <include file="toolbox.js" name="TOOLBOX_JS" type="BINDATA"/>
-      <include file="accessibility_module.js" name="ACCESSIBILITY_MODULE_JS" type="BINDATA"/>
-      <include file="animation_module.js" name="ANIMATION_MODULE_JS" type="BINDATA"/>
-      <include file="audits_module.js" name="AUDITS_MODULE_JS" type="BINDATA"/>
-      <include file="components_lazy_module.js" name="COMPONENTS_LAZY_MODULE_JS" type="BINDATA"/>
-      <include file="console_module.js" name="CONSOLE_MODULE_JS" type="BINDATA"/>
-      <include file="devices_module.js" name="DEVICES_MODULE_JS" type="BINDATA"/>
-      <include file="diff_module.js" name="DIFF_MODULE_JS" type="BINDATA"/>
-      <include file="elements_module.js" name="ELEMENTS_MODULE_JS" type="BINDATA"/>
-      <include file="heap_snapshot_worker_module.js" name="HEAP_SNAPSHOT_WORKER_MODULE_JS" type="BINDATA"/>
-      <include file="layers_module.js" name="LAYERS_MODULE_JS" type="BINDATA"/>
-      <include file="network_module.js" name="NETWORK_MODULE_JS" type="BINDATA"/>
-      <include file="profiler_module.js" name="PROFILER_MODULE_JS" type="BINDATA"/>
-      <include file="promises_module.js" name="PROMISES_MODULE_JS" type="BINDATA"/>
-      <include file="resources_module.js" name="RESOURCES_MODULE_JS" type="BINDATA"/>
-      <include file="security_module.js" name="SECURITY_MODULE_JS" type="BINDATA"/>
-      <include file="script_formatter_worker_module.js" name="SCRIPT_FORMATTER_WORKER_MODULE_JS" type="BINDATA"/>
-      <include file="settings_module.js" name="SETTINGS_MODULE_JS" type="BINDATA"/>
-      <include file="snippets_module.js" name="SNIPPETS_MODULE_JS" type="BINDATA"/>
-      <include file="source_frame_module.js" name="SOURCE_FRAME_MODULE_JS" type="BINDATA"/>
-      <include file="sources_module.js" name="SOURCES_MODULE_JS" type="BINDATA"/>
-      <include file="temp_storage_shared_worker_module.js" name="TEMP_STORAGE_SHARED_WORKER_MODULE_JS" type="BINDATA"/>
-      <include file="timeline_module.js" name="TIMELINE_MODULE_JS" type="BINDATA"/>
-      <include file="ui_lazy_module.js" name="UI_LAZY_MODULE_JS" type="BINDATA"/>
+      <include file="audits2_worker.js" name="AUDITS2_WORKER_JS" type="BINDATA"/>
+      <include file="formatter_worker.js" name="FORMATTER_WORKER_JS" type="BINDATA"/>
+      <include file="heap_snapshot_worker.js" name="HEAP_SNAPSHOT_WORKER_JS" type="BINDATA"/>
+      <include file="animation/animation_module.js" name="ANIMATION_ANIMATION_MODULE_JS" type="BINDATA"/>
+      <include file="audits2/audits2_module.js" name="AUDITS2_AUDITS2_MODULE_JS" type="BINDATA"/>
+      <include file="changes/changes_module.js" name="CHANGES_CHANGES_MODULE_JS" type="BINDATA"/>
+      <include file="cm/cm_module.js" name="CM_CM_MODULE_JS" type="BINDATA"/>
+      <include file="color_picker/color_picker_module.js" name="COLOR_PICKER_COLOR_PICKER_MODULE_JS" type="BINDATA"/>
+      <include file="console/console_module.js" name="CONSOLE_CONSOLE_MODULE_JS" type="BINDATA"/>
+      <include file="cookie_table/cookie_table_module.js" name="COOKIE_TABLE_COOKIE_TABLE_MODULE_JS" type="BINDATA"/>
+      <include file="coverage/coverage_module.js" name="COVERAGE_COVERAGE_MODULE_JS" type="BINDATA"/>
+      <include file="data_grid/data_grid_module.js" name="DATA_GRID_DATA_GRID_MODULE_JS" type="BINDATA"/>
+      <include file="devices/devices_module.js" name="DEVICES_DEVICES_MODULE_JS" type="BINDATA"/>
+      <include file="diff/diff_module.js" name="DIFF_DIFF_MODULE_JS" type="BINDATA"/>
+      <include file="elements/elements_module.js" name="ELEMENTS_ELEMENTS_MODULE_JS" type="BINDATA"/>
+      <include file="event_listeners/event_listeners_module.js" name="EVENT_LISTENERS_EVENT_LISTENERS_MODULE_JS" type="BINDATA"/>
+      <include file="formatter/formatter_module.js" name="FORMATTER_FORMATTER_MODULE_JS" type="BINDATA"/>
+      <include file="har_importer/har_importer_module.js" name="HAR_IMPORTER_HAR_IMPORTER_MODULE_JS" type="BINDATA"/>
+      <include file="heap_snapshot_model/heap_snapshot_model_module.js" name="HEAP_SNAPSHOT_MODEL_HEAP_SNAPSHOT_MODEL_MODULE_JS" type="BINDATA"/>
+      <include file="inline_editor/inline_editor_module.js" name="INLINE_EDITOR_INLINE_EDITOR_MODULE_JS" type="BINDATA"/>
+      <include file="layer_viewer/layer_viewer_module.js" name="LAYER_VIEWER_LAYER_VIEWER_MODULE_JS" type="BINDATA"/>
+      <include file="layers/layers_module.js" name="LAYERS_LAYERS_MODULE_JS" type="BINDATA"/>
+      <include file="network/network_module.js" name="NETWORK_NETWORK_MODULE_JS" type="BINDATA"/>
+      <include file="network_priorities/network_priorities_module.js" name="NETWORK_PRIORITIES_NETWORK_PRIORITIES_MODULE_JS" type="BINDATA"/>
+      <include file="object_ui/object_ui_module.js" name="OBJECT_UI_OBJECT_UI_MODULE_JS" type="BINDATA"/>
+      <include file="perf_ui/perf_ui_module.js" name="PERF_UI_PERF_UI_MODULE_JS" type="BINDATA"/>
+      <include file="profiler/profiler_module.js" name="PROFILER_PROFILER_MODULE_JS" type="BINDATA"/>
+      <include file="quick_open/quick_open_module.js" name="QUICK_OPEN_QUICK_OPEN_MODULE_JS" type="BINDATA"/>
+      <include file="resources/resources_module.js" name="RESOURCES_RESOURCES_MODULE_JS" type="BINDATA"/>
+      <include file="sass/sass_module.js" name="SASS_SASS_MODULE_JS" type="BINDATA"/>
+      <include file="security/security_module.js" name="SECURITY_SECURITY_MODULE_JS" type="BINDATA"/>
+      <include file="settings/settings_module.js" name="SETTINGS_SETTINGS_MODULE_JS" type="BINDATA"/>
+      <include file="snippets/snippets_module.js" name="SNIPPETS_SNIPPETS_MODULE_JS" type="BINDATA"/>
+      <include file="source_frame/source_frame_module.js" name="SOURCE_FRAME_SOURCE_FRAME_MODULE_JS" type="BINDATA"/>
+      <include file="sources/sources_module.js" name="SOURCES_SOURCES_MODULE_JS" type="BINDATA"/>
+      <include file="text_editor/text_editor_module.js" name="TEXT_EDITOR_TEXT_EDITOR_MODULE_JS" type="BINDATA"/>
+      <include file="timeline_model/timeline_model_module.js" name="TIMELINE_MODEL_TIMELINE_MODEL_MODULE_JS" type="BINDATA"/>
+      <include file="timeline/timeline_module.js" name="TIMELINE_TIMELINE_MODULE_JS" type="BINDATA"/>
+      <include file="workspace_diff/workspace_diff_module.js" name="WORKSPACE_DIFF_WORKSPACE_DIFF_MODULE_JS" type="BINDATA"/>
       <include file="devtools_extension_api.js" name="DEVTOOLS_EXTENSION_API_JS" type="BINDATA"/>
-      <include file="devtools.js" name="DEVTOOLS_JS" type="BINDATA"/>
-      <include file="Images/deleteIcon.png" name="IMAGES_DELETEICON_PNG" type="BINDATA"/>
-      <include file="Images/resourceJSIcon.png" name="IMAGES_RESOURCEJSICON_PNG" type="BINDATA"/>
-      <include file="Images/breakpoint_2x.png" name="IMAGES_BREAKPOINT_2X_PNG" type="BINDATA"/>
-      <include file="Images/chromeMiddle.png" name="IMAGES_CHROMEMIDDLE_PNG" type="BINDATA"/>
-      <include file="Images/paneFilterButtons.png" name="IMAGES_PANEFILTERBUTTONS_PNG" type="BINDATA"/>
-      <include file="Images/searchNext.png" name="IMAGES_SEARCHNEXT_PNG" type="BINDATA"/>
-      <include file="Images/resourcesTimeGraphIcon.png" name="IMAGES_RESOURCESTIMEGRAPHICON_PNG" type="BINDATA"/>
-      <include file="Images/securityStateNeutral.svg" name="IMAGES_SECURITYSTATENEUTRAL_SVG" type="BINDATA"/>
-      <include file="Images/securityStateSecure.svg" name="IMAGES_SECURITYSTATESECURE_SVG" type="BINDATA"/>
-      <include file="Images/popoverArrows.png" name="IMAGES_POPOVERARROWS_PNG" type="BINDATA"/>
-      <include file="Images/serviceWorker.svg" name="IMAGES_SERVICEWORKER_SVG" type="BINDATA"/>
-      <include file="Images/paneAddButtons.png" name="IMAGES_PANEADDBUTTONS_PNG" type="BINDATA"/>
-      <include file="Images/securityPropertyWarning.svg" name="IMAGES_SECURITYPROPERTYWARNING_SVG" type="BINDATA"/>
-      <include file="Images/errorWave_2x.png" name="IMAGES_ERRORWAVE_2X_PNG" type="BINDATA"/>
-      <include file="Images/indexedDB.png" name="IMAGES_INDEXEDDB_PNG" type="BINDATA"/>
-      <include file="Images/toolbarButtonGlyphs.png" name="IMAGES_TOOLBARBUTTONGLYPHS_PNG" type="BINDATA"/>
-      <include file="Images/toolbarResizerVertical.png" name="IMAGES_TOOLBARRESIZERVERTICAL_PNG" type="BINDATA"/>
-      <include file="Images/resourcePlainIconSmall.png" name="IMAGES_RESOURCEPLAINICONSMALL_PNG" type="BINDATA"/>
-      <include file="Images/graphLabelCalloutRight.png" name="IMAGES_GRAPHLABELCALLOUTRIGHT_PNG" type="BINDATA"/>
-      <include file="Images/transformControls_2x.png" name="IMAGES_TRANSFORMCONTROLS_2X_PNG" type="BINDATA"/>
-      <include file="Images/securityStateInsecure.svg" name="IMAGES_SECURITYSTATEINSECURE_SVG" type="BINDATA"/>
-      <include file="Images/breakpointConditional_2x.png" name="IMAGES_BREAKPOINTCONDITIONAL_2X_PNG" type="BINDATA"/>
-      <include file="Images/settingsListRemove_2x.png" name="IMAGES_SETTINGSLISTREMOVE_2X_PNG" type="BINDATA"/>
-      <include file="Images/securityPropertySecure.svg" name="IMAGES_SECURITYPROPERTYSECURE_SVG" type="BINDATA"/>
-      <include file="Images/localStorage.png" name="IMAGES_LOCALSTORAGE_PNG" type="BINDATA"/>
-      <include file="Images/resourceCSSIcon.png" name="IMAGES_RESOURCECSSICON_PNG" type="BINDATA"/>
-      <include file="Images/graphLabelCalloutLeft.png" name="IMAGES_GRAPHLABELCALLOUTLEFT_PNG" type="BINDATA"/>
-      <include file="Images/resourceDocumentIconSmall.png" name="IMAGES_RESOURCEDOCUMENTICONSMALL_PNG" type="BINDATA"/>
-      <include file="Images/paneRefreshButtons.png" name="IMAGES_PANEREFRESHBUTTONS_PNG" type="BINDATA"/>
-      <include file="Images/touchCursor.png" name="IMAGES_TOUCHCURSOR_PNG" type="BINDATA"/>
-      <include file="Images/transformControls.png" name="IMAGES_TRANSFORMCONTROLS_PNG" type="BINDATA"/>
-      <include file="Images/indexedDBIndex.png" name="IMAGES_INDEXEDDBINDEX_PNG" type="BINDATA"/>
-      <include file="Images/resourcePlainIcon.png" name="IMAGES_RESOURCEPLAINICON_PNG" type="BINDATA"/>
-      <include file="Images/applicationCache.png" name="IMAGES_APPLICATIONCACHE_PNG" type="BINDATA"/>
-      <include file="Images/chromeSelect_2x.png" name="IMAGES_CHROMESELECT_2X_PNG" type="BINDATA"/>
-      <include file="Images/touchCursor_2x.png" name="IMAGES_TOUCHCURSOR_2X_PNG" type="BINDATA"/>
-      <include file="Images/navigationControls.png" name="IMAGES_NAVIGATIONCONTROLS_PNG" type="BINDATA"/>
-      <include file="Images/forward.png" name="IMAGES_FORWARD_PNG" type="BINDATA"/>
+      <include file="devtools_compatibility.js" name="DEVTOOLS_COMPATIBILITY_JS" type="BINDATA"/>
+      <include file="Tests.js" name="TESTS_JS" type="BINDATA"/>
+      <include file="Images/accelerometer-back.png" name="IMAGES_ACCELEROMETER_BACK_PNG" type="BINDATA"/>
+      <include file="Images/accelerometer-bottom.png" name="IMAGES_ACCELEROMETER_BOTTOM_PNG" type="BINDATA"/>
+      <include file="Images/accelerometer-front.png" name="IMAGES_ACCELEROMETER_FRONT_PNG" type="BINDATA"/>
+      <include file="Images/accelerometer-left.png" name="IMAGES_ACCELEROMETER_LEFT_PNG" type="BINDATA"/>
+      <include file="Images/accelerometer-right.png" name="IMAGES_ACCELEROMETER_RIGHT_PNG" type="BINDATA"/>
+      <include file="Images/accelerometer-top.png" name="IMAGES_ACCELEROMETER_TOP_PNG" type="BINDATA"/>
+      <include file="Images/audits_logo.svg" name="IMAGES_AUDITS_LOGO_SVG" type="BINDATA"/>
       <include file="Images/breakpoint.png" name="IMAGES_BREAKPOINT_PNG" type="BINDATA"/>
-      <include file="Images/securityPropertyUnknown.svg" name="IMAGES_SECURITYPROPERTYUNKNOWN_SVG" type="BINDATA"/>
-      <include file="Images/errorWave.png" name="IMAGES_ERRORWAVE_PNG" type="BINDATA"/>
-      <include file="Images/notifications.svg" name="IMAGES_NOTIFICATIONS_SVG" type="BINDATA"/>
-      <include file="Images/indexedDBObjectStore.png" name="IMAGES_INDEXEDDBOBJECTSTORE_PNG" type="BINDATA"/>
-      <include file="Images/toolbarResizerHorizontal.png" name="IMAGES_TOOLBARRESIZERHORIZONTAL_PNG" type="BINDATA"/>
-      <include file="Images/chromeLeft.png" name="IMAGES_CHROMELEFT_PNG" type="BINDATA"/>
-      <include file="Images/ic_info_black_18dp.svg" name="IMAGES_IC_INFO_BLACK_18DP_SVG" type="BINDATA"/>
-      <include file="Images/cookie.png" name="IMAGES_COOKIE_PNG" type="BINDATA"/>
-      <include file="Images/securityPropertyInfo.svg" name="IMAGES_SECURITYPROPERTYINFO_SVG" type="BINDATA"/>
-      <include file="Images/securityPropertyInsecure.svg" name="IMAGES_SECURITYPROPERTYINSECURE_SVG" type="BINDATA"/>
-      <include file="Images/radioDot.png" name="IMAGES_RADIODOT_PNG" type="BINDATA"/>
       <include file="Images/breakpointConditional.png" name="IMAGES_BREAKPOINTCONDITIONAL_PNG" type="BINDATA"/>
-      <include file="Images/responsiveDesign.png" name="IMAGES_RESPONSIVEDESIGN_PNG" type="BINDATA"/>
-      <include file="Images/searchPrev.png" name="IMAGES_SEARCHPREV_PNG" type="BINDATA"/>
-      <include file="Images/database.png" name="IMAGES_DATABASE_PNG" type="BINDATA"/>
-      <include file="Images/chromeSelect.png" name="IMAGES_CHROMESELECT_PNG" type="BINDATA"/>
-      <include file="Images/databaseTable.png" name="IMAGES_DATABASETABLE_PNG" type="BINDATA"/>
-      <include file="Images/chromeRight.png" name="IMAGES_CHROMERIGHT_PNG" type="BINDATA"/>
-      <include file="Images/settingsListRemove.png" name="IMAGES_SETTINGSLISTREMOVE_PNG" type="BINDATA"/>
-      <include file="Images/responsiveDesign_2x.png" name="IMAGES_RESPONSIVEDESIGN_2X_PNG" type="BINDATA"/>
-      <include file="Images/fileSystem.png" name="IMAGES_FILESYSTEM_PNG" type="BINDATA"/>
-      <include file="Images/toolbarButtonGlyphs_2x.png" name="IMAGES_TOOLBARBUTTONGLYPHS_2X_PNG" type="BINDATA"/>
+      <include file="Images/breakpointConditional_2x.png" name="IMAGES_BREAKPOINTCONDITIONAL_2X_PNG" type="BINDATA"/>
+      <include file="Images/breakpoint_2x.png" name="IMAGES_BREAKPOINT_2X_PNG" type="BINDATA"/>
+      <include file="Images/checkboxCheckmark.png" name="IMAGES_CHECKBOXCHECKMARK_PNG" type="BINDATA"/>
+      <include file="Images/checkboxCheckmark_2x.png" name="IMAGES_CHECKBOXCHECKMARK_2X_PNG" type="BINDATA"/>
+      <include file="Images/checker.png" name="IMAGES_CHECKER_PNG" type="BINDATA"/>
+      <include file="Images/chevrons.png" name="IMAGES_CHEVRONS_PNG" type="BINDATA"/>
+      <include file="Images/chevrons_2x.png" name="IMAGES_CHEVRONS_2X_PNG" type="BINDATA"/>
+      <include file="Images/chromeDisabledSelect.png" name="IMAGES_CHROMEDISABLEDSELECT_PNG" type="BINDATA"/>
       <include file="Images/chromeDisabledSelect_2x.png" name="IMAGES_CHROMEDISABLEDSELECT_2X_PNG" type="BINDATA"/>
+      <include file="Images/chromeLeft.png" name="IMAGES_CHROMELEFT_PNG" type="BINDATA"/>
+      <include file="Images/chromeMiddle.png" name="IMAGES_CHROMEMIDDLE_PNG" type="BINDATA"/>
+      <include file="Images/chromeRight.png" name="IMAGES_CHROMERIGHT_PNG" type="BINDATA"/>
+      <include file="Images/chromeSelect.png" name="IMAGES_CHROMESELECT_PNG" type="BINDATA"/>
+      <include file="Images/chromeSelect_2x.png" name="IMAGES_CHROMESELECT_2X_PNG" type="BINDATA"/>
+      <include file="Images/deleteIcon.png" name="IMAGES_DELETEICON_PNG" type="BINDATA"/>
+      <include file="Images/errorWave.png" name="IMAGES_ERRORWAVE_PNG" type="BINDATA"/>
+      <include file="Images/errorWave_2x.png" name="IMAGES_ERRORWAVE_2X_PNG" type="BINDATA"/>
+      <include file="Images/ic_info_black_18dp.svg" name="IMAGES_IC_INFO_BLACK_18DP_SVG" type="BINDATA"/>
+      <include file="Images/ic_warning_black_18dp.svg" name="IMAGES_IC_WARNING_BLACK_18DP_SVG" type="BINDATA"/>
+      <include file="Images/largeIcons.png" name="IMAGES_LARGEICONS_PNG" type="BINDATA"/>
+      <include file="Images/largeIcons_2x.png" name="IMAGES_LARGEICONS_2X_PNG" type="BINDATA"/>
+      <include file="Images/mediumIcons.png" name="IMAGES_MEDIUMICONS_PNG" type="BINDATA"/>
+      <include file="Images/mediumIcons_2x.png" name="IMAGES_MEDIUMICONS_2X_PNG" type="BINDATA"/>
+      <include file="Images/navigationControls.png" name="IMAGES_NAVIGATIONCONTROLS_PNG" type="BINDATA"/>
       <include file="Images/navigationControls_2x.png" name="IMAGES_NAVIGATIONCONTROLS_2X_PNG" type="BINDATA"/>
+      <include file="Images/nodeIcon.png" name="IMAGES_NODEICON_PNG" type="BINDATA"/>
+      <include file="Images/popoverArrows.png" name="IMAGES_POPOVERARROWS_PNG" type="BINDATA"/>
+      <include file="Images/profileGroupIcon.png" name="IMAGES_PROFILEGROUPICON_PNG" type="BINDATA"/>
       <include file="Images/profileIcon.png" name="IMAGES_PROFILEICON_PNG" type="BINDATA"/>
       <include file="Images/profileSmallIcon.png" name="IMAGES_PROFILESMALLICON_PNG" type="BINDATA"/>
-      <include file="Images/profileGroupIcon.png" name="IMAGES_PROFILEGROUPICON_PNG" type="BINDATA"/>
-      <include file="Images/frame.png" name="IMAGES_FRAME_PNG" type="BINDATA"/>
-      <include file="Images/sessionStorage.png" name="IMAGES_SESSIONSTORAGE_PNG" type="BINDATA"/>
-      <include file="Images/checker.png" name="IMAGES_CHECKER_PNG" type="BINDATA"/>
-      <include file="Images/domain.png" name="IMAGES_DOMAIN_PNG" type="BINDATA"/>
+      <include file="Images/radioDot.png" name="IMAGES_RADIODOT_PNG" type="BINDATA"/>
+      <include file="Images/resizeDiagonal.png" name="IMAGES_RESIZEDIAGONAL_PNG" type="BINDATA"/>
+      <include file="Images/resizeDiagonal_2x.png" name="IMAGES_RESIZEDIAGONAL_2X_PNG" type="BINDATA"/>
+      <include file="Images/resizeHorizontal.png" name="IMAGES_RESIZEHORIZONTAL_PNG" type="BINDATA"/>
+      <include file="Images/resizeHorizontal_2x.png" name="IMAGES_RESIZEHORIZONTAL_2X_PNG" type="BINDATA"/>
+      <include file="Images/resizeVertical.png" name="IMAGES_RESIZEVERTICAL_PNG" type="BINDATA"/>
+      <include file="Images/resizeVertical_2x.png" name="IMAGES_RESIZEVERTICAL_2X_PNG" type="BINDATA"/>
+      <include file="Images/resourceCSSIcon.png" name="IMAGES_RESOURCECSSICON_PNG" type="BINDATA"/>
       <include file="Images/resourceDocumentIcon.png" name="IMAGES_RESOURCEDOCUMENTICON_PNG" type="BINDATA"/>
-      <include file="Images/chromeDisabledSelect.png" name="IMAGES_CHROMEDISABLEDSELECT_PNG" type="BINDATA"/>
-      <include file="Images/updateServiceWorker.svg" name="IMAGES_UPDATESERVICEWORKER_SVG" type="BINDATA"/>
-      <include file="Images/ic_warning_black_18dp.svg" name="IMAGES_IC_WARNING_BLACK_18DP_SVG" type="BINDATA"/>
-      <include file="Images/toolbarItemSelected.png" name="IMAGES_TOOLBARITEMSELECTED_PNG" type="BINDATA"/>
-      <include file="Images/speech.png" name="IMAGES_SPEECH_PNG" type="BINDATA"/></includes>
+      <include file="Images/resourceDocumentIconSmall.png" name="IMAGES_RESOURCEDOCUMENTICONSMALL_PNG" type="BINDATA"/>
+      <include file="Images/resourceJSIcon.png" name="IMAGES_RESOURCEJSICON_PNG" type="BINDATA"/>
+      <include file="Images/resourcePlainIcon.png" name="IMAGES_RESOURCEPLAINICON_PNG" type="BINDATA"/>
+      <include file="Images/resourcePlainIconSmall.png" name="IMAGES_RESOURCEPLAINICONSMALL_PNG" type="BINDATA"/>
+      <include file="Images/resourcesTimeGraphIcon.png" name="IMAGES_RESOURCESTIMEGRAPHICON_PNG" type="BINDATA"/>
+      <include file="Images/searchNext.png" name="IMAGES_SEARCHNEXT_PNG" type="BINDATA"/>
+      <include file="Images/searchPrev.png" name="IMAGES_SEARCHPREV_PNG" type="BINDATA"/>
+      <include file="Images/securityIcons.png" name="IMAGES_SECURITYICONS_PNG" type="BINDATA"/>
+      <include file="Images/securityIcons_2x.png" name="IMAGES_SECURITYICONS_2X_PNG" type="BINDATA"/>
+      <include file="Images/smallIcons.png" name="IMAGES_SMALLICONS_PNG" type="BINDATA"/>
+      <include file="Images/smallIcons_2x.png" name="IMAGES_SMALLICONS_2X_PNG" type="BINDATA"/>
+      <include file="Images/speech.png" name="IMAGES_SPEECH_PNG" type="BINDATA"/>
+      <include file="Images/toolbarResizerVertical.png" name="IMAGES_TOOLBARRESIZERVERTICAL_PNG" type="BINDATA"/>
+      <include file="Images/touchCursor.png" name="IMAGES_TOUCHCURSOR_PNG" type="BINDATA"/>
+      <include file="Images/touchCursor_2x.png" name="IMAGES_TOUCHCURSOR_2X_PNG" type="BINDATA"/>
+      <include file="Images/treeoutlineTriangles.png" name="IMAGES_TREEOUTLINETRIANGLES_PNG" type="BINDATA"/>
+      <include file="Images/treeoutlineTriangles_2x.png" name="IMAGES_TREEOUTLINETRIANGLES_2X_PNG" type="BINDATA"/>
+      <include file="Images/whatsnew.png" name="IMAGES_WHATSNEW_PNG" type="BINDATA"/></includes>
   </release>
 </grit>
