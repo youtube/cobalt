@@ -644,9 +644,6 @@ inline void FromJSValue(
     return;
   }
 
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-
   JS::RootedObject implementing_object(context, &value.toObject());
   DCHECK(implementing_object);
   *out_callback_interface =
