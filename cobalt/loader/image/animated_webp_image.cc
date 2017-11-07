@@ -16,6 +16,8 @@
 
 #include "cobalt/loader/image/animated_webp_image.h"
 
+#include <string>
+
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/loader/image/image_decoder.h"
 #include "cobalt/render_tree/brush.h"
@@ -38,11 +40,9 @@ const int kMinimumDelayInMilliseconds = 10;
 
 AnimatedWebPImage::AnimatedWebPImage(
     const math::Size& size, bool is_opaque,
-    render_tree::PixelFormat pixel_format,
     render_tree::ResourceProvider* resource_provider)
     : size_(size),
       is_opaque_(is_opaque),
-      pixel_format_(pixel_format),
       demux_(NULL),
       demux_state_(WEBP_DEMUX_PARSING_HEADER),
       received_first_frame_(false),
@@ -363,18 +363,6 @@ base::TimeDelta AnimatedWebPImage::GetFrameDuration(int frame_index) {
       base::TimeDelta::FromMilliseconds(webp_iterator.duration);
   WebPDemuxReleaseIterator(&webp_iterator);
   return frame_duration;
-}
-
-scoped_ptr<render_tree::ImageData> AnimatedWebPImage::AllocateImageData(
-    const math::Size& size) {
-  TRACE_EVENT0("cobalt::loader::image",
-               "AnimatedWebPImage::AllocateImageData()");
-  TRACK_MEMORY_SCOPE("Rendering");
-  scoped_ptr<render_tree::ImageData> image_data =
-      resource_provider_->AllocateImageData(
-          size, pixel_format_, render_tree::kAlphaFormatPremultiplied);
-  DCHECK(image_data) << "Failed to allocate image.";
-  return image_data.Pass();
 }
 
 bool AnimatedWebPImage::LoopingFinished() const {

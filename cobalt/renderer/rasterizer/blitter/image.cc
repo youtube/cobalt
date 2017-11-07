@@ -43,8 +43,7 @@ ImageData::ImageData(SbBlitterDevice device, const math::Size& size,
     descriptor_.emplace(size, pixel_format, alpha_format,
                         SbBlitterGetPixelDataPitchInBytes(pixel_data_));
   } else {
-    LOG(WARNING) << "Failed to allocate pixel data for image.";
-    DCHECK(false);
+    LOG(ERROR) << "Failed to allocate pixel data for image.";
   }
 }
 
