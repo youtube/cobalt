@@ -76,7 +76,7 @@ size_t WEBPImageDecoder::DecodeChunkInternal(const uint8* data,
       has_animation_ = true;
       animated_webp_image_ = new AnimatedWebPImage(
           math::Size(config_.input.width, config_.input.height),
-          !!config_.input.has_alpha, pixel_format(), resource_provider());
+          !!config_.input.has_alpha, resource_provider());
     }
     set_state(kReadLines);
   }

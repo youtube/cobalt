@@ -47,6 +47,9 @@ class TextureDataEGL {
   // Returns a pointer to the image data so that one can set pixel data as
   // necessary.
   virtual uint8_t* GetMemory() = 0;
+
+  // Returns true if there was an error during object construction.
+  virtual bool CreationError() = 0;
 };
 
 // Similar to TextureDataEGL::ConvertToTexture(), though this creates a texture
