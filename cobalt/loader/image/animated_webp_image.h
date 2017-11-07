@@ -39,7 +39,6 @@ namespace image {
 class AnimatedWebPImage : public AnimatedImage {
  public:
   AnimatedWebPImage(const math::Size& size, bool is_opaque,
-                    render_tree::PixelFormat pixel_format,
                     render_tree::ResourceProvider* resource_provider);
 
   const math::Size& GetSize() const OVERRIDE { return size_; }
@@ -75,8 +74,6 @@ class AnimatedWebPImage : public AnimatedImage {
   // Decodes the frame with the given index, returns if it succeeded.
   bool DecodeOneFrame(int frame_index);
 
-  scoped_ptr<render_tree::ImageData> AllocateImageData(const math::Size& size);
-
   // If the time is right, updates the index and time info of the current frame.
   bool AdvanceFrame();
 
@@ -88,7 +85,6 @@ class AnimatedWebPImage : public AnimatedImage {
 
   const math::Size size_;
   const bool is_opaque_;
-  const render_tree::PixelFormat pixel_format_;
   WebPDemuxer* demux_;
   WebPDemuxState demux_state_;
   bool received_first_frame_;

@@ -151,11 +151,16 @@ scoped_ptr<GraphicsContext> GraphicsSystemEGL::CreateGraphicsContext() {
 scoped_ptr<TextureDataEGL> GraphicsSystemEGL::AllocateTextureData(
     const math::Size& size, GLenum format) {
 #if defined(GLES3_SUPPORTED)
-  return scoped_ptr<TextureDataEGL>(
+  scoped_ptr<TextureDataEGL> texture_data(
       new TextureDataPBO(&(resource_context_.value()), size, format));
 #else
-  return scoped_ptr<TextureDataEGL>(new TextureDataCPU(size, format));
+  scoped_ptr<TextureDataEGL> texture_data(new TextureDataCPU(size, format));
 #endif
+  if (texture_data->CreationError()) {
+    return scoped_ptr<TextureDataEGL>();
+  } else {
+    return texture_data.Pass();
+  }
 }
 
 scoped_ptr<RawTextureMemoryEGL> GraphicsSystemEGL::AllocateRawTextureMemory(
