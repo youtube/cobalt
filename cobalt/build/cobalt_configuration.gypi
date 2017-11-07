@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -14,12 +14,15 @@
 
 #####################################################################
 # If you modify this file, PLEASE REMEMBER TO UPDATE
-# //cobalt/build/config/base.gni or //starboard/build/config/base.gni
-# AS WELL
+# //cobalt/build/config/base.gni AS WELL
 #####################################################################
 
-# This file should be included in all .gyp files used by Cobalt. Normally,
-# this should be done automatically by gyp_cobalt.
+# This contains the defaults and documentation for all Cobalt-defined GYP
+# variables. Starboard-defined variables are specified in
+# starboard/build/base_configuration.gypi.
+#
+# starboard/build/cobalt_configuration includes this file automatically in all
+# .gyp files processed by starboard/build/gyp_cobalt.
 {
   'variables': {
     # Cobalt variables.
@@ -29,20 +32,12 @@
     # allows for the specification of default values that get referenced by
     # a top level scope.
     'variables': {
-      # 'sb_enable_lib' is initially defined inside this inner 'variables' dict so
-      # that it can be accessed by 'cobalt_enable_lib' below.
-      'sb_enable_lib%': 0,
-
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
     },
 
     # Whether Cobalt is being built.
     'cobalt': 1,
-
-    # Enabling this variable enables pedantic levels of warnings for the current
-    # toolchain.
-    'sb_pedantic_warnings%': 0,
 
     # Contains the current build configuration.
     'cobalt_config%': 'gold',
@@ -54,14 +49,7 @@
 
     # Enables embedding Cobalt as a shared library within another app. This
     # requires a 'lib' starboard implementation for the corresponding platform.
-    'sb_enable_lib%': '<(sb_enable_lib)',
     'cobalt_enable_lib': '<(sb_enable_lib)',
-
-    # Directory path to static contents.
-    'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
-
-    # Directory path to static contents' data.
-    'sb_static_contents_output_data_dir%': '<(PRODUCT_DIR)/content/data',
 
     # This variable defines what Cobalt's preferred strategy should be for
     # handling internally triggered application exit requests (e.g. the user
@@ -144,16 +132,6 @@
 
     # Build version number.
     'cobalt_version%': 0,
-    # Contains the name of the hosting OS. The value is defined by gyp_cobalt.
-    'host_os%': 'win',
-
-    # The target platform id as a string, like 'ps3', 'ps4', etc..
-    'sb_target_platform': '',
-
-    # The operating system of the target, separate from the target_arch. In many
-    # cases, an 'unknown' value is fine, but, if set to 'linux', then we can
-    # assume some things, and it'll save us some configuration time.
-    'target_os%': 'unknown',
 
     # Defines what kind of rasterizer will be used.  This can be adjusted to
     # force a stub graphics implementation or software graphics implementation.
@@ -224,11 +202,6 @@
     # eglSwapBuffers() each frame.
     'cobalt_egl_swap_interval%': 1,
 
-    # The variables allow changing the target type on platforms where the
-    # native code may require an additional packaging step (ex. Android).
-    'gtest_target_type%': 'executable',
-    'final_executable_type%': 'executable',
-
     # Set to 1 to build with DIAL support.
     'in_app_dial%': 0,
 
@@ -250,41 +223,8 @@
     # Set to 1 to enable filtering of HTTP headers before sending.
     'enable_xhr_header_filtering%': 0,
 
-    # Halt execution on failure to allocate memory.
-    'abort_on_allocation_failure%': 1,
-
-    # Used by cobalt/media/media.gyp to pick a proper media platform.
-    'sb_media_platform%': 'starboard',
-
-    # The relative path from src/ to the directory containing the
-    # starboard_platform.gyp file.  It is currently set to
-    # 'starboard/<(target_arch)' to make semi-starboard platforms work.
-    # TODO: Set the default value to '' once all semi-starboard platforms are
-    # moved to starboard.
-    'starboard_path%': 'starboard/<(target_arch)',
-
     # List of platform-specific targets that get compiled into cobalt.
     'cobalt_platform_dependencies%': [],
-
-    # The source of EGL and GLES headers and libraries.
-    # Valid values (case and everything sensitive!):
-    #   'none'   - No EGL + GLES implementation is available on this platform.
-    #   'system_gles3' - Use the system implementation of EGL + GLES3. The
-    #                    headers and libraries must be on the system include and
-    #                    link paths.
-    #   'system_gles2' - Use the system implementation of EGL + GLES2. The
-    #                    headers and libraries must be on the system include and
-    #                    link paths.
-    #   'glimp'  - Cobalt's own EGL + GLES2 implementation. This requires a
-    #              valid Glimp implementation for the platform.
-    #   'angle'  - A DirectX-to-OpenGL adaptation layer. This requires a valid
-    #              ANGLE implementation for the platform.
-    # Choosing an unsupported value will result in a GYP error:
-    #   "cobalt/renderer/egl_and_gles/egl_and_gles_<gl_type>.gyp not found"
-    'gl_type%': 'system_gles2',
-
-    # Temporary indicator for Tizen - should eventually move to feature defines.
-    'tizen_os%': 0,
 
     # The URL of default build time splash screen - see
     #   cobalt/doc/splash_screen.md for information about this.
@@ -422,42 +362,6 @@
     # a warning if the engine consumes more memory than this value specifies.
     'reduce_gpu_memory_by%': -1,
 
-    # Compiler configuration.
-
-    # The following variables are used to specify compiler and linker
-    # flags by build configuration. Platform specific .gypi includes and
-    # .gyp targets can use them to add additional flags.
-
-    'compiler_flags%': [],
-    'linker_flags%': [],
-
-    'compiler_flags_debug%': [],
-    'compiler_flags_c_debug%': [],
-    'compiler_flags_cc_debug%': [],
-    'linker_flags_debug%': [],
-
-    'compiler_flags_devel%': [],
-    'compiler_flags_c_devel%': [],
-    'compiler_flags_cc_devel%': [],
-    'linker_flags_devel%': [],
-
-    'compiler_flags_qa%': [],
-    'compiler_flags_c_qa%': [],
-    'compiler_flags_cc_qa%': [],
-    'linker_flags_qa%': [],
-
-    'compiler_flags_gold%': [],
-    'compiler_flags_c_gold%': [],
-    'compiler_flags_cc_gold%': [],
-    'linker_flags_gold%': [],
-
-    'compiler_flags_host%': [],
-    'compiler_flags_c_host%': [],
-    'compiler_flags_cc_host%': [],
-    'linker_flags_host%': [],
-
-    'platform_libraries%': [],
-
     # The only currently-supported Javascript engine is 'mozjs-45'.
     'default_javascript_engine': 'mozjs-45',
     'javascript_engine%': '<(default_javascript_engine)',
@@ -477,11 +381,6 @@
     # to occur much more frequently than normal, for the purpose of finding or
     # reproducing bugs.
     'cobalt_gc_zeal%': 0,
-
-    # The event polling mechanism available on this platform to support libevent.
-    # Platforms may redefine to 'poll' if necessary.
-    # Other mechanisms, e.g. devpoll, kqueue, select, are not yet supported.
-    'sb_libevent_method%': 'epoll',
 
     # Use media source extension implementation that is conformed to the
     # Candidate Recommandation of July 5th 2016.
@@ -558,21 +457,71 @@
     # re-download video data.  Note that the JavaScript app may experience
     # significant difficulty if this value is too low.
     'cobalt_media_buffer_video_budget_4k%': 60 * 1024 * 1024,
+
+    'compiler_flags_host': [
+      '-D__LB_HOST__',  # TODO: Is this still needed?
+    ],
+
+    'defines_debug': [
+      'ALLOCATOR_STATS_TRACKING',
+      'COBALT_BOX_DUMP_ENABLED',
+      'COBALT_BUILD_TYPE_DEBUG',
+      'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+      'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
+      'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
+      'ENABLE_DEBUG_C_VAL',
+      'ENABLE_DEBUG_CONSOLE',
+      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+      'ENABLE_IGNORE_CERTIFICATE_ERRORS',
+      'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_RUNNER',
+      '__LB_SHELL__ENABLE_SCREENSHOT__',
+
+      # TODO: Rename to COBALT_LOGGING_ENABLED.
+      '__LB_SHELL__FORCE_LOGGING__',
+
+      'SK_DEVELOPER',
+    ],
+    'defines_devel': [
+      'ALLOCATOR_STATS_TRACKING',
+      'COBALT_BUILD_TYPE_DEVEL',
+      'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+      'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
+      'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
+      'ENABLE_DEBUG_C_VAL',
+      'ENABLE_DEBUG_CONSOLE',
+      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+      'ENABLE_IGNORE_CERTIFICATE_ERRORS',
+      'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_RUNNER',
+      '__LB_SHELL__ENABLE_SCREENSHOT__',
+      '__LB_SHELL__FORCE_LOGGING__',
+      'SK_DEVELOPER',
+    ],
+    'defines_qa': [
+      'ALLOCATOR_STATS_TRACKING',
+      'COBALT_BUILD_TYPE_QA',
+      'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
+      'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
+      'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
+      'ENABLE_DEBUG_C_VAL',
+      'ENABLE_DEBUG_CONSOLE',
+      'ENABLE_DIR_SOURCE_ROOT_ACCESS',
+      'ENABLE_IGNORE_CERTIFICATE_ERRORS',
+      'ENABLE_PARTIAL_LAYOUT_CONTROL',
+      'ENABLE_TEST_RUNNER',
+      '__LB_SHELL__ENABLE_SCREENSHOT__',
+    ],
+    'defines_gold': [
+      'ALLOCATOR_STATS_TRACKING',
+      'COBALT_BUILD_TYPE_GOLD',
+      'COBALT_FORCE_CSP',
+      'COBALT_FORCE_HTTPS',
+      'TRACING_DISABLED',
+    ],
   },
 
   'target_defaults': {
-    'variables': {
-      # The condition that operates on sb_pedantic_warnings is in a
-      # target_conditions section, and will not have access to the default
-      # fallback value of sb_pedantic_warnings at the top of this file,
-      # or to the sb_pedantic_warnings variable placed at the root
-      # variables scope of .gyp files, because those variables are not set at
-      # target scope.  As a workaround, if sb_pedantic_warnings is not
-      # set at target scope, define it in target scope to contain whatever
-      # value it has during early variable expansion. That's enough to make
-      # it available during target conditional processing.
-      'sb_pedantic_warnings%': '<(sb_pedantic_warnings)',
-    },
     'defines': [
       'COBALT',
       'COBALT_MEDIA_BUFFER_POOL_ALLOCATE_ON_DEMAND=<(cobalt_media_buffer_pool_allocate_on_demand)',
@@ -585,28 +534,6 @@
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
     ],
-    'cflags': [ '<@(compiler_flags)' ],
-    'ldflags': [ '<@(linker_flags)' ],
-    'cflags_host': [
-      '<@(compiler_flags_host)',
-      '-D__LB_HOST__'
-    ],
-    'cflags_c_host': [
-      '<@(compiler_flags_c_host)',
-    ],
-    'cflags_cc_host': [
-      '<@(compiler_flags_cc_host)',
-    ],
-    'ldflags_host': [ '<@(linker_flags_host)' ],
-
-    # Location of Cygwin which is used by the build system when running on a
-    # Windows platform.
-    'msvs_cygwin_dirs': ['<(DEPTH)/third_party/cygwin'],
-
-    # Allows any source file to include files relative to the source tree.
-    'include_dirs': [ '<(DEPTH)' ],
-    'libraries': [ '<@(platform_libraries)' ],
-
     'conditions': [
       ['cobalt_media_source_2016 == 1', {
         'defines': [
@@ -632,49 +559,6 @@
           'JS_GC_ZEAL=1',
         ],
       }],
-      ['final_executable_type=="shared_library"', {
-        'target_conditions': [
-          ['_toolset=="target"', {
-            'defines': [
-              # Rewrite main() functions into StarboardMain. TODO: This is a
-              # hack, it would be better to be more surgical, here.
-              'main=StarboardMain',
-            ],
-            'cflags': [
-              # To link into a shared library on Linux and similar platforms,
-              # the compiler must be told to generate Position Independent Code.
-              # This appears to cause errors when linking the code statically,
-              # however.
-              '-fPIC',
-            ],
-          }],
-        ],
-      }],
-      ['OS == "lb_shell"', {
-        'defines': [
-          '__LB_SHELL__',
-        ],
-        'include_dirs_target': [
-          '<(DEPTH)/lbshell/src/platform/<(target_arch)',
-          '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/lb_shell',
-          # headers that we don't need, but should exist somewhere in the path:
-          '<(DEPTH)/lbshell/src/platform/<(target_arch)/posix_emulation/place_holders',
-          # TODO: This is needed to support the option to include
-          # posix_emulation.h to all compiled source files. This dependency
-          # should be refactored and removed.
-          '<(DEPTH)/lbshell/src',
-        ],
-      }],  # OS == "lb_shell"
-      ['OS == "starboard"', {
-        'target_conditions': [
-          ['_toolset=="target"', {
-            # Keeps common Starboard target changes in the starboard project.
-            'includes': [
-              '../../../starboard/starboard_base_target.gypi',
-            ],
-          }],
-        ],
-      }],  # OS == "starboard"
       ['in_app_dial == 1', {
         'defines': [
           'DIAL_SERVER',
@@ -691,100 +575,6 @@
         ],
       }],
     ],
-
-    # TODO: Revisit and remove unused configurations.
-    'configurations': {
-      'debug_base': {
-        'abstract': 1,
-        # no optimization, include symbols:
-        'cflags': [ '<@(compiler_flags_debug)' ],
-        'cflags_c': [ '<@(compiler_flags_c_debug)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_debug)' ],
-        'ldflags': [ '<@(linker_flags_debug)' ],
-        'defines': [
-          'ALLOCATOR_STATS_TRACKING',
-          'COBALT_BOX_DUMP_ENABLED',
-          'COBALT_BUILD_TYPE_DEBUG',
-          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
-          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
-          '_DEBUG',
-          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
-          'ENABLE_DEBUG_C_VAL',
-          'ENABLE_DEBUG_CONSOLE',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
-          'ENABLE_PARTIAL_LAYOUT_CONTROL',
-          'ENABLE_TEST_RUNNER',
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
-          '__LB_SHELL__FORCE_LOGGING__',  # TODO: Rename to COBALT_LOGGING_ENABLED.
-          'SK_DEVELOPER',
-        ],
-      }, # end of debug_base
-      'devel_base': {
-        'abstract': 1,
-        # optimize, include symbols:
-        'cflags': [ '<@(compiler_flags_devel)' ],
-        'cflags_c': [ '<@(compiler_flags_c_devel)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_devel)' ],
-        'ldflags': [ '<@(linker_flags_devel)' ],
-        'defines': [
-          '_DEBUG',
-          'ALLOCATOR_STATS_TRACKING',
-          'COBALT_BUILD_TYPE_DEVEL',
-          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
-          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
-          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
-          'ENABLE_DEBUG_C_VAL',
-          'ENABLE_DEBUG_CONSOLE',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
-          'ENABLE_PARTIAL_LAYOUT_CONTROL',
-          'ENABLE_TEST_RUNNER',
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
-          '__LB_SHELL__FORCE_LOGGING__',
-          'SK_DEVELOPER',
-        ],
-      }, # end of devel_base
-      'qa_base': {
-        'abstract': 1,
-        # optimize:
-        'cflags': [ '<@(compiler_flags_qa)' ],
-        'cflags_c': [ '<@(compiler_flags_c_qa)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_qa)' ],
-        'ldflags': [ '<@(linker_flags_qa)' ],
-        'defines': [
-          'ALLOCATOR_STATS_TRACKING',
-          'COBALT_BUILD_TYPE_QA',
-          'COBALT_ENABLE_JAVASCRIPT_ERROR_LOGGING',
-          'COBALT_SECURITY_SCREEN_CLEAR_TO_UGLY_COLOR',
-          'ENABLE_DEBUG_COMMAND_LINE_SWITCHES',
-          'ENABLE_DEBUG_C_VAL',
-          'ENABLE_DEBUG_CONSOLE',
-          'ENABLE_DIR_SOURCE_ROOT_ACCESS',
-          'ENABLE_IGNORE_CERTIFICATE_ERRORS',
-          'ENABLE_PARTIAL_LAYOUT_CONTROL',
-          'ENABLE_TEST_RUNNER',
-          '__LB_SHELL__ENABLE_SCREENSHOT__',
-          'NDEBUG',
-        ],
-      }, # end of devel_base
-      'gold_base': {
-        'abstract': 1,
-        # optimize:
-        'cflags': [ '<@(compiler_flags_gold)' ],
-        'cflags_c': [ '<@(compiler_flags_c_gold)' ],
-        'cflags_cc': [ '<@(compiler_flags_cc_gold)' ],
-        'ldflags': [ '<@(linker_flags_gold)' ],
-        'defines': [
-          'ALLOCATOR_STATS_TRACKING',
-          'COBALT_BUILD_TYPE_GOLD',
-          'COBALT_FORCE_CSP',
-          'COBALT_FORCE_HTTPS',
-          'NDEBUG',
-          'TRACING_DISABLED',
-        ],
-      }, # end of gold_base
-    }, # end of configurations
   }, # end of target_defaults
 
   # For configurations other than Gold, set the flag that lets test data files
@@ -802,7 +592,6 @@
         'enable_remote_debugging%': 1,
         'enable_screenshot': 1,
         'enable_webdriver%': 1,
-        'sb_allows_memory_tracking': 1,
       },
     },
     {
@@ -815,7 +604,6 @@
         'enable_remote_debugging%': 0,
         'enable_screenshot': 0,
         'enable_webdriver': 0,
-        'sb_allows_memory_tracking': 0,
       },
     }],
     ['cobalt_config != "gold" and cobalt_enable_lib == 0', {
