@@ -22,8 +22,9 @@ namespace script {
 // Implementation of template function declared in the base class.
 template <typename T>
 scoped_ptr<ScriptValue<Promise<T>>> ScriptValueFactory::CreatePromise() {
-  NOTIMPLEMENTED();
-  return make_scoped_ptr<ScriptValue<Promise<T>>>(nullptr);
+  v8c::V8cScriptValueFactory* v8c_this =
+      base::polymorphic_downcast<v8c::V8cScriptValueFactory*>(this);
+  return v8c_this->CreatePromise<T>();
 }
 
 }  // namespace script

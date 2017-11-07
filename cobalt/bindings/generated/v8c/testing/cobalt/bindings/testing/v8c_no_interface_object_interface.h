@@ -38,8 +38,8 @@ namespace testing {
 
 class V8cNoInterfaceObjectInterface {
  public:
-  static v8::Local<v8::Object> CreateWrapper(script::v8c::V8cGlobalEnvironment* env, const scoped_refptr<script::Wrappable>& wrappable);
-  static v8::Local<v8::FunctionTemplate> CreateTemplate(script::v8c::V8cGlobalEnvironment* env);
+  static v8::Local<v8::Object> CreateWrapper(v8::Isolate* isolate, const scoped_refptr<script::Wrappable>& wrappable);
+  static v8::Local<v8::FunctionTemplate> CreateTemplate(v8::Isolate* isolate);
 };
 
 }  // namespace testing

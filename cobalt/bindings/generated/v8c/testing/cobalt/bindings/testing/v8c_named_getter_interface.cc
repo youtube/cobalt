@@ -32,6 +32,7 @@
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/v8c/callback_function_conversion.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
@@ -54,6 +55,8 @@ using cobalt::script::ValueHandle;
 using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
+using cobalt::script::v8c::EntryScope;
+using cobalt::script::v8c::EscapableEntryScope;
 using cobalt::script::v8c::FromJSValue;
 using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
@@ -63,13 +66,14 @@ using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::TypeTraits;
 using cobalt::script::v8c::V8cExceptionState;
 using cobalt::script::v8c::V8cGlobalEnvironment;
 using cobalt::script::v8c::WrapperFactory;
 using cobalt::script::v8c::WrapperPrivate;
 
-v8::Local<v8::Object> DummyFunctor(V8cGlobalEnvironment*, const scoped_refptr<Wrappable>&) {
+v8::Local<v8::Object> DummyFunctor(v8::Isolate*, const scoped_refptr<Wrappable>&) {
   NOTIMPLEMENTED();
   return {};
 }
@@ -83,105 +87,253 @@ namespace testing {
 
 namespace {
 
-void NamedGetterInterfaceConstructor(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NOTIMPLEMENTED();
-  if (!args.IsConstructCall()) {
-    // TODO: Probably throw something here...
+
+
+
+
+void namedDeleterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType name;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
+  if (exception_state.is_exception_set()) {
     return;
   }
 
-  DCHECK(args.This()->InternalFieldCount() == 1);
-  args.This()->SetInternalField(0, v8::External::New(args.GetIsolate(), nullptr));
-  args.GetReturnValue().Set(args.This());
+  impl->NamedDeleter(name);
+  result_value = v8::Undefined(isolate);
+
 }
 
 
-void DummyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  LOG(INFO) << __func__;
+
+void namedGetterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType name;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->NamedGetter(name),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
 }
 
-void InitializeTemplate(
-  V8cGlobalEnvironment* env,
-  InterfaceData* interface_data) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
-    isolate);
+
+
+void namedSetterMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NamedGetterInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NamedGetterInterface* impl =
+      wrapper_private->wrappable<NamedGetterInterface>().get();
+  const size_t kMinArguments = 2;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<std::string >::ConversionType name;
+  TypeTraits<std::string >::ConversionType value;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &name);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+  DCHECK_LT(1, info.Length());
+  v8::Local<v8::Value> non_optional_value1 = info[1];
+  FromJSValue(isolate,
+              non_optional_value1,
+              kNoConversionFlags,
+              &exception_state, &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->NamedSetter(name, value);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* interface_data) {
+  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(isolate);
   function_template->SetClassName(
     v8::String::NewFromUtf8(isolate, "NamedGetterInterface",
         v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
+
   v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
-  prototype_template->SetInternalFieldCount(1);
 
 
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "namedDeleter",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "namedGetter",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "namedSetter",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
 
-  interface_data->templ.Set(env->isolate(), function_template);
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, namedDeleterMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "namedDeleter",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, namedGetterMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "namedGetter",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, namedSetterMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "namedSetter",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+
+  interface_data->function_template.Set(isolate, function_template);
 }
 
-inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* env) {
+inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
   const int kInterfaceUniqueId = 31;
   // By convention, the |V8cGlobalEnvironment| that we are associated with
   // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
   // for it to be there in the first place, and could not have conflicted with
   // any other interface.
-  return env->GetInterfaceData(kInterfaceUniqueId);
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 }  // namespace
 
-v8::Local<v8::Object> V8cNamedGetterInterface::CreateWrapper(V8cGlobalEnvironment* env, const scoped_refptr<Wrappable>& wrappable) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  v8::EscapableHandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = env->context();
-  v8::Context::Scope scope(context);
+v8::Local<v8::Object> V8cNamedGetterInterface::CreateWrapper(v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
+  EscapableEntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
-  DCHECK(!interface_data->templ.IsEmpty());
+  DCHECK(!interface_data->function_template.IsEmpty());
 
-  v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
+  v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
-  // |WrapperPrivate|'s lifetime will be managed by V8.
+  // This |WrapperPrivate|'s lifetime will be managed by V8.
   new WrapperPrivate(isolate, wrappable, object);
-  return handle_scope.Escape(object);
+  return entry_scope.Escape(object);
 }
 
-v8::Local<v8::FunctionTemplate> V8cNamedGetterInterface::CreateTemplate(V8cGlobalEnvironment* env) {
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+v8::Local<v8::FunctionTemplate> V8cNamedGetterInterface::CreateTemplate(v8::Isolate* isolate) {
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
 
-  return interface_data->templ.Get(env->isolate());
+  return interface_data->function_template.Get(isolate);
 }
 
 

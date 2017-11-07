@@ -26,20 +26,18 @@ class ExpressionGeneratorV8c(ExpressionGenerator):
   """Implementation of ExpressionGenerator for V8."""
 
   def is_undefined(self, arg):
-    # TODO: Implement.
-    return ''
+    return '{}->IsUndefined()'.format(arg)
 
   def is_undefined_or_null(self, arg):
-    # TODO: Implement.
-    return ''
+    return '{}->IsNullOrUndefined()'.format(arg)
 
   def inherits_interface(self, interface_name, arg):
-    # TODO: Implement.
-    return ''
+    return ('{}->IsObject() ? '
+            'wrapper_factory->DoesObjectImplementInterface(object, '
+            'base::GetTypeId<{}>()) : false').format(arg, interface_name)
 
   def is_number(self, arg):
-    # TODO: Implement.
-    return ''
+    return '{}->IsNumber()'.format(arg)
 
 
 class CodeGeneratorV8c(CodeGeneratorCobalt):

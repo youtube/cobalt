@@ -24,17 +24,26 @@ namespace v8c {
 // implementing a callback interface.
 // Returns true if a callable was found, and false if not.
 v8::MaybeLocal<v8::Object> GetCallableForCallbackInterface(
-    V8cGlobalEnvironment* env, v8::Local<v8::Object> implementing_object,
+    v8::Isolate* isolate, v8::Local<v8::Object> implementing_object,
     const char* property_name) {
-  DCHECK(implementing_object);
+  DCHECK(!implementing_object.IsEmpty());
   DCHECK(property_name);
 
   if (implementing_object->IsCallable()) {
     return implementing_object;
   }
-  v8::Local<v8::Value> property_value = implementing_object->Get(
-      v8::String::NewFromUtf8(env->isolate(), property_name));
-  if (!property.IsObject()) {
+
+  v8::MaybeLocal<v8::Value> maybe_property_value = implementing_object->Get(
+      isolate->GetCurrentContext(),
+      v8::String::NewFromUtf8(isolate, property_name,
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked());
+  v8::Local<v8::Value> property_value;
+  if (!maybe_property_value.ToLocal(&property_value)) {
+    return {};
+  }
+
+  if (!property_value->IsObject()) {
     return {};
   }
   v8::Local<v8::Object> property_object =
