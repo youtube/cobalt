@@ -2481,6 +2481,10 @@ htmlParseName(htmlParserCtxtPtr ctxt) {
 	       (*in == '_') || (*in == '-') ||
 	       (*in == ':') || (*in == '.'))
 	    in++;
+
+    if (in == ctxt->input->end)
+        return(NULL);
+
 	if ((*in > 0) && (*in < 0x80)) {
 	    count = in - ctxt->input->cur;
 	    ret = xmlDictLookup(ctxt->dict, ctxt->input->cur, count);
@@ -2524,6 +2528,10 @@ htmlParseNameComplex(xmlParserCtxtPtr ctxt) {
 	NEXTL(l);
 	c = CUR_CHAR(l);
     }
+
+    if (ctxt->input->base > ctxt->input->cur - len)
+        return(NULL);
+
     return(xmlDictLookup(ctxt->dict, ctxt->input->cur - len, len));
 }
 
