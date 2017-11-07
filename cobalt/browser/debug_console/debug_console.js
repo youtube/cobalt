@@ -278,7 +278,7 @@ function onKeypress(event) {
     var c = event.charCode;
     // If we have a printable character, insert it; otherwise ignore.
     if (c >= 0x20 && c <= 0x7e) {
-      commandInput.insertCharBehindCursor(String.fromCharCode(c));
+      commandInput.insertStringBehindCursor(String.fromCharCode(c));
     }
   }
 }
@@ -294,6 +294,16 @@ function addLogMessageCallback() {
   }
 }
 
+function onInput(event) {
+  console.log('In DebugConsole onInput, event.data ' + event.data);
+  var mode = window.debugHub.getDebugConsoleMode();
+  if (mode >= window.debugHub.DEBUG_CONSOLE_ON && event.data) {
+    event.preventDefault();
+    event.stopPropagation();
+    commandInput.insertStringBehindCursor(event.data);
+  }
+}
+
 function start() {
   createCommandInput();
   createMessageLog();
@@ -306,6 +316,10 @@ function start() {
   document.addEventListener('keypress', onKeypress);
   document.addEventListener('keydown', onKeydown);
   document.addEventListener('keyup', onKeyup);
+  if (typeof window.onScreenKeyboard != 'undefined'
+      && window.onScreenKeyboard) {
+    window.onScreenKeyboard.oninput = onInput;
+  }
   curr = window.performance.now();
   window.requestAnimationFrame(animate);
 }
