@@ -101,6 +101,9 @@ def main():
 
   for relpath, rep_hash in hashes.iteritems():
     path = os.path.join(gclient_root, relpath)
+    if not os.path.exists(path):
+      print("Missing path {0}".format(path))
+      continue
     is_dirty = (bool(
         _RunGitCommandReturnExitCode(
             ["diff", "--no-ext-diff", "--quiet"], cwd=path, stderr=dev_null)[0])
@@ -116,6 +119,9 @@ def main():
 
   for relpath, rep_hash in hashes.iteritems():
     path = os.path.join(gclient_root, relpath)
+    if not os.path.exists(path):
+      print("Missing path {0}".format(path))
+      continue
     # repo_hash has a repo path prefix like this:
     # 'https://chromium.googlesource.com/chromium/llvm-project/libcxx.git
     # @48198f9110397fff47fe7c37cbfa296be7d44d3d'
