@@ -29,7 +29,6 @@
 
 namespace cobalt {
 namespace script {
-
 namespace v8c {
 namespace {
 
@@ -75,7 +74,10 @@ V8cEngine::V8cEngine(const Options& options)
   isolate_ = v8::Isolate::New(params);
   CHECK(isolate_);
 
-  DCHECK(v8::Isolate::GetNumberOfDataSlots() >= 1);
+  v8c_heap_tracer_.reset(new V8cHeapTracer());
+  isolate_->SetEmbedderHeapTracer(v8c_heap_tracer_.get());
+
+  DCHECK_GE(v8::Isolate::GetNumberOfDataSlots(), 1);
 }
 
 V8cEngine::~V8cEngine() {
@@ -102,7 +104,7 @@ scoped_refptr<GlobalEnvironment> V8cEngine::CreateGlobalEnvironment() {
 void V8cEngine::CollectGarbage() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::CollectGarbage()");
   DCHECK(thread_checker_.CalledOnValidThread());
-  NOTIMPLEMENTED();
+  isolate_->LowMemoryNotification();
 }
 
 void V8cEngine::ReportExtraMemoryCost(size_t bytes) {
