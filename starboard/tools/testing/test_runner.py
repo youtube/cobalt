@@ -236,12 +236,6 @@ class TestRunner(object):
     """Gets all environment variables used for tests on the given platform."""
     return self._platform_config.GetTestEnvVariables()
 
-  def _BuildSystemInit(self):
-    """Runs GYP on the target platform/config."""
-    subprocess.check_call([os.path.abspath(os.path.join(
-        os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
-        "cobalt", "build", "gyp_cobalt")), self.platform])
-
   def _BuildTests(self, ninja_flags):
     """Builds all specified test binaries.
 
@@ -258,9 +252,12 @@ class TestRunner(object):
           self.platform, self.config)
 
     args_list = ["ninja", "-C", build_dir]
-    args_list.extend([test_name for test_name in self.test_targets])
+    args_list.extend([
+        "{}_deploy".format(test_name) for test_name in self.test_targets])
     if ninja_flags:
       args_list.append(ninja_flags)
+    if "TEST_RUNNER_BUILD_FLAGS" in os.environ:
+      args_list.append(os.environ["TEST_RUNNER_BUILD_FLAGS"])
     sys.stderr.write("{}\n".format(args_list))
     # We set shell=True because otherwise Windows doesn't recognize
     # PATH properly.
@@ -289,13 +286,15 @@ class TestRunner(object):
     write_pipe = os.fdopen(write_fd, "w")
 
     # Filter the specified tests for this platform, if any
+    test_params = []
     if self.test_targets[target_name]:
-      self.target_params.append("--gtest_filter=-{}".format(":".join(
+      test_params.append("--gtest_filter=-{}".format(":".join(
           self.test_targets[target_name])))
+    test_params.extend(self.target_params)
 
     launcher = abstract_launcher.LauncherFactory(
         self.platform, target_name, self.config,
-        device_id=self.device_id, target_params=self.target_params,
+        device_id=self.device_id, target_params=test_params,
         output_file=write_pipe, out_directory=self.out_directory,
         env_variables=env)
 
@@ -450,7 +449,6 @@ class TestRunner(object):
     result = True
 
     try:
-      self._BuildSystemInit()
       self._BuildTests(ninja_flags)
     except subprocess.CalledProcessError as e:
       result = False
