@@ -29,11 +29,8 @@ class V8cCallbackInterfaceHolder
     : public V8cUserObjectHolder<V8cCallbackInterface> {
  public:
   typedef V8cUserObjectHolder<V8cCallbackInterface> BaseClass;
-  V8cCallbackInterfaceHolder() {}
 
-  V8cCallbackInterfaceHolder(V8cGlobalEnvironment* env,
-                             v8::Local<v8::Value> value)
-      : BaseClass(env, value) {}
+  using BaseClass::BaseClass;
 };
 
 template <typename CallbackInterface>

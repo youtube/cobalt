@@ -20,6 +20,7 @@
 #include "base/threading/thread_checker.h"
 #include "base/timer.h"
 #include "cobalt/script/javascript_engine.h"
+#include "cobalt/script/v8c/v8c_heap_tracer.h"
 #include "v8/include/libplatform/libplatform.h"
 #include "v8/include/v8.h"
 
@@ -45,6 +46,8 @@ class V8cEngine : public JavaScriptEngine {
 
   // An isolated instance of the V8 engine.
   v8::Isolate* isolate_;
+
+  scoped_ptr<V8cHeapTracer> v8c_heap_tracer_;
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;

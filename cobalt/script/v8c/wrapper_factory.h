@@ -30,21 +30,24 @@ class V8cGlobalEnvironment;
 class WrapperFactory : public Wrappable::CachedWrapperAccessor {
  public:
   // Callback to create a new v8::Object that is a wrapper for the Wrappable.
-  typedef base::Callback<v8::Local<v8::Object>(V8cGlobalEnvironment*,
+  typedef base::Callback<v8::Local<v8::Object>(v8::Isolate*,
                                                const scoped_refptr<Wrappable>&)>
       CreateWrapperFunction;
 
   // Callback to get v8::FunctionTemplate of prototype.
-  typedef base::Callback<v8::Local<v8::FunctionTemplate>(V8cGlobalEnvironment*)>
+  typedef base::Callback<v8::Local<v8::FunctionTemplate>(v8::Isolate*)>
       PrototypeClassFunction;
 
-  explicit WrapperFactory(V8cGlobalEnvironment* env) : env_(env) {}
+  explicit WrapperFactory(v8::Isolate* isolate) : isolate_(isolate) {}
 
   void RegisterWrappableType(base::TypeId wrappable_type,
                              const CreateWrapperFunction& create_function,
                              const PrototypeClassFunction& class_function);
 
   v8::Local<v8::Object> GetWrapper(const scoped_refptr<Wrappable>& wrappable);
+
+  bool DoesObjectImplementInterface(v8::Local<v8::Object> object,
+                                    base::TypeId id) const;
 
  private:
   struct WrappableTypeFunctions {
@@ -61,7 +64,7 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
   typedef base::hash_map<base::TypeId, WrappableTypeFunctions>
       WrappableTypeFunctionsHashMap;
 
-  V8cGlobalEnvironment* env_;
+  v8::Isolate* isolate_;
   WrappableTypeFunctionsHashMap wrappable_type_functions_;
 };
 
