@@ -101,8 +101,6 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   JS::RootedObject js_object(context, &value.toObject());
   DCHECK(js_object);
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   *out_holder = MozjsObjectHandleHolder(context, js_object);
 }
 
@@ -129,8 +127,6 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK_EQ(conversion_flags & ~kConversionFlagsObject, 0)
       << "Unexpected conversion flags found.";
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   *out_holder = MozjsValueHandleHolder(context, value);
 }
 
