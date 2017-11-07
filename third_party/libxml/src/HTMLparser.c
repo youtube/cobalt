@@ -308,6 +308,7 @@ htmlNodeInfoPop(htmlParserCtxtPtr ctxt)
 #define UPP(val) (XML_TOUPPER(ctxt->input->cur[(val)]))
 
 #define CUR_PTR ctxt->input->cur
+#define BASE_PTR ctxt->input->base
 
 #define SHRINK if ((ctxt->input->cur - ctxt->input->base > 2 * INPUT_CHUNK) && \
 		   (ctxt->input->end - ctxt->input->cur < 2 * INPUT_CHUNK)) \
@@ -2774,31 +2775,43 @@ htmlParseAttValue(htmlParserCtxtPtr ctxt) {
 
 static xmlChar *
 htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
-    const xmlChar *q;
+    size_t len = 0, startPosition = 0;
     xmlChar *ret = NULL;
 
     if (CUR == '"') {
         NEXT;
-	q = CUR_PTR;
-	while ((IS_CHAR_CH(CUR)) && (CUR != '"'))
-	    NEXT;
+
+    if (CUR_PTR < BASE_PTR)
+        return(ret);
+    startPosition = CUR_PTR - BASE_PTR;
+
+    while ((IS_CHAR_CH(CUR)) && (CUR != '"')) {
+        NEXT;
+        len++;
+    }
+
 	if (!IS_CHAR_CH(CUR)) {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 			 "Unfinished SystemLiteral\n", NULL, NULL);
 	} else {
-	    ret = xmlStrndup(q, CUR_PTR - q);
+	    ret = xmlStrndup((BASE_PTR+startPosition), len);
 	    NEXT;
         }
     } else if (CUR == '\'') {
         NEXT;
-	q = CUR_PTR;
-	while ((IS_CHAR_CH(CUR)) && (CUR != '\''))
-	    NEXT;
+	if (CUR_PTR < BASE_PTR)
+        return(ret);
+    startPosition = CUR_PTR - BASE_PTR;
+
+    while ((IS_CHAR_CH(CUR)) && (CUR != '\'')) {
+        NEXT;
+        len++;
+    }
 	if (!IS_CHAR_CH(CUR)) {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 			 "Unfinished SystemLiteral\n", NULL, NULL);
 	} else {
-	    ret = xmlStrndup(q, CUR_PTR - q);
+	    ret = xmlStrndup((BASE_PTR+startPosition), len);
 	    NEXT;
         }
     } else {
@@ -2822,32 +2835,44 @@ htmlParseSystemLiteral(htmlParserCtxtPtr ctxt) {
 
 static xmlChar *
 htmlParsePubidLiteral(htmlParserCtxtPtr ctxt) {
-    const xmlChar *q;
+    size_t len = 0, startPosition = 0;
     xmlChar *ret = NULL;
     /*
      * Name ::= (Letter | '_') (NameChar)*
      */
     if (CUR == '"') {
+    NEXT;
+	if (CUR_PTR < BASE_PTR)
+        return(ret);
+    startPosition = CUR_PTR - BASE_PTR;
+
+    while (IS_PUBIDCHAR_CH(CUR)) {
+        len++;
         NEXT;
-	q = CUR_PTR;
-	while (IS_PUBIDCHAR_CH(CUR)) NEXT;
-	if (CUR != '"') {
-	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
-	                 "Unfinished PubidLiteral\n", NULL, NULL);
-	} else {
-	    ret = xmlStrndup(q, CUR_PTR - q);
-	    NEXT;
-	}
+    }
+
+    if (CUR != '"') {
+       htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
+                    "Unfinished PubidLiteral\n", NULL, NULL);
+    } else {
+       ret = xmlStrndup((BASE_PTR + startPosition), len);
+       NEXT;
+    }
     } else if (CUR == '\'') {
         NEXT;
-	q = CUR_PTR;
-	while ((IS_PUBIDCHAR_CH(CUR)) && (CUR != '\''))
-	    NEXT;
+	if (CUR_PTR < BASE_PTR)
+            return(ret);
+        startPosition = CUR_PTR - BASE_PTR;
+
+        while ((IS_PUBIDCHAR_CH(CUR)) && (CUR != '\'')){
+            len++;
+            NEXT;
+        }
 	if (CUR != '\'') {
 	    htmlParseErr(ctxt, XML_ERR_LITERAL_NOT_FINISHED,
 	                 "Unfinished PubidLiteral\n", NULL, NULL);
 	} else {
-	    ret = xmlStrndup(q, CUR_PTR - q);
+	    ret = xmlStrndup((BASE_PTR + startPosition), len);
 	    NEXT;
 	}
     } else {
