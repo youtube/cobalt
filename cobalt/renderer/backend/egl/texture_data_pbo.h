@@ -51,6 +51,8 @@ class TextureDataPBO : public TextureDataEGL {
   GLuint ConvertToTexture(GraphicsContextEGL* graphics_context,
                           bool bgra_supported);
 
+  bool CreationError() OVERRIDE;
+
  private:
   // Private methods that are intended to run only on the resource context
   // thread.
@@ -63,6 +65,7 @@ class TextureDataPBO : public TextureDataEGL {
   GLuint pixel_buffer_;
   int64 data_size_;
   GLubyte* mapped_data_;
+  bool error_;
 };
 
 // Similar to TextureDataPBO, but this allows a bit more flexibility and less
