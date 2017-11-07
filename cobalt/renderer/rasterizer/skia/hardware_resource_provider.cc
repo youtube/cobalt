@@ -111,18 +111,28 @@ scoped_ptr<ImageData> HardwareResourceProvider::AllocateImageData(
   DCHECK(AlphaFormatSupported(alpha_format));
 
   if (size.width() > max_texture_size_ || size.height() > max_texture_size_) {
+    LOG(ERROR) << "Could not allocate image data because one of its dimensions "
+               << "(" << size.width() << ", " << size.height() << ") "
+               << "exceeds the maximum texture width (" << max_texture_size_
+               << ")";
     return scoped_ptr<ImageData>(nullptr);
   }
 
-  return scoped_ptr<ImageData>(new HardwareImageData(
+  scoped_ptr<backend::TextureDataEGL> texture_data(
       cobalt_context_->system_egl()->AllocateTextureData(
-          size, ConvertRenderTreeFormatToGL(pixel_format)),
-      pixel_format, alpha_format));
+          size, ConvertRenderTreeFormatToGL(pixel_format)));
+  if (texture_data) {
+    return scoped_ptr<ImageData>(
+        new HardwareImageData(texture_data.Pass(), pixel_format, alpha_format));
+  } else {
+    return scoped_ptr<ImageData>();
+  }
 }
 
 scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
     scoped_ptr<ImageData> source_data) {
   TRACE_EVENT0("cobalt::renderer", "HardwareResourceProvider::CreateImage()");
+  DCHECK(source_data);
   scoped_ptr<HardwareImageData> skia_hardware_source_data(
       base::polymorphic_downcast<HardwareImageData*>(source_data.release()));
   const render_tree::ImageDataDescriptor& descriptor =
@@ -131,9 +141,11 @@ scoped_refptr<render_tree::Image> HardwareResourceProvider::CreateImage(
   DCHECK(descriptor.alpha_format == render_tree::kAlphaFormatPremultiplied ||
          descriptor.alpha_format == render_tree::kAlphaFormatOpaque);
 #if defined(COBALT_BUILD_TYPE_DEBUG)
-  Image::DCheckForPremultipliedAlpha(descriptor.size, descriptor.pitch_in_bytes,
-                                     descriptor.pixel_format,
-                                     skia_hardware_source_data->GetMemory());
+  if (descriptor.alpha_format == render_tree::kAlphaFormatPremultiplied) {
+    Image::DCheckForPremultipliedAlpha(
+        descriptor.size, descriptor.pitch_in_bytes, descriptor.pixel_format,
+        skia_hardware_source_data->GetMemory());
+  }
 #endif
 
   // Construct a frontend image from this data, which internally will send
