@@ -32,6 +32,7 @@
 #include "cobalt/script/callback_interface_traits.h"
 #include "cobalt/script/v8c/callback_function_conversion.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
@@ -54,6 +55,8 @@ using cobalt::script::ValueHandle;
 using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
+using cobalt::script::v8c::EntryScope;
+using cobalt::script::v8c::EscapableEntryScope;
 using cobalt::script::v8c::FromJSValue;
 using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
@@ -63,13 +66,14 @@ using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::TypeTraits;
 using cobalt::script::v8c::V8cExceptionState;
 using cobalt::script::v8c::V8cGlobalEnvironment;
 using cobalt::script::v8c::WrapperFactory;
 using cobalt::script::v8c::WrapperPrivate;
 
-v8::Local<v8::Object> DummyFunctor(V8cGlobalEnvironment*, const scoped_refptr<Wrappable>&) {
+v8::Local<v8::Object> DummyFunctor(v8::Isolate*, const scoped_refptr<Wrappable>&) {
   NOTIMPLEMENTED();
   return {};
 }
@@ -83,944 +87,2564 @@ namespace testing {
 
 namespace {
 
-void NumericTypesTestInterfaceConstructor(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  NOTIMPLEMENTED();
-  if (!args.IsConstructCall()) {
-    // TODO: Probably throw something here...
+
+
+void bytePropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->byte_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void bytePropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int8_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
     return;
   }
 
-  DCHECK(args.This()->InternalFieldCount() == 1);
-  args.This()->SetInternalField(0, v8::External::New(args.GetIsolate(), nullptr));
-  args.GetReturnValue().Set(args.This());
+  impl->set_byte_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
+void byteClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cGet_byteProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
 
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->byte_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void byteClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_byteProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int8_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_byte_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_byteClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int8_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_byte_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_byteClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int8_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_byte_clamp_property(
-    conversion_value
-  );
-}
+void octetPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_octetProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->octet_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void octetPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_octetProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint8_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_octet_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_octetClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint8_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_octet_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_octetClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint8_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_octet_clamp_property(
-    conversion_value
-  );
-}
+void octetClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_shortProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->octet_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void octetClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_shortProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int16_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_short_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_shortClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint8_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_octet_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_shortClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int16_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_short_clamp_property(
-    conversion_value
-  );
-}
+void shortPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_unsignedShortProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->short_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void shortPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_unsignedShortProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint16_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_unsigned_short_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_unsignedShortClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int16_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_short_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_unsignedShortClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint16_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_unsigned_short_clamp_property(
-    conversion_value
-  );
-}
+void shortClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_longProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->short_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void shortClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_longProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int32_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_long_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_longClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int16_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_short_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_longClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int32_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_long_clamp_property(
-    conversion_value
-  );
-}
+void unsignedShortPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_unsignedLongProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_short_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void unsignedShortPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_unsignedLongProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint32_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_unsigned_long_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_unsignedLongClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint16_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_short_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_unsignedLongClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint32_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_unsigned_long_clamp_property(
-    conversion_value
-  );
-}
+void unsignedShortClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_longLongProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_short_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void unsignedShortClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_longLongProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int64_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_long_long_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_longLongClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint16_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_short_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_longLongClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<int64_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_long_long_clamp_property(
-    conversion_value
-  );
-}
+void longPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_unsignedLongLongProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void longPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_unsignedLongLongProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint64_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_unsigned_long_long_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_unsignedLongLongClampProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int32_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_long_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
-
-void v8cSet_unsignedLongLongClampProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<uint64_t>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagClamped), &exception_state, &conversion_value);
-  impl->set_unsigned_long_long_clamp_property(
-    conversion_value
-  );
-}
+void longClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
 
-
-void v8cGet_doubleProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->long_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
 }
 
+void longClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
 
-void v8cSet_doubleProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
-  TypeTraits<double>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, (kConversionFlagRestricted), &exception_state, &conversion_value);
-  impl->set_double_property(
-    conversion_value
-  );
-}
-
-
-
-void v8cGet_unrestrictedDoubleProperty(
-  v8::Local<v8::String> property,
-  const v8::PropertyCallbackInfo<v8::Value>& info)
-{
-  NOTIMPLEMENTED();
-
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
-
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
   v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int32_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_long_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void unsignedLongPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void unsignedLongPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint32_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_long_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void unsignedLongClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_long_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void unsignedLongClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint32_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_long_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void longLongPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->long_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void longLongPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int64_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_long_long_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void longLongClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->long_long_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void longLongClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<int64_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_long_long_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void unsignedLongLongPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_long_long_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void unsignedLongLongPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint64_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_long_long_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void unsignedLongLongClampPropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unsigned_long_long_clamp_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void unsignedLongLongClampPropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<uint64_t >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagClamped), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unsigned_long_long_clamp_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void doublePropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->double_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void doublePropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<double >::ConversionType value;
+  FromJSValue(isolate, v8_value, (kConversionFlagRestricted), &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_double_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
+}
+
+void unrestrictedDoublePropertyAttributeGetter(
+    v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->unrestricted_double_property(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+}
+
+void unrestrictedDoublePropertyAttributeSetter(
+    v8::Local<v8::String> property,
+    v8::Local<v8::Value> v8_value,
+    const v8::PropertyCallbackInfo<void>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  TypeTraits<double >::ConversionType value;
+  FromJSValue(isolate, v8_value, kNoConversionFlags, &exception_state,
+              &value);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->set_unrestricted_double_property(value);
+  result_value = v8::Undefined(isolate);
+  return;
 }
 
 
-void v8cSet_unrestrictedDoubleProperty(
-  v8::Local<v8::String> property,
-  v8::Local<v8::Value> v8_value,
-  const v8::PropertyCallbackInfo<void>& info)
-{
-  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
-  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
-  NumericTypesTestInterface* impl = static_cast<NumericTypesTestInterface*>(wrapper_private->wrappable<NumericTypesTestInterface>());
 
-  TypeTraits<double>::ConversionType conversion_value;
-  V8cExceptionState exception_state{};
-  FromJSValue(info.GetIsolate(), v8_value, kNoConversionFlags, &exception_state, &conversion_value);
-  impl->set_unrestricted_double_property(
-    conversion_value
-  );
+void byteArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<int8_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->ByteArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
 }
 
 
 
-void DummyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  LOG(INFO) << __func__;
+void byteReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->ByteReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
 }
 
-void InitializeTemplate(
-  V8cGlobalEnvironment* env,
-  InterfaceData* interface_data) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
-    isolate);
+
+
+void doubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<double >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              (kConversionFlagRestricted),
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->DoubleArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void doubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->DoubleReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void longArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<int32_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->LongArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void longLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<int64_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->LongLongArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void longLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->LongLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void longReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->LongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void octetArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<uint8_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->OctetArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void octetReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->OctetReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void shortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<int16_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->ShortArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void shortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->ShortReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void unrestrictedDoubleArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<double >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->UnrestrictedDoubleArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void unrestrictedDoubleReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->UnrestrictedDoubleReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void unsignedLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<uint32_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->UnsignedLongArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void unsignedLongLongArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<uint64_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->UnsignedLongLongArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void unsignedLongLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->UnsignedLongLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void unsignedLongReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->UnsignedLongReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+
+void unsignedShortArgumentOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+  const size_t kMinArguments = 1;
+  if (info.Length() < kMinArguments) {
+    exception_state.SetSimpleException(script::kInvalidNumberOfArguments);
+    return;
+  }
+  // Non-optional arguments
+  TypeTraits<uint16_t >::ConversionType arg1;
+  DCHECK_LT(0, info.Length());
+  v8::Local<v8::Value> non_optional_value0 = info[0];
+  FromJSValue(isolate,
+              non_optional_value0,
+              kNoConversionFlags,
+              &exception_state, &arg1);
+  if (exception_state.is_exception_set()) {
+    return;
+  }
+
+  impl->UnsignedShortArgumentOperation(arg1);
+  result_value = v8::Undefined(isolate);
+
+}
+
+
+
+void unsignedShortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::Local<v8::Object> object = info.This();
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
+  if (!wrapper_factory->DoesObjectImplementInterface(
+        object, base::GetTypeId<NumericTypesTestInterface>())) {
+    V8cExceptionState exception(isolate);
+    exception.SetSimpleException(script::kDoesNotImplementInterface);
+    return;
+  }
+  V8cExceptionState exception_state{isolate};
+  v8::Local<v8::Value> result_value;
+
+  WrapperPrivate* wrapper_private =
+      WrapperPrivate::GetFromWrapperObject(object);
+  if (!wrapper_private) {
+    NOTIMPLEMENTED();
+    return;
+  }
+  NumericTypesTestInterface* impl =
+      wrapper_private->wrappable<NumericTypesTestInterface>().get();
+
+  if (!exception_state.is_exception_set()) {
+    ToJSValue(isolate,
+              impl->UnsignedShortReturnOperation(),
+              &result_value);
+  }
+  if (!exception_state.is_exception_set()) {
+    info.GetReturnValue().Set(result_value);
+  }
+
+}
+
+
+void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* interface_data) {
+  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(isolate);
   function_template->SetClassName(
     v8::String::NewFromUtf8(isolate, "NumericTypesTestInterface",
         v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
+
   v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
-  prototype_template->SetInternalFieldCount(1);
+
 
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "byteProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_byteProperty
-    ,v8cSet_byteProperty
+    bytePropertyAttributeGetter
+    ,bytePropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "byteClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_byteClampProperty
-    ,v8cSet_byteClampProperty
+    byteClampPropertyAttributeGetter
+    ,byteClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "octetProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_octetProperty
-    ,v8cSet_octetProperty
+    octetPropertyAttributeGetter
+    ,octetPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "octetClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_octetClampProperty
-    ,v8cSet_octetClampProperty
+    octetClampPropertyAttributeGetter
+    ,octetClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "shortProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_shortProperty
-    ,v8cSet_shortProperty
+    shortPropertyAttributeGetter
+    ,shortPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "shortClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_shortClampProperty
-    ,v8cSet_shortClampProperty
+    shortClampPropertyAttributeGetter
+    ,shortClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedShortProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedShortProperty
-    ,v8cSet_unsignedShortProperty
+    unsignedShortPropertyAttributeGetter
+    ,unsignedShortPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedShortClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedShortClampProperty
-    ,v8cSet_unsignedShortClampProperty
+    unsignedShortClampPropertyAttributeGetter
+    ,unsignedShortClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "longProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_longProperty
-    ,v8cSet_longProperty
+    longPropertyAttributeGetter
+    ,longPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "longClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_longClampProperty
-    ,v8cSet_longClampProperty
+    longClampPropertyAttributeGetter
+    ,longClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedLongProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedLongProperty
-    ,v8cSet_unsignedLongProperty
+    unsignedLongPropertyAttributeGetter
+    ,unsignedLongPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedLongClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedLongClampProperty
-    ,v8cSet_unsignedLongClampProperty
+    unsignedLongClampPropertyAttributeGetter
+    ,unsignedLongClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "longLongProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_longLongProperty
-    ,v8cSet_longLongProperty
+    longLongPropertyAttributeGetter
+    ,longLongPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "longLongClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_longLongClampProperty
-    ,v8cSet_longLongClampProperty
+    longLongClampPropertyAttributeGetter
+    ,longLongClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedLongLongProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedLongLongProperty
-    ,v8cSet_unsignedLongLongProperty
+    unsignedLongLongPropertyAttributeGetter
+    ,unsignedLongLongPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unsignedLongLongClampProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unsignedLongLongClampProperty
-    ,v8cSet_unsignedLongLongClampProperty
+    unsignedLongLongClampPropertyAttributeGetter
+    ,unsignedLongLongClampPropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "doubleProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_doubleProperty
-    ,v8cSet_doubleProperty
+    doublePropertyAttributeGetter
+    ,doublePropertyAttributeSetter
   );
   instance_template->SetAccessor(
     v8::String::NewFromUtf8(isolate, "unrestrictedDoubleProperty",
                               v8::NewStringType::kInternalized)
           .ToLocalChecked(),
-    v8cGet_unrestrictedDoubleProperty
-    ,v8cSet_unrestrictedDoubleProperty
+    unrestrictedDoublePropertyAttributeGetter
+    ,unrestrictedDoublePropertyAttributeSetter
   );
 
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "byteArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "byteReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "doubleArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "doubleReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "longArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "longLongArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "longLongReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "longReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "octetArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "octetReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "shortArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "shortReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unrestrictedDoubleArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unrestrictedDoubleReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedLongArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedLongLongArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedLongLongReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedLongReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedShortArgumentOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
-  instance_template->Set(
-      v8::String::NewFromUtf8(
-          isolate,
-          "unsignedShortReturnOperation",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      v8::FunctionTemplate::New(isolate, DummyFunction)
-  );
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, byteArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "byteArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
 
-  interface_data->templ.Set(env->isolate(), function_template);
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, byteReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "byteReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, doubleArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "doubleArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, doubleReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "doubleReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "longArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "longLongArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "longLongReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "longReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, octetArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "octetArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, octetReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "octetReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, shortArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "shortArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, shortReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "shortReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unrestrictedDoubleArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unrestrictedDoubleArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unrestrictedDoubleReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unrestrictedDoubleReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedLongArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedLongLongArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedLongLongReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedLongReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedShortArgumentOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedShortArgumentOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+  {
+    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedShortReturnOperationMethod);
+    method_template->RemovePrototype();
+    prototype_template->Set(
+        v8::String::NewFromUtf8(
+            isolate,
+            "unsignedShortReturnOperation",
+            v8::NewStringType::kInternalized).ToLocalChecked(),
+        method_template);
+  }
+
+
+  interface_data->function_template.Set(isolate, function_template);
 }
 
-inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* env) {
+inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
   const int kInterfaceUniqueId = 37;
   // By convention, the |V8cGlobalEnvironment| that we are associated with
   // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
   // for it to be there in the first place, and could not have conflicted with
   // any other interface.
-  return env->GetInterfaceData(kInterfaceUniqueId);
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 }  // namespace
 
-v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(V8cGlobalEnvironment* env, const scoped_refptr<Wrappable>& wrappable) {
-  v8::Isolate* isolate = env->isolate();
-  v8::Isolate::Scope isolate_scope(isolate);
-  v8::EscapableHandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = env->context();
-  v8::Context::Scope scope(context);
+v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
+  EscapableEntryScope entry_scope(isolate);
+  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
-  DCHECK(!interface_data->templ.IsEmpty());
+  DCHECK(!interface_data->function_template.IsEmpty());
 
-  v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
+  v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
-  // |WrapperPrivate|'s lifetime will be managed by V8.
+  // This |WrapperPrivate|'s lifetime will be managed by V8.
   new WrapperPrivate(isolate, wrappable, object);
-  return handle_scope.Escape(object);
+  return entry_scope.Escape(object);
 }
 
-v8::Local<v8::FunctionTemplate> V8cNumericTypesTestInterface::CreateTemplate(V8cGlobalEnvironment* env) {
-  InterfaceData* interface_data = GetInterfaceData(env);
-  if (interface_data->templ.IsEmpty()) {
-    InitializeTemplate(env, interface_data);
+v8::Local<v8::FunctionTemplate> V8cNumericTypesTestInterface::CreateTemplate(v8::Isolate* isolate) {
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  InterfaceData* interface_data = GetInterfaceData(global_environment);
+  if (interface_data->function_template.IsEmpty()) {
+    InitializeTemplateAndInterfaceObject(isolate, interface_data);
   }
 
-  return interface_data->templ.Get(env->isolate());
+  return interface_data->function_template.Get(isolate);
 }
 
 

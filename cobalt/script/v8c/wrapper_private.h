@@ -26,27 +26,38 @@ namespace v8c {
 // Contains private data associated with a v8::Object representing a
 // JavaScript wrapper for a Cobalt platform object. There should be a one-to-
 // one mapping of such v8::Object and WrapperPrivate instances, and the
-// corresponding WrapperPrivate must be destroyed when its v8::Object is
+// corresponding |WrapperPrivate| must be destroyed when its |v8::Object| is
 // garbage collected.
 struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
  public:
+  // The callback that V8 will run when the |v8::Object| that we live inside
+  // of dies.
   static void Callback(const v8::WeakCallbackInfo<WrapperPrivate>& data) {
     data.GetParameter()->wrapper_.Reset();
     delete data.GetParameter();
   }
 
+  // Get the internal |WrapperPrivate*| data within |object|.  This function
+  // should never be called on objects that don't have private data.
   static WrapperPrivate* GetFromWrapperObject(v8::Local<v8::Object> object) {
-    DCHECK(object->InternalFieldCount() == 1);
-    v8::Local<v8::External> external =
-        v8::Local<v8::External>::Cast(object->GetInternalField(0));
+    DCHECK(object->InternalFieldCount() == kInternalFieldCount);
+    v8::Local<v8::External> external = v8::Local<v8::External>::Cast(
+        object->GetInternalField(kInternalFieldIndex));
     return static_cast<WrapperPrivate*>(external->Value());
   }
 
+  // Check whether |object| has private wrapper data.
+  static bool HasWrapperPrivate(v8::Local<v8::Object> object) {
+    return object->InternalFieldCount() == kInternalFieldCount;
+  }
+
+  WrapperPrivate() = delete;
   WrapperPrivate(v8::Isolate* isolate,
                  const scoped_refptr<Wrappable>& wrappable,
                  v8::Local<v8::Object> wrapper)
       : isolate_(isolate), wrappable_(wrappable), wrapper_(isolate, wrapper) {
-    wrapper->SetInternalField(0, v8::External::New(isolate, this));
+    wrapper->SetInternalField(kInternalFieldIndex,
+                              v8::External::New(isolate, this));
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
   }
@@ -59,9 +70,16 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   v8::Local<v8::Object> wrapper() const { return wrapper_.Get(isolate_); }
 
  private:
+  // For the time being, we only use a single internal field, which stores a
+  // pointer back to us (us being the |WrapperPrivate|).
+  static const int kInternalFieldIndex = 0;
+  static const int kInternalFieldCount = 1;
+
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;
   v8::Global<v8::Object> wrapper_;
+
+  DISALLOW_COPY_AND_ASSIGN(WrapperPrivate);
 };
 
 }  // namespace v8c

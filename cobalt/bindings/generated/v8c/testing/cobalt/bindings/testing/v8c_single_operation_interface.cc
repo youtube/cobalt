@@ -25,6 +25,7 @@
 #include "v8c_gen_type_conversion.h"
 
 #include "cobalt/script/logging_exception_state.h"
+#include "cobalt/script/v8c/entry_scope.h"
 #include "cobalt/script/v8c/v8c_callback_interface.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "v8/include/v8.h"
@@ -36,6 +37,10 @@ using cobalt::bindings::testing::ArbitraryInterface;
 using cobalt::bindings::testing::V8cArbitraryInterface;
 
 using cobalt::script::LoggingExceptionState;
+using cobalt::script::v8c::EntryScope;
+using cobalt::script::v8c::FromJSValue;
+using cobalt::script::v8c::GetCallableForCallbackInterface;
+using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::V8cGlobalEnvironment;
 }  // namespace
 
@@ -47,11 +52,55 @@ base::optional<int32_t > V8cSingleOperationInterface::HandleCallback(
     const scoped_refptr<script::Wrappable>& callback_this,
     const scoped_refptr<ArbitraryInterface>& value,
     bool* had_exception) const {
-  NOTIMPLEMENTED();
-
   base::optional<int32_t > cobalt_return_value;
 
+  DCHECK(!this->IsEmpty());
+  DCHECK(isolate_);
+
+  EntryScope entry_scope(isolate_);
+  v8::Local<v8::Context> context = isolate_->GetCurrentContext();
+
+  v8::MaybeLocal<v8::Object> maybe_implementing_object = this->NewLocal(isolate_)->ToObject(context);
+  v8::Local<v8::Object> implementing_object;
+  if (!maybe_implementing_object.ToLocal(&implementing_object)) {
+    *had_exception = true;
+    return cobalt_return_value;
+  }
+
+  v8::MaybeLocal<v8::Object> maybe_callable =
+      GetCallableForCallbackInterface(isolate_, implementing_object, "handleCallback");
+  v8::Local<v8::Object> callable;
+  if (!maybe_callable.ToLocal(&callable)) {
+    NOTIMPLEMENTED();
+    *had_exception = true;
+    return cobalt_return_value;
+  }
+  DCHECK(callable->IsCallable());
+
+  v8::Local<v8::Value> this_value;
+  ToJSValue(isolate_, callback_this, &this_value);
+
+  const int kNumArguments = 1;
+  v8::Local<v8::Value> argv[kNumArguments];
+
+  ToJSValue(isolate_, value, &argv[0]);
+
+  v8::MaybeLocal<v8::Value> maybe_return_value =
+      callable->CallAsFunction(isolate_->GetCurrentContext(), this_value, kNumArguments, argv);
+  v8::Local<v8::Value> return_value;
+  if (!maybe_return_value.ToLocal(&return_value)) {
+    *had_exception = true;
   return cobalt_return_value;
+  }
+
+  LoggingExceptionState exception_state;
+  FromJSValue(isolate_, return_value, 0, &exception_state, &cobalt_return_value);
+  if (exception_state.is_exception_set()) {
+    *had_exception = true;
+  }
+
+  return cobalt_return_value;
+
 }
 
 }  // namespace testing

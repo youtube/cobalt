@@ -16,9 +16,9 @@
 #define COBALT_SCRIPT_V8C_V8C_VALUE_HANDLE_H_
 
 #include "base/optional.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
-#include "cobalt/script/v8c/weak_heap_object.h"
 #include "cobalt/script/value_handle.h"
 #include "v8/include/v8.h"
 
@@ -31,20 +31,13 @@ namespace v8c {
 //
 // An ValueHandle is never passed into Cobalt as-is, but only when wrapped as a
 // ScriptValue<ValueHandle>.
-class V8cValueHandle : public ValueHandle {
+class V8cValueHandle : public ScopedPersistent<v8::Value>, public ValueHandle {
  public:
   typedef ValueHandle BaseType;
-
-  v8::Local<v8::Value> value() const { return handle_.GetValue(); }
-
  private:
-  V8cValueHandle(V8cGlobalEnvironment* env, v8::Local<v8::Value> value)
-      : handle_(env, value) {}
-
-  WeakHeapObject handle_;
+  using ScopedPersistent::ScopedPersistent;
 
   friend class V8cUserObjectHolder<V8cValueHandle>;
-  friend class base::optional<V8cValueHandle>;
 };
 
 typedef V8cUserObjectHolder<V8cValueHandle> V8cValueHandleHolder;

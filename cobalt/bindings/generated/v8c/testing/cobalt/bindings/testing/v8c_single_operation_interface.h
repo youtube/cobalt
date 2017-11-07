@@ -25,31 +25,29 @@
 // Headers for other bindings wrapper classes
 #include "cobalt/bindings/testing/single_operation_interface.h"
 
-#include "cobalt/script/v8c/weak_heap_object.h"
+#include "cobalt/script/v8c/scoped_persistent.h"
 
 
 namespace cobalt {
 namespace bindings {
 namespace testing {
 
-class V8cSingleOperationInterface : public SingleOperationInterface {
+class V8cSingleOperationInterface : public script::v8c::ScopedPersistent<v8::Value>,
+                          public SingleOperationInterface {
  public:
   typedef SingleOperationInterface BaseType;
 
-  V8cSingleOperationInterface(
-    script::v8c::V8cGlobalEnvironment* env, v8::Local<v8::Value> implementing_object_value)
-    : env_(env), implementing_object_(env, implementing_object_value) {}
+  V8cSingleOperationInterface() {}
+  V8cSingleOperationInterface(v8::Isolate* isolate, v8::Local<v8::Value> handle)
+      : ScopedPersistent(isolate, handle), isolate_(isolate) {}
 
   base::optional<int32_t > HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const override;
 
-  v8::Local<v8::Value> value() const { return implementing_object_.GetValue(); }
-
  private:
-  script::v8c::V8cGlobalEnvironment* env_;
-  script::v8c::WeakHeapObject implementing_object_;
+  v8::Isolate* isolate_;
 };
 
 }  // namespace testing
