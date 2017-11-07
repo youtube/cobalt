@@ -103,6 +103,7 @@ struct HTMLMediaElementCountLog {
 base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
     LAZY_INSTANCE_INITIALIZER;
 
+#if !SB_HAS(PLAYER_WITH_URL)
 loader::RequestMode GetRequestMode(
     const base::optional<std::string>& cross_origin_attribute) {
   // https://html.spec.whatwg.org/#cors-settings-attribute
@@ -119,6 +120,7 @@ loader::RequestMode GetRequestMode(
   // "no-cors" request mode.
   return loader::kNoCORSMode;
 }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
