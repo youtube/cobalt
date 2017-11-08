@@ -31,8 +31,6 @@ class {{binding_class}} : public {{impl_class}} {
   typedef {{impl_class}} BaseType;
 
   {{binding_class}}(
-      JSContext* context, JS::HandleObject implementing_object);
-  {{binding_class}}(
       JSContext* context, JS::HandleValue implementing_object_value);
 {% for operation in operations %}
 {% for overload in operation.overloads %}

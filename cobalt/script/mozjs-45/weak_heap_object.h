@@ -28,7 +28,6 @@ namespace mozjs {
 class WeakHeapObject {
  public:
   WeakHeapObject(JSContext* context, JS::HandleValue value);
-  WeakHeapObject(JSContext* context, JS::HandleObject object);
   WeakHeapObject(const WeakHeapObject& other);
 
   WeakHeapObject& operator=(const WeakHeapObject& rhs);
