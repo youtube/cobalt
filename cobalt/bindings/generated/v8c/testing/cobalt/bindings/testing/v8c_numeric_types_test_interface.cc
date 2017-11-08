@@ -700,7 +700,8 @@ void InitializeTemplate(
   v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
     isolate);
   function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "NumericTypesTestInterface"));
+    v8::String::NewFromUtf8(isolate, "NumericTypesTestInterface",
+        v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
@@ -835,84 +836,144 @@ void InitializeTemplate(
   );
 
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "byteArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "byteArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "byteReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "byteReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "doubleArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "doubleArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "doubleReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "doubleReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "longArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "longArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "longLongArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "longLongArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "longLongReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "longLongReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "longReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "longReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "octetArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "octetArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "octetReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "octetReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "shortArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "shortArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "shortReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "shortReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unrestrictedDoubleArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unrestrictedDoubleArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unrestrictedDoubleReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unrestrictedDoubleReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedLongArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedLongArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedLongLongArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedLongLongArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedLongLongReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedLongLongReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedLongReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedLongReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedShortArgumentOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedShortArgumentOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "unsignedShortReturnOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "unsignedShortReturnOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
 
   interface_data->templ.Set(env->isolate(), function_template);
@@ -944,7 +1005,7 @@ v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(V8cGlobalEnvir
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
-  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance();
+  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
   // |WrapperPrivate|'s lifetime will be managed by V8.
