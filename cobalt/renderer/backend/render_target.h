@@ -46,6 +46,10 @@ class RenderTarget : public base::RefCountedThreadSafe<RenderTarget> {
   // Each render is assigned a unique serial number on construction.
   int32_t GetSerialNumber() const { return serial_number_; }
 
+  // Returns true if there was an error constructing this object and it is
+  // therefore in an invalid state.
+  virtual bool CreationError() = 0;
+
  protected:
   // Concrete child classes should declare their destructors as private.
   friend class base::RefCountedThreadSafe<RenderTarget>;

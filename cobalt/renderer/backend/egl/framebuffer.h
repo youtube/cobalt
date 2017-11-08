@@ -49,8 +49,12 @@ class FramebufferEGL {
   // Return the framebuffer object's ID.
   GLuint gl_handle() const { return framebuffer_handle_; }
 
+  // Returns true if an error occurred during construction of this framebuffer
+  // (indicating that this object is invalid).
+  bool CreationError() const { return error_; }
+
  private:
-  void CreateDepthAttachment(GLenum depth_format);
+  bool CreateDepthAttachment(GLenum depth_format);
 
   GraphicsContextEGL* graphics_context_;
   math::Size size_;
@@ -63,6 +67,9 @@ class FramebufferEGL {
 
   // The color component of the framebuffer object as a texture.
   scoped_ptr<TextureEGL> color_texture_;
+
+  // Did an error occur during construction?
+  bool error_;
 };
 
 }  // namespace backend
