@@ -202,9 +202,10 @@ void PromiseWrapper::Reject(JS::HandleValue value) const {
 }
 
 PromiseWrapper::PromiseWrapper(JSContext* context,
-                               JS::HandleObject promise_wrapper)
+                               JS::HandleValue promise_wrapper)
     : context_(context), weak_promise_wrapper_(context, promise_wrapper) {
-  DCHECK_EQ(JS_GetClass(promise_wrapper), &native_promise_class);
+  DCHECK(promise_wrapper.isObject());
+  DCHECK_EQ(JS_GetClass(&promise_wrapper.toObject()), &native_promise_class);
 }
 
 }  // namespace mozjs

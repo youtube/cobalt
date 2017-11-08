@@ -26,7 +26,7 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
-// A wrapper around a v8::Value that can be passed into Cobalt as an script
+// A wrapper around a v8::Value that can be passed into Cobalt as a script
 // value object.
 //
 // An ValueHandle is never passed into Cobalt as-is, but only when wrapped as a

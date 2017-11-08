@@ -32,7 +32,7 @@ class PromiseWrapper {
   // Promise constructor on |global_object|. Returns NULL on failure.
   static JSObject* Create(JSContext* context, JS::HandleObject global_object);
 
-  PromiseWrapper(JSContext* context, JS::HandleObject promise_wrapper);
+  PromiseWrapper(JSContext* context, JS::HandleValue promise_wrapper);
 
   const WeakHeapObject& get() const { return weak_promise_wrapper_; }
   JSObject* GetPromise() const;

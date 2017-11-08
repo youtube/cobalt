@@ -67,12 +67,6 @@ class MozjsCallbackFunction<R($for ARG , [[A$(ARG)]])>
  public:
   typedef CallbackFunction<R($for ARG , [[A$(ARG)]])> BaseType;
 
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
-
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
     DCHECK(context_);

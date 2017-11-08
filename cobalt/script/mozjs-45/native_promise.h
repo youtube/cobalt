@@ -78,16 +78,10 @@ class NativePromiseBase : public Promise<T> {
   }
 
  protected:
-  NativePromiseBase(JSContext* context, JS::HandleObject resolver_object)
-      : context_(context) {
-    promise_resolver_.emplace(context, resolver_object);
-  }
-
   NativePromiseBase(JSContext* context, JS::HandleValue resolver_value)
       : context_(context) {
     DCHECK(resolver_value.isObject());
-    JS::RootedObject resolver_object(context, &resolver_value.toObject());
-    promise_resolver_.emplace(context, resolver_object);
+    promise_resolver_.emplace(context, resolver_value);
   }
 
   JSContext* context_;
@@ -98,9 +92,6 @@ class NativePromiseBase : public Promise<T> {
 template <typename T>
 class NativePromise : public NativePromiseBase<T> {
  public:
-  NativePromise(JSContext* context, JS::HandleObject resolver_object)
-      : NativePromiseBase<T>(context, resolver_object) {}
-
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<T>(context, resolver_value) {}
 
@@ -121,9 +112,6 @@ class NativePromise : public NativePromiseBase<T> {
 template <>
 class NativePromise<void> : public NativePromiseBase<void> {
  public:
-  NativePromise(JSContext* context, JS::HandleObject resolver_object)
-      : NativePromiseBase<void>(context, resolver_object) {}
-
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<void>(context, resolver_value) {}
 

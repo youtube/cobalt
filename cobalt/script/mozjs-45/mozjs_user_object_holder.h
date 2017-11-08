@@ -47,11 +47,6 @@ class MozjsUserObjectHolder
       : context_(NULL),
         prevent_garbage_collection_count_(0) {}
 
-  MozjsUserObjectHolder(JSContext* context, JS::HandleObject object)
-      : context_(context),
-        handle_(MozjsUserObjectType(context, object)),
-        prevent_garbage_collection_count_(0) {}
-
   MozjsUserObjectHolder(JSContext* context, JS::HandleValue value)
       : context_(context),
         handle_(MozjsUserObjectType(context, value)),
