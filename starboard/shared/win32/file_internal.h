@@ -82,10 +82,17 @@ inline bool PathEndsWith(const std::wstring& path, const wchar_t* filename) {
   return wcscmp(path.c_str() + path_offset, filename) == 0;
 }
 
+// Path's from cobalt use "/" as a path separator. This function will
+// replace all of the "/" with "\".
+std::wstring NormalizeWin32Path(std::string str);
+std::wstring NormalizeWin32Path(std::wstring str);
+
 HANDLE OpenFileOrDirectory(const char* path,
                            int flags,
                            bool* out_created,
                            SbFileError* out_error);
+
+bool DirectoryExists(const std::wstring& dir_path);
 
 }  // namespace win32
 }  // namespace shared

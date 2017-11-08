@@ -22,11 +22,14 @@
 #include "starboard/shared/win32/wchar_utils.h"
 
 bool SbFileGetPathInfo(const char* path, SbFileInfo* out_info) {
+  using starboard::shared::win32::CStringToWString;
+  using starboard::shared::win32::NormalizeWin32Path;
+
   if (!path || path[0] == '\0' || !out_info) {
     return false;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
+  std::wstring path_wstring = NormalizeWin32Path(path);
 
   WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
   if (!GetFileAttributesExW(path_wstring.c_str(), GetFileExInfoStandard,

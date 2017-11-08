@@ -20,11 +20,20 @@
 #include "starboard/shared/win32/wchar_utils.h"
 
 bool SbFileDelete(const char* path) {
+  using starboard::shared::win32::CStringToWString;
+  using starboard::shared::win32::NormalizeWin32Path;
+
   if ((path == nullptr) || *path == '\0') {
     return false;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
+  if (!SbFileExists(path)) {
+    return true;
+  }
 
-  return DeleteFileW(path_wstring.c_str());
+  std::wstring path_wstring = NormalizeWin32Path(path);
+
+  // Remove file or empty directory.
+  return DeleteFileW(path_wstring.c_str()) ||
+         RemoveDirectoryW(path_wstring.c_str());
 }
