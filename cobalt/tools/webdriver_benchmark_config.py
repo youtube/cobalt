@@ -14,8 +14,8 @@
 # limitations under the License.
 """Class for configuring Webdriver Benchmarks."""
 
-
 PERFORMANCE_TEST = 'performance'
+PRELOAD_TEST = 'preload'
 SANITY_TEST = 'sanity'
 
 # WEBDRIVER SCRIPT CONFIGURATION PARAMETERS
@@ -25,11 +25,7 @@ STANDARD_SIZE = 'standard'
 
 DISABLE_VIDEOS = '--disable_videos'
 
-SAMPLE_SIZES = [
-    MINIMAL_SIZE,
-    REDUCED_SIZE,
-    STANDARD_SIZE
-]
+SAMPLE_SIZES = [MINIMAL_SIZE, REDUCED_SIZE, STANDARD_SIZE]
 
 # COBALT COMMAND LINE PARAMETERS
 DISABLE_SPLASH_SCREEN_ON_RELOADS = '--disable_splash_screen_on_reloads'
