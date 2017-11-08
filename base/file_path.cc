@@ -44,14 +44,6 @@ typedef FilePath::StringType StringType;
 
 namespace {
 
-#if defined(FILE_PATH_USES_WIN_SEPARATORS) && defined(OS_POSIX)
-inline bool StartsWith(const std::string& str,
-                       const std::string& search,
-                       bool case_sensitive) {
-  return StartsWithASCII(str, search, case_sensitive);
-}
-#endif
-
 const char* kCommonDoubleExtensionSuffixes[] = { "gz", "z", "bz2" };
 const char* kCommonDoubleExtensions[] = { "user.js" };
 

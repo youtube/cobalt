@@ -371,6 +371,15 @@ BASE_EXPORT bool StartsWith(const string16& str,
                             const string16& search,
                             bool case_sensitive);
 
+// Generic version.
+template <typename StringType>
+inline bool StartsWith(const StringType& str, const StringType& search,
+                       bool case_sensitive) {
+  std::wstring str_16(str.begin(), str.end());
+  std::wstring search_16(search.begin(), search.end());
+  return StartsWith(str_16, search_16, case_sensitive);
+}
+
 // Returns true if str ends with search, or false otherwise.
 BASE_EXPORT bool EndsWith(const std::string& str,
                           const std::string& search,
