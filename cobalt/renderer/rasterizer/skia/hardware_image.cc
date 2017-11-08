@@ -185,6 +185,7 @@ class HardwareFrontendImage::HardwareBackendImage {
 
     scoped_refptr<backend::FramebufferRenderTargetEGL> render_target(
         new backend::FramebufferRenderTargetEGL(cobalt_context, size));
+    CHECK(!render_target->CreationError());
 
     // The above call to FramebufferRenderTargetEGL() may have dirtied graphics
     // state, so tell Skia to reset its context.

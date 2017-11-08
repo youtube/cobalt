@@ -27,16 +27,24 @@ SurfaceRenderTargetBlitter::SurfaceRenderTargetBlitter(
   surface_ = SbBlitterCreateRenderTargetSurface(device, dimensions.width(),
                                                 dimensions.height(),
                                                 kSbBlitterSurfaceFormatRGBA8);
-  CHECK(SbBlitterIsSurfaceValid(surface_));
+  if (!SbBlitterIsSurfaceValid(surface_)) {
+    LOG(ERROR) << "Error creating offscreen render target surface.";
+    return;
+  }
 
   render_target_ = SbBlitterGetRenderTargetFromSurface(surface_);
-  CHECK(SbBlitterIsRenderTargetValid(render_target_));
+  if (!SbBlitterIsRenderTargetValid(render_target_)) {
+    LOG(ERROR) << "Error acquiring a render target from the surface.";
+    SbBlitterDestroySurface(surface_);
+    surface_ = kSbBlitterInvalidSurface;
+    return;
+  }
 
   size_ = dimensions;
 }
 
 SurfaceRenderTargetBlitter::~SurfaceRenderTargetBlitter() {
-  if (surface_ != kSbBlitterInvalidSurface) {
+  if (SbBlitterIsSurfaceValid(surface_)) {
     SbBlitterDestroySurface(surface_);
   }
 }

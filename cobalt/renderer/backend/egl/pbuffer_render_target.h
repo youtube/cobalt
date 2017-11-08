@@ -38,6 +38,8 @@ class PBufferRenderTargetEGL : public RenderTargetEGL {
   EGLDisplay display() const { return display_; }
   EGLConfig config() const { return config_; }
 
+  bool CreationError() OVERRIDE { return surface_ == EGL_NO_SURFACE; }
+
  private:
   ~PBufferRenderTargetEGL() OVERRIDE;
 
