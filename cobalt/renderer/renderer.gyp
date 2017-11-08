@@ -87,6 +87,7 @@
         'rasterizer/pixel_test.cc',
         'rasterizer/pixel_test_fixture.cc',
         'rasterizer/pixel_test_fixture.h',
+        'rasterizer/stress_test.cc',
         'resource_provider_test.cc',
         'smoothed_value_test.cc',
         'submission_queue_test.cc',

@@ -47,6 +47,8 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
 
   void Flip() OVERRIDE {}
 
+  bool CreationError() OVERRIDE { return !SbBlitterIsSurfaceValid(surface_); }
+
  private:
   ~SurfaceRenderTargetBlitter() OVERRIDE;
 

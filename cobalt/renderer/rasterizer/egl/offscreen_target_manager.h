@@ -88,7 +88,8 @@ class OffscreenTargetManager {
       float size, const ErrorData1D& error_data, TargetInfo* out_target_info);
 
   // Allocate an uncached render target. The contents of the target cannot be
-  // reused in subsequent frames.
+  // reused in subsequent frames.  If there was an error allocating the
+  // render target, out_target_info->framebuffer will be set to nullptr.
   void AllocateUncachedTarget(const math::SizeF& size,
       TargetInfo* out_target_info);
 
@@ -97,8 +98,8 @@ class OffscreenTargetManager {
   struct OffscreenAtlas;
 
   void InitializeTargets(const math::Size& frame_size);
-  OffscreenAtlas* CreateOffscreenAtlas(const math::Size& size,
-      bool create_canvas);
+  scoped_ptr<OffscreenAtlas> CreateOffscreenAtlas(const math::Size& size,
+                                                  bool create_canvas);
   void SelectAtlasCache(ScopedVector<OffscreenAtlas>* atlases,
       scoped_ptr<OffscreenAtlas>* cache);
 
