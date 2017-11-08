@@ -216,10 +216,13 @@ void V8cGlobalEnvironment::Bind(const std::string& identifier,
   v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(impl);
   v8::Local<v8::Object> global_object = context->Global();
 
-  global_object->Set(v8::String::NewFromUtf8(isolate_, identifier.c_str(),
-                                             v8::NewStringType::kInternalized)
-                         .ToLocalChecked(),
-                     wrapper);
+  v8::Maybe<bool> set_result = global_object->Set(
+      context,
+      v8::String::NewFromUtf8(isolate_, identifier.c_str(),
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+      wrapper);
+  DCHECK(set_result.FromJust());
 }
 
 ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {

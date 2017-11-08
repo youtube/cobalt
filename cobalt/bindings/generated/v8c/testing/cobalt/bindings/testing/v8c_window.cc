@@ -391,7 +391,8 @@ void InitializeTemplate(
   v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
     isolate);
   function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "Window"));
+    v8::String::NewFromUtf8(isolate, "Window",
+        v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
@@ -420,16 +421,25 @@ void InitializeTemplate(
   );
 
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "getStackTrace"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "getStackTrace",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "setTimeout"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "setTimeout",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "windowOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "windowOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
 
   interface_data->templ.Set(env->isolate(), function_template);
@@ -461,7 +471,7 @@ v8::Local<v8::Object> V8cWindow::CreateWrapper(V8cGlobalEnvironment* env, const 
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
-  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance();
+  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
   // |WrapperPrivate|'s lifetime will be managed by V8.
@@ -495,59 +505,251 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
 
-  v8::Local<v8::ObjectTemplate> global_object_template = v8::ObjectTemplate::New();
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "AnonymousIndexedGetterInterface"), V8cAnonymousIndexedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "AnonymousNamedGetterInterface"), V8cAnonymousNamedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "AnonymousNamedIndexedGetterInterface"), V8cAnonymousNamedIndexedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ArbitraryInterface"), V8cArbitraryInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "BaseInterface"), V8cBaseInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "BooleanTypeTestInterface"), V8cBooleanTypeTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "CallbackFunctionInterface"), V8cCallbackFunctionInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "CallbackInterfaceInterface"), V8cCallbackInterfaceInterface::CreateTemplate(this));
+  v8::Local<v8::ObjectTemplate> global_object_template = v8::ObjectTemplate::New(isolate_);
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "AnonymousIndexedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cAnonymousIndexedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "AnonymousNamedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cAnonymousNamedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "AnonymousNamedIndexedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cAnonymousNamedIndexedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ArbitraryInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cArbitraryInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "BaseInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cBaseInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "BooleanTypeTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cBooleanTypeTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "CallbackFunctionInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cCallbackFunctionInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "CallbackInterfaceInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cCallbackInterfaceInterface::CreateTemplate(this));
 #if defined(ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ConditionalInterface"), V8cConditionalInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ConditionalInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cConditionalInterface::CreateTemplate(this));
 #endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ConstantsInterface"), V8cConstantsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ConstructorInterface"), V8cConstructorInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ConstructorWithArgumentsInterface"), V8cConstructorWithArgumentsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "DOMStringTestInterface"), V8cDOMStringTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "DerivedGetterSetterInterface"), V8cDerivedGetterSetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "DerivedInterface"), V8cDerivedInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "DictionaryInterface"), V8cDictionaryInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ConstantsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cConstantsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ConstructorInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cConstructorInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ConstructorWithArgumentsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cConstructorWithArgumentsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "DOMStringTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cDOMStringTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "DerivedGetterSetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cDerivedGetterSetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "DerivedInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cDerivedInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "DictionaryInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cDictionaryInterface::CreateTemplate(this));
 #if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "DisabledInterface"), V8cDisabledInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "DisabledInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cDisabledInterface::CreateTemplate(this));
 #endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "EnumerationInterface"), V8cEnumerationInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ExceptionObjectInterface"), V8cExceptionObjectInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ExceptionsInterface"), V8cExceptionsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ExtendedIDLAttributesInterface"), V8cExtendedIDLAttributesInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "GarbageCollectionTestInterface"), V8cGarbageCollectionTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "GlobalInterfaceParent"), V8cGlobalInterfaceParent::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ImplementedInterface"), V8cImplementedInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "IndexedGetterInterface"), V8cIndexedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "InterfaceWithAny"), V8cInterfaceWithAny::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "InterfaceWithAnyDictionary"), V8cInterfaceWithAnyDictionary::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "InterfaceWithUnsupportedProperties"), V8cInterfaceWithUnsupportedProperties::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NamedConstructorInterface"), V8cNamedConstructorInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NamedGetterInterface"), V8cNamedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NamedIndexedGetterInterface"), V8cNamedIndexedGetterInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NestedPutForwardsInterface"), V8cNestedPutForwardsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NoConstructorInterface"), V8cNoConstructorInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NoInterfaceObjectInterface"), V8cNoInterfaceObjectInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NullableTypesTestInterface"), V8cNullableTypesTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "NumericTypesTestInterface"), V8cNumericTypesTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "ObjectTypeBindingsInterface"), V8cObjectTypeBindingsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "OperationsTestInterface"), V8cOperationsTestInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "PromiseInterface"), V8cPromiseInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "PutForwardsInterface"), V8cPutForwardsInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "SequenceUser"), V8cSequenceUser::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "StaticPropertiesInterface"), V8cStaticPropertiesInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "StringifierAnonymousOperationInterface"), V8cStringifierAnonymousOperationInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "StringifierAttributeInterface"), V8cStringifierAttributeInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "StringifierOperationInterface"), V8cStringifierOperationInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "TargetInterface"), V8cTargetInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "UnionTypesInterface"), V8cUnionTypesInterface::CreateTemplate(this));
-  global_object_template->Set(v8::String::NewFromUtf8(isolate_, "Window"), V8cWindow::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "EnumerationInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cEnumerationInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ExceptionObjectInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cExceptionObjectInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ExceptionsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cExceptionsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ExtendedIDLAttributesInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cExtendedIDLAttributesInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "GarbageCollectionTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cGarbageCollectionTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "GlobalInterfaceParent",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cGlobalInterfaceParent::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ImplementedInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cImplementedInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "IndexedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cIndexedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "InterfaceWithAny",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cInterfaceWithAny::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "InterfaceWithAnyDictionary",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cInterfaceWithAnyDictionary::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "InterfaceWithUnsupportedProperties",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cInterfaceWithUnsupportedProperties::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NamedConstructorInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNamedConstructorInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NamedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNamedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NamedIndexedGetterInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNamedIndexedGetterInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NestedPutForwardsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNestedPutForwardsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NoConstructorInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNoConstructorInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NoInterfaceObjectInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNoInterfaceObjectInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NullableTypesTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNullableTypesTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "NumericTypesTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cNumericTypesTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "ObjectTypeBindingsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cObjectTypeBindingsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "OperationsTestInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cOperationsTestInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "PromiseInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cPromiseInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "PutForwardsInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cPutForwardsInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "SequenceUser",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cSequenceUser::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "StaticPropertiesInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cStaticPropertiesInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "StringifierAnonymousOperationInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cStringifierAnonymousOperationInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "StringifierAttributeInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cStringifierAttributeInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "StringifierOperationInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cStringifierOperationInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "TargetInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cTargetInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "UnionTypesInterface",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cUnionTypesInterface::CreateTemplate(this));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "Window",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cWindow::CreateTemplate(this));
 
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, nullptr, global_object_template);

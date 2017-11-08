@@ -121,7 +121,8 @@ void InitializeTemplate(
   v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
     isolate);
   function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "IndexedGetterInterface"));
+    v8::String::NewFromUtf8(isolate, "IndexedGetterInterface",
+        v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
@@ -136,16 +137,25 @@ void InitializeTemplate(
   );
 
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "indexedDeleter"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "indexedDeleter",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "indexedGetter"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "indexedGetter",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "indexedSetter"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "indexedSetter",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
 
   interface_data->templ.Set(env->isolate(), function_template);
@@ -177,7 +187,7 @@ v8::Local<v8::Object> V8cIndexedGetterInterface::CreateWrapper(V8cGlobalEnvironm
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
-  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance();
+  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
   // |WrapperPrivate|'s lifetime will be managed by V8.
