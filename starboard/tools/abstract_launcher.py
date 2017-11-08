@@ -178,6 +178,10 @@ class AbstractLauncher(object):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
 
+  def SendResume(self):
+    """Sends resume signal to the launcher's executable."""
+    raise RuntimeError("Resume not supported for this platform.")
+
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
     return self.startup_timeout_seconds
