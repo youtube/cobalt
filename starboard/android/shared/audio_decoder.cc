@@ -177,7 +177,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
 void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb_.is_valid());
-
+  stream_ended_ = true;
   event_queue_.PushBack(Event(Event::kWriteEndOfStream));
 }
 
@@ -241,7 +241,7 @@ void AudioDecoder::DecoderThreadFunc() {
 
   // TODO: Revisit |stream_ended_| logic.  It should be guarded by a lock and
   // a flag should be also set inside WriteEndOfStream().
-  while (!stream_ended_) {
+  for (;;) {
     // TODO: Replace |event_queue_| with a plain locked std::queue and only call
     // swap() when |pending_work| is empty to avoid unnecessary locks.
     Event event = event_queue_.PollFront();
@@ -445,7 +445,6 @@ void AudioDecoder::ProcessOutputBuffer(
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {
     media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result.index,
                                              false);
-    stream_ended_ = true;
     {
       starboard::ScopedLock lock(decoded_audios_mutex_);
       decoded_audios_.push(new DecodedAudio());
