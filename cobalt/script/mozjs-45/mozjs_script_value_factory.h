@@ -41,9 +41,9 @@ class MozjsScriptValueFactory : public ScriptValueFactory {
     JSAutoRequest auto_request(context);
     JSAutoCompartment auto_compartment(context, global_object);
 
-    JS::RootedObject promise_wrapper(
-        context, PromiseWrapper::Create(context, global_object));
-    DCHECK(promise_wrapper);
+    JS::RootedValue promise_wrapper(context);
+    promise_wrapper.setObjectOrNull(
+        PromiseWrapper::Create(context, global_object));
     scoped_ptr<ScriptPromiseType> promise(
         new MozjsPromiseHolderType(context, promise_wrapper));
     return promise.Pass();

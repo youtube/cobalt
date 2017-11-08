@@ -51,12 +51,6 @@ namespace testing {
 
 MozjsSingleOperationInterface::MozjsSingleOperationInterface(
     JSContext* context,
-    JS::HandleObject implementing_object)
-    : context_(context),
-      implementing_object_(context, implementing_object) { }
-
-MozjsSingleOperationInterface::MozjsSingleOperationInterface(
-    JSContext* context,
     JS::HandleValue implementing_object_value)
     : context_(context),
       implementing_object_(context, implementing_object_value) { }

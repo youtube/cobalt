@@ -44,12 +44,6 @@ namespace {{component}} {
 
 {{binding_class}}::{{binding_class}}(
     JSContext* context,
-    JS::HandleObject implementing_object)
-    : context_(context),
-      implementing_object_(context, implementing_object) { }
-
-{{binding_class}}::{{binding_class}}(
-    JSContext* context,
     JS::HandleValue implementing_object_value)
     : context_(context),
       implementing_object_(context, implementing_object_value) { }
