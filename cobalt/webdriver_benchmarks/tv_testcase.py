@@ -91,6 +91,9 @@ class TvTestCase(unittest.TestCase):
       self.load_tv(query_params=query_params, triggers_reload=triggers_reload)
       _is_initialized = True
 
+  def send_resume(self):
+    return tv_testcase_runner.SendResume()
+
   def get_platform(self):
     return tv_testcase_runner.GetPlatform()
 
@@ -242,6 +245,11 @@ class TvTestCase(unittest.TestCase):
     webmodule_loaded = tv_testcase_runner.GetWebModuleLoaded()
     if not webmodule_loaded.wait(WEBMODULE_LOADED_TIMEOUT_SECONDS):
       raise TvTestCase.WebModuleLoadedTimeoutException()
+
+  def wait_for_usable_after_launch(self):
+    self.poll_until_found(tv.SHELF)
+    self.wait_for_processing_complete()
+    self.wait_for_html_script_element_execute_count(2)
 
   def wait_for_processing_complete_after_focused_shelf(self):
     """Waits for Cobalt to focus on a shelf and complete pending layouts."""
