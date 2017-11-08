@@ -36,8 +36,6 @@ class MozjsSingleOperationInterface : public SingleOperationInterface {
   typedef SingleOperationInterface BaseType;
 
   MozjsSingleOperationInterface(
-      JSContext* context, JS::HandleObject implementing_object);
-  MozjsSingleOperationInterface(
       JSContext* context, JS::HandleValue implementing_object_value);
   base::optional<int32_t > HandleCallback(
       const scoped_refptr<script::Wrappable>& callback_this,

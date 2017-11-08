@@ -29,14 +29,6 @@ WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleValue value)
   Initialize(global_environment->weak_object_manager(), value);
 }
 
-WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleObject object)
-    : was_collected_(false) {
-  MozjsGlobalEnvironment* global_environment =
-      MozjsGlobalEnvironment::GetFromContext(context);
-  Initialize(global_environment->weak_object_manager(),
-             JS::ObjectValue(*object));
-}
-
 WeakHeapObject::WeakHeapObject(const WeakHeapObject& other)
     : was_collected_(other.was_collected_) {
   Initialize(other.weak_object_manager_, other.value_);

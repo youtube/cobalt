@@ -50,12 +50,6 @@ class MozjsCallbackFunction<R(void)>
  public:
   typedef CallbackFunction<R()> BaseType;
 
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
-
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
     DCHECK(context_);
@@ -112,12 +106,6 @@ class MozjsCallbackFunction<R(A1)>
     : public CallbackFunction<R(A1)> {
  public:
   typedef CallbackFunction<R(A1)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -178,12 +166,6 @@ class MozjsCallbackFunction<R(A1, A2)>
     : public CallbackFunction<R(A1, A2)> {
  public:
   typedef CallbackFunction<R(A1, A2)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -246,12 +228,6 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
     : public CallbackFunction<R(A1, A2, A3)> {
  public:
   typedef CallbackFunction<R(A1, A2, A3)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -316,12 +292,6 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
     : public CallbackFunction<R(A1, A2, A3, A4)> {
  public:
   typedef CallbackFunction<R(A1, A2, A3, A4)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -389,12 +359,6 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5)> {
  public:
   typedef CallbackFunction<R(A1, A2, A3, A4, A5)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -464,12 +428,6 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6)> {
  public:
   typedef CallbackFunction<R(A1, A2, A3, A4, A5, A6)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {
@@ -541,12 +499,6 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
     : public CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> {
  public:
   typedef CallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)> BaseType;
-
-  explicit MozjsCallbackFunction(JSContext* context, JS::HandleObject function)
-      : context_(context), weak_function_(context, function) {
-    DCHECK(context_);
-    DCHECK(JS_ObjectIsFunction(context_, function));
-  }
 
   explicit MozjsCallbackFunction(JSContext* context, JS::HandleValue function)
       : context_(context), weak_function_(context, function) {

@@ -70,18 +70,14 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
 
   // https://www.w3.org/TR/WebIDL/#es-callback-function
   // 1. If V is not a Function object, throw a TypeError
-  JS::RootedObject object(context);
-  if (value.isObject()) {
-    object = JS::RootedObject(context, &value.toObject());
-  }
-  if (!object || !JS_ObjectIsFunction(context, object)) {
+  if (!value.isObject() || !JS_ObjectIsFunction(context, &value.toObject())) {
     exception_state->SetSimpleException(kNotFunctionValue);
     return;
   }
 
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-  *out_callback_function = MozjsCallbackHolderClass(context, object);
+  *out_callback_function = MozjsCallbackHolderClass(context, value);
 }
 
 }  // namespace mozjs
