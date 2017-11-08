@@ -44,7 +44,9 @@ PBufferRenderTargetEGL::PBufferRenderTargetEGL(EGLDisplay display,
 
   surface_ =
     eglCreatePbufferSurface(display_, config_, surface_attrib_list);
-  CHECK_EQ(EGL_SUCCESS, eglGetError());
+  if (eglGetError() != EGL_SUCCESS) {
+    surface_ = EGL_NO_SURFACE;
+  }
 }
 
 const math::Size& PBufferRenderTargetEGL::GetSize() const { return size_; }
@@ -54,7 +56,9 @@ EGLSurface PBufferRenderTargetEGL::GetSurface() const {
 }
 
 PBufferRenderTargetEGL::~PBufferRenderTargetEGL() {
-  EGL_CALL(eglDestroySurface(display_, surface_));
+  if (surface_ != EGL_NO_SURFACE) {
+    EGL_CALL(eglDestroySurface(display_, surface_));
+  }
 }
 
 }  // namespace backend

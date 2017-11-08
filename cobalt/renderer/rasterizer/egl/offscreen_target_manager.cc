@@ -350,8 +350,15 @@ void OffscreenTargetManager::AllocateUncachedTarget(const math::SizeF& size,
     }
   }
 
-  if (atlas == nullptr) {
-    atlas = CreateOffscreenAtlas(target_size, true);
+  if (!atlas) {
+    atlas = CreateOffscreenAtlas(target_size, true).release();
+    if (!atlas) {
+      // If there was an error allocating the offscreen atlas, indicate by
+      // marking framebuffer and skia canvas as null and returning early.
+      out_target_info->framebuffer = nullptr;
+      out_target_info->skia_canvas = nullptr;
+      return;
+    }
     uncached_targets_.push_back(atlas);
   }
 
@@ -420,9 +427,12 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
     DLOG(WARNING) << "More memory was allotted for offscreen render targets"
                   << " than will be used.";
   }
-  offscreen_cache_.reset(CreateOffscreenAtlas(atlas_size, true));
+  offscreen_cache_ = CreateOffscreenAtlas(atlas_size, true);
+  CHECK(offscreen_cache_);
   for (int i = 1; i < num_atlases; ++i) {
-    offscreen_atlases_.push_back(CreateOffscreenAtlas(atlas_size, true));
+    offscreen_atlases_.push_back(
+        CreateOffscreenAtlas(atlas_size, true).release());
+    CHECK(offscreen_atlases_.back());
   }
 
   DLOG(INFO) << "Created " << num_atlases << " offscreen atlases of size "
@@ -435,28 +445,34 @@ void OffscreenTargetManager::InitializeTargets(const math::Size& frame_size) {
       std::min(std::min(16, frame_size.width()), frame_size.height());
   math::Size atlas_size_1d(
       std::max(frame_size.width(), frame_size.height()), kAtlasHeight1D);
-  offscreen_atlases_1d_.push_back(CreateOffscreenAtlas(atlas_size_1d, false));
-  offscreen_cache_1d_.reset(CreateOffscreenAtlas(atlas_size_1d, false));
+  offscreen_atlases_1d_.push_back(
+      CreateOffscreenAtlas(atlas_size_1d, false).release());
+  CHECK(offscreen_atlases_1d_.back());
+  offscreen_cache_1d_ = CreateOffscreenAtlas(atlas_size_1d, false);
+  CHECK(offscreen_cache_1d_);
   DLOG(INFO) << "Created " << offscreen_atlases_1d_.size() + 1
              << " offscreen atlases of size " << atlas_size_1d.width() << " x "
              << atlas_size_1d.height();
 }
 
-OffscreenTargetManager::OffscreenAtlas*
-    OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
-        bool create_canvas) {
-  OffscreenAtlas* atlas = new OffscreenAtlas(size);
+scoped_ptr<OffscreenTargetManager::OffscreenAtlas>
+OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
+                                             bool create_canvas) {
+  scoped_ptr<OffscreenAtlas> atlas(new OffscreenAtlas(size));
 
   // Create a new framebuffer.
   atlas->framebuffer = new backend::FramebufferRenderTargetEGL(
       graphics_context_, size);
+  if (atlas->framebuffer->CreationError()) {
+    return scoped_ptr<OffscreenAtlas>();
+  }
 
   if (create_canvas) {
     // Wrap the framebuffer as a skia surface.
     atlas->skia_surface.reset(create_fallback_surface_.Run(atlas->framebuffer));
   }
 
-  return atlas;
+  return atlas.Pass();
 }
 
 }  // namespace egl
