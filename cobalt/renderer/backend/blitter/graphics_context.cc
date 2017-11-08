@@ -49,8 +49,14 @@ scoped_refptr<RenderTarget> GraphicsContextBlitter::CreateOffscreenRenderTarget(
     const math::Size& dimensions) {
   TRACE_EVENT0("cobalt::renderer",
                "GraphicsContextBlitter::CreateOffscreenRenderTarget");
-  return scoped_refptr<RenderTarget>(
+
+  scoped_refptr<RenderTarget> render_target(
       new SurfaceRenderTargetBlitter(device_, dimensions));
+  if (render_target->CreationError()) {
+    return scoped_refptr<RenderTarget>();
+  } else {
+    return render_target;
+  }
 }
 
 scoped_array<uint8_t> GraphicsContextBlitter::DownloadPixelDataAsRGBA(

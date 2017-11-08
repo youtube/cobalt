@@ -65,6 +65,9 @@ class CompositionNode : public Node {
 
     Builder() {}
     explicit Builder(const math::Vector2dF& offset) : offset_(offset) {}
+    Builder(Node* node, const math::Vector2dF& offset) : offset_(offset) {
+      children_.push_back(node);
+    }
 
     Builder(const Builder& other)
         : offset_(other.offset_), children_(other.children_) {}
@@ -112,6 +115,9 @@ class CompositionNode : public Node {
 
   explicit CompositionNode(Builder&& builder)
       : data_(builder.Pass()), cached_bounds_(ComputeBounds()) {}
+
+  CompositionNode(Node* node, const math::Vector2dF& offset)
+      : data_(node, offset), cached_bounds_(ComputeBounds()) {}
 
   void Accept(NodeVisitor* visitor) OVERRIDE;
   math::RectF GetBounds() const OVERRIDE;

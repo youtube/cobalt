@@ -808,6 +808,12 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   target_size.SetToMin(onscreen_render_target_->GetSize());
   offscreen_target_manager_->AllocateUncachedTarget(target_size, &target_info);
 
+  if (!target_info.framebuffer) {
+    LOG(ERROR) << "Could not allocate framebuffer for offscreen rasterization.";
+    out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
+    return;
+  }
+
   // Only the clipped bounds will be rendered.
   DCHECK_GE(target_info.region.width(), clipped_bounds.width());
   DCHECK_GE(target_info.region.height(), clipped_bounds.height());

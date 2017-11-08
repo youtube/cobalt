@@ -33,6 +33,8 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
 
   bool IsWindowRenderTarget() const OVERRIDE { return true; }
 
+  bool CreationError() OVERRIDE { return false; }
+
  private:
   ~DisplayRenderTargetEGL() OVERRIDE;
 
