@@ -39,7 +39,7 @@ const char kPortableFilenameCharacters[] = {
   "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
   "abcdefghijklmnopqrstuvwxyz"
   "0123456789"
-  "._-"
+  "_-"
 };
 const int kPortableFilenameCharactersLength =
     SB_ARRAY_SIZE_INT(kPortableFilenameCharacters) - 1;
