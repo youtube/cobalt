@@ -42,18 +42,21 @@ class Launcher(abstract_launcher.AbstractLauncher):
     env.update(self.env_variables)
     self.full_env = env
 
+    self.proc = None
     self.pid = None
 
   def Run(self):
     """Runs launcher's executable."""
 
-    proc = subprocess.Popen([self.executable] + self.target_command_line_params,
-                            stdout=self.output_file, stderr=self.output_file,
-                            env=self.full_env)
+    self.proc = subprocess.Popen(
+        [self.executable] + self.target_command_line_params,
+        stdout=self.output_file,
+        stderr=self.output_file,
+        env=self.full_env)
     self._CloseOutputFile()
-    self.pid = proc.pid
-    proc.wait()
-    return proc.returncode
+    self.pid = self.proc.pid
+    self.proc.wait()
+    return self.proc.returncode
 
   def Kill(self):
     sys.stderr.write("\n***Killing Launcher***\n")
@@ -62,3 +65,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
         os.kill(self.pid, signal.SIGTERM)
       except OSError:
         sys.stderr.write("Cannot kill launcher.  Process already closed.\n")
+
+  def SendResume(self):
+    """Sends continue to the launcher's executable."""
+    sys.stderr.write("\n***Sending continue signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGCONT)
+    else:
+      sys.stderr.write("Cannot send continue to executable; it is closed.\n")
