@@ -62,12 +62,14 @@ void SetupBindings(GlobalEnvironment* global_environment) {
   v8::Isolate* isolate = v8c_global_environment->isolate();
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
-  auto context = v8c_global_environment->context();
+  v8::Local<v8::Context> context = v8c_global_environment->context();
   v8::Context::Scope context_scope(context);
-  context->Global()->Set(
+  v8::Maybe<bool> set_result = context->Global()->Set(
+      context,
       v8::String::NewFromUtf8(isolate, "print", v8::NewStringType::kNormal)
           .ToLocalChecked(),
-      v8::Function::New(isolate, Print));
+      v8::Function::New(context, Print).ToLocalChecked());
+  DCHECK(set_result.FromJust());
 }
 
 int V8cMain(int argc, char** argv) {
