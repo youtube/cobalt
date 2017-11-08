@@ -242,7 +242,8 @@ void InitializeTemplate(
   v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
     isolate);
   function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "NullableTypesTestInterface"));
+    v8::String::NewFromUtf8(isolate, "NullableTypesTestInterface",
+        v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(1);
 
@@ -279,36 +280,60 @@ void InitializeTemplate(
   );
 
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableBooleanArgument"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableBooleanArgument",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableBooleanOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableBooleanOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableNumericArgument"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableNumericArgument",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableNumericOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableNumericOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableObjectArgument"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableObjectArgument",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableObjectOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableObjectOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableStringArgument"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableStringArgument",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
   instance_template->Set(
-    v8::String::NewFromUtf8(isolate, "nullableStringOperation"),
-    v8::FunctionTemplate::New(isolate, DummyFunction)
+      v8::String::NewFromUtf8(
+          isolate,
+          "nullableStringOperation",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
   );
 
   interface_data->templ.Set(env->isolate(), function_template);
@@ -340,7 +365,7 @@ v8::Local<v8::Object> V8cNullableTypesTestInterface::CreateWrapper(V8cGlobalEnvi
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
-  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance();
+  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == 1);
 
   // |WrapperPrivate|'s lifetime will be managed by V8.
