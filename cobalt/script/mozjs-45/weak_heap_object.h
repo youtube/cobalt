@@ -50,7 +50,6 @@ class WeakHeapObject {
   void Initialize(WeakHeapObjectManager* weak_heap_object_manager,
                   const JS::Value& value);
 
-  bool IsNull() const;
   void UpdateWeakPointerAfterGc();
 
   WeakHeapObjectManager* weak_object_manager_;
