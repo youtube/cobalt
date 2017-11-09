@@ -15,27 +15,20 @@
 #ifndef STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 #define STARBOARD_ANDROID_SHARED_VIDEO_DECODER_H_
 
-#include <jni.h>
-
 #include <deque>
 
 #include "starboard/android/shared/drm_system.h"
-#include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_window.h"
+#include "starboard/android/shared/media_decoder.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/video_frame_internal.h"
-#include "starboard/thread.h"
 
 namespace starboard {
 namespace android {
@@ -44,7 +37,8 @@ namespace shared {
 class VideoRenderer;
 
 class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::VideoDecoder {
+    : public ::starboard::shared::starboard::player::filter::VideoDecoder,
+      private MediaDecoder::Host {
  public:
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
@@ -64,54 +58,19 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
   void SetHost(VideoRenderer* host);
-  bool is_valid() const { return media_codec_bridge_ != NULL; }
+  bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
-  struct Event {
-    enum Type {
-      kInvalid,
-      kReset,
-      kWriteInputBuffer,
-      kWriteEndOfStream,
-    };
-
-    Type type;
-    // |input_buffer| is only used when |type| is |kWriteInputBuffer|.
-    scoped_refptr<InputBuffer> input_buffer;
-
-    explicit Event(Type type = kInvalid) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
-    }
-
-    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
-  };
-
-  struct QueueInputBufferTask {
-    DequeueInputResult dequeue_input_result;
-    Event event;
-  };
-
-  static void* ThreadEntryPoint(void* context);
-  void DecoderThreadFunc();
-  void JoinOnDecoderThread();
-
   // Attempt to initialize the codec.  Returns whether initialization was
   // successful.
   bool InitializeCodec();
   void TeardownCodec();
 
-  // Attempt to enqueue the front of |pending_work| into a MediaCodec input
-  // buffer.  Returns true if a buffer was queued.
-  bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
-  // Attempt to dequeue a media codec output buffer.  Returns whether the
-  // processing should continue.  If a valid buffer is dequeued, it will call
-  // ProcessOutputBuffer() internally.  It is the responsibility of
-  // ProcessOutputBuffer() to release the output buffer back to the system.
-  bool DequeueAndProcessOutputBuffer();
-  void ProcessOutputBuffer(const DequeueOutputResult& output);
-  void RefreshOutputFormat();
-  void HandleError(const char* action_name, jint status);
+  void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+                           const DequeueOutputResult& output) SB_OVERRIDE;
+  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
+  bool Tick(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
+  void OnFlushing() SB_OVERRIDE;
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
@@ -119,17 +78,6 @@ class VideoDecoder
   Closure error_cb_;
   VideoRenderer* host_;
   DrmSystem* drm_system_;
-
-  // Events are processed in a queue, except for when handling events of type
-  // |kReset|, which are allowed to cut to the front.
-  EventQueue<Event> event_queue_;
-
-  bool stream_ended_;
-
-  // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
-
-  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
 
   SbPlayerOutputMode output_mode_;
 
@@ -150,8 +98,6 @@ class VideoDecoder
   int32_t frame_width_;
   int32_t frame_height_;
 
-  optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
-
   // The last enqueued |SbMediaColorMetadata|.
   optional<SbMediaColorMetadata> previous_color_metadata_;
 
@@ -164,6 +110,8 @@ class VideoDecoder
   // A queue of media codec output buffers that we have taken from the media
   // codec bridge.  It is only accessed from the |decoder_thread_|.
   std::deque<DequeueOutputResult> dequeue_output_results_;
+
+  scoped_ptr<MediaDecoder> media_decoder_;
 };
 
 }  // namespace shared

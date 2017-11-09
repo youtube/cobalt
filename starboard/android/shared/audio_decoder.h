@@ -17,16 +17,12 @@
 
 #include <jni.h>
 
-#include <deque>
 #include <queue>
 
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
-#include "starboard/atomic.h"
-#include "starboard/common/optional.h"
+#include "starboard/android/shared/media_decoder.h"
 #include "starboard/common/ref_counted.h"
-#include "starboard/file.h"
-#include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
@@ -39,7 +35,8 @@ namespace shared {
 
 class AudioDecoder
     : public ::starboard::shared::starboard::player::filter::AudioDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner {
+      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
+      private MediaDecoder::Host {
  public:
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
@@ -64,81 +61,37 @@ class AudioDecoder
     return audio_header_.samples_per_second;
   }
 
-  bool is_valid() const { return media_codec_bridge_ != NULL; }
+  bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
-  struct Event {
-    enum Type {
-      kInvalid,
-      kReset,
-      kWriteCodecConfig,
-      kWriteInputBuffer,
-      kWriteEndOfStream,
-    };
-
-    explicit Event(Type type = kInvalid) : type(type) {
-      SB_DCHECK(type != kWriteInputBuffer);
-    }
-    explicit Event(const scoped_refptr<InputBuffer>& input_buffer)
-        : type(kWriteInputBuffer), input_buffer(input_buffer) {}
-
-    Type type;
-    scoped_refptr<InputBuffer> input_buffer;
-  };
-
-  struct QueueInputBufferTask {
-    DequeueInputResult dequeue_input_result;
-    Event event;
-  };
-
   // The maximum amount of work that can exist in the union of |EventQueue|,
   // |pending_work| and |decoded_audios_|.
   static const int kMaxPendingWorkSize = 64;
 
-  static void* ThreadEntryPoint(void* context);
-  void DecoderThreadFunc();
-  void JoinOnDecoderThread();
-
   bool InitializeCodec();
-  void TeardownCodec();
+  void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
+                           const DequeueOutputResult& output) SB_OVERRIDE;
+  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
+  bool Tick(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE { return false; }
+  void OnFlushing() SB_OVERRIDE {}
 
-  bool ProcessOneInputBuffer(std::deque<Event>* pending_work);
-  // Attempt to dequeue a media codec output buffer.  Returns whether the
-  // processing should continue.  If a valid buffer is dequeued, it will call
-  // ProcessOutputBuffer() internally.  It is the responsibility of
-  // ProcessOutputBuffer() to release the output buffer back to the system.
-  bool DequeueAndProcessOutputBuffer();
-  void ProcessOutputBuffer(const DequeueOutputResult& output);
-  void RefreshOutputFormat();
-  void HandleError(const char* action_name, jint status);
+  SbMediaAudioCodec audio_codec_;
+  SbMediaAudioHeader audio_header_;
+  SbMediaAudioSampleType sample_type_;
+
+  jint output_sample_rate_;
+  jint output_channel_count_;
+
+  DrmSystem* drm_system_;
 
   Closure output_cb_;
   Closure error_cb_;
   Closure consumed_cb_;
 
-  // Working thread to avoid lengthy decoding work block the player thread.
-  SbThread decoder_thread_;
-  scoped_ptr<MediaCodecBridge> media_codec_bridge_;
-
-  SbMediaAudioSampleType sample_type_;
-
-  bool stream_ended_;
-  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
-  SbMediaAudioCodec audio_codec_;
-  SbMediaAudioHeader audio_header_;
-
-  DrmSystem* drm_system_;
-
-  // Events are processed in a queue, except for when handling events of type
-  // |kReset|, which are allowed to cut to the front.
-  EventQueue<Event> event_queue_;
   starboard::Mutex decoded_audios_mutex_;
-  volatile SbAtomic32 pending_work_size_;
+  std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;
 
-  jint output_sample_rate_;
-  jint output_channel_count_;
-
-  optional<QueueInputBufferTask> pending_queue_input_buffer_task_;
+  scoped_ptr<MediaDecoder> media_decoder_;
 };
 
 }  // namespace shared
