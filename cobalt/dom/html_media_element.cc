@@ -125,6 +125,9 @@ loader::RequestMode GetRequestMode(
 #if defined(COBALT_MEDIA_SOURCE_2016)
 bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
                   const loader::Origin& origin) {
+#if SB_HAS(PLAYER_WITH_URL)
+  return true;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   if (resource_url.SchemeIs("blob")) {
     // Blob resources come from application and is same-origin.
     return true;
@@ -140,7 +143,7 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
   }
   return false;
 }
-#endif
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 }  // namespace
 
@@ -1023,7 +1026,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     return;
   }
 #if SB_HAS(PLAYER_WITH_URL)
-  // TODO: Investigate if we have to support csp for url player.
+  // TODO: Investigate if we have to support csp and sop for url player.
   player_->LoadUrl(url);
 #else   // SB_HAS(PLAYER_WITH_URL)
   if (url.spec() == SourceURL()) {
