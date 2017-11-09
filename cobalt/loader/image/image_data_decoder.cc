@@ -122,8 +122,8 @@ bool ImageDataDecoder::AllocateImageData(const math::Size& size,
       size, pixel_format(), has_alpha ? render_tree::kAlphaFormatPremultiplied
                                       : render_tree::kAlphaFormatOpaque);
   if (!image_data_) {
-    DLOG(ERROR) << "Failed to allocate image data (" << size.width() << "x"
-                << size.height() << ").";
+    DLOG(WARNING) << "Failed to allocate image data (" << size.width() << "x"
+                  << size.height() << ").";
   }
   return image_data_;
 }

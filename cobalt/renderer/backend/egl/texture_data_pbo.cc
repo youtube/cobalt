@@ -29,11 +29,7 @@ namespace backend {
 
 TextureDataPBO::TextureDataPBO(ResourceContext* resource_context,
                                const math::Size& size, GLenum format)
-    : resource_context_(resource_context),
-      size_(size),
-      format_(format),
-      mapped_data_(NULL),
-      error_(false) {
+    : resource_context_(resource_context), size_(size), format_(format) {
   data_size_ = static_cast<int64>(GetPitchInBytes()) * size_.height();
 
   resource_context_->RunSynchronouslyWithinResourceContext(
@@ -45,22 +41,9 @@ void TextureDataPBO::InitAndMapPBO() {
 
   // Use the resource context to allocate a GL pixel unpack buffer with the
   // specified size.
-  glGenBuffers(1, &pixel_buffer_);
-  if (glGetError() != GL_NO_ERROR) {
-    LOG(ERROR) << "Error creating new buffer.";
-    error_ = true;
-    return;
-  }
-
+  GL_CALL(glGenBuffers(1, &pixel_buffer_));
   GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pixel_buffer_));
-  glBufferData(GL_PIXEL_UNPACK_BUFFER, data_size_, 0, GL_STATIC_DRAW);
-  if (glGetError() != GL_NO_ERROR) {
-    LOG(ERROR) << "Error allocating PBO data for image.";
-    error_ = true;
-    GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
-    GL_CALL(glDeleteBuffers(1, &pixel_buffer_));
-    return;
-  }
+  GL_CALL(glBufferData(GL_PIXEL_UNPACK_BUFFER, data_size_, 0, GL_STATIC_DRAW));
 
   // Map the GL pixel buffer data to CPU addressable memory.  We pass the flags
   // MAP_INVALIDATE_BUFFER_BIT | MAP_UNSYNCHRONIZED_BIT to tell GL that it
@@ -125,16 +108,8 @@ GLuint TextureDataPBO::ConvertToTexture(GraphicsContextEGL* graphics_context,
   // buffer.
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH,
                         GetPitchInBytes() / BytesPerPixelForGLFormat(format_)));
-  glTexImage2D(GL_TEXTURE_2D, 0, format_, size_.width(), size_.height(), 0,
-               format_, GL_UNSIGNED_BYTE, 0);
-  if (glGetError() != GL_NO_ERROR) {
-    LOG(ERROR) << "Error calling glTexImage2D(size = (" << size_.width() << ", "
-               << size_.height() << "))";
-    GL_CALL(glDeleteTextures(1, &texture_handle));
-    // 0 is considered by GL to be an invalid handle.
-    texture_handle = 0;
-  }
-
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format_, size_.width(), size_.height(),
+                       0, format_, GL_UNSIGNED_BYTE, 0));
   GL_CALL(glPixelStorei(GL_UNPACK_ROW_LENGTH, 0));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
   GL_CALL(glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0));
@@ -146,8 +121,6 @@ GLuint TextureDataPBO::ConvertToTexture(GraphicsContextEGL* graphics_context,
 
   return texture_handle;
 }
-
-bool TextureDataPBO::CreationError() { return error_; }
 
 RawTextureMemoryPBO::RawTextureMemoryPBO(ResourceContext* resource_context,
                                          size_t size_in_bytes, size_t alignment)
