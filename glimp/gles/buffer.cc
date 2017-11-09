@@ -40,19 +40,21 @@ BufferImpl::Usage GLUsageEnumToUsage(GLenum usage) {
 Buffer::Buffer(nb::scoped_ptr<BufferImpl> impl)
     : impl_(impl.Pass()), size_in_bytes_(0) {}
 
-void Buffer::Allocate(GLenum usage, size_t size) {
+bool Buffer::Allocate(GLenum usage, size_t size) {
   size_in_bytes_ = size;
-  impl_->Allocate(GLUsageEnumToUsage(usage), size);
+  return impl_->Allocate(GLUsageEnumToUsage(usage), size);
 }
 
-void Buffer::SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data) {
+bool Buffer::SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data) {
   SB_DCHECK(size_in_bytes_ >= offset + size);
   SB_DCHECK(offset >= 0);
   SB_DCHECK(size >= 0);
   SB_DCHECK(!is_mapped_);
 
   if (size > 0) {
-    impl_->SetData(offset, static_cast<size_t>(size), data);
+    return impl_->SetData(offset, static_cast<size_t>(size), data);
+  } else {
+    return true;
   }
 }
 
