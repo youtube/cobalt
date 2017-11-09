@@ -99,6 +99,8 @@
         'media_codec_bridge.cc',
         'media_codec_bridge.h',
         'media_common.h',
+        'media_decoder.cc',
+        'media_decoder.h',
         'media_get_audio_configuration.cc',
         'media_get_audio_output_count.cc',
         'media_is_audio_supported.cc',
