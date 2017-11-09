@@ -49,11 +49,11 @@ class VideoDecoder
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
 
-  explicit VideoDecoder(SbMediaVideoCodec video_codec,
-                        SbDrmSystem drm_system,
-                        SbPlayerOutputMode output_mode,
-                        SbDecodeTargetGraphicsContextProvider*
-                            decode_target_graphics_context_provider);
+  VideoDecoder(SbMediaVideoCodec video_codec,
+               SbDrmSystem drm_system,
+               SbPlayerOutputMode output_mode,
+               SbDecodeTargetGraphicsContextProvider*
+                   decode_target_graphics_context_provider);
   ~VideoDecoder() SB_OVERRIDE;
 
   void Initialize(const Closure& error_cb) SB_OVERRIDE;
@@ -130,8 +130,6 @@ class VideoDecoder
   SbThread decoder_thread_;
 
   scoped_ptr<MediaCodecBridge> media_codec_bridge_;
-
-  SbTime current_time_;
 
   SbPlayerOutputMode output_mode_;
 
