@@ -42,8 +42,6 @@ class TextureDataCPU : public TextureDataEGL {
   GLuint ConvertToTexture(GraphicsContextEGL* graphics_context,
                           bool bgra_supported);
 
-  bool CreationError() OVERRIDE;
-
  private:
   math::Size size_;
   GLenum format_;
