@@ -23,6 +23,7 @@
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/layout/replaced_box.h"
+#include "cobalt/math/size_f.h"
 
 namespace cobalt {
 namespace layout {
@@ -39,7 +40,7 @@ class BlockLevelReplacedBox : public ReplacedBox {
       const base::optional<float>& maybe_intrinsic_ratio,
       UsedStyleProvider* used_style_provider,
       base::optional<bool> is_video_punched_out,
-      LayoutStatTracker* layout_stat_tracker);
+      const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
   Level GetLevel() const OVERRIDE;
