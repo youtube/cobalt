@@ -66,7 +66,6 @@ void SoftwareRasterizer::Submit(
       context_->system_egl()->AllocateTextureData(
           math::Size(output_image_info.width(), output_image_info.height()),
           gl_format);
-  CHECK(bitmap_pixels);
 
   SkBitmap bitmap;
   bitmap.installPixels(output_image_info, bitmap_pixels->GetMemory(),
