@@ -185,7 +185,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
                        const base::optional<LayoutUnit>& maybe_intrinsic_height,
                        const base::optional<float>& maybe_intrinsic_ratio,
                        const BoxGenerator::Context* context,
-                       base::optional<bool> is_video_punched_out)
+                       base::optional<bool> is_video_punched_out,
+                       math::SizeF content_size)
       : css_computed_style_declaration_(css_computed_style_declaration),
         replace_image_cb_(replace_image_cb),
         set_bounds_cb_(set_bounds_cb),
@@ -195,7 +196,8 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         maybe_intrinsic_height_(maybe_intrinsic_height),
         maybe_intrinsic_ratio_(maybe_intrinsic_ratio),
         context_(context),
-        is_video_punched_out_(is_video_punched_out) {}
+        is_video_punched_out_(is_video_punched_out),
+        content_size_(content_size) {}
 
   void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
 
@@ -213,6 +215,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
   const base::optional<float> maybe_intrinsic_ratio_;
   const BoxGenerator::Context* context_;
   base::optional<bool> is_video_punched_out_;
+  math::SizeF content_size_;
 
   scoped_refptr<ReplacedBox> replaced_box_;
 };
@@ -226,7 +229,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_,
+          context_->used_style_provider, is_video_punched_out_, content_size_,
           context_->layout_stat_tracker));
       break;
     // Generate an inline-level replaced box. There is no need to distinguish
@@ -239,7 +242,7 @@ void ReplacedBoxGenerator::VisitKeyword(cssom::KeywordValue* keyword) {
           css_computed_style_declaration_, replace_image_cb_, set_bounds_cb_,
           paragraph_, text_position_, maybe_intrinsic_width_,
           maybe_intrinsic_height_, maybe_intrinsic_ratio_,
-          context_->used_style_provider, is_video_punched_out_,
+          context_->used_style_provider, is_video_punched_out_, content_size_,
           context_->layout_stat_tracker));
       break;
     // The element generates no boxes and has no effect on layout.
@@ -333,9 +336,6 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
     }
   }
 
-  // Unlike in Chromium, we do not set the intrinsic width, height, or ratio
-  // based on the video frame. This allows to avoid relayout while playing
-  // adaptive videos.
   ReplacedBoxGenerator replaced_box_generator(
       video_element->css_computed_style_declaration(),
       video_element->GetVideoFrameProvider()
@@ -343,7 +343,8 @@ void BoxGenerator::VisitVideoElement(dom::HTMLVideoElement* video_element) {
                        resource_provider)
           : ReplacedBox::ReplaceImageCB(),
       video_element->GetSetBoundsCB(), *paragraph_, text_position,
-      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out);
+      base::nullopt, base::nullopt, base::nullopt, context_, is_punch_out,
+      video_element->GetVideoSize());
   video_element->computed_style()->display()->Accept(&replaced_box_generator);
 
   scoped_refptr<ReplacedBox> replaced_box =
