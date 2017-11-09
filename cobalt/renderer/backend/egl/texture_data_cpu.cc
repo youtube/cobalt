@@ -46,16 +46,8 @@ GLuint UploadPixelDataToNewTexture(GraphicsContextEGL* graphics_context,
 
   // Copy pixel data over from the user provided source data into the OpenGL
   // driver to be used as a texture from now on.
-  glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0, format,
-               GL_UNSIGNED_BYTE, data);
-  if (glGetError() != GL_NO_ERROR) {
-    LOG(ERROR) << "Error calling glTexImage2D(size = (" << size.width() << ", "
-               << size.height() << "))";
-    GL_CALL(glDeleteTextures(1, &texture_handle));
-    // 0 is considered by GL to be an invalid handle.
-    texture_handle = 0;
-  }
-
+  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, format, size.width(), size.height(), 0,
+                       format, GL_UNSIGNED_BYTE, data));
   GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
 
   return texture_handle;
@@ -72,13 +64,10 @@ GLuint TextureDataCPU::ConvertToTexture(GraphicsContextEGL* graphics_context,
   GLuint ret =
       UploadPixelDataToNewTexture(graphics_context, GetMemory(), size_, format_,
                                   GetPitchInBytes(), bgra_supported);
-  // Clear out our memory regardless of if the texture creation was successful.
   memory_.reset();
 
   return ret;
 }
-
-bool TextureDataCPU::CreationError() { return memory_.get() == NULL; }
 
 RawTextureMemoryCPU::RawTextureMemoryCPU(size_t size_in_bytes, size_t alignment)
     : size_in_bytes_(size_in_bytes) {
