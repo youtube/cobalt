@@ -15,6 +15,7 @@
 #include "cobalt/layout/block_level_replaced_box.h"
 
 #include "cobalt/layout/used_style.h"
+#include "cobalt/math/size_f.h"
 
 namespace cobalt {
 namespace layout {
@@ -28,13 +29,13 @@ BlockLevelReplacedBox::BlockLevelReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::optional<bool> is_video_punched_out,
+    base::optional<bool> is_video_punched_out, const math::SizeF& content_size,
     LayoutStatTracker* layout_stat_tracker)
     : ReplacedBox(css_computed_style_declaration, replace_image_cb,
                   set_bounds_cb, paragraph, text_position,
                   maybe_intrinsic_width, maybe_intrinsic_height,
                   maybe_intrinsic_ratio, used_style_provider,
-                  is_video_punched_out, layout_stat_tracker) {}
+                  is_video_punched_out, content_size, layout_stat_tracker) {}
 
 Box::Level BlockLevelReplacedBox::GetLevel() const { return kBlockLevel; }
 

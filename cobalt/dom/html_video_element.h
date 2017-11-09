@@ -20,6 +20,7 @@
 #include "cobalt/dom/html_media_element.h"
 #include "cobalt/dom/video_playback_quality.h"
 #include "cobalt/math/rect.h"
+#include "cobalt/math/size_f.h"
 #if !defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/shell_video_frame_provider.h"
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
@@ -62,6 +63,8 @@ class HTMLVideoElement : public HTMLMediaElement {
   scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider();
 
   WebMediaPlayer::SetBoundsCB GetSetBoundsCB();
+
+  math::SizeF GetVideoSize() const;
 
   DEFINE_WRAPPABLE_TYPE(HTMLVideoElement);
 
