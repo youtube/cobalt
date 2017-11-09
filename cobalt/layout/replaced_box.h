@@ -24,6 +24,7 @@
 #include "cobalt/layout/box.h"
 #include "cobalt/layout/paragraph.h"
 #include "cobalt/math/rect.h"
+#include "cobalt/math/size_f.h"
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/punch_through_video_node.h"
 
@@ -51,6 +52,7 @@ class ReplacedBox : public Box {
               const base::optional<float>& maybe_intrinsic_ratio,
               UsedStyleProvider* used_style_provider,
               base::optional<bool> is_video_punched_out,
+              const math::SizeF& content_size,
               LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
@@ -118,6 +120,7 @@ class ReplacedBox : public Box {
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;
   base::optional<bool> is_video_punched_out_;
+  math::SizeF content_size_;
 };
 
 }  // namespace layout

@@ -16,6 +16,7 @@
 
 #include "base/logging.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/math/size_f.h"
 
 namespace cobalt {
 namespace dom {
@@ -94,6 +95,10 @@ HTMLVideoElement::GetVideoFrameProvider() {
 
 WebMediaPlayer::SetBoundsCB HTMLVideoElement::GetSetBoundsCB() {
   return player() ? player()->GetSetBoundsCB() : WebMediaPlayer::SetBoundsCB();
+}
+
+math::SizeF HTMLVideoElement::GetVideoSize() const {
+  return math::SizeF(video_width(), video_height());
 }
 
 }  // namespace dom
