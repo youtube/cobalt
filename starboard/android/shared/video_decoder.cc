@@ -37,8 +37,6 @@ namespace shared {
 namespace {
 
 const jlong kDequeueTimeout = 0;
-const SbMediaTime kOutputBufferWorkFailure = -1;
-const SbTime kSbTimeNone = -1;
 
 const jint kNoOffset = 0;
 const jlong kNoPts = 0;
@@ -116,7 +114,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       stream_ended_(false),
       decoder_thread_(kSbThreadInvalid),
       media_codec_bridge_(NULL),
-      current_time_(kSbTimeNone),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
           decode_target_graphics_context_provider),
