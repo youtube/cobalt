@@ -129,43 +129,6 @@ class CreateImagesSpawnerThread : public base::SimpleThread {
 };
 }  // namespace
 
-class ResourceProviderTest : public testing::Test {
- public:
-  ResourceProviderTest();
-  ~ResourceProviderTest();
-
-  // Lets the fixture know that it will run the run loop manually, and the
-  // ResourceProviderTest destructor does not need to run it.
-  void SetWillRunRunLoopManually() { run_run_loop_manually_ = true; }
-
- protected:
-  MessageLoop message_loop_;
-  base::RunLoop run_loop_;
-  scoped_ptr<backend::GraphicsSystem> graphics_system_;
-  scoped_ptr<backend::GraphicsContext> graphics_context_;
-  scoped_ptr<rasterizer::Rasterizer> rasterizer_;
-
-  bool run_run_loop_manually_;
-};
-
-ResourceProviderTest::ResourceProviderTest()
-    : message_loop_(MessageLoop::TYPE_DEFAULT), run_run_loop_manually_(false) {
-  graphics_system_ = backend::CreateDefaultGraphicsSystem();
-  graphics_context_ = graphics_system_->CreateGraphicsContext();
-
-  // Create the rasterizer using the platform default RenderModule options.
-  RendererModule::Options render_module_options;
-  rasterizer_ = render_module_options.create_rasterizer_function.Run(
-      graphics_context_.get(), render_module_options);
-}
-
-ResourceProviderTest::~ResourceProviderTest() {
-  if (!run_run_loop_manually_) {
-    message_loop_.PostTask(FROM_HERE, run_loop_.QuitClosure());
-    run_loop_.Run();
-  }
-}
-
 // The following test ensures that any thread can successfully create render
 // tree images both at the same time and also while a graphics frame is started.
 // This might be a problem in an OpenGL implementation for instance if we
@@ -174,14 +137,29 @@ ResourceProviderTest::~ResourceProviderTest() {
 // be upset that it was taken away.  This test is essentially attempting to
 // cause a crash or DCHECK() to be hit, if the test executes without crashing,
 // everything is okay.
-TEST_F(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
-  SetWillRunRunLoopManually();
+TEST(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
+  scoped_ptr<backend::GraphicsSystem> graphics_system =
+      backend::CreateDefaultGraphicsSystem();
+  scoped_ptr<backend::GraphicsContext> graphics_context =
+      graphics_system->CreateGraphicsContext();
+
+  // When creating images from another thread, the rasterizer must be
+  // constructed from a thread with a message loop.  This message loop will
+  // be where all functions that access backend graphics resources are run.
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
+  // Create the rasterizer using the platform default RenderModule options.
+  RendererModule::Options render_module_options;
+  scoped_ptr<rasterizer::Rasterizer> rasterizer =
+      render_module_options.create_rasterizer_function.Run(
+          graphics_context.get(), render_module_options);
 
   // Create a dummy offscreen surface so that we can have a target when we start
   // a frame with the graphics context.
   const math::Size kDummySurfaceDimensions(1, 1);
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
-      graphics_context_->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
+      graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
 
   // Now that we're inside of a new frame, create images from a separate
   // thread.  This should be perfectly legal and cause no problems.
@@ -190,15 +168,15 @@ TEST_F(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
 
   // Create a thread to create other threads that will create images.
   CreateImagesSpawnerThread spawner_thread(
-      rasterizer_->GetResourceProvider(), kNumThreads,
+      rasterizer->GetResourceProvider(), kNumThreads,
       kNumImagesCreatedPerThread, math::Size(1, 1),
-      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop_),
-                 FROM_HERE, run_loop_.QuitClosure()));
+      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop),
+                 FROM_HERE, run_loop.QuitClosure()));
   spawner_thread.Start();
 
   // Run our message loop to process backend image creation/destruction
   // requests.
-  run_loop_.Run();
+  run_loop.Run();
 
   spawner_thread.Join();
 }
@@ -212,14 +190,29 @@ TEST_F(ResourceProviderTest, TexturesCanBeCreatedFromSecondaryThread) {
 // release them and then expect that it can allocate N more, but if those
 // released frames have a delay on their release, we may have many more than
 // N textures allocated at a time.
-TEST_F(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
-  SetWillRunRunLoopManually();
+TEST(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
+  scoped_ptr<backend::GraphicsSystem> graphics_system =
+      backend::CreateDefaultGraphicsSystem();
+  scoped_ptr<backend::GraphicsContext> graphics_context =
+      graphics_system->CreateGraphicsContext();
+
+  // When creating images from another thread, the rasterizer must be
+  // constructed from a thread with a message loop.  This message loop will
+  // be where all functions that access backend graphics resources are run.
+  MessageLoop message_loop(MessageLoop::TYPE_DEFAULT);
+  base::RunLoop run_loop;
+
+  // Create the rasterizer using the platform default RenderModule options.
+  RendererModule::Options render_module_options;
+  scoped_ptr<rasterizer::Rasterizer> rasterizer =
+      render_module_options.create_rasterizer_function.Run(
+          graphics_context.get(), render_module_options);
 
   // Create a dummy offscreen surface so that we can have a target when we start
   // a frame with the graphics context.
   const math::Size kDummySurfaceDimensions(1, 1);
   scoped_refptr<backend::RenderTarget> dummy_output_surface =
-      graphics_context_->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
+      graphics_context->CreateOffscreenRenderTarget(kDummySurfaceDimensions);
 
   // Now that we're inside of a new frame, create images from a separate
   // thread.  This should be perfectly legal and cause no problems.
@@ -228,84 +221,17 @@ TEST_F(ResourceProviderTest, ManyTexturesCanBeCreatedAndDestroyedQuickly) {
 
   // Create a thread to create other threads that will create images.
   CreateImagesSpawnerThread spawner_thread(
-      rasterizer_->GetResourceProvider(), kNumThreads,
+      rasterizer->GetResourceProvider(), kNumThreads,
       kNumImagesCreatedPerThread, math::Size(256, 256),
-      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop_),
-                 FROM_HERE, run_loop_.QuitClosure()));
+      base::Bind(&MessageLoop::PostTask, base::Unretained(&message_loop),
+                 FROM_HERE, run_loop.QuitClosure()));
   spawner_thread.Start();
 
   // Run our message loop to process backend image creation/destruction
   // requests.
-  run_loop_.Run();
+  run_loop.Run();
 
   spawner_thread.Join();
-}
-
-// Test that we won't crash even if we attempt to create a very large number
-// of textures.
-TEST_F(ResourceProviderTest, NoCrashWhenManyTexturesAreAllocated) {
-  render_tree::ResourceProvider* resource_provider =
-      rasterizer_->GetResourceProvider();
-
-  const int kNumImages = 5000;
-  const math::Size kImageSize = math::Size(32, 32);
-
-  scoped_ptr<render_tree::ImageData> image_datas[kNumImages];
-  scoped_refptr<render_tree::Image> images[kNumImages];
-
-  for (int i = 0; i < kNumImages; ++i) {
-    image_datas[i] = resource_provider->AllocateImageData(
-        kImageSize, ChoosePixelFormat(resource_provider),
-        render_tree::kAlphaFormatOpaque);
-  }
-
-  for (int i = 0; i < kNumImages; ++i) {
-    if (image_datas[i]) {
-      images[i] = resource_provider->CreateImage(image_datas[i].Pass());
-    }
-  }
-
-  for (int i = 0; i < kNumImages; ++i) {
-    images[i] = NULL;
-  }
-}
-
-// Test that we can attempt to allocate one massive image without crashing.
-// There will likely be an out-of-memory issue when attempting to create the
-// image.
-TEST_F(ResourceProviderTest, NoCrashWhenMassiveTextureIsAllocated) {
-  render_tree::ResourceProvider* resource_provider =
-      rasterizer_->GetResourceProvider();
-
-  const math::Size kImageSize = math::Size(16384, 16384);
-
-  scoped_ptr<render_tree::ImageData> image_data =
-      resource_provider->AllocateImageData(kImageSize,
-                                           ChoosePixelFormat(resource_provider),
-                                           render_tree::kAlphaFormatOpaque);
-  if (image_data) {
-    scoped_refptr<render_tree::Image> image =
-        resource_provider->CreateImage(image_data.Pass());
-  }
-}
-
-// This test is likely not to fail for any out-of-memory reasons, but rather
-// maximum texture size reasons.
-TEST_F(ResourceProviderTest,
-       NoCrashWhenTextureWithOneLargeDimensionIsAllocated) {
-  render_tree::ResourceProvider* resource_provider =
-      rasterizer_->GetResourceProvider();
-
-  const math::Size kImageSize = math::Size(1024 * 1024, 32);
-
-  scoped_ptr<render_tree::ImageData> image_data =
-      resource_provider->AllocateImageData(kImageSize,
-                                           ChoosePixelFormat(resource_provider),
-                                           render_tree::kAlphaFormatOpaque);
-  if (image_data) {
-    scoped_refptr<render_tree::Image> image =
-        resource_provider->CreateImage(image_data.Pass());
-  }
 }
 
 }  // namespace renderer
