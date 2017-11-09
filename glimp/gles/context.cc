@@ -788,9 +788,16 @@ void Context::BufferData(GLenum target,
     bound_buffer->Unmap();
   }
 
-  bound_buffer->Allocate(usage, size);
+  if (!bound_buffer->Allocate(usage, size)) {
+    SetError(GL_OUT_OF_MEMORY);
+    return;
+  }
+
   if (data) {
-    bound_buffer->SetData(0, size, data);
+    if (!bound_buffer->SetData(0, size, data)) {
+      SetError(GL_OUT_OF_MEMORY);
+      return;
+    }
   }
 }
 
@@ -830,7 +837,10 @@ void Context::BufferSubData(GLenum target,
   // Nothing in the specification says there should be an error if data
   // is NULL.
   if (data) {
-    bound_buffer->SetData(offset, size, data);
+    if (!bound_buffer->SetData(offset, size, data)) {
+      SetError(GL_OUT_OF_MEMORY);
+      return;
+    }
   }
 }
 
@@ -905,7 +915,12 @@ void* Context::MapBufferRange(GLenum target,
   SB_DCHECK(length == bound_buffer->size_in_bytes())
       << "glimp only supports mapping the entire buffer.";
 
-  return bound_buffer->Map();
+  void* mapped = bound_buffer->Map();
+  if (!mapped) {
+    SetError(GL_OUT_OF_MEMORY);
+  }
+
+  return mapped;
 }
 
 bool Context::UnmapBuffer(GLenum target) {
@@ -1360,6 +1375,13 @@ void Context::TexImage2D(GLenum target,
 
   if (width < 0 || height < 0 || level < 0 || border != 0) {
     SetError(GL_INVALID_VALUE);
+    return;
+  }
+
+  int max_texture_size = impl_->GetMaxTextureSize();
+  if (width > max_texture_size || height > max_texture_size) {
+    SetError(GL_INVALID_VALUE);
+    return;
   }
 
   if (format != internalformat) {

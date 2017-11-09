@@ -30,11 +30,13 @@ class Buffer : public nb::RefCountedThreadSafe<Buffer> {
  public:
   explicit Buffer(nb::scoped_ptr<BufferImpl> impl);
 
-  // Allocates memory within this Buffer object.
-  void Allocate(GLenum usage, size_t size);
+  // Allocates memory within this Buffer object.  Returns false if there
+  // was an allocation failure.
+  bool Allocate(GLenum usage, size_t size);
 
-  // Implements support for glBufferData() on this buffer object.
-  void SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data);
+  // Implements support for glBufferData() on this buffer object.  Returns
+  // false if there was an allocation failure.
+  bool SetData(GLintptr offset, GLsizeiptr size, const GLvoid* data);
 
   // Maps the buffer's memory to a CPU-accessible pointer and returns it, or
   // NULL on failure.
