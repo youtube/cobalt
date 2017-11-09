@@ -40,17 +40,18 @@ class BufferImpl {
   // Sets the size and usage of allocated memory for the buffer.
   // Since no data is available at this point, implementations are free to
   // delay the actual allocation of memory until data is provided.  Called from
-  // glBufferData().
+  // glBufferData().  Returns true on success and false on failure.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferData.xml
-  virtual void Allocate(Usage usage, size_t size) = 0;
+  virtual bool Allocate(Usage usage, size_t size) = 0;
 
   // Upload the specified data into this buffer.  Allocate() must have
   // previously been called for a call to SetData() to be valid.
   // This method is called by glBufferData() (when data is not NULL) and
-  // glBufferSubData().
+  // glBufferSubData().  Returns true on success and false on an allocation
+  // failure.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferData.xml
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glBufferSubData.xml
-  virtual void SetData(intptr_t offset, size_t size, const void* data) = 0;
+  virtual bool SetData(intptr_t offset, size_t size, const void* data) = 0;
 
   // Maps the buffer's data to a CPU-addressible memory location and then
   // returns a pointer to that location.  This method is called when
