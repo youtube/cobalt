@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<!--
+ | Test CSSOM View extensions to the Element Interface, verifying that
+ | getBoundingClientRect() works properly with transforms.
+ -->
+<html>
+<head>
+  <style>
+    body {
+      background-color: #FFFFFF;
+      margin: 0px;
+      font-family: Roboto;
+      font-size: 40px;
+    }
+    .absolute_container {
+      position: absolute;
+      top: 50px;
+      left: 50px;
+    }
+    .absolutely-positioned-1 {
+      position: absolute;
+      transform: scaleX(2.0) scaleY(2.0);
+      top: 120px;
+      left: 120px;
+      width: 100px;
+      height: 100px;
+    }
+    .absolutely-positioned-2 {
+      position: absolute;
+      transform: scaleX(.5) scaleY(.5);
+      top: 45px;
+      left: 45px;
+      width: 100px;
+      height: 100px;
+    }
+  </style>
+  <script>
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    function verifyGetBoundingClientRectAttributesAreCorrect(id) {
+      var element = document.getElementById(id);
+      if (!element) {
+        document.body.style.backgroundColor = "#F44336";
+      } else {
+        var expected_left = 120;
+        var expected_top = 120;
+
+        bounding_rect = element.getBoundingClientRect();
+        if (bounding_rect["left"] != expected_left) {
+          console.log("getElementById(\'" + id +
+                      "\').getBoundingClientRect()." + "left" + " == " +
+                      bounding_rect["left"] + " != " + expected_left);
+          element.style.backgroundColor = "#F44336";
+        }
+
+        if (bounding_rect["top"] != expected_top) {
+          console.log("getElementById(\'" + id +
+                      "\').getBoundingClientRect()." + "top" + " == " +
+                      bounding_rect["top"] + " != " + expected_top);
+          element.style.backgroundColor = "#F44336";
+        }
+      }
+    }
+
+    function runTest() {
+      verifyGetBoundingClientRectAttributesAreCorrect("div-1");
+      verifyGetBoundingClientRectAttributesAreCorrect("div-2");
+    }
+
+    window.onload = function() {
+      runTest();
+
+      if (window.testRunner) {
+        window.testRunner.notifyDone();
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="absolute_container">
+    <div id="div-1" class="absolutely-positioned-1">
+      <span>Yes</span>
+    </div>
+    <div id="div-2" class="absolutely-positioned-2">
+      <span>Yes</span>
+    </div>
+  </div>
+</body>
+</html>
