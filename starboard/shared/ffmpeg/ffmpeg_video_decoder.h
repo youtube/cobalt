@@ -21,28 +21,28 @@
 #include "starboard/queue.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
 
-class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
+class VideoDecoder : public starboard::player::filter::VideoDecoder {
  public:
-  typedef starboard::player::InputBuffer InputBuffer;
-  typedef starboard::player::VideoFrame VideoFrame;
-
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider);
   ~VideoDecoder() override;
 
-  void SetHost(Host* host) override;
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 8; }
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
+
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;
   void WriteEndOfStream() override;
@@ -51,6 +51,9 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   bool is_valid() const { return codec_context_ != NULL; }
 
  private:
+  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
+      CpuVideoFrame;
+
   enum EventType {
     kInvalid,
     kReset,
@@ -79,12 +82,15 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   void TeardownCodec();
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
-  bool UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame);
+  bool UpdateDecodeTarget(const scoped_refptr<CpuVideoFrame>& frame);
 
-  // These variables will be initialized inside ctor or SetHost() and will not
-  // be changed during the life time of this class.
+  // |video_codec_| will be initialized inside ctor and won't be changed during
+  // the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  Host* host_;
+  // The following callbacks will be initialized in Initialize() and won't be
+  // changed during the life time of this class.
+  DecoderStatusCB decoder_status_cb_;
+  ErrorCB error_cb_;
 
   Queue<Event> queue_;
 

@@ -43,10 +43,9 @@ class AudioDecoder
                SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) override;
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) override;
+              const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
   scoped_refptr<DecodedAudio> Read() override;
   void Reset() override;
@@ -84,9 +83,9 @@ class AudioDecoder
 
   DrmSystem* drm_system_;
 
-  Closure output_cb_;
-  Closure error_cb_;
-  Closure consumed_cb_;
+  OutputCB output_cb_;
+  ErrorCB error_cb_;
+  ConsumedCB consumed_cb_;
 
   starboard::Mutex decoded_audios_mutex_;
   std::queue<scoped_refptr<DecodedAudio> > decoded_audios_;

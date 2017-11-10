@@ -22,7 +22,6 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
@@ -43,8 +42,9 @@ class MockAudioDecoder : public AudioDecoder {
         storage_type_(storage_type),
         samples_per_second_(sample_per_second) {}
 
-  MOCK_METHOD2(Initialize, void(const Closure&, const Closure&));
-  MOCK_METHOD2(Decode, void(const scoped_refptr<InputBuffer>&, const Closure&));
+  MOCK_METHOD2(Initialize, void(const OutputCB&, const ErrorCB&));
+  MOCK_METHOD2(Decode,
+               void(const scoped_refptr<InputBuffer>&, const ConsumedCB&));
   MOCK_METHOD0(WriteEndOfStream, void());
   MOCK_METHOD0(Read, scoped_refptr<DecodedAudio>());
   MOCK_METHOD0(Reset, void());

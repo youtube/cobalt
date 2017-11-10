@@ -15,10 +15,11 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_DECODER_INTERNAL_H_
 
+#include <functional>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/types.h"
@@ -32,7 +33,10 @@ namespace filter {
 // This class decodes encoded audio stream into playable audio data.
 class AudioDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::Closure Closure;
+  typedef std::function<void()> ConsumedCB;
+  typedef std::function<void()> ErrorCB;
+  typedef std::function<void()> OutputCB;
+
   typedef ::starboard::shared::starboard::player::DecodedAudio DecodedAudio;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
@@ -44,8 +48,8 @@ class AudioDecoder {
   // that a further call of Read() returns valid output until Reset() is called.
   // Note that |output_cb| is always called asynchronously on the calling job
   // queue.
-  virtual void Initialize(const Closure& output_cb,
-                          const Closure& error_cb) = 0;
+  virtual void Initialize(const OutputCB& output_cb,
+                          const ErrorCB& error_cb) = 0;
 
   // Decode the encoded audio data stored in |input_buffer|.  Whenever the input
   // is consumed and the decoder is ready to accept a new input, it calls
@@ -53,7 +57,7 @@ class AudioDecoder {
   // Note that |consumed_cb| is always called asynchronously on the calling job
   // queue.
   virtual void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-                      const Closure& consumed_cb) = 0;
+                      const ConsumedCB& consumed_cb) = 0;
 
   // Notice the object that there is no more input data unless Reset() is
   // called.
@@ -85,7 +89,7 @@ class AudioDecoder {
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
   // Note that this function can be called from any thread, as it is called by
-  // AudioRendererImpl::GetCurrentTime().
+  // AudioRendererImpl::GetCurrentMediaTime().
   virtual int GetSamplesPerSecond() const = 0;
 };
 

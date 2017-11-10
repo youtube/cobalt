@@ -15,6 +15,7 @@
 #ifndef STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 #define STARBOARD_RASPI_SHARED_OPEN_MAX_VIDEO_DECODER_H_
 
+#include <functional>
 #include <queue>
 
 #include "starboard/common/ref_counted.h"
@@ -22,10 +23,10 @@
 #include "starboard/media.h"
 #include "starboard/mutex.h"
 #include "starboard/queue.h"
+#include "starboard/raspi/shared/dispmanx_util.h"
 #include "starboard/raspi/shared/open_max/dispmanx_resource_pool.h"
 #include "starboard/raspi/shared/open_max/open_max_video_decode_component.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
 #include "starboard/thread.h"
@@ -36,22 +37,24 @@ namespace shared {
 namespace open_max {
 
 class VideoDecoder
-    : public starboard::shared::starboard::player::filter::HostedVideoDecoder {
+    : public starboard::shared::starboard::player::filter::VideoDecoder {
  public:
-  typedef starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
   typedef ::starboard::shared::starboard::player::JobQueue JobQueue;
-  typedef ::starboard::shared::starboard::player::Closure Closure;
 
   VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue);
   ~VideoDecoder() override;
 
-  void SetHost(Host* host) override;
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override { return 1; }
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;
   void WriteEndOfStream() override;
   void Reset() override;
+  SbDecodeTarget GetCurrentDecodeTarget() override {
+    return kSbDecodeTargetInvalid;
+  }
 
  private:
   struct Event {
@@ -73,10 +76,11 @@ class VideoDecoder
 
   void Update();
 
-  // These variables will be initialized inside ctor or SetHost() and will not
-  // be changed during the life time of this class.
+  // These variables will be initialized inside ctor or Initialize() and will
+  // not be changed during the life time of this class.
   scoped_refptr<DispmanxResourcePool> resource_pool_;
-  Host* host_;
+  DecoderStatusCB decoder_status_cb_;
+  ErrorCB error_cb_;
   bool eos_written_;
 
   SbThread thread_;
@@ -88,7 +92,8 @@ class VideoDecoder
   std::queue<OMX_BUFFERHEADERTYPE*> freed_buffers_;
 
   JobQueue* job_queue_;
-  Closure update_closure_;
+  JobQueue::JobToken update_job_token_;
+  std::function<void()> update_job_;
 };
 
 }  // namespace open_max

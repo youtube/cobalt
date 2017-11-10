@@ -17,11 +17,13 @@
 
 #include <bcm_host.h>
 
+#include <functional>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/log.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/types.h"
 
 namespace starboard {
@@ -141,9 +143,28 @@ class DispmanxElement {
   SB_DISALLOW_COPY_AND_ASSIGN(DispmanxElement);
 };
 
+class DispmanxVideoFrame
+    : public starboard::shared::starboard::player::filter::VideoFrame {
+ public:
+  DispmanxVideoFrame(SbMediaTime pts,
+                     DispmanxYUV420Resource* resource,
+                     std::function<void(DispmanxYUV420Resource*)> release_cb)
+      : VideoFrame(pts), resource_(resource), release_cb_(release_cb) {
+    SB_DCHECK(resource_);
+    SB_DCHECK(release_cb_);
+  }
+  ~DispmanxVideoFrame() { release_cb_(resource_); }
+
+  DispmanxYUV420Resource* resource() const { return resource_; }
+
+ private:
+  DispmanxYUV420Resource* resource_;
+  std::function<void(DispmanxYUV420Resource*)> release_cb_;
+};
+
 class DispmanxVideoRenderer {
  public:
-  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
 
   DispmanxVideoRenderer(const DispmanxDisplay& display, int32_t layer);
 
