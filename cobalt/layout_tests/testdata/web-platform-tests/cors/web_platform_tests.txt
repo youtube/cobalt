@@ -1,0 +1,26 @@
+# SOP/CORS tests.
+# Anything with multiple windows or workers is disabled.
+#
+
+# Cobalt does not support HTTP cache.
+304.htm,FAIL
+allow-headers.htm,PASS
+basic.htm,PASS
+credentials-flag.htm,PASS
+late-upload-events.htm,PASS
+origin.htm,PASS
+preflight-cache.htm,PASS
+preflight-failure.htm,PASS
+redirect-origin.htm,PASS
+redirect-preflight-2.htm,PASS
+redirect-preflight.htm,PASS
+redirect-userinfo.htm,PASS
+# remote-origin.htm requires iframe support.
+remote-origin.htm,DISABLE
+request-headers.htm,PASS
+response-headers.htm,PASS
+simple-requests.htm,PASS
+status-async.htm,PASS
+status-preflight.htm,PASS
+status.htm,PASS
+
