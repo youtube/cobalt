@@ -239,6 +239,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void TimeChanged(bool eos_played) OVERRIDE;
   void DurationChanged() OVERRIDE;
   void OutputModeChanged() OVERRIDE;
+  void ContentSizeChanged() OVERRIDE;
   void PlaybackStateChanged() OVERRIDE;
   void SawUnsupportedTracks() OVERRIDE;
   float Volume() const OVERRIDE;
@@ -333,9 +334,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   scoped_refptr<eme::MediaKeys> media_keys_;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
-  DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
-
   loader::RequestMode request_mode_;
+
+  DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
 };
 
 }  // namespace dom

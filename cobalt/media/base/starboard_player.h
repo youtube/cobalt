@@ -72,6 +72,7 @@ class StarboardPlayer {
   bool IsValid() const { return SbPlayerIsValid(player_); }
 
   void UpdateVideoResolution(int frame_width, int frame_height);
+  void GetVideoResolution(int* frame_width, int* frame_height);
 
 #if !SB_HAS(PLAYER_WITH_URL)
   void WriteBuffer(DemuxerStream::Type type,
