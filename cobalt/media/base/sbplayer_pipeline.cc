@@ -64,6 +64,7 @@ struct StartTaskParameters {
   Pipeline::BufferingStateCB buffering_state_cb;
   base::Closure duration_change_cb;
   base::Closure output_mode_change_cb;
+  base::Closure content_size_change_cb;
 #if SB_HAS(PLAYER_WITH_URL)
   std::string source_url;
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -97,7 +98,8 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
-             const base::Closure& output_mode_change_cb) OVERRIDE;
+             const base::Closure& output_mode_change_cb,
+             const base::Closure& content_size_change_cb) OVERRIDE;
 
   void Stop(const base::Closure& stop_cb) OVERRIDE;
   void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
@@ -219,6 +221,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   BufferingStateCB buffering_state_cb_;
   base::Closure duration_change_cb_;
   base::Closure output_mode_change_cb_;
+  base::Closure content_size_change_cb_;
   base::optional<bool> decode_to_texture_output_mode_;
 #if SB_HAS(PLAYER_WITH_URL)
   StarboardPlayer::OnEncryptedMediaInitDataEncounteredCB
@@ -335,7 +338,8 @@ void SbPlayerPipeline::Start(
     const PipelineStatusCB& ended_cb, const PipelineStatusCB& error_cb,
     const PipelineStatusCB& seek_cb, const BufferingStateCB& buffering_state_cb,
     const base::Closure& duration_change_cb,
-    const base::Closure& output_mode_change_cb) {
+    const base::Closure& output_mode_change_cb,
+    const base::Closure& content_size_change_cb) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::Start");
 
   DCHECK(!ended_cb.is_null());
@@ -344,6 +348,7 @@ void SbPlayerPipeline::Start(
   DCHECK(!buffering_state_cb.is_null());
   DCHECK(!duration_change_cb.is_null());
   DCHECK(!output_mode_change_cb.is_null());
+  DCHECK(!content_size_change_cb.is_null());
 #if SB_HAS(PLAYER_WITH_URL)
   DCHECK(!on_encrypted_media_init_data_encountered_cb.is_null());
 #else   // SB_HAS(PLAYER_WITH_URL)
@@ -358,6 +363,7 @@ void SbPlayerPipeline::Start(
   parameters.buffering_state_cb = buffering_state_cb;
   parameters.duration_change_cb = duration_change_cb;
   parameters.output_mode_change_cb = output_mode_change_cb;
+  parameters.content_size_change_cb = content_size_change_cb;
 #if SB_HAS(PLAYER_WITH_URL)
   parameters.source_url = source_url;
   on_encrypted_media_init_data_encountered_cb_ =
@@ -593,6 +599,7 @@ void SbPlayerPipeline::StartTask(const StartTaskParameters& parameters) {
   buffering_state_cb_ = parameters.buffering_state_cb;
   duration_change_cb_ = parameters.duration_change_cb;
   output_mode_change_cb_ = parameters.output_mode_change_cb;
+  content_size_change_cb_ = parameters.content_size_change_cb;
 
 #if SB_HAS(PLAYER_WITH_URL)
   CreatePlayerWithUrl(parameters.source_url);
@@ -841,7 +848,15 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     buffering_state_cb_.Run(kHaveMetadata);
 
     bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
+    bool natural_size_changed =
+        (video_stream_->video_decoder_config().natural_size().width() !=
+             natural_size_.width() ||
+         video_stream_->video_decoder_config().natural_size().height() !=
+             natural_size_.height());
     natural_size_ = video_stream_->video_decoder_config().natural_size();
+    if (natural_size_changed) {
+      content_size_change_cb_.Run();
+    }
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
     if (is_encrypted) {
       set_drm_system_ready_cb_.Run(
@@ -975,10 +990,19 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStatePrerolling:
       break;
-    case kSbPlayerStatePresenting:
+    case kSbPlayerStatePresenting: {
 #if SB_HAS(PLAYER_WITH_URL)
       duration_ = player_->GetDuration();
       buffering_state_cb_.Run(kHaveMetadata);
+      int frame_width;
+      int frame_height;
+      player_->GetVideoResolution(&frame_width, &frame_height);
+      bool natural_size_changed = (frame_width != natural_size_.width() ||
+                                   frame_height != natural_size_.height());
+      natural_size_ = gfx::Size(frame_width, frame_height);
+      if (natural_size_changed) {
+        content_size_change_cb_.Run();
+      }
 #endif  // SB_HAS(PLAYER_WITH_URL)
       buffering_state_cb_.Run(kPrerollCompleted);
       if (!seek_cb_.is_null()) {
@@ -990,6 +1014,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
         seek_cb.Run(PIPELINE_OK);
       }
       break;
+    }
     case kSbPlayerStateEndOfStream:
       ended_cb_.Run(PIPELINE_OK);
       ended_ = true;
@@ -1011,9 +1036,15 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
     base::AutoLock auto_lock(lock_);
+    bool natural_size_changed =
+        (decoder_config.natural_size().width() != natural_size_.width() ||
+         decoder_config.natural_size().height() != natural_size_.height());
     natural_size_ = decoder_config.natural_size();
     player_->UpdateVideoResolution(static_cast<int>(natural_size_.width()),
                                    static_cast<int>(natural_size_.height()));
+    if (natural_size_changed) {
+      content_size_change_cb_.Run();
+    }
   }
 }
 

@@ -1696,6 +1696,14 @@ void HTMLMediaElement::OutputModeChanged() {
   InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
+void HTMLMediaElement::ContentSizeChanged() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ContentSizeChanged()");
+  // If the player content size is updated, trigger a re-layout so that we can
+  // setup the video render tree differently with letterboxing.
+  node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+}
+
 void HTMLMediaElement::PlaybackStateChanged() {
   if (!player_) {
     return;

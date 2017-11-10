@@ -739,7 +739,8 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
 #else  // SB_HAS(PLAYER_WITH_URL)
 void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
@@ -759,7 +760,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -863,6 +865,10 @@ void WebMediaPlayerImpl::OnDurationChanged() {
 
 void WebMediaPlayerImpl::OnOutputModeChanged() {
   GetClient()->OutputModeChanged();
+}
+
+void WebMediaPlayerImpl::OnContentSizeChanged() {
+  GetClient()->ContentSizeChanged();
 }
 
 }  // namespace media
