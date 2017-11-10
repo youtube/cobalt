@@ -21,8 +21,8 @@ $var MAX_ARITY = 7
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef SCRIPT_CALLBACK_FUNCTION_H_
-#define SCRIPT_CALLBACK_FUNCTION_H_
+#ifndef COBALT_SCRIPT_CALLBACK_FUNCTION_H_
+#define COBALT_SCRIPT_CALLBACK_FUNCTION_H_
 
 #include "base/callback.h"
 #include "base/callback_internal.h"
@@ -91,4 +91,4 @@ class CallbackFunction<R($for ARG , [[A$(ARG)]])> {
 }  // namespace script
 }  // namespace cobalt
 
-#endif  // SCRIPT_CALLBACK_FUNCTION_H_
+#endif  // COBALT_SCRIPT_CALLBACK_FUNCTION_H_
