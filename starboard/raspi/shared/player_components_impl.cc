@@ -15,10 +15,12 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/raspi/shared/open_max/video_decoder.h"
+#include "starboard/raspi/shared/video_renderer_sink_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 
 namespace starboard {
 namespace shared {
@@ -32,6 +34,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const VideoParameters& video_parameters) {
   using AudioDecoderImpl = ::starboard::shared::ffmpeg::AudioDecoder;
   using VideoDecoderImpl = ::starboard::raspi::shared::open_max::VideoDecoder;
+  using ::starboard::raspi::shared::VideoRendererSinkImpl;
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header);
@@ -40,19 +43,22 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
-      video_parameters.video_codec, video_parameters.job_queue);
+  scoped_ptr<VideoDecoder> video_decoder(new VideoDecoderImpl(
+      video_parameters.video_codec, video_parameters.job_queue));
 
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
       make_scoped_ptr<AudioDecoder>(audio_decoder),
       make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header);
+      audio_parameters.audio_header));
 
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(make_scoped_ptr<HostedVideoDecoder>(video_decoder));
+  scoped_ptr<VideoRenderAlgorithm> algorithm(new VideoRenderAlgorithmImpl);
+  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
+      video_decoder.Pass(), audio_renderer.get(), algorithm.Pass(),
+      new VideoRendererSinkImpl(video_parameters.player,
+                                video_parameters.job_queue)));
 
   return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer, video_renderer));
+      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
 }
 
 }  // namespace filter

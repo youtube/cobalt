@@ -62,21 +62,21 @@ AudioDecoder::~AudioDecoder() {
   TeardownCodec();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb,
-                              const Closure& error_cb) {
+void AudioDecoder::Initialize(const OutputCB& output_cb,
+                              const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
+  SB_DCHECK(output_cb);
+  SB_DCHECK(!output_cb_);
   SB_UNREFERENCED_PARAMETER(error_cb);
 
   output_cb_ = output_cb;
 }
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
-                          const Closure& consumed_cb) {
+                          const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_CHECK(codec_context_ != NULL);
 
   Schedule(consumed_cb);
@@ -136,7 +136,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
 
 void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
 
   // AAC has no dependent frames so we needn't flush the decoder.  Set the flag
   // to ensure that Decode() is not called when the stream is ended.
@@ -149,7 +149,7 @@ void AudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_DCHECK(!decoded_audios_.empty());
 
   scoped_refptr<DecodedAudio> result;

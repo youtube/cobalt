@@ -100,7 +100,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
     : video_codec_(video_codec),
-      host_(NULL),
       codec_context_(NULL),
       av_frame_(NULL),
       stream_ended_(false),
@@ -118,17 +117,22 @@ VideoDecoder::~VideoDecoder() {
   TeardownCodec();
 }
 
-void VideoDecoder::SetHost(Host* host) {
-  SB_DCHECK(host != NULL);
-  SB_DCHECK(host_ == NULL);
-  host_ = host;
+void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const ErrorCB& error_cb) {
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
+
+  decoder_status_cb_ = decoder_status_cb;
+  error_cb_ = error_cb;
 }
 
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
   SB_DCHECK(queue_.Poll().type == kInvalid);
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   if (stream_ended_) {
     SB_LOG(ERROR) << "WriteInputFrame() was called after WriteEndOfStream().";
@@ -146,7 +150,7 @@ void VideoDecoder::WriteInputBuffer(
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
 
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
@@ -201,7 +205,7 @@ void VideoDecoder::DecoderThreadFunc() {
       codec_context_->reordered_opaque = packet.pts;
 
       DecodePacket(&packet);
-      host_->OnDecoderStatusUpdate(kNeedMoreInput, NULL);
+      decoder_status_cb_(kNeedMoreInput, NULL);
     } else {
       SB_DCHECK(event.type == kWriteEndOfStream);
       // Stream has ended, try to decode any frames left in ffmpeg.
@@ -213,7 +217,7 @@ void VideoDecoder::DecoderThreadFunc() {
         packet.pts = 0;
       } while (DecodePacket(&packet));
 
-      host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+      decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
     }
   }
 }
@@ -231,18 +235,18 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
 
   if (av_frame_->opaque == NULL) {
     SB_DLOG(ERROR) << "Video frame was produced yet has invalid frame data.";
-    host_->OnDecoderStatusUpdate(kFatalError, NULL);
+    error_cb_();
     error_occured_ = true;
     return false;
   }
 
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
 
-  scoped_refptr<VideoFrame> frame = VideoFrame::CreateYV12Frame(
+  scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
       av_frame_->width, av_frame_->height, pitch,
       codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
       av_frame_->data[2]);
-  host_->OnDecoderStatusUpdate(kBufferFull, frame);
+  decoder_status_cb_(kBufferFull, frame);
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     return UpdateDecodeTarget(frame);
@@ -251,7 +255,8 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
   return true;
 }
 
-bool VideoDecoder::UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame) {
+bool VideoDecoder::UpdateDecodeTarget(
+    const scoped_refptr<CpuVideoFrame>& frame) {
   SbDecodeTarget decode_target = DecodeTargetCreate(
       decode_target_graphics_context_provider_, frame, decode_target_);
 

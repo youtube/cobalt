@@ -20,6 +20,7 @@
 #include "starboard/android/shared/drm_system.h"
 #include "starboard/android/shared/media_codec_bridge.h"
 #include "starboard/android/shared/media_decoder.h"
+#include "starboard/atomic.h"
 #include "starboard/common/optional.h"
 #include "starboard/common/ref_counted.h"
 #include "starboard/decode_target.h"
@@ -27,21 +28,21 @@
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 
 namespace starboard {
 namespace android {
 namespace shared {
 
-class VideoRenderer;
-
 class VideoDecoder
     : public ::starboard::shared::starboard::player::filter::VideoDecoder,
       private MediaDecoder::Host {
  public:
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
+      VideoRendererSink;
+
+  class Sink;
 
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbDrmSystem drm_system,
@@ -50,14 +51,19 @@ class VideoDecoder
                    decode_target_graphics_context_provider);
   ~VideoDecoder() override;
 
-  void Initialize(const Closure& error_cb) override;
+  scoped_refptr<VideoRendererSink> GetSink();
+
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override;
+  size_t GetPrerollFrameCount() const override;
+  SbTime GetPrerollTimeout() const override;
+
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;
   void WriteEndOfStream() override;
   void Reset() override;
   SbDecodeTarget GetCurrentDecodeTarget() override;
 
-  void SetHost(VideoRenderer* host);
   bool is_valid() const { return media_decoder_ != NULL; }
 
  private:
@@ -72,11 +78,11 @@ class VideoDecoder
   bool Tick(MediaCodecBridge* media_codec_bridge) override;
   void OnFlushing() override;
 
-  // These variables will be initialized inside ctor or SetHost() and will not
-  // be changed during the life time of this class.
+  // These variables will be initialized inside ctor or Initialize() and will
+  // not be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  Closure error_cb_;
-  VideoRenderer* host_;
+  DecoderStatusCB decoder_status_cb_;
+  ErrorCB error_cb_;
   DrmSystem* drm_system_;
 
   SbPlayerOutputMode output_mode_;
@@ -107,11 +113,13 @@ class VideoDecoder
   // unforunately not provided to us at initialization time.
   bool has_written_buffer_since_reset_;
 
-  // A queue of media codec output buffers that we have taken from the media
-  // codec bridge.  It is only accessed from the |decoder_thread_|.
-  std::deque<DequeueOutputResult> dequeue_output_results_;
-
   scoped_ptr<MediaDecoder> media_decoder_;
+
+  atomic_int32_t number_of_frames_being_decoded_;
+  scoped_refptr<Sink> sink_;
+
+  bool first_buffer_received_;
+  volatile SbMediaTime first_buffer_pts_;
 };
 
 }  // namespace shared

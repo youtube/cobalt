@@ -35,6 +35,7 @@ struct AudioParameters {
 };
 
 struct VideoParameters {
+  SbPlayer player;
   SbMediaVideoCodec video_codec;
   SbDrmSystem drm_system;
   JobQueue* job_queue;
@@ -73,8 +74,10 @@ class PlayerComponents {
 
  private:
   // |PlayerComponent|s must only be created through |Create|.
-  PlayerComponents(AudioRenderer* audio_renderer, VideoRenderer* video_renderer)
-      : audio_renderer_(audio_renderer), video_renderer_(video_renderer) {
+  PlayerComponents(scoped_ptr<AudioRenderer> audio_renderer,
+                   scoped_ptr<VideoRenderer> video_renderer)
+      : audio_renderer_(audio_renderer.Pass()),
+        video_renderer_(video_renderer.Pass()) {
     SB_DCHECK(is_valid());
   }
   scoped_ptr<AudioRenderer> audio_renderer_;

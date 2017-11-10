@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_FRAME_INTERNAL_H_
-#define STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_FRAME_INTERNAL_H_
+#ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_
+#define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_
 
 #include <vector>
 
@@ -22,17 +22,17 @@
 #include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 
 namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
-// A video frame produced by a video decoder.
-class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
+// Holds frame data in memory buffer (instead of in textures).
+class CpuVideoFrame : public VideoFrame {
  public:
-  typedef void (*FreeNativeTextureFunc)(void* context, void* texture);
-
   enum Format {
     kInvalid,  // A VideoFrame in this format can be used to indicate EOS.
     // This is the native format supported by XComposite (PictStandardARGB32
@@ -55,61 +55,39 @@ class VideoFrame : public RefCountedThreadSafe<VideoFrame> {
     const uint8_t* data;
   };
 
-  VideoFrame();  // Create an EOS frame.
-  VideoFrame(int width,
-             int height,
-             SbMediaTime pts,
-             void* native_texture,
-             void* native_texture_context,
-             FreeNativeTextureFunc free_native_texture_func);
-  ~VideoFrame();
+  explicit CpuVideoFrame(SbMediaTime pts) : VideoFrame(pts) {}
 
   Format format() const { return format_; }
-  bool IsEndOfStream() const { return format_ == kInvalid; }
-  SbMediaTime pts() const { return pts_; }
   int width() const { return width_; }
   int height() const { return height_; }
 
   int GetPlaneCount() const;
   const Plane& GetPlane(int index) const;
 
-  void* native_texture() const;
+  scoped_refptr<CpuVideoFrame> ConvertTo(Format target_format) const;
 
-  scoped_refptr<VideoFrame> ConvertTo(Format target_format) const;
-
-  static scoped_refptr<VideoFrame> CreateEOSFrame();
-  static scoped_refptr<VideoFrame> CreateYV12Frame(int width,
-                                                   int height,
-                                                   int pitch_in_bytes,
-                                                   SbMediaTime pts,
-                                                   const uint8_t* y,
-                                                   const uint8_t* u,
-                                                   const uint8_t* v);
-  static scoped_refptr<VideoFrame> CreateEmptyFrame(SbMediaTime pts);
+  static scoped_refptr<CpuVideoFrame> CreateYV12Frame(int width,
+                                                      int height,
+                                                      int pitch_in_bytes,
+                                                      SbMediaTime pts,
+                                                      const uint8_t* y,
+                                                      const uint8_t* u,
+                                                      const uint8_t* v);
 
  private:
-  void InitializeToInvalidFrame();
-
   Format format_;
   int width_;
   int height_;
-  SbMediaTime pts_;
 
   // The following two variables are valid when the frame contains pixel data.
   std::vector<Plane> planes_;
   scoped_array<uint8_t> pixel_buffer_;
-
-  // The following three variables are valid when |format_| is `kNativeTexture`.
-  void* native_texture_;
-  void* native_texture_context_;
-  FreeNativeTextureFunc free_native_texture_func_;
-
-  SB_DISALLOW_COPY_AND_ASSIGN(VideoFrame);
 };
 
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared
 }  // namespace starboard
 
-#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_VIDEO_FRAME_INTERNAL_H_
+#endif  // STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_CPU_VIDEO_FRAME_H_

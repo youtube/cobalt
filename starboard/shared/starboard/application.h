@@ -21,13 +21,15 @@
 #include <vector>
 
 #include "starboard/atomic.h"
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
 #include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/player.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/command_line.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/thread.h"
 #include "starboard/time.h"
 #include "starboard/types.h"
@@ -41,7 +43,7 @@ namespace starboard {
 // dispatching events to the Starboard event handler, SbEventHandle.
 class Application {
  public:
-  typedef player::VideoFrame VideoFrame;
+  typedef player::filter::VideoFrame VideoFrame;
 
   // You can use a void(void *) function to signal that a state-transition event
   // has completed.

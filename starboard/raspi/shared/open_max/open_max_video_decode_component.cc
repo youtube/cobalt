@@ -36,8 +36,6 @@ typedef OMXParam<OMX_VIDEO_PARAM_PORTFORMATTYPE, OMX_IndexParamVideoPortFormat>
 
 }  // namespace
 
-typedef OpenMaxVideoDecodeComponent::VideoFrame VideoFrame;
-
 OpenMaxVideoDecodeComponent::OpenMaxVideoDecodeComponent()
     : OpenMaxComponent(kVideoDecodeComponentName) {
   OMXVideoParamPortFormat port_format;
