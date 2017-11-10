@@ -41,6 +41,7 @@ class VideoRendererImpl : public VideoRenderer,
                           private HostedVideoDecoder::Host {
  public:
   explicit VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder);
+  ~VideoRendererImpl() SB_OVERRIDE;
 
   int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
 
