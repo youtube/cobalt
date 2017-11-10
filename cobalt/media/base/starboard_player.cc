@@ -172,6 +172,22 @@ void StarboardPlayer::UpdateVideoResolution(int frame_width, int frame_height) {
   frame_height_ = frame_height;
 }
 
+void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
+  DCHECK(message_loop_->BelongsToCurrentThread());
+
+  DCHECK(frame_width);
+  DCHECK(frame_height);
+  DCHECK(SbPlayerIsValid(player_));
+
+  SbPlayerInfo out_player_info;
+  SbPlayerGetInfo(player_, &out_player_info);
+  frame_width_ = out_player_info.frame_width;
+  frame_height_ = out_player_info.frame_height;
+
+  *frame_width = frame_width_;
+  *frame_height = frame_height_;
+}
+
 #if !SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
