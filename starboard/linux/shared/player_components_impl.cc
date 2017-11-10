@@ -18,9 +18,12 @@
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -35,6 +38,8 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
   typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
   typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
   typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
+
+  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
 
   // TODO: This is not ideal as we should really handle the creation failure of
   // audio sink inside the audio renderer to give the renderer a chance to
@@ -51,7 +56,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  scoped_ptr<HostedVideoDecoder> video_decoder;
+  scoped_ptr<VideoDecoder> video_decoder;
   if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
     VpxVideoDecoderImpl* vpx_video_decoder = new VpxVideoDecoderImpl(
         video_parameters.video_codec, video_parameters.output_mode,
@@ -68,15 +73,18 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     video_decoder.reset(ffmpeg_video_decoder);
   }
 
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
+  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
       make_scoped_ptr<AudioDecoder>(audio_decoder),
       make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header);
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(video_decoder.Pass());
+      audio_parameters.audio_header));
+  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
+      video_decoder.Pass(), audio_renderer.get(),
+      make_scoped_ptr<VideoRenderAlgorithm>(new VideoRenderAlgorithmImpl),
+      new PunchoutVideoRendererSink(video_parameters.player,
+                                    kVideoSinkRenderInterval)));
 
   return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer, video_renderer));
+      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
 }
 
 }  // namespace filter

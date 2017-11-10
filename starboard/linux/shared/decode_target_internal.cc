@@ -36,9 +36,11 @@ namespace shared {
 
 namespace {
 
+using starboard::player::filter::CpuVideoFrame;
+
 struct CreateParams {
   SbDecodeTarget decode_target_out;
-  scoped_refptr<starboard::player::VideoFrame> frame;
+  scoped_refptr<CpuVideoFrame> frame;
 };
 
 #if SB_HAS(GLES2)
@@ -46,7 +48,7 @@ void CreateWithContextRunner(void* context) {
   CreateParams* params = static_cast<CreateParams*>(context);
 
   SB_DCHECK(params->frame);
-  SB_DCHECK(params->frame->format() == starboard::player::VideoFrame::kYV12);
+  SB_DCHECK(params->frame->format() == CpuVideoFrame::kYV12);
   static const SbDecodeTargetFormat format = kSbDecodeTargetFormat3PlaneYUVI420;
   static const int plane_count = 3;
 
@@ -74,7 +76,7 @@ void CreateWithContextRunner(void* context) {
   SbDecodeTargetInfo& target_info = params->decode_target_out->data->info;
 
   for (int plane_index = 0; plane_index < plane_count; plane_index++) {
-    const starboard::player::VideoFrame::Plane& video_frame_plane =
+    const CpuVideoFrame::Plane& video_frame_plane =
         params->frame->GetPlane(plane_index);
 
     GL_CALL(glBindTexture(
@@ -124,7 +126,7 @@ void CreateWithContextRunner(void* context) {
 
 SbDecodeTarget DecodeTargetCreate(
     SbDecodeTargetGraphicsContextProvider* provider,
-    scoped_refptr<starboard::player::VideoFrame> frame,
+    scoped_refptr<CpuVideoFrame> frame,
     SbDecodeTarget decode_target) {
   CreateParams params;
   params.decode_target_out = decode_target;

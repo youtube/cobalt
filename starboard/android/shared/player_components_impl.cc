@@ -15,12 +15,14 @@
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
 #include "starboard/android/shared/audio_decoder.h"
-#include "starboard/android/shared/audio_renderer.h"
 #include "starboard/android/shared/video_decoder.h"
-#include "starboard/android/shared/video_renderer.h"
+#include "starboard/android/shared/video_render_algorithm.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/shared/starboard/player/filter/audio_frame_tracker.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
 namespace shared {
@@ -33,40 +35,39 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const AudioParameters& audio_parameters,
     const VideoParameters& video_parameters) {
   using AudioDecoderImpl = ::starboard::android::shared::AudioDecoder;
-  using AudioRendererImpl = ::starboard::android::shared::AudioRenderer;
-  using MediaSynchronizer = ::starboard::android::shared::MediaSynchronizer;
   using VideoDecoderImpl = ::starboard::android::shared::VideoDecoder;
-  using VideoRendererImpl = ::starboard::android::shared::VideoRenderer;
+  using VideoRenderAlgorithmImpl =
+      ::starboard::android::shared::VideoRenderAlgorithm;
 
-  AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
+  scoped_ptr<AudioDecoderImpl> audio_decoder(new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header,
-      audio_parameters.drm_system);
+      audio_parameters.drm_system));
   if (!audio_decoder->is_valid()) {
-    delete audio_decoder;
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  VideoDecoderImpl* video_decoder = new VideoDecoderImpl(
+  scoped_ptr<VideoDecoderImpl> video_decoder(new VideoDecoderImpl(
       video_parameters.video_codec, video_parameters.drm_system,
       video_parameters.output_mode,
-      video_parameters.decode_target_graphics_context_provider);
+      video_parameters.decode_target_graphics_context_provider));
 
   if (!video_decoder->is_valid()) {
-    delete video_decoder;
     return scoped_ptr<PlayerComponents>(NULL);
   }
 
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
-      make_scoped_ptr<AudioDecoder>(audio_decoder),
+  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
+      audio_decoder.PassAs<AudioDecoder>(),
       make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header);
-
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(make_scoped_ptr<VideoDecoderImpl>(video_decoder),
-                            static_cast<MediaSynchronizer*>(audio_renderer));
+      audio_parameters.audio_header));
+  scoped_refptr<VideoRendererSink> video_renderer_sink =
+      video_decoder->GetSink();
+  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
+      video_decoder.PassAs<VideoDecoder>(), audio_renderer.get(),
+      make_scoped_ptr<VideoRenderAlgorithm>(new VideoRenderAlgorithmImpl),
+      video_renderer_sink));
 
   return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer, video_renderer));
+      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
 }
 
 }  // namespace filter

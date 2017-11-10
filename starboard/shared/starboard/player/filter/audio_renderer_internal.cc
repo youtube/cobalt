@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 
 #include <algorithm>
 
@@ -28,7 +28,7 @@ namespace filter {
 namespace {
 
 // This class works only when the input format and output format are the same.
-// It allows for a simplified AudioRendererImpl implementation by always using a
+// It allows for a simplified AudioRenderer implementation by always using a
 // resampler.
 class IdentityAudioResampler : public AudioResampler {
  public:
@@ -49,12 +49,12 @@ class IdentityAudioResampler : public AudioResampler {
   bool eos_reached_;
 };
 
-// AudioRendererImpl uses AudioTimeStretcher internally to adjust to playback
-// rate and AudioTimeStretcher can only process float32 samples.  So we try to
-// use kSbMediaAudioSampleTypeFloat32 and only use kSbMediaAudioSampleTypeInt16
-// when float32 is not supported.  To use kSbMediaAudioSampleTypeFloat32 will
-// cause an extra conversion from float32 to int16 before the samples are sent
-// to the audio sink.
+// AudioRenderer uses AudioTimeStretcher internally to adjust to playback rate
+// and AudioTimeStretcher can only process float32 samples.  So we try to use
+// kSbMediaAudioSampleTypeFloat32 and only use kSbMediaAudioSampleTypeInt16 when
+// float32 is not supported.  To use kSbMediaAudioSampleTypeFloat32 will cause
+// an extra conversion from float32 to int16 before the samples are sent to the
+// audio sink.
 SbMediaAudioSampleType GetSinkAudioSampleType(
     AudioRendererSink* audio_renderer_sink) {
   return audio_renderer_sink->IsAudioSampleTypeSupported(
@@ -65,10 +65,9 @@ SbMediaAudioSampleType GetSinkAudioSampleType(
 
 }  // namespace
 
-AudioRendererImpl::AudioRendererImpl(
-    scoped_ptr<AudioDecoder> decoder,
-    scoped_ptr<AudioRendererSink> audio_renderer_sink,
-    const SbMediaAudioHeader& audio_header)
+AudioRenderer::AudioRenderer(scoped_ptr<AudioDecoder> decoder,
+                             scoped_ptr<AudioRendererSink> audio_renderer_sink,
+                             const SbMediaAudioHeader& audio_header)
     : eos_state_(kEOSNotReceived),
       channels_(audio_header.number_of_channels),
       sink_sample_type_(GetSinkAudioSampleType(audio_renderer_sink.get())),
@@ -85,10 +84,9 @@ AudioRendererImpl::AudioRendererImpl(
       frames_consumed_set_at_(SbTimeGetMonotonicNow()),
       decoder_(decoder.Pass()),
       can_accept_more_data_(true),
-      process_audio_data_scheduled_(false),
-      process_audio_data_closure_(
-          Bind(&AudioRendererImpl::ProcessAudioData, this)),
-      decoder_needs_full_reset_(false),
+      process_audio_data_job_(
+          std::bind(&AudioRenderer::ProcessAudioData, this)),
+      first_input_written_(false),
       audio_renderer_sink_(audio_renderer_sink.Pass()) {
   SB_DCHECK(decoder_ != NULL);
 
@@ -101,7 +99,7 @@ AudioRendererImpl::AudioRendererImpl(
 #endif
   if (kLogFramesConsumed) {
     log_frames_consumed_closure_ =
-        Bind(&AudioRendererImpl::LogFramesConsumed, this);
+        std::bind(&AudioRenderer::LogFramesConsumed, this);
     Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
 
@@ -114,16 +112,16 @@ AudioRendererImpl::AudioRendererImpl(
   time_stretcher_.Initialize(channels_, destination_sample_rate);
 }
 
-AudioRendererImpl::~AudioRendererImpl() {
+AudioRenderer::~AudioRenderer() {
   SB_DCHECK(BelongsToCurrentThread());
 }
 
-void AudioRendererImpl::Initialize(const Closure& error_cb) {
-  decoder_->Initialize(Bind(&AudioRendererImpl::OnDecoderOutput, this),
+void AudioRenderer::Initialize(const AudioDecoder::ErrorCB& error_cb) {
+  decoder_->Initialize(std::bind(&AudioRenderer::OnDecoderOutput, this),
                        error_cb);
 }
 
-void AudioRendererImpl::WriteSample(
+void AudioRenderer::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
@@ -138,11 +136,11 @@ void AudioRendererImpl::WriteSample(
   can_accept_more_data_ = false;
 
   decoder_->Decode(input_buffer,
-                   Bind(&AudioRendererImpl::OnDecoderConsumed, this));
-  decoder_needs_full_reset_ = true;
+                   std::bind(&AudioRenderer::OnDecoderConsumed, this));
+  first_input_written_ = true;
 }
 
-void AudioRendererImpl::WriteEndOfStream() {
+void AudioRenderer::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
   // TODO: Check |can_accept_more_data_| and make WriteEndOfStream() depend on
   // CanAcceptMoreData() or callback.
@@ -157,23 +155,23 @@ void AudioRendererImpl::WriteEndOfStream() {
   decoder_->WriteEndOfStream();
 
   eos_state_.store(kEOSWrittenToDecoder);
-  decoder_needs_full_reset_ = true;
+  first_input_written_ = true;
 }
 
-void AudioRendererImpl::Play() {
+void AudioRenderer::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
   paused_.store(false);
   consume_frames_called_.store(false);
 }
 
-void AudioRendererImpl::Pause() {
+void AudioRenderer::Pause() {
   SB_DCHECK(BelongsToCurrentThread());
 
   paused_.store(true);
 }
 
-void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
+void AudioRenderer::SetPlaybackRate(double playback_rate) {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (playback_rate_.load() == 0.f && playback_rate > 0.f) {
@@ -188,20 +186,21 @@ void AudioRendererImpl::SetPlaybackRate(double playback_rate) {
     // TODO: Remove SetPlaybackRate() support from audio sink as it only need to
     // support play/pause.
     if (playback_rate_.load() > 0.0) {
-      if (process_audio_data_scheduled_) {
-        Remove(process_audio_data_closure_);
+      if (process_audio_data_job_token_.is_valid()) {
+        RemoveJobByToken(process_audio_data_job_token_);
+        process_audio_data_job_token_.ResetToInvalid();
       }
       ProcessAudioData();
     }
   }
 }
 
-void AudioRendererImpl::SetVolume(double volume) {
+void AudioRenderer::SetVolume(double volume) {
   SB_DCHECK(BelongsToCurrentThread());
   audio_renderer_sink_->SetVolume(volume);
 }
 
-void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
+void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(seek_to_pts >= 0);
 
@@ -224,38 +223,44 @@ void AudioRendererImpl::Seek(SbMediaTime seek_to_pts) {
   audio_frame_tracker_.Reset();
   frames_consumed_set_at_.store(SbTimeGetMonotonicNow());
   can_accept_more_data_ = true;
-  process_audio_data_scheduled_ = false;
+  process_audio_data_job_token_.ResetToInvalid();
 
-  if (decoder_needs_full_reset_) {
+  if (first_input_written_) {
     decoder_->Reset();
-    decoder_needs_full_reset_ = false;
+    first_input_written_ = false;
   }
 
   CancelPendingJobs();
 
-  if (log_frames_consumed_closure_.is_valid()) {
+  if (log_frames_consumed_closure_) {
     Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
 }
 
-bool AudioRendererImpl::IsEndOfStreamPlayed() const {
+bool AudioRenderer::IsEndOfStreamPlayed() const {
   return eos_state_.load() >= kEOSSentToSink &&
          frames_sent_to_sink_.load() == frames_consumed_by_sink_.load();
 }
 
-bool AudioRendererImpl::CanAcceptMoreData() const {
+bool AudioRenderer::CanAcceptMoreData() const {
   SB_DCHECK(BelongsToCurrentThread());
-
   return eos_state_.load() == kEOSNotReceived && can_accept_more_data_ &&
          !time_stretcher_.IsQueueFull();
 }
 
-bool AudioRendererImpl::IsSeekingInProgress() const {
+bool AudioRenderer::IsSeekingInProgress() const {
   SB_DCHECK(BelongsToCurrentThread());
   return seeking_.load();
 }
 
-SbMediaTime AudioRendererImpl::GetCurrentTime() {
+SbMediaTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,
+                                               bool* is_eos_played) {
+  SB_DCHECK(is_playing);
+  SB_DCHECK(is_eos_played);
+
+  *is_playing = !paused_.load() && !seeking_.load();
+  *is_eos_played = IsEndOfStreamPlayed();
+
   if (seeking_.load()) {
     return seeking_to_pts_;
   }
@@ -283,10 +288,10 @@ SbMediaTime AudioRendererImpl::GetCurrentTime() {
          frames_played * kSbMediaTimeSecond / samples_per_second;
 }
 
-void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
-                                        int* offset_in_frames,
-                                        bool* is_playing,
-                                        bool* is_eos_reached) {
+void AudioRenderer::GetSourceStatus(int* frames_in_buffer,
+                                    int* offset_in_frames,
+                                    bool* is_playing,
+                                    bool* is_eos_reached) {
   *is_eos_reached = eos_state_.load() >= kEOSSentToSink;
 
   *is_playing = !paused_.load() && !seeking_.load();
@@ -300,7 +305,7 @@ void AudioRendererImpl::GetSourceStatus(int* frames_in_buffer,
   }
 }
 
-void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
+void AudioRenderer::ConsumeFrames(int frames_consumed) {
   frames_consumed_by_sink_.fetch_add(frames_consumed);
   SB_DCHECK(frames_consumed_by_sink_.load() <= frames_sent_to_sink_.load());
   frames_consumed_by_sink_since_last_get_current_time_.fetch_add(
@@ -309,7 +314,7 @@ void AudioRendererImpl::ConsumeFrames(int frames_consumed) {
   consume_frames_called_.store(true);
 }
 
-void AudioRendererImpl::CreateAudioSinkAndResampler() {
+void AudioRenderer::CreateAudioSinkAndResampler() {
   int source_sample_rate = decoder_->GetSamplesPerSecond();
   SbMediaAudioSampleType source_sample_type = decoder_->GetSampleType();
   SbMediaAudioFrameStorageType source_storage_type = decoder_->GetStorageType();
@@ -341,7 +346,7 @@ void AudioRendererImpl::CreateAudioSinkAndResampler() {
   SB_DCHECK(audio_renderer_sink_->HasStarted());
 }
 
-void AudioRendererImpl::LogFramesConsumed() {
+void AudioRenderer::LogFramesConsumed() {
   SbTimeMonotonic time_since =
       SbTimeGetMonotonicNow() - frames_consumed_set_at_.load();
   if (time_since > kSbTimeSecond) {
@@ -353,7 +358,7 @@ void AudioRendererImpl::LogFramesConsumed() {
   Schedule(log_frames_consumed_closure_, kSbTimeSecond);
 }
 
-void AudioRendererImpl::OnDecoderConsumed() {
+void AudioRenderer::OnDecoderConsumed() {
   SB_DCHECK(BelongsToCurrentThread());
 
   // TODO: Unify EOS and non EOS request once WriteEndOfStream() depends on
@@ -365,21 +370,23 @@ void AudioRendererImpl::OnDecoderConsumed() {
   }
 }
 
-void AudioRendererImpl::OnDecoderOutput() {
+void AudioRenderer::OnDecoderOutput() {
   SB_DCHECK(BelongsToCurrentThread());
 
   ++pending_decoder_outputs_;
 
-  if (process_audio_data_scheduled_) {
-    Remove(process_audio_data_closure_);
+  if (process_audio_data_job_token_.is_valid()) {
+    RemoveJobByToken(process_audio_data_job_token_);
+    process_audio_data_job_token_.ResetToInvalid();
   }
 
-  process_audio_data_scheduled_ = true;
   ProcessAudioData();
 }
 
-void AudioRendererImpl::ProcessAudioData() {
-  process_audio_data_scheduled_ = false;
+void AudioRenderer::ProcessAudioData() {
+  SB_DCHECK(BelongsToCurrentThread());
+
+  process_audio_data_job_token_.ResetToInvalid();
 
   if (!audio_renderer_sink_->HasStarted()) {
     CreateAudioSinkAndResampler();
@@ -398,8 +405,7 @@ void AudioRendererImpl::ProcessAudioData() {
       // again for a later time.  The delay time is 1/4 of the buffer size.
       const SbTimeMonotonic delay = kMaxCachedFrames * kSbTimeSecond /
                                     decoder_->GetSamplesPerSecond() / 4;
-      process_audio_data_scheduled_ = true;
-      Schedule(process_audio_data_closure_, delay);
+      process_audio_data_job_token_ = Schedule(process_audio_data_job_, delay);
       return;
     }
 
@@ -438,8 +444,8 @@ void AudioRendererImpl::ProcessAudioData() {
   }
 
   if (seeking_.load() || playback_rate_.load() == 0.0) {
-    process_audio_data_scheduled_ = true;
-    Schedule(process_audio_data_closure_, 5 * kSbTimeMillisecond);
+    process_audio_data_job_token_ =
+        Schedule(process_audio_data_job_, 5 * kSbTimeMillisecond);
     return;
   }
 
@@ -454,12 +460,11 @@ void AudioRendererImpl::ProcessAudioData() {
           kMaxCachedFrames / 4 - (kMaxCachedFrames - frames_in_buffer));
       delay = frames_to_delay * kSbTimeSecond / decoder_->GetSamplesPerSecond();
     }
-    process_audio_data_scheduled_ = true;
-    Schedule(process_audio_data_closure_, delay);
+    process_audio_data_job_token_ = Schedule(process_audio_data_job_, delay);
   }
 }
 
-bool AudioRendererImpl::AppendAudioToFrameBuffer() {
+bool AudioRenderer::AppendAudioToFrameBuffer() {
   SB_DCHECK(BelongsToCurrentThread());
 
   if (seeking_.load() && time_stretcher_.IsQueueFull()) {

@@ -18,7 +18,7 @@
     # uses the filter graph based SbPlayer implementation.  So full path names
     # have to be used here.
     'filter_tests_sources': [
-      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_impl_internal_test.cc',
+      '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal_test.cc',
     ],
   },
 }

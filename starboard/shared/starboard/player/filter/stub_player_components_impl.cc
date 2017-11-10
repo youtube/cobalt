@@ -16,12 +16,14 @@
 
 #include "starboard/common/ref_counted.h"
 #include "starboard/log.h"
-#include "starboard/shared/starboard/player/closure.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
+#include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
+#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -49,14 +51,13 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
         audio_header_(audio_header),
         stream_ended_(false) {}
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) override {
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override {
     SB_UNREFERENCED_PARAMETER(error_cb);
     output_cb_ = output_cb;
   }
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) override {
+              const ConsumedCB& consumed_cb) override {
     SB_DCHECK(input_buffer);
 
     // Values to represent what kind of dummy audio to fill the decoded audio
@@ -150,7 +151,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   }
 
  private:
-  Closure output_cb_;
+  OutputCB output_cb_;
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioHeader audio_header_;
   bool stream_ended_;
@@ -158,30 +159,32 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
   scoped_refptr<InputBuffer> last_input_buffer_;
 };
 
-class StubVideoDecoder : public HostedVideoDecoder {
+class StubVideoDecoder : public VideoDecoder {
  public:
-  StubVideoDecoder() : host_(NULL) {}
+  StubVideoDecoder() {}
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override {
+    SB_UNREFERENCED_PARAMETER(error_cb);
+    SB_DCHECK(decoder_status_cb_);
+    decoder_status_cb_ = decoder_status_cb;
+  }
+  size_t GetPrerollFrameCount() const override { return 1; }
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override {
     SB_DCHECK(input_buffer);
-    SB_DCHECK(host_ != NULL);
-    host_->OnDecoderStatusUpdate(
-        kNeedMoreInput, VideoFrame::CreateEmptyFrame(input_buffer->pts()));
+    decoder_status_cb_(kNeedMoreInput, new VideoFrame(input_buffer->pts()));
   }
   void WriteEndOfStream() override {
-    SB_DCHECK(host_ != NULL);
-    host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
   }
   void Reset() override {}
-  void SetHost(Host* host) {
-    SB_DCHECK(host != NULL);
-    SB_DCHECK(host_ == NULL);
-    host_ = host;
+  SbDecodeTarget GetCurrentDecodeTarget() override {
+    return kSbDecodeTargetInvalid;
   }
-  size_t GetPrerollFrameCount() const override { return 1; }
 
  private:
-  Host* host_;
+  DecoderStatusCB decoder_status_cb_;
 };
 
 // static
@@ -195,18 +198,22 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
 scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const AudioParameters& audio_parameters,
     const VideoParameters& video_parameters) {
-  StubAudioDecoder* audio_decoder =
-      new StubAudioDecoder(audio_parameters.audio_header);
-  StubVideoDecoder* video_decoder = new StubVideoDecoder();
-  AudioRendererImpl* audio_renderer = new AudioRendererImpl(
-      make_scoped_ptr<AudioDecoder>(audio_decoder),
+  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+  scoped_ptr<AudioDecoder> audio_decoder(
+      new StubAudioDecoder(audio_parameters.audio_header));
+  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
+      audio_decoder.Pass(),
       make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header);
-  VideoRendererImpl* video_renderer =
-      new VideoRendererImpl(make_scoped_ptr<HostedVideoDecoder>(video_decoder));
+      audio_parameters.audio_header));
+  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
+      make_scoped_ptr<VideoDecoder>(new StubVideoDecoder), audio_renderer.get(),
+      make_scoped_ptr<VideoRenderAlgorithm>(new VideoRenderAlgorithmImpl),
+      new PunchoutVideoRendererSink(video_parameters.player,
+                                    kVideoSinkRenderInterval)));
 
   return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer, video_renderer));
+      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
 }
 
 }  // namespace filter

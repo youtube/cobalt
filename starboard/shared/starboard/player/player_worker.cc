@@ -74,7 +74,7 @@ PlayerWorker::PlayerWorker(Host* host,
 }
 
 PlayerWorker::~PlayerWorker() {
-  job_queue_->Schedule(Bind(&PlayerWorker::DoStop, this));
+  job_queue_->Schedule(std::bind(&PlayerWorker::DoStop, this));
   SbThreadJoin(thread_, NULL);
   thread_ = kSbThreadInvalid;
 
@@ -143,9 +143,9 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   SB_DLOG(INFO) << "Try to seek to timestamp "
                 << seek_to_pts / kSbMediaTimeSecond;
 
-  if (write_pending_sample_closure_.is_valid()) {
-    job_queue_->Remove(write_pending_sample_closure_);
-    write_pending_sample_closure_.reset();
+  if (write_pending_sample_job_token_.is_valid()) {
+    job_queue_->RemoveJobByToken(write_pending_sample_job_token_);
+    write_pending_sample_job_token_.ResetToInvalid();
   }
   pending_audio_buffer_ = NULL;
   pending_video_buffer_ = NULL;
@@ -196,19 +196,18 @@ void PlayerWorker::DoWriteSample(
     } else {
       pending_video_buffer_ = input_buffer;
     }
-    if (!write_pending_sample_closure_.is_valid()) {
-      write_pending_sample_closure_ =
-          Bind(&PlayerWorker::DoWritePendingSamples, this);
-      job_queue_->Schedule(write_pending_sample_closure_,
-                           kWritePendingSampleDelay);
+    if (!write_pending_sample_job_token_.is_valid()) {
+      write_pending_sample_job_token_ = job_queue_->Schedule(
+          std::bind(&PlayerWorker::DoWritePendingSamples, this),
+          kWritePendingSampleDelay);
     }
   }
 }
 
 void PlayerWorker::DoWritePendingSamples() {
   SB_DCHECK(job_queue_->BelongsToCurrentThread());
-  SB_DCHECK(write_pending_sample_closure_.is_valid());
-  write_pending_sample_closure_.reset();
+  SB_DCHECK(write_pending_sample_job_token_.is_valid());
+  write_pending_sample_job_token_.ResetToInvalid();
 
   if (pending_audio_buffer_) {
     DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));

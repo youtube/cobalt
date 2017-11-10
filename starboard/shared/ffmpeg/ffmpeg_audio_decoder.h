@@ -21,7 +21,6 @@
 #include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_common.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -37,10 +36,9 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
                const SbMediaAudioHeader& audio_header);
   ~AudioDecoder() override;
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) override;
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) override;
+              const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
   scoped_refptr<DecodedAudio> Read() override;
   void Reset() override;
@@ -56,7 +54,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
 
   static const int kMaxDecodedAudiosSize = 64;
 
-  Closure output_cb_;
+  OutputCB output_cb_;
   SbMediaAudioCodec audio_codec_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
