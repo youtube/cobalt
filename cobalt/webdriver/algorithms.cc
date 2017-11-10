@@ -322,8 +322,9 @@ bool HasPositiveSizeDimensions(dom::Element* element) {
 
 math::Rect GetRect(dom::Element* element) {
   scoped_refptr<dom::DOMRect> element_rect = element->GetBoundingClientRect();
-  return math::Rect(element_rect->x(), element_rect->y(), element_rect->width(),
-                    element_rect->height());
+  math::RectF rect(element_rect->x(), element_rect->y(), element_rect->width(),
+                   element_rect->height());
+  return math::Rect::RoundFromRectF(rect);
 }
 
 // Returns true if this element is completely hidden by overflow.

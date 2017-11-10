@@ -39,7 +39,6 @@
 
       'sources': [
         'cached_software_rasterizer.cc',
-        'cobalt_blitter_conversions.cc',
         'hardware_rasterizer.cc',
         'image.cc',
         'linear_gradient.cc',
