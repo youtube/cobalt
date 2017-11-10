@@ -1712,16 +1712,22 @@ bool Box::ApplyTransformActionToCoordinates(
   // stop at the second transform and not the first (which is this box).
   Vector2dLayoutUnit containing_block_offset_from_root =
       GetContainingBlockOffsetFromRoot(true /*transform_forms_root*/);
-  Vector2dLayoutUnit border_box_offset_from_root =
-      (containing_block_offset_from_root +
-       margin_box_offset_from_containing_block() +
-       GetBorderBoxOffsetFromMarginBox());
+
+  // The transform rect always includes the offset from the containing block.
+  // However, in the case where the action is entering the transform, the full
+  // offset from the root needs to be included in the transform.
+  Vector2dLayoutUnit transform_rect_offset =
+      margin_box_offset_from_containing_block() +
+      GetBorderBoxOffsetFromMarginBox();
+  if (action == kEnterTransform) {
+    transform_rect_offset += containing_block_offset_from_root;
+  }
 
   // Transform the coordinates.
   math::Matrix3F matrix =
       GetCSSTransform(transform, computed_style()->transform_origin(),
-                      math::RectF(border_box_offset_from_root.x().toFloat(),
-                                  border_box_offset_from_root.y().toFloat(),
+                      math::RectF(transform_rect_offset.x().toFloat(),
+                                  transform_rect_offset.y().toFloat(),
                                   GetBorderBoxWidth().toFloat(),
                                   GetBorderBoxHeight().toFloat()));
   if (!matrix.IsIdentity()) {
