@@ -799,11 +799,11 @@ void RenderTreeNodeVisitor::Visit(
   SkRect sk_rect_transformed;
   total_matrix.mapRect(&sk_rect_transformed, sk_rect);
 
-  punch_through_video_node->data().set_bounds_cb.Run(
-      math::Rect(static_cast<int>(sk_rect_transformed.x()),
-                 static_cast<int>(sk_rect_transformed.y()),
-                 static_cast<int>(sk_rect_transformed.width()),
-                 static_cast<int>(sk_rect_transformed.height())));
+  math::RectF transformed_rectf(
+      sk_rect_transformed.x(), sk_rect_transformed.y(),
+      sk_rect_transformed.width(), sk_rect_transformed.height());
+  math::Rect transformed_rect = math::Rect::RoundFromRectF(transformed_rectf);
+  punch_through_video_node->data().set_bounds_cb.Run(transformed_rect);
 
   SkPaint paint;
   paint.setXfermodeMode(SkXfermode::kSrc_Mode);

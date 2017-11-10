@@ -212,6 +212,40 @@ TEST(RectTest, AdjustToFit) {
   }
 }
 
+TEST(RectTest, RoundFromRectF) {
+  Rect result;
+
+  result = Rect::RoundFromRectF(RectF(-3.8, 2.5, 12.6, 11.8));
+  // result.right, we have = round(-3.8 + 12.6) = round(8.8) = 9
+  // result.bottom, we have = round(2.5 + 11.8) = round(14.3) = 14
+  EXPECT_EQ(Rect(-4, 3, 13, 11), result);
+
+  result = Rect::RoundFromRectF(RectF(-3.3, -2.1, 12.6, 11.8));
+  // result.right, we have = round(-3.3 + 12.6) = round(9.3) = 9
+  // result.bottom, we have = round(-2.1 + 11.8) = round(9.7) = 10
+  EXPECT_EQ(Rect(-3, -2, 12, 12), result);
+
+  result = Rect::RoundFromRectF(RectF(-3.3, -2.1, 1E12, -1E12));
+  // result.right, we have = round(-3.3 + 1E12) = clamp(1E12) = int max
+  // "result.bottom", we have it set to int min, and since "top" is at -2,
+  // distance to bottom is int min + 2.
+  EXPECT_EQ(Rect(-3, -2, std::numeric_limits<int>::max(),
+                 std::numeric_limits<int>::min() + 2),
+            result);
+}
+
+TEST(RectTest, PreserveBordersRoundFromRectF) {
+  Rect result;
+
+  result = Rect::RoundFromRectF(RectF(3.49, 1.49, 1.02, 1.02));
+  // result.right, we have = round(3.49 + 1.02) = round(4.51) = 5
+  // result.bottom, we have = round(1.49 + 1.02) = round(2.51) = 3
+  EXPECT_EQ(Rect(3, 1, 2, 2), result);
+
+  result = Rect::RoundFromRectF(RectF(4.51, 2.51, 1.02, 1.02));
+  EXPECT_EQ(Rect(5, 3, 1, 1), result);
+}
+
 TEST(RectTest, Subtract) {
   Rect result;
 
