@@ -10,7 +10,11 @@
 #define COMMON_PLATFORM_H_
 
 #if defined(STARBOARD)
-#   define ANGLE_PLATFORM_WINDOWS 1
+#   if !defined(ANGLE_PLATFORM_WINDOWS) && !defined(ANGLE_PLATFORM_POSIX) && \
+       !defined(ANGLE_PLATFORM_LINUX) && !defined(ANGLE_PLATFORM_ANDROID) && \
+       !defined(ANGLE_PLATFORM_APPLE)
+#       error Your Starboard platform configuration must explicitly set the angle_platform_* variables.
+#   endif
 #elif defined(_WIN32) || defined(_WIN64)
 #   define ANGLE_PLATFORM_WINDOWS 1
 #elif defined(__APPLE__)
