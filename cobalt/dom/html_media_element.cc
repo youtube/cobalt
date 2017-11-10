@@ -126,8 +126,11 @@ loader::RequestMode GetRequestMode(
 bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
                   const loader::Origin& origin) {
 #if SB_HAS(PLAYER_WITH_URL)
+  UNREFERENCED_PARAMETER(request_mode);
+  UNREFERENCED_PARAMETER(resource_url);
+  UNREFERENCED_PARAMETER(origin);
   return true;
-#endif  // SB_HAS(PLAYER_WITH_URL)
+#else  // SB_HAS(PLAYER_WITH_URL)
   if (resource_url.SchemeIs("blob")) {
     // Blob resources come from application and is same-origin.
     return true;
@@ -142,6 +145,7 @@ bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
     return true;
   }
   return false;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 }
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
