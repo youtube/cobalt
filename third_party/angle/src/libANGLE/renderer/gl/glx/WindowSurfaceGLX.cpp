@@ -29,7 +29,7 @@ WindowSurfaceGLX::WindowSurfaceGLX(const egl::SurfaceState &state,
                                    Display *display,
                                    glx::Context context,
                                    glx::FBConfig fbConfig)
-    : SurfaceGLX(state, renderer),
+    : SurfaceGLX(state, renderer, glx),
       mParent(window),
       mWindow(0),
       mDisplay(display),
