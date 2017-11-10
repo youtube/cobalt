@@ -13,6 +13,7 @@
         'angle_enable_d3d11%': 1,
         'enable_d3d11_feature_level_11%': 0,
         'angle_enable_gl%': 0,
+        'angle_use_glx%': 0,
         'angle_enable_vulkan%': 0,
         'angle_enable_essl%': 1, # Enable this for all configs by default
         'angle_enable_glsl%': 1, # Enable this for all configs by default
@@ -21,6 +22,12 @@
         'angle_gl_library_type%': 'static_library',
         'dcheck_always_on%': 0,
         'angle_enable_null%': 1, # Available on all platforms
+
+        # On Starboard platforms, the target Angle platform must be explicitly
+        # defined in the platform configuration.
+        'angle_platform_linux%': 0,
+        'angle_platform_posix%': 0,
+        'angle_platform_windows%': 0,
     },
     'includes':
     [

@@ -23,7 +23,7 @@ PbufferSurfaceGLX::PbufferSurfaceGLX(const egl::SurfaceState &state,
                                      const FunctionsGLX &glx,
                                      glx::Context context,
                                      glx::FBConfig fbConfig)
-    : SurfaceGLX(state, renderer),
+    : SurfaceGLX(state, renderer, glx),
       mWidth(width),
       mHeight(height),
       mLargest(largest),
