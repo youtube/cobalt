@@ -86,7 +86,7 @@ DisplayGLX::~DisplayGLX()
 egl::Error DisplayGLX::initialize(egl::Display *display)
 {
     mEGLDisplay = display;
-    mXDisplay             = display->getNativeDisplayId();
+    mXDisplay             = static_cast<Display*>(display->getNativeDisplayId());
     const auto &attribMap = display->getAttributeMap();
 
     // ANGLE_platform_angle allows the creation of a default display
@@ -329,6 +329,11 @@ void DisplayGLX::terminate()
     mGLX.terminate();
 
     SafeDelete(mFunctionsGL);
+
+    if (mUsesNewXDisplay) {
+        XCloseDisplay(mXDisplay);
+        mXDisplay = nullptr;
+    }
 }
 
 SurfaceImpl *DisplayGLX::createWindowSurface(const egl::SurfaceState &state,
@@ -338,8 +343,8 @@ SurfaceImpl *DisplayGLX::createWindowSurface(const egl::SurfaceState &state,
     ASSERT(configIdToGLXConfig.count(state.config->configID) > 0);
     glx::FBConfig fbConfig = configIdToGLXConfig[state.config->configID];
 
-    return new WindowSurfaceGLX(state, mGLX, this, getRenderer(), window, mGLX.getDisplay(),
-                                mContext, fbConfig);
+    return new WindowSurfaceGLX(state, mGLX, this, getRenderer(), reinterpret_cast<Window>(window),
+                                mGLX.getDisplay(), mContext, fbConfig);
 }
 
 SurfaceImpl *DisplayGLX::createPbufferSurface(const egl::SurfaceState &state,
@@ -535,6 +540,23 @@ egl::ConfigSet DisplayGLX::generateConfigs()
         glx::FBConfig glxConfig = glxConfigs[i];
         egl::Config config;
 
+#if defined(STARBOARD)
+        // Prefer visuals with 32-bit color depths, if we have specified a
+        // desire for RGBA8888 or higher.  This is a bit of a hack on Cobalt
+        // where we need a 32-bit config to match with our 32-bit color depth
+        // parent window so that we can render transparency in the GL output to
+        // enable punch-through video to work correctly with X11 compositing.
+        if (contextRedSize >= 8 && contextGreenSize >= 8 &&
+            contextBlueSize >= 8 && contextAlphaSize >= 8) {
+          XVisualInfo *visualInfo = mGLX.getVisualFromFBConfig(glxConfig);
+          int visualDepth = visualInfo->depth;
+          XFree(visualInfo);
+          if (visualDepth < 32) {
+              continue;
+          }
+        }
+#endif
+
         // Native stuff
         config.nativeVisualID = getGLXFBConfigAttrib(glxConfig, GLX_VISUAL_ID);
         config.nativeVisualType = getGLXFBConfigAttrib(glxConfig, GLX_X_VISUAL_TYPE);
@@ -672,11 +694,16 @@ egl::ConfigSet DisplayGLX::generateConfigs()
 
 bool DisplayGLX::testDeviceLost()
 {
+    // On Starboard applications it was found that this function was being
+    // called immediately *before* making a context current, resulting in an
+    // error from calling a function without a context.  Thus, we forego calling
+    // this function for Starboard platforms.
+#if !defined(STARBOARD)
     if (mHasARBCreateContextRobustness)
     {
         return getRenderer()->getResetStatus() != GL_NO_ERROR;
     }
-
+#endif  // !defined(STARBOARD)
     return false;
 }
 
@@ -699,7 +726,8 @@ bool DisplayGLX::isValidNativeWindow(EGLNativeWindowType window) const
     Window parent;
     Window *children = nullptr;
     unsigned nChildren;
-    int status = XQueryTree(mGLX.getDisplay(), window, &root, &parent, &children, &nChildren);
+    int status = XQueryTree(mGLX.getDisplay(), reinterpret_cast<Window>(window), &root, &parent,
+                            &children, &nChildren);
     if (children)
     {
         XFree(children);

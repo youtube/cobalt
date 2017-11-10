@@ -592,6 +592,7 @@
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/FunctionsGLX.h',
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/PbufferSurfaceGLX.cpp',
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/PbufferSurfaceGLX.h',
+            '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/SurfaceGLX.cpp',
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/SurfaceGLX.h',
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/WindowSurfaceGLX.cpp',
             '<(DEPTH)/third_party/angle/src/libANGLE/renderer/gl/glx/WindowSurfaceGLX.h',
@@ -772,6 +773,35 @@
             '<(DEPTH)/third_party/angle/src/libEGL/libEGL.def',
             '<(DEPTH)/third_party/angle/src/libEGL/libEGL.rc',
             '<(DEPTH)/third_party/angle/src/libEGL/resource.h',
+        ],
+    },
+    'target_defaults': {
+        'conditions':
+        [
+            ['OS=="starboard"',
+            {
+                'conditions':
+                [
+                    ['angle_platform_linux==1',
+                    {
+                        'defines': [
+                            'ANGLE_PLATFORM_LINUX=1',
+                        ],
+                    }],
+                    ['angle_platform_posix==1',
+                    {
+                        'defines': [
+                            'ANGLE_PLATFORM_POSIX=1',
+                        ],
+                    }],
+                    ['angle_platform_windows==1',
+                    {
+                        'defines': [
+                            'ANGLE_PLATFORM_WINDOWS=1',
+                        ],
+                    }],
+                ],
+            }],
         ],
     },
     # Everything below this is duplicated in the GN build. If you change
@@ -1032,14 +1062,6 @@
                             [
                                 '<@(libangle_gl_glx_sources)',
                             ],
-                            'link_settings': {
-                                'ldflags': [
-                                    '<!@(<(pkg-config) --libs-only-L --libs-only-other x11 xi xext xcb)',
-                                ],
-                                'libraries': [
-                                    '<!@(<(pkg-config) --libs-only-l x11 xi xext xcb) -ldl',
-                                ],
-                            },
                         }],
                         ['use_ozone==1',
                         {
@@ -1079,6 +1101,14 @@
                             [
                                 'ANGLE_LINK_GLX',
                             ],
+                        }, {
+                            # If we don't statically link GL, we need the dl
+                            # library so that we can dynamically link with GL.
+                            'link_settings': {
+                                'libraries': [
+                                    '-ldl',
+                                ]
+                            }
                         }],
                         ['OS=="mac"',
                         {
