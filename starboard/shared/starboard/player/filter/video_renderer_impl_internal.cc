@@ -34,6 +34,17 @@ VideoRendererImpl::VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder)
   decoder_->SetHost(this);
 }
 
+VideoRendererImpl::~VideoRendererImpl() {
+  // Be sure to release anything created by the decoder_ before releasing the
+  // decoder_ itself.
+  if (decoder_needs_full_reset_) {
+    decoder_->Reset();
+  }
+  frames_.clear();
+  last_displayed_frame_ = nullptr;
+  decoder_.reset();
+}
+
 void VideoRendererImpl::WriteSample(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
