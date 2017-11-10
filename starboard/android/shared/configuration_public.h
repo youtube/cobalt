@@ -115,10 +115,6 @@
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 1
 
-// eglChooseConfig() returns no configs when EGL_BIND_TO_TEXTURE_RGBA is true
-// on Nvidia Shield, and this seems to be fine on other Android TV devices.
-#define SB_HAS_QUIRK_NO_EGL_BIND_TO_TEXTURE 1
-
 // --- System Header Configuration -------------------------------------------
 
 // Any system headers listed here that are not provided by the platform will be
