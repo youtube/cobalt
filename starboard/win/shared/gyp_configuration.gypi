@@ -21,6 +21,7 @@
 
     # Link with angle
     'gl_type': 'angle',
+    'angle_platform_windows': 1,
 
     'cobalt_media_source_2016': 1,
 
