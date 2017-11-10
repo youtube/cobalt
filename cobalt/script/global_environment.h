@@ -81,13 +81,16 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   // |GetStackTrace(int)| to make everyone happy.
   std::vector<StackFrame> GetStackTrace() { return GetStackTrace(0); }
 
-  // Prevent this wrappable's associated JS wrapper object from being garbage
-  // collected. AllowGarbageCollection must be called some time afterwards or
-  // else both the JS wrapper object and Wrappable will leak.
+  // Prevent this wrappable's associated JavaScript wrapper object from being
+  // garbage collected. |AllowGarbageCollection| must be called some time
+  // afterwards, or else both the JavaScript wrapper object and Wrappable will
+  // leak. Note that multiple calls to |PreventGarbageCollection| *are*
+  // counted, in that calling (e.g.) prevent, prevent, allow on |wrappable|,
+  // implies that |wrappable| is still garbage collection prevented.
   virtual void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
 
-  // Allow this wrappable's associated JS wrapper object to be garbage
+  // Allow this wrappable's associated JavaScript wrapper object to be garbage
   // collected.
   virtual void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
@@ -111,7 +114,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   virtual void SetReportErrorCallback(
       const ReportErrorCallback& report_error) = 0;
 
-  // Dynamically bind a cpp object to the javascript global object with the
+  // Dynamically bind a cpp object to the JavaScript global object with the
   // supplied identifier.
   // This method is useful for testing and debug purposes, as well as for
   // dynamically injecting an API into a JavaScript environment.
