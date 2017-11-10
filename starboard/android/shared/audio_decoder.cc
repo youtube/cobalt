@@ -81,13 +81,13 @@ AudioDecoder::AudioDecoder(SbMediaAudioCodec audio_codec,
 
 AudioDecoder::~AudioDecoder() {}
 
-void AudioDecoder::Initialize(const Closure& output_cb,
-                              const Closure& error_cb) {
+void AudioDecoder::Initialize(const OutputCB& output_cb,
+                              const ErrorCB& error_cb) {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
-  SB_DCHECK(error_cb.is_valid());
-  SB_DCHECK(!error_cb_.is_valid());
+  SB_DCHECK(output_cb);
+  SB_DCHECK(!output_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
   SB_DCHECK(media_decoder_);
 
   output_cb_ = output_cb;
@@ -97,10 +97,10 @@ void AudioDecoder::Initialize(const Closure& output_cb,
 }
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
-                          const Closure& consumed_cb) {
+                          const ConsumedCB& consumed_cb) {
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(input_buffer);
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
   VERBOSE_MEDIA_LOG() << "T1: pts " << input_buffer->pts();
@@ -118,7 +118,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
 
 void AudioDecoder::WriteEndOfStream() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_DCHECK(media_decoder_);
 
   media_decoder_->WriteEndOfStream();
@@ -126,7 +126,7 @@ void AudioDecoder::WriteEndOfStream() {
 
 scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
 
   scoped_refptr<DecodedAudio> result;
   {
@@ -139,16 +139,16 @@ scoped_refptr<AudioDecoder::DecodedAudio> AudioDecoder::Read() {
     }
   }
 
-  if (consumed_cb_.is_valid()) {
+  if (consumed_cb_) {
     Schedule(consumed_cb_);
-    consumed_cb_.reset();
+    consumed_cb_ = nullptr;
   }
   return result;
 }
 
 void AudioDecoder::Reset() {
   SB_DCHECK(BelongsToCurrentThread());
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
 
   media_decoder_.reset();
 
@@ -157,7 +157,7 @@ void AudioDecoder::Reset() {
     SB_LOG(ERROR) << "Failed to initialize codec after reset.";
   }
 
-  consumed_cb_.reset();
+  consumed_cb_ = nullptr;
 
   while (!decoded_audios_.empty()) {
     decoded_audios_.pop();
@@ -171,7 +171,7 @@ bool AudioDecoder::InitializeCodec() {
   media_decoder_.reset(
       new MediaDecoder(this, audio_codec_, audio_header_, drm_system_));
   if (media_decoder_->is_valid()) {
-    if (error_cb_.is_valid()) {
+    if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
     }
     return true;
@@ -184,7 +184,7 @@ void AudioDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
   SB_DCHECK(media_codec_bridge);
-  SB_DCHECK(output_cb_.is_valid());
+  SB_DCHECK(output_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
 
   if (dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM) {

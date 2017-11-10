@@ -27,6 +27,7 @@
 #include "starboard/decode_target.h"
 #include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
 #include "starboard/thread.h"
@@ -36,11 +37,12 @@ namespace shared {
 namespace win32 {
 
 class VideoDecoder
-    : public
-        ::starboard::shared::starboard::player::filter::HostedVideoDecoder {
+    : public ::starboard::shared::starboard::player::filter::VideoDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
-  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef ::starboard::shared::starboard::player::filter::VideoRendererSink
+      VideoRendererSink;
+
+  class Sink;
 
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
@@ -48,10 +50,14 @@ class VideoDecoder
                SbDrmSystem drm_system);
   ~VideoDecoder() override;
 
-  // Implement HostedVideoDecoder interface.
-  void SetHost(Host* host) override;
+  scoped_refptr<VideoRendererSink> GetSink();
+
+  // Implement VideoDecoder interface.
+  void Initialize(const DecoderStatusCB& decoder_status_cb,
+                  const ErrorCB& error_cb) override;
   size_t GetPrerollFrameCount() const override;
-  void Initialize(const Closure& error_cb) override;
+  SbTime GetPrerollTimeout() const override { return kSbTimeMax; }
+
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;
   void WriteEndOfStream() override;
@@ -86,7 +92,7 @@ class VideoDecoder
 
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
   scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
-  static void DeleteVideoFrame(void* context, void* native_texture);
+  void DeleteVideoFrame(VideoFrame* video_frame);
   static void CreateDecodeTargetHelper(void* context);
   SbDecodeTarget CreateDecodeTarget();
 
@@ -100,8 +106,8 @@ class VideoDecoder
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  Closure error_cb_;
-  Host* host_;
+  DecoderStatusCB decoder_status_cb_;
+  ErrorCB error_cb_;
   SbDecodeTargetGraphicsContextProvider* graphics_context_provider_;
   SbDrmSystem const drm_system_;
 
@@ -140,6 +146,8 @@ class VideoDecoder
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
   std::list<SbDecodeTarget> prev_decode_targets_;
+
+  scoped_refptr<Sink> sink_;
 };
 
 }  // namespace win32

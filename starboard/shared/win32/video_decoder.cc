@@ -14,6 +14,8 @@
 
 #include "starboard/shared/win32/video_decoder.h"
 
+#include <functional>
+
 #include "starboard/log.h"
 #include "starboard/shared/win32/decode_target_internal.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
@@ -27,6 +29,9 @@ namespace win32 {
 namespace {
 
 using Microsoft::WRL::ComPtr;
+using ::starboard::shared::starboard::player::filter::VideoFrame;
+using std::placeholders::_1;
+using std::placeholders::_2;
 
 // Limit the number of active output samples to control memory usage.
 // NOTE: Higher numbers may result in increased dropped frames when the video
@@ -93,7 +98,54 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
   return transform.Pass();
 }
 
+class VideoFrameImpl : public VideoFrame {
+ public:
+  VideoFrameImpl(SbMediaTime pts, std::function<void(VideoFrame*)> release_cb)
+      : VideoFrame(pts), release_cb_(release_cb) {
+    SB_DCHECK(release_cb_);
+  }
+  ~VideoFrameImpl() { release_cb_(this); }
+
+ private:
+  std::function<void(VideoFrame*)> release_cb_;
+};
+
 }  // namespace
+
+class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
+ public:
+  void Render() {
+    SB_DCHECK(render_cb_);
+
+    render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
+  }
+
+ private:
+  void SetRenderCB(RenderCB render_cb) override {
+    SB_DCHECK(!render_cb_);
+    SB_DCHECK(render_cb);
+
+    render_cb_ = render_cb;
+  }
+
+  void SetBounds(int z_index, int x, int y, int width, int height) override {
+    SB_UNREFERENCED_PARAMETER(z_index);
+    SB_UNREFERENCED_PARAMETER(x);
+    SB_UNREFERENCED_PARAMETER(y);
+    SB_UNREFERENCED_PARAMETER(width);
+    SB_UNREFERENCED_PARAMETER(height);
+  }
+
+  DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
+                            int64_t release_time_in_nanoseconds) {
+    SB_UNREFERENCED_PARAMETER(frame);
+    SB_DCHECK(release_time_in_nanoseconds == 0);
+
+    return kNotReleased;
+  }
+
+  RenderCB render_cb_;
+};
 
 VideoDecoder::VideoDecoder(
     SbMediaVideoCodec video_codec,
@@ -103,7 +155,6 @@ VideoDecoder::VideoDecoder(
     : video_codec_(video_codec),
       graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
-      host_(nullptr),
       decoder_thread_(kSbThreadInvalid),
       decoder_thread_stop_requested_(false),
       decoder_thread_stopped_(false),
@@ -128,21 +179,25 @@ VideoDecoder::~VideoDecoder() {
   ShutdownCodec();
 }
 
-void VideoDecoder::SetHost(Host* host) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(host != nullptr);
-  SB_DCHECK(host_ == nullptr);
-  host_ = host;
+scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
+  if (sink_ == NULL) {
+    sink_ = new Sink;
+  }
+  return sink_;
 }
 
 size_t VideoDecoder::GetPrerollFrameCount() const {
   return kMaxOutputSamples;
 }
 
-void VideoDecoder::Initialize(const Closure& error_cb) {
+void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const ErrorCB& error_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(!error_cb_.is_valid());
-  SB_DCHECK(error_cb.is_valid());
+  SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!error_cb_);
+  SB_DCHECK(error_cb);
+  decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 }
 
@@ -150,7 +205,7 @@ void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(input_buffer);
-  SB_DCHECK(host_ != nullptr);
+  SB_DCHECK(decoder_status_cb_);
   EnsureDecoderThreadRunning();
 
   ScopedLock lock(thread_lock_);
@@ -160,7 +215,7 @@ void VideoDecoder::WriteInputBuffer(
 
 void VideoDecoder::WriteEndOfStream() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(host_ != nullptr);
+  SB_DCHECK(decoder_status_cb_);
   EnsureDecoderThreadRunning();
 
   ScopedLock lock(thread_lock_);
@@ -184,6 +239,10 @@ void VideoDecoder::Reset() {
 }
 
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
+  SB_DCHECK(sink_);
+
+  sink_->Render();
+
   // Ensure the decode target is created on the render thread.
   CreateDecodeTargetContext decode_target_context = { this };
   graphics_context_provider_->gles_context_runner(graphics_context_provider_,
@@ -444,23 +503,16 @@ scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
 
   // The "native texture" for the VideoFrame is actually just the timestamp
   // for the output sample.
-  return make_scoped_refptr(new VideoFrame(
-      video_area_.right, video_area_.bottom, sample_time,
-      new SbMediaTime(sample_time), this, &VideoDecoder::DeleteVideoFrame));
+  return new VideoFrameImpl(
+      sample_time, std::bind(&VideoDecoder::DeleteVideoFrame, this, _1));
 }
 
-// static
-void VideoDecoder::DeleteVideoFrame(void* context, void* native_texture) {
-  VideoDecoder* this_ptr = static_cast<VideoDecoder*>(context);
-  SbMediaTime* time_ptr = static_cast<SbMediaTime*>(native_texture);
-  SbMediaTime time = *time_ptr;
-  delete time_ptr;
-
-  ScopedLock lock(this_ptr->thread_lock_);
-  for (auto iter = this_ptr->thread_outputs_.begin();
-       iter != this_ptr->thread_outputs_.end(); ++iter) {
-    if (iter->time == time) {
-      this_ptr->thread_outputs_.erase(iter);
+void VideoDecoder::DeleteVideoFrame(VideoFrame* video_frame) {
+  ScopedLock lock(thread_lock_);
+  for (auto iter = thread_outputs_.begin(); iter != thread_outputs_.end();
+       ++iter) {
+    if (iter->time == video_frame->pts()) {
+      thread_outputs_.erase(iter);
       break;
     }
   }
@@ -526,7 +578,7 @@ void VideoDecoder::DecoderThreadRun() {
       thread_lock_.Release();
 
       Status status = input_full ? kBufferFull : kNeedMoreInput;
-      host_->OnDecoderStatusUpdate(status, nullptr);
+      decoder_status_cb_(status, nullptr);
 
       if (output_full) {
         // Wait for the active samples to be consumed before polling for more.
@@ -556,12 +608,11 @@ void VideoDecoder::DecoderThreadRun() {
             decoder_->Reset();
           }
         } else {
-          host_->OnDecoderStatusUpdate(status, CreateVideoFrame(sample));
+          decoder_status_cb_(status, CreateVideoFrame(sample));
         }
         read_output = true;
       } else if (is_end_of_stream) {
-        host_->OnDecoderStatusUpdate(kBufferFull,
-                                     VideoFrame::CreateEOSFrame());
+        decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
         return;
       }
     }

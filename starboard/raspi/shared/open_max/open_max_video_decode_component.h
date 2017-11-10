@@ -33,8 +33,6 @@ namespace open_max {
 // manages the disposition of Dispmanx resource.
 class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
  public:
-  typedef starboard::shared::starboard::player::VideoFrame VideoFrame;
-
   using OpenMaxComponent::Start;
   using OpenMaxComponent::Flush;
   using OpenMaxComponent::WriteData;

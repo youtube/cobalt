@@ -22,7 +22,6 @@
 #include "starboard/drm.h"
 #include "starboard/media.h"
 #include "starboard/shared/starboard/player/decoded_audio_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/types.h"
 

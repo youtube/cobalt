@@ -28,17 +28,17 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
  public:
   CallbackScheduler() : callback_signaled_(false) {}
 
-  void SetCallbackOnce(Closure cb) {
-    SB_DCHECK(cb.is_valid());
+  void SetCallbackOnce(ConsumedCB cb) {
+    SB_DCHECK(cb);
     ::starboard::ScopedLock lock(mutex_);
-    if (!cb_.is_valid()) {
+    if (!cb_) {
       cb_ = cb;
     }
   }
 
   void ScheduleCallbackIfNecessary() {
     ::starboard::ScopedLock lock(mutex_);
-    if (!cb_.is_valid() || callback_signaled_) {
+    if (!cb_ || callback_signaled_) {
       return;
     }
     callback_signaled_ = true;
@@ -50,7 +50,7 @@ class AudioDecoder::CallbackScheduler : private JobOwner {
     callback_signaled_ = false;
   }
 
-  Closure cb_;
+  ConsumedCB cb_;
   ::starboard::Mutex mutex_;
   bool callback_signaled_;
 };
@@ -79,8 +79,18 @@ AudioDecoder::~AudioDecoder() {
   callback_scheduler_.reset(nullptr);
 }
 
+void AudioDecoder::Initialize(const OutputCB& output_cb,
+                              const ErrorCB& error_cb) {
+  SB_DCHECK(thread_checker_.CalledOnValidThread());
+  SB_UNREFERENCED_PARAMETER(error_cb);
+
+  SB_DCHECK(output_cb);
+  SB_DCHECK(!output_cb_);
+  output_cb_ = output_cb;
+}
+
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
-                          const Closure& consumed_cb) {
+                          const ConsumedCB& consumed_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(input_buffer);
 
@@ -137,19 +147,9 @@ int AudioDecoder::GetSamplesPerSecond() const {
   return decoder_impl_->GetSamplesPerSecond();
 }
 
-void AudioDecoder::Initialize(const Closure& output_cb,
-                              const Closure& error_cb) {
-  SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_UNREFERENCED_PARAMETER(error_cb);
-
-  SB_DCHECK(output_cb.is_valid());
-  SB_DCHECK(!output_cb_.is_valid());
-  output_cb_ = output_cb;
-}
-
 void AudioDecoder::OnAudioDecoded(DecodedAudioPtr data) {
   decoded_data_.PushBack(data);
-  if (output_cb_.is_valid()) {
+  if (output_cb_) {
     Schedule(output_cb_);
   }
   callback_scheduler_->ScheduleCallbackIfNecessary();

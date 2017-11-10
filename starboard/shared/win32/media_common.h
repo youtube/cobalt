@@ -30,25 +30,23 @@
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/string.h"
 
 namespace starboard {
 namespace shared {
 namespace win32 {
 
-using Closure = ::starboard::shared::starboard::player::Closure;
 using DecodedAudio = ::starboard::shared::starboard::player::DecodedAudio;
 using DecodedAudioPtr = ::starboard::scoped_refptr<DecodedAudio>;
 using InputBuffer = ::starboard::shared::starboard::player::InputBuffer;
 using PlayerComponents =
     ::starboard::shared::starboard::player::filter::PlayerComponents;
 using Status =
-    ::starboard::shared::starboard::player::filter::HostedVideoDecoder::Status;
-using VideoFrame = ::starboard::shared::starboard::player::VideoFrame;
+    ::starboard::shared::starboard::player::filter::VideoDecoder::Status;
+using VideoFrame = ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoFramePtr = ::starboard::scoped_refptr<VideoFrame>;
 using VideoParameters =
     ::starboard::shared::starboard::player::filter::VideoParameters;

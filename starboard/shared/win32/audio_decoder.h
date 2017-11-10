@@ -43,16 +43,15 @@ class AudioDecoder
                SbDrmSystem drm_system);
   ~AudioDecoder() override;
 
+  void Initialize(const OutputCB& output_cb, const ErrorCB& error_cb) override;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) override;
+              const ConsumedCB& consumed_cb) override;
   void WriteEndOfStream() override;
   scoped_refptr<DecodedAudio> Read() override;
   void Reset() override;
   SbMediaAudioSampleType GetSampleType() const override;
   int GetSamplesPerSecond() const override;
 
-  void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) override;
   SbMediaAudioFrameStorageType GetStorageType() const override {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
@@ -73,7 +72,7 @@ class AudioDecoder
   scoped_ptr<AudioDecoder::CallbackScheduler> callback_scheduler_;
   scoped_ptr<AbstractWin32AudioDecoder> decoder_impl_;
   scoped_ptr<AudioDecoderThread> decoder_thread_;
-  Closure output_cb_;
+  OutputCB output_cb_;
 
   Mutex mutex_;
 };

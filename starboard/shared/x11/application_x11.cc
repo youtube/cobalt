@@ -37,6 +37,7 @@
 #include "starboard/player.h"
 #include "starboard/shared/posix/time_internal.h"
 #include "starboard/shared/starboard/audio_sink/audio_sink_internal.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/shared/x11/window_internal.h"
 #include "starboard/time.h"
 
@@ -689,7 +690,7 @@ int ErrorHandler(Display* display, XErrorEvent* event) {
 
 }  // namespace
 
-using shared::starboard::player::VideoFrame;
+using shared::starboard::player::filter::CpuVideoFrame;
 
 ApplicationX11::ApplicationX11()
     : wake_up_atom_(None),
@@ -771,13 +772,21 @@ void ApplicationX11::Composite() {
       for (auto& iter : frame_infos) {
         FrameInfo& frame_info = iter.second;
 
-        if (frame_info.frame && !frame_info.frame->IsEndOfStream() &&
-            frame_info.frame->format() != VideoFrame::kBGRA32) {
-          frame_info.frame = frame_info.frame->ConvertTo(VideoFrame::kBGRA32);
+        if (frame_info.frame->is_end_of_stream()) {
+          continue;
+        }
+
+        scoped_refptr<CpuVideoFrame> cpu_video_frame =
+            static_cast<CpuVideoFrame*>(frame_info.frame.get());
+
+        if (cpu_video_frame &&
+            cpu_video_frame->format() != CpuVideoFrame::kBGRA32) {
+          cpu_video_frame = cpu_video_frame->ConvertTo(CpuVideoFrame::kBGRA32);
+          frame_info.frame = cpu_video_frame;
         }
         window->CompositeVideoFrame(frame_info.x, frame_info.y,
                                     frame_info.width, frame_info.height,
-                                    frame_info.frame);
+                                    cpu_video_frame);
       }
       window->EndComposite();
     }
