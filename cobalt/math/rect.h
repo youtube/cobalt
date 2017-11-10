@@ -19,6 +19,7 @@
 #include "cobalt/math/point.h"
 #include "cobalt/math/rect_base.h"
 #include "cobalt/math/rect_f.h"
+#include "cobalt/math/safe_integer_conversions.h"
 #include "cobalt/math/size.h"
 #include "cobalt/math/vector2d.h"
 
@@ -47,14 +48,22 @@ class Rect : public RectBase<Rect, Point, Size, Insets, Vector2d, int> {
 
   ~Rect() {}
 
-  operator RectF() const {
-    return RectF(static_cast<float>(origin().x()),
-                 static_cast<float>(origin().y()),
-                 static_cast<float>(size().width()),
-                 static_cast<float>(size().height()));
-  }
+  operator RectF() const;
 
   std::string ToString() const;
+
+  // This function rounds top, left, right, bottom attributes, and clamps
+  // them, so that the width and height are representable in an integer.
+  static Rect RoundFromRectF(RectF rect);
+
+ private:
+  // Constructing rects when one of the parameters is a float is explicitly
+  // disabled to avoid accidental truncation.  This puts the onus of converting
+  // floats on the user of the class.
+  // If a |Rect| from RectF is required, consider constructing a |RectF| from
+  // float parameters, and then calling |Rect::RoundFromRectF()|, which will
+  // round and clamp to integer boundaries.
+  Rect(float x, float y, float width, float height) = delete;
 };
 
 inline bool operator==(const Rect& lhs, const Rect& rhs) {
@@ -67,6 +76,11 @@ inline bool operator!=(const Rect& lhs, const Rect& rhs) {
 
 Rect operator+(const Rect& lhs, const Vector2d& rhs);
 Rect operator-(const Rect& lhs, const Vector2d& rhs);
+
+inline std::ostream& operator<<(std::ostream& os, const Rect& rect) {
+  os << rect.ToString();
+  return os;
+}
 
 inline Rect operator+(const Vector2d& lhs, const Rect& rhs) {
   return rhs + lhs;

@@ -136,9 +136,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       return;
     }
 
-    scoped_push.emplace(&render_state_.bounds_stack,
-                        RectFToRect(render_state_.transform.TransformRect(
-                            viewport_filter.viewport())));
+    scoped_push.emplace(
+        &render_state_.bounds_stack,
+        cobalt::math::Rect::RoundFromRectF(
+            render_state_.transform.TransformRect(viewport_filter.viewport())));
   }
 
   if (!filter_node->data().opacity_filter ||
