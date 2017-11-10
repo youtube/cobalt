@@ -11,48 +11,22 @@
 # limitations under the License."""
 """Definition of interface used by host apps to configure Starboard"""
 
-# List of paths to directories in which Starboard ports are located.
-# Each path should be represented as a list of directory names whose locations
-# are relative to the location of this file.
+from cobalt.build import cobalt_configuration
+
+# List of paths to directories in which Starboard ports are located. Each path
+# should be represented as a list of directory names whose locations are
+# relative to the location of this file.
 PORT_ROOTS = [
     ["starboard"],
     ["starboard", "port"],
     ["third_party", "starboard"]
 ]
 
-#  Names of all the unit test binaries that can be run by
-#  the Starboard unit test runner.
-TEST_TARGETS = [
-    'audio_test',
-    'base_test',
-    'base_unittests',
-    'bindings_test',
-    'crypto_unittests',
-    'csp_test',
-    'css_parser_test',
-    'cssom_test',
-    'dom_parser_test',
-    'dom_test',
-    'layout_test',
-    'layout_tests',
-    'loader_test',
-    'math_test',
-    'media_session_test',
-    'nb_test',
-    'nplb',
-    'nplb_blitter_pixel_tests',
-    'net_unittests',
-    'network_test',
-    'page_visibility_test',
-    'poem_unittests',
-    'render_tree_test',
-    'renderer_test',
-    'sql_unittests',
-    'starboard_platform_tests',
-    'storage_test',
-    'trace_event_test',
-    'web_animations_test',
-    'web_platform_tests',
-    'webdriver_test',
-    'xhr_test',
-]
+# A Mapping of application names to cross-platform ApplicationConfiguration
+# subclasses (or factory functions).
+#
+# For more information, see starboard/doc/building.md.
+APPLICATIONS = {
+    cobalt_configuration.APPLICATION_NAME:
+        cobalt_configuration.CobaltConfiguration,
+}
