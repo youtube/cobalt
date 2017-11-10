@@ -38,7 +38,6 @@ using cobalt::render_tree::ColorStopList;
 using cobalt::render_tree::LinearGradientBrush;
 using cobalt::renderer::rasterizer::blitter::RenderState;
 using cobalt::renderer::rasterizer::blitter::SkiaToBlitterPixelFormat;
-using cobalt::renderer::rasterizer::blitter::RectFToRect;
 using cobalt::renderer::rasterizer::blitter::RectFToBlitterRect;
 using cobalt::renderer::rasterizer::blitter::LinearGradientCache;
 using cobalt::renderer::rasterizer::skia::SkiaColorStops;
@@ -289,8 +288,8 @@ void RenderOptimizedLinearGradient(SbBlitterDevice device,
 
     SbBlitterSetBlending(context, need_blending);
     SbBlitterSetModulateBlitsWithColor(context, false);
-    cobalt::math::Rect transformed_rect =
-        RectFToRect(render_state.transform.TransformRect(rect));
+    cobalt::math::Rect transformed_rect = cobalt::math::Rect::RoundFromRectF(
+        render_state.transform.TransformRect(rect));
 
     // It may be the case that the linear gradient is larger than the rect.
     SbBlitterRect source_rect;

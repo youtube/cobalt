@@ -55,14 +55,6 @@ bool IsOpaque(float opacity) {
   return opacity >= 0.999f;
 }
 
-math::Rect RoundRectFToInt(const math::RectF& input) {
-  int left = static_cast<int>(input.x() + 0.5f);
-  int right = static_cast<int>(input.right() + 0.5f);
-  int top = static_cast<int>(input.y() + 0.5f);
-  int bottom = static_cast<int>(input.bottom() + 0.5f);
-  return math::Rect(left, top, right - left, bottom - top);
-}
-
 math::RectF RoundOut(const math::RectF& input, float pad) {
   float left = std::floor(input.x() - pad);
   float right = std::ceil(input.right() + pad);
@@ -252,7 +244,8 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
       }
       // Combine the new viewport filter with existing viewport filter.
       math::Rect old_scissor = draw_state_.scissor;
-      draw_state_.scissor.Intersect(RoundRectFToInt(transformed_viewport));
+      draw_state_.scissor.Intersect(
+          math::Rect::RoundFromRectF(transformed_viewport));
       if (!draw_state_.scissor.IsEmpty()) {
         data.source->Accept(this);
       }
@@ -436,12 +429,9 @@ void RenderTreeNodeVisitor::Visit(
   }
 
   const render_tree::PunchThroughVideoNode::Builder& data = video_node->data();
-  math::RectF mapped_rect = draw_state_.transform.MapRect(data.rect);
-  data.set_bounds_cb.Run(
-      math::Rect(static_cast<int>(mapped_rect.x()),
-                 static_cast<int>(mapped_rect.y()),
-                 static_cast<int>(mapped_rect.width()),
-                 static_cast<int>(mapped_rect.height())));
+  math::RectF mapped_rect_float = draw_state_.transform.MapRect(data.rect);
+  math::Rect mapped_rect = math::Rect::RoundFromRectF(mapped_rect_float);
+  data.set_bounds_cb.Run(mapped_rect);
 
   scoped_ptr<DrawObject> draw(new DrawPolyColor(graphics_state_,
       draw_state_, data.rect, kTransparentBlack));
@@ -790,10 +780,10 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
     math::Matrix3F* out_texcoord_transform,
     math::RectF* out_content_rect) {
   // Check whether the node is visible.
-  math::RectF mapped_bounds(RoundOut(
-      draw_state_.transform.MapRect(node->GetBounds()), 0.0f));
-  math::RectF clipped_bounds = math::IntersectRects(
-      mapped_bounds, draw_state_.scissor);
+  math::RectF mapped_bounds = draw_state_.transform.MapRect(node->GetBounds());
+  math::RectF rounded_out_bounds = RoundOut(mapped_bounds, 0.0f);
+  math::RectF clipped_bounds =
+      math::IntersectRects(rounded_out_bounds, draw_state_.scissor);
   if (clipped_bounds.IsEmpty()) {
     out_content_rect->SetRect(0.0f, 0.0f, 0.0f, 0.0f);
     return;
@@ -804,7 +794,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   // so use the mapped size limited to the maximum visible area. This increases
   // the chance that the render target can be recycled in the next frame.
   OffscreenTargetManager::TargetInfo target_info;
-  math::SizeF target_size(mapped_bounds.size());
+  math::SizeF target_size(rounded_out_bounds.size());
   target_size.SetToMin(onscreen_render_target_->GetSize());
   offscreen_target_manager_->AllocateUncachedTarget(target_size, &target_info);
 
@@ -838,7 +828,7 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
   // Draw the contents at 100% opacity. The caller will then draw the results
   // onto the main render target at the desired opacity.
   draw_state_.opacity = 1.0f;
-  draw_state_.scissor = RoundRectFToInt(target_info.region);
+  draw_state_.scissor = math::Rect::RoundFromRectF(target_info.region);
 
   // Clear the new render target. (Set the transform to the identity matrix so
   // the bounds for the DrawClear comes out as the entire target region.)
@@ -861,22 +851,21 @@ void RenderTreeNodeVisitor::OffscreenRasterize(
 }
 
 bool RenderTreeNodeVisitor::IsVisible(const math::RectF& bounds) {
-  math::RectF intersection = IntersectRects(
-      draw_state_.transform.MapRect(bounds), draw_state_.scissor);
+  math::RectF rect_bounds = draw_state_.transform.MapRect(bounds);
+  math::RectF intersection = IntersectRects(rect_bounds, draw_state_.scissor);
   return !intersection.IsEmpty();
 }
 
 void RenderTreeNodeVisitor::AddDraw(scoped_ptr<DrawObject> object,
     const math::RectF& local_bounds, DrawObjectManager::BlendType blend_type) {
   base::TypeId draw_type = object->GetTypeId();
+  math::RectF mapped_bounds = draw_state_.transform.MapRect(local_bounds);
   if (render_target_ != onscreen_render_target_) {
-    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(object.Pass(),
-        blend_type, draw_type, render_target_,
-        draw_state_.transform.MapRect(local_bounds));
+    last_draw_id_ = draw_object_manager_->AddOffscreenDraw(
+        object.Pass(), blend_type, draw_type, render_target_, mapped_bounds);
   } else {
-    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(object.Pass(),
-        blend_type, draw_type, render_target_,
-        draw_state_.transform.MapRect(local_bounds));
+    last_draw_id_ = draw_object_manager_->AddOnscreenDraw(
+        object.Pass(), blend_type, draw_type, render_target_, mapped_bounds);
   }
 }
 

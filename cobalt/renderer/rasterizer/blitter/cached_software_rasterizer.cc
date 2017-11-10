@@ -190,10 +190,11 @@ CachedSoftwareRasterizer::Surface CachedSoftwareRasterizer::GetSurface(
   SbBlitterPixelData pixel_data = SbBlitterCreatePixelData(
       device_, coord_mapping.output_bounds.width(),
       coord_mapping.output_bounds.height(), blitter_pixel_data_format);
-  DCHECK(SbBlitterIsPixelDataValid(pixel_data));
   if (!SbBlitterIsPixelDataValid(pixel_data)) {
     // We failed to allocate the pixel data, just return with a null surface
     // in this case.
+    LOG(ERROR) << "Error allocating pixel data for an offscreen software "
+                  "rasterization.";
     return software_surface;
   }
 
