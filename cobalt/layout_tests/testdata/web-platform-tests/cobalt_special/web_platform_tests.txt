@@ -1,0 +1,3 @@
+# Cobalt's special tests that borrows WPT infrastructures.
+
+origin-clean.htm,PASS
