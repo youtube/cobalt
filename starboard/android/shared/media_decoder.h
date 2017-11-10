@@ -18,6 +18,7 @@
 #include <jni.h>
 
 #include <deque>
+#include <functional>
 #include <queue>
 
 #include "starboard/android/shared/drm_system.h"
@@ -27,7 +28,6 @@
 #include "starboard/common/ref_counted.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 
@@ -39,7 +39,7 @@ namespace shared {
 //       need to talk directly to the MediaCodecBridge.
 class MediaDecoder {
  public:
-  typedef ::starboard::shared::starboard::player::Closure Closure;
+  typedef std::function<void()> ErrorCB;
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
 
   // This class should be implemented by the users of MediaDecoder to receive
@@ -78,7 +78,7 @@ class MediaDecoder {
                const SbMediaColorMetadata* color_metadata);
   ~MediaDecoder();
 
-  void Initialize(const Closure& error_cb);
+  void Initialize(const ErrorCB& error_cb);
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
@@ -135,7 +135,7 @@ class MediaDecoder {
 
   const SbMediaType media_type_;
   Host* host_;
-  Closure error_cb_;
+  ErrorCB error_cb_;
 
   // Working thread to avoid lengthy decoding work block the player thread.
   SbThread decoder_thread_;

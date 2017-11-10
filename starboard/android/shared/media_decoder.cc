@@ -122,10 +122,10 @@ MediaDecoder::~MediaDecoder() {
   JoinOnDecoderThread();
 }
 
-void MediaDecoder::Initialize(const Closure& error_cb) {
+void MediaDecoder::Initialize(const ErrorCB& error_cb) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  SB_DCHECK(error_cb.is_valid());
-  SB_DCHECK(!error_cb_.is_valid());
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
 
   error_cb_ = error_cb;
 }
@@ -167,7 +167,7 @@ void* MediaDecoder::ThreadEntryPoint(void* context) {
 }
 
 void MediaDecoder::DecoderThreadFunc() {
-  SB_DCHECK(error_cb_.is_valid());
+  SB_DCHECK(error_cb_);
 
   // TODO: Replace |pending_work| with a single object instead of using a deque.
   std::deque<Event> pending_work;
@@ -362,7 +362,7 @@ void MediaDecoder::HandleError(const char* action_name, jint status) {
   } else if (status == MEDIA_CODEC_INSUFFICIENT_OUTPUT_PROTECTION) {
     drm_system_->OnInsufficientOutputProtection();
   } else {
-    error_cb_.Run();
+    error_cb_();
   }
 
   if (retry) {

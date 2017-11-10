@@ -17,6 +17,7 @@
 #include <jni.h>
 
 #include <cmath>
+#include <functional>
 
 #include "starboard/android/shared/application_android.h"
 #include "starboard/android/shared/decode_target_create.h"
@@ -24,12 +25,13 @@
 #include "starboard/android/shared/jni_env_ext.h"
 #include "starboard/android/shared/jni_utils.h"
 #include "starboard/android/shared/media_common.h"
-#include "starboard/android/shared/video_renderer.h"
 #include "starboard/android/shared/video_window.h"
 #include "starboard/android/shared/window_internal.h"
+#include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/drm.h"
 #include "starboard/memory.h"
+#include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/string.h"
 #include "starboard/thread.h"
 
@@ -38,6 +40,55 @@ namespace android {
 namespace shared {
 
 namespace {
+
+using ::starboard::shared::starboard::player::filter::VideoFrame;
+using std::placeholders::_1;
+using std::placeholders::_2;
+
+class VideoFrameImpl : public VideoFrame {
+ public:
+  VideoFrameImpl(const DequeueOutputResult& dequeue_output_result,
+                 MediaCodecBridge* media_codec_bridge)
+      : VideoFrame(dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM
+                       ? kMediaTimeEndOfStream
+                       : dequeue_output_result.presentation_time_microseconds *
+                             kSbMediaTimeSecond / kSbTimeSecond),
+        dequeue_output_result_(dequeue_output_result),
+        media_codec_bridge_(media_codec_bridge),
+        released_(false) {
+    SB_DCHECK(media_codec_bridge_);
+  }
+
+  ~VideoFrameImpl() {
+    if (!released_) {
+      media_codec_bridge_->ReleaseOutputBuffer(dequeue_output_result_.index,
+                                               false);
+      if (is_end_of_stream()) {
+        media_codec_bridge_->Flush();
+      }
+    }
+  }
+
+  void Draw(int64_t release_time_in_nanoseconds) {
+    SB_DCHECK(!released_);
+    SB_DCHECK(!is_end_of_stream());
+    released_ = true;
+    media_codec_bridge_->ReleaseOutputBufferAtTimestamp(
+        dequeue_output_result_.index, release_time_in_nanoseconds);
+  }
+
+ private:
+  DequeueOutputResult dequeue_output_result_;
+  MediaCodecBridge* media_codec_bridge_;
+  volatile bool released_;
+};
+
+const SbTime kInitialPrerollTimeout = 250 * kSbTimeMillisecond;
+
+const int kInitialPrerollFrameCount = 8;
+const int kNonInitialPrerollFrameCount = 1;
+
+const int kMaxPendingWorkSize = 128;
 
 // Convenience HDR mastering metadata.
 const SbMediaMasteringMetadata kEmptyMasteringMetadata = {};
@@ -67,13 +118,52 @@ bool IsIdentity(const SbMediaColorMetadata& color_metadata) {
 
 }  // namespace
 
+class VideoDecoder::Sink : public VideoDecoder::VideoRendererSink {
+ public:
+  bool Render() {
+    SB_DCHECK(render_cb_);
+
+    rendered_ = false;
+    render_cb_(std::bind(&Sink::DrawFrame, this, _1, _2));
+
+    return rendered_;
+  }
+
+ private:
+  void SetRenderCB(RenderCB render_cb) override {
+    SB_DCHECK(!render_cb_);
+    SB_DCHECK(render_cb);
+
+    render_cb_ = render_cb;
+  }
+
+  void SetBounds(int z_index, int x, int y, int width, int height) override {
+    SB_UNREFERENCED_PARAMETER(z_index);
+    SB_UNREFERENCED_PARAMETER(x);
+    SB_UNREFERENCED_PARAMETER(y);
+    SB_UNREFERENCED_PARAMETER(width);
+    SB_UNREFERENCED_PARAMETER(height);
+  }
+
+  DrawFrameStatus DrawFrame(const scoped_refptr<VideoFrame>& frame,
+                            int64_t release_time_in_nanoseconds) {
+    rendered_ = true;
+    static_cast<VideoFrameImpl*>(frame.get())
+        ->Draw(release_time_in_nanoseconds);
+
+    return kReleased;
+  }
+
+  RenderCB render_cb_;
+  bool rendered_;
+};
+
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
                            SbDrmSystem drm_system,
                            SbPlayerOutputMode output_mode,
                            SbDecodeTargetGraphicsContextProvider*
                                decode_target_graphics_context_provider)
     : video_codec_(video_codec),
-      host_(NULL),
       drm_system_(static_cast<DrmSystem*>(drm_system)),
       output_mode_(output_mode),
       decode_target_graphics_context_provider_(
@@ -81,7 +171,8 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_(kSbDecodeTargetInvalid),
       frame_width_(0),
       frame_height_(0),
-      has_written_buffer_since_reset_(false) {
+      has_written_buffer_since_reset_(false),
+      first_buffer_received_(false) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
     TeardownCodec();
@@ -93,26 +184,51 @@ VideoDecoder::~VideoDecoder() {
   ClearVideoWindow();
 }
 
-void VideoDecoder::Initialize(const Closure& error_cb) {
-  SB_DCHECK(!error_cb_.is_valid());
-  SB_DCHECK(error_cb.is_valid());
+scoped_refptr<VideoDecoder::VideoRendererSink> VideoDecoder::GetSink() {
+  if (sink_ == NULL) {
+    sink_ = new Sink;
+  }
+  return sink_;
+}
+
+void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
+                              const ErrorCB& error_cb) {
   SB_DCHECK(media_decoder_);
 
+  SB_DCHECK(decoder_status_cb);
+  SB_DCHECK(!decoder_status_cb_);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
+
+  decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
 
   media_decoder_->Initialize(error_cb_);
 }
 
-void VideoDecoder::SetHost(VideoRenderer* host) {
-  SB_DCHECK(host != NULL);
-  SB_DCHECK(host_ == NULL);
-  host_ = host;
+size_t VideoDecoder::GetPrerollFrameCount() const {
+  if (first_buffer_received_ && first_buffer_pts_ != 0) {
+    return kNonInitialPrerollFrameCount;
+  }
+  return kInitialPrerollFrameCount;
+}
+
+SbTime VideoDecoder::GetPrerollTimeout() const {
+  if (first_buffer_received_ && first_buffer_pts_ != 0) {
+    return kSbTimeMax;
+  }
+  return kInitialPrerollTimeout;
 }
 
 void VideoDecoder::WriteInputBuffer(
     const scoped_refptr<InputBuffer>& input_buffer) {
   SB_DCHECK(input_buffer);
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
+
+  if (!first_buffer_received_) {
+    first_buffer_received_ = true;
+    first_buffer_pts_ = input_buffer->pts();
+  }
 
   if (!has_written_buffer_since_reset_) {
     SB_LOG(INFO) << "Attempting to reconfigure with HDR metadata";
@@ -132,16 +248,26 @@ void VideoDecoder::WriteInputBuffer(
   }
 
   media_decoder_->WriteInputBuffer(input_buffer);
+  if (number_of_frames_being_decoded_.increment() < kMaxPendingWorkSize) {
+    decoder_status_cb_(kNeedMoreInput, NULL);
+  }
 }
 
 void VideoDecoder::WriteEndOfStream() {
-  SB_DCHECK(host_ != NULL);
+  SB_DCHECK(decoder_status_cb_);
+
+  if (!first_buffer_received_) {
+    first_buffer_received_ = true;
+    first_buffer_pts_ = 0;
+  }
 
   media_decoder_->WriteEndOfStream();
 }
 
 void VideoDecoder::Reset() {
   TeardownCodec();
+  number_of_frames_being_decoded_.store(0);
+  first_buffer_received_ = false;
   if (!InitializeCodec()) {
     // TODO: Communicate this failure to our clients somehow.
     SB_LOG(ERROR) << "Failed to initialize codec after reset.";
@@ -193,7 +319,7 @@ bool VideoDecoder::InitializeCodec() {
       this, video_codec_, width, height, j_output_surface, drm_system_,
       previous_color_metadata_ ? &*previous_color_metadata_ : nullptr));
   if (media_decoder_->is_valid()) {
-    if (error_cb_.is_valid()) {
+    if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
     }
     return true;
@@ -216,8 +342,15 @@ void VideoDecoder::TeardownCodec() {
 void VideoDecoder::ProcessOutputBuffer(
     MediaCodecBridge* media_codec_bridge,
     const DequeueOutputResult& dequeue_output_result) {
+  SB_DCHECK(decoder_status_cb_);
   SB_DCHECK(dequeue_output_result.index >= 0);
-  dequeue_output_results_.push_back(dequeue_output_result);
+
+  number_of_frames_being_decoded_.decrement();
+  bool is_end_of_stream =
+      dequeue_output_result.flags & BUFFER_FLAG_END_OF_STREAM;
+  decoder_status_cb_(
+      is_end_of_stream ? kBufferFull : kNeedMoreInput,
+      new VideoFrameImpl(dequeue_output_result, media_codec_bridge));
 }
 
 void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
@@ -231,17 +364,11 @@ void VideoDecoder::RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) {
 }
 
 bool VideoDecoder::Tick(MediaCodecBridge* media_codec_bridge) {
-  // Pass all of our decoded frames into our host, which will decide whether to
-  // drop them, render them, or hold them.  If our host does anything with at
-  // least one frame, then we consider that work, and will do another loop
-  // iteration immediately.
-  size_t previous_size = dequeue_output_results_.size();
-  host_->HandleDecodedFrames(media_codec_bridge, &dequeue_output_results_);
-  return dequeue_output_results_.size() != previous_size;
+  return sink_->Render();
 }
 
 void VideoDecoder::OnFlushing() {
-  dequeue_output_results_.clear();
+  decoder_status_cb_(kReleaseAllFrames, NULL);
 }
 
 namespace {
@@ -332,8 +459,8 @@ void SetDecodeTargetContentRegionFromMatrix(
 // When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
   SB_DCHECK(output_mode_ == kSbPlayerOutputModeDecodeToTexture);
-  // We must take a lock here since this function can be called from a
-  // separate thread.
+  // We must take a lock here since this function can be called from a separate
+  // thread.
   starboard::ScopedLock lock(decode_target_mutex_);
 
   if (SbDecodeTargetIsValid(decode_target_)) {

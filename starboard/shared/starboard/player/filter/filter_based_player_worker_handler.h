@@ -15,12 +15,13 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_FILTER_BASED_PLAYER_WORKER_HANDLER_H_
 
+#include <functional>
+
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
 #include "starboard/decode_target.h"
 #include "starboard/media.h"
 #include "starboard/player.h"
-#include "starboard/shared/starboard/player/closure.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
@@ -91,7 +92,8 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   double playback_rate_;
   double volume_;
   PlayerWorker::Bounds bounds_;
-  Closure update_closure_;
+  JobQueue::JobToken update_job_token_;
+  std::function<void()> update_job_;
 
   // A mutex guarding changes to the existence (e.g. creation/destruction)
   // of the |video_renderer_| object.  This is necessary because calls to

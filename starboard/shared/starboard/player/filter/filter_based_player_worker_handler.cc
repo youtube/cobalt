@@ -16,13 +16,11 @@
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
-#include "starboard/shared/starboard/application.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/player_components.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -71,7 +69,7 @@ FilterBasedPlayerWorkerHandler::FilterBasedPlayerWorkerHandler(
   }
 #endif  // SB_API_VERSION >= 6
 
-  update_closure_ = Bind(&FilterBasedPlayerWorkerHandler::Update, this);
+  update_job_ = std::bind(&FilterBasedPlayerWorkerHandler::Update, this);
   bounds_ = PlayerWorker::Bounds();
 }
 
@@ -107,9 +105,9 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   AudioParameters audio_parameters = {audio_codec_, audio_header_, drm_system_,
                                       job_queue_};
-  VideoParameters video_parameters = {video_codec_, drm_system_, job_queue_,
-                                      output_mode_,
-                                      decode_target_graphics_context_provider_};
+  VideoParameters video_parameters = {
+      player_,    video_codec_, drm_system_,
+      job_queue_, output_mode_, decode_target_graphics_context_provider_};
 
   scoped_ptr<PlayerComponents> media_components =
       PlayerComponents::Create(audio_parameters, video_parameters);
@@ -124,11 +122,11 @@ bool FilterBasedPlayerWorkerHandler::Init(
   audio_renderer_->SetPlaybackRate(playback_rate_);
   audio_renderer_->SetVolume(volume_);
   audio_renderer_->Initialize(
-      Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+      std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
   video_renderer_->Initialize(
-      Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+      std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
 
-  job_queue_->Schedule(update_closure_, kUpdateInterval);
+  update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
 
   return true;
 }
@@ -296,9 +294,11 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
 
   if (SbMemoryCompare(&bounds_, &bounds, sizeof(bounds_)) != 0) {
     bounds_ = bounds;
-    // Force an update
-    job_queue_->Remove(update_closure_);
-    Update();
+    if (video_renderer_) {
+      // TODO: Force a frame update
+      video_renderer_->SetBounds(bounds.z_index, bounds.x, bounds.y,
+                                 bounds.width, bounds.height);
+    }
   }
 
   return true;
@@ -306,7 +306,8 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
 
 void FilterBasedPlayerWorkerHandler::OnError() {
   if (!job_queue_->BelongsToCurrentThread()) {
-    job_queue_->Schedule(Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    job_queue_->Schedule(
+        std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
     return;
   }
 
@@ -337,25 +338,21 @@ void FilterBasedPlayerWorkerHandler::Update() {
       (*player_worker_.*update_player_state_cb_)(kSbPlayerStateEndOfStream);
     }
 
-    if (IsPunchoutMode()) {
-      scoped_refptr<VideoFrame> frame = video_renderer_->GetCurrentFrame(
-          audio_renderer_->GetCurrentTime(),
-          audio_renderer_->IsEndOfStreamPlayed());
-      shared::starboard::Application::Get()->HandleFrame(
-          player_, frame, bounds_.z_index, bounds_.x, bounds_.y, bounds_.width,
-          bounds_.height);
-    }
-
     player_worker_->UpdateDroppedVideoFrames(
         video_renderer_->GetDroppedFrames());
-    (*player_worker_.*update_media_time_cb_)(audio_renderer_->GetCurrentTime());
+    bool is_playing;
+    bool is_eos_played;
+    (*player_worker_.*update_media_time_cb_)(
+        audio_renderer_->GetCurrentMediaTime(&is_playing, &is_eos_played));
   }
 
-  job_queue_->Schedule(update_closure_, kUpdateInterval);
+  update_job_token_ = job_queue_->Schedule(update_job_, kUpdateInterval);
 }
 
 void FilterBasedPlayerWorkerHandler::Stop() {
-  job_queue_->Remove(update_closure_);
+  SB_DCHECK(job_queue_->BelongsToCurrentThread());
+
+  job_queue_->RemoveJobByToken(update_job_token_);
 
   scoped_ptr<VideoRenderer> video_renderer;
   {
@@ -369,21 +366,13 @@ void FilterBasedPlayerWorkerHandler::Stop() {
   video_renderer.reset();
 
   audio_renderer_.reset();
-
-  if (IsPunchoutMode()) {
-    // Clear the video frame as we terminate.
-    shared::starboard::Application::Get()->HandleFrame(
-        player_, VideoFrame::CreateEOSFrame(), 0, 0, 0, 0, 0);
-  }
 }
 
 SbDecodeTarget FilterBasedPlayerWorkerHandler::GetCurrentDecodeTarget() {
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
 
   if (audio_renderer_ && video_renderer_) {
-    return video_renderer_->GetCurrentDecodeTarget(
-        audio_renderer_->GetCurrentTime(),
-        audio_renderer_->IsEndOfStreamPlayed());
+    return video_renderer_->GetCurrentDecodeTarget();
   } else {
     return kSbDecodeTargetInvalid;
   }

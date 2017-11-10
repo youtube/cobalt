@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -21,6 +21,7 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+namespace filter {
 
 namespace {
 
@@ -78,68 +79,33 @@ uint8_t ClampColorComponent(int component) {
 
 }  // namespace
 
-VideoFrame::VideoFrame() {
-  InitializeToInvalidFrame();
-}
-
-VideoFrame::VideoFrame(int width,
-                       int height,
-                       SbMediaTime pts,
-                       void* native_texture,
-                       void* native_texture_context,
-                       FreeNativeTextureFunc free_native_texture_func) {
-  SB_DCHECK(native_texture != NULL);
-  SB_DCHECK(free_native_texture_func != NULL);
-
-  InitializeToInvalidFrame();
-
-  format_ = kNativeTexture;
-  width_ = width;
-  height_ = height;
-  pts_ = pts;
-  native_texture_ = native_texture;
-  native_texture_context_ = native_texture_context;
-  free_native_texture_func_ = free_native_texture_func;
-}
-
-VideoFrame::~VideoFrame() {
-  if (format_ == kNativeTexture) {
-    free_native_texture_func_(native_texture_context_, native_texture_);
-  }
-}
-
-int VideoFrame::GetPlaneCount() const {
+int CpuVideoFrame::GetPlaneCount() const {
   SB_DCHECK(format_ != kInvalid);
   SB_DCHECK(format_ != kNativeTexture);
 
   return static_cast<int>(planes_.size());
 }
 
-const VideoFrame::Plane& VideoFrame::GetPlane(int index) const {
+const CpuVideoFrame::Plane& CpuVideoFrame::GetPlane(int index) const {
   SB_DCHECK(format_ != kInvalid);
   SB_DCHECK(format_ != kNativeTexture);
-  SB_DCHECK(index >= 0 && index < GetPlaneCount()) << "Invalid index: "
-                                                   << index;
+  SB_DCHECK(index >= 0 && index < GetPlaneCount())
+      << "Invalid index: " << index;
   return planes_[index];
 }
 
-void* VideoFrame::native_texture() const {
-  SB_DCHECK(format_ == kNativeTexture);
-  return native_texture_;
-}
-
-scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
+scoped_refptr<CpuVideoFrame> CpuVideoFrame::ConvertTo(
+    Format target_format) const {
   SB_DCHECK(format_ == kYV12);
   SB_DCHECK(target_format == kBGRA32);
 
   EnsureYUVToRGBLookupTableInitialized();
 
-  scoped_refptr<VideoFrame> target_frame(new VideoFrame);
+  scoped_refptr<CpuVideoFrame> target_frame(new CpuVideoFrame(pts()));
 
   target_frame->format_ = target_format;
   target_frame->width_ = width();
   target_frame->height_ = height();
-  target_frame->pts_ = pts_;
   target_frame->pixel_buffer_.reset(new uint8_t[width() * height() * 4]);
   target_frame->planes_.push_back(
       Plane(width(), height(), width() * 4, target_frame->pixel_buffer_.get()));
@@ -189,23 +155,17 @@ scoped_refptr<VideoFrame> VideoFrame::ConvertTo(Format target_format) const {
 }
 
 // static
-scoped_refptr<VideoFrame> VideoFrame::CreateEOSFrame() {
-  return new VideoFrame;
-}
-
-// static
-scoped_refptr<VideoFrame> VideoFrame::CreateYV12Frame(int width,
-                                                      int height,
-                                                      int pitch_in_bytes,
-                                                      SbMediaTime pts,
-                                                      const uint8_t* y,
-                                                      const uint8_t* u,
-                                                      const uint8_t* v) {
-  scoped_refptr<VideoFrame> frame(new VideoFrame);
+scoped_refptr<CpuVideoFrame> CpuVideoFrame::CreateYV12Frame(int width,
+                                                            int height,
+                                                            int pitch_in_bytes,
+                                                            SbMediaTime pts,
+                                                            const uint8_t* y,
+                                                            const uint8_t* u,
+                                                            const uint8_t* v) {
+  scoped_refptr<CpuVideoFrame> frame(new CpuVideoFrame(pts));
   frame->format_ = kYV12;
   frame->width_ = width;
   frame->height_ = height;
-  frame->pts_ = pts;
 
   // U/V planes generally have half resolution of the Y plane.  However, in the
   // extreme case that any dimension of Y plane is odd, we want to have an
@@ -237,24 +197,7 @@ scoped_refptr<VideoFrame> VideoFrame::CreateYV12Frame(int width,
   return frame;
 }
 
-// static
-scoped_refptr<VideoFrame> VideoFrame::CreateEmptyFrame(SbMediaTime pts) {
-  VideoFrame* frame = new VideoFrame();
-  frame->pts_ = pts;
-  return frame;
-}
-
-void VideoFrame::InitializeToInvalidFrame() {
-  format_ = kInvalid;
-  width_ = 0;
-  height_ = 0;
-
-  pts_ = 0;
-  native_texture_ = NULL;
-  native_texture_context_ = NULL;
-  free_native_texture_func_ = NULL;
-}
-
+}  // namespace filter
 }  // namespace player
 }  // namespace starboard
 }  // namespace shared

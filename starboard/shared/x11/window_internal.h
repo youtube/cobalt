@@ -20,7 +20,7 @@
 
 #include "starboard/configuration.h"
 #include "starboard/shared/internal_only.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
+#include "starboard/shared/starboard/player/filter/cpu_video_frame.h"
 #include "starboard/window.h"
 
 struct SbWindowPrivate {
@@ -29,7 +29,8 @@ struct SbWindowPrivate {
 
   Window window;
 
-  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+  typedef ::starboard::shared::starboard::player::filter::CpuVideoFrame
+      CpuVideoFrame;
 
   // The following functions composite graphics and the given video frame video
   // for this window. In kSbPlayerOutputModePunchOut mode, this is the only way
@@ -38,11 +39,12 @@ struct SbWindowPrivate {
   // CompositeVideoFrame() can be called multiple times in between
   // BeginComposite() and EndComposite() to display frames from multiple videos.
   void BeginComposite();
-  void CompositeVideoFrame(int bounds_x,
-                           int bounds_y,
-                           int bounds_width,
-                           int bounds_height,
-                           const starboard::scoped_refptr<VideoFrame>& frame);
+  void CompositeVideoFrame(
+      int bounds_x,
+      int bounds_y,
+      int bounds_width,
+      int bounds_height,
+      const starboard::scoped_refptr<CpuVideoFrame>& frame);
   void EndComposite();
 
   // The cached XRender Picture that represents the window that is the
