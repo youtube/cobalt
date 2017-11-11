@@ -41,27 +41,10 @@ Example:
     }
 
 ### Package Profiles
-*  'expanded' -- The largest package. It includes everything in the 'standard'
-                 package, along with 'bold' weight CJK. It is recommended that
-                 'local_font_cache_size_in_bytes' be increased to 24MB when
-                 using this package to account for the extra memory required by
-                 bold CJK. This package is ~48.7MB.
-
-                 Package category values:
-                   'package_named_sans_serif': 4,
-                   'package_named_serif': 3,
-                   'package_named_fcc_fonts': 2,
-                   'package_fallback_lang_non_cjk': 2,
-                   'package_fallback_lang_cjk': 2,
-                   'package_fallback_lang_cjk_low_quality': 0,
-                   'package_fallback_lang_jp': 0,
-                   'package_fallback_emoji': 1,
-                   'package_fallback_symbols': 1,
-
 *  'standard' -- The default package. It includes all sans-serif, serif, and FCC
                  fonts, non-CJK fallback fonts in both 'normal' and 'bold'
-                 weights, and 'normal' weight CJK ('bold' weight CJK is
-                 synthesized from it). This package is ~29.4MB.
+                 weights, 'normal' weight CJK ('bold' weight CJK is synthesized
+                 from it), and historic script fonts. This package is ~31.4MB.
 
                  Package category values:
                   'package_named_sans_serif': 4,
@@ -71,6 +54,7 @@ Example:
                   'package_fallback_lang_cjk': 1,
                   'package_fallback_lang_cjk_low_quality': 0,
                   'package_fallback_lang_jp': 0,
+                  'package_fallback_historic': 1,
                   'package_fallback_emoji': 1,
                   'package_fallback_symbols': 1,
 
@@ -82,8 +66,8 @@ Example:
                  and is used to synthesize bold), and replaces standard CJK with
                  low quality CJK. However, higher quality Japanese is still
                  included. Because low quality CJK cannot synthesize bold, bold
-                 glyphs are unavailable in Chinese and Korean. This package is
-                 ~10.9MB.
+                 glyphs are unavailable in Chinese and Korean. Historic script
+                 fonts are not included. This package is ~11.5MB.
 
                  Package category values:
                   'package_named_sans_serif': 2,
@@ -93,6 +77,7 @@ Example:
                   'package_fallback_lang_cjk': 0,
                   'package_fallback_lang_cjk_low_quality': 1,
                   'package_fallback_lang_jp': 1,
+                  'package_fallback_historic': 0,
                   'package_fallback_emoji': 1,
                   'package_fallback_symbols': 1,
 
@@ -101,7 +86,7 @@ Example:
                  the higher quality Japanese font; instead it relies on low
                  quality CJK for all CJK characters. Because low quality CJK
                  cannot synthesize bold, bold glyphs are unavailable in Chinese,
-                 Japanese, and Korean. This package is ~7.7MB.
+                 Japanese, and Korean. This package is ~8.3MB.
 
                  Package category values:
                   'package_named_sans_serif': 2,
@@ -111,12 +96,13 @@ Example:
                   'package_fallback_lang_cjk': 0,
                   'package_fallback_lang_cjk_low_quality': 1,
                   'package_fallback_lang_jp': 0,
+                  'package_fallback_historic': 0,
                   'package_fallback_emoji': 1,
                   'package_fallback_symbols': 1,
 
 *  'minimal'  -- The smallest possible font package. It only includes Roboto's
                  Basic Latin characters. Everything else must be provided by the
-                 system or downloaded from the web. This package is ~16.4KB.
+                 system or downloaded from the web. This package is ~40.0KB.
 
                  Package category values:
                   'package_named_sans_serif': 0,
@@ -126,6 +112,7 @@ Example:
                   'package_fallback_lang_cjk': 0,
                   'package_fallback_lang_cjk_low_quality': 0,
                   'package_fallback_lang_jp': 0,
+                  'package_fallback_historic': 0,
                   'package_fallback_emoji': 0,
                   'package_fallback_symbols': 0,
 
@@ -163,6 +150,9 @@ fonts from each category included within the package:
   *  'package_fallback_lang_jp':
        Higher quality Japanese language-specific fallback fonts. These should
        only be included when 'package_fallback_lang_cjk' has a value of '0'.
+
+  *  'package_fallback_historic':
+       Historic script fallback fonts.
 
   *  'package_fallback_emoji':
        Emoji-related fallback fonts.
