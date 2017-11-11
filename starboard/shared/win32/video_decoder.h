@@ -15,9 +15,11 @@
 #ifndef STARBOARD_SHARED_WIN32_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_WIN32_VIDEO_DECODER_H_
 
+#include <D3d11_1.h>
 #include <wrl/client.h>
 
 #include <deque>
+#include <list>
 #include <memory>
 
 #include "starboard/common/ref_counted.h"
@@ -28,8 +30,6 @@
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
 #include "starboard/shared/win32/decrypting_decoder.h"
-#include "starboard/shared/win32/dx_context_video_decoder.h"
-#include "starboard/shared/win32/video_texture.h"
 #include "starboard/thread.h"
 
 namespace starboard {
@@ -68,14 +68,27 @@ class VideoDecoder
     scoped_refptr<InputBuffer> input_buffer;
   };
 
+  struct Output {
+    Output(SbMediaTime time, const RECT& video_area,
+           const Microsoft::WRL::ComPtr<IMFSample>& video_sample)
+        : time(time), video_area(video_area), video_sample(video_sample) {}
+    SbMediaTime time;
+    RECT video_area;
+    Microsoft::WRL::ComPtr<IMFSample> video_sample;
+  };
+
   void InitializeCodec();
   void ShutdownCodec();
+
   void UpdateVideoArea(Microsoft::WRL::ComPtr<IMFMediaType> media);
+  scoped_refptr<VideoFrame> CreateVideoFrame(
+      Microsoft::WRL::ComPtr<IMFSample> sample);
+  static void DeleteVideoFrame(void* context, void* native_texture);
+  static void CreateDecodeTargetHelper(void* context);
+  SbDecodeTarget CreateDecodeTarget();
 
   void EnsureDecoderThreadRunning();
   void StopDecoderThread();
-  scoped_refptr<VideoFrame> DecoderThreadCreateFrame(
-      Microsoft::WRL::ComPtr<IMFSample> sample);
   void DecoderThreadRun();
   static void* DecoderThreadEntry(void* context);
 
@@ -86,10 +99,17 @@ class VideoDecoder
   const SbMediaVideoCodec video_codec_;
   Closure error_cb_;
   Host* host_;
+  SbDecodeTargetGraphicsContextProvider* graphics_context_provider_;
   SbDrmSystem const drm_system_;
 
-  VideoBltInterfaces video_texture_interfaces_;
-  HardwareDecoderContext decoder_context_;
+  // These are platform-specific objects required to create and use a codec.
+  Microsoft::WRL::ComPtr<ID3D11Device> d3d_device_;
+  Microsoft::WRL::ComPtr<IMFDXGIDeviceManager> device_manager_;
+  Microsoft::WRL::ComPtr<ID3D11VideoDevice1> video_device_;
+  Microsoft::WRL::ComPtr<ID3D11VideoContext> video_context_;
+  Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
+  Microsoft::WRL::ComPtr<ID3D11VideoProcessor> video_processor_;
+
   scoped_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
 
@@ -98,6 +118,20 @@ class VideoDecoder
   bool decoder_thread_stopped_;
   Mutex thread_lock_;
   std::deque<std::unique_ptr<Event> > thread_events_;
+
+  // This structure shadows the list of outstanding frames held by the host.
+  // When a new output is added to this structure, the host should be notified
+  // of a new VideoFrame. When the host deletes the VideoFrame, the delete
+  // callback is used to update this structure. The VideoDecoder may need to
+  // delete outputs without notifying the host. In such a situation, the host's
+  // VideoFrames will be invalid if they still require the IMFSample; it's
+  // possible that the VideoFrame was converted to a texture already, so it
+  // will continue to be valid since the IMFSample is no longer needed.
+  Mutex outputs_reset_lock_;
+  std::list<Output> thread_outputs_;
+
+  Mutex decode_target_lock_;
+  SbDecodeTarget current_decode_target_;
 };
 
 }  // namespace win32

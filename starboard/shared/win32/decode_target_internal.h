@@ -15,19 +15,38 @@
 #ifndef STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_
 #define STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_
 
-#include "starboard/common/ref_counted.h"
+#include <D3d11_1.h>
+#include <mfidl.h>
+#include <wrl/client.h>
+
+#include "starboard/atomic.h"
 #include "starboard/decode_target.h"
-#include "starboard/shared/win32/media_common.h"
 
 struct SbDecodeTargetPrivate {
+  SbAtomic32 refcount;
+
   // Publicly accessible information about the decode target.
   SbDecodeTargetInfo info;
-  ::starboard::shared::win32::VideoFramePtr frame;
+
+  Microsoft::WRL::ComPtr<ID3D11Texture2D> d3d_texture;
+
   // EGLSurface is defined as void* in "third_party/angle/include/EGL/egl.h".
   // Use void* directly here to avoid `egl.h` being included broadly.
   void* surface[2];
-  explicit SbDecodeTargetPrivate(starboard::shared::win32::VideoFramePtr frame);
+
+  SbDecodeTargetPrivate(
+      const Microsoft::WRL::ComPtr<ID3D11Device>& d3d_device,
+      const Microsoft::WRL::ComPtr<ID3D11VideoDevice1>& video_device,
+      const Microsoft::WRL::ComPtr<ID3D11VideoContext>& video_context,
+      const Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator>&
+          video_enumerator,
+      const Microsoft::WRL::ComPtr<ID3D11VideoProcessor>& video_processor,
+      const Microsoft::WRL::ComPtr<IMFSample>& video_sample,
+      const RECT& video_area);
   ~SbDecodeTargetPrivate();
+
+  void AddRef();
+  void Release();
 };
 
 #endif  // STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_

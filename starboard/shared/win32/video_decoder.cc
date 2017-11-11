@@ -15,6 +15,8 @@
 #include "starboard/shared/win32/video_decoder.h"
 
 #include "starboard/log.h"
+#include "starboard/shared/win32/decode_target_internal.h"
+#include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
 
 namespace starboard {
@@ -27,6 +29,13 @@ using Microsoft::WRL::ComPtr;
 
 // Limit the number of active output samples to control memory usage.
 const int kMaxOutputSamples = 12;
+
+// This structure is used to facilitate creation of decode targets in the
+// appropriate graphics context.
+struct CreateDecodeTargetContext {
+  VideoDecoder* video_decoder;
+  SbDecodeTarget out_decode_target;
+};
 
 scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     const GUID& input_guid, const GUID& output_guid,
@@ -65,31 +74,35 @@ VideoDecoder::VideoDecoder(
     SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
     SbDrmSystem drm_system)
     : video_codec_(video_codec),
+      graphics_context_provider_(graphics_context_provider),
       drm_system_(drm_system),
       host_(nullptr),
       decoder_thread_(kSbThreadInvalid),
       decoder_thread_stop_requested_(false),
-      decoder_thread_stopped_(false) {
+      decoder_thread_stopped_(false),
+      current_decode_target_(kSbDecodeTargetInvalid) {
   SB_UNREFERENCED_PARAMETER(graphics_context_provider);
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
-  decoder_context_ = GetDirectXForHardwareDecoding();
+  HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
+  d3d_device_ = hardware_context.dx_device_out;
+  device_manager_ = hardware_context.dxgi_device_manager_out;
+  CheckResult(d3d_device_.As(&video_device_));
 
-  video_texture_interfaces_.dx_device_ = decoder_context_.dx_device_out;
-  CheckResult(decoder_context_.dx_device_out.As(
-      &video_texture_interfaces_.video_device_));
-
-  ComPtr<ID3D11DeviceContext> device_context;
-  decoder_context_.dx_device_out->GetImmediateContext(&device_context);
-  CheckResult(device_context.As(&video_texture_interfaces_.video_context_));
+  ComPtr<ID3D11DeviceContext> d3d_context;
+  d3d_device_->GetImmediateContext(d3d_context.GetAddressOf());
+  CheckResult(d3d_context.As(&video_context_));
 
   InitializeCodec();
 }
 
 VideoDecoder::~VideoDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
-  StopDecoderThread();
+  Reset();
   ShutdownCodec();
+
+  ScopedLock lock(decode_target_lock_);
+  SbDecodeTargetRelease(current_decode_target_);
 }
 
 void VideoDecoder::SetHost(Host* host) {
@@ -130,14 +143,79 @@ void VideoDecoder::WriteEndOfStream() {
 void VideoDecoder::Reset() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   StopDecoderThread();
+
+  // Make sure all output samples have been released before flushing the
+  // decoder. Be sure to Acquire the mutexes in the same order as
+  // CreateDecodeTarget to avoid possible deadlock.
+  outputs_reset_lock_.Acquire();
+  thread_lock_.Acquire();
+  thread_outputs_.clear();
+  thread_lock_.Release();
+  outputs_reset_lock_.Release();
+
   decoder_->Reset();
 }
 
-// When in decode-to-texture mode, this returns the current decoded video frame.
 SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
-  SB_NOTIMPLEMENTED()
-      << "VideoRendererImpl::GetCurrentDecodeTarget() should be used instead.";
-  return kSbDecodeTargetInvalid;
+  // Ensure the decode target is created on the render thread.
+  CreateDecodeTargetContext decode_target_context = { this };
+  graphics_context_provider_->gles_context_runner(graphics_context_provider_,
+      &VideoDecoder::CreateDecodeTargetHelper, &decode_target_context);
+
+  ScopedLock lock(decode_target_lock_);
+  if (SbDecodeTargetIsValid(decode_target_context.out_decode_target)) {
+    SbDecodeTargetRelease(current_decode_target_);
+    current_decode_target_ = decode_target_context.out_decode_target;
+  }
+  if (SbDecodeTargetIsValid(current_decode_target_)) {
+    // Add a reference for the caller.
+    current_decode_target_->AddRef();
+  }
+  return current_decode_target_;
+}
+
+// static
+void VideoDecoder::CreateDecodeTargetHelper(void* context) {
+  CreateDecodeTargetContext* target_context =
+      static_cast<CreateDecodeTargetContext*>(context);
+  target_context->out_decode_target =
+      target_context->video_decoder->CreateDecodeTarget();
+}
+
+SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
+  RECT video_area;
+  ComPtr<IMFSample> video_sample;
+
+  // Don't allow a decoder reset (flush) while an IMFSample is
+  // alive. However, the decoder thread should be allowed to continue
+  // while the SbDecodeTarget is being created.
+  ScopedLock lock(outputs_reset_lock_);
+
+  // Use the oldest output.
+  thread_lock_.Acquire();
+  if (!thread_outputs_.empty()) {
+    // This function should not remove output frames. However, it's possible
+    // for the same frame to be requested multiple times. To avoid re-creating
+    // SbDecodeTargets, release the video_sample once it is used to create
+    // an output frame. The next call to CreateDecodeTarget for the same frame
+    // will return kSbDecodeTargetInvalid, and |current_decode_target_| will
+    // be reused.
+    Output& output = thread_outputs_.front();
+    video_area = output.video_area;
+    video_sample.Swap(output.video_sample);
+  }
+  thread_lock_.Release();
+
+  SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
+  if (video_sample != nullptr) {
+    decode_target = new SbDecodeTargetPrivate(d3d_device_, video_device_,
+        video_context_, video_enumerator_, video_processor_,
+        video_sample, video_area);
+
+    // Release the video_sample before releasing the reset lock.
+    video_sample.Reset();
+  }
+  return decode_target;
 }
 
 void VideoDecoder::InitializeCodec() {
@@ -151,13 +229,13 @@ void VideoDecoder::InitializeCodec() {
     case kSbMediaVideoCodecH264: {
       media_transform = CreateVideoTransform(
           CLSID_MSH264DecoderMFT, MFVideoFormat_H264, MFVideoFormat_NV12,
-          window_options.size, decoder_context_.dxgi_device_manager_out.Get());
+          window_options.size, device_manager_.Get());
       break;
     }
     case kSbMediaVideoCodecVp9: {
       media_transform = CreateVideoTransform(
           CLSID_MSVPxDecoder, MFVideoFormat_VP90, MFVideoFormat_NV12,
-          window_options.size, decoder_context_.dxgi_device_manager_out.Get());
+          window_options.size, device_manager_.Get());
       break;
     }
     default: { SB_NOTREACHED(); }
@@ -198,26 +276,22 @@ void VideoDecoder::InitializeCodec() {
   content_desc.OutputWidth = window_options.size.width;
   content_desc.OutputHeight = window_options.size.height;
   content_desc.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
-  CheckResult(video_texture_interfaces_.video_device_
-      ->CreateVideoProcessorEnumerator(&content_desc,
-          video_texture_interfaces_.video_processor_enum_.GetAddressOf()));
-  CheckResult(video_texture_interfaces_.video_device_->CreateVideoProcessor(
-      video_texture_interfaces_.video_processor_enum_.Get(), 0,
-      video_texture_interfaces_.video_processor_.GetAddressOf()));
-  video_texture_interfaces_.video_context_->VideoProcessorSetStreamFrameFormat(
-      video_texture_interfaces_.video_processor_.Get(), 0,
+  CheckResult(video_device_->CreateVideoProcessorEnumerator(
+      &content_desc, video_enumerator_.GetAddressOf()));
+  CheckResult(video_device_->CreateVideoProcessor(
+      video_enumerator_.Get(), 0, video_processor_.GetAddressOf()));
+  video_context_->VideoProcessorSetStreamFrameFormat(
+      video_processor_.Get(), MediaTransform::kStreamId,
       D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
-
-  video_texture_interfaces_.video_context_
-      ->VideoProcessorSetStreamAutoProcessingMode(
-          video_texture_interfaces_.video_processor_.Get(), 0, false);
+  video_context_->VideoProcessorSetStreamAutoProcessingMode(
+      video_processor_.Get(), 0, false);
 }
 
 void VideoDecoder::ShutdownCodec() {
   SB_DCHECK(!SbThreadIsValid(decoder_thread_));
   decoder_.reset();
-  video_texture_interfaces_.video_processor_.Reset();
-  video_texture_interfaces_.video_processor_enum_.Reset();
+  video_processor_.Reset();
+  video_enumerator_.Reset();
 }
 
 void VideoDecoder::EnsureDecoderThreadRunning() {
@@ -251,18 +325,6 @@ void VideoDecoder::StopDecoderThread() {
   thread_events_.clear();
 }
 
-scoped_refptr<VideoFrame> VideoDecoder::DecoderThreadCreateFrame(
-    ComPtr<IMFSample> sample) {
-  // NOTE: All samples must be released before flushing the decoder.
-
-  // TODO: Change VideoFrame to contain only a serial number rather than a
-  // reference to the IMFSample so that samples can be released before flushing
-  // the decoder. Any outstanding VideoFrames should just be blank if the
-  // output texture is requested.
-  return VideoFrameFactory::Construct(sample, video_area_,
-      video_texture_interfaces_);
-}
-
 void VideoDecoder::UpdateVideoArea(ComPtr<IMFMediaType> media) {
   MFVideoArea video_area;
   HRESULT hr = media->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE,
@@ -288,6 +350,43 @@ void VideoDecoder::UpdateVideoArea(ComPtr<IMFMediaType> media) {
   }
 
   SB_NOTREACHED() << "Could not determine new video output resolution";
+}
+
+scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
+    ComPtr<IMFSample> sample) {
+  // NOTE: All samples must be released before flushing the decoder. Since
+  // the host may hang onto VideoFrames that are created here, make them
+  // weak references to the actual sample.
+  LONGLONG win32_sample_time = 0;
+  CheckResult(sample->GetSampleTime(&win32_sample_time));
+  SbMediaTime sample_time = ConvertToMediaTime(win32_sample_time);
+
+  thread_lock_.Acquire();
+  thread_outputs_.emplace_back(sample_time, video_area_, sample);
+  thread_lock_.Release();
+
+  // The "native texture" for the VideoFrame is actually just the timestamp
+  // for the output sample.
+  return make_scoped_refptr(new VideoFrame(
+      video_area_.right, video_area_.bottom, sample_time,
+      new SbMediaTime(sample_time), this, &VideoDecoder::DeleteVideoFrame));
+}
+
+// static
+void VideoDecoder::DeleteVideoFrame(void* context, void* native_texture) {
+  VideoDecoder* this_ptr = static_cast<VideoDecoder*>(context);
+  SbMediaTime* time_ptr = static_cast<SbMediaTime*>(native_texture);
+  SbMediaTime time = *time_ptr;
+  delete time_ptr;
+
+  ScopedLock lock(this_ptr->thread_lock_);
+  for (auto iter = this_ptr->thread_outputs_.begin();
+       iter != this_ptr->thread_outputs_.end(); ++iter) {
+    if (iter->time == time) {
+      this_ptr->thread_outputs_.erase(iter);
+      break;
+    }
+  }
 }
 
 void VideoDecoder::DecoderThreadRun() {
@@ -335,7 +434,10 @@ void VideoDecoder::DecoderThreadRun() {
       // NOTE: IMFTransform::ProcessOutput (called by decoder_->ProcessAndRead)
       // may stall if the number of active IMFSamples would exceed the value of
       // MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT.
-      if (VideoFrameFactory::frames_in_flight() >= kMaxOutputSamples) {
+      thread_lock_.Acquire();
+      size_t output_count = thread_outputs_.size();
+      thread_lock_.Release();
+      if (output_count >= kMaxOutputSamples) {
         // Wait for the active samples to be consumed.
         host_->OnDecoderStatusUpdate(kBufferFull, nullptr);
         SbThreadSleep(kSbTimeMillisecond);
@@ -350,7 +452,7 @@ void VideoDecoder::DecoderThreadRun() {
       }
       if (sample) {
         host_->OnDecoderStatusUpdate(kNeedMoreInput,
-                                     DecoderThreadCreateFrame(sample));
+                                     CreateVideoFrame(sample));
       } else if (is_end_of_stream) {
         host_->OnDecoderStatusUpdate(kBufferFull,
                                      VideoFrame::CreateEOSFrame());
