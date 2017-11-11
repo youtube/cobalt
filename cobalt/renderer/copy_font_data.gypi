@@ -21,22 +21,9 @@
     'source_font_files_dir': '<(static_contents_source_dir)/fonts/font_files',
 
     'conditions': [
-      [ 'cobalt_font_package == "expanded"', {
-        'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
-
-        'package_named_sans_serif': 4,
-        'package_named_serif': 3,
-        'package_named_fcc_fonts': 2,
-        'package_fallback_lang_non_cjk': 2,
-        'package_fallback_lang_cjk': 2,
-        'package_fallback_lang_cjk_low_quality': 0,
-        'package_fallback_lang_jp': 0,
-        'package_fallback_emoji': 1,
-        'package_fallback_symbols': 1,
-      }],
-
       # 'unlimited' is deprecated but is mapped to 'standard'
-      [ 'cobalt_font_package == "standard" or cobalt_font_package == "unlimited"', {
+      # 'expanded' also currently maps to 'standard' but this may change in the future
+      [ 'cobalt_font_package == "standard" or cobalt_font_package == "unlimited" or cobalt_font_package == "expanded"', {
         'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/common',
 
         'package_named_sans_serif': 4,
@@ -46,6 +33,7 @@
         'package_fallback_lang_cjk': 1,
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
+        'package_fallback_historic': 1,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 1,
       }],
@@ -61,6 +49,7 @@
         'package_fallback_lang_cjk': 0,
         'package_fallback_lang_cjk_low_quality': 1,
         'package_fallback_lang_jp': 1,
+        'package_fallback_historic': 0,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 1,
       }],
@@ -75,6 +64,7 @@
         'package_fallback_lang_cjk': 0,
         'package_fallback_lang_cjk_low_quality': 1,
         'package_fallback_lang_jp': 0,
+        'package_fallback_historic': 0,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 1,
       }],
@@ -89,6 +79,7 @@
         'package_fallback_lang_cjk': 0,
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
+        'package_fallback_historic': 0,
         'package_fallback_emoji': 0,
         'package_fallback_symbols': 0,
       }],
@@ -109,6 +100,7 @@
         'package_fallback_lang_cjk': 0,
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
+        'package_fallback_historic': 0,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 0,
       }],
@@ -133,6 +125,9 @@
       }],
       [ 'cobalt_font_package_override_fallback_lang_jp >= 0', {
         'package_fallback_lang_jp': '<(cobalt_font_package_override_fallback_lang_jp)',
+      }],
+      [ 'cobalt_font_package_override_fallback_historic >= 0', {
+        'package_fallback_historic': '<(cobalt_font_package_override_fallback_historic)',
       }],
       [ 'cobalt_font_package_override_fallback_emoji >= 0', {
         'package_fallback_emoji': '<(cobalt_font_package_override_fallback_emoji)',
@@ -221,6 +216,7 @@
         }],
         [ 'package_fallback_lang_non_cjk >= 1', {
           'files+': [
+            '<(source_font_files_dir)/NotoSansAdlam-Regular.ttf',
             '<(source_font_files_dir)/NotoNaskhArabicUI-Regular.ttf',
             '<(source_font_files_dir)/NotoSansArmenian-Regular.ttf',
             '<(source_font_files_dir)/NotoSansBalinese-Regular.ttf',
@@ -263,7 +259,10 @@
             '<(source_font_files_dir)/NotoSansSinhala-Regular.ttf',
             '<(source_font_files_dir)/NotoSansSundanese-Regular.ttf',
             '<(source_font_files_dir)/NotoSansSylotiNagri-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansSyriacEastern-Regular.ttf',
             '<(source_font_files_dir)/NotoSansSyriacEstrangela-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansSyriacWestern-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansTagalog-Regular.ttf',
             '<(source_font_files_dir)/NotoSansTagbanwa-Regular.ttf',
             '<(source_font_files_dir)/NotoSansTaiLe-Regular.ttf',
             '<(source_font_files_dir)/NotoSansTaiTham-Regular.ttf',
@@ -309,11 +308,6 @@
             '<(source_font_files_dir)/NotoSansCJK-Regular.ttc',
           ],
         }],
-        [ 'package_fallback_lang_cjk >= 2', {
-          'files+': [
-            '<(source_font_files_dir)/NotoSansCJK-Bold.ttc',
-          ],
-        }],
         [ 'package_fallback_lang_cjk_low_quality >= 1', {
           'files+': [
             '<(source_font_files_dir)/DroidSansFallback.ttf',
@@ -322,6 +316,38 @@
         [ 'package_fallback_lang_jp >= 1', {
           'files+': [
             '<(source_font_files_dir)/NotoSansJP-Regular.otf',
+          ],
+        }],
+        [ 'package_fallback_historic >= 1', {
+          'files+': [
+            '<(source_font_files_dir)/NotoSansAvestan-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansBrahmi-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansCarian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansCuneiform-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansCypriot-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansDeseret-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansEgyptianHieroglyphs-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansGothic-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansImperialAramaic-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansInscriptionalPahlavi-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansInscriptionalParthian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansKaithi-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansKharoshthi-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansLinearB-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansLycian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansLydian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOgham-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOldItalic-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOldPersian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOldSouthArabian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOldTurkic-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansOsmanya-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansPhagsPa-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansPhoenician-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansRunic-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansSamaritan-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansShavian-Regular.ttf',
+            '<(source_font_files_dir)/NotoSansUgaritic-Regular.ttf',
           ],
         }],
         [ 'package_fallback_emoji >= 1', {
