@@ -25,6 +25,7 @@ namespace gfx {
 // Introduce cobalt::math::Rect into namespace gfx as gfx::Rect is used by
 // media.
 using cobalt::math::Rect;
+using cobalt::math::RectF;
 
 }  // namespace gfx
 
