@@ -77,16 +77,11 @@
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
     # The font package can be one of the following options:
-    #   'expanded' -- The largest package. It includes everything in the
-    #                 'standard' package, along with 'bold' weight CJK. It is
-    #                 recommended that 'local_font_cache_size_in_bytes' be
-    #                 increased to 24MB when using this package to account for
-    #                 the extra memory required by bold CJK. This package is
-    #                 ~48.7MB.
     #   'standard' -- The default package. It includes all sans-serif, serif,
     #                 and FCC fonts, non-CJK fallback fonts in both 'normal' and
-    #                 'bold' weights, and 'normal' weight CJK ('bold' weight CJK
-    #                 is synthesized from it). This package is ~29.4MB.
+    #                 'bold' weights, 'normal' weight CJK ('bold' weight CJK is
+    #                 synthesized from it), and historic script fonts. This
+    #                 package is ~31.4MB.
     #   'limited_with_jp' -- A significantly smaller package than 'standard'.
     #                 This package removes all but 'normal' and 'bold' weighted
     #                 sans-serif and serif, removes the FCC fonts (which must be
@@ -96,19 +91,20 @@
     #                 synthesize bold), and replaces standard CJK with low
     #                 quality CJK. However, higher quality Japanese is still
     #                 included. Because low quality CJK cannot synthesize bold,
-    #                 bold glyphs are unavailable in Chinese and Korean. This
-    #                 package is ~10.9MB.
+    #                 bold glyphs are unavailable in Chinese and Korean.
+    #                 Historic script fonts are not included. This package is
+    #                 ~11.5MB.
     #   'limited'  -- A smaller package than 'limited_with_jp'. The two packages
     #                 are identical with the exception that 'limited' does not
     #                 include the higher quality Japanese font; instead it
     #                 relies on low quality CJK for all CJK characters. Because
     #                 low quality CJK cannot synthesize bold, bold glyphs are
     #                 unavailable in Chinese, Japanese, and Korean. This package
-    #                 is ~7.7MB.
+    #                 is ~8.3MB.
     #   'minimal'  -- The smallest possible font package. It only includes
     #                 Roboto's Basic Latin characters. Everything else must be
     #                 provided by the system or downloaded from the web. This
-    #                 package is ~16.4KB.
+    #                 package is ~40.0KB.
     # NOTE: When bold is needed, but unavailable, it is typically synthesized,
     #       resulting in lower quality glyphs than those generated directly from
     #       a bold font. However, this does not occur with low quality CJK,
@@ -142,6 +138,7 @@
     'cobalt_font_package_override_fallback_lang_cjk%': -1,
     'cobalt_font_package_override_fallback_lang_cjk_low_quality%': -1,
     'cobalt_font_package_override_fallback_lang_jp%': -1,
+    'cobalt_font_package_override_fallback_historic%': -1,
     'cobalt_font_package_override_fallback_emoji%': -1,
     'cobalt_font_package_override_fallback_symbols%': -1,
 

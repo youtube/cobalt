@@ -164,7 +164,7 @@
         <font weight="400" style="normal">NotoSansThaiUI-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansThaiUI-Bold.ttf</font>
     </family>
-    <family pages="0,5,251,254">
+    <family pages="0,5,32,251">
         <font weight="400" style="normal">NotoSansArmenian-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansArmenian-Bold.ttf</font>
     </family>
@@ -234,6 +234,12 @@
         <font weight="400" style="normal">NotoSansCham-Regular.ttf</font>
         <font weight="700" style="normal">NotoSansCham-Bold.ttf</font>
     </family>
+    <family pages="0,6,32,46,489">
+        <font weight="400" style="normal">NotoSansAdlam-Regular.ttf</font>
+    </family>
+    <family pages="0,32,46,254,267">
+        <font weight="400" style="normal">NotoSansAvestan-Regular.ttf</font>
+    </family>
     <family pages="0,27,32,37,254">
         <font weight="400" style="normal">NotoSansBalinese-Regular.ttf</font>
     </family>
@@ -242,6 +248,9 @@
     </family>
     <family pages="0,27,254">
         <font weight="400" style="normal">NotoSansBatak-Regular.ttf</font>
+    </family>
+    <family pages="0,254,272">
+        <font weight="400" style="normal">NotoSansBrahmi-Regular.ttf</font>
     </family>
     <family pages="0,26,32,37,169,254">
         <font weight="400" style="normal">NotoSansBuginese-Regular.ttf</font>
@@ -252,23 +261,56 @@
     <family pages="0-3,20-22,24,254">
         <font weight="400" style="normal">NotoSansCanadianAboriginal-Regular.ttf</font>
     </family>
-    <family pages="0,19,254">
+    <family pages="0,254,258">
+        <font weight="400" style="normal">NotoSansCarian-Regular.ttf</font>
+    </family>
+    <family pages="0,3,19,171">
         <font weight="400" style="normal">NotoSansCherokee-Regular.ttf</font>
     </family>
     <family pages="0,3,29,37,44,254">
         <font weight="400" style="normal">NotoSansCoptic-Regular.ttf</font>
     </family>
+    <family pages="0,254,288-292">
+        <font weight="400" style="normal">NotoSansCuneiform-Regular.ttf</font>
+    </family>
+    <family pages="0,254,264">
+        <font weight="400" style="normal">NotoSansCypriot-Regular.ttf</font>
+    </family>
+    <family pages="0,254,260">
+        <font weight="400" style="normal">NotoSansDeseret-Regular.ttf</font>
+    </family>
+    <family pages="0,254,304-308">
+        <font weight="400" style="normal">NotoSansEgyptianHieroglyphs-Regular.ttf</font>
+    </family>
     <family pages="0,44,254">
         <font weight="400" style="normal">NotoSansGlagolitic-Regular.ttf</font>
+    </family>
+    <family pages="0,3,254,259">
+        <font weight="400" style="normal">NotoSansGothic-Regular.ttf</font>
     </family>
     <family pages="0,23,254">
         <font weight="400" style="normal">NotoSansHanunoo-Regular.ttf</font>
     </family>
+    <family pages="0,254,264">
+        <font weight="400" style="normal">NotoSansImperialAramaic-Regular.ttf</font>
+    </family>
+    <family pages="0,254,267">
+        <font weight="400" style="normal">NotoSansInscriptionalPahlavi-Regular.ttf</font>
+    </family>
+    <family pages="0,254,267">
+        <font weight="400" style="normal">NotoSansInscriptionalParthian-Regular.ttf</font>
+    </family>
     <family pages="0,32,37,169,254">
         <font weight="400" style="normal">NotoSansJavanese-Regular.ttf</font>
     </family>
+    <family pages="0,9,168,254,272">
+        <font weight="400" style="normal">NotoSansKaithi-Regular.ttf</font>
+    </family>
     <family pages="0,169,254">
         <font weight="400" style="normal">NotoSansKayahLi-Regular.ttf</font>
+    </family>
+    <family pages="0,254,266">
+        <font weight="400" style="normal">NotoSansKharoshthi-Regular.ttf</font>
     </family>
     <family pages="0,28,37,254">
         <font weight="400" style="normal">NotoSansLepcha-Regular.ttf</font>
@@ -276,8 +318,17 @@
     <family pages="0,9,25,254">
         <font weight="400" style="normal">NotoSansLimbu-Regular.ttf</font>
     </family>
+    <family pages="0,254,256-257">
+        <font weight="400" style="normal">NotoSansLinearB-Regular.ttf</font>
+    </family>
     <family pages="0,2,164,254">
         <font weight="400" style="normal">NotoSansLisu-Regular.ttf</font>
+    </family>
+    <family pages="0,254,258">
+        <font weight="400" style="normal">NotoSansLycian-Regular.ttf</font>
+    </family>
+    <family pages="0,254,265">
+        <font weight="400" style="normal">NotoSansLydian-Regular.ttf</font>
     </family>
     <family pages="0,6,8,254">
         <font weight="400" style="normal">NotoSansMandaic-Regular.ttf</font>
@@ -291,14 +342,44 @@
     <family pages="0,6-7,32,46,253-254">
         <font weight="400" style="normal">NotoSansNKo-Regular.ttf</font>
     </family>
+    <family pages="0,22,254">
+        <font weight="400" style="normal">NotoSansOgham-Regular.ttf</font>
+    </family>
     <family pages="0,28,254">
         <font weight="400" style="normal">NotoSansOlChiki-Regular.ttf</font>
+    </family>
+    <family pages="0,254,259">
+        <font weight="400" style="normal">NotoSansOldItalic-Regular.ttf</font>
+    </family>
+    <family pages="0,254,259">
+        <font weight="400" style="normal">NotoSansOldPersian-Regular.ttf</font>
+    </family>
+    <family pages="0,254,266">
+        <font weight="400" style="normal">NotoSansOldSouthArabian-Regular.ttf</font>
+    </family>
+    <family pages="0,254,268">
+        <font weight="400" style="normal">NotoSansOldTurkic-Regular.ttf</font>
+    </family>
+    <family pages="0,254,260">
+        <font weight="400" style="normal">NotoSansOsmanya-Regular.ttf</font>
+    </family>
+    <family pages="0,254,265">
+        <font weight="400" style="normal">NotoSansPhoenician-Regular.ttf</font>
     </family>
     <family pages="0,169,254">
         <font weight="400" style="normal">NotoSansRejang-Regular.ttf</font>
     </family>
+    <family pages="0,22,254">
+        <font weight="400" style="normal">NotoSansRunic-Regular.ttf</font>
+    </family>
+    <family pages="0,8,46,254">
+        <font weight="400" style="normal">NotoSansSamaritan-Regular.ttf</font>
+    </family>
     <family pages="0,32,37,168,254">
         <font weight="400" style="normal">NotoSansSaurashtra-Regular.ttf</font>
+    </family>
+    <family pages="0,254,260">
+        <font weight="400" style="normal">NotoSansShavian-Regular.ttf</font>
     </family>
     <family pages="0,27-28,254">
         <font weight="400" style="normal">NotoSansSundanese-Regular.ttf</font>
@@ -306,8 +387,18 @@
     <family pages="0,9,32,37,168,254">
         <font weight="400" style="normal">NotoSansSylotiNagri-Regular.ttf</font>
     </family>
+    <!-- Estrangela should precede Eastern and Western Syriac, since it's our default form. -->
     <family pages="0,3,6-7,32,34,37-38,254">
         <font weight="400" style="normal">NotoSansSyriacEstrangela-Regular.ttf</font>
+    </family>
+    <family pages="0,3,6-7,32,34,37-38,254">
+        <font weight="400" style="normal">NotoSansSyriacEastern-Regular.ttf</font>
+    </family>
+    <family pages="0,3,6-7,32,34,37-38,254">
+        <font weight="400" style="normal">NotoSansSyriacWestern-Regular.ttf</font>
+    </family>
+    <family pages="0,23,254">
+        <font weight="400" style="normal">NotoSansTagalog-Regular.ttf</font>
     </family>
     <family pages="0,23,254">
         <font weight="400" style="normal">NotoSansTagbanwa-Regular.ttf</font>
@@ -325,13 +416,13 @@
     <family pages="0,3,32,45,254">
         <font weight="400" style="normal">NotoSansTifinagh-Regular.ttf</font>
     </family>
+    <family pages="0,254,259">
+        <font weight="400" style="normal">NotoSansUgaritic-Regular.ttf</font>
+    </family>
     <family pages="0,165-166,254">
         <font weight="400" style="normal">NotoSansVai-Regular.ttf</font>
     </family>
-    <family pages="0,48,160-164,254-255">
-        <font weight="400" style="normal">NotoSansYi-Regular.ttf</font>
-    </family>
-    <family pages="32-43,497-498">
+    <family pages="32-43,77,257,464-471,496-498,503">
         <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted.ttf</font>
     </family>
     <family lang="zh-Hans" pages="0-4,17,30,32-39,41,43,46-159,169,172-215,249-251,254-255,497-498,512-658,660-682,685,687,689,691-696,698-702,704-718,760-761">
@@ -352,7 +443,7 @@
     <family pages="0,32-33,35-39,41,43,48,50,254,496-502,4068,4072">
         <font weight="400" style="normal">NotoEmoji-Regular.ttf</font>
     </family>
-    <family pages="35,37-39,43,496,498">
+    <family pages="35,37-39,43,496-498">
         <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted2.ttf</font>
     </family>
     <!--
@@ -364,13 +455,19 @@
         <font weight="400" style="normal" disable_synthetic_bolding="true">DroidSansFallback.ttf</font>
     </family>
     <!--
-        Tai Le and Mongolian are intentionally kept last, to make sure they don't override
-        the East Asian punctuation for Chinese.
+        Tai Le, Yi, Mongolian, and Phags-pa are intentionally kept last, to make sure they don't
+        override the East Asian punctuation for Chinese.
     -->
     <family pages="0,3,16,25,48,254">
         <font weight="400" style="normal">NotoSansTaiLe-Regular.ttf</font>
     </family>
+    <family pages="0,48,160-164,254-255">
+        <font weight="400" style="normal">NotoSansYi-Regular.ttf</font>
+    </family>
     <family pages="0,24,32,36-37,48,254">
         <font weight="400" style="normal" >NotoSansMongolian-Regular.ttf</font>
+    </family>
+    <family pages="0,24,32,37,48,168,254">
+        <font weight="400" style="normal">NotoSansPhagsPa-Regular.ttf</font>
     </family>
 </familyset>
