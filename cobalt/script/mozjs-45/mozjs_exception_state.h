@@ -36,6 +36,19 @@ class MozjsExceptionState : public ExceptionState {
 
   bool is_exception_set() const { return is_exception_set_; }
 
+  // For when a Cobalt operation that is expected to modify an
+  // |ExceptionState| to communicate failure performs operations that can
+  // potentially cause an exception to be thrown by SpiderMonkey, and we want
+  // to reuse that exception instead of creating our own (which also likely
+  // would not be able to match the descriptiveness of the SpiderMonkey
+  // exception).
+  void SetExceptionAlreadySet(JSContext* context) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK(!is_exception_set_);
+    DCHECK(JS_IsExceptionPending(context));
+    is_exception_set_ = true;
+  }
+
   static JSObject* CreateErrorObject(JSContext* context,
                                      SimpleExceptionType type);
 
