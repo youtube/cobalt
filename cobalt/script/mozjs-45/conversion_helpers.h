@@ -235,8 +235,21 @@ inline void FromJSValue(
   }
 
   bool success = JS::ToInt32(context, value_to_convert, &out);
-  DCHECK(success);
-
+  // It is possible for |JS::ToInt32| to fail in certain edge cases, such as
+  // application JavaScript setting up infinite recursion that gets triggered
+  // by the conversion.
+  if (!success) {
+    if (JS_IsExceptionPending(context)) {
+      // If SpiderMonkey already threw something as a result of calling
+      // |JS::ToInt32|, then just use that...
+      base::polymorphic_downcast<MozjsExceptionState*>(exception_state)
+          ->SetExceptionAlreadySet(context);
+    } else {
+      // ...and if not, then just tell them that it isn't an int64 type.
+      exception_state->SetSimpleException(kNotInt64Type);
+    }
+    return;
+  }
   *out_number = static_cast<T>(out);
 }
 
@@ -277,9 +290,19 @@ inline void FromJSValue(
     value_to_convert.set(value);
   }
   bool success = JS::ToInt64(context, value_to_convert, &out);
-  DCHECK(success);
+  // It is possible for |JS::ToInt64| to fail in certain edge cases, such as
+  // application JavaScript setting up infinite recursion that gets triggered
+  // by the conversion.
   if (!success) {
-    exception_state->SetSimpleException(kNotInt64Type);
+    if (JS_IsExceptionPending(context)) {
+      // If SpiderMonkey already threw something as a result of calling
+      // |JS::ToInt64|, then just use that...
+      base::polymorphic_downcast<MozjsExceptionState*>(exception_state)
+          ->SetExceptionAlreadySet(context);
+    } else {
+      // ...and if not, then just tell them that it isn't an int64 type.
+      exception_state->SetSimpleException(kNotInt64Type);
+    }
     return;
   }
   *out_number = static_cast<T>(out);
@@ -344,9 +367,19 @@ inline void FromJSValue(
     value_to_convert.set(value);
   }
   bool success = JS::ToUint32(context, value_to_convert, &out);
-  DCHECK(success);
+  // It is possible for |JS::ToUint32| to fail in certain edge cases, such as
+  // application JavaScript setting up infinite recursion that gets triggered
+  // by the conversion.
   if (!success) {
-    exception_state->SetSimpleException(kNotUint64Type);
+    if (JS_IsExceptionPending(context)) {
+      // If SpiderMonkey already threw something as a result of calling
+      // |JS::ToUint32|, then just use that...
+      base::polymorphic_downcast<MozjsExceptionState*>(exception_state)
+          ->SetExceptionAlreadySet(context);
+    } else {
+      // ...and if not, then just tell them that it isn't a uint64 type.
+      exception_state->SetSimpleException(kNotUint64Type);
+    }
     return;
   }
   *out_number = static_cast<T>(out);
@@ -382,9 +415,19 @@ inline void FromJSValue(
     value_to_convert.set(value);
   }
   bool success = JS::ToUint64(context, value_to_convert, &out);
-  DCHECK(success);
+  // It is possible for |JS::ToUint64| to fail in certain edge cases, such as
+  // application JavaScript setting up infinite recursion that gets triggered
+  // by the conversion.
   if (!success) {
-    exception_state->SetSimpleException(kNotUint64Type);
+    if (JS_IsExceptionPending(context)) {
+      // If SpiderMonkey already threw something as a result of calling
+      // |JS::ToUint64|, then just use that...
+      base::polymorphic_downcast<MozjsExceptionState*>(exception_state)
+          ->SetExceptionAlreadySet(context);
+    } else {
+      // ...and if not, then just tell them that it isn't a uint64 type.
+      exception_state->SetSimpleException(kNotUint64Type);
+    }
     return;
   }
   *out_number = static_cast<T>(out);
