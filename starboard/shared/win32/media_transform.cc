@@ -276,11 +276,12 @@ void MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data /*= 0*/) {
 }
 
 void MediaTransform::Reset() {
-  SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
-  thread_checker_.Detach();
+  if (stream_begun_) {
+    SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
+  }
   state_ = kCanAcceptInput;
-  stream_begun_ = false;
   discontinuity_ = true;
+  thread_checker_.Detach();
 }
 
 void MediaTransform::PrepareOutputDataBuffer(
