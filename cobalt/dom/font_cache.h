@@ -174,7 +174,7 @@ class FontCache {
   FontCache(render_tree::ResourceProvider** resource_provider,
             loader::font::RemoteTypefaceCache* remote_typeface_cache,
             const base::Closure& external_typeface_load_event_callback,
-            const std::string& language,
+            const std::string& language_script,
             scoped_refptr<Location> document_location);
 
   // Set a new font face map. If it matches the old font face map then nothing
@@ -285,7 +285,7 @@ class FontCache {
   // logic into the font cache when the loader interface improves.
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
   const base::Closure external_typeface_load_event_callback_;
-  const std::string language_;
+  const std::string language_script_;
 
   // Font-face related
   // The cache contains a map of font faces and handles requesting typefaces by
