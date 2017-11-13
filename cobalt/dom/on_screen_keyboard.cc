@@ -35,7 +35,7 @@ void OnScreenKeyboard::Show() {
     LOG(ERROR) << "OnScreenKeyboard::Show invalid without SbWindow.";
     return;
   }
-  SbWindowShowOnScreenKeyboard(sb_window);
+  SbWindowShowOnScreenKeyboard(sb_window, data_.c_str());
   // Trigger onshow.
   DispatchEvent(new dom::Event(base::Tokens::show()));
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

@@ -232,6 +232,10 @@ class WebModule : public LifecycleObserver {
   // The value for type represents beforeinput or input.
   void InjectOnScreenKeyboardInputEvent(base::Token type,
                                         const dom::InputEventInit& event);
+  // Call this to inject an on screen keyboard shown event into the web module.
+  void InjectOnScreenKeyboardShownEvent();
+  // Call this to inject an on screen keyboard hidden event into the web module.
+  void InjectOnScreenKeyboardHiddenEvent();
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Call this to inject a keyboard event into the web module. The value for
