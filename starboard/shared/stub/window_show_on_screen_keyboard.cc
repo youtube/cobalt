@@ -15,7 +15,7 @@
 #include "starboard/window.h"
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-void SbWindowShowOnScreenKeyboard(SbWindow window) {
+void SbWindowShowOnScreenKeyboard(SbWindow window, const char* input_text) {
   // Stub.
   return;
 }
