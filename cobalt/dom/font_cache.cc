@@ -43,12 +43,12 @@ FontCache::RequestedRemoteTypefaceInfo::RequestedRemoteTypefaceInfo(
 FontCache::FontCache(render_tree::ResourceProvider** resource_provider,
                      loader::font::RemoteTypefaceCache* remote_typeface_cache,
                      const base::Closure& external_typeface_load_event_callback,
-                     const std::string& language)
+                     const std::string& language_script)
     : resource_provider_(resource_provider),
       remote_typeface_cache_(remote_typeface_cache),
       external_typeface_load_event_callback_(
           external_typeface_load_event_callback),
-      language_(language),
+      language_script_(language_script),
       font_face_map_(new FontFaceMap()),
       last_inactive_process_time_(base::TimeTicks::Now()) {}
 
@@ -211,7 +211,7 @@ FontCache::GetCharacterFallbackTypeface(int32 utf32_character,
   DCHECK(resource_provider());
   return GetCachedLocalTypeface(
       resource_provider()->GetCharacterFallbackTypeface(utf32_character, style,
-                                                        language_));
+                                                        language_script_));
 }
 
 scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
@@ -219,7 +219,7 @@ scoped_refptr<render_tree::GlyphBuffer> FontCache::CreateGlyphBuffer(
     FontList* font_list) {
   DCHECK(resource_provider());
   return resource_provider()->CreateGlyphBuffer(
-      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      text_buffer, static_cast<size_t>(text_length), language_script_, is_rtl,
       font_list);
 }
 
@@ -228,7 +228,7 @@ float FontCache::GetTextWidth(const char16* text_buffer, int32 text_length,
                               render_tree::FontVector* maybe_used_fonts) {
   DCHECK(resource_provider());
   return resource_provider()->GetTextWidth(
-      text_buffer, static_cast<size_t>(text_length), language_, is_rtl,
+      text_buffer, static_cast<size_t>(text_length), language_script_, is_rtl,
       font_list, maybe_used_fonts);
 }
 

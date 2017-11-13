@@ -26,6 +26,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/message_loop_proxy.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/base/type_id.h"
@@ -543,6 +544,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
       web_module_stat_tracker_->dom_stat_tracker(), data.initial_url,
       data.network_module->GetUserAgent(),
       data.network_module->preferred_language(),
+      data.options.font_language_script_override.empty()
+          ? base::GetSystemLanguageScript()
+          : data.options.font_language_script_override,
       data.options.navigation_callback,
       base::Bind(&WebModule::Impl::OnError, base::Unretained(this)),
       data.network_module->cookie_jar(), data.network_module->GetPostSender(),
