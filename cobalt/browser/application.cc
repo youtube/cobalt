@@ -37,6 +37,8 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/on_screen_keyboard_hidden_event.h"
+#include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/user_log.h"
 #include "cobalt/base/window_size_changed_event.h"
@@ -625,6 +627,17 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  on_screen_keyboard_shown_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(base::OnScreenKeyboardShownEvent::TypeId(),
+                                     on_screen_keyboard_shown_event_callback_);
+  on_screen_keyboard_hidden_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardHiddenEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardHiddenEvent::TypeId(),
+      on_screen_keyboard_hidden_event_callback_);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   bool create_webdriver_module =
@@ -747,6 +760,14 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
               ->size));
       break;
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+    case kSbEventTypeOnScreenKeyboardShown:
+      DispatchEventInternal(new base::OnScreenKeyboardShownEvent());
+      break;
+    case kSbEventTypeOnScreenKeyboardHidden:
+      DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent());
+      break;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeNetworkConnect:
       DispatchEventInternal(
           new network::NetworkEvent(network::NetworkEvent::kConnection));
@@ -865,6 +886,22 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   browser_module_->OnWindowSizeChanged(window_size_change_event->size());
 }
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardShownEvent()");
+  UNREFERENCED_PARAMETER(event);
+  browser_module_->OnOnScreenKeyboardShown();
+}
+
+void Application::OnOnScreenKeyboardHiddenEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardHiddenEvent()");
+  UNREFERENCED_PARAMETER(event);
+  browser_module_->OnOnScreenKeyboardHidden();
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void Application::WebModuleRecreated() {
   TRACE_EVENT0("cobalt::browser", "Application::WebModuleRecreated()");
