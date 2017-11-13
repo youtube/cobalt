@@ -296,7 +296,9 @@ void FontList::GenerateSpaceWidth() {
     render_tree::GlyphIndex space_glyph =
         primary_font->GetGlyphForCharacter(' ');
     space_width_ = primary_font->GetGlyphWidth(space_glyph);
-    DCHECK_GT(space_width_, 0);
+    if (space_width_ == 0) {
+      DLOG(WARNING) << "Font being used with space width of 0!";
+    }
 
     is_space_width_set_ = true;
   }
