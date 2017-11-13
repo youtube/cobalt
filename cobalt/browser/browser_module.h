@@ -167,6 +167,11 @@ class BrowserModule {
   void OnWindowSizeChanged(const SbWindowSize& size);
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  void OnOnScreenKeyboardShown();
+  void OnOnScreenKeyboardHidden();
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
  private:
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   static void CoreDumpHandler(void* browser_module_as_void);

@@ -12,30 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#ifndef COBALT_BASE_WINDOW_SIZE_CHANGED_EVENT_H_
-#define COBALT_BASE_WINDOW_SIZE_CHANGED_EVENT_H_
+#ifndef COBALT_BASE_ON_SCREEN_KEYBOARD_HIDDEN_EVENT_H_
+#define COBALT_BASE_ON_SCREEN_KEYBOARD_HIDDEN_EVENT_H_
 
 #include "cobalt/base/event.h"
 #include "starboard/event.h"
-#include "starboard/window.h"
 
 namespace base {
 
-class WindowSizeChangedEvent : public Event {
+class OnScreenKeyboardHiddenEvent : public Event {
  public:
-  WindowSizeChangedEvent(SbWindow window, SbWindowSize size)
-      : window_(window), size_(size) {}
+  OnScreenKeyboardHiddenEvent() {}
 
-  SbWindow window() const { return window_; }
-  SbWindowSize size() const { return size_; }
-
-  BASE_EVENT_SUBCLASS(WindowSizeChangedEvent);
-
- private:
-  SbWindow window_;
-  SbWindowSize size_;
+  BASE_EVENT_SUBCLASS(OnScreenKeyboardHiddenEvent);
 };
 
 }  // namespace base
 
-#endif  // COBALT_BASE_WINDOW_SIZE_CHANGED_EVENT_H_
+#endif  // COBALT_BASE_ON_SCREEN_KEYBOARD_HIDDEN_EVENT_H_

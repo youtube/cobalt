@@ -19,6 +19,9 @@ interface OnScreenKeyboard {
   void show();
   void hide();
   readonly attribute boolean shown;
+
+  attribute DOMString data;
+
   attribute EventHandler onshow;
   attribute EventHandler onhide;
   attribute EventHandler oninput;

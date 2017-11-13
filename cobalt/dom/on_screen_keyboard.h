@@ -15,6 +15,8 @@
 #ifndef COBALT_DOM_ON_SCREEN_KEYBOARD_H_
 #define COBALT_DOM_ON_SCREEN_KEYBOARD_H_
 
+#include <string>
+
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event_target.h"
@@ -40,6 +42,9 @@ class OnScreenKeyboard : public EventTarget {
   // and dispatches an onhide event.
   void Hide();
 
+  std::string data() const { return data_; }
+  void set_data(const std::string& data) { data_ = data; }
+
   const EventListenerScriptValue* onshow() const;
   void set_onshow(const EventListenerScriptValue& event_listener);
 
@@ -57,6 +62,8 @@ class OnScreenKeyboard : public EventTarget {
  private:
   ~OnScreenKeyboard() OVERRIDE {}
   const base::Callback<SbWindow()> get_sb_window_callback_;
+
+  std::string data_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };
