@@ -59,7 +59,7 @@ class StubWindow {
         1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
         dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL, NULL,
         NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL, NULL,
-        dom_stat_tracker_.get(), url_, "", "en-US",
+        dom_stat_tracker_.get(), url_, "", "en-US", "en",
         base::Callback<void(const GURL&)>(), base::Bind(&StubErrorCallback),
         NULL, network_bridge::PostSender(), csp::kCSPRequired,
         dom::kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
