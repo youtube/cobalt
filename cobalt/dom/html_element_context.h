@@ -63,7 +63,7 @@ class HTMLElementContext {
           reduced_image_cache_capacity_manager,
       loader::font::RemoteTypefaceCache* remote_typeface_cache,
       loader::mesh::MeshCache* mesh_cache, DomStatTracker* dom_stat_tracker,
-      const std::string& language,
+      const std::string& font_language_script,
       base::ApplicationState initial_application_state,
       float video_playback_rate_multiplier = 1.0);
   ~HTMLElementContext();
@@ -113,7 +113,9 @@ class HTMLElementContext {
 
   DomStatTracker* dom_stat_tracker() { return dom_stat_tracker_; }
 
-  const std::string& language() const { return language_; }
+  const std::string& font_language_script() const {
+    return font_language_script_;
+  }
 
   float video_playback_rate_multiplier() const {
     return video_playback_rate_multiplier_;
@@ -151,7 +153,7 @@ class HTMLElementContext {
   loader::font::RemoteTypefaceCache* const remote_typeface_cache_;
   loader::mesh::MeshCache* const mesh_cache_;
   DomStatTracker* const dom_stat_tracker_;
-  const std::string language_;
+  const std::string font_language_script_;
   page_visibility::PageVisibilityState page_visibility_state_;
   const float video_playback_rate_multiplier_;
 

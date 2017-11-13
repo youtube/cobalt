@@ -86,7 +86,6 @@ class BrowserModule {
     storage::StorageManager::Options storage_manager_options;
     WebModule::Options web_module_options;
     media::MediaModule::Options media_module_options;
-    std::string language;
     std::string initial_deep_link;
     base::Closure web_module_recreated_callback;
     memory_settings::AutoMemSettings command_line_auto_mem_settings;
