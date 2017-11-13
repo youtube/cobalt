@@ -219,6 +219,10 @@ typedef enum SbEventType {
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  kSbEventTypeOnScreenKeyboardShown,
+  kSbEventTypeOnScreenKeyboardHidden,
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
