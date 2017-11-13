@@ -453,7 +453,6 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   // Create the main components of our browser.
   BrowserModule::Options options(web_options);
   options.web_module_options.name = "MainWebModule";
-  options.language = language;
   options.initial_deep_link = GetInitialDeepLink();
   options.network_module_options.preferred_language = language;
   options.command_line_auto_mem_settings =

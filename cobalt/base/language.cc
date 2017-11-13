@@ -14,6 +14,8 @@
 
 #include "cobalt/base/language.h"
 
+#include <algorithm>
+
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "third_party/icu/source/common/unicode/uloc.h"
@@ -42,4 +44,28 @@ std::string GetSystemLanguage() {
   // We should end up with something like "en" or "en-US".
   return language;
 }
+
+std::string GetSystemLanguageScript() {
+  char buffer[ULOC_LANG_CAPACITY];
+  UErrorCode icu_result = U_ZERO_ERROR;
+
+  // Combine the ISO language and script.
+  uloc_getLanguage(NULL, buffer, arraysize(buffer), &icu_result);
+  if (!U_SUCCESS(icu_result)) {
+    DLOG(FATAL) << __FUNCTION__ << ": Unable to get language from ICU for "
+                << "default locale " << uloc_getDefault() << ".";
+    return "en";
+  }
+
+  std::string language = buffer;
+  uloc_getScript(NULL, buffer, arraysize(buffer), &icu_result);
+  if (U_SUCCESS(icu_result) && buffer[0]) {
+    language += "-";
+    language += buffer;
+  }
+
+  // We should end up with something like "en" or "en-Latn".
+  return language;
+}
+
 }  // namespace base
