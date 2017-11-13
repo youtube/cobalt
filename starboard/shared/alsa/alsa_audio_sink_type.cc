@@ -223,7 +223,11 @@ void AlsaAudioSink::AudioThreadFunc() {
   playback_handle_ = starboard::shared::alsa::AlsaOpenPlaybackDevice(
       channels_, sampling_frequency_hz_, kFramesPerRequest,
       kALSABufferSizeInFrames, alsa_sample_type);
-  creation_signal_.Signal();
+  {
+    ScopedLock lock(mutex_);
+    creation_signal_.Signal();
+  }
+
   if (!playback_handle_) {
     return;
   }
