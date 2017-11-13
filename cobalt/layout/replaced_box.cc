@@ -235,9 +235,11 @@ void AddLetterboxedPunchThroughVideoNodeToRenderTree(
     const LetterboxDimensions& dimensions,
     const ReplacedBox::SetBoundsCB& set_bounds_cb,
     CompositionNode::Builder* border_node_builder) {
-  PunchThroughVideoNode::Builder builder(*(dimensions.image_rect),
-                                         set_bounds_cb);
-  border_node_builder->AddChild(new PunchThroughVideoNode(builder));
+  if (dimensions.image_rect) {
+    PunchThroughVideoNode::Builder builder(*(dimensions.image_rect),
+                                           set_bounds_cb);
+    border_node_builder->AddChild(new PunchThroughVideoNode(builder));
+  }
   AddLetterboxFillRects(dimensions, border_node_builder);
 }
 
