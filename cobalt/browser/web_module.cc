@@ -141,6 +141,12 @@ class WebModule::Impl {
   void InjectOnScreenKeyboardInputEvent(scoped_refptr<dom::Element> element,
                                         base::Token type,
                                         const dom::InputEventInit& event);
+  // Called to inject an on screen keyboard input event into the web module.
+  // Event is directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardShownEvent();
+  // Called to inject an on screen keyboard input event into the web module.
+  // Event is directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardHiddenEvent();
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -718,6 +724,40 @@ void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
       new dom::InputEvent(type, window_, event));
   InjectInputEvent(element, input_event);
 }
+
+void WebModule::Impl::InjectOnScreenKeyboardShownEvent() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  DCHECK(window_->on_screen_keyboard());
+
+  scoped_refptr<dom::Event> event = new dom::Event(base::Tokens::show());
+
+  web_module_stat_tracker_->OnStartInjectEvent(event);
+
+  window_->on_screen_keyboard()->DispatchEvent(event);
+
+  web_module_stat_tracker_->OnEndInjectEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
+      layout_manager_->IsRenderTreePending());
+}
+
+void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent() {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  DCHECK(window_->on_screen_keyboard());
+
+  scoped_refptr<dom::Event> event = new dom::Event(base::Tokens::hide());
+
+  web_module_stat_tracker_->OnStartInjectEvent(event);
+
+  window_->on_screen_keyboard()->DispatchEvent(event);
+
+  web_module_stat_tracker_->OnEndInjectEvent(
+      window_->HasPendingAnimationFrameCallbacks(),
+      layout_manager_->IsRenderTreePending());
+}
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
@@ -1041,8 +1081,8 @@ void WebModule::Impl::LogScriptError(
   //   JS:50250:file.js(29,80): ka(...) is not iterable
   //   JS:<time millis><js-file-name>(<line>,<column>):<message>
   ss << "JS:" << dt.InMilliseconds() << ":" << file_name << "("
-     << source_location.line_number << ","
-     << source_location.column_number << "): " << error_message << "\n";
+     << source_location.line_number << "," << source_location.column_number
+     << "): " << error_message << "\n";
   SbLogRaw(ss.str().c_str());
 }
 
@@ -1164,10 +1204,9 @@ WebModule::~WebModule() {
   // No posted tasks will be executed once the thread is stopped.
   DestructionObserver destruction_observer(this);
   message_loop()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&MessageLoop::AddDestructionObserver,
-                 base::Unretained(message_loop()),
-                 base::Unretained(&destruction_observer)));
+      FROM_HERE, base::Bind(&MessageLoop::AddDestructionObserver,
+                            base::Unretained(message_loop()),
+                            base::Unretained(&destruction_observer)));
 
   // This will cancel the timers for tasks, which help the thread exit
   ClearAllIntervalsAndTimeouts();
@@ -1194,6 +1233,26 @@ void WebModule::InjectOnScreenKeyboardInputEvent(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardInputEvent,
                             base::Unretained(impl_.get()),
                             scoped_refptr<dom::Element>(), type, event));
+}
+
+void WebModule::InjectOnScreenKeyboardShownEvent() {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardShownEvent()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardShownEvent,
+                            base::Unretained(impl_.get())));
+}
+
+void WebModule::InjectOnScreenKeyboardHiddenEvent() {
+  TRACE_EVENT0("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardHiddenEvent()");
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardHiddenEvent,
+                            base::Unretained(impl_.get())));
 }
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
@@ -1244,8 +1303,7 @@ void WebModule::InjectBeforeUnloadEvent() {
 }
 
 std::string WebModule::ExecuteJavascript(
-    const std::string& script_utf8,
-    const base::SourceLocation& script_location,
+    const std::string& script_utf8, const base::SourceLocation& script_location,
     bool* out_succeeded) {
   TRACE_EVENT0("cobalt::browser", "WebModule::ExecuteJavascript()");
   DCHECK(message_loop());
@@ -1254,10 +1312,10 @@ std::string WebModule::ExecuteJavascript(
   base::WaitableEvent got_result(true, false);
   std::string result;
   message_loop()->PostTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::ExecuteJavascript,
-                            base::Unretained(impl_.get()), script_utf8,
-                            script_location, &got_result, &result,
-                            out_succeeded));
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::ExecuteJavascript,
+                 base::Unretained(impl_.get()), script_utf8, script_location,
+                 &got_result, &result, out_succeeded));
   got_result.Wait();
   return result;
 }
@@ -1295,10 +1353,9 @@ scoped_ptr<webdriver::WindowDriver> WebModule::CreateWindowDriver(
 
   scoped_ptr<webdriver::WindowDriver> window_driver;
   message_loop()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::CreateWindowDriver,
-                 base::Unretained(impl_.get()), window_id,
-                 base::Unretained(&window_driver)));
+      FROM_HERE, base::Bind(&WebModule::Impl::CreateWindowDriver,
+                            base::Unretained(impl_.get()), window_id,
+                            base::Unretained(&window_driver)));
 
   return window_driver.Pass();
 }
@@ -1311,9 +1368,8 @@ debug::DebugServer* WebModule::GetDebugServer() {
   DCHECK(impl_);
 
   message_loop()->PostBlockingTask(
-      FROM_HERE,
-      base::Bind(&WebModule::Impl::CreateDebugServerIfNull,
-                 base::Unretained(impl_.get())));
+      FROM_HERE, base::Bind(&WebModule::Impl::CreateDebugServerIfNull,
+                            base::Unretained(impl_.get())));
 
   return impl_->debug_server();
 }
@@ -1422,8 +1478,8 @@ void WebModule::Suspend() {
   // We must block here so that the call doesn't return until the web
   // application has had a chance to process the whole event.
   message_loop()->PostBlockingTask(FROM_HERE,
-                   base::Bind(&WebModule::Impl::FinishSuspend,
-                              base::Unretained(impl_.get())));
+                                   base::Bind(&WebModule::Impl::FinishSuspend,
+                                              base::Unretained(impl_.get())));
 }
 
 void WebModule::Resume(render_tree::ResourceProvider* resource_provider) {
@@ -1441,9 +1497,9 @@ void WebModule::ReduceMemory() {
 
   // We block here so that we block the Low Memory event handler until we have
   // reduced our memory consumption.
-  message_loop()->PostBlockingTask(
-      FROM_HERE, base::Bind(&WebModule::Impl::ReduceMemory,
-                            base::Unretained(impl_.get())));
+  message_loop()->PostBlockingTask(FROM_HERE,
+                                   base::Bind(&WebModule::Impl::ReduceMemory,
+                                              base::Unretained(impl_.get())));
 }
 
 void WebModule::Impl::HandlePointerEvents() {

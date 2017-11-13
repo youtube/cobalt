@@ -53,6 +53,8 @@
         'log_message_handler.h',
         'math.h',
         'message_queue.h',
+        'on_screen_keyboard_hidden_event.h',
+        'on_screen_keyboard_shown_event.h',
         'path_provider.cc',
         'path_provider.h',
         'poller.h',
