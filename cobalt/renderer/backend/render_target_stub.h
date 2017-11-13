@@ -32,6 +32,8 @@ class RenderTargetStub : public RenderTarget {
 
   intptr_t GetPlatformHandle() const OVERRIDE { return 0; }
 
+  bool CreationError() OVERRIDE { return false; }
+
  private:
   ~RenderTargetStub() {}
 
