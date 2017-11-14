@@ -28,7 +28,9 @@ namespace {
 using Microsoft::WRL::ComPtr;
 
 // Limit the number of active output samples to control memory usage.
-const int kMaxOutputSamples = 12;
+// NOTE: Higher numbers may result in increased dropped frames when the video
+// resolution changes during playback.
+const int kMaxOutputSamples = 5;
 
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
@@ -80,8 +82,8 @@ VideoDecoder::VideoDecoder(
       decoder_thread_(kSbThreadInvalid),
       decoder_thread_stop_requested_(false),
       decoder_thread_stopped_(false),
-      current_decode_target_(kSbDecodeTargetInvalid) {
-  SB_UNREFERENCED_PARAMETER(graphics_context_provider);
+      current_decode_target_(kSbDecodeTargetInvalid),
+      prev_decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
@@ -103,6 +105,7 @@ VideoDecoder::~VideoDecoder() {
 
   ScopedLock lock(decode_target_lock_);
   SbDecodeTargetRelease(current_decode_target_);
+  SbDecodeTargetRelease(prev_decode_target_);
 }
 
 void VideoDecoder::SetHost(Host* host) {
@@ -164,7 +167,8 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   ScopedLock lock(decode_target_lock_);
   if (SbDecodeTargetIsValid(decode_target_context.out_decode_target)) {
-    SbDecodeTargetRelease(current_decode_target_);
+    SbDecodeTargetRelease(prev_decode_target_);
+    prev_decode_target_ = current_decode_target_;
     current_decode_target_ = decode_target_context.out_decode_target;
   }
   if (SbDecodeTargetIsValid(current_decode_target_)) {
@@ -189,7 +193,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
   // Don't allow a decoder reset (flush) while an IMFSample is
   // alive. However, the decoder thread should be allowed to continue
   // while the SbDecodeTarget is being created.
-  ScopedLock lock(outputs_reset_lock_);
+  ScopedLock reset_lock(outputs_reset_lock_);
 
   // Use the oldest output.
   thread_lock_.Acquire();
@@ -208,9 +212,21 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
   SbDecodeTarget decode_target = kSbDecodeTargetInvalid;
   if (video_sample != nullptr) {
-    decode_target = new SbDecodeTargetPrivate(d3d_device_, video_device_,
-        video_context_, video_enumerator_, video_processor_,
-        video_sample, video_area);
+    ScopedLock target_lock(decode_target_lock_);
+
+    // Try reusing the previous decode target to avoid the performance hit of
+    // creating a new texture.
+    if (SbDecodeTargetIsValid(prev_decode_target_) &&
+        prev_decode_target_->Update(d3d_device_, video_device_,
+            video_context_, video_enumerator_, video_processor_,
+            video_sample, video_area)) {
+      decode_target = prev_decode_target_;
+      prev_decode_target_ = kSbDecodeTargetInvalid;
+    } else {
+      decode_target = new SbDecodeTargetPrivate(d3d_device_, video_device_,
+          video_context_, video_enumerator_, video_processor_,
+          video_sample, video_area);
+    }
 
     // Release the video_sample before releasing the reset lock.
     video_sample.Reset();
@@ -325,7 +341,7 @@ void VideoDecoder::StopDecoderThread() {
   thread_events_.clear();
 }
 
-void VideoDecoder::UpdateVideoArea(ComPtr<IMFMediaType> media) {
+void VideoDecoder::UpdateVideoArea(const ComPtr<IMFMediaType>& media) {
   MFVideoArea video_area;
   HRESULT hr = media->GetBlob(MF_MT_MINIMUM_DISPLAY_APERTURE,
                               reinterpret_cast<UINT8*>(&video_area),
@@ -353,7 +369,7 @@ void VideoDecoder::UpdateVideoArea(ComPtr<IMFMediaType> media) {
 }
 
 scoped_refptr<VideoFrame> VideoDecoder::CreateVideoFrame(
-    ComPtr<IMFSample> sample) {
+    const ComPtr<IMFSample>& sample) {
   // NOTE: All samples must be released before flushing the decoder. Since
   // the host may hang onto VideoFrames that are created here, make them
   // weak references to the actual sample.

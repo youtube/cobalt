@@ -61,16 +61,13 @@ ComPtr<ID3D11Texture2D> AllocateTexture(
   return texture;
 }
 
-ComPtr<ID3D11Texture2D> CreateTexture(
-    const ComPtr<ID3D11Device>& d3d_device,
+void UpdateTexture(
+    const ComPtr<ID3D11Texture2D>& texture,
     const ComPtr<ID3D11VideoDevice1>& video_device,
     const ComPtr<ID3D11VideoContext>& video_context,
     const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
     const ComPtr<ID3D11VideoProcessor>& video_processor,
     const ComPtr<IMFSample>& video_sample, const RECT& video_area) {
-  ComPtr<ID3D11Texture2D> texture = AllocateTexture(d3d_device,
-      video_area.right, video_area.bottom);
-
   ComPtr<IMFMediaBuffer> media_buffer;
   CheckResult(video_sample->GetBufferByIndex(0, media_buffer.GetAddressOf()));
 
@@ -110,8 +107,6 @@ ComPtr<ID3D11Texture2D> CreateTexture(
   stream_info.pInputSurface = input_view.Get();
   CheckResult(video_context->VideoProcessorBlt(
       video_processor.Get(), output_view.Get(), 0, 1, &stream_info));
-
-  return texture;
 }
 
 }  // namespace
@@ -125,16 +120,14 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(
     const ComPtr<IMFSample>& video_sample, const RECT& video_area)
     : refcount(1) {
   SbMemorySet(&info, 0, sizeof(info));
-
-  d3d_texture = CreateTexture(d3d_device, video_device,
-      video_context, video_enumerator, video_processor, video_sample,
-      video_area);
-
   info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
   info.is_opaque = true;
-
   info.width = video_area.right;
   info.height = video_area.bottom;
+
+  d3d_texture = AllocateTexture(d3d_device, info.width, info.height);
+  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+      video_processor, video_sample, video_area);
 
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
@@ -268,6 +261,34 @@ SbDecodeTargetPrivate::~SbDecodeTargetPrivate() {
 
   eglReleaseTexImage(display, surface[1], EGL_BACK_BUFFER);
   eglDestroySurface(display, surface[1]);
+}
+
+bool SbDecodeTargetPrivate::Update(
+    const ComPtr<ID3D11Device>& d3d_device,
+    const ComPtr<ID3D11VideoDevice1>& video_device,
+    const ComPtr<ID3D11VideoContext>& video_context,
+    const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+    const ComPtr<ID3D11VideoProcessor>& video_processor,
+    const ComPtr<IMFSample>& video_sample,
+    const RECT& video_area) {
+  // Only allow updating if this is the only reference. Otherwise the update
+  // may change something that's currently being used.
+  if (SbAtomicNoBarrier_Load(&refcount) > 1) {
+    return false;
+  }
+
+  // The decode target info must be compatible.
+  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
+      info.is_opaque != true ||
+      info.width != video_area.right ||
+      info.height != video_area.bottom) {
+    return false;
+  }
+
+  SB_UNREFERENCED_PARAMETER(d3d_device);
+  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+      video_processor, video_sample, video_area);
+  return true;
 }
 
 void SbDecodeTargetPrivate::AddRef() {

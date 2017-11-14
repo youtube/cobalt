@@ -59,6 +59,9 @@ class VideoDecoder
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
  private:
+  template <typename T>
+  using ComPtr = Microsoft::WRL::ComPtr<T>;
+
   struct Event {
     enum Type {
       kWriteInputBuffer,
@@ -70,19 +73,18 @@ class VideoDecoder
 
   struct Output {
     Output(SbMediaTime time, const RECT& video_area,
-           const Microsoft::WRL::ComPtr<IMFSample>& video_sample)
+           const ComPtr<IMFSample>& video_sample)
         : time(time), video_area(video_area), video_sample(video_sample) {}
     SbMediaTime time;
     RECT video_area;
-    Microsoft::WRL::ComPtr<IMFSample> video_sample;
+    ComPtr<IMFSample> video_sample;
   };
 
   void InitializeCodec();
   void ShutdownCodec();
 
-  void UpdateVideoArea(Microsoft::WRL::ComPtr<IMFMediaType> media);
-  scoped_refptr<VideoFrame> CreateVideoFrame(
-      Microsoft::WRL::ComPtr<IMFSample> sample);
+  void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
+  scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
   static void DeleteVideoFrame(void* context, void* native_texture);
   static void CreateDecodeTargetHelper(void* context);
   SbDecodeTarget CreateDecodeTarget();
@@ -103,12 +105,12 @@ class VideoDecoder
   SbDrmSystem const drm_system_;
 
   // These are platform-specific objects required to create and use a codec.
-  Microsoft::WRL::ComPtr<ID3D11Device> d3d_device_;
-  Microsoft::WRL::ComPtr<IMFDXGIDeviceManager> device_manager_;
-  Microsoft::WRL::ComPtr<ID3D11VideoDevice1> video_device_;
-  Microsoft::WRL::ComPtr<ID3D11VideoContext> video_context_;
-  Microsoft::WRL::ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
-  Microsoft::WRL::ComPtr<ID3D11VideoProcessor> video_processor_;
+  ComPtr<ID3D11Device> d3d_device_;
+  ComPtr<IMFDXGIDeviceManager> device_manager_;
+  ComPtr<ID3D11VideoDevice1> video_device_;
+  ComPtr<ID3D11VideoContext> video_context_;
+  ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
+  ComPtr<ID3D11VideoProcessor> video_processor_;
 
   scoped_ptr<DecryptingDecoder> decoder_;
   RECT video_area_;
@@ -132,6 +134,7 @@ class VideoDecoder
 
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
+  SbDecodeTarget prev_decode_target_;
 };
 
 }  // namespace win32
