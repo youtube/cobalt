@@ -78,9 +78,15 @@ bool WebMVideoClient::InitializeConfig(
     display_unit_ = 0;
 
   gfx::Size coded_size(pixel_width_, pixel_height_);
-  gfx::Rect visible_rect(crop_top_, crop_left_,
-                         pixel_width_ - (crop_left_ + crop_right_),
-                         pixel_height_ - (crop_top_ + crop_bottom_));
+
+  gfx::RectF visible_rect_float(crop_top_, crop_left_,
+                                pixel_width_ - (crop_left_ + crop_right_),
+                                pixel_height_ - (crop_top_ + crop_bottom_));
+  // If |visible_rect_float| has big int64s for various attributes, they will be
+  // clamped, and if reasonable attributes are used (up to a value of few
+  // million), there will be no loss in the int->float->int conversion of
+  // parameters.
+  gfx::Rect visible_rect = gfx::Rect::RoundFromRectF(visible_rect_float);
   if (display_unit_ == 0) {
     if (display_width_ <= 0)
       display_width_ = visible_rect.width();
