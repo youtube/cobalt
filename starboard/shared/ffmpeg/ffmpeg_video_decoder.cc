@@ -39,6 +39,58 @@ size_t GetYV12SizeInBytes(int32_t width, int32_t height) {
   return width * height * 3 / 2;
 }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+
+void ReleaseBuffer(void* opaque, uint8_t* data) {
+  SbMemorySet(data, 0, sizeof(data));
+  SbMemoryDeallocate(data);
+}
+
+int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame, int flags) {
+  if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
+      codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
+    SB_DLOG(WARNING) << "Unsupported pix_fmt " << codec_context->pix_fmt;
+    return AVERROR(EINVAL);
+  }
+
+  int ret =
+      av_image_check_size(codec_context->width, codec_context->height, 0, NULL);
+  if (ret < 0) {
+    return ret;
+  }
+
+  // Align to kAlignment * 2 as we will divide y_stride by 2 for u and v planes
+  size_t y_stride = AlignUp(codec_context->width, kAlignment * 2);
+  size_t uv_stride = y_stride / 2;
+  size_t aligned_height = AlignUp(codec_context->height, kAlignment * 2);
+
+  uint8_t* frame_buffer = reinterpret_cast<uint8_t*>(SbMemoryAllocateAligned(
+      kAlignment, GetYV12SizeInBytes(y_stride, aligned_height)));
+
+  frame->data[0] = frame_buffer;
+  frame->linesize[0] = y_stride;
+
+  frame->data[1] = frame_buffer + y_stride * aligned_height;
+  frame->linesize[1] = uv_stride;
+
+  frame->data[2] = frame->data[1] + uv_stride * aligned_height / 2;
+  frame->linesize[2] = uv_stride;
+
+  frame->opaque = frame;
+  frame->width = codec_context->width;
+  frame->height = codec_context->height;
+  frame->format = codec_context->pix_fmt;
+
+  frame->reordered_opaque = codec_context->reordered_opaque;
+
+  frame->buf[0] = av_buffer_create(frame_buffer,
+                                   GetYV12SizeInBytes(y_stride, aligned_height),
+                                   &ReleaseBuffer, frame->opaque, 0);
+  return 0;
+}
+
+#else  // LIBAVUTIL_VERSION_MAJOR > 52
+
 int AllocateBuffer(AVCodecContext* codec_context, AVFrame* frame) {
   if (codec_context->pix_fmt != PIX_FMT_YUV420P &&
       codec_context->pix_fmt != PIX_FMT_YUVJ420P) {
@@ -93,6 +145,7 @@ void ReleaseBuffer(AVCodecContext*, AVFrame* frame) {
   SbMemorySet(frame->data, 0, sizeof(frame->data));
 }
 
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
 }  // namespace
 
 VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
@@ -225,7 +278,11 @@ void VideoDecoder::DecoderThreadFunc() {
 bool VideoDecoder::DecodePacket(AVPacket* packet) {
   SB_DCHECK(packet != NULL);
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_unref(av_frame_);
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   avcodec_get_frame_defaults(av_frame_);
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   int frame_decoded = 0;
   int result =
       avcodec_decode_video2(codec_context_, av_frame_, &frame_decoded, packet);
@@ -293,8 +350,12 @@ void VideoDecoder::InitializeCodec() {
   codec_context_->thread_count = 2;
   codec_context_->opaque = this;
   codec_context_->flags |= CODEC_FLAG_EMU_EDGE;
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  codec_context_->get_buffer2 = AllocateBuffer;
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   codec_context_->get_buffer = AllocateBuffer;
   codec_context_->release_buffer = ReleaseBuffer;
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
 
   codec_context_->extradata = NULL;
   codec_context_->extradata_size = 0;
@@ -314,7 +375,11 @@ void VideoDecoder::InitializeCodec() {
     return;
   }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_ = av_frame_alloc();
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   av_frame_ = avcodec_alloc_frame();
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();

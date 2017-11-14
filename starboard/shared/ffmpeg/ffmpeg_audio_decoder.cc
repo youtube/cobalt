@@ -91,7 +91,11 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
   packet.data = const_cast<uint8_t*>(input_buffer->data());
   packet.size = input_buffer->size();
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_unref(av_frame_);
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   avcodec_get_frame_defaults(av_frame_);
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   int frame_decoded = 0;
   int result =
       avcodec_decode_audio4(codec_context_, av_frame_, &frame_decoded, &packet);
@@ -247,7 +251,11 @@ void AudioDecoder::InitializeCodec() {
     return;
   }
 
+#if LIBAVUTIL_VERSION_MAJOR > 52
+  av_frame_ = av_frame_alloc();
+#else   // LIBAVUTIL_VERSION_MAJOR > 52
   av_frame_ = avcodec_alloc_frame();
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
   if (av_frame_ == NULL) {
     SB_LOG(ERROR) << "Unable to allocate audio frame";
     TeardownCodec();
