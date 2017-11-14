@@ -73,7 +73,7 @@ class PlatformConfig(config.base.PlatformConfigBase):
         test_filter.TestFilter(
             'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
         test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
+            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
         test_filter.TestFilter(
