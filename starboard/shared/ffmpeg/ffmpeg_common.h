@@ -27,6 +27,16 @@ extern "C" {
 
 #include "starboard/shared/internal_only.h"
 
+#if !defined(LIBAVUTIL_VERSION_MAJOR)
+#error "LIBAVUTIL_VERSION_MAJOR not defined"
+#endif  // !defined(LIBAVUTIL_VERSION_MAJOR)
+
+#if LIBAVUTIL_VERSION_MAJOR > 52
+#define PIX_FMT_NONE AV_PIX_FMT_NONE
+#define PIX_FMT_YUV420P AV_PIX_FMT_YUV420P
+#define PIX_FMT_YUVJ420P AV_PIX_FMT_YUVJ420P
+#endif  // LIBAVUTIL_VERSION_MAJOR > 52
+
 namespace starboard {
 namespace shared {
 namespace ffmpeg {
