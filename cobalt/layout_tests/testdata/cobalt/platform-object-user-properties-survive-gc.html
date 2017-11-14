@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<!--
+ | This test ensures that custom properties added to a platform object
+ | persist through garbage collection.
+-->
+<html>
+<head>
+  <title>platform-object-user-properties-survive-gc</title>
+  <style>
+    #result {
+      width: 100px;
+      height:100px;
+      background-color:#0047AB;
+    }
+  </style>
+</head>
+<body>
+
+<div id="result"></div>
+
+<script>
+  (function() {
+    function expect(condition) {
+      if (!condition) {
+        document.querySelector('#result').style.display = 'none';
+        console.error('!condition block reached in |expect|');
+      }
+    }
+
+    if (window.testRunner) {
+      window.testRunner.waitUntilDone();
+    }
+
+    window.myCustomProperty = 12345;
+    document.myCustomProperty = 12345;
+    document.body.myCustomProperty = 12345;
+
+    if (window.testRunner) {
+      window.testRunner.collectGarbageAndThenDo(function() {
+        expect(window.myCustomProperty === 12345);
+        expect(document.myCustomProperty === 12345);
+        expect(document.body.myCustomProperty === 12345);
+
+        if (window.testRunner) {
+          window.testRunner.notifyDone();
+        }
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>
