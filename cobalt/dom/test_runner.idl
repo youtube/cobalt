@@ -24,4 +24,14 @@
   // Increment's the web page's clock by the specified number of milliseconds.
   // This will result in the advance of animations.
   void AdvanceClockByMs(long long amount);
+
+  // Expose running native garbage collection without a JavaScript stack, and
+  // then executing a callback. This is required to properly test certain
+  // garbage collection scenarios, as that act of calling |window.gc| from
+  // JavaScript can change the state of what is and isn't reachable with
+  // respect to engine internals.
+  [CallWith=EnvironmentSettings]
+  void collectGarbageAndThenDo(TestRunnerCallback callback);
 };
+
+callback TestRunnerCallback = void();
