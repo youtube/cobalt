@@ -18,7 +18,6 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
-#include "cobalt/script/sequence.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -44,7 +43,6 @@ PROMISE_TEMPLATE_INSTANTIATION(float);
 PROMISE_TEMPLATE_INSTANTIATION(double);
 PROMISE_TEMPLATE_INSTANTIATION(std::string);
 PROMISE_TEMPLATE_INSTANTIATION(scoped_refptr<Wrappable>);
-PROMISE_TEMPLATE_INSTANTIATION(Sequence<scoped_refptr<Wrappable>>);
 
 #undef PROMISE_TEMPLATE_INSTANTIATION
 
