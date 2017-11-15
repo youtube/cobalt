@@ -8,6 +8,9 @@ EXPORTS
     ; From starboard/shared/lib/exported/starboard_main.h:
     StarboardMain
 
+    ; From cobalt/network/lib/user_agent.h:
+    CbLibUserAgentSetPlatformNameSuffix
+
     ; From cobalt/browser/lib/exported/main.h:
     CbLibMainSetCallbackRegistrationReadyCallback
     CbLibMainSetOnCobaltInitializedCallback
