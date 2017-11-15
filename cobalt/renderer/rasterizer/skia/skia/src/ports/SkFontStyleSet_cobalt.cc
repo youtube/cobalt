@@ -361,7 +361,7 @@ void SkFontStyleSet_Cobalt::PurgeUnreferencedTypefaces() {
   // These are purged if they are unreferenced outside of the style set.
   for (int i = 0; i < styles_.count(); ++i) {
     SkAutoTUnref<SkTypeface>& typeface = styles_[i]->typeface;
-    if (typeface.get() != NULL && typeface->getRefCnt() == 1) {
+    if (typeface.get() != NULL && typeface->unique()) {
       typeface.reset(NULL);
     }
   }
