@@ -42,7 +42,6 @@
 namespace cobalt {
 namespace layout {
 
-using render_tree::animations::AnimateNode;
 using render_tree::CompositionNode;
 using render_tree::FilterNode;
 using render_tree::ImageNode;
@@ -51,6 +50,7 @@ using render_tree::Node;
 using render_tree::PunchThroughVideoNode;
 using render_tree::RectNode;
 using render_tree::SolidColorBrush;
+using render_tree::animations::AnimateNode;
 
 namespace {
 
@@ -102,7 +102,7 @@ ReplacedBox::ReplacedBox(
     const base::optional<LayoutUnit>& maybe_intrinsic_height,
     const base::optional<float>& maybe_intrinsic_ratio,
     UsedStyleProvider* used_style_provider,
-    base::optional<bool> is_video_punched_out,
+    base::optional<bool> is_video_punched_out, const math::SizeF& content_size,
     LayoutStatTracker* layout_stat_tracker)
     : Box(css_computed_style_declaration, used_style_provider,
           layout_stat_tracker),
@@ -116,7 +116,8 @@ ReplacedBox::ReplacedBox(
       set_bounds_cb_(set_bounds_cb),
       paragraph_(paragraph),
       text_position_(text_position),
-      is_video_punched_out_(is_video_punched_out) {}
+      is_video_punched_out_(is_video_punched_out),
+      content_size_(content_size) {}
 
 WrapResult ReplacedBox::TryWrapAt(
     WrapAtPolicy /*wrap_at_policy*/,
@@ -230,6 +231,18 @@ void AddLetterboxedImageToRenderTree(
   AddLetterboxFillRects(dimensions, composition_node_builder);
 }
 
+void AddLetterboxedPunchThroughVideoNodeToRenderTree(
+    const LetterboxDimensions& dimensions,
+    const ReplacedBox::SetBoundsCB& set_bounds_cb,
+    CompositionNode::Builder* border_node_builder) {
+  if (dimensions.image_rect) {
+    PunchThroughVideoNode::Builder builder(*(dimensions.image_rect),
+                                           set_bounds_cb);
+    border_node_builder->AddChild(new PunchThroughVideoNode(builder));
+  }
+  AddLetterboxFillRects(dimensions, border_node_builder);
+}
+
 void AnimateVideoImage(const ReplacedBox::ReplaceImageCB& replace_image_cb,
                        ImageNode::Builder* image_node_builder) {
   DCHECK(!replace_image_cb.is_null());
@@ -310,33 +323,30 @@ void ReplacedBox::RenderAndAnimateContent(
   const cssom::MapToMeshFunction* mtm_filter_function =
       cssom::MapToMeshFunction::ExtractFromFilterList(
           computed_style()->filter());
-  if (*is_video_punched_out_) {
-    DCHECK(!mtm_filter_function)
+
+  if (mtm_filter_function) {
+    DCHECK(!*is_video_punched_out_)
         << "We currently do not support punched out video with map-to-mesh "
            "filters.";
-    // For systems that have their own path to blitting video to the display, we
-    // simply punch a hole through our scene so that the video can appear there.
-    PunchThroughVideoNode::Builder builder(math::RectF(content_box_size()),
-                                           set_bounds_cb_);
-    border_node_builder->AddChild(new PunchThroughVideoNode(builder));
-  } else if (mtm_filter_function) {
     RenderAndAnimateContentWithMapToMesh(border_node_builder,
                                          mtm_filter_function);
   } else {
 #if defined(FORCE_VIDEO_EXTERNAL_MESH)
-    AnimateNode::Builder animate_node_builder;
-    scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
-    animate_node_builder.Add(image_node,
-                             base::Bind(&AnimateVideoImage, replace_image_cb_));
+    if (!*is_video_punched_out_) {
+      AnimateNode::Builder animate_node_builder;
+      scoped_refptr<ImageNode> image_node = new ImageNode(NULL);
+      animate_node_builder.Add(
+          image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
 
-    // Attach an empty map to mesh filter node to signal the need for an
-    // external mesh.
-    border_node_builder->AddChild(
-        new FilterNode(MapToMeshFilter(render_tree::kMono),
-                       new AnimateNode(animate_node_builder, image_node)));
-#else
-    RenderAndAnimateContentWithLetterboxing(border_node_builder);
+      // Attach an empty map to mesh filter node to signal the need for an
+      // external mesh.
+      border_node_builder->AddChild(
+          new FilterNode(MapToMeshFilter(render_tree::kMono),
+                         new AnimateNode(animate_node_builder, image_node)));
+      return;
+    }
 #endif
+    RenderAndAnimateContentWithLetterboxing(border_node_builder);
   }
 }
 
@@ -702,18 +712,23 @@ void ReplacedBox::RenderAndAnimateContentWithLetterboxing(
   CompositionNode::Builder composition_node_builder(
       math::Vector2dF((border_left_width() + padding_left()).toFloat(),
                       (border_top_width() + padding_top()).toFloat()));
-
   scoped_refptr<CompositionNode> composition_node =
       new CompositionNode(composition_node_builder);
 
-  AnimateNode::Builder animate_node_builder;
+  if (*is_video_punched_out_) {
+    LetterboxDimensions letterbox_dims =
+        GetLetterboxDimensions(content_size_, content_box_size());
+    AddLetterboxedPunchThroughVideoNodeToRenderTree(
+        letterbox_dims, set_bounds_cb_, border_node_builder);
 
-  animate_node_builder.Add(composition_node,
-                           base::Bind(&AnimateVideoWithLetterboxing,
-                                      replace_image_cb_, content_box_size()));
-
-  border_node_builder->AddChild(
-      new AnimateNode(animate_node_builder, composition_node));
+  } else {
+    AnimateNode::Builder animate_node_builder;
+    animate_node_builder.Add(composition_node,
+                             base::Bind(&AnimateVideoWithLetterboxing,
+                                        replace_image_cb_, content_box_size()));
+    border_node_builder->AddChild(
+        new AnimateNode(animate_node_builder, composition_node));
+  }
 }
 
 }  // namespace layout

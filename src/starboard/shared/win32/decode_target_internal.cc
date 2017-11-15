@@ -14,53 +14,120 @@
 
 #include "starboard/shared/win32/decode_target_internal.h"
 
-#include <D3D11.h>
-#include <Mfidl.h>
-#include <Mfobjects.h>
-#include <wrl\client.h>  // For ComPtr.
-
 #include "starboard/configuration.h"
-#include "starboard/decode_target.h"
+#include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
-#include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/video_texture.h"
 #include "third_party/angle/include/EGL/egl.h"
 #include "third_party/angle/include/EGL/eglext.h"
 #include "third_party/angle/include/GLES2/gl2.h"
 #include "third_party/angle/include/GLES2/gl2ext.h"
 
+namespace {
+
 using Microsoft::WRL::ComPtr;
-using starboard::shared::win32::VideoFramePtr;
-using starboard::shared::win32::VideoTexture;
 using starboard::shared::win32::CheckResult;
 
 // {3C3A43AB-C69B-46C9-AA8D-B0CFFCD4596D}
-static const GUID kCobaltNv12BindChroma = {
+const GUID kCobaltNv12BindChroma = {
     0x3c3a43ab,
     0xc69b,
     0x46c9,
     {0xaa, 0x8d, 0xb0, 0xcf, 0xfc, 0xd4, 0x59, 0x6d}};
 
 // {C62BF18D-B5EE-46B1-9C31-F61BD8AE3B0D}
-static const GUID kCobaltDxgiBuffer = {
+const GUID kCobaltDxgiBuffer = {
     0Xc62bf18d,
     0Xb5ee,
     0X46b1,
     {0X9c, 0X31, 0Xf6, 0X1b, 0Xd8, 0Xae, 0X3b, 0X0d}};
 
-SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
+ComPtr<ID3D11Texture2D> AllocateTexture(
+    const ComPtr<ID3D11Device>& d3d_device, int width, int height) {
+  ComPtr<ID3D11Texture2D> texture;
+  D3D11_TEXTURE2D_DESC texture_desc = {};
+  texture_desc.Width = width;
+  texture_desc.Height = height;
+  texture_desc.MipLevels = 1;
+  texture_desc.ArraySize = 1;
+  texture_desc.Format = DXGI_FORMAT_NV12;
+  texture_desc.SampleDesc.Count = 1;
+  texture_desc.SampleDesc.Quality = 0;
+  texture_desc.Usage = D3D11_USAGE_DEFAULT;
+  texture_desc.BindFlags =
+      D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+  CheckResult(d3d_device->CreateTexture2D(&texture_desc, nullptr,
+      texture.GetAddressOf()));
+  return texture;
+}
+
+void UpdateTexture(
+    const ComPtr<ID3D11Texture2D>& texture,
+    const ComPtr<ID3D11VideoDevice1>& video_device,
+    const ComPtr<ID3D11VideoContext>& video_context,
+    const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+    const ComPtr<ID3D11VideoProcessor>& video_processor,
+    const ComPtr<IMFSample>& video_sample, const RECT& video_area) {
+  ComPtr<IMFMediaBuffer> media_buffer;
+  CheckResult(video_sample->GetBufferByIndex(0, media_buffer.GetAddressOf()));
+
+  ComPtr<IMFDXGIBuffer> dxgi_buffer;
+  CheckResult(media_buffer.As(&dxgi_buffer));
+
+  ComPtr<ID3D11Texture2D> input_texture;
+  CheckResult(dxgi_buffer->GetResource(IID_PPV_ARGS(&input_texture)));
+
+  // The VideoProcessor needs to know what subset of the decoded
+  // frame contains active pixels that should be displayed to the user.
+  video_context->VideoProcessorSetStreamSourceRect(
+      video_processor.Get(), 0, TRUE, &video_area);
+
+  D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC input_desc = {};
+  input_desc.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+  input_desc.Texture2D.MipSlice = 0;
+  dxgi_buffer->GetSubresourceIndex(&input_desc.Texture2D.ArraySlice);
+
+  ComPtr<ID3D11VideoProcessorInputView> input_view;
+  CheckResult(video_device->CreateVideoProcessorInputView(
+      input_texture.Get(), video_enumerator.Get(), &input_desc,
+      input_view.GetAddressOf()));
+
+  D3D11_VIDEO_PROCESSOR_OUTPUT_VIEW_DESC output_desc = {};
+  output_desc.ViewDimension = D3D11_VPOV_DIMENSION_TEXTURE2D;
+  output_desc.Texture2D.MipSlice = 0;
+
+  ComPtr<ID3D11VideoProcessorOutputView> output_view;
+  CheckResult(video_device->CreateVideoProcessorOutputView(
+      texture.Get(), video_enumerator.Get(), &output_desc,
+      output_view.GetAddressOf()));
+
+  // We have a single video stream, which is enabled for display.
+  D3D11_VIDEO_PROCESSOR_STREAM stream_info = {};
+  stream_info.Enable = TRUE;
+  stream_info.pInputSurface = input_view.Get();
+  CheckResult(video_context->VideoProcessorBlt(
+      video_processor.Get(), output_view.Get(), 0, 1, &stream_info));
+}
+
+}  // namespace
+
+SbDecodeTargetPrivate::SbDecodeTargetPrivate(
+    const ComPtr<ID3D11Device>& d3d_device,
+    const ComPtr<ID3D11VideoDevice1>& video_device,
+    const ComPtr<ID3D11VideoContext>& video_context,
+    const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+    const ComPtr<ID3D11VideoProcessor>& video_processor,
+    const ComPtr<IMFSample>& video_sample, const RECT& video_area)
+    : refcount(1) {
   SbMemorySet(&info, 0, sizeof(info));
-
-  VideoTexture* texture = static_cast<VideoTexture*>(frame->native_texture());
-
-  ComPtr<ID3D11Texture2D> d3texture = texture->GetTexture();
-
   info.format = kSbDecodeTargetFormat2PlaneYUVNV12;
   info.is_opaque = true;
+  info.width = video_area.right;
+  info.height = video_area.bottom;
 
-  info.width = frame->width();
-  info.height = frame->height();
+  d3d_texture = AllocateTexture(d3d_device, info.width, info.height);
+  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+      video_processor, video_sample, video_area);
 
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
@@ -69,8 +136,8 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   planeY->height = info.height;
   planeY->content_region.left = 0;
   planeY->content_region.top = info.height;
-  planeY->content_region.right = frame->width();
-  planeY->content_region.bottom = info.height - frame->height();
+  planeY->content_region.right = info.width;
+  planeY->content_region.bottom = 0;
 
   planeUV->width = info.width / 2;
   planeUV->height = info.height / 2;
@@ -122,11 +189,11 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
 
   // This tells ANGLE that the texture it creates should draw
   // the luma channel on R8.
-  HRESULT hr = d3texture->SetPrivateData(kCobaltNv12BindChroma, 0, nullptr);
+  HRESULT hr = d3d_texture->SetPrivateData(kCobaltNv12BindChroma, 0, nullptr);
   SB_DCHECK(SUCCEEDED(hr));
 
   surface[0] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
-                                                d3texture.Get(), config,
+                                                d3d_texture.Get(), config,
                                                 luma_texture_attributes);
 
   SB_DCHECK(surface[0] != EGL_NO_SURFACE);
@@ -147,7 +214,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   // This tells ANGLE that the texture it creates should draw
   // the chroma channel on R8G8.
   bool bind_chroma = true;
-  hr = d3texture->SetPrivateData(kCobaltNv12BindChroma, 1, &bind_chroma);
+  hr = d3d_texture->SetPrivateData(kCobaltNv12BindChroma, 1, &bind_chroma);
   SB_DCHECK(SUCCEEDED(hr));
 
   EGLint chroma_texture_attributes[] = {
@@ -161,7 +228,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
       EGL_TEXTURE_RGBA,
       EGL_NONE};
   surface[1] = eglCreatePbufferFromClientBuffer(display, EGL_D3D_TEXTURE_ANGLE,
-                                                d3texture.Get(), config,
+                                                d3d_texture.Get(), config,
                                                 chroma_texture_attributes);
 
   SB_DCHECK(surface[1] != EGL_NO_SURFACE);
@@ -179,7 +246,7 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(VideoFramePtr f) : frame(f) {
   planeUV->gl_texture_target = GL_TEXTURE_2D;
   planeUV->gl_texture_format = GL_RG_EXT;
 
-  hr = d3texture->SetPrivateData(kCobaltDxgiBuffer, 0, nullptr);
+  hr = d3d_texture->SetPrivateData(kCobaltDxgiBuffer, 0, nullptr);
   SB_DCHECK(SUCCEEDED(hr));
 }
 
@@ -196,9 +263,49 @@ SbDecodeTargetPrivate::~SbDecodeTargetPrivate() {
   eglDestroySurface(display, surface[1]);
 }
 
+bool SbDecodeTargetPrivate::Update(
+    const ComPtr<ID3D11Device>& d3d_device,
+    const ComPtr<ID3D11VideoDevice1>& video_device,
+    const ComPtr<ID3D11VideoContext>& video_context,
+    const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+    const ComPtr<ID3D11VideoProcessor>& video_processor,
+    const ComPtr<IMFSample>& video_sample,
+    const RECT& video_area) {
+  // Only allow updating if this is the only reference. Otherwise the update
+  // may change something that's currently being used.
+  if (SbAtomicNoBarrier_Load(&refcount) > 1) {
+    return false;
+  }
+
+  // The decode target info must be compatible.
+  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
+      info.is_opaque != true ||
+      info.width != video_area.right ||
+      info.height != video_area.bottom) {
+    return false;
+  }
+
+  SB_UNREFERENCED_PARAMETER(d3d_device);
+  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+      video_processor, video_sample, video_area);
+  return true;
+}
+
+void SbDecodeTargetPrivate::AddRef() {
+  SbAtomicBarrier_Increment(&refcount, 1);
+}
+
+void SbDecodeTargetPrivate::Release() {
+  int new_count = SbAtomicBarrier_Increment(&refcount, -1);
+  SB_DCHECK(new_count >= 0);
+  if (new_count == 0) {
+    delete this;
+  }
+}
+
 void SbDecodeTargetRelease(SbDecodeTarget decode_target) {
   if (SbDecodeTargetIsValid(decode_target)) {
-    delete decode_target;
+    decode_target->Release();
   }
 }
 

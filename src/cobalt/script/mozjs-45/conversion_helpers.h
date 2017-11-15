@@ -29,7 +29,6 @@
 #include "cobalt/script/mozjs-45/mozjs_callback_interface_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
@@ -58,6 +57,7 @@ enum ConversionFlags {
   kConversionFlagTreatNullAsEmptyString = 1 << 2,
   kConversionFlagTreatUndefinedAsEmptyString = 1 << 3,
   kConversionFlagClamped = 1 << 4,
+  kConversionFlagObjectOnly = 1 << 5,
 
   // Valid conversion flags for numeric values.
   kConversionFlagsNumeric = kConversionFlagRestricted | kConversionFlagClamped,
@@ -68,6 +68,10 @@ enum ConversionFlags {
 
   // Valid conversion flags for objects.
   kConversionFlagsObject = kConversionFlagNullable,
+
+  // Valid conversion flags for ValueHandles.
+  kConversionFlagsValueHandle =
+      kConversionFlagObjectOnly | kConversionFlagNullable,
 
   // Valid conversion flags for callback functions.
   kConversionFlagsCallbackFunction = kConversionFlagNullable,
@@ -199,54 +203,55 @@ void ClampedValue(JSContext* context, JS::HandleValue value,
   }
 }
 
-// JSValue -> signed integers <= 4 bytes
+namespace internal {
+
+// A small helper metafunction for integer-like FromJSValue conversions to
+// pick the right type to feed to SpiderMonkey, which can only be the output
+// types observed here.
 template <typename T>
-inline void FromJSValue(
-    JSContext* context, JS::HandleValue value, int conversion_flags,
-    ExceptionState* exception_state, T* out_number,
-    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
-                                 std::numeric_limits<T>::is_integer &&
-                                 std::numeric_limits<T>::is_signed &&
-                                 (sizeof(T) <= 4),
-                             T>::type* = NULL) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(out_number);
+struct IntegralTypeToJsOutType {
+  static_assert(std::numeric_limits<T>::is_specialized &&
+                    std::numeric_limits<T>::is_integer,
+                "");
+  using type = typename std::conditional<
+      std::numeric_limits<T>::is_signed,
+      typename std::conditional<(sizeof(T) <= 4), int32_t, int64_t>::type,
+      typename std::conditional<(sizeof(T) <= 4), uint32_t,
+                                uint64_t>::type>::type;
+};
 
-  if (UNLIKELY(value.isSymbol())) {
-    exception_state->SetSimpleException(
-        kTypeError, "Cannot convert a Symbol value to a number");
-    return;
-  }
-
-  int32_t out;
-  // Convert a JavaScript value to an integer type as specified by the
-  // ECMAScript standard.
-  // TODO: Consider only creating |value_to_convert| if the conversion flag is
-  // set.
-  JS::RootedValue value_to_convert(context);
-  if (conversion_flags & kConversionFlagClamped) {
-    ClampedValue<T>(context, value, &value_to_convert);
-  } else {
-    value_to_convert.set(value);
-  }
-
-  bool success = JS::ToInt32(context, value_to_convert, &out);
-  DCHECK(success);
-
-  *out_number = static_cast<T>(out);
+// And some overloads to get all these different calls under the same
+// identifier in the single template implementation.
+inline bool JSToIntegral(JSContext* context, JS::HandleValue value,
+                         int32_t* out) {
+  return JS::ToInt32(context, value, out);
+}
+inline bool JSToIntegral(JSContext* context, JS::HandleValue value,
+                         int64_t* out) {
+  return JS::ToInt64(context, value, out);
+}
+inline bool JSToIntegral(JSContext* context, JS::HandleValue value,
+                         uint32_t* out) {
+  return JS::ToUint32(context, value, out);
+}
+inline bool JSToIntegral(JSContext* context, JS::HandleValue value,
+                         uint64_t* out) {
+  return JS::ToUint64(context, value, out);
 }
 
-// JSValue -> signed integers > 4 bytes
+}  // namespace internal
+
+// JSValue -> integer-like
 template <typename T>
 inline void FromJSValue(
     JSContext* context, JS::HandleValue value, int conversion_flags,
     ExceptionState* exception_state, T* out_number,
     typename base::enable_if<std::numeric_limits<T>::is_specialized &&
-                                 std::numeric_limits<T>::is_integer &&
-                                 std::numeric_limits<T>::is_signed &&
-                                 (sizeof(T) > 4),
+                                 std::numeric_limits<T>::is_integer,
                              T>::type* = NULL) {
+  using namespace ::cobalt::script::mozjs::internal;
   TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK(out_number);
 
   if (UNLIKELY(value.isSymbol())) {
     exception_state->SetSimpleException(
@@ -254,28 +259,32 @@ inline void FromJSValue(
     return;
   }
 
-  double to_number;
-  JS::ToNumber(context, value, &to_number);
-
-  std::string value_str;
-  FromJSValue(context, value, conversion_flags, exception_state, &value_str);
-  DCHECK_EQ(conversion_flags, kNoConversionFlags)
-      << "No conversion flags supported.";
-  DCHECK(out_number);
-  int64_t out;
-  // This produces an IDL long long.
-  // TODO: Consider only creating |value_to_convert| if the conversion flag is
-  // set.
-  JS::RootedValue value_to_convert(context);
-  if (conversion_flags & kConversionFlagClamped) {
+  // Convert a JavaScript value to an integer type as specified by the
+  // ECMAScript standard.
+  typename IntegralTypeToJsOutType<T>::type out;
+  bool success;
+  if (UNLIKELY(conversion_flags & kConversionFlagClamped)) {
+    JS::RootedValue value_to_convert(context);
     ClampedValue<T>(context, value, &value_to_convert);
+    success = JSToIntegral(context, value_to_convert, &out);
   } else {
-    value_to_convert.set(value);
+    success = JSToIntegral(context, value, &out);
   }
-  bool success = JS::ToInt64(context, value_to_convert, &out);
-  DCHECK(success);
+
+  // It is possible for |JS::To{Uint,Int}{32,64}| to fail in certain edge
+  // cases, such as application JavaScript setting up infinite recursion that
+  // gets triggered by the conversion.
   if (!success) {
-    exception_state->SetSimpleException(kNotInt64Type);
+    if (JS_IsExceptionPending(context)) {
+      // If SpiderMonkey already threw something as a result of calling
+      // |JS::To{Uint,Int}{32,64}|, then just use that...
+      base::polymorphic_downcast<MozjsExceptionState*>(exception_state)
+          ->SetExceptionAlreadySet(context);
+    } else {
+      // ...and if not, then just tell them that it isn't the right type.
+      exception_state->SetSimpleException(
+          std::numeric_limits<T>::is_signed ? kNotInt64Type : kNotUint64Type);
+    }
     return;
   }
   *out_number = static_cast<T>(out);
@@ -307,83 +316,6 @@ inline void ToJSValue(
   // Must do static cast in the (valid) case where we get a uint8_t or
   // uint16_t and call to |setNumber({uint32_t, double})| becomes ambiguous.
   out_value.setNumber(static_cast<uint32_t>(in_number));
-}
-
-// JSValue -> unsigned integers <= 4 bytes
-template <typename T>
-inline void FromJSValue(
-    JSContext* context, JS::HandleValue value, int conversion_flags,
-    ExceptionState* exception_state, T* out_number,
-    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
-                                 std::numeric_limits<T>::is_integer &&
-                                 !std::numeric_limits<T>::is_signed &&
-                                 (sizeof(T) <= 4),
-                             T>::type* = NULL) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(out_number);
-
-  if (UNLIKELY(value.isSymbol())) {
-    exception_state->SetSimpleException(
-        kTypeError, "Cannot convert a Symbol value to a number");
-    return;
-  }
-
-  uint32_t out;
-  // Convert a JavaScript value to an integer type as specified by the
-  // ECMAScript standard.
-  // TODO: Consider only creating |value_to_convert| if the conversion flag is
-  // set.
-  JS::RootedValue value_to_convert(context);
-  if (conversion_flags & kConversionFlagClamped) {
-    ClampedValue<T>(context, value, &value_to_convert);
-  } else {
-    value_to_convert.set(value);
-  }
-  bool success = JS::ToUint32(context, value_to_convert, &out);
-  DCHECK(success);
-  if (!success) {
-    exception_state->SetSimpleException(kNotUint64Type);
-    return;
-  }
-  *out_number = static_cast<T>(out);
-}
-
-// JSValue -> unsigned integers > 4 bytes
-template <typename T>
-inline void FromJSValue(
-    JSContext* context, JS::HandleValue value, int conversion_flags,
-    ExceptionState* exception_state, T* out_number,
-    typename base::enable_if<std::numeric_limits<T>::is_specialized &&
-                                 std::numeric_limits<T>::is_integer &&
-                                 !std::numeric_limits<T>::is_signed &&
-                                 (sizeof(T) > 4),
-                             T>::type* = NULL) {
-  TRACK_MEMORY_SCOPE("Javascript");
-  DCHECK(out_number);
-
-  if (UNLIKELY(value.isSymbol())) {
-    exception_state->SetSimpleException(
-        kTypeError, "Cannot convert a Symbol value to a number");
-    return;
-  }
-
-  uint64_t out;
-  // This produces and IDL unsigned long long.
-  // TODO: Consider only creating |value_to_convert| if the conversion flag is
-  // set.
-  JS::RootedValue value_to_convert(context);
-  if (conversion_flags & kConversionFlagClamped) {
-    ClampedValue<T>(context, value, &value_to_convert);
-  } else {
-    value_to_convert.set(value);
-  }
-  bool success = JS::ToUint64(context, value_to_convert, &out);
-  DCHECK(success);
-  if (!success) {
-    exception_state->SetSimpleException(kNotUint64Type);
-    return;
-  }
-  *out_number = static_cast<T>(out);
 }
 
 // unsigned integers > 4 bytes -> JSValue
@@ -492,16 +424,6 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
                 exception_state, &(out_optional->value()));
   }
 }
-
-// OpaqueHandle -> JSValue
-void ToJSValue(JSContext* context,
-               const OpaqueHandleHolder* opaque_handle_holder,
-               JS::MutableHandleValue out_value);
-
-// JSValue -> OpaqueHandle
-void FromJSValue(JSContext* context, JS::HandleValue value,
-                 int conversion_flags, ExceptionState* exception_state,
-                 MozjsObjectHandleHolder* out_holder);
 
 // ValueHandle -> JSValue
 void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
@@ -644,13 +566,8 @@ inline void FromJSValue(
     return;
   }
 
-  MozjsGlobalEnvironment* global_environment =
-      static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
-
-  JS::RootedObject implementing_object(context, &value.toObject());
-  DCHECK(implementing_object);
-  *out_callback_interface =
-      MozjsCallbackInterfaceHolder<T>(context, implementing_object);
+  DCHECK(value.isObject());
+  *out_callback_interface = MozjsCallbackInterfaceHolder<T>(context, value);
 }
 
 template <typename T>

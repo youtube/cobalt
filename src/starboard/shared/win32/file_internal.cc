@@ -17,6 +17,7 @@
 #include <windows.h>
 
 #include "starboard/log.h"
+#include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
@@ -25,6 +26,58 @@ namespace sbwin32 = starboard::shared::win32;
 namespace starboard {
 namespace shared {
 namespace win32 {
+
+namespace {
+const char kUnixSep[] = "/";
+const char kWin32Sep[] = "\\";
+const wchar_t kUnixSepW[] = L"/";
+const wchar_t kWin32SepW[] = L"\\";
+
+bool IsPathNormalized(const std::string& string) {
+  return string.find(kUnixSep) == std::string::npos;
+}
+
+bool IsPathNormalized(const std::wstring& string) {
+  return string.find(kUnixSepW) == std::wstring::npos;
+}
+
+std::string NormalizePathSeperator(std::string str) {
+  size_t start_pos = 0;
+  while ((start_pos = str.find(kUnixSep, start_pos)) != std::string::npos) {
+    str.replace(start_pos, sizeof(kUnixSep) - 1, kWin32Sep);
+    start_pos += sizeof(kWin32Sep) - 1;
+  }
+  return str;
+}
+
+std::wstring NormalizePathSeperator(std::wstring str) {
+  size_t start_pos = 0;
+  while ((start_pos = str.find(kUnixSepW, start_pos)) != std::wstring::npos) {
+    str.replace(start_pos, sizeof(kUnixSepW) / 2 - 1, kWin32SepW);
+    start_pos += sizeof(kWin32SepW) / 2 - 1;
+  }
+  return str;
+}
+
+bool StringCanNarrow(const std::wstring& str) {
+  for (wchar_t value : str) {
+    char narrow_val = static_cast<char>(value);
+    if (value != narrow_val) {
+      return false;
+    }
+  }
+  return true;
+}
+
+}  // namespace
+
+std::wstring NormalizeWin32Path(std::string str) {
+  return NormalizeWin32Path(CStringToWString(str.c_str()));
+}
+
+std::wstring NormalizeWin32Path(std::wstring str) {
+  return NormalizePathSeperator(str);
+}
 
 HANDLE OpenFileOrDirectory(const char* path,
                            int flags,
@@ -139,6 +192,19 @@ HANDLE OpenFileOrDirectory(const char* path,
   }
 
   return file_handle;
+}
+
+bool DirectoryExists(const std::wstring& dir_path) {
+  if (dir_path.empty()) {
+    return false;
+  }
+  std::wstring norm_dir_path = NormalizeWin32Path(dir_path);
+  WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
+  if (!GetFileAttributesExW(norm_dir_path.c_str(), GetFileExInfoStandard,
+                            &attribute_data)) {
+    return false;
+  }
+  return (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
 }
 
 }  // namespace win32

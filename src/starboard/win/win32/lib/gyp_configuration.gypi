@@ -25,6 +25,7 @@
     'angle_build_winrt': 0,
     'winrt': 0,
     'enable_d3d11_feature_level_11': 1,
+    'cobalt_user_on_exit_strategy': 'noexit',
   },
   'includes': [
     '../../shared/gyp_configuration.gypi',

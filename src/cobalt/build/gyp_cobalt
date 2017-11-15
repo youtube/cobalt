@@ -22,19 +22,15 @@ import sys
 import textwrap
 
 import _env  # pylint: disable=unused-import
-import cobalt
-from cobalt.build import config
+from cobalt.build import config as build_config
 from cobalt.build import gyp_utils
 from cobalt.tools import paths
+from starboard.tools import build
+from starboard.tools import config
+from starboard.tools import platform
 
 
 SCRIPT_DIR = os.path.abspath(os.path.dirname(__file__))
-
-# Represents all valid build configurations.
-VALID_BUILD_CONFIGS = config.VALID_BUILD_CONFIGS
-
-# Represents all supported platforms.
-VALID_PLATFORMS = config.VALID_PLATFORMS
 
 # Return values used by main().
 RETVAL_SUCCESS = 0
@@ -71,13 +67,15 @@ def _ParseCommandLineArguments(argv):
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description=textwrap.dedent(__doc__))
 
+  default_config, _ = build.GetDefaultConfigAndPlatform()
   parser.add_argument('-C', '--config', dest='build_configs', metavar='CONFIG',
-                      action='append', default=[],
-                      choices=VALID_BUILD_CONFIGS,
+                      action='append',
+                      choices=config.GetAll(),
+                      default=[default_config] if default_config else [],
                       help='Specifies build configurations. Supported '
                       'configurations are %s. Can be specified multiple '
                       'times, creates all configurations if nothing is '
-                      'given.' % _ListAsString(VALID_BUILD_CONFIGS))
+                      'given.' % _ListAsString(config.GetAll()))
 
   gyp_debug_options = gyp_utils.GypDebugOptions()
   parser.add_argument('-D', '--debug', dest='debug', metavar='DEBUGMODE',
@@ -92,10 +90,12 @@ def _ParseCommandLineArguments(argv):
   parser.add_argument('-v', '--verbose', dest='verbose_count',
                       default=0, action='count',
                       help='Verbose level (multiple times for more).')
-  parser.add_argument('platform', choices=VALID_PLATFORMS,
+  # TODO: Figure out how to set a default platform, which probably means making
+  # platform no longer be a positional argument.
+  parser.add_argument('platform', choices=platform.GetAll(),
                       metavar='platform',
                       help='Target platform. Supported platforms are: %s.' % (
-                          _ListAsString(VALID_PLATFORMS)))
+                          _ListAsString(platform.GetAll())))
   parser.add_argument('build_file', nargs='?',
                       default=os.path.join(SCRIPT_DIR, 'all.gyp'),
                       help='GYP build file. Uses all.gyp if nothing is given.')
@@ -106,7 +106,7 @@ def _ParseCommandLineArguments(argv):
     # Get rid of duplicates.
     options.build_configs = list(set(options.build_configs))
   else:
-    options.build_configs = VALID_BUILD_CONFIGS
+    options.build_configs = config.GetAll()
 
   return options
 
@@ -144,7 +144,7 @@ class _GypRunner(object):
   def __init__(self, options):
     self.options = options
     self.common_args = []
-    self.platform_config = config.GetPlatformConfig(options.platform)
+    self.platform_config = build_config.GetPlatformConfig(options.platform)
     if not self.platform_config:
       raise RuntimeError('Unable to load platform configuration.')
 
@@ -227,23 +227,21 @@ class _GypRunner(object):
 
     # Append GYP variables
     variables = {
-        'OS': 'lb_shell',
+        'OS': 'starboard',
         'cobalt_fastbuild': os.environ.get('LB_FASTBUILD', 0),
         'cobalt_version': gyp_utils.GetBuildNumber(),
         'host_os': _GetHostOS(),
         'CC_HOST': os.environ.get('CC_HOST', os.environ.get('CC','')),
     }
-    if self.platform_config.IsStarboard():
-      variables['OS'] = 'starboard'
-      platform = self.platform_config.platform
-      platforms = gyp_utils.GetAllPlatforms()
-      if platform in platforms.keys():
-        full_starboard_path = platforms[platform].path
-        assert full_starboard_path[:len(source_tree_dir)] == source_tree_dir
-        starboard_path = full_starboard_path[len(source_tree_dir) + 1:]
-        starboard_path = starboard_path.replace(os.sep, '/')
-        assert starboard_path[0] not in [ os.sep, os.altsep ]
-        variables['starboard_path'] = starboard_path
+
+    platform_name = self.platform_config.platform
+    if platform.IsValid(platform_name):
+      full_starboard_path = platform.Get(platform_name).path
+      assert full_starboard_path[:len(source_tree_dir)] == source_tree_dir
+      starboard_path = full_starboard_path[len(source_tree_dir) + 1:]
+      starboard_path = starboard_path.replace(os.sep, '/')
+      assert starboard_path[0] not in [ os.sep, os.altsep ]
+      variables['starboard_path'] = starboard_path
     _AppendVariables(variables, self.common_args)
 
     # Append generator variables.

@@ -32,6 +32,7 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/resource_provider_stub.h"
 #include "googleurl/src/gurl.h"
+#include "starboard/window.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -181,6 +182,7 @@ std::string RunWebPlatformTest(const GURL& url, bool* got_results) {
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
+      base::Callback<SbWindow()>() /* get_sb_window */,
       can_play_type_handler.get(), media_module.get(), &network_module,
       kDefaultViewportSize, 1.f, &resource_provider, 60.0f, web_module_options);
   run_loop.Run();

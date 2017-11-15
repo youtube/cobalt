@@ -51,7 +51,8 @@ class AudioDecoder
   SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
   int GetSamplesPerSecond() const SB_OVERRIDE;
 
-  void Initialize(const Closure& output_cb) SB_OVERRIDE;
+  void Initialize(const Closure& output_cb,
+                  const Closure& error_cb) SB_OVERRIDE;
   SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }

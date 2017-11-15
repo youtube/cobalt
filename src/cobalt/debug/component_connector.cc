@@ -76,7 +76,7 @@ bool ComponentConnector::RunScriptFile(const std::string& filename) {
 }
 
 JSONObject ComponentConnector::CreateRemoteObject(
-    const script::OpaqueHandleHolder* object) {
+    const script::ValueHandleHolder* object) {
   // Parameter object for the JavaScript function call uses default values.
   JSONObject params(new base::DictionaryValue());
 

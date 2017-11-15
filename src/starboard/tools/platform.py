@@ -15,7 +15,6 @@
 #
 """Functionality to enumerate and represent starboard ports."""
 
-import importlib
 import logging
 import os
 import re
@@ -24,8 +23,8 @@ import _env  # pylint: disable=unused-import
 from starboard.tools import environment
 
 # The list of files that must be present in a directory to allow it to be
-# considered a valid port.
-_PORT_FILES = [
+# considered a valid platform.
+_PLATFORM_FILES = [
     'gyp_configuration.gypi',
     'gyp_configuration.py',
     'starboard_platform.gyp',
@@ -35,116 +34,114 @@ _PORT_FILES = [
 ]
 
 
-# Whether to emit warnings if it finds a directory that almost has a port.
+# Whether to emit warnings if it finds a directory that almost has a platform.
 # TODO: Enable when tree is clean.
-_WARN_ON_ALMOST_PORTS = False
+_WARN_ON_ALMOST = False
 
 
-def _IsValidPortFilenameList(directory, filenames):
+def _IsValidPlatformFilenameList(directory, filenames):
   """Determines if |filenames| contains the required files for a valid port."""
-  missing = set(_PORT_FILES) - set(filenames)
+  missing = set(_PLATFORM_FILES) - set(filenames)
   if missing:
-    if len(missing) < (len(_PORT_FILES) / 2) and _WARN_ON_ALMOST_PORTS:
-      logging.warning('Directory %s contains several files needed for a port, '
-                      'but not all of them. In particular, it is missing: %s',
-                      directory, ', '.join(missing))
+    if len(missing) < (len(_PLATFORM_FILES) / 2) and _WARN_ON_ALMOST:
+      logging.warning('Directory %s contains several files needed for a '
+                      'platform, but not all of them. In particular, it is '
+                      'missing: %s', directory, ', '.join(missing))
   return not missing
 
 
-def _GetPortName(root, directory):
-  """Gets the name of a port found at |directory| off of |root|."""
-
+def _GetPlatformName(root, directory):
+  """Gets the name of a platform found at |directory| off of |root|."""
   assert directory.startswith(root)
   start = len(root) + 1  # Remove the trailing slash from the root.
 
   assert start < len(directory)
 
-  # Calculate the name based on relative path from search root to port.
+  # Calculate the name based on relative path from search root to directory.
   return re.sub(r'[^a-zA-Z0-9_]', r'-', directory[start:])
 
 
-def _GetAllPlatforms(port_root_paths):
-  """Retrieves information about all available Cobalt ports.
+def _EnumeratePlatforms(root_path, exclusion_set=None):
+  """Generator that iterates over Starboard platforms found under |path|."""
+  if not exclusion_set:
+    exclusion_set = set()
 
-  Args:
-    port_root_paths:  List of paths that will be crawled to find ports.
+  for current_path, directories, filenames in os.walk(root_path):
+    # Don't walk into any directories in the exclusion set.
+    directories[:] = (x for x in directories
+                      if os.path.join(current_path, x) not in exclusion_set)
 
-  Returns:
-    Dict mapping each available port to its location in the filesystem.
-  """
-  platform_dict = {}
-  for path in port_root_paths:
-    for port in PlatformInfo.EnumeratePorts(path):
-      platform_dict[port.port_name] = port.path
-  return platform_dict
-
-
-def GetAllPorts():
-  """Gets all available starboard ports from the host app.
-
-  Returns:
-    Dictionary mapping port names to their path in the filesystem.
-  """
-  port_root_paths = environment.GetStarboardPortRoots()
-  return _GetAllPlatforms(port_root_paths)
+    # Determine if the current directory is a valid port directory.
+    if _IsValidPlatformFilenameList(current_path, filenames):
+      if current_path == root_path:
+        logging.warning('Found platform at search path root: %s', current_path)
+      name = _GetPlatformName(root_path, current_path)
+      yield PlatformInfo(name, current_path)
 
 
-def GetAllNames():
-  """Gets a list of all valid Starboard platform names.
+def _FindAllPlatforms():
+  """Search the filesystem for all valid Starboard platforms.
 
   Returns:
-    List of valid platform names.
+    A Mapping of name->PlatformInfo.
   """
-  return sorted(GetAllPorts().keys())
+
+  result = {}
+  search_path = environment.GetStarboardPortRoots()
+
+  # Ignore search path directories inside other search path directories.
+  exclusion_set = set(search_path)
+
+  for entry in search_path:
+    if not os.path.isdir(entry):
+      continue
+    for platform_info in _EnumeratePlatforms(entry, exclusion_set):
+      if platform_info.name in result:
+        logging.error('Found duplicate port name "%s" at "%s" and "%s"',
+                      platform_info.name, result[platform_info.name],
+                      platform_info.path)
+      result[platform_info.name] = platform_info
+
+  return result
 
 
-def IsValid(platform):
-  return platform in GetAllNames()
+# Cache of name->PlatformInfo mapping.
+_INFO_MAP = None
+
+
+def _GetInfoMap():
+  """Gets mapping of platform names to PlatformInfo objects."""
+  global _INFO_MAP
+  if not _INFO_MAP:
+    _INFO_MAP = _FindAllPlatforms()
+  return _INFO_MAP
+
+
+# Cache of the sorted list of all platform names.
+_ALL = None
+
+
+def GetAll():
+  """Gets a sorted list of all valid Starboard platform names."""
+  global _ALL
+  if not _ALL:
+    _ALL = sorted(_GetInfoMap().keys())
+  return _ALL
+
+
+def Get(platform_name):
+  """Gets the PlatformInfo for the given platform name, or None."""
+  return _GetInfoMap().get(platform_name)
+
+
+def IsValid(platform_name):
+  """Determines whether the given platform name is valid."""
+  return platform_name in _GetInfoMap()
 
 
 class PlatformInfo(object):
-  """Information about a specific starboard port."""
-
-  @classmethod
-  def EnumeratePorts(cls, root_path, exclusion_set=None):
-    """Generator that iterates over starboard ports found under |path|."""
-    if not exclusion_set:
-      exclusion_set = set()
-    for current_path, directories, filenames in os.walk(root_path):
-      # Don't walk into any directories in the exclusion set.
-      directories[:] = (x for x in directories
-                        if os.path.join(current_path, x) not in exclusion_set)
-      # Determine if the current directory is a valid port directory.
-      if _IsValidPortFilenameList(current_path, filenames):
-        if current_path == root_path:
-          logging.warning('Found port at search path root: %s', current_path)
-        port_name = _GetPortName(root_path, current_path)
-        yield PlatformInfo(port_name, current_path)
+  """Information about a specific Starboard platform."""
 
   def __init__(self, name, path):
-    self.port_name = name
+    self.name = name
     self.path = path
-
-  def ImportModule(self, root_module, module_name=None):
-    """Load a platform specific python module using importlib.
-
-    Load the python module named |module_name| relative to |root_module|.
-    Args:
-      root_module: An already-loaded module
-      module_name: Name of a python module to load. If None, load the platform
-          directory as a python module.
-    Returns:
-      A module loaded with importlib.import_module
-    Throws:
-      ImportError if the module fails to be loaded.
-    """
-    # From the relative path to the |root_module|'s directory, construct a full
-    # python package name and attempt to load it.
-    relative_path = os.path.relpath(
-        self.path, os.path.dirname(root_module.__file__))
-    components = os.path.normpath(relative_path).split(os.sep)
-    components = [root_module.__name__] + components
-    if module_name:
-      components.append(module_name)
-    full_package_name = '.'.join(components)
-    return importlib.import_module(full_package_name)

@@ -35,7 +35,6 @@
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
@@ -75,6 +74,7 @@ using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagObjectOnly;
 using cobalt::script::mozjs::kNoConversionFlags;
 {% endblock using_directives %}
 {% block enumeration_declarations %}
@@ -932,31 +932,37 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 }  // namespace
 
 {% endblock implementation %}
+
 {% block create_global_object_impl %}
-  MozjsGlobalEnvironment* mozjs_global_environment =
-      base::polymorphic_downcast<MozjsGlobalEnvironment*>(this);
-  JSContext* context = mozjs_global_environment->context();
 
-  JSAutoRequest auto_request(context);
-  {{binding_class}}::CreateProxy(
-      context, global_interface);
-  mozjs_global_environment->SetEnvironmentSettings(environment_settings);
-  mozjs_global_environment->EvaluateAutomatics();
+namespace cobalt {
+namespace script {
+namespace mozjs {
 
-  WrapperFactory* wrapper_factory =
-      mozjs_global_environment->wrapper_factory();
+template <typename GlobalInterface>
+void MozjsGlobalEnvironment::CreateGlobalObject(
+    const scoped_refptr<GlobalInterface>& global_interface,
+    EnvironmentSettings* environment_settings) {
+  JSAutoRequest auto_request(context_);
+  {{binding_class}}::CreateProxy(context_, global_interface);
+
+  DCHECK(!environment_settings_);
+  DCHECK(environment_settings);
+  environment_settings_ = environment_settings;
+  EvaluateAutomatics();
+
 {% for interface in all_interfaces %}
 {% if interface.conditional %}
 #if defined({{interface.conditional}})
 {% endif %}
   {# Pass in a dummy CreateProxy for global interface #}
   {% if interface.name == impl_class %}
-  wrapper_factory->RegisterWrappableType(
+  wrapper_factory_->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(DummyFunctor),
       base::Bind(Mozjs{{interface.name}}::PrototypeClass));
   {% else %}
-  wrapper_factory->RegisterWrappableType(
+  wrapper_factory_->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(Mozjs{{interface.name}}::CreateProxy),
       base::Bind(Mozjs{{interface.name}}::PrototypeClass));
@@ -965,6 +971,21 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 #endif  // defined({{interface.conditional}})
 {% endif %}
 {% endfor %}
+
+}
+
+}  // namespace mozjs
+
+template<>
+void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
+    const scoped_refptr<{{impl_class}}>& global_interface,
+    EnvironmentSettings* environment_settings) {
+  base::polymorphic_downcast<MozjsGlobalEnvironment*>(this)->CreateGlobalObject(
+      global_interface, environment_settings);
+}
+
+}  // namespace script
+}  // namespace cobalt
 
 {% endblock create_global_object_impl %}
 

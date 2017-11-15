@@ -16,8 +16,8 @@
 import logging
 
 # Import the shared Linux platform configuration.
-import starboard.linux.shared.gyp_configuration as gyp_configuration
-import starboard.tools.testing.test_filter as test_filter
+from starboard.linux.shared import gyp_configuration
+from starboard.tools.testing import test_filter
 
 
 def CreatePlatformConfig():
@@ -52,7 +52,7 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
         test_filter.TestFilter(
             'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
         test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
+            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
         test_filter.TestFilter(

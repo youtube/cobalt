@@ -123,6 +123,10 @@ bool FilterBasedPlayerWorkerHandler::Init(
 
   audio_renderer_->SetPlaybackRate(playback_rate_);
   audio_renderer_->SetVolume(volume_);
+  audio_renderer_->Initialize(
+      Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+  video_renderer_->Initialize(
+      Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
 
   job_queue_->Schedule(update_closure_, kUpdateInterval);
 
@@ -143,8 +147,8 @@ bool FilterBasedPlayerWorkerHandler::Seek(SbMediaTime seek_to_pts, int ticket) {
   }
 
   audio_renderer_->Pause();
-  audio_renderer_->Seek(seek_to_pts);
   video_renderer_->Seek(seek_to_pts);
+  audio_renderer_->Seek(seek_to_pts);
   return true;
 }
 
@@ -298,6 +302,15 @@ bool FilterBasedPlayerWorkerHandler::SetBounds(
   }
 
   return true;
+}
+
+void FilterBasedPlayerWorkerHandler::OnError() {
+  if (!job_queue_->BelongsToCurrentThread()) {
+    job_queue_->Schedule(Bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+    return;
+  }
+
+  (*player_worker_.*update_player_state_cb_)(kSbPlayerStateError);
 }
 
 // TODO: This should be driven by callbacks instead polling.

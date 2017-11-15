@@ -67,7 +67,8 @@ scoped_ptr<Loader> LoaderFactory::CreateTypefaceLoader(
   DCHECK(thread_checker_.CalledOnValidThread());
 
   scoped_ptr<Loader> loader(new Loader(
-      MakeFetcherCreator(url, url_security_callback, kCORSMode, origin),
+      MakeFetcherCreator(url, url_security_callback,
+                         kCORSModeSameOriginCredentials, origin),
       scoped_ptr<Decoder>(new font::TypefaceDecoder(
           resource_provider_, success_callback, error_callback)),
       error_callback,

@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_WEAK_HEAP_OBJECT_H_
 #define COBALT_SCRIPT_MOZJS_45_WEAK_HEAP_OBJECT_H_
 
@@ -27,7 +28,6 @@ namespace mozjs {
 class WeakHeapObject {
  public:
   WeakHeapObject(JSContext* context, JS::HandleValue value);
-  WeakHeapObject(JSContext* context, JS::HandleObject object);
   WeakHeapObject(const WeakHeapObject& other);
 
   WeakHeapObject& operator=(const WeakHeapObject& rhs);
@@ -49,7 +49,6 @@ class WeakHeapObject {
   void Initialize(WeakHeapObjectManager* weak_heap_object_manager,
                   const JS::Value& value);
 
-  bool IsNull() const;
   void UpdateWeakPointerAfterGc();
 
   WeakHeapObjectManager* weak_object_manager_;

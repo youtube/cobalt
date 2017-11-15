@@ -29,20 +29,42 @@ namespace backend {
 FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
                                const math::Size& size, GLenum color_format,
                                GLenum depth_format)
-    : graphics_context_(graphics_context),
-      size_(size) {
+    : graphics_context_(graphics_context), size_(size), error_(false) {
   GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
 
   // Create the framebuffer object.
-  GL_CALL(glGenFramebuffers(1, &framebuffer_handle_));
+  glGenFramebuffers(1, &framebuffer_handle_);
+  if (glGetError() != GL_NO_ERROR) {
+    LOG(ERROR) << "Error creating new framebuffer.";
+    error_ = true;
+    return;
+  }
   GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_handle_));
 
   // Create and attach a texture for color.
   GLuint color_handle = 0;
-  GL_CALL(glGenTextures(1, &color_handle));
+  glGenTextures(1, &color_handle);
+  if (glGetError() != GL_NO_ERROR) {
+    LOG(ERROR) << "Error creating new texture.";
+    error_ = true;
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));
+    return;
+  }
+
   GL_CALL(glBindTexture(GL_TEXTURE_2D, color_handle));
-  GL_CALL(glTexImage2D(GL_TEXTURE_2D, 0, color_format,
-      size_.width(), size_.height(), 0, color_format, GL_UNSIGNED_BYTE, 0));
+  glTexImage2D(GL_TEXTURE_2D, 0, color_format, size_.width(), size_.height(), 0,
+               color_format, GL_UNSIGNED_BYTE, 0);
+  if (glGetError() != GL_NO_ERROR) {
+    LOG(ERROR) << "Error allocating new texture backing for a framebuffer.";
+    error_ = true;
+    GL_CALL(glBindTexture(GL_TEXTURE_2D, 0));
+    GL_CALL(glDeleteTextures(1, &color_handle));
+    GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));
+    return;
+  }
+
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR));
   GL_CALL(glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE));
@@ -56,7 +78,14 @@ FramebufferEGL::FramebufferEGL(GraphicsContextEGL* graphics_context,
   // Create and attach a depth buffer if requested.
   depthbuffer_handle_ = 0;
   if (depth_format != GL_NONE) {
-    CreateDepthAttachment(depth_format);
+    if (!CreateDepthAttachment(depth_format)) {
+      LOG(ERROR) << "Error creating depth attachment for framebuffer.";
+      error_ = true;
+      GL_CALL(glBindFramebuffer(GL_FRAMEBUFFER, 0));
+      GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));
+      color_texture_.reset();
+      return;
+    }
   }
 
   // Verify the framebuffer object is valid.
@@ -80,21 +109,36 @@ void FramebufferEGL::EnsureDepthBufferAttached(GLenum depth_format) {
 }
 
 FramebufferEGL::~FramebufferEGL() {
-  GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(graphics_context_);
-  GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));
-  if (depthbuffer_handle_ != 0) {
-    GL_CALL(glDeleteRenderbuffers(1, &depthbuffer_handle_));
+  if (!error_) {
+    GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+        graphics_context_);
+    GL_CALL(glDeleteFramebuffers(1, &framebuffer_handle_));
+    if (depthbuffer_handle_ != 0) {
+      GL_CALL(glDeleteRenderbuffers(1, &depthbuffer_handle_));
+    }
   }
 }
 
-void FramebufferEGL::CreateDepthAttachment(GLenum depth_format) {
-  GL_CALL(glGenRenderbuffers(1, &depthbuffer_handle_));
+bool FramebufferEGL::CreateDepthAttachment(GLenum depth_format) {
+  glGenRenderbuffers(1, &depthbuffer_handle_);
+  if (glGetError() != GL_NO_ERROR) {
+    LOG(ERROR) << "Error creating depth buffer object.";
+    return false;
+  }
   GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, depthbuffer_handle_));
-  GL_CALL(glRenderbufferStorage(GL_RENDERBUFFER, depth_format, size_.width(),
-      size_.height()));
+  glRenderbufferStorage(GL_RENDERBUFFER, depth_format, size_.width(),
+                        size_.height());
+  if (glGetError() != GL_NO_ERROR) {
+    LOG(ERROR) << "Error allocating memory for depth buffer.";
+    GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+    GL_CALL(glDeleteRenderbuffers(1, &depthbuffer_handle_));
+    return false;
+  }
   GL_CALL(glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
       GL_RENDERBUFFER, depthbuffer_handle_));
   GL_CALL(glBindRenderbuffer(GL_RENDERBUFFER, 0));
+
+  return true;
 }
 
 }  // namespace backend

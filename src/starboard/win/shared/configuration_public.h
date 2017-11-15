@@ -116,7 +116,7 @@
 #define SB_HAS_SSIZE_T 0
 
 // Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0
+#define SB_HAS_MICROPHONE 0 
 
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
@@ -338,14 +338,6 @@
 #define SB_HAS_VIRTUAL_REALITY 0
 
 // --- Media Configuration ---------------------------------------------------
-
-// Specifies whether this platform has support for a possibly-decrypting
-// elementary stream player for at least H.264/AAC (and AES-128-CTR, if
-// decrypting). A player is responsible for ingesting an audio and video
-// elementary stream, optionally-encrypted, and ultimately producing
-// synchronized audio/video. If a player is defined, it must choose one of the
-// supported composition methods below.
-#define SB_HAS_PLAYER 1
 
 // After a seek is triggerred, the default behavior is to append video frames
 // from the last key frame before the seek time and append audio frames from the

@@ -11,21 +11,23 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import imp
-import logging
+"""Starboard win32 shared platform configuration for gyp_cobalt."""
+
 import os
 import sys
 
-import config.starboard
+import config.base
 
-from starboard.tools.paths import STARBOARD_ROOT
 import starboard.shared.win32.sdk_configuration as sdk_configuration
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.paths import STARBOARD_ROOT
+from starboard.tools.testing import test_filter
+
 
 def _QuotePath(path):
   return '"' + path + '"'
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Microsoft Windows platform configuration."""
 
   def __init__(self, platform):
@@ -36,10 +38,10 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
     sdk = self.sdk
     variables = super(PlatformConfig, self).GetVariables(configuration)
     variables.update({
-      'visual_studio_install_path': sdk.vs_install_dir_with_version,
-      'windows_sdk_path': sdk.windows_sdk_path,
-      'windows_sdk_version': sdk.required_sdk_version,
-      })
+        'visual_studio_install_path': sdk.vs_install_dir_with_version,
+        'windows_sdk_path': sdk.windows_sdk_path,
+        'windows_sdk_version': sdk.required_sdk_version,
+    })
     return variables
 
   def GetEnvironmentVariables(self):
@@ -123,4 +125,3 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
                                test_filter.FILTER_ALL)
 
     ]
-

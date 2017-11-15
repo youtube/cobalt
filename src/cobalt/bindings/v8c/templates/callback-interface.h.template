@@ -1,0 +1,73 @@
+{#
+ # Copyright 2017 Google Inc. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #}
+
+{% extends "callback-interface-base.h.template" %}
+
+{% block includes %}
+{{ super() }}
+#include "cobalt/script/v8c/weak_heap_object.h"
+{% endblock includes %}
+
+{% block implementation %}
+
+{% for component in components %}
+namespace {{component}} {
+{% endfor %}
+
+class {{binding_class}} : public {{impl_class}} {
+ public:
+  typedef {{impl_class}} BaseType;
+
+  {{binding_class}}(
+    script::v8c::V8cGlobalEnvironment* env, v8::Local<v8::Value> implementing_object_value)
+    : env_(env), implementing_object_(env, implementing_object_value) {}
+
+{% for operation in operations %}
+{% for overload in operation.overloads %}
+  {{overload.type}} {{overload.name}}(
+      const scoped_refptr<script::Wrappable>& callback_this,
+    {% for arg in overload.arguments %}
+      {{arg.arg_type}} {{arg.name}},
+    {% endfor %}
+      bool* had_exception) const override;
+{% endfor %}
+{% endfor %}
+
+  v8::Local<v8::Value> value() const { return implementing_object_.GetValue(); }
+
+ private:
+  script::v8c::V8cGlobalEnvironment* env_;
+  script::v8c::WeakHeapObject implementing_object_;
+};
+
+{% for component in components|reverse %}
+}  // namespace {{component}}
+{% endfor %}
+
+namespace cobalt {
+namespace script {
+
+// Explicit instantiation of CallbackInterfaceTraits struct so we can infer
+// the type of the generated class from the type of the callback interface.
+template<>
+struct CallbackInterfaceTraits<{{fully_qualified_impl_class}}> {
+  typedef {{fully_qualified_binding_class}} V8cCallbackInterfaceClass;
+};
+
+}  // namespace script
+}  // namespace cobalt
+
+{% endblock implementation %}

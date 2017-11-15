@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_WRAPPABLE_H_
 #define COBALT_SCRIPT_WRAPPABLE_H_
 
@@ -44,7 +45,7 @@ class Wrappable : public base::RefCounted<Wrappable> {
     friend class scoped_ptr<WeakWrapperHandle>;
   };
 
-  // A class that creates OpaqueHandles should inherit from this interface
+  // A class that creates ValueHandles should inherit from this interface
   // so that it can get/set the cached wrapper handle.
   class CachedWrapperAccessor {
    protected:

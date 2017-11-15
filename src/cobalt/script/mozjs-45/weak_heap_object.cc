@@ -29,14 +29,6 @@ WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleValue value)
   Initialize(global_environment->weak_object_manager(), value);
 }
 
-WeakHeapObject::WeakHeapObject(JSContext* context, JS::HandleObject object)
-    : was_collected_(false) {
-  MozjsGlobalEnvironment* global_environment =
-      MozjsGlobalEnvironment::GetFromContext(context);
-  Initialize(global_environment->weak_object_manager(),
-             JS::ObjectValue(*object));
-}
-
 WeakHeapObject::WeakHeapObject(const WeakHeapObject& other)
     : was_collected_(other.was_collected_) {
   Initialize(other.weak_object_manager_, other.value_);
@@ -58,13 +50,10 @@ bool WeakHeapObject::IsObject() const {
   return value_.isObject();
 }
 
-bool WeakHeapObject::IsGcThing() const {
-  // We have to check IsNull(), because null is apparently a GC Thing.
-  return (!IsNull() && value_.isGCThing());
-}
+bool WeakHeapObject::IsGcThing() const { return value_.isGCThing(); }
 
 bool WeakHeapObject::WasCollected() const {
-  return (was_collected_ && IsNull());
+  return (was_collected_ && value_.isNullOrUndefined());
 }
 
 WeakHeapObject::~WeakHeapObject() {
@@ -79,14 +68,11 @@ void WeakHeapObject::Initialize(WeakHeapObjectManager* weak_heap_object_manager,
   weak_object_manager_ = weak_heap_object_manager;
   value_ = value;
 
-  // Don't bother registering if not a GC thing.
-  if (IsGcThing()) {
+  // Only register GCThings, however don't bother registering if null or
+  // undefined.
+  if (IsGcThing() && !value_.isNullOrUndefined()) {
     weak_object_manager_->StartTracking(this);
   }
-}
-
-bool WeakHeapObject::IsNull() const {
-  return value_.isNullOrUndefined();
 }
 
 void WeakHeapObject::UpdateWeakPointerAfterGc() {

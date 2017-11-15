@@ -48,6 +48,22 @@ bool IsRelContentCriticalResource(const std::string& rel) {
   return rel == "stylesheet";
 }
 
+loader::RequestMode GetRequestMode(
+    const base::optional<std::string>& cross_origin_attribute) {
+  // https://html.spec.whatwg.org/#cors-settings-attribute
+  if (cross_origin_attribute) {
+    if (*cross_origin_attribute == "use-credentials") {
+      return loader::kCORSModeIncludeCredentials;
+    } else {
+      // The invalid value default of crossorigin is Anonymous state, leading to
+      // "same-origin" credentials mode.
+      return loader::kCORSModeSameOriginCredentials;
+    }
+  }
+  // crossorigin attribute's missing value default is No CORS state, leading to
+  // "no-cors" request mode.
+  return loader::kNoCORSMode;
+}
 }  // namespace
 
 // static
@@ -63,6 +79,26 @@ void HTMLLinkElement::OnInsertedIntoDocument() {
     Obtain();
   } else {
     LOG(WARNING) << "<link> has unsupported rel value: " << rel() << ".";
+  }
+}
+
+base::optional<std::string> HTMLLinkElement::cross_origin() const {
+  base::optional<std::string> cross_origin_attribute =
+      GetAttribute("crossOrigin");
+  if (cross_origin_attribute &&
+      (*cross_origin_attribute != "anonymous" &&
+       *cross_origin_attribute != "use-credentials")) {
+    return std::string();
+  }
+  return cross_origin_attribute;
+}
+
+void HTMLLinkElement::set_cross_origin(
+    const base::optional<std::string>& value) {
+  if (value) {
+    SetAttribute("crossOrigin", *value);
+  } else {
+    RemoveAttribute("crossOrigin");
   }
 }
 
@@ -136,11 +172,14 @@ void HTMLLinkElement::Obtain() {
     document->IncreaseLoadingCounter();
   }
 
+  request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
   loader_ = make_scoped_ptr(new loader::Loader(
       base::Bind(
           &loader::FetcherFactory::CreateSecureFetcher,
           base::Unretained(document->html_element_context()->fetcher_factory()),
-          absolute_url_, csp_callback, loader::kNoCORSMode, loader::Origin()),
+          absolute_url_, csp_callback, request_mode_,
+          document->location() ? document->location()->OriginObject()
+                               : loader::Origin()),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
       base::Bind(&HTMLLinkElement::OnLoadingError, base::Unretained(this))));
@@ -224,7 +263,8 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
   css_style_sheet->SetLocationUrl(absolute_url_);
   // If not loading from network-fetched resources or fetched resource is same
   // origin as the document, set origin-clean flag to true.
-  if (!loader_ || document->url_as_gurl().SchemeIsFile() ||
+  if (request_mode_ != loader::kNoCORSMode || !loader_ ||
+      document->url_as_gurl().SchemeIsFile() ||
       (fetched_last_url_origin_ == document->location()->OriginObject())) {
     css_style_sheet->SetOriginClean(true);
   }

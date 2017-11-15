@@ -2,6 +2,7 @@
 //     pump.py union_type.h.pump
 // DO NOT EDIT BY HAND!!!
 
+
 // Copyright 2015 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -212,6 +213,7 @@ inline std::ostream& operator<<(
   return stream;
 }
 
+
 template <typename T1, typename T2, typename T3>
 class UnionType3 {
  public:
@@ -402,6 +404,7 @@ inline std::ostream& operator<<(
 
   return stream;
 }
+
 
 template <typename T1, typename T2, typename T3, typename T4>
 class UnionType4 {

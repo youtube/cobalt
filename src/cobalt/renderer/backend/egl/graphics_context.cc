@@ -67,6 +67,7 @@ GraphicsContextEGL::GraphicsContextEGL(GraphicsSystem* parent_system,
   // when we need to make OpenGL calls that do not depend on a surface (e.g.
   // creating a texture).
   null_surface_ = new PBufferRenderTargetEGL(display, config, math::Size(0, 0));
+  CHECK(!null_surface_->CreationError());
 
   ScopedMakeCurrent scoped_current_context(this);
 
@@ -364,7 +365,11 @@ scoped_refptr<RenderTarget> GraphicsContextEGL::CreateOffscreenRenderTarget(
   scoped_refptr<RenderTarget> render_target(new PBufferRenderTargetEGL(
       display_, config_, dimensions));
 
-  return render_target;
+  if (render_target->CreationError()) {
+    return scoped_refptr<RenderTarget>();
+  } else {
+    return render_target;
+  }
 }
 
 scoped_refptr<RenderTarget>
@@ -373,7 +378,11 @@ scoped_refptr<RenderTarget>
   scoped_refptr<RenderTarget> render_target(new FramebufferRenderTargetEGL(
       this, dimensions));
 
-  return render_target;
+  if (render_target->CreationError()) {
+    return scoped_refptr<RenderTarget>();
+  } else {
+    return render_target;
+  }
 }
 
 void GraphicsContextEGL::InitializeDebugContext() {

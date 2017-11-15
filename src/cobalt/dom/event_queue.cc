@@ -50,8 +50,18 @@ void EventQueue::CancelAllEvents() {
   events_.clear();
 }
 
+void EventQueue::TraceMembers(script::Tracer* tracer) {
+  for (const auto& event : events_) {
+    tracer->Trace(event);
+  }
+}
+
 void EventQueue::DispatchEvents() {
   DCHECK(message_loop_->BelongsToCurrentThread());
+
+  // Make sure that the event_target_ stays alive for the duration of
+  // all event dispatches.
+  scoped_refptr<EventTarget> keep_alive_reference(event_target_);
 
   Events events;
   events.swap(events_);

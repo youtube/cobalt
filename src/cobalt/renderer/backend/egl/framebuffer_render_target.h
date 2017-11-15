@@ -52,6 +52,8 @@ class FramebufferRenderTargetEGL : public RenderTargetEGL {
     return framebuffer_.GetColorTexture();
   }
 
+  bool CreationError() OVERRIDE { return framebuffer_.CreationError(); }
+
  private:
   ~FramebufferRenderTargetEGL() OVERRIDE {}
 

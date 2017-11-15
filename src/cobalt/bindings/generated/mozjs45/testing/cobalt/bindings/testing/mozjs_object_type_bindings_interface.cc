@@ -22,8 +22,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/bindings/testing/arbitrary_interface.h"
 #include "cobalt/bindings/testing/base_interface.h"
 #include "cobalt/bindings/testing/derived_interface.h"
@@ -40,7 +40,6 @@
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
@@ -65,10 +64,10 @@ using cobalt::bindings::testing::MozjsBaseInterface;
 using cobalt::bindings::testing::MozjsDerivedInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
@@ -92,6 +91,7 @@ using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagObjectOnly;
 using cobalt::script::mozjs::kNoConversionFlags;
 }  // namespace
 
@@ -521,12 +521,12 @@ bool set_objectProperty(
       WrapperPrivate::GetFromObject(context, object);
   ObjectTypeBindingsInterface* impl =
       wrapper_private->wrappable<ObjectTypeBindingsInterface>().get();
-  TypeTraits<::cobalt::script::OpaqueHandle >::ConversionType value;
+  TypeTraits<::cobalt::script::ValueHandle >::ConversionType value;
   if (args.length() != 1) {
     NOTREACHED();
     return false;
   }
-  FromJSValue(context, args[0], (kConversionFlagNullable), &exception_state,
+  FromJSValue(context, args[0], (kConversionFlagNullable | kConversionFlagObjectOnly), &exception_state,
               &value);
   if (exception_state.is_exception_set()) {
     return false;
@@ -736,3 +736,5 @@ namespace {
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
+
+

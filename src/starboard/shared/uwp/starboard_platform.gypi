@@ -44,6 +44,27 @@
       'window_internal.h',
       'window_set_default_options.cc',
       'winrt_workaround.h',
+
+      'private/keys.cc',
+      'private/keys.h',
+
+      # Microphone section.
+      '<(DEPTH)/starboard/shared/uwp/microphone_impl.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_get_available.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_get_available.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_close.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_close.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_create.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_create.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_destroy.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_destroy.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_get_available.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_get_available.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_internal.h',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_is_sample_rate_supported.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_open.cc',
+      '<(DEPTH)/starboard/shared/starboard/microphone/microphone_read.cc',
+
       '<(DEPTH)/starboard/shared/starboard/localized_strings.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_pause.cc',
       '<(DEPTH)/starboard/shared/starboard/system_request_stop.cc',

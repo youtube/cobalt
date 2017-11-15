@@ -103,6 +103,52 @@ struct HTMLMediaElementCountLog {
 base::LazyInstance<HTMLMediaElementCountLog> html_media_element_count_log =
     LAZY_INSTANCE_INITIALIZER;
 
+#if !SB_HAS(PLAYER_WITH_URL)
+loader::RequestMode GetRequestMode(
+    const base::optional<std::string>& cross_origin_attribute) {
+  // https://html.spec.whatwg.org/#cors-settings-attribute
+  if (cross_origin_attribute) {
+    if (*cross_origin_attribute == "use-credentials") {
+      return loader::kCORSModeIncludeCredentials;
+    } else {
+      // The invalid value default of crossorigin is Anonymous state, leading to
+      // "same-origin" credentials mode.
+      return loader::kCORSModeSameOriginCredentials;
+    }
+  }
+  // crossorigin attribute's missing value default is No CORS state, leading to
+  // "no-cors" request mode.
+  return loader::kNoCORSMode;
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
+#if defined(COBALT_MEDIA_SOURCE_2016)
+bool OriginIsSafe(loader::RequestMode request_mode, const GURL& resource_url,
+                  const loader::Origin& origin) {
+#if SB_HAS(PLAYER_WITH_URL)
+  UNREFERENCED_PARAMETER(request_mode);
+  UNREFERENCED_PARAMETER(resource_url);
+  UNREFERENCED_PARAMETER(origin);
+  return true;
+#else  // SB_HAS(PLAYER_WITH_URL)
+  if (resource_url.SchemeIs("blob")) {
+    // Blob resources come from application and is same-origin.
+    return true;
+  }
+  if (request_mode != loader::kNoCORSMode) {
+    return true;
+  }
+  if (origin == loader::Origin(resource_url)) {
+    return true;
+  }
+  if (resource_url.SchemeIs("data")) {
+    return true;
+  }
+  return false;
+#endif  // SB_HAS(PLAYER_WITH_URL)
+}
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
 }  // namespace
 
 HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
@@ -133,7 +179,8 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
                         base::GenerateGUID()),
       pending_load_(false),
       sent_stalled_event_(false),
-      sent_end_event_(false) {
+      sent_end_event_(false),
+      request_mode_(loader::kNoCORSMode) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::HTMLMediaElement()");
   MLOG();
   html_media_element_count_log.Get().count++;
@@ -162,6 +209,26 @@ void HTMLMediaElement::set_src(const std::string& src) {
   SetAttribute("src", src);
   ClearMediaPlayer();
   ScheduleLoad();
+}
+
+base::optional<std::string> HTMLMediaElement::cross_origin() const {
+  base::optional<std::string> cross_origin_attribute =
+      GetAttribute("crossOrigin");
+  if (cross_origin_attribute &&
+      (*cross_origin_attribute != "anonymous" &&
+       *cross_origin_attribute != "use-credentials")) {
+    return std::string();
+  }
+  return cross_origin_attribute;
+}
+
+void HTMLMediaElement::set_cross_origin(
+    const base::optional<std::string>& value) {
+  if (value) {
+    SetAttribute("crossOrigin", *value);
+  } else {
+    RemoveAttribute("crossOrigin");
+  }
 }
 
 uint16_t HTMLMediaElement::network_state() const {
@@ -684,6 +751,19 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
   }
 }
 
+void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
+  HTMLElement::TraceMembers(tracer);
+
+  event_queue_.TraceMembers(tracer);
+
+  tracer->Trace(played_time_ranges_);
+  tracer->Trace(media_source_);
+  tracer->Trace(error_);
+#if defined(COBALT_MEDIA_SOURCE_2016)
+  tracer->Trace(media_keys_);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
+}
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
 void HTMLMediaElement::DurationChanged(double duration, bool request_seek) {
   MLOG() << "DurationChanged(" << duration << ", " << request_seek << ")";
@@ -950,7 +1030,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     return;
   }
 #if SB_HAS(PLAYER_WITH_URL)
-  // TODO: Investigate if we have to support csp for url player.
+  // TODO: Investigate if we have to support csp and sop for url player.
   player_->LoadUrl(url);
 #else   // SB_HAS(PLAYER_WITH_URL)
   if (url.spec() == SourceURL()) {
@@ -959,12 +1039,14 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
     csp::SecurityCallback csp_callback = base::Bind(
         &CspDelegate::CanLoad,
         base::Unretained(node_document()->csp_delegate()), CspDelegate::kMedia);
+    request_mode_ = GetRequestMode(GetAttribute("crossOrigin"));
+    DCHECK(node_document()->location());
     scoped_ptr<BufferedDataSource> data_source(
         new media::FetcherBufferedDataSource(
             base::MessageLoopProxy::current(), url, csp_callback,
-            html_element_context()->fetcher_factory()->network_module()));
-    player_->LoadProgressive(url, data_source.Pass(),
-                             WebMediaPlayer::kCORSModeUnspecified);
+            html_element_context()->fetcher_factory()->network_module(),
+            request_mode_, node_document()->location()->OriginObject()));
+    player_->LoadProgressive(url, data_source.Pass());
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 }
@@ -1614,6 +1696,14 @@ void HTMLMediaElement::OutputModeChanged() {
   InvalidateLayoutBoxesOfNodeAndAncestors();
 }
 
+void HTMLMediaElement::ContentSizeChanged() {
+  TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::ContentSizeChanged()");
+  // If the player content size is updated, trigger a re-layout so that we can
+  // setup the video render tree differently with letterboxing.
+  node_document()->OnDOMMutation();
+  InvalidateLayoutBoxesOfNodeAndAncestors();
+}
+
 void HTMLMediaElement::PlaybackStateChanged() {
   if (!player_) {
     return;
@@ -1713,8 +1803,7 @@ std::string ToInitDataTypeString(media::EmeInitDataType init_data_type) {
 void HTMLMediaElement::EncryptedMediaInitDataEncountered(
     media::EmeInitDataType init_data_type, const unsigned char* init_data,
     unsigned int init_data_length) {
-  // TODO: Implement "4. If the media data is CORS-same-origin and not mixed
-  //       content".
+  // 4. If the media data is CORS-same-origin and not mixed content.
 
   // 5. Queue a task to create an event named encrypted that does not bubble
   //    and is not cancellable using the MediaEncryptedEvent interface [...],
@@ -1723,10 +1812,20 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
   // TODO: Implement Event.isTrusted as per
   //       https://www.w3.org/TR/dom/#dom-event-istrusted and set it to true.
   eme::MediaEncryptedEventInit media_encrypted_event_init;
-  media_encrypted_event_init.set_init_data_type(
-      ToInitDataTypeString(init_data_type));
-  media_encrypted_event_init.set_init_data(
-      new ArrayBuffer(NULL, init_data, init_data_length));
+  DCHECK(node_document()->location());
+  std::string src = this->src();
+  GURL current_url = GURL(src);
+  if (current_url.is_empty()) {
+    current_url = node_document()->url_as_gurl().Resolve(src);
+  }
+  if (!current_url.SchemeIs("http") &&
+      OriginIsSafe(request_mode_, current_url,
+                   node_document()->location()->OriginObject())) {
+    media_encrypted_event_init.set_init_data_type(
+        ToInitDataTypeString(init_data_type));
+    media_encrypted_event_init.set_init_data(
+        new ArrayBuffer(NULL, init_data, init_data_length));
+  }
   event_queue_.Enqueue(
       new eme::MediaEncryptedEvent("encrypted", media_encrypted_event_init));
 }

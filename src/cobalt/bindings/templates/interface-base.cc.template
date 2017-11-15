@@ -42,8 +42,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 {% for include in implementation_includes %}
 #include "{{include}}"
 {% endfor %}
@@ -64,10 +64,10 @@ using {{used_class.fully_qualified_name}};
 {% endfor %}
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 {% endblock using_directives %}
 {% block top_level_unnamed_namespace %}
@@ -84,22 +84,12 @@ namespace {{component}} {
 {% for component in components|reverse %}
 }  // namespace {{component}}
 {% endfor %}
+
 {% if is_global_interface %}
-
-namespace cobalt {
-namespace script {
-
-template<>
-void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
-    const scoped_refptr<{{impl_class}}>& global_interface,
-    EnvironmentSettings* environment_settings) {
 {% block create_global_object_impl %}
 {% endblock create_global_object_impl %}
-}
-
-}  // namespace script
-}  // namespace cobalt
 {% endif %}
+
 {% if conditional %}
 #endif  // defined({{conditional}})
 {% endif %}

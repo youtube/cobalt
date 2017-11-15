@@ -396,6 +396,10 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
              child_boxes().rbegin();
          child_box_iterator != child_boxes().rend(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
+      // Out-of-flow boxes are not impacted by ellipses.
+      if (child_box->IsAbsolutelyPositioned()) {
+        continue;
+      }
       child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
           base_direction, desired_offset, is_placement_requirement_met,
           is_placed, placed_offset);
@@ -404,6 +408,10 @@ void InlineContainerBox::DoPlaceEllipsisOrProcessPlacedEllipsis(
     for (Boxes::const_iterator child_box_iterator = child_boxes().begin();
          child_box_iterator != child_boxes().end(); ++child_box_iterator) {
       Box* child_box = *child_box_iterator;
+      // Out-of-flow boxes are not impacted by ellipses.
+      if (child_box->IsAbsolutelyPositioned()) {
+        continue;
+      }
       child_box->TryPlaceEllipsisOrProcessPlacedEllipsis(
           base_direction, desired_offset, is_placement_requirement_met,
           is_placed, placed_offset);

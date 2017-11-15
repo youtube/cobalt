@@ -20,6 +20,7 @@
 #include "base/bind.h"
 #include "base/callback_helpers.h"
 #include "base/string_number_conversions.h"
+#include "cobalt/loader/cors_preflight.h"
 #include "net/http/http_response_headers.h"
 #include "net/http/http_status_code.h"
 
@@ -39,7 +40,8 @@ using base::CircularBufferShell;
 FetcherBufferedDataSource::FetcherBufferedDataSource(
     const scoped_refptr<base::MessageLoopProxy>& message_loop, const GURL& url,
     const csp::SecurityCallback& security_callback,
-    network::NetworkModule* network_module)
+    network::NetworkModule* network_module, loader::RequestMode request_mode,
+    loader::Origin origin)
     : message_loop_(message_loop),
       url_(url),
       network_module_(network_module),
@@ -53,7 +55,10 @@ FetcherBufferedDataSource::FetcherBufferedDataSource(
       pending_read_position_(0),
       pending_read_size_(0),
       pending_read_data_(NULL),
-      security_callback_(security_callback) {
+      security_callback_(security_callback),
+      request_mode_(request_mode),
+      document_origin_(origin),
+      is_origin_safe_(false) {
   DCHECK(message_loop_);
   DCHECK(network_module);
 }
@@ -154,6 +159,20 @@ void FetcherBufferedDataSource::OnURLFetchResponseStarted(
   scoped_refptr<net::HttpResponseHeaders> headers =
       source->GetResponseHeaders();
   DCHECK(headers);
+
+  if (!is_origin_safe_) {
+    if (loader::CORSPreflight::CORSCheck(
+            *headers, document_origin_.SerializedOrigin(),
+            request_mode_ == loader::kCORSModeIncludeCredentials)) {
+      is_origin_safe_ = true;
+    } else {
+      error_occured_ = true;
+      if (!pending_read_cb_.is_null()) {
+        base::ResetAndReturn(&pending_read_cb_).Run(-1);
+      }
+      return;
+    }
+  }
 
   uint64 first_byte_offset = 0;
 
@@ -309,6 +328,15 @@ void FetcherBufferedDataSource::CreateNewFetcher() {
       "Range: bytes=" + base::Uint64ToString(last_request_offset_) + "-" +
       base::Uint64ToString(last_request_offset_ + last_request_size_ - 1);
   fetcher_->AddExtraRequestHeader(range_request);
+  if (!is_origin_safe_) {
+    if (request_mode_ != loader::kNoCORSMode &&
+        document_origin_ != loader::Origin(url_) && !url_.SchemeIs("data")) {
+      fetcher_->AddExtraRequestHeader("Origin:" +
+                                      document_origin_.SerializedOrigin());
+    } else {
+      is_origin_safe_ = true;
+    }
+  }
   fetcher_->Start();
   UpdateDownloadingStatus(/* is_downloading = */ true);
 }

@@ -47,16 +47,11 @@ class TestLineReader(object):
   in real time instead of dumping the test results all at once later.
   """
 
-  # Both ends of the pipe are provided here because the write end of
-  # the pipe needs to be closed when killing the thread. If it is not,
-  # the read call in _Readlines will block.
-  def __init__(self, read_pipe, write_pipe):
+  def __init__(self, read_pipe):
     self.read_pipe = read_pipe
-    self.write_pipe = write_pipe
     self.output_lines = cStringIO.StringIO()
     self.stop_event = threading.Event()
     self.reader_thread = threading.Thread(target=self._ReadLines)
-    self.reader_thread.start()
 
   def _ReadLines(self):
     """Continuously reads and stores lines of test output."""
@@ -64,21 +59,87 @@ class TestLineReader(object):
       line = self.read_pipe.readline()
       if line:
         sys.stdout.write(line)
-        self.output_lines.write(line)
+      else:
+        break
+
+      self.output_lines.write(line)
+
+  def Start(self):
+    self.reader_thread.start()
 
   def Kill(self):
-    """Kills the thread reading lines from the launcher's output."""
+    """Kills the thread reading lines from the launcher's output.
+
+    This is only used on a manual exit to ensure that the thread exits cleanly;
+    in the normal case, the thread will exit on its own when no more lines of
+    output are available.
+    """
     self.stop_event.set()
 
-    # Close the write end of the pipe so that the read end gets EOF
-    self.write_pipe.close()
+  def Join(self):
     self.reader_thread.join()
     self.read_pipe.close()
 
   def GetLines(self):
     """Stops file reading, then returns stored output as a list of lines."""
-    self.Kill()
     return self.output_lines.getvalue().split("\n")
+
+
+class TestLauncher(object):
+  """Manages the thread that the test object runs in.
+
+  A separate thread is used to make it easier for the runner and reader to
+  communicate, and for the main thread to shut them down.
+  """
+
+  # The write end of the pipe is provided here because if the launcher
+  # errors out and fails to close it, it needs to be closed anyway.
+  def __init__(self, launcher, write_pipe):
+    self.launcher = launcher
+    self.write_pipe = write_pipe
+    self.runner_thread = threading.Thread(target=self._Run)
+
+    self.return_code_lock = threading.Lock()
+    self.return_code = 1
+
+  def Start(self):
+    self.runner_thread.start()
+
+  def Kill(self):
+    """Kills the running launcher."""
+    try:
+      self.launcher.Kill()
+    except Exception:
+      sys.stderr.write("Error while killing {}:\n".format(
+          self.launcher.target_name))
+      traceback.print_exc(file=sys.stderr)
+      # Close the write end of the pipe if the launcher errored out
+      # before closing it.
+      if not self.write_pipe.closed:
+        self.write_pipe.close()
+
+  def Join(self):
+    self.runner_thread.join()
+
+  def _Run(self):
+    """Runs the launcher, and assigns a return code."""
+    return_code = 1
+    try:
+      return_code = self.launcher.Run()
+    except Exception:
+      sys.stderr.write("Error while running {}:\n".format(
+          self.launcher.target_name))
+      traceback.print_exc(file=sys.stderr)
+
+    self.return_code_lock.acquire()
+    self.return_code = return_code
+    self.return_code_lock.release()
+
+  def GetReturnCode(self):
+    self.return_code_lock.acquire()
+    return_code = self.return_code
+    self.return_code_lock.release()
+    return return_code
 
 
 class TestRunner(object):
@@ -93,6 +154,7 @@ class TestRunner(object):
     self.out_directory = out_directory
     self._platform_config = abstract_launcher.GetGypModuleForPlatform(
         platform).CreatePlatformConfig()
+    self.threads = []
 
     # If a particular test binary has been provided, configure only that one.
     if single_target:
@@ -174,12 +236,6 @@ class TestRunner(object):
     """Gets all environment variables used for tests on the given platform."""
     return self._platform_config.GetTestEnvVariables()
 
-  def _BuildSystemInit(self):
-    """Runs GYP on the target platform/config."""
-    subprocess.check_call([os.path.abspath(os.path.join(
-        os.path.dirname(__file__), os.pardir, os.pardir, os.pardir,
-        "cobalt", "build", "gyp_cobalt")), self.platform])
-
   def _BuildTests(self, ninja_flags):
     """Builds all specified test binaries.
 
@@ -196,9 +252,12 @@ class TestRunner(object):
           self.platform, self.config)
 
     args_list = ["ninja", "-C", build_dir]
-    args_list.extend([test_name for test_name in self.test_targets])
+    args_list.extend([
+        "{}_deploy".format(test_name) for test_name in self.test_targets])
     if ninja_flags:
       args_list.append(ninja_flags)
+    if "TEST_RUNNER_BUILD_FLAGS" in os.environ:
+      args_list.append(os.environ["TEST_RUNNER_BUILD_FLAGS"])
     sys.stderr.write("{}\n".format(args_list))
     # We set shell=True because otherwise Windows doesn't recognize
     # PATH properly.
@@ -227,39 +286,38 @@ class TestRunner(object):
     write_pipe = os.fdopen(write_fd, "w")
 
     # Filter the specified tests for this platform, if any
+    test_params = []
     if self.test_targets[target_name]:
-      self.target_params.append("--gtest_filter=-{}".format(":".join(
+      test_params.append("--gtest_filter=-{}".format(":".join(
           self.test_targets[target_name])))
+    test_params.extend(self.target_params)
 
     launcher = abstract_launcher.LauncherFactory(
         self.platform, target_name, self.config,
-        device_id=self.device_id, target_params=self.target_params,
+        device_id=self.device_id, target_params=test_params,
         output_file=write_pipe, out_directory=self.out_directory,
         env_variables=env)
 
-    reader = TestLineReader(read_pipe, write_pipe)
-    #  If we need to manually exit the test runner at any point,
-    #  ensure that the launcher is killed properly first.
-    def Abort(signum, frame):
-      del signum, frame  # Unused.
-      launcher.Kill()
-      reader.Kill()
-      sys.stderr.write("TEST RUN STOPPED VIA MANUAL EXIT\n")
-      sys.exit(1)
+    test_reader = TestLineReader(read_pipe)
+    test_launcher = TestLauncher(launcher, write_pipe)
 
-    signal.signal(signal.SIGINT, Abort)
+    self.threads.append(test_launcher)
+    self.threads.append(test_reader)
+
     sys.stdout.write("Starting {}\n".format(target_name))
 
-    return_code = 1
-    try:
-      return_code = launcher.Run()
-    except Exception:  # pylint: disable=broad-except
-      sys.stderr.write("Error while running {}:\n".format(target_name))
-      traceback.print_exc(file=sys.stderr)
-    finally:
-      output = reader.GetLines()
+    test_reader.Start()
+    test_launcher.Start()
 
-    return self._CollectTestResults(output, target_name, return_code)
+    # If there are actives threads during a ctrl+c exit, they will join here.
+    test_launcher.Join()
+    test_reader.Join()
+
+    output = test_reader.GetLines()
+
+    self.threads = []
+    return self._CollectTestResults(output, target_name,
+                                    test_launcher.GetReturnCode())
 
   def _CollectTestResults(self, results, target_name, return_code):
     """Collects passing and failing tests for one test binary.
@@ -391,7 +449,6 @@ class TestRunner(object):
     result = True
 
     try:
-      self._BuildSystemInit()
       self._BuildTests(ninja_flags)
     except subprocess.CalledProcessError as e:
       result = False
@@ -430,6 +487,10 @@ def main():
       " If both the \"--build\" and \"--run\" flags are not"
       " provided, this is the default.")
   arg_parser.add_argument(
+      "-t",
+      "--target_name",
+      help="Name of executable target.")
+  arg_parser.add_argument(
       "--ninja_flags",
       help="Flags to pass to the ninja build system. Provide them exactly"
       " as you would on the command line between a set of double quotation"
@@ -444,6 +505,15 @@ def main():
 
   runner = TestRunner(args.platform, args.config, args.device_id,
                       args.target_name, target_params, args.out_directory)
+
+  def Abort(signum, frame):
+    del signum, frame  # Unused.
+    sys.stderr.write("Killing threads\n")
+    for active_thread in runner.threads:
+      active_thread.Kill()
+    sys.exit(1)
+
+  signal.signal(signal.SIGINT, Abort)
   # If neither build nor run has been specified, assume the client
   # just wants to run.
   if not args.build and not args.run:

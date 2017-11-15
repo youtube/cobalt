@@ -19,7 +19,6 @@
 #include "starboard/shared/starboard/player/filter/video_renderer_impl_internal.h"
 #include "starboard/shared/win32/audio_decoder.h"
 #include "starboard/shared/win32/video_decoder.h"
-#include "starboard/shared/win32/video_renderer.h"
 
 namespace starboard {
 namespace shared {
@@ -33,7 +32,6 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
     const VideoParameters& video_parameters) {
   using AudioDecoderImpl = ::starboard::shared::win32::AudioDecoder;
   using VideoDecoderImpl = ::starboard::shared::win32::VideoDecoder;
-  using VideoRendererImpl = ::starboard::shared::win32::VideoRendererImpl;
 
   AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
       audio_parameters.audio_codec, audio_parameters.audio_header,

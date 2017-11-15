@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_CALL_FRAME_H_
 #define COBALT_SCRIPT_CALL_FRAME_H_
 
@@ -18,8 +19,8 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/scope.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace script {
@@ -64,7 +65,7 @@ class CallFrame {
 
   // An opaque handle to the current JavaScript |this| object.
   // May be NULL if the value of |this| in the call frame is not an object.
-  virtual const OpaqueHandleHolder* GetThis() = 0;
+  virtual const ValueHandleHolder* GetThis() = 0;
 };
 
 }  // namespace script

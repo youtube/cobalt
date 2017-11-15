@@ -41,6 +41,10 @@ class ResourceProvider : public render_tree::ResourceProvider {
                    SubmitOffscreenCallback submit_offscreen_callback);
   ~ResourceProvider() OVERRIDE {}
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<ResourceProvider>();
+  }
+
   void Finish() OVERRIDE {}
 
   scoped_refptr<render_tree::Image> CreateImageFromSbDecodeTarget(

@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_GLOBAL_ENVIRONMENT_H_
 
@@ -20,10 +21,10 @@
 #include "base/memory/ref_counted.h"
 #include "base/optional.h"
 #include "cobalt/script/error_report.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
 #include "cobalt/script/script_value_factory.h"
 #include "cobalt/script/stack_frame.h"
+#include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 
 namespace cobalt {
@@ -63,25 +64,33 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
 
   // Evaluate the JavaScript source code. Returns true on success,
   // false if there is an exception.
-  // Set |out_opaque_handle| to be a reference to the result of the evaluation
+  // Set |out_value_handle| to be a reference to the result of the evaluation
   // of the script that is owned by |owner|.
   virtual bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-      base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) = 0;
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) = 0;
 
   // Returns the stack trace as a vector of individual frames.
   // Set |max_frames| to 0 to retrieve all available frames. Otherwise
   // return at most |max_frames|.
   virtual std::vector<StackFrame> GetStackTrace(int max_frames) = 0;
+  // Our style guide bans default arguments for virtual functions, however we
+  // ended up taking a dependency on them in our bindings code before it was
+  // caught. Instead, provide a non-virtual overload that wraps virtual
+  // |GetStackTrace(int)| to make everyone happy.
+  std::vector<StackFrame> GetStackTrace() { return GetStackTrace(0); }
 
-  // Prevent this wrappable's associated JS wrapper object from being garbage
-  // collected. AllowGarbageCollection must be called some time afterwards or
-  // else both the JS wrapper object and Wrappable will leak.
+  // Prevent this wrappable's associated JavaScript wrapper object from being
+  // garbage collected. |AllowGarbageCollection| must be called some time
+  // afterwards, or else both the JavaScript wrapper object and Wrappable will
+  // leak. Note that multiple calls to |PreventGarbageCollection| *are*
+  // counted, in that calling (e.g.) prevent, prevent, allow on |wrappable|,
+  // implies that |wrappable| is still garbage collection prevented.
   virtual void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
 
-  // Allow this wrappable's associated JS wrapper object to be garbage
+  // Allow this wrappable's associated JavaScript wrapper object to be garbage
   // collected.
   virtual void AllowGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) = 0;
@@ -105,7 +114,7 @@ class GlobalEnvironment : public base::RefCounted<GlobalEnvironment> {
   virtual void SetReportErrorCallback(
       const ReportErrorCallback& report_error) = 0;
 
-  // Dynamically bind a cpp object to the javascript global object with the
+  // Dynamically bind a cpp object to the JavaScript global object with the
   // supplied identifier.
   // This method is useful for testing and debug purposes, as well as for
   // dynamically injecting an API into a JavaScript environment.

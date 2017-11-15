@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_ENGINE_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_ENGINE_H_
 
@@ -37,7 +38,6 @@ class MozjsEngine : public JavaScriptEngine {
   void SetGcThreshold(int64_t bytes) OVERRIDE;
 
  private:
-  void TimerGarbageCollect();
   static bool ContextCallback(JSContext* context, unsigned context_op,
                               void* data);
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
@@ -57,9 +57,6 @@ class MozjsEngine : public JavaScriptEngine {
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
-
-  // Used to trigger a garbage collection periodically.
-  base::RepeatingTimer<MozjsEngine> gc_timer_;
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;

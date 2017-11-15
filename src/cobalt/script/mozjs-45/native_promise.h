@@ -1,18 +1,16 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #ifndef COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
 #define COBALT_SCRIPT_MOZJS_45_NATIVE_PROMISE_H_
@@ -80,16 +78,10 @@ class NativePromiseBase : public Promise<T> {
   }
 
  protected:
-  NativePromiseBase(JSContext* context, JS::HandleObject resolver_object)
-      : context_(context) {
-    promise_resolver_.emplace(context, resolver_object);
-  }
-
   NativePromiseBase(JSContext* context, JS::HandleValue resolver_value)
       : context_(context) {
     DCHECK(resolver_value.isObject());
-    JS::RootedObject resolver_object(context, &resolver_value.toObject());
-    promise_resolver_.emplace(context, resolver_object);
+    promise_resolver_.emplace(context, resolver_value);
   }
 
   JSContext* context_;
@@ -100,9 +92,6 @@ class NativePromiseBase : public Promise<T> {
 template <typename T>
 class NativePromise : public NativePromiseBase<T> {
  public:
-  NativePromise(JSContext* context, JS::HandleObject resolver_object)
-      : NativePromiseBase<T>(context, resolver_object) {}
-
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<T>(context, resolver_value) {}
 
@@ -123,9 +112,6 @@ class NativePromise : public NativePromiseBase<T> {
 template <>
 class NativePromise<void> : public NativePromiseBase<void> {
  public:
-  NativePromise(JSContext* context, JS::HandleObject resolver_object)
-      : NativePromiseBase<void>(context, resolver_object) {}
-
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<void>(context, resolver_value) {}
 

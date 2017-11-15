@@ -1,0 +1,68 @@
+$$ This is a pump file for generating file templates.  Pump is a python
+$$ script that is part of the Google Test suite of utilities.  Description
+$$ can be found here:
+$$
+$$ http://code.google.com/p/googletest/wiki/PumpManual
+$$
+
+$$ Maximum number of different member types in a union.
+$var MAX_MEMBERS = 4
+
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+#ifndef COBALT_SCRIPT_V8C_UNION_TYPE_CONVERSION_IMPL_H_
+#define COBALT_SCRIPT_V8C_UNION_TYPE_CONVERSION_IMPL_H_
+
+#include "cobalt/base/type_id.h"
+#include "cobalt/script/union_type.h"
+#include "cobalt/script/v8c/type_traits.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
+#include "cobalt/script/v8c/v8c_global_environment.h"
+#include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
+
+// Conversion to/from Value for IDL union types.
+
+namespace cobalt {
+namespace script {
+namespace v8c {
+
+$range NUM_MEMBERS 2..MAX_MEMBERS
+$for NUM_MEMBERS [[
+
+$range TYPE 1..NUM_MEMBERS
+
+template <$for TYPE , [[typename T$(TYPE)]]>
+void ToJSValue(
+    v8::Isolate* isolate,
+    const script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>& in_union,
+    v8::Local<v8::Value>* out_value) {
+  NOTIMPLEMENTED();
+}
+
+template <$for TYPE , [[typename T$(TYPE)]]>
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 script::UnionType$(NUM_MEMBERS)<$for TYPE , [[T$(TYPE)]]>* out_union) {
+  NOTIMPLEMENTED();
+}
+
+]]  $$ for NUM_MEMBERS
+
+}  // namespace v8c
+}  // namespace script
+}  // namespace cobalt
+
+#endif  // COBALT_SCRIPT_V8C_UNION_TYPE_CONVERSION_IMPL_H_

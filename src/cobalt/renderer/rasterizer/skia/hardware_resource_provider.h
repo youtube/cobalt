@@ -43,6 +43,10 @@ class HardwareResourceProvider : public render_tree::ResourceProvider {
                            bool purge_skia_font_caches_on_destruction);
   ~HardwareResourceProvider() OVERRIDE;
 
+  base::TypeId GetTypeId() const OVERRIDE {
+    return base::GetTypeId<HardwareResourceProvider>();
+  }
+
   void Finish() OVERRIDE;
 
   bool PixelFormatSupported(render_tree::PixelFormat pixel_format) OVERRIDE;

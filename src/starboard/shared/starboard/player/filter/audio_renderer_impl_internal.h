@@ -51,6 +51,7 @@ class AudioRendererImpl : public AudioRenderer,
                     const SbMediaAudioHeader& audio_header);
   ~AudioRendererImpl() SB_OVERRIDE;
 
+  void Initialize(const Closure& error_cb) SB_OVERRIDE;
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
 
@@ -104,11 +105,11 @@ class AudioRendererImpl : public AudioRenderer,
   static const size_t kFrameAppendUnit = 16384;
 
   // AudioRendererSink methods
-  void OnUpdateSourceStatus(int* frames_in_buffer,
-                            int* offset_in_frames,
-                            bool* is_playing,
-                            bool* is_eos_reached) SB_OVERRIDE;
-  void OnConsumeFrames(int frames_consumed) SB_OVERRIDE;
+  void GetSourceStatus(int* frames_in_buffer,
+                       int* offset_in_frames,
+                       bool* is_playing,
+                       bool* is_eos_reached) SB_OVERRIDE;
+  void ConsumeFrames(int frames_consumed) SB_OVERRIDE;
 
   void CreateAudioSinkAndResampler();
   void LogFramesConsumed();

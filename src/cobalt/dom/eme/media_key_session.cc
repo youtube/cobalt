@@ -223,6 +223,13 @@ scoped_ptr<MediaKeySession::VoidPromiseValue> MediaKeySession::Close() {
   return promise.Pass();
 }
 
+void MediaKeySession::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  tracer->Trace(key_status_map_);
+  event_queue_.TraceMembers(tracer);
+}
+
 // See
 // https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-generaterequest.
 void MediaKeySession::OnSessionUpdateRequestGenerated(
@@ -297,13 +304,6 @@ void MediaKeySession::OnSessionUpdated(
 
   // 8.2. Resolve promise.
   promise_reference->value().Resolve();
-
-#if !SB_HAS(DRM_KEY_STATUSES)
-  // When key statuses is not enabled, send a "keystatuseschange" anyway so the
-  // JS app knows that |keyStatuses| will no longer be updated.
-  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
-  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#dom-mediakeysession-update.
@@ -314,13 +314,6 @@ void MediaKeySession::OnSessionDidNotUpdate(
   //
   // TODO: Introduce Starboard API that allows CDM to propagate error codes.
   promise_reference->value().Reject(new DOMException(DOMException::kNone));
-
-#if !SB_HAS(DRM_KEY_STATUSES)
-  // When key statuses is not enabled, send a "keystatuseschange" anyway so the
-  // JS app knows that |keyStatuses| will no longer be updated.
-  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
-  event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
-#endif  // !SB_HAS(DRM_KEY_STATUSES)
 }
 
 // See https://www.w3.org/TR/encrypted-media/#update-key-statuses.
@@ -370,7 +363,8 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
 
   // 5. Queue a task to fire a simple event named keystatuseschange at the
   //    session.
-  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession.";
+  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession with "
+            << key_status_map_->size() << " keys.";
   event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
 
   // 6. Queue a task to run the Attempt to Resume Playback If Necessary

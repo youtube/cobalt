@@ -147,7 +147,6 @@
         'mutex_destroy_test.cc',
         'once_test.cc',
         'optional_test.cc',
-        'player_create_test.cc',
         'player_create_with_url_test.cc',
         'random_helpers.cc',
         'rwlock_test.cc',
@@ -269,6 +268,14 @@
         '<(DEPTH)/testing/gmock.gyp:gmock',
         '<(DEPTH)/testing/gtest.gyp:gtest',
         '<(DEPTH)/starboard/starboard.gyp:starboard',
+      ],
+      'conditions': [
+        ['sb_media_platform=="starboard"', {
+          'sources': [
+            'player_create_test.cc',
+            'player_output_mode_supported_test.cc',
+          ],
+        }],
       ],
     },
     {

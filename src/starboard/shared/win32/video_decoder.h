@@ -15,65 +15,126 @@
 #ifndef STARBOARD_SHARED_WIN32_VIDEO_DECODER_H_
 #define STARBOARD_SHARED_WIN32_VIDEO_DECODER_H_
 
+#include <D3d11_1.h>
+#include <wrl/client.h>
+
+#include <deque>
+#include <list>
+#include <memory>
+
 #include "starboard/common/ref_counted.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/configuration.h"
-#include "starboard/drm.h"
-#include "starboard/shared/starboard/player/filter/player_components.h"
+#include "starboard/decode_target.h"
+#include "starboard/mutex.h"
 #include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
-#include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
-#include "starboard/shared/starboard/player/video_frame_internal.h"
 #include "starboard/shared/starboard/thread_checker.h"
-#include "starboard/shared/win32/atomic_queue.h"
-#include "starboard/shared/win32/media_common.h"
-#include "starboard/shared/win32/video_decoder_thread.h"
+#include "starboard/shared/win32/decrypting_decoder.h"
+#include "starboard/thread.h"
 
 namespace starboard {
 namespace shared {
 namespace win32 {
 
 class VideoDecoder
-    : public ::starboard::shared::starboard::player::filter::HostedVideoDecoder,
-      private ::starboard::shared::starboard::player::JobQueue::JobOwner,
-      private VideoDecodedCallback {
+    : public
+        ::starboard::shared::starboard::player::filter::HostedVideoDecoder {
  public:
+  typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
+  typedef ::starboard::shared::starboard::player::VideoFrame VideoFrame;
+
   VideoDecoder(SbMediaVideoCodec video_codec,
                SbPlayerOutputMode output_mode,
-               SbDecodeTargetGraphicsContextProvider*
-                   decode_target_graphics_context_provider,
+               SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system);
   ~VideoDecoder() SB_OVERRIDE;
 
+  // Implement HostedVideoDecoder interface.
   void SetHost(Host* host) SB_OVERRIDE;
+  void Initialize(const Closure& error_cb) SB_OVERRIDE;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
   void Reset() SB_OVERRIDE;
-
   SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
 
-  // Implements class VideoDecodedCallback.
-  void OnVideoDecoded(VideoFramePtr data) SB_OVERRIDE;
-
  private:
+  template <typename T>
+  using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+  struct Event {
+    enum Type {
+      kWriteInputBuffer,
+      kWriteEndOfStream,
+    };
+    Type type;
+    scoped_refptr<InputBuffer> input_buffer;
+  };
+
+  struct Output {
+    Output(SbMediaTime time, const RECT& video_area,
+           const ComPtr<IMFSample>& video_sample)
+        : time(time), video_area(video_area), video_sample(video_sample) {}
+    SbMediaTime time;
+    RECT video_area;
+    ComPtr<IMFSample> video_sample;
+  };
+
+  void InitializeCodec();
+  void ShutdownCodec();
+
+  void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
+  scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
+  static void DeleteVideoFrame(void* context, void* native_texture);
+  static void CreateDecodeTargetHelper(void* context);
+  SbDecodeTarget CreateDecodeTarget();
+
+  void EnsureDecoderThreadRunning();
+  void StopDecoderThread();
+  void DecoderThreadRun();
+  static void* DecoderThreadEntry(void* context);
+
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.
   const SbMediaVideoCodec video_codec_;
-  SbDrmSystem const drm_system_;
+  Closure error_cb_;
   Host* host_;
+  SbDecodeTargetGraphicsContextProvider* graphics_context_provider_;
+  SbDrmSystem const drm_system_;
 
-  // Decode-to-texture related state.
-  const SbPlayerOutputMode output_mode_;
-  SbDecodeTargetGraphicsContextProvider* const
-      decode_target_graphics_context_provider_;
+  // These are platform-specific objects required to create and use a codec.
+  ComPtr<ID3D11Device> d3d_device_;
+  ComPtr<IMFDXGIDeviceManager> device_manager_;
+  ComPtr<ID3D11VideoDevice1> video_device_;
+  ComPtr<ID3D11VideoContext> video_context_;
+  ComPtr<ID3D11VideoProcessorEnumerator> video_enumerator_;
+  ComPtr<ID3D11VideoProcessor> video_processor_;
 
-  scoped_ptr<AbstractWin32VideoDecoder> impl_;
-  AtomicQueue<VideoFramePtr> decoded_data_;
-  Mutex mutex_;
-  scoped_ptr<VideoDecoderThread> video_decoder_thread_;
+  scoped_ptr<DecryptingDecoder> decoder_;
+  RECT video_area_;
+
+  SbThread decoder_thread_;
+  volatile bool decoder_thread_stop_requested_;
+  bool decoder_thread_stopped_;
+  Mutex thread_lock_;
+  std::deque<std::unique_ptr<Event> > thread_events_;
+
+  // This structure shadows the list of outstanding frames held by the host.
+  // When a new output is added to this structure, the host should be notified
+  // of a new VideoFrame. When the host deletes the VideoFrame, the delete
+  // callback is used to update this structure. The VideoDecoder may need to
+  // delete outputs without notifying the host. In such a situation, the host's
+  // VideoFrames will be invalid if they still require the IMFSample; it's
+  // possible that the VideoFrame was converted to a texture already, so it
+  // will continue to be valid since the IMFSample is no longer needed.
+  Mutex outputs_reset_lock_;
+  std::list<Output> thread_outputs_;
+
+  Mutex decode_target_lock_;
+  SbDecodeTarget current_decode_target_;
+  SbDecodeTarget prev_decode_target_;
 };
 
 }  // namespace win32

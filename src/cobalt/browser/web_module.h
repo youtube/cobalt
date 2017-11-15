@@ -39,6 +39,7 @@
 #include "cobalt/dom/blob.h"
 #include "cobalt/dom/csp_delegate.h"
 #include "cobalt/dom/dom_settings.h"
+#include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
@@ -180,6 +181,15 @@ class WebModule : public LifecycleObserver {
     // is true to enable them.
     bool enable_image_animations;
 
+    // Whether or not to retain the remote typeface cache when the app enters
+    // the suspend state.
+    bool should_retain_remote_typeface_cache_on_suspend;
+
+    // The language and script to use with fonts. If left empty, then the
+    // language-script combination provided by base::GetSystemLanguageScript()
+    // is used.
+    std::string font_language_script_override;
+
     // The splash screen cache object, owned by the BrowserModule.
     SplashScreenCache* splash_screen_cache;
 
@@ -208,6 +218,7 @@ class WebModule : public LifecycleObserver {
             const OnErrorCallback& error_callback,
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
+            const dom::Window::GetSbWindowCallback& get_sb_window_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
             media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
@@ -215,6 +226,17 @@ class WebModule : public LifecycleObserver {
             render_tree::ResourceProvider* resource_provider,
             float layout_refresh_rate, const Options& options);
   ~WebModule();
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  // Call this to inject an on screen keyboard input event into the web module.
+  // The value for type represents beforeinput or input.
+  void InjectOnScreenKeyboardInputEvent(base::Token type,
+                                        const dom::InputEventInit& event);
+  // Call this to inject an on screen keyboard shown event into the web module.
+  void InjectOnScreenKeyboardShownEvent();
+  // Call this to inject an on screen keyboard hidden event into the web module.
+  void InjectOnScreenKeyboardHiddenEvent();
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Call this to inject a keyboard event into the web module. The value for
   // type represents the event name, for example 'keydown' or 'keyup'.
@@ -232,7 +254,7 @@ class WebModule : public LifecycleObserver {
 
   // Call this to inject a beforeunload event into the web module. If
   // this event is not handled by the web application,
-  // on_before_unload_fired_but_not_handled will be called.
+  // |on_before_unload_fired_but_not_handled_| will be called.
   void InjectBeforeUnloadEvent();
 
   // Call this to execute Javascript code in this web module.  The calling
@@ -291,6 +313,7 @@ class WebModule : public LifecycleObserver {
         const OnErrorCallback& error_callback,
         const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
+        const dom::Window::GetSbWindowCallback& get_sb_window_callback,
         media::CanPlayTypeHandler* can_play_type_handler,
         media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
@@ -304,6 +327,7 @@ class WebModule : public LifecycleObserver {
           error_callback(error_callback),
           window_close_callback(window_close_callback),
           window_minimize_callback(window_minimize_callback),
+          get_sb_window_callback(get_sb_window_callback),
           can_play_type_handler(can_play_type_handler),
           web_media_player_factory(web_media_player_factory),
           network_module(network_module),
@@ -320,6 +344,7 @@ class WebModule : public LifecycleObserver {
     OnErrorCallback error_callback;
     const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
+    const dom::Window::GetSbWindowCallback& get_sb_window_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
     media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;

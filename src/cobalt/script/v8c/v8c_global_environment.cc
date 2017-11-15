@@ -21,6 +21,8 @@
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/v8c/v8c_source_code.h"
+#include "cobalt/script/v8c/v8c_user_object_holder.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
 #include "nb/memory_scope.h"
 
 namespace cobalt {
@@ -34,12 +36,9 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
       eval_enabled_(false),
       isolate_(isolate) {
   TRACK_MEMORY_SCOPE("Javascript");
-  v8::Isolate::Scope isolate_scope(isolate_);
-  v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::ObjectTemplate> global_object_template;
-  v8::Local<v8::Context> context =
-      v8::Context::New(isolate_, nullptr, global_object_template);
-  context_.Reset(isolate_, context);
+  wrapper_factory_.reset(new WrapperFactory(this));
+  isolate_->SetData(0, this);
+  DCHECK(isolate_->GetData(0) == this);
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
@@ -49,8 +48,12 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
 void V8cGlobalEnvironment::CreateGlobalObject() {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
-  // TODO: Global object creation happens with context creation in V8.
-  // Strongly consider removing this from the interface.
+
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = v8::Context::New(isolate_);
+  context_.Reset(isolate_, context);
+
   EvaluateAutomatics();
 }
 
@@ -105,12 +108,51 @@ bool V8cGlobalEnvironment::EvaluateScript(
 bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code,
     const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-    base::optional<OpaqueHandleHolder::Reference>* out_opaque_handle) {
+    base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
-  // TODO: Implement this once we have |V8cObjectHandleHolder|.
-  NOTIMPLEMENTED();
-  return false;
+
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope scope(context);
+
+  V8cSourceCode* v8c_source_code =
+      base::polymorphic_downcast<V8cSourceCode*>(source_code.get());
+  const base::SourceLocation& source_location = v8c_source_code->location();
+
+  v8::TryCatch try_catch(isolate_);
+  v8::ScriptOrigin script_origin(
+      v8::String::NewFromUtf8(isolate_, source_location.file_path.c_str(),
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked(),
+      v8::Integer::New(isolate_, source_location.line_number),
+      v8::Integer::New(isolate_, source_location.column_number),
+      v8::Boolean::New(isolate_, !mute_errors));
+  v8::Local<v8::String> source =
+      v8::String::NewFromUtf8(isolate_, v8c_source_code->source_utf8().c_str(),
+                              v8::NewStringType::kNormal)
+          .ToLocalChecked();
+
+  v8::MaybeLocal<v8::Script> maybe_script =
+      v8::Script::Compile(context, source);
+  v8::Local<v8::Script> script;
+  if (!maybe_script.ToLocal(&script)) {
+    return false;
+  }
+
+  v8::MaybeLocal<v8::Value> maybe_result = script->Run(context);
+  v8::Local<v8::Value> result;
+  if (!maybe_result.ToLocal(&result)) {
+    return false;
+  }
+
+  if (out_value_handle) {
+    V8cValueHandleHolder v8c_value_handle_holder(this, result);
+    out_value_handle->emplace(owning_object.get(), v8c_value_handle_holder);
+  }
+
+  return true;
 }
 
 std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
@@ -165,7 +207,22 @@ void V8cGlobalEnvironment::SetReportErrorCallback(
 void V8cGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
   TRACK_MEMORY_SCOPE("Javascript");
-  NOTIMPLEMENTED();
+
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = context_.Get(isolate_);
+  v8::Context::Scope scope(context);
+
+  v8::Local<v8::Object> wrapper = wrapper_factory_->GetWrapper(impl);
+  v8::Local<v8::Object> global_object = context->Global();
+
+  v8::Maybe<bool> set_result = global_object->Set(
+      context,
+      v8::String::NewFromUtf8(isolate_, identifier.c_str(),
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+      wrapper);
+  DCHECK(set_result.FromJust());
 }
 
 ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {

@@ -103,7 +103,10 @@ void SbDrmSystemPlayready::GenerateSessionUpdateRequest(
       License::Create(initialization_data, initialization_data_size);
   const std::string& challenge = license->license_challenge();
   if (challenge.empty()) {
-    SB_NOTREACHED();
+    // Signal an error with |session_id| as NULL.
+    SB_LOG(ERROR) << "Failed to generate license challenge";
+    session_update_request_callback_(this, context_, ticket, NULL, 0, NULL, 0,
+                                     NULL);
     return;
   }
 

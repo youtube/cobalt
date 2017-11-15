@@ -26,7 +26,7 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-// A wrapper around a JS::Value that can be passed into Cobalt as an script
+// A wrapper around a JS::Value that can be passed into Cobalt as a script
 // value object.
 //
 // An ValueHandle is never passed into Cobalt as-is, but only when wrapped as a
@@ -39,9 +39,8 @@ class MozjsValueHandle : public ValueHandle {
   bool WasCollected() const { return handle_.WasCollected(); }
 
  private:
-  MozjsValueHandle(JSContext* context, JS::HandleValue object)
-      : handle_(context, object) {}
-  ~MozjsValueHandle() {}
+  MozjsValueHandle(JSContext* context, JS::HandleValue value)
+      : handle_(context, value) {}
 
   WeakHeapObject handle_;
 

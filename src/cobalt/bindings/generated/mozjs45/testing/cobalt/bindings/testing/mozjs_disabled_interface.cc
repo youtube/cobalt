@@ -24,8 +24,8 @@
 #include "base/debug/trace_event.h"
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/script/global_environment.h"
-#include "cobalt/script/opaque_handle.h"
 #include "cobalt/script/script_value.h"
+#include "cobalt/script/value_handle.h"
 
 #include "mozjs_gen_type_conversion.h"
 
@@ -36,7 +36,6 @@
 #include "cobalt/script/mozjs-45/mozjs_callback_function.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_property_enumerator.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
 #include "cobalt/script/mozjs-45/mozjs_value_handle.h"
@@ -55,10 +54,10 @@ using cobalt::bindings::testing::DisabledInterface;
 using cobalt::bindings::testing::MozjsDisabledInterface;
 using cobalt::script::CallbackInterfaceTraits;
 using cobalt::script::GlobalEnvironment;
-using cobalt::script::OpaqueHandle;
-using cobalt::script::OpaqueHandleHolder;
 using cobalt::script::ScriptValue;
 using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandle;
+using cobalt::script::ValueHandleHolder;
 using cobalt::script::Wrappable;
 
 using cobalt::script::CallbackFunction;
@@ -82,6 +81,7 @@ using cobalt::script::mozjs::kConversionFlagNullable;
 using cobalt::script::mozjs::kConversionFlagRestricted;
 using cobalt::script::mozjs::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::mozjs::kConversionFlagObjectOnly;
 using cobalt::script::mozjs::kNoConversionFlags;
 }  // namespace
 
@@ -509,4 +509,6 @@ namespace {
 }  // namespace testing
 }  // namespace bindings
 }  // namespace cobalt
+
+
 #endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)

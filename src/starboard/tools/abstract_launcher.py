@@ -36,9 +36,8 @@ def GetGypModuleForPlatform(platform):
   Raises:
     RuntimeError:  The specified platform does not exist.
   """
-  platform_dict = platform_module.GetAllPorts()
-  if platform in platform_dict:
-    platform_path = platform_dict[platform]
+  if platform_module.IsValid(platform):
+    platform_path = platform_module.Get(platform).path
     if platform_path not in sys.path:
       sys.path.append(platform_path)
     gyp_module = importlib.import_module("gyp_configuration")
@@ -179,6 +178,10 @@ class AbstractLauncher(object):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
 
+  def SendResume(self):
+    """Sends resume signal to the launcher's executable."""
+    raise RuntimeError("Resume not supported for this platform.")
+
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
     return self.startup_timeout_seconds
@@ -214,3 +217,7 @@ class AbstractLauncher(object):
       out_directory = DynamicallyBuildOutDirectory(self.platform, self.config)
 
     return os.path.abspath(os.path.join(out_directory, self.target_name))
+
+  def _CloseOutputFile(self):
+    if self.output_file != sys.stdout and not self.output_file.closed:
+      self.output_file.close()

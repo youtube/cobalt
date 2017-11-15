@@ -16,12 +16,12 @@
 import imp
 import os
 
-import config.starboard
+import config.base
 import gyp_utils
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.testing import test_filter
 
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Linux platform configuration."""
 
   def __init__(self,
@@ -81,7 +81,7 @@ class PlatformConfig(config.starboard.PlatformConfigStarboard):
         test_filter.TestFilter(
             'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
         test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
+            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
         test_filter.TestFilter(

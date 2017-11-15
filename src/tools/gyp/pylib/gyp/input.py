@@ -25,6 +25,9 @@ import time
 from gyp.common import GypError
 
 
+_DEBUG_DEPTH = False
+
+
 # A list of types that are treated as linkable.
 linkable_types = ['executable', 'shared_library', 'loadable_module']
 
@@ -212,7 +215,7 @@ def CheckNode(node, keypath):
 
 
 def LoadOneBuildFile(build_file_path, data, aux_data, variables, includes,
-                     is_target, check):
+                     is_target, depth, check):
   if build_file_path in data:
     return data[build_file_path]
 
@@ -242,10 +245,10 @@ def LoadOneBuildFile(build_file_path, data, aux_data, variables, includes,
   try:
     if is_target:
       LoadBuildFileIncludesIntoDict(build_file_data, build_file_path, data,
-                                    aux_data, variables, includes, check)
+                                    aux_data, variables, includes, depth, check)
     else:
       LoadBuildFileIncludesIntoDict(build_file_data, build_file_path, data,
-                                    aux_data, variables, None, check)
+                                    aux_data, variables, None, depth, check)
   except Exception, e:
     gyp.common.ExceptionAppend(e,
                                'while reading includes of ' + build_file_path)
@@ -255,7 +258,7 @@ def LoadOneBuildFile(build_file_path, data, aux_data, variables, includes,
 
 
 def LoadBuildFileIncludesIntoDict(subdict, subdict_path, data, aux_data,
-                                  variables, includes, check):
+                                  variables, includes, depth, check):
   includes_list = []
   if includes != None:
     includes_list.extend(includes)
@@ -280,31 +283,34 @@ def LoadBuildFileIncludesIntoDict(subdict, subdict_path, data, aux_data,
 
     gyp.DebugOutput(gyp.DEBUG_INCLUDES, "Loading Included File: '%s'" % include)
 
+    old_depth_source = variables['__DEPTH_SOURCE__']
+    _UpdateDepth(depth, include, variables)
     MergeDicts(subdict,
-               LoadOneBuildFile(include, data, aux_data, variables, None,
-                                False, check),
+               LoadOneBuildFile(include, data, aux_data, variables,
+                                None, False, depth, check),
                subdict_path, include)
+    _UpdateDepth(depth, old_depth_source, variables)
 
   # Recurse into subdictionaries.
   for k, v in subdict.iteritems():
     if v.__class__ == dict:
       LoadBuildFileIncludesIntoDict(v, subdict_path, data, aux_data, variables,
-                                    None, check)
+                                    None, depth, check)
     elif v.__class__ == list:
       LoadBuildFileIncludesIntoList(v, subdict_path, data, aux_data, variables,
-                                    check)
+                                    depth, check)
 
 
 # This recurses into lists so that it can look for dicts.
 def LoadBuildFileIncludesIntoList(sublist, sublist_path, data, aux_data,
-                                  variables, check):
+                                  variables, depth, check):
   for item in sublist:
     if item.__class__ == dict:
       LoadBuildFileIncludesIntoDict(item, sublist_path, data, aux_data,
-                                    variables, None, check)
+                                    variables, None, depth, check)
     elif item.__class__ == list:
       LoadBuildFileIncludesIntoList(item, sublist_path, data, aux_data,
-                                    variables, check)
+                                    variables, depth, check)
 
 # Processes toolsets in all the targets. This recurses into condition entries
 # since they can contain toolsets as well.
@@ -341,11 +347,7 @@ def ProcessToolsetsInDict(data):
           ProcessToolsetsInDict(condition_dict)
 
 
-# TODO(mark): I don't love this name.  It just means that it's going to load
-# a build file that contains targets and is expected to provide a targets dict
-# that contains the targets...
-def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
-                        depth, check, load_dependencies):
+def _UpdateDepth(depth, build_file_path, variables):
   # If depth is set, predefine the DEPTH variable to be a relative path from
   # this build file's directory to the directory identified by depth.
   if depth:
@@ -357,6 +359,20 @@ def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
       variables['DEPTH'] = '.'
     else:
       variables['DEPTH'] = d.replace('\\', '/')
+    variables['__DEPTH_SOURCE__'] = build_file_path
+    if _DEBUG_DEPTH:
+      print '%s: %s -> DEPTH, %s -> __DEPTH_SOURCE__' % (
+          os.path.basename(build_file_path),
+          variables['DEPTH'],
+          os.path.basename(variables['__DEPTH_SOURCE__']))
+
+
+# TODO(mark): I don't love this name.  It just means that it's going to load
+# a build file that contains targets and is expected to provide a targets dict
+# that contains the targets...
+def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
+                        depth, check, load_dependencies):
+  _UpdateDepth(depth, build_file_path, variables)
 
   # If the generator needs absolue paths, then do so.
   if absolute_build_file_paths:
@@ -371,7 +387,7 @@ def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
                   "Loading Target Build File '%s'" % build_file_path)
 
   build_file_data = LoadOneBuildFile(build_file_path, data, aux_data, variables,
-                                     includes, True, check)
+                                     includes, True, depth, check)
 
   # Store DEPTH for later use in generators.
   build_file_data['_DEPTH'] = depth
@@ -938,7 +954,14 @@ def ExpandVariables(input, phase, variables, build_file):
                          ' in ' + build_file)
       else:
         replacement = variables[contents]
-
+    if _DEBUG_DEPTH:
+      if build_file != variables['__DEPTH_SOURCE__']:
+        print '%s != %s' % (build_file, variables['__DEPTH_SOURCE__'])
+      print '%s(%s): %s -> %s' % (
+          os.path.basename(build_file),
+          os.path.basename(variables['__DEPTH_SOURCE__']),
+          contents,
+          replacement)
     if isinstance(replacement, list):
       for item in replacement:
         if (not contents[-1] == '/' and

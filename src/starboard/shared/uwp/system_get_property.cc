@@ -18,6 +18,7 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/uwp/application_uwp.h"
+#include "starboard/shared/uwp/private/keys.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
 
@@ -78,12 +79,15 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
   }
 
   using sbwin32::platformStringToString;
+  using starboard::shared::uwp::SpeechApiKey;
 
   switch (property_id) {
     case kSbSystemPropertyChipsetModelNumber:
     case kSbSystemPropertyModelYear:
     case kSbSystemPropertyNetworkOperatorName:
     case kSbSystemPropertySpeechApiKey:
+      CopyStringAndTestIfSuccess(out_value, value_length, SpeechApiKey());
+      return true;
     case kSbSystemPropertyUserAgentAuxField:
       return false;
     case kSbSystemPropertyBrandName: {

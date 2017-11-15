@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_SCOPE_H_
 #define COBALT_SCRIPT_SCOPE_H_
 
@@ -19,7 +20,7 @@
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
-#include "cobalt/script/opaque_handle.h"
+#include "cobalt/script/value_handle.h"
 
 namespace cobalt {
 namespace script {
@@ -42,7 +43,7 @@ class Scope {
 
   // An opaque handle to the underlying JavaScript object encapsulating the
   // scope.
-  virtual const OpaqueHandleHolder* GetObject() = 0;
+  virtual const ValueHandleHolder* GetObject() = 0;
 
   // The type of the scope object. One of the enumerated values in |Type|.
   // Devtools expects a string, which can be obtained from the

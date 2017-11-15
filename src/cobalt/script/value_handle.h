@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_VALUE_HANDLE_H_
 #define COBALT_SCRIPT_VALUE_HANDLE_H_
 
@@ -19,8 +20,9 @@
 namespace cobalt {
 namespace script {
 
-// A handle to a script value that is managed by the JavaScript Engine. This is
-// not required to be a Javascript Object, unlike OpaqueHandle.
+// A handle to a script value that is managed by the JavaScript engine. Note
+// that this can be any JavaScript Value type (null, undefined, Boolean,
+// Number, String, Object, and Symbol), rather than just Object.
 class ValueHandle {
  protected:
   ValueHandle() {}

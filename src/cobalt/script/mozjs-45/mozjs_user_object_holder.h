@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_USER_OBJECT_HOLDER_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_USER_OBJECT_HOLDER_H_
 
@@ -44,11 +45,6 @@ class MozjsUserObjectHolder
 
   MozjsUserObjectHolder()
       : context_(NULL),
-        prevent_garbage_collection_count_(0) {}
-
-  MozjsUserObjectHolder(JSContext* context, JS::HandleObject object)
-      : context_(context),
-        handle_(MozjsUserObjectType(context, object)),
         prevent_garbage_collection_count_(0) {}
 
   MozjsUserObjectHolder(JSContext* context, JS::HandleValue value)
@@ -97,7 +93,7 @@ class MozjsUserObjectHolder
     }
   }
 
-  void AllowGarbageCollection() {
+  void AllowGarbageCollection() OVERRIDE {
     if (--prevent_garbage_collection_count_ == 0 && handle_) {
       JSAutoRequest auto_request(context_);
       persistent_root_ = base::nullopt;

@@ -30,8 +30,6 @@ class MozjsCallbackInterfaceHolder
  public:
   typedef MozjsUserObjectHolder<MozjsCallbackInterface> BaseClass;
   MozjsCallbackInterfaceHolder() {}
-  MozjsCallbackInterfaceHolder(JSContext* context, JS::HandleObject object)
-      : BaseClass(context, object) {}
   MozjsCallbackInterfaceHolder(JSContext* context, JS::HandleValue value)
       : BaseClass(context, value) {}
 };

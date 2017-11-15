@@ -104,10 +104,8 @@ std::vector<ComPtr<IMFMediaType>> FilterMediaBySubType(
 
 HRESULT CreateDecoderTransform(const GUID& decoder_guid,
                                ComPtr<IMFTransform>* transform) {
-  LPVOID* ptr_address = reinterpret_cast<LPVOID*>(transform->GetAddressOf());
-  HRESULT hr = CoCreateInstance(decoder_guid, NULL, CLSCTX_INPROC_SERVER,
-                                IID_IMFTransform, ptr_address);
-  return hr;
+  return CoCreateInstance(decoder_guid, NULL, CLSCTX_INPROC_SERVER,
+                          IID_PPV_ARGS(transform->GetAddressOf()));
 }
 
 }  // namespace win32

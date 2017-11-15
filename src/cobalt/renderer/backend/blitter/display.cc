@@ -40,6 +40,8 @@ class DisplayRenderTargetBlitter : public RenderTargetBlitter {
 
   void Flip() OVERRIDE;
 
+  bool CreationError() OVERRIDE { return false; }
+
  private:
   ~DisplayRenderTargetBlitter() OVERRIDE;
 

@@ -194,6 +194,9 @@ def get_conversion_flags(idl_type, extended_attributes):
   if extended_attributes.has_key('Clamp'):
     flags.append('kConversionFlagClamped')
 
+  if is_object_type(idl_type):
+    flags.append('kConversionFlagObjectOnly')
+
   if flags:
     return '(%s)' % ' | '.join(flags)
   else:
@@ -264,7 +267,7 @@ class ContextBuilder(object):
     elif idl_type.name == 'void':
       cobalt_type = 'void'
     elif is_object_type(idl_type):
-      cobalt_type = '::cobalt::script::OpaqueHandle'
+      cobalt_type = '::cobalt::script::ValueHandle'
     elif is_any_type(idl_type):
       cobalt_type = '::cobalt::script::ValueHandle'
     elif idl_type.is_dictionary:
@@ -545,7 +548,8 @@ class ContextBuilder(object):
     # Get the method contexts for all operations.
     methods = [
         self.method_context(interface, operation)
-        for operation in interface.operations if operation.name
+        for operation in interface.operations
+        if operation.name
     ]
 
     # Create overload sets for static and non-static methods seperately.

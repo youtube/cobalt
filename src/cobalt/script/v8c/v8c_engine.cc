@@ -33,9 +33,6 @@ namespace script {
 namespace v8c {
 namespace {
 
-// Trigger garbage collection this many seconds after the last one.
-const int kGarbageCollectionIntervalSeconds = 60;
-
 SbOnceControl g_js_init_once_control = SB_ONCE_INITIALIZER;
 v8::Platform* g_platform = nullptr;
 v8::ArrayBuffer::Allocator* g_array_buffer_allocator = nullptr;
@@ -78,16 +75,20 @@ V8cEngine::V8cEngine(const Options& options)
   isolate_ = v8::Isolate::New(params);
   CHECK(isolate_);
 
-  if (MessageLoop::current()) {
-    gc_timer_.Start(
-        FROM_HERE,
-        base::TimeDelta::FromSeconds(kGarbageCollectionIntervalSeconds), this,
-        &V8cEngine::TimerGarbageCollect);
-  }
+  DCHECK(v8::Isolate::GetNumberOfDataSlots() >= 1);
 }
 
 V8cEngine::~V8cEngine() {
+  TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // Send a low memory notification to V8 in order to force a garbage
+  // collection before shut down.  This is required to run weak callbacks that
+  // are responsible for freeing native objects that live in the internal
+  // fields of V8 objects.  In the future, we should consider investigating if
+  // there are startup performance wins to be made by delaying this work until
+  // later (e.g., does the GC of the splash screen web module dying hurt us?).
+  isolate_->LowMemoryNotification();
   isolate_->Dispose();
   isolate_ = nullptr;
 }
@@ -122,11 +123,6 @@ bool V8cEngine::RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) {
 }
 
 void V8cEngine::SetGcThreshold(int64_t bytes) { NOTIMPLEMENTED(); }
-
-void V8cEngine::TimerGarbageCollect() {
-  TRACE_EVENT0("cobalt::script", "V8cEngine::TimerGarbageCollect()");
-  CollectGarbage();
-}
 
 }  // namespace v8c
 

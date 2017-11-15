@@ -20,7 +20,6 @@
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
-#include "starboard/shared/win32/video_transform.h"
 
 namespace starboard {
 namespace shared {
@@ -46,9 +45,7 @@ MediaTransform::MediaTransform(CLSID clsid)
       state_(kCanAcceptInput),
       stream_begun_(false),
       discontinuity_(true) {
-  LPVOID* ptr_address = reinterpret_cast<LPVOID*>(transform_.GetAddressOf());
-  HRESULT hr = CoCreateInstance(clsid, NULL, CLSCTX_INPROC_SERVER,
-                                IID_IMFTransform, ptr_address);
+  HRESULT hr = CreateDecoderTransform(clsid, &transform_);
   CheckResult(hr);
 }
 
@@ -81,6 +78,9 @@ bool MediaTransform::TryWrite(const ComPtr<IMFSample>& input) {
     return true;
   }
   if (hr == MF_E_NOTACCEPTING) {
+    // NOTE: Some transforms may never return MF_E_NOTACCEPTING, so TryRead
+    // should be allowed to try retrieving an output sample while |state_| is
+    // kCanAcceptInput.
     state_ = kCanProvideOutput;
     return false;
   }
@@ -92,7 +92,7 @@ ComPtr<IMFSample> MediaTransform::TryRead(ComPtr<IMFMediaType>* new_type) {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   SB_DCHECK(new_type);
 
-  if (state_ != kCanProvideOutput && state_ != kDraining) {
+  if (state_ == kDrained) {
     return NULL;
   }
 
@@ -276,11 +276,12 @@ void MediaTransform::SendMessage(MFT_MESSAGE_TYPE msg, ULONG_PTR data /*= 0*/) {
 }
 
 void MediaTransform::Reset() {
-  SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
-  thread_checker_.Detach();
+  if (stream_begun_) {
+    SendMessage(MFT_MESSAGE_COMMAND_FLUSH);
+  }
   state_ = kCanAcceptInput;
-  stream_begun_ = false;
   discontinuity_ = true;
+  thread_checker_.Detach();
 }
 
 void MediaTransform::PrepareOutputDataBuffer(

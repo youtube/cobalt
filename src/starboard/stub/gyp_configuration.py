@@ -15,7 +15,7 @@
 
 import logging
 
-import config.starboard
+import config.base
 import gyp_utils
 
 
@@ -27,7 +27,7 @@ def CreatePlatformConfig():
     return None
 
 
-class PlatformConfig(config.starboard.PlatformConfigStarboard):
+class PlatformConfig(config.base.PlatformConfigBase):
   """Starboard stub platform configuration."""
 
   def __init__(self, platform):

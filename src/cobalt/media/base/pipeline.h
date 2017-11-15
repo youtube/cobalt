@@ -31,16 +31,8 @@
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
 
-#if SB_HAS(PLAYER)
-#define COBALT_USE_SBPLAYER_PIPELINE
-#endif  // SB_HAS(PLAYER)
-
-#if defined(COBALT_USE_SBPLAYER_PIPELINE)
 #include "starboard/window.h"
 typedef SbWindow PipelineWindow;
-#else   // defined(COBALT_USE_SBPLAYER_PIPELINE)
-typedef void* PipelineWindow;
-#endif  // defined(COBALT_USE_SBPLAYER_PIPELINE)
 
 namespace cobalt {
 namespace media {
@@ -133,7 +125,8 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
                      const PipelineStatusCB& seek_cb,
                      const BufferingStateCB& buffering_state_cb,
                      const base::Closure& duration_change_cb,
-                     const base::Closure& output_mode_change_cb) = 0;
+                     const base::Closure& output_mode_change_cb,
+                     const base::Closure& content_size_change_cb) = 0;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.

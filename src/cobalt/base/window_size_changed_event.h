@@ -17,6 +17,7 @@
 
 #include "cobalt/base/event.h"
 #include "starboard/event.h"
+#include "starboard/window.h"
 
 namespace base {
 

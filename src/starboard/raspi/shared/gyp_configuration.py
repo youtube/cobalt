@@ -17,12 +17,12 @@ import logging
 import os
 import sys
 
-import config.starboard
+import config.base
 import gyp_utils
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.testing import test_filter
 
 
-class RaspiPlatformConfig(config.starboard.PlatformConfigStarboard):
+class RaspiPlatformConfig(config.base.PlatformConfigBase):
   """Starboard Raspberry Pi platform configuration."""
 
   def __init__(self, platform):

@@ -69,6 +69,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void set_src(const std::string& src);
   const std::string& current_src() const { return current_src_; }
 
+  base::optional<std::string> cross_origin() const;
+  void set_cross_origin(const base::optional<std::string>& value);
+
   enum NetworkState {
     kNetworkEmpty,
     kNetworkIdle,
@@ -152,6 +155,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // From Node
   void OnInsertedIntoDocument() OVERRIDE;
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
 #if defined(COBALT_MEDIA_SOURCE_2016)
   // Called by MediaSource
   void DurationChanged(double duration, bool request_seek);
@@ -234,6 +239,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void TimeChanged(bool eos_played) OVERRIDE;
   void DurationChanged() OVERRIDE;
   void OutputModeChanged() OVERRIDE;
+  void ContentSizeChanged() OVERRIDE;
   void PlaybackStateChanged() OVERRIDE;
   void SawUnsupportedTracks() OVERRIDE;
   float Volume() const OVERRIDE;
@@ -327,6 +333,8 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
 #if defined(COBALT_MEDIA_SOURCE_2016)
   scoped_refptr<eme::MediaKeys> media_keys_;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+
+  loader::RequestMode request_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(HTMLMediaElement);
 };

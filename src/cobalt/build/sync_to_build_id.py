@@ -86,8 +86,11 @@ def main():
       description="Syncs to a given Cobalt build id")
   arg_parser.add_argument("buildid", nargs=1)
   args = arg_parser.parse_args()
-  r = requests.get(_BUILD_ID_QUERY_URL,
-                   params={_BUILD_ID_QUERY_PARAMETER_NAME: args.buildid[0]})
+  r = requests.get(
+      _BUILD_ID_QUERY_URL,
+      params={
+          _BUILD_ID_QUERY_PARAMETER_NAME: args.buildid[0]
+      })
   if not r.ok:
     print(
         "HTTP request failed\n{0} {1}\n{2}".format(r.status_code, r.reason,
@@ -101,10 +104,15 @@ def main():
 
   for relpath, rep_hash in hashes.iteritems():
     path = os.path.join(gclient_root, relpath)
-    is_dirty = (bool(
-        _RunGitCommandReturnExitCode(
-            ["diff", "--no-ext-diff", "--quiet"], cwd=path, stderr=dev_null)[0])
-                or bool(
+    if not os.path.exists(path):
+      # No warning in this case, we will attempt to clone the repository in
+      # the next pass through the repos.
+      continue
+    is_dirty = (
+        bool(
+            _RunGitCommandReturnExitCode(
+                ["diff", "--no-ext-diff", "--quiet"], cwd=path,
+                stderr=dev_null)[0]) or bool(
                     _RunGitCommandReturnExitCode(
                         ["diff", "--no-ext-diff", "--quiet", "--cached"],
                         cwd=path,
@@ -116,10 +124,22 @@ def main():
 
   for relpath, rep_hash in hashes.iteritems():
     path = os.path.join(gclient_root, relpath)
+
     # repo_hash has a repo path prefix like this:
     # 'https://chromium.googlesource.com/chromium/llvm-project/libcxx.git
     # @48198f9110397fff47fe7c37cbfa296be7d44d3d'
-    requested_hash = rep_hash[rep_hash.rindex("@") + 1:]
+    (requested_repo, requested_hash) = rep_hash.split("@")
+
+    if not os.path.exists(path):
+      print("Missing path {0}, cloning from {1}.".format(path, requested_repo))
+      try:
+        # The clone command will create all missing directories leading to the
+        # path.  If the clone is successful, we continue on as usual and let
+        # the subsequent logic here checkout the appropriate git hash.
+        _RunGitCommand(["clone", "-q", requested_repo, path])
+      except SubprocessFailedException:
+        print("There was an error cloning the repository.")
+        continue
 
     current_hash = _RunGitCommand(["rev-parse", "HEAD"], cwd=path)[0]
 

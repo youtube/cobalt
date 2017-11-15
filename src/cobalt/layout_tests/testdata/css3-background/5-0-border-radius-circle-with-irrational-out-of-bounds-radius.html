@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<!--
+ | Setting the border radius in a funny way to catch a regression where our
+ | rounded corner normalization logic was returning false on
+ | IsNormalized(my_rounded_rect.Normalize()), because of floating point error.
+ -->
+<html>
+<head>
+  <style>
+    div {
+      border-radius: 66.666666px;
+      background-color: rgb(1, 1, 0);
+      height: 6.141px;
+      width: 6.141px;
+    }
+  </style>
+</head>
+<body>
+  <div></div>
+</body>
+</html>

@@ -41,8 +41,6 @@ class V8cEngine : public JavaScriptEngine {
   v8::Isolate* isolate() const { return isolate_; }
 
  private:
-  void TimerGarbageCollect();
-
   base::ThreadChecker thread_checker_;
 
   // An isolated instance of the V8 engine.
@@ -50,9 +48,6 @@ class V8cEngine : public JavaScriptEngine {
 
   // The amount of externally allocated memory since last forced GC.
   size_t accumulated_extra_memory_cost_;
-
-  // Used to trigger a garbage collection periodically.
-  base::RepeatingTimer<V8cEngine> gc_timer_;
 
   // Used to handle javascript errors.
   ErrorHandler error_handler_;

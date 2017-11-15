@@ -11,6 +11,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_EXCEPTION_STATE_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_EXCEPTION_STATE_H_
 
@@ -34,6 +35,19 @@ class MozjsExceptionState : public ExceptionState {
                             va_list arguments) OVERRIDE;
 
   bool is_exception_set() const { return is_exception_set_; }
+
+  // For when a Cobalt operation that is expected to modify an
+  // |ExceptionState| to communicate failure performs operations that can
+  // potentially cause an exception to be thrown by SpiderMonkey, and we want
+  // to reuse that exception instead of creating our own (which also likely
+  // would not be able to match the descriptiveness of the SpiderMonkey
+  // exception).
+  void SetExceptionAlreadySet(JSContext* context) {
+    DCHECK(thread_checker_.CalledOnValidThread());
+    DCHECK(!is_exception_set_);
+    DCHECK(JS_IsExceptionPending(context));
+    is_exception_set_ = true;
+  }
 
   static JSObject* CreateErrorObject(JSContext* context,
                                      SimpleExceptionType type);

@@ -15,9 +15,13 @@
 #include "starboard/directory.h"
 
 #include "starboard/shared/win32/directory_internal.h"
+#include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
+  using starboard::shared::win32::CStringToWString;
+  using starboard::shared::win32::NormalizeWin32Path;
+
   if ((path == nullptr) || (path[0] == '\0')) {
     if (out_error) {
       *out_error = kSbFileErrorNotFound;
@@ -25,7 +29,7 @@ SbDirectory SbDirectoryOpen(const char* path, SbFileError* out_error) {
     return kSbDirectoryInvalid;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
+  std::wstring path_wstring = NormalizeWin32Path(path);
 
   if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
     if (out_error) {

@@ -20,8 +20,8 @@
 #define COBALT_SCRIPT_MOZJS_45_UNION_TYPE_CONVERSION_FORWARD_H_
 
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
-#include "cobalt/script/mozjs-45/mozjs_object_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/union_type.h"
 

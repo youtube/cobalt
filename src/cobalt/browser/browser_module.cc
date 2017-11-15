@@ -38,6 +38,8 @@
 #include "cobalt/browser/switches.h"
 #include "cobalt/browser/webapi_extension.h"
 #include "cobalt/dom/csp_delegate_factory.h"
+#include "cobalt/dom/input_event_init.h"
+#include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/keycode.h"
 #include "cobalt/dom/mutation_observer_task_manager.h"
 #include "cobalt/dom/window.h"
@@ -345,7 +347,8 @@ BrowserModule::BrowserModule(const GURL& url,
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      options_.web_module_options.javascript_engine_options));
+      options_.web_module_options.javascript_engine_options,
+      base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this))));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -438,7 +441,8 @@ void BrowserModule::Navigate(const GURL& url) {
           &network_module_, viewport_size, GetResourceProvider(),
           kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
           splash_screen_cache_.get(),
-          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
+          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_),
+          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this))));
       lifecycle_observers_.AddObserver(splash_screen_.get());
     }
   }
@@ -485,6 +489,7 @@ void BrowserModule::Navigate(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
+      base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), &network_module_,
       viewport_size, video_pixel_ratio, GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz, options));
@@ -724,6 +729,22 @@ void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
 }
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void BrowserModule::OnOnScreenKeyboardShown() {
+  // Only inject shown events to the main WebModule.
+  if (web_module_) {
+    web_module_->InjectOnScreenKeyboardShownEvent();
+  }
+}
+
+void BrowserModule::OnOnScreenKeyboardHidden() {
+  // Only inject hidden events to the main WebModule.
+  if (web_module_) {
+    web_module_->InjectOnScreenKeyboardHiddenEvent();
+  }
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 #if defined(ENABLE_DEBUG_CONSOLE)
 void BrowserModule::OnFuzzerToggle(const std::string& message) {
   if (MessageLoop::current() != self_message_loop_) {
@@ -802,6 +823,33 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void BrowserModule::OnOnScreenKeyboardInputEventProduced(
+    base::Token type, const dom::InputEventInit& event) {
+  TRACE_EVENT0("cobalt::browser",
+               "BrowserModule::OnOnScreenKeyboardInputEventProduced()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
+                   weak_this_, type, event));
+    return;
+  }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  // If the debug console is fully visible, it gets the next chance to handle
+  // input events.
+  if (debug_console_->GetMode() >= debug::DebugHub::kDebugConsoleOn) {
+    if (!debug_console_->InjectOnScreenKeyboardInputEvent(type, event)) {
+      return;
+    }
+  }
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  InjectOnScreenKeyboardInputEventToMainWebModule(type, event);
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 void BrowserModule::OnKeyEventProduced(base::Token type,
                                        const dom::KeyboardEventInit& event) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnKeyEventProduced()");
@@ -874,6 +922,30 @@ void BrowserModule::InjectKeyEventToMainWebModule(
   DCHECK(web_module_);
   web_module_->InjectKeyboardEvent(type, event);
 }
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule(
+    base::Token type, const dom::InputEventInit& event) {
+  TRACE_EVENT0(
+      "cobalt::browser",
+      "BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule()");
+  if (MessageLoop::current() != self_message_loop_) {
+    self_message_loop_->PostTask(
+        FROM_HERE,
+        base::Bind(
+            &BrowserModule::InjectOnScreenKeyboardInputEventToMainWebModule,
+            weak_this_, type, event));
+    return;
+  }
+
+#if defined(ENABLE_DEBUG_CONSOLE)
+  trace_manager_.OnInputEventProduced();
+#endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  DCHECK(web_module_);
+  web_module_->InjectOnScreenKeyboardInputEvent(type, event);
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void BrowserModule::OnError(const GURL& url, const std::string& error) {
   TRACE_EVENT0("cobalt::browser", "BrowserModule::OnError()");
@@ -1228,21 +1300,25 @@ void BrowserModule::InitializeSystemWindow() {
   DCHECK(!system_window_);
   system_window_.reset(new system_window::SystemWindow(
       event_dispatcher_, options_.requested_viewport_size));
-
   auto_mem_.reset(new memory_settings::AutoMem(
       GetViewportSize(), options_.command_line_auto_mem_settings,
       options_.build_auto_mem_settings));
   ApplyAutoMemSettings();
 
-  input_device_manager_ = input::InputDeviceManager::CreateFromWindow(
-                              base::Bind(&BrowserModule::OnKeyEventProduced,
-                                         base::Unretained(this)),
-                              base::Bind(&BrowserModule::OnPointerEventProduced,
-                                         base::Unretained(this)),
-                              base::Bind(&BrowserModule::OnWheelEventProduced,
-                                         base::Unretained(this)),
-                              system_window_.get())
-                              .Pass();
+  input_device_manager_ =
+      input::InputDeviceManager::CreateFromWindow(
+          base::Bind(&BrowserModule::OnKeyEventProduced,
+                     base::Unretained(this)),
+          base::Bind(&BrowserModule::OnPointerEventProduced,
+                     base::Unretained(this)),
+          base::Bind(&BrowserModule::OnWheelEventProduced,
+                     base::Unretained(this)),
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+          base::Bind(&BrowserModule::OnOnScreenKeyboardInputEventProduced,
+                     base::Unretained(this)),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+          system_window_.get())
+          .Pass();
   InstantiateRendererModule();
 
   media_module_ =

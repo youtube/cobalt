@@ -57,6 +57,8 @@ class SourceBufferList : public EventTarget {
   bool Remove(const scoped_refptr<SourceBuffer>& source_buffer);
   void Clear();
 
+  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+
   DEFINE_WRAPPABLE_TYPE(SourceBufferList);
 
  private:

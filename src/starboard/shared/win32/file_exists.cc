@@ -20,22 +20,33 @@
 #include "starboard/shared/win32/wchar_utils.h"
 
 bool SbFileExists(const char* path) {
+  using starboard::shared::win32::CStringToWString;
+  using starboard::shared::win32::IsValidHandle;
+  using starboard::shared::win32::NormalizeWin32Path;
+  using starboard::shared::win32::PathEndsWith;
+
   if ((path == nullptr) || (path[0] == '\0')) {
     return false;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
+  std::wstring path_wstring = NormalizeWin32Path(path);
+  // Win32 does not like a trailing "\\" on the path names for directories,
+  // so it's needs to be chopped off.
+  if (!path_wstring.empty() && (path_wstring.back() == '\\')) {
+    path_wstring.pop_back();
+  }
+
   WIN32_FIND_DATA find_data = {0};
 
   HANDLE search_handle = FindFirstFileExW(
       path_wstring.c_str(), FindExInfoStandard, &find_data,
       FindExSearchNameMatch, NULL, FIND_FIRST_EX_CASE_SENSITIVE);
 
-  if (!starboard::shared::win32::IsValidHandle(search_handle)) {
+  if (!IsValidHandle(search_handle)) {
     return false;
   }
 
   FindClose(search_handle);
 
-  return starboard::shared::win32::PathEndsWith(path_wstring, find_data.cFileName);
+  return PathEndsWith(path_wstring, find_data.cFileName);
 }

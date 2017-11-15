@@ -15,21 +15,26 @@
 #include "starboard/directory.h"
 
 #include <windows.h>
-
 #include <algorithm>
 
 #include "starboard/shared/win32/directory_internal.h"
+#include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 bool SbDirectoryCanOpen(const char* path) {
+  using starboard::shared::win32::IsAbsolutePath;
+  using starboard::shared::win32::IsValidHandle;
+  using starboard::shared::win32::NormalizeWin32Path;
+  using starboard::shared::win32::TrimExtraFileSeparators;
+
   if ((path == nullptr) || (path[0] == '\0')) {
     return false;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
-  starboard::shared::win32::TrimExtraFileSeparators(&path_wstring);
+  std::wstring path_wstring = NormalizeWin32Path(path);
+  TrimExtraFileSeparators(&path_wstring);
 
-  if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
+  if (!IsAbsolutePath(path_wstring)) {
     return false;
   }
 
@@ -38,7 +43,7 @@ bool SbDirectoryCanOpen(const char* path) {
   HANDLE search_handle = FindFirstFileExW(
       path_wstring.c_str(), FindExInfoStandard, &find_data,
       FindExSearchNameMatch, NULL, FIND_FIRST_EX_CASE_SENSITIVE);
-  if (!starboard::shared::win32::IsValidHandle(search_handle)) {
+  if (!IsValidHandle(search_handle)) {
     return false;
   }
 

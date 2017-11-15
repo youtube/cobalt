@@ -15,7 +15,7 @@
 
 import logging
 
-import config.starboard
+import config.base
 
 
 def CreatePlatformConfig():
@@ -26,7 +26,7 @@ def CreatePlatformConfig():
     return None
 
 
-class _PlatformConfig(config.starboard.PlatformConfigStarboard):
+class _PlatformConfig(config.base.PlatformConfigBase):
   """Starboard Tizen Armv7l platform configuration."""
 
   def __init__(self, platform):

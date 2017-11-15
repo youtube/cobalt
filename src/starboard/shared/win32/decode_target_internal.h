@@ -15,19 +15,53 @@
 #ifndef STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_
 #define STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_
 
-#include "starboard/common/ref_counted.h"
+#include <D3d11_1.h>
+#include <mfidl.h>
+#include <wrl/client.h>
+
+#include "starboard/atomic.h"
 #include "starboard/decode_target.h"
-#include "starboard/shared/win32/media_common.h"
 
 struct SbDecodeTargetPrivate {
+  template <typename T>
+  using ComPtr = Microsoft::WRL::ComPtr<T>;
+
+  SbAtomic32 refcount;
+
   // Publicly accessible information about the decode target.
   SbDecodeTargetInfo info;
-  ::starboard::shared::win32::VideoFramePtr frame;
+
+  ComPtr<ID3D11Texture2D> d3d_texture;
+
   // EGLSurface is defined as void* in "third_party/angle/include/EGL/egl.h".
   // Use void* directly here to avoid `egl.h` being included broadly.
   void* surface[2];
-  explicit SbDecodeTargetPrivate(starboard::shared::win32::VideoFramePtr frame);
+
+  SbDecodeTargetPrivate(
+      const ComPtr<ID3D11Device>& d3d_device,
+      const ComPtr<ID3D11VideoDevice1>& video_device,
+      const ComPtr<ID3D11VideoContext>& video_context,
+      const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+      const ComPtr<ID3D11VideoProcessor>& video_processor,
+      const ComPtr<IMFSample>& video_sample,
+      const RECT& video_area);
   ~SbDecodeTargetPrivate();
+
+  // Update the existing texture with the given video_sample's data.
+  // If the current object is not compatible with the new video_sample, then
+  // this will return false, and the caller should just create a new
+  // decode target for the sample.
+  bool Update(
+      const ComPtr<ID3D11Device>& d3d_device,
+      const ComPtr<ID3D11VideoDevice1>& video_device,
+      const ComPtr<ID3D11VideoContext>& video_context,
+      const ComPtr<ID3D11VideoProcessorEnumerator>& video_enumerator,
+      const ComPtr<ID3D11VideoProcessor>& video_processor,
+      const ComPtr<IMFSample>& video_sample,
+      const RECT& video_area);
+
+  void AddRef();
+  void Release();
 };
 
 #endif  // STARBOARD_SHARED_WIN32_DECODE_TARGET_INTERNAL_H_

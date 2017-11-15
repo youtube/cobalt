@@ -35,11 +35,17 @@
 #include "cobalt/script/value_handle.h"
 #include "cobalt/script/wrappable.h"
 #include "nb/pointer_arithmetic.h"
+#include "starboard/window.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
 namespace dom {
+namespace {
+// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
+// on screen keyboard.
+SbWindow GetNullSbWindow() { return NULL; }
+}  // namespace
 
 using ::cobalt::script::testing::FakeScriptValue;
 
@@ -63,14 +69,16 @@ class CustomEventTest : public ::testing::Test {
             1920, 1080, 1.f, base::kApplicationStateStarted, css_parser_.get(),
             dom_parser_.get(), fetcher_factory_.get(), NULL, NULL, NULL, NULL,
             NULL, NULL, &local_storage_database_, NULL, NULL, NULL, NULL, NULL,
-            NULL, NULL, url_, "", "en-US", base::Callback<void(const GURL&)>(),
+            NULL, NULL, url_, "", "en-US", "en",
+            base::Callback<void(const GURL&)>(),
             base::Bind(&MockErrorCallback::Run,
                        base::Unretained(&mock_error_callback_)),
             NULL, network_bridge::PostSender(), csp::kCSPRequired,
             kCspEnforcementEnable, base::Closure() /* csp_policy_changed */,
             base::Closure() /* ran_animation_frame_callbacks */,
             dom::Window::CloseCallback() /* window_close */,
-            base::Closure() /* window_minimize */, NULL, NULL)) {
+            base::Closure() /* window_minimize */, base::Bind(&GetNullSbWindow),
+            NULL, NULL)) {
     engine_ = script::JavaScriptEngine::CreateEngine();
     global_environment_ = engine_->CreateGlobalEnvironment();
     global_environment_->CreateGlobalObject(window_,

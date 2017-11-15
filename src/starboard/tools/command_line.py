@@ -35,7 +35,7 @@ def CreateParser():
   arg_parser.add_argument(
       '-p',
       '--platform',
-      choices=starboard.tools.platform.GetAllNames(),
+      choices=starboard.tools.platform.GetAll(),
       default=default_platform,
       required=not default_platform,
       help="Device platform, eg 'linux-x64x11'.")
@@ -50,10 +50,6 @@ def CreateParser():
       '-d',
       '--device_id',
       help='Devkit or IP address for the target device.')
-  arg_parser.add_argument(
-      '-t',
-      '--target_name',
-      help='Name of executable target.')
   arg_parser.add_argument(
       '--target_params',
       help='Command line arguments to pass to the executable.'

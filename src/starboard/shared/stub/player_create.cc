@@ -14,10 +14,6 @@
 
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "SbPlayerCreate requires SB_HAS(PLAYER)."
-#endif
-
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,

@@ -11,10 +11,12 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #ifndef COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 #define COBALT_SCRIPT_MOZJS_45_MOZJS_GLOBAL_ENVIRONMENT_H_
 
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "base/hash_tables.h"
@@ -49,17 +51,23 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   ~MozjsGlobalEnvironment() OVERRIDE;
 
   void CreateGlobalObject() OVERRIDE;
+  // |script::GlobalEnvironment| will dispatch to this implementation in the
+  // create_global_object_impl block of the bindings interface template.
+  template <typename GlobalInterface>
+  void CreateGlobalObject(
+      const scoped_refptr<GlobalInterface>& global_interface,
+      EnvironmentSettings* environment_settings);
 
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
                       std::string* out_result_utf8) OVERRIDE;
 
-  bool EvaluateScript(const scoped_refptr<SourceCode>& script_utf8,
-                      const scoped_refptr<Wrappable>& owning_object,
-                      bool mute_errors,
-                      base::optional<OpaqueHandleHolder::Reference>*
-                          out_opaque_handle) OVERRIDE;
+  bool EvaluateScript(
+      const scoped_refptr<SourceCode>& script_utf8,
+      const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) OVERRIDE;
 
-  std::vector<StackFrame> GetStackTrace(int max_frames = 0) OVERRIDE;
+  std::vector<StackFrame> GetStackTrace(int max_frames) OVERRIDE;
+  using GlobalEnvironment::GetStackTrace;
 
   void PreventGarbageCollection(
       const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
@@ -105,13 +113,6 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
     return &visited_wrappables_;
   }
 
-  // Used for CallWith=EnvironmentSettings
-  void SetEnvironmentSettings(EnvironmentSettings* environment_settings) {
-    DCHECK(!environment_settings_);
-    DCHECK(environment_settings);
-    environment_settings_ = environment_settings;
-  }
-
   EnvironmentSettings* GetEnvironmentSettings() const {
     return environment_settings_;
   }
@@ -143,6 +144,21 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   void ReportError(const char* message, JSErrorReport* report);
 
  private:
+  // Helper struct to ensure the context is destroyed in the correct order
+  // relative to the MozjsGlobalEnvironment's other members.
+  struct ContextDestructor {
+    explicit ContextDestructor(JSContext** context) : context(context) {}
+    ~ContextDestructor() { JS_DestroyContext(*context); }
+    JSContext** const context;
+  };
+
+  struct CountedHeapObject {
+    CountedHeapObject(const JS::Heap<JSObject*>& heap_object, int count)
+        : heap_object(heap_object), count(count) {}
+    JS::Heap<JSObject*> heap_object;
+    int count;
+  };
+
   bool EvaluateScriptInternal(const scoped_refptr<SourceCode>& source_code,
                               bool mute_errors,
                               JS::MutableHandleValue out_result);
@@ -152,22 +168,11 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   static void TraceFunction(JSTracer* trace, void* data);
 
-  // Helper struct to ensure the context is destroyed in the correct order
-  // relative to the MozjsGlobalEnvironment's other members.
-  struct ContextDestructor {
-    explicit ContextDestructor(JSContext** context) : context(context) {}
-    ~ContextDestructor() { JS_DestroyContext(*context); }
-    JSContext** const context;
-  };
-
-  typedef base::hash_multimap<Wrappable*, JS::Heap<JSObject*> >
-      CachedWrapperMultiMap;
-
   base::ThreadChecker thread_checker_;
   JSContext* context_;
   int garbage_collection_count_;
   WeakHeapObjectManager weak_object_manager_;
-  CachedWrapperMultiMap kept_alive_objects_;
+  std::unordered_map<Wrappable*, CountedHeapObject> kept_alive_objects_;
   scoped_ptr<ReferencedObjectMap> referenced_objects_;
   std::vector<InterfaceData> cached_interface_data_;
 

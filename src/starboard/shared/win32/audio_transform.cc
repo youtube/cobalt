@@ -16,6 +16,7 @@
 
 #include <vector>
 
+#include "starboard/memory.h"
 #include "starboard/shared/win32/error_utils.h"
 #include "starboard/shared/win32/media_common.h"
 #include "starboard/shared/win32/media_foundation_utils.h"
@@ -49,37 +50,35 @@ GUID ConvertToWin32AudioCodec(SbMediaAudioCodec codec) {
 class WinAudioFormat {
  public:
   explicit WinAudioFormat(const SbMediaAudioHeader& audio_header) {
-    WAVEFORMATEX* wave_format = WaveFormatTexPtr();
+    // The WAVEFORMATEX structure has many specializations with varying
+    // data attached at the end.
+    format_buffer_.resize(sizeof(WAVEFORMATEX) +
+                          audio_header.audio_specific_config_size);
+    WAVEFORMATEX* wave_format = WaveFormatData();
+
     wave_format->nAvgBytesPerSec = audio_header.average_bytes_per_second;
     wave_format->nBlockAlign = audio_header.block_alignment;
     wave_format->nChannels = audio_header.number_of_channels;
     wave_format->nSamplesPerSec = audio_header.samples_per_second;
     wave_format->wBitsPerSample = audio_header.bits_per_sample;
     wave_format->wFormatTag = audio_header.format_tag;
+    wave_format->cbSize = audio_header.audio_specific_config_size;
 
-    // TODO: Investigate this more.
-    wave_format->cbSize = kAudioExtraFormatBytes;
-    std::uint8_t* audio_specific_config = AudioSpecificConfigPtr();
-
-    // These are hard-coded audio specif audio configuration.
-    // Use |SbMediaAudioHeader::audio_specific_config| instead.
-    SB_DCHECK(kAudioExtraFormatBytes == 2);
-    // TODO: What do these values do?
-    audio_specific_config[0] = 0x12;
-    audio_specific_config[1] = 0x10;
-  }
-  WAVEFORMATEX* WaveFormatTexPtr() {
-    return reinterpret_cast<WAVEFORMATEX*>(full_structure);
-  }
-  uint8_t* AudioSpecificConfigPtr() {
-    return full_structure + sizeof(WAVEFORMATEX);
+    if (audio_header.audio_specific_config_size > 0) {
+      uint8_t* config_data = format_buffer_.data() + sizeof(WAVEFORMATEX);
+      SbMemoryCopy(config_data,
+                   audio_header.audio_specific_config,
+                   audio_header.audio_specific_config_size);
+    }
   }
 
-  UINT32 Size() const { return sizeof(full_structure); }
+  WAVEFORMATEX* WaveFormatData() {
+    return reinterpret_cast<WAVEFORMATEX*>(format_buffer_.data());
+  }
+  UINT32 Size() const { return static_cast<UINT32>(format_buffer_.size()); }
 
  private:
-  static const UINT32 kAudioExtraFormatBytes = 2;
-  uint8_t full_structure[sizeof(WAVEFORMATEX) + kAudioExtraFormatBytes];
+  std::vector<uint8_t> format_buffer_;
 };
 
 }  // namespace.
@@ -97,7 +96,7 @@ scoped_ptr<MediaTransform> CreateAudioTransform(
 
   WinAudioFormat audio_fmt(audio);
   hr = MFInitMediaTypeFromWaveFormatEx(
-      input_type.Get(), audio_fmt.WaveFormatTexPtr(), audio_fmt.Size());
+      input_type.Get(), audio_fmt.WaveFormatData(), audio_fmt.Size());
 
   CheckResult(hr);
 

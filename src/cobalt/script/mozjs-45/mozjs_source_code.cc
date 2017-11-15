@@ -11,14 +11,17 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 #include "cobalt/script/mozjs-45/mozjs_source_code.h"
 
 namespace cobalt {
 namespace script {
+
 scoped_refptr<SourceCode> SourceCode::CreateSourceCode(
     const std::string& script_utf8,
     const base::SourceLocation& script_location) {
   return new mozjs::MozjsSourceCode(script_utf8, script_location);
 }
+
 }  // namespace script
 }  // namespace cobalt

@@ -187,6 +187,18 @@ TEST_F(PixelTest, CircleViaRoundedCorners) {
                         rounded_corners.Pass()));
 }
 
+// These particular rounded corner values were found to cause a crash problem
+// with some rasterizers, this test is added to prevent a regression.
+TEST_F(PixelTest, AlmostCircleViaRoundedCorners) {
+  RoundedCorner rounded_corner(11.9999504f, 11.9999504f);
+  scoped_ptr<RoundedCorners> rounded_corners(
+      new RoundedCorners(rounded_corner));
+  TestTree(new RectNode(
+      RectF(24, 24),
+      scoped_ptr<Brush>(new SolidColorBrush(ColorRGBA(1.0, 1.0, 0.0, 1.0))),
+      rounded_corners.Pass()));
+}
+
 TEST_F(PixelTest, OvalViaRoundedCorners) {
   RoundedCorner top_left(50, 25);
   RoundedCorner top_right(50, 25);

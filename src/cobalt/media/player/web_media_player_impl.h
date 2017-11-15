@@ -69,10 +69,8 @@
 
 #if defined(OS_STARBOARD)
 
-#if SB_HAS(PLAYER)
 #define COBALT_USE_PUNCHOUT
 #define COBALT_SKIP_SEEK_REQUEST_NEAR_END
-#endif  // SB_HAS(PLAYER)
 
 #endif  // defined(OS_STARBOARD)
 
@@ -118,8 +116,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
 #else   // SB_HAS(PLAYER_WITH_URL)
   void LoadMediaSource() OVERRIDE;
   void LoadProgressive(const GURL& url,
-                       scoped_ptr<BufferedDataSource> data_source,
-                       CORSMode cors_mode) OVERRIDE;
+                       scoped_ptr<BufferedDataSource> data_source) OVERRIDE;
 #endif  // SB_HAS(PLAYER_WITH_URL)
   void CancelLoad() OVERRIDE;
 
@@ -233,6 +230,7 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   // Callbacks that forward duration change from |pipeline_| to |client_|.
   void OnDurationChanged();
   void OnOutputModeChanged();
+  void OnContentSizeChanged();
 
   base::Thread pipeline_thread_;
 

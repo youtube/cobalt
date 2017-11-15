@@ -24,6 +24,13 @@
 
     'cobalt_media_source_2016': 1,
 
+    # Note we must not use the default of 16.4 because win32 sleep
+    # rounds up to the next millisecond, and 17.0 is <60fps.
+    # Our rendering will be throttled appropriately by vsync with
+    # ANGLE/DirectX and thus we do not need to manually throttle
+    # our rendering with this.
+    'cobalt_minimum_frame_time_in_milliseconds': 0,
+
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
@@ -175,7 +182,7 @@
            },
            'VCLinkerTool': {
              'AdditionalDependencies': ['dbghelp.lib'],
-             'LinkIncremental': '2',  # INCREMENTAL:YES
+             'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
        },
@@ -191,7 +198,7 @@
            },
            'VCLinkerTool': {
              'AdditionalDependencies': ['dbghelp.lib'],
-             'LinkIncremental': '2',  # INCREMENTAL:YES
+             'LinkIncremental': '1',  # INCREMENTAL:NO
            },
          },
        },
@@ -343,6 +350,8 @@
       4265,
       # Inconsistent DLL linkage
       4273,
+      # Double -> float truncation. Not enabled on other compilers.
+      4305,
       # cast truncates constant value.
       # We do not care.
       4310,

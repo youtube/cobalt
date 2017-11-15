@@ -249,7 +249,6 @@ static inline void add_quad_segment(const SkPoint pts[3],
         segments->back().fType = Segment::kQuad;
         segments->back().fPts[0] = pts[1];
         segments->back().fPts[1] = pts[2];
-        SkASSERT(contains_inclusive(*devBounds, pts[0]));
         devBounds->growToInclude(pts + 1, 2);
     }
 }

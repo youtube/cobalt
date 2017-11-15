@@ -22,7 +22,6 @@ namespace starboard {
 namespace nplb {
 namespace {
 
-#if SB_HAS(PLAYER)
 #if SB_HAS(PLAYER_WITH_URL)
 // This test does not apply. See player_create_with_url_test.cc instead.
 #else
@@ -33,8 +32,10 @@ void GlesContextRunner(
     SbDecodeTargetGlesContextRunnerTarget target_function,
     void* target_function_context) {
   SB_UNREFERENCED_PARAMETER(graphics_context_provider);
-  SB_UNREFERENCED_PARAMETER(target_function);
-  SB_UNREFERENCED_PARAMETER(target_function_context);
+
+  // Just call the function directly in case the player implementation relies
+  // on this function call being made.
+  (*target_function)(target_function_context);
 }
 #endif  // SB_HAS(GLES2)
 
@@ -101,7 +102,6 @@ TEST(SbPlayerTest, SunnyDay) {
 }
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
-#endif  // SB_HAS(PLAYER)
 
 }  // namespace
 }  // namespace nplb

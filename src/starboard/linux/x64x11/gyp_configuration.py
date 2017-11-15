@@ -16,7 +16,7 @@
 import logging
 
 from starboard.linux.shared import gyp_configuration
-import starboard.tools.testing.test_filter as test_filter
+from starboard.tools.testing import test_filter
 from starboard.tools.toolchain import ar
 from starboard.tools.toolchain import bash
 from starboard.tools.toolchain import clang
@@ -65,7 +65,7 @@ class PlatformConfig(gyp_configuration.PlatformConfig):
         test_filter.TestFilter(
             'nplb_blitter_pixel_tests', test_filter.FILTER_ALL),
         test_filter.TestFilter(
-            'web_platform_tests', 'xhr/WebPlatformTest.Run/125', 'debug'),
+            'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
         test_filter.TestFilter(
             'web_platform_tests', 'streams/WebPlatformTest.Run/11', 'debug'),
     ]

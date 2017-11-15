@@ -1,0 +1,380 @@
+{#
+ # Copyright 2017 Google Inc. All Rights Reserved.
+ #
+ # Licensed under the Apache License, Version 2.0 (the "License");
+ # you may not use this file except in compliance with the License.
+ # You may obtain a copy of the License at
+ #
+ #     http://www.apache.org/licenses/LICENSE-2.0
+ #
+ # Unless required by applicable law or agreed to in writing, software
+ # distributed under the License is distributed on an "AS IS" BASIS,
+ # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ # See the License for the specific language governing permissions and
+ # limitations under the License.
+ #}
+
+{% from 'macros.cc.template' import add_extra_arguments %}
+{% from 'macros.cc.template' import call_cobalt_function %}
+{% from 'macros.cc.template' import check_if_object_implements_interface with context %}
+{% from 'macros.cc.template' import constructor_implementation with context %}
+{% from 'macros.cc.template' import function_implementation with context %}
+{% from 'macros.cc.template' import get_impl_class_instance %}
+{% from 'macros.cc.template' import nonstatic_function_prologue %}
+{% from 'macros.cc.template' import overload_resolution_implementation with context %}
+{% from 'macros.cc.template' import set_attribute_implementation with context %}
+{% from 'macros.cc.template' import static_function_prologue %}
+
+{% extends "interface-base.cc.template" %}
+
+{% block includes %}
+{{ super() }}
+#include "{{generated_conversion_include}}"
+
+#include "cobalt/script/callback_interface_traits.h"
+#include "cobalt/script/v8c/callback_function_conversion.h"
+#include "cobalt/script/v8c/conversion_helpers.h"
+#include "cobalt/script/v8c/native_promise.h"
+#include "cobalt/script/v8c/type_traits.h"
+#include "cobalt/script/v8c/v8c_callback_function.h"
+#include "cobalt/script/v8c/v8c_callback_interface_holder.h"
+#include "cobalt/script/v8c/v8c_exception_state.h"
+#include "cobalt/script/v8c/v8c_global_environment.h"
+#include "cobalt/script/v8c/v8c_value_handle.h"
+#include "cobalt/script/v8c/wrapper_private.h"
+#include "v8/include/v8.h"
+
+{% endblock includes %}
+
+{% block using_directives %}
+{{ super() }}
+using cobalt::script::v8c::FromJSValue;
+using cobalt::script::v8c::InterfaceData;
+using cobalt::script::v8c::kConversionFlagClamped;
+using cobalt::script::v8c::kConversionFlagNullable;
+using cobalt::script::v8c::kConversionFlagRestricted;
+using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
+using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
+using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::TypeTraits;
+using cobalt::script::v8c::V8cExceptionState;
+using cobalt::script::v8c::V8cGlobalEnvironment;
+using cobalt::script::v8c::WrapperFactory;
+using cobalt::script::v8c::WrapperPrivate;
+{% endblock using_directives %}
+
+{% block enumeration_declarations %}
+{% if enumerations|length %}
+// Declare and define these in the same namespace that the other overloads
+// were brought into with the using declaration.
+{% for enumeration in enumerations %}
+void ToJSValue(
+    v8::Isolate* isolate,
+    {{impl_class}}::{{enumeration.name}} in_enum,
+    v8::Local<v8::Value>* out_value);
+void FromJSValue(v8::Isolate* context, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 {{impl_class}}::{{enumeration.name}}* out_enum);
+{% endfor %}
+{% endif %}
+{% endblock enumeration_declarations %}
+
+{% block top_level_unnamed_namespace %}
+
+v8::Local<v8::Object> DummyFunctor(V8cGlobalEnvironment*, const scoped_refptr<Wrappable>&) {
+  NOTIMPLEMENTED();
+  return {};
+}
+
+{% endblock top_level_unnamed_namespace %}
+
+{% block implementation %}
+
+namespace {
+
+void {{interface.name}}Constructor(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  NOTIMPLEMENTED();
+  if (!args.IsConstructCall()) {
+    // TODO: Probably throw something here...
+    return;
+  }
+
+  DCHECK(args.This()->InternalFieldCount() == 1);
+  args.This()->SetInternalField(0, v8::External::New(args.GetIsolate(), nullptr));
+  args.GetReturnValue().Set(args.This());
+}
+
+{% for attribute in attributes if not attribute.is_constructor_attribute %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+
+void v8cGet_{{attribute.idl_name}}(
+  v8::Local<v8::String> property,
+  const v8::PropertyCallbackInfo<v8::Value>& info)
+{
+  NOTIMPLEMENTED();
+
+  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
+  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
+  {{interface.name}}* impl = static_cast<{{interface.name}}*>(wrapper_private->wrappable<{{interface.name}}>());
+
+{% if attribute.put_forwards %}
+  NOTIMPLEMENTED();
+{% else %}
+  v8::Local<v8::Value> result_value;
+{##}
+{% endif %} {#- attribute.put_forwards #}
+}
+
+{% if attribute.has_setter %}
+
+void v8cSet_{{attribute.idl_name}}(
+  v8::Local<v8::String> property,
+  v8::Local<v8::Value> v8_value,
+  const v8::PropertyCallbackInfo<void>& info)
+{
+  v8::Local<v8::External> external = v8::Local<v8::External>::Cast(info.Holder()->GetInternalField(0));
+  WrapperPrivate* wrapper_private = static_cast<WrapperPrivate*>(external->Value());
+  {{interface.name}}* impl = static_cast<{{interface.name}}*>(wrapper_private->wrappable<{{interface.name}}>());
+
+{% if attribute.put_forwards %}
+  NOTIMPLEMENTED();
+{% else %}
+  TypeTraits<{{attribute.type}}>::ConversionType conversion_value;
+  V8cExceptionState exception_state{};
+  FromJSValue(info.GetIsolate(), v8_value, {{attribute.conversion_flags}}, &exception_state, &conversion_value);
+{% if attribute.raises_exception %}
+  V8cExceptionState exception;
+{% endif %}
+  impl->{{attribute.setter_function_name}}(
+    conversion_value
+{% if attribute.raises_exception %}
+    ,&exception
+{% endif %}
+  );
+{##}
+{% endif %} {#- attribute.put_forwards #}
+}
+
+{% endif %}
+
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+
+void DummyFunction(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  LOG(INFO) << __func__;
+}
+
+void InitializeTemplate(
+  V8cGlobalEnvironment* env,
+  InterfaceData* interface_data) {
+  v8::Isolate* isolate = env->isolate();
+  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(
+    isolate);
+  function_template->SetClassName(
+    v8::String::NewFromUtf8(isolate, "{{interface_name}}",
+        v8::NewStringType::kInternalized).ToLocalChecked());
+  v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
+  instance_template->SetInternalFieldCount(1);
+
+  v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
+  prototype_template->SetInternalFieldCount(1);
+
+{% for attribute in attributes if not attribute.is_constructor_attribute %}
+{% if attribute.conditional %}
+#if defined({{attribute.conditional}})
+{% endif %}
+  instance_template->SetAccessor(
+    v8::String::NewFromUtf8(isolate, "{{attribute.idl_name}}",
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked(),
+    v8cGet_{{attribute.idl_name}}
+{% if attribute.has_setter %}
+    ,v8cSet_{{attribute.idl_name}}
+{% endif %}
+  );
+{% if attribute.conditional %}
+#endif  // {{attribute.conditional}}
+{% endif %}
+{% endfor %}
+
+{% for operation in operations %}
+  instance_template->Set(
+      v8::String::NewFromUtf8(
+          isolate,
+          "{{operation.idl_name}}",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      v8::FunctionTemplate::New(isolate, DummyFunction)
+  );
+{% endfor %}
+
+  interface_data->templ.Set(env->isolate(), function_template);
+}
+
+inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* env) {
+  const int kInterfaceUniqueId = {{unique_id}};
+  // By convention, the |V8cGlobalEnvironment| that we are associated with
+  // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
+  // for it to be there in the first place, and could not have conflicted with
+  // any other interface.
+  return env->GetInterfaceData(kInterfaceUniqueId);
+}
+
+}  // namespace
+
+v8::Local<v8::Object> {{binding_class}}::CreateWrapper(V8cGlobalEnvironment* env, const scoped_refptr<Wrappable>& wrappable) {
+  v8::Isolate* isolate = env->isolate();
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::EscapableHandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = env->context();
+  v8::Context::Scope scope(context);
+
+  InterfaceData* interface_data = GetInterfaceData(env);
+  if (interface_data->templ.IsEmpty()) {
+    InitializeTemplate(env, interface_data);
+  }
+  DCHECK(!interface_data->templ.IsEmpty());
+
+  v8::Local<v8::FunctionTemplate> function_template = interface_data->templ.Get(isolate);
+  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
+  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
+  DCHECK(object->InternalFieldCount() == 1);
+
+  // |WrapperPrivate|'s lifetime will be managed by V8.
+  new WrapperPrivate(isolate, wrappable, object);
+  return handle_scope.Escape(object);
+}
+
+v8::Local<v8::FunctionTemplate> {{binding_class}}::CreateTemplate(V8cGlobalEnvironment* env) {
+  InterfaceData* interface_data = GetInterfaceData(env);
+  if (interface_data->templ.IsEmpty()) {
+    InitializeTemplate(env, interface_data);
+  }
+
+  return interface_data->templ.Get(env->isolate());
+}
+
+{% endblock implementation %}
+
+{% block create_global_object_impl %}
+
+namespace cobalt {
+namespace script {
+namespace v8c {
+
+template <typename GlobalInterface>
+void V8cGlobalEnvironment::CreateGlobalObject(
+    const scoped_refptr<GlobalInterface>& global_interface,
+    EnvironmentSettings* environment_settings) {
+  v8::Isolate::Scope isolate_scope(isolate_);
+  v8::HandleScope handle_scope(isolate_);
+
+  v8::Local<v8::ObjectTemplate> global_object_template = v8::ObjectTemplate::New(isolate_);
+{% for interface in all_interfaces %}
+{% if interface.conditional %}
+#if defined({{interface.conditional}})
+{% endif %}
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "{{interface.name}}",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8c{{interface.name}}::CreateTemplate(this));
+{% if interface.conditional %}
+#endif  // defined({{interface.conditional}})
+{% endif %}
+{% endfor %}
+
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate_, nullptr, global_object_template);
+  context_.Reset(isolate_, context);
+
+  environment_settings_ = environment_settings;
+  EvaluateAutomatics();
+
+{% for interface in all_interfaces %}
+{% if interface.conditional %}
+#if defined({{interface.conditional}})
+{% endif %}
+  {# Pass in a dummy CreateProxy for global interface #}
+  {% if interface.name == impl_class %}
+  wrapper_factory_->RegisterWrappableType(
+      {{interface.name}}::{{interface.name}}WrappableType(),
+      base::Bind(DummyFunctor),
+      base::Bind(V8c{{interface.name}}::CreateTemplate));
+  {% else %}
+  wrapper_factory_->RegisterWrappableType(
+      {{interface.name}}::{{interface.name}}WrappableType(),
+      base::Bind(V8c{{interface.name}}::CreateWrapper),
+      base::Bind(V8c{{interface.name}}::CreateTemplate));
+  {% endif %}
+{% if interface.conditional %}
+#endif  // defined({{interface.conditional}})
+{% endif %}
+{% endfor %}
+
+}
+
+}  // namespace v8c
+
+template<>
+void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
+    const scoped_refptr<{{impl_class}}>& global_interface,
+    EnvironmentSettings* environment_settings) {
+  base::polymorphic_downcast<v8c::V8cGlobalEnvironment*>(this)->CreateGlobalObject(global_interface, environment_settings);
+}
+
+}  // namespace script
+}  // namespace cobalt
+
+{% endblock create_global_object_impl %}
+
+{%  block enumeration_definitions %}
+// enum block
+{% for enumeration in enumerations %}
+
+inline void ToJSValue(
+    v8::Isolate* isolate,
+    {{impl_class}}::{{enumeration.name}} in_enum,
+    v8::Local<v8::Value>* out_value) {
+  switch (in_enum) {
+{% for value, idl_value in enumeration.value_pairs %}
+    case {{impl_class}}::{{value}}:
+      ToJSValue(isolate, std::string("{{idl_value}}"), out_value);
+      return;
+{% endfor %}
+    default:
+      NOTREACHED();
+      *out_value = v8::Undefined(isolate);
+  }
+}
+
+inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 {{impl_class}}::{{enumeration.name}}* out_enum) {
+  DCHECK_EQ(0, conversion_flags) << "Unexpected conversion flags.";
+  // Value -> IDL enum algorithm described here:
+  // http://heycam.github.io/webidl/#es-enumeration
+  // 1. Let S be the result of calling ToString(V).
+  v8::Local<v8::String> string = value->ToString();
+
+  bool match = false;
+// 3. Return the enumeration value of type E that is equal to S.
+{% for value, idl_value in enumeration.value_pairs %}
+{{-" else " if not loop.first}}
+  if (string == v8::String::NewFromUtf8(isolate, "{{id_value}}")) {
+    *out_enum = {{impl_class}}::{{value}};
+  }
+{% endfor %}
+  else {
+    // 2. If S is not one of E's enumeration values, then throw a TypeError.
+    exception_state->SetSimpleException(cobalt::script::kConvertToEnumFailed);
+    return;
+  }
+}
+
+{% endfor %}
+
+{% endblock enumeration_definitions %}

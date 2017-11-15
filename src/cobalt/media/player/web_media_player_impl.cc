@@ -259,8 +259,7 @@ void WebMediaPlayerImpl::LoadMediaSource() {
 }
 
 void WebMediaPlayerImpl::LoadProgressive(
-    const GURL& url, scoped_ptr<BufferedDataSource> data_source,
-    CORSMode cors_mode) {
+    const GURL& url, scoped_ptr<BufferedDataSource> data_source) {
   TRACE_EVENT0("cobalt::media", "WebMediaPlayerImpl::LoadProgressive");
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
@@ -740,7 +739,8 @@ void WebMediaPlayerImpl::StartPipeline(const GURL& url) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
 #else  // SB_HAS(PLAYER_WITH_URL)
 void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
@@ -760,7 +760,8 @@ void WebMediaPlayerImpl::StartPipeline(Demuxer* demuxer) {
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineSeek),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnPipelineBufferingState),
       BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnDurationChanged),
-      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged));
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnOutputModeChanged),
+      BIND_TO_RENDER_LOOP(&WebMediaPlayerImpl::OnContentSizeChanged));
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
@@ -864,6 +865,10 @@ void WebMediaPlayerImpl::OnDurationChanged() {
 
 void WebMediaPlayerImpl::OnOutputModeChanged() {
   GetClient()->OutputModeChanged();
+}
+
+void WebMediaPlayerImpl::OnContentSizeChanged() {
+  GetClient()->ContentSizeChanged();
 }
 
 }  // namespace media

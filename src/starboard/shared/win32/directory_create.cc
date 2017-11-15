@@ -17,25 +17,28 @@
 #include <windows.h>
 
 #include "starboard/shared/win32/directory_internal.h"
+#include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 
 bool SbDirectoryCreate(const char* path) {
+  using starboard::shared::win32::DirectoryExists;
+  using starboard::shared::win32::NormalizeWin32Path;
+
   if ((path == nullptr) || (path[0] == '\0')) {
     return false;
   }
 
-  std::wstring path_wstring = starboard::shared::win32::CStringToWString(path);
-
+  std::wstring path_wstring = NormalizeWin32Path(path);
   starboard::shared::win32::TrimExtraFileSeparators(&path_wstring);
 
   if (!starboard::shared::win32::IsAbsolutePath(path_wstring)) {
     return false;
   }
 
+  if (DirectoryExists(path_wstring)) {
+    return true;
+  }
+
   BOOL directory_created = CreateDirectoryW(path_wstring.c_str(), NULL);
-
-  bool directory_exists =
-      directory_created || (GetLastError() == ERROR_ALREADY_EXISTS);
-
-  return directory_exists;
+  return directory_created;
 }

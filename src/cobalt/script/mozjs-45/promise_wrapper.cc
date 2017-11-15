@@ -1,18 +1,16 @@
-/*
- * Copyright 2017 Google Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 #include "cobalt/script/mozjs-45/promise_wrapper.h"
 
@@ -204,9 +202,10 @@ void PromiseWrapper::Reject(JS::HandleValue value) const {
 }
 
 PromiseWrapper::PromiseWrapper(JSContext* context,
-                               JS::HandleObject promise_wrapper)
+                               JS::HandleValue promise_wrapper)
     : context_(context), weak_promise_wrapper_(context, promise_wrapper) {
-  DCHECK_EQ(JS_GetClass(promise_wrapper), &native_promise_class);
+  DCHECK(promise_wrapper.isObject());
+  DCHECK_EQ(JS_GetClass(&promise_wrapper.toObject()), &native_promise_class);
 }
 
 }  // namespace mozjs
