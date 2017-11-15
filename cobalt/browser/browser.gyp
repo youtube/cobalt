@@ -138,7 +138,6 @@
         '<(DEPTH)/cobalt/input/input.gyp:input',
         '<(DEPTH)/cobalt/layout/layout.gyp:layout',
         '<(DEPTH)/cobalt/math/math.gyp:math',
-        '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         '<(DEPTH)/cobalt/network/network.gyp:network',
         '<(DEPTH)/cobalt/page_visibility/page_visibility.gyp:page_visibility',
