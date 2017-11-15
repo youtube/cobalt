@@ -53,6 +53,10 @@ void EventQueue::CancelAllEvents() {
 void EventQueue::DispatchEvents() {
   DCHECK(message_loop_->BelongsToCurrentThread());
 
+  // Make sure that the event_target_ stays alive for the duration of
+  // all event dispatches.
+  scoped_refptr<EventTarget> keep_alive_reference(event_target_);
+
   Events events;
   events.swap(events_);
 

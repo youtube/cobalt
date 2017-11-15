@@ -15,8 +15,8 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_FILTER_AUDIO_RENDERER_INTERNAL_H_
 
-#include <vector>
-
+#include "starboard/common/ref_counted.h"
+#include "starboard/configuration.h"
 #include "starboard/media.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
@@ -32,6 +32,9 @@ class AudioRenderer {
  public:
   virtual ~AudioRenderer() {}
 
+  virtual void Initialize(const Closure& error_cb) {
+    SB_UNREFERENCED_PARAMETER(error_cb);
+  }
   virtual void WriteSample(const InputBuffer& input_buffer) = 0;
   virtual void WriteEndOfStream() = 0;
   virtual void Play() = 0;

@@ -369,6 +369,8 @@ const char kYouTubeTvLocationPolicy[] =
     "https://s.ytimg.com/yts/cobalt/ "
     "https://www.youtube.com/tv "
     "https://www.youtube.com/tv/ "
+    "https://web-green-qa.youtube.com/tv "
+    "https://web-green-qa.youtube.com/tv/ "
     "https://web-release-qa.youtube.com/tv "
     "https://web-release-qa.youtube.com/tv/ "
 #if defined(ENABLE_ABOUT_SCHEME)
@@ -492,6 +494,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
 
   if (command_line->HasSwitch(browser::switches::kDisableJavaScriptJit)) {
     options.web_module_options.javascript_options.disable_jit = true;
+  }
+
+  if (command_line->HasSwitch(
+          browser::switches::kRetainRemoteTypefaceCacheDuringSuspend)) {
+    options.web_module_options.should_retain_remote_typeface_cache_on_suspend =
+        true;
   }
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)

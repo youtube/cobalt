@@ -29,7 +29,6 @@
     'cobalt_enable_jit': 0,
 
     'cobalt_media_source_2016': 1,
-    'cobalt_encrypted_media_extension_enable_key_statuses_update': 0,
 
     'platform_libraries': [
       '-lpthread',

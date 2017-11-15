@@ -37,11 +37,11 @@ MediaKeySession::MediaKeySession(
     : ALLOW_THIS_IN_INITIALIZER_LIST(event_queue_(this)),
       drm_system_(drm_system),
       drm_system_session_(drm_system->CreateSession(
-#if SB_API_VERSION >= 6
+#if SB_HAS(DRM_KEY_STATUSES)
           base::Bind(&MediaKeySession::OnSessionUpdateKeyStatuses,
                      base::AsWeakPtr(this))
-#endif  // SB_API_VERSION >= 6
-                     )),
+#endif  // SB_HAS(DRM_KEY_STATUSES)
+              )),  // NOLINT(whitespace/parens)
       script_value_factory_(script_value_factory),
       uninitialized_(true),
       callable_(false),
@@ -356,6 +356,8 @@ void MediaKeySession::OnSessionUpdateKeyStatuses(
 
   // 5. Queue a task to fire a simple event named keystatuseschange at the
   //    session.
+  LOG(INFO) << "Fired 'keystatuseschange' event on MediaKeySession with "
+            << key_status_map_->size() << " keys.";
   event_queue_.Enqueue(new Event(base::Tokens::keystatuseschange()));
 
   // 6. Queue a task to run the Attempt to Resume Playback If Necessary

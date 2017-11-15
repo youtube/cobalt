@@ -46,7 +46,9 @@ class StubAudioDecoder : public AudioDecoder, JobQueue::JobOwner {
       : sample_type_(GetSupportedSampleType()),
         audio_header_(audio_header),
         stream_ended_(false) {}
-  void Initialize(const Closure& output_cb) SB_OVERRIDE {
+  void Initialize(const Closure& output_cb,
+                  const Closure& error_cb) SB_OVERRIDE {
+    SB_UNREFERENCED_PARAMETER(error_cb);
     output_cb_ = output_cb;
   }
   void Decode(const InputBuffer& input_buffer,

@@ -64,11 +64,12 @@ class AudioRendererImplTest : public ::testing::Test {
     storage_type_ = storage_type;
     audio_decoder_ = new MockAudioDecoder(sample_type_, storage_type_,
                                           kDefaultSamplesPerSecond);
-    EXPECT_CALL(*audio_decoder_, Initialize(_))
+    EXPECT_CALL(*audio_decoder_, Initialize(_, _))
         .WillOnce(SaveArg<0>(&output_cb_));
     audio_renderer_.reset(
         new AudioRendererImpl(make_scoped_ptr<AudioDecoder>(audio_decoder_),
                               GetDefaultAudioHeader()));
+    audio_renderer_->Initialize(Bind(&AudioRendererImplTest::OnError, this));
   }
 
   void WriteSample(InputBuffer input_buffer) {
@@ -126,6 +127,8 @@ class AudioRendererImplTest : public ::testing::Test {
     SbMemorySet(decoded_audio->buffer(), 0, decoded_audio->size());
     return decoded_audio;
   }
+
+  void OnError() {}
 
   SbMediaAudioSampleType sample_type_;
   SbMediaAudioFrameStorageType storage_type_;

@@ -17,6 +17,14 @@
 #ifndef STARBOARD_CREATOR_SHARED_CONFIGURATION_PUBLIC_H_
 #define STARBOARD_CREATOR_SHARED_CONFIGURATION_PUBLIC_H_
 
+// The Darwin platform doesn't have the function pthread_condattr_setclock(),
+// which is used to switch pthread condition variable timed waits to use
+// a monotonic clock instead of the system clock, which is sensitive to
+// system time adjustments.  This isn't a [huge] problem on Darwin because
+// its timed wait function immediately converts to relative wait time anyway:
+//   https://opensource.apple.com/source/Libc/Libc-167/pthreads.subproj/pthread_cond.c
+#define SB_HAS_QUIRK_NO_CONDATTR_SETCLOCK_SUPPORT 1
+
 // --- Architecture Configuration --------------------------------------------
 
 // Whether the current platform is big endian. SB_IS_LITTLE_ENDIAN will be
