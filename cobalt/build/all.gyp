@@ -53,7 +53,6 @@
         '<(DEPTH)/cobalt/loader/loader.gyp:*',
         '<(DEPTH)/cobalt/math/math.gyp:*',
         '<(DEPTH)/cobalt/media/sandbox/sandbox.gyp:*',
-        '<(DEPTH)/cobalt/media_capture/media_capture.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:*',
         '<(DEPTH)/cobalt/media_session/media_session_test.gyp:*',
         '<(DEPTH)/cobalt/network/network.gyp:*',

@@ -19,7 +19,6 @@
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_key_system_access.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-#include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session_client.h"
 #include "cobalt/script/script_value_factory.h"
 #include "starboard/media.h"
@@ -37,7 +36,6 @@ Navigator::Navigator(const std::string& user_agent, const std::string& language,
       mime_types_(new MimeTypeArray()),
       plugins_(new PluginArray()),
       media_session_(media_session),
-      media_devices_(new media_capture::MediaDevices(script_value_factory)),
       script_value_factory_(script_value_factory) {}
 
 const std::string& Navigator::language() const { return language_; }
@@ -47,10 +45,6 @@ const std::string& Navigator::user_agent() const { return user_agent_; }
 bool Navigator::java_enabled() const { return false; }
 
 bool Navigator::cookie_enabled() const { return false; }
-
-scoped_refptr<media_capture::MediaDevices> Navigator::media_devices() {
-  return media_devices_;
-}
 
 const scoped_refptr<MimeTypeArray>& Navigator::mime_types() const {
   return mime_types_;

@@ -23,7 +23,6 @@
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/mime_type_array.h"
 #include "cobalt/dom/plugin_array.h"
-#include "cobalt/media_capture/media_devices.h"
 #include "cobalt/media_session/media_session.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/script_value_factory.h"
@@ -53,10 +52,6 @@ class Navigator : public script::Wrappable {
 
   // Web API: NavigatorPlugins
   bool cookie_enabled() const;
-
-  // Web API: MediaDevices
-  scoped_refptr<media_capture::MediaDevices> media_devices();
-
   const scoped_refptr<MimeTypeArray>& mime_types() const;
   const scoped_refptr<PluginArray>& plugins() const;
 
@@ -83,7 +78,6 @@ class Navigator : public script::Wrappable {
   scoped_refptr<MimeTypeArray> mime_types_;
   scoped_refptr<PluginArray> plugins_;
   scoped_refptr<cobalt::media_session::MediaSession> media_session_;
-  scoped_refptr<cobalt::media_capture::MediaDevices> media_devices_;
   script::ScriptValueFactory* script_value_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
