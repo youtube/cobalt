@@ -289,6 +289,7 @@
         '<(DEPTH)/cobalt/cssom/cssom.gyp:cssom',
         '<(DEPTH)/cobalt/dom/dom_exception.gyp:dom_exception',
         '<(DEPTH)/cobalt/loader/loader.gyp:loader',
+        '<(DEPTH)/cobalt/media_capture/media_capture.gyp:media_capture',
         '<(DEPTH)/cobalt/media_session/media_session.gyp:media_session',
         # Interface layer to avoid directly depending on network.
         '<(DEPTH)/cobalt/network_bridge/network_bridge.gyp:network_bridge',
