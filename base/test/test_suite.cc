@@ -32,10 +32,6 @@
 #endif  // OS_IOS
 #endif  // OS_MACOSX
 
-#if defined(OS_STARBOARD)
-#include "starboard/system.h"
-#endif
-
 #if defined(OS_ANDROID) || defined(__LB_ANDROID__)
 #include "base/test/test_support_android.h"
 #endif
@@ -103,11 +99,6 @@ void TestSuite::PreInitialize(int argc, char** argv,
 #if defined(OS_WIN)
   testing::GTEST_FLAG(catch_exceptions) = false;
 #endif
-
-#if defined(OS_STARBOARD)
-  testing::GTEST_FLAG(break_on_failure) = SbSystemIsDebuggerAttached();
-#endif
-
   base::EnableTerminationOnHeapCorruption();
   initialized_command_line_ = CommandLine::Init(argc, argv);
   testing::InitGoogleTest(&argc, argv);
