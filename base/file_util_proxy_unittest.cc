@@ -125,9 +125,10 @@ class FileUtilProxyTest : public testing::Test {
 };
 
 TEST_F(FileUtilProxyTest, CreateOrOpen_Create) {
+  FilePath file_path = test_path();
   FileUtilProxy::CreateOrOpen(
       file_task_runner(),
-      test_path(),
+      file_path,
       PLATFORM_FILE_CREATE | PLATFORM_FILE_READ,
       Bind(&FileUtilProxyTest::DidCreateOrOpen, weak_factory_.GetWeakPtr()));
   MessageLoop::current()->Run();
