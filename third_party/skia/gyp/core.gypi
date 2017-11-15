@@ -526,6 +526,9 @@
     "<(skia_src_path)/jumper/SkJumper_generated.S",
     "<(skia_src_path)/jumper/SkJumper_generated_win.S",
   ],
+  'defines': [
+    'SK_BUILD_NO_OPTS',
+  ],
 
   'conditions': [
     ['target_arch == "win"', {
