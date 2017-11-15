@@ -76,6 +76,7 @@
           'debug/trace_event_impl.h',
           'file_path.cc',
           'file_path.h',
+          'file_path_configuration.h',
           'file_util.cc',
           'file_util.h',
           'file_util_proxy.cc',
