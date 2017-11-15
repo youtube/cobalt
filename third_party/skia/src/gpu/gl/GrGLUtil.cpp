@@ -5,10 +5,10 @@
  * found in the LICENSE file.
  */
 
-
 #include "GrGLUtil.h"
 #include "SkMatrix.h"
 #include <stdio.h>
+#include <EGL/egl.h>
 
 void GrGLClearErr(const GrGLInterface* gl) {
     while (GR_GL_NO_ERROR != gl->fFunctions.fGetError()) {}
@@ -205,6 +205,30 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
         return GR_GL_VER(major, minor);
     }
 
+    // Use API calls to find out the version for OpenGL ES
+    // over using string parsing to determine the correct version.
+    //
+    // This is useful when a OpenGL 2.0 context is requested and received, but
+    // the version string still shows version 3.0
+    if (strstr(versionString, "OpenGL ES")) {
+        EGLint client_type = -1;
+        EGLBoolean success = false;
+        do {
+            success = eglQueryContext(eglGetCurrentDisplay(), eglGetCurrentContext(),
+                                      EGL_CONTEXT_CLIENT_TYPE, &client_type);
+            if (!success || (client_type != EGL_OPENGL_ES_API)) {
+                break;
+            }
+            EGLint client_version = -1;
+            success = eglQueryContext(eglGetCurrentDisplay(), eglGetCurrentContext(),
+                                      EGL_CONTEXT_CLIENT_VERSION, &client_version);
+            if (!success) {
+                break;
+            }
+            return GR_GL_VER(client_version, 0);
+        } while (0);
+    }
+
     char profile[2];
     n = sscanf(versionString, "OpenGL ES-%c%c %d.%d", profile, profile+1,
                &major, &minor);
@@ -333,7 +357,7 @@ GrGLRenderer GrGLGetRendererFromString(const char* rendererString) {
                 return kIntel6xxx_GrGLRenderer;
             }
         }
-        if (0 == strcmp("Mesa Offscreen", rendererString)) {
+        if (0 == strcmp("Mesa Offscreen", rendererString) || strstr(rendererString, "Gallium ")) {
             return kOSMesa_GrGLRenderer;
         }
         if (strstr(rendererString, "llvmpipe")) {
