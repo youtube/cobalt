@@ -16,8 +16,7 @@
 
 #include <android/asset_manager.h>
 
-#include "starboard/memory.h"
-#include "starboard/string.h"
+#include <string>
 
 #include "starboard/android/shared/file_internal.h"
 #include "starboard/shared/posix/impl/file_open.h"
@@ -29,15 +28,11 @@ namespace {
 
 // We don't package most font files in Cobalt content and fallback to the system
 // font file of the same name.
-const char kFontsXml[] = "fonts.xml";
-const char kSystemFontsDir[] = "/system/fonts/";
-const char kCobaltFontsDir[] = "/cobalt/assets/fonts/";
-const size_t kSystemFontsDirLen = sizeof(kSystemFontsDir) - 1;
-const size_t kCobaltFontsDirLen = sizeof(kCobaltFontsDir) - 1;
+const std::string kFontsXml("fonts.xml");
+const std::string kSystemFontsDir("/system/fonts/");
+const std::string kCobaltFontsDir("/cobalt/assets/fonts/");
 
-// Returns the fallback for the given asset path, or NULL if none. If not NULL
-// the result is in a buffer allocated by this function and that can be freed
-// with SbMemoryDeallocate.
+// Returns the fallback for the given asset path, or an empty string if none.
 // NOTE: While Cobalt now provides a mechanism for loading system fonts through
 //       SbSystemGetPath(), using the fallback logic within SbFileOpen() is
 //       still preferred for Android's fonts. The reason for this is that the
@@ -53,20 +48,16 @@ const size_t kCobaltFontsDirLen = sizeof(kCobaltFontsDir) - 1;
 //       treating Android's fonts as Cobalt's fonts, Cobalt can still offer a
 //       straightforward mechanism for including vendor fonts via
 //       SbSystemGetPath().
-const char* FallbackPath(const char* path) {
+std::string FallbackPath(const std::string& path) {
   // Fonts fallback to the system fonts.
-  if (path && strncmp(path, kCobaltFontsDir, kCobaltFontsDirLen) == 0) {
-    const char* file_name = path + kCobaltFontsDirLen;
+  if (path.compare(0, kCobaltFontsDir.length(), kCobaltFontsDir) == 0) {
+    std::string file_name = path.substr(kCobaltFontsDir.length());
     // fonts.xml doesn't fallback.
-    if (strcmp(file_name, kFontsXml) != 0) {
-      size_t length = kSystemFontsDirLen + SbStringGetLength(file_name);
-      char* fallback_path = static_cast<char*>(SbMemoryAllocate(length + 1));
-      SbStringCopyUnsafe(fallback_path, kSystemFontsDir);
-      SbStringCopyUnsafe(fallback_path + kSystemFontsDirLen, file_name);
-      return fallback_path;
+    if (file_name != kFontsXml) {
+      return kSystemFontsDir + file_name;
     }
   }
-  return NULL;
+  return std::string();
 }
 
 }  // namespace
@@ -101,11 +92,10 @@ SbFile SbFileOpen(const char* path,
     return result;
   }
 
-  const char* fallback_path = FallbackPath(path);
-  if (fallback_path) {
+  std::string fallback_path = FallbackPath(path);
+  if (!fallback_path.empty()) {
     SbFile result = ::starboard::shared::posix::impl::FileOpen(
-        fallback_path, flags, out_created, out_error);
-    SbMemoryDeallocate(const_cast<char*>(fallback_path));
+        fallback_path.c_str(), flags, out_created, out_error);
     return result;
   }
 
