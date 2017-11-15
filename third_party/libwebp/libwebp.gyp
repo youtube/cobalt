@@ -59,8 +59,7 @@
     {
       'target_name': 'libwebp_dsp_neon',
       'conditions': [
-        # TODO: Fix problems building neon for device on tvOS.
-        ['((target_arch == "arm" and arm_version >= 7) or (target_arch == "arm64")) and (target_os != "tvos")', {
+        ['((target_arch == "arm" and arm_version >= 7) or (target_arch == "arm64"))', {
           'type': 'static_library',
           'include_dirs': ['.'],
           'sources': [
