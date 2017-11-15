@@ -4,6 +4,7 @@
 
 #include "base/basictypes.h"
 #include "base/file_path.h"
+#include "base/file_path_configuration.h"
 #include "base/file_util.h"
 #include "base/utf_string_conversions.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -90,7 +91,7 @@ TEST_F(FilePathTest, DirName) {
 #if defined(OS_WIN)
     { FPL("\x0143:"),       FPL(".") },
 #endif  // OS_WIN
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:"),            FPL("c:") },
     { FPL("C:"),            FPL("C:") },
     { FPL("A:"),            FPL("A:") },
@@ -106,7 +107,7 @@ TEST_F(FilePathTest, DirName) {
     { FPL("c:/aa/bb"),      FPL("c:/aa") },
     { FPL("c:aa/bb"),       FPL("c:aa") },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("\\aa\\bb"),      FPL("\\aa") },
     { FPL("\\aa\\bb\\"),    FPL("\\aa") },
     { FPL("\\aa\\bb\\\\"),  FPL("\\aa") },
@@ -126,7 +127,7 @@ TEST_F(FilePathTest, DirName) {
     { FPL("\\\\aa\\bb"),    FPL("\\\\aa") },
     { FPL("\\\\aa\\"),      FPL("\\\\") },
     { FPL("\\\\aa"),        FPL("\\\\") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:\\"),          FPL("c:\\") },
     { FPL("c:\\\\"),        FPL("c:\\\\") },
     { FPL("c:\\\\\\"),      FPL("c:\\") },
@@ -178,7 +179,7 @@ TEST_F(FilePathTest, BaseName) {
 #if defined(OS_WIN)
     { FPL("\x0143:"),       FPL("\x0143:") },
 #endif  // OS_WIN
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:"),            FPL("") },
     { FPL("C:"),            FPL("") },
     { FPL("A:"),            FPL("") },
@@ -194,7 +195,7 @@ TEST_F(FilePathTest, BaseName) {
     { FPL("c:/aa/bb"),      FPL("bb") },
     { FPL("c:aa/bb"),       FPL("bb") },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("\\aa\\bb"),      FPL("bb") },
     { FPL("\\aa\\bb\\"),    FPL("bb") },
     { FPL("\\aa\\bb\\\\"),  FPL("bb") },
@@ -213,7 +214,7 @@ TEST_F(FilePathTest, BaseName) {
     { FPL("\\\\aa\\bb"),    FPL("bb") },
     { FPL("\\\\aa\\"),      FPL("aa") },
     { FPL("\\\\aa"),        FPL("aa") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:\\"),          FPL("\\") },
     { FPL("c:\\\\"),        FPL("\\\\") },
     { FPL("c:\\\\\\"),      FPL("\\") },
@@ -243,14 +244,14 @@ TEST_F(FilePathTest, Append) {
     { { FPL("//aa"),       FPL("") },   FPL("//aa") },
     { { FPL("//aa/"),      FPL("") },   FPL("//aa") },
     { { FPL("//"),         FPL("aa") }, FPL("//aa") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:"),         FPL("a") },  FPL("c:a") },
     { { FPL("c:"),         FPL("") },   FPL("c:") },
     { { FPL("c:/"),        FPL("a") },  FPL("c:/a") },
     { { FPL("c://"),       FPL("a") },  FPL("c://a") },
     { { FPL("c:///"),      FPL("a") },  FPL("c:/a") },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     // Append introduces the default separator character, so these test cases
     // need to be defined with different expected results on platforms that use
     // different default separator characters.
@@ -276,7 +277,7 @@ TEST_F(FilePathTest, Append) {
     { { FPL("a\\b\\"),     FPL("c") },  FPL("a\\b\\c") },
     { { FPL("\\\\aa"),     FPL("bb") }, FPL("\\\\aa\\bb") },
     { { FPL("\\\\aa\\"),   FPL("bb") }, FPL("\\\\aa\\bb") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:\\"),       FPL("a") },  FPL("c:\\a") },
     { { FPL("c:\\\\"),     FPL("a") },  FPL("c:\\\\a") },
     { { FPL("c:\\\\\\"),   FPL("a") },  FPL("c:\\a") },
@@ -293,7 +294,7 @@ TEST_F(FilePathTest, Append) {
     { { FPL("a/b/"),       FPL("c") },  FPL("a/b/c") },
     { { FPL("//aa"),       FPL("bb") }, FPL("//aa/bb") },
     { { FPL("//aa/"),      FPL("bb") }, FPL("//aa/bb") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:/"),        FPL("a") },  FPL("c:/a") },
     { { FPL("c:/"),        FPL("") },   FPL("c:/") },
     { { FPL("c:/a"),       FPL("b") },  FPL("c:/a/b") },
@@ -341,7 +342,7 @@ TEST_F(FilePathTest, StripTrailingSeparators) {
     { FPL("/a//"),          FPL("/a") },
     { FPL("/a///"),         FPL("/a") },
     { FPL("/a////"),        FPL("/a") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:"),            FPL("c:") },
     { FPL("c:/"),           FPL("c:/") },
     { FPL("c://"),          FPL("c://") },
@@ -353,7 +354,7 @@ TEST_F(FilePathTest, StripTrailingSeparators) {
     { FPL("c:/a///"),       FPL("c:/a") },
     { FPL("c:/a////"),      FPL("c:/a") },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("\\"),            FPL("\\") },
     { FPL("\\\\"),          FPL("\\\\") },
     { FPL("\\\\\\"),        FPL("\\") },
@@ -367,7 +368,7 @@ TEST_F(FilePathTest, StripTrailingSeparators) {
     { FPL("\\a\\\\"),       FPL("\\a") },
     { FPL("\\a\\\\\\"),     FPL("\\a") },
     { FPL("\\a\\\\\\\\"),   FPL("\\a") },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("c:\\"),          FPL("c:\\") },
     { FPL("c:\\\\"),        FPL("c:\\\\") },
     { FPL("c:\\\\\\"),      FPL("c:\\") },
@@ -400,7 +401,7 @@ TEST_F(FilePathTest, IsAbsolute) {
     { FPL("//a"),    true },
     { FPL("c:a/b"),  false },
     { FPL("?:/a"),   false },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("/"),      false },
     { FPL("/a"),     false },
     { FPL("/."),     false },
@@ -418,7 +419,7 @@ TEST_F(FilePathTest, IsAbsolute) {
     { FPL("/.."),    true },
     { FPL("c:/"),    false },
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("a\\b"),   false },
     { FPL("\\\\"),   true },
     { FPL("\\\\a"),  true },
@@ -427,7 +428,7 @@ TEST_F(FilePathTest, IsAbsolute) {
     { FPL("//a"),    true },
     { FPL("c:a\\b"), false },
     { FPL("?:\\a"),  false },
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("\\"),     false },
     { FPL("\\a"),    false },
     { FPL("\\."),    false },
@@ -471,12 +472,12 @@ TEST_F(FilePathTest, PathComponentsTest) {
     { FPL("/"),                       FPL("|/")},
     { FPL("foo"),                     FPL("|foo")},
     { FPL(""),                        FPL("")},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { FPL("e:/foo"),                  FPL("|e:|/|foo")},
     { FPL("e:/"),                     FPL("|e:|/")},
     { FPL("e:"),                      FPL("|e:")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("../foo"),                  FPL("|..|foo")},
     { FPL("./foo"),                   FPL("|foo")},
     { FPL("../foo/bar/"),             FPL("|..|foo|bar") },
@@ -525,7 +526,7 @@ TEST_F(FilePathTest, IsParentTest) {
     { { FPL("foo/bar"),       FPL("foo2/bar/baz") },      false},
     { { FPL("foo/bar"),       FPL("foo/bar2/baz") },      false},
     { { FPL(""),              FPL("foo") },               false},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:/foo/bar"),    FPL("c:/foo/bar/baz") },    true},
     { { FPL("E:/foo/bar"),    FPL("e:/foo/bar/baz") },    true},
     { { FPL("f:/foo/bar"),    FPL("F:/foo/bar/baz") },    true},
@@ -541,7 +542,7 @@ TEST_F(FilePathTest, IsParentTest) {
     { { FPL("F:/foo/bar"),    FPL("f:/foo2/bar/baz") },   false},
     { { FPL("c:/foo/bar"),    FPL("c:/foo/bar2/baz") },   false},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar\\baz") },   true},
     { { FPL("\\foo/bar"),     FPL("\\foo\\bar\\baz") },   true},
     { { FPL("\\foo/bar"),     FPL("\\foo/bar/baz") },     true},
@@ -564,7 +565,7 @@ TEST_F(FilePathTest, IsParentTest) {
 
 TEST_F(FilePathTest, AppendRelativePathTest) {
   const struct BinaryTestData cases[] = {
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("/"),             FPL("/foo/bar/baz") },      FPL("foo\\bar\\baz")},
 #else  // FILE_PATH_USES_WIN_SEPARATORS
     { { FPL("/"),             FPL("/foo/bar/baz") },      FPL("foo/bar/baz")},
@@ -581,13 +582,13 @@ TEST_F(FilePathTest, AppendRelativePathTest) {
     { { FPL("foo/bar"),       FPL("foo2/bar/baz") },      FPL("")},
     { { FPL("foo/bar"),       FPL("foo/bar2/baz") },      FPL("")},
     { { FPL(""),              FPL("foo") },               FPL("")},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:/foo/bar"),    FPL("c:/foo/bar/baz") },    FPL("baz")},
     { { FPL("E:/foo/bar"),    FPL("e:/foo/bar/baz") },    FPL("baz")},
     { { FPL("f:/foo/bar"),    FPL("F:/foo/bar/baz") },    FPL("baz")},
     { { FPL("E:/Foo/bar"),    FPL("e:/foo/bar/baz") },    FPL("")},
     { { FPL("f:/foo/bar"),    FPL("F:/foo/Bar/baz") },    FPL("")},
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("c:/"),           FPL("c:/foo/bar/baz") },    FPL("foo\\bar\\baz")},
     // TODO(akalin): Figure out how to handle the corner case in the
     // commented-out test case below.  Appending to an empty path gives
@@ -603,7 +604,7 @@ TEST_F(FilePathTest, AppendRelativePathTest) {
     { { FPL("F:/foo/bar"),    FPL("f:/foo2/bar/baz") },   FPL("")},
     { { FPL("c:/foo/bar"),    FPL("c:/foo/bar2/baz") },   FPL("")},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar\\baz") },   FPL("baz")},
     { { FPL("\\foo/bar"),     FPL("\\foo\\bar\\baz") },   FPL("baz")},
     { { FPL("\\foo/bar"),     FPL("\\foo/bar/baz") },     FPL("baz")},
@@ -653,7 +654,7 @@ TEST_F(FilePathTest, EqualityTest) {
     { { FPL("foo/bar"),       FPL("foo/bar") },           true},
     { { FPL("foo/bar"),       FPL("foo/bar/baz") },       false},
     { { FPL(""),              FPL("foo") },               false},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:/foo/bar"),    FPL("c:/foo/bar") },        true},
     { { FPL("E:/foo/bar"),    FPL("e:/foo/bar") },        true},
     { { FPL("f:/foo/bar"),    FPL("F:/foo/bar") },        true},
@@ -666,7 +667,7 @@ TEST_F(FilePathTest, EqualityTest) {
     { { FPL("C:/foo/bar"),    FPL("d:/foo/bar") },        false},
     { { FPL("c:/foo/bar"),    FPL("c:/foo2/bar") },       false},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar") },        true},
     { { FPL("\\foo/bar"),     FPL("\\foo/bar") },         true},
     { { FPL("\\foo/bar"),     FPL("\\foo\\bar") },        false},
@@ -675,7 +676,7 @@ TEST_F(FilePathTest, EqualityTest) {
     { { FPL(""),              FPL("\\") },                false},
     { { FPL("\\foo\\bar"),    FPL("\\foo2\\bar") },       false},
     { { FPL("\\foo\\bar"),    FPL("\\foo\\bar2") },       false},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:\\foo\\bar"),    FPL("c:\\foo\\bar") },    true},
     { { FPL("E:\\foo\\bar"),    FPL("e:\\foo\\bar") },    true},
     { { FPL("f:\\foo\\bar"),    FPL("F:\\foo/bar") },     false},
@@ -720,7 +721,7 @@ TEST_F(FilePathTest, Extension) {
 
 TEST_F(FilePathTest, Extension2) {
   const struct UnaryTestData cases[] = {
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("C:\\a\\b\\c.ext"),        FPL(".ext") },
     { FPL("C:\\a\\b\\c."),           FPL(".") },
     { FPL("C:\\a\\b\\c"),            FPL("") },
@@ -788,7 +789,7 @@ TEST_F(FilePathTest, InsertBeforeExtension) {
     { { FPL("foo"),             FPL(".") },       FPL("foo.") },
     { { FPL("foo.baz.dll"),     FPL("") },        FPL("foo.baz.dll") },
     { { FPL("foo.baz.dll"),     FPL(".") },       FPL("foo.baz..dll") },
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("\\"),              FPL("") },        FPL("\\") },
     { { FPL("\\"),              FPL("txt") },     FPL("\\txt") },
     { { FPL("\\."),             FPL("txt") },     FPL("") },
@@ -850,7 +851,7 @@ TEST_F(FilePathTest, RemoveExtension) {
     { FPL("foo.."),               FPL("foo.") },
     { FPL("foo.baz.dll"),         FPL("foo.baz") },
     { FPL("foo.tar.gz"),          FPL("foo") },
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { FPL("C:\\foo.bar\\foo"),    FPL("C:\\foo.bar\\foo") },
     { FPL("C:\\foo.bar\\..\\\\"), FPL("C:\\foo.bar\\..\\\\") },
 #endif
@@ -888,7 +889,7 @@ TEST_F(FilePathTest, ReplaceExtension) {
     { { FPL("foo"),           FPL(".") },     FPL("foo") },
     { { FPL("foo.baz.dll"),   FPL("") },      FPL("foo.baz") },
     { { FPL("foo.baz.dll"),   FPL(".") },     FPL("foo.baz") },
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("C:\\foo.bar\\foo"),    FPL("baz") }, FPL("C:\\foo.bar\\foo.baz") },
     { { FPL("C:\\foo.bar\\..\\\\"), FPL("baz") }, FPL("") },
 #endif
@@ -926,7 +927,7 @@ TEST_F(FilePathTest, AddExtension) {
     { { FPL("foo"),           FPL(".") },     FPL("foo") },
     { { FPL("foo.baz.dll"),   FPL("") },      FPL("foo.baz.dll") },
     { { FPL("foo.baz.dll"),   FPL(".") },     FPL("foo.baz.dll") },
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("C:\\foo.bar\\foo"),    FPL("baz") }, FPL("C:\\foo.bar\\foo.baz") },
     { { FPL("C:\\foo.bar\\..\\\\"), FPL("baz") }, FPL("") },
 #endif
@@ -957,11 +958,11 @@ TEST_F(FilePathTest, MatchesExtension) {
     { { FPL("foo.txt"),                 FPL(".tXt") },                true},
     { { FPL("foo.tXt"),                 FPL(".TXT") },                true},
     { { FPL("foo.tXt"),                 FPL(".tXt") },                true},
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
     { { FPL("c:/foo.txt.dll"),          FPL(".txt") },                false},
     { { FPL("c:/foo.txt"),              FPL(".txt") },                true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
     { { FPL("c:\\bar\\foo.txt.dll"),    FPL(".txt") },                false},
     { { FPL("c:\\bar\\foo.txt"),        FPL(".txt") },                true},
 #endif  // FILE_PATH_USES_DRIVE_LETTERS
@@ -1151,7 +1152,7 @@ TEST_F(FilePathTest, AppendWithNUL) {
   FilePath path(FPL("a"));
   path = path.Append(FPS("b\0b"));
   EXPECT_TRUE(path.value().length() == 3);
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
   EXPECT_EQ(path.value(), FPL("a\\b"));
 #else
   EXPECT_EQ(path.value(), FPL("a/b"));
@@ -1167,7 +1168,7 @@ TEST_F(FilePathTest, ReferencesParentWithNUL) {
   EXPECT_TRUE(path.ReferencesParent());
 }
 
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
 TEST_F(FilePathTest, NormalizePathSeparators) {
   const struct UnaryTestData cases[] = {
     { FPL("foo/bar"), FPL("foo\\bar") },

@@ -326,6 +326,15 @@ bool CreateNewTempDirectory(const FilePath::StringType &prefix,
 
 bool CreateDirectory(const FilePath &full_path) {
   base::ThreadRestrictions::AssertIOAllowed();
+
+  // Fast-path: can the full path be resolved from the full path?
+  if (DirectoryExists(full_path) ||
+      SbDirectoryCreate(full_path.value().c_str())) {
+    return true;
+  }
+
+  // Slow-path: iterate through the paths and resolve from the root
+  // to the leaf.
   std::vector<FilePath> subpaths;
 
   // Collect a list of all parent directories.
