@@ -98,14 +98,16 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
   // The command request is not mapped to anything.
   void UnknownCommand(const std::string& path) OVERRIDE {
-    SendInternal(net::HTTP_NOT_FOUND, "Unknown command: " + path,
+    LOG(INFO) << "Unknown command: " << path;
+    SendInternal(net::HTTP_NOT_FOUND, "Unknown command",
                  kTextPlainContentType);
   }
 
   // The command request is mapped to a valid command, but this WebDriver
   // implementation has not implemented it.
   void UnimplementedCommand(const std::string& path) OVERRIDE {
-    SendInternal(net::HTTP_NOT_IMPLEMENTED, "Unimplemented command: " + path,
+    LOG(INFO) << "Unimplemented command: " << path;
+    SendInternal(net::HTTP_NOT_IMPLEMENTED, "Unimplemented command",
                  kTextPlainContentType);
   }
 
