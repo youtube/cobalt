@@ -32,6 +32,9 @@ using Microsoft::WRL::ComPtr;
 // resolution changes during playback.
 const int kMaxOutputSamples = 5;
 
+// Throttle the number of queued inputs to control memory usage.
+const int kMaxInputSamples = 15;
+
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
 struct CreateDecodeTargetContext {
@@ -45,6 +48,7 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     const IMFDXGIDeviceManager* device_manager) {
   scoped_ptr<MediaTransform> transform(new MediaTransform(decoder_guid));
 
+  transform->EnableInputThrottle(true);
   transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
                          ULONG_PTR(device_manager));
 
@@ -411,6 +415,8 @@ void VideoDecoder::DecoderThreadRun() {
 
   while (!decoder_thread_stop_requested_) {
     int outputs_to_process = 1;
+    bool wrote_input = false;
+    bool read_output = false;
 
     // Process a new event or re-try the previous event.
     if (event == nullptr) {
@@ -430,6 +436,7 @@ void VideoDecoder::DecoderThreadRun() {
           if (decoder_->TryWriteInputBuffer(event->input_buffer, 0)) {
             // The event was successfully processed. Discard it.
             event.reset();
+            wrote_input = true;
           } else {
             // The decoder must be full. Re-try the event on the next
             // iteration. Additionally, try reading an extra output frame to
@@ -441,6 +448,7 @@ void VideoDecoder::DecoderThreadRun() {
           event.reset();
           decoder_->Drain();
           is_end_of_stream = true;
+          wrote_input = true;
           break;
       }
     }
@@ -451,13 +459,16 @@ void VideoDecoder::DecoderThreadRun() {
       // may stall if the number of active IMFSamples would exceed the value of
       // MF_SA_MINIMUM_OUTPUT_SAMPLE_COUNT.
       thread_lock_.Acquire();
-      size_t output_count = thread_outputs_.size();
+      bool input_full = thread_events_.size() >= kMaxInputSamples;
+      bool output_full = thread_outputs_.size() >= kMaxOutputSamples;
       thread_lock_.Release();
-      if (output_count >= kMaxOutputSamples) {
-        // Wait for the active samples to be consumed.
-        host_->OnDecoderStatusUpdate(kBufferFull, nullptr);
-        SbThreadSleep(kSbTimeMillisecond);
-        continue;
+
+      Status status = input_full ? kBufferFull : kNeedMoreInput;
+      host_->OnDecoderStatusUpdate(status, nullptr);
+
+      if (output_full) {
+        // Wait for the active samples to be consumed before polling for more.
+        break;
       }
 
       ComPtr<IMFSample> sample;
@@ -467,15 +478,18 @@ void VideoDecoder::DecoderThreadRun() {
         UpdateVideoArea(media_type);
       }
       if (sample) {
-        host_->OnDecoderStatusUpdate(kNeedMoreInput,
-                                     CreateVideoFrame(sample));
+        host_->OnDecoderStatusUpdate(status, CreateVideoFrame(sample));
+        read_output = true;
       } else if (is_end_of_stream) {
         host_->OnDecoderStatusUpdate(kBufferFull,
                                      VideoFrame::CreateEOSFrame());
         return;
-      } else {
-        host_->OnDecoderStatusUpdate(kNeedMoreInput, nullptr);
       }
+    }
+
+    if (!wrote_input && !read_output) {
+      // Throttle decode loop since no I/O was possible.
+      SbThreadSleep(kSbTimeMillisecond);
     }
   }
 }

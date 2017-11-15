@@ -46,6 +46,13 @@ class MediaTransform {
   explicit MediaTransform(
       const Microsoft::WRL::ComPtr<IMFTransform>& transform);
 
+  // By default, the input throttle is disabled, and inputs can be written to
+  // the transform until rejected; i.e. the transform is kept full of inputs.
+  // However, some transforms may never report that they are full, so enabling
+  // the input throttle will allow inputs only when the transform reports that
+  // it needs more input.
+  void EnableInputThrottle(bool enable) { throttle_inputs_ = enable; }
+
   bool TryWrite(const Microsoft::WRL::ComPtr<IMFSample>& input);
   Microsoft::WRL::ComPtr<IMFSample> TryRead(
       Microsoft::WRL::ComPtr<IMFMediaType>* new_type);
@@ -90,6 +97,7 @@ class MediaTransform {
   State state_;
   bool stream_begun_;
   bool discontinuity_;
+  bool throttle_inputs_;
 };
 
 }  // namespace win32
