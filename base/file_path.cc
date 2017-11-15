@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "base/basictypes.h"
+#include "base/file_path_configuration.h"
 #include "base/logging.h"
 #include "base/pickle.h"
 
@@ -17,6 +18,7 @@
 #include "base/string_util.h"
 #include "base/sys_string_conversions.h"
 #include "base/utf_string_conversions.h"
+#include "starboard/configuration.h"
 
 #if defined(OS_MACOSX)
 #include "base/mac/scoped_cftyperef.h"
@@ -29,11 +31,16 @@
 #include <CoreFoundation/CoreFoundation.h>
 #endif
 
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
-const FilePath::CharType FilePath::kSeparators[] = FILE_PATH_LITERAL("\\/");
-#else  // FILE_PATH_USES_WIN_SEPARATORS
-const FilePath::CharType FilePath::kSeparators[] = FILE_PATH_LITERAL("/");
-#endif  // FILE_PATH_USES_WIN_SEPARATORS
+
+#if (SB_FILE_SEP_CHAR == SB_FILE_ALT_SEP_CHAR)
+const FilePath::CharType FilePath::kSeparators[] =
+    FILE_PATH_LITERAL(SB_FILE_SEP_STRING);
+#else
+// First char is the normal character. Second char is the alternate, which will be
+// replaced with the first character during path normalization.
+const FilePath::CharType FilePath::kSeparators[] =
+    FILE_PATH_LITERAL(SB_FILE_SEP_STRING SB_FILE_ALT_SEP_STRING);
+#endif
 
 const FilePath::CharType FilePath::kCurrentDirectory[] = FILE_PATH_LITERAL(".");
 const FilePath::CharType FilePath::kParentDirectory[] = FILE_PATH_LITERAL("..");
@@ -55,7 +62,7 @@ const FilePath::CharType kStringTerminator = FILE_PATH_LITERAL('\0');
 // begins with a letter followed by a colon.  On other platforms, this always
 // returns npos.
 StringType::size_type FindDriveLetter(const StringType& path) {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
   // This is dependent on an ASCII-based character set, but that's a
   // reasonable assumption.  iswalpha can be too inclusive here.
   if (path.length() >= 2 && path[1] == L':' &&
@@ -67,7 +74,7 @@ StringType::size_type FindDriveLetter(const StringType& path) {
   return StringType::npos;
 }
 
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
 bool EqualDriveLetterCaseInsensitive(const StringType& a,
                                      const StringType& b) {
   size_t a_letter_pos = FindDriveLetter(a);
@@ -88,7 +95,7 @@ bool EqualDriveLetterCaseInsensitive(const StringType& a,
 #endif  // defined(FILE_PATH_USES_DRIVE_LETTERS)
 
 bool IsPathAbsolute(const StringType& path) {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
   StringType::size_type letter = FindDriveLetter(path);
   if (letter != StringType::npos) {
     // Look for a separator right after the drive specification.
@@ -198,7 +205,7 @@ FilePath& FilePath::operator=(const FilePath& that) {
 }
 
 bool FilePath::operator==(const FilePath& that) const {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
   return EqualDriveLetterCaseInsensitive(this->path_, that.path_);
 #else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
   return path_ == that.path_;
@@ -206,7 +213,7 @@ bool FilePath::operator==(const FilePath& that) const {
 }
 
 bool FilePath::operator!=(const FilePath& that) const {
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
   return !EqualDriveLetterCaseInsensitive(this->path_, that.path_);
 #else  // defined(FILE_PATH_USES_DRIVE_LETTERS)
   return path_ != that.path_;
@@ -279,7 +286,7 @@ bool FilePath::AppendRelativePath(const FilePath& child,
   std::vector<StringType>::const_iterator child_comp =
       child_components.begin();
 
-#if defined(FILE_PATH_USES_DRIVE_LETTERS)
+#if (FILE_PATH_USES_DRIVE_LETTERS == 1)
   // Windows can access case sensitive filesystems, so component
   // comparisions must be case sensitive, but drive letters are
   // never case sensitive.
@@ -1240,7 +1247,7 @@ void FilePath::StripTrailingSeparatorsInternal() {
 }
 
 FilePath FilePath::NormalizePathSeparators() const {
-#if defined(FILE_PATH_USES_WIN_SEPARATORS)
+#if (FILE_PATH_USES_WIN_SEPARATORS == 1)
   StringType copy = path_;
   for (size_t i = 1; i < arraysize(kSeparators); ++i) {
     std::replace(copy.begin(), copy.end(), kSeparators[i], kSeparators[0]);
