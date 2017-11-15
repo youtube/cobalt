@@ -179,8 +179,6 @@
         '../h5vcc/h5vcc_system.idl',
         '../h5vcc/h5vcc_trace_event.idl',
 
-        '../media_capture/media_device_info.idl',
-        '../media_capture/media_devices.idl',
         '../media_session/media_metadata.idl',
         '../media_session/media_session.idl',
 
@@ -244,7 +242,6 @@
         '../dom/source_buffer_append_mode.idl',
         '../dom/track_default_type.idl',
         '../dom/wheel_event_init.idl',
-        '../media_capture/media_device_kind.idl',
         '../media_session/media_image.idl',
         '../media_session/media_metadata_init.idl',
         '../media_session/media_session_action.idl',
@@ -297,7 +294,6 @@
         '../dom/window_on_screen_keyboard.idl',
         '../dom/window_session_storage.idl',
         '../dom/window_timers.idl',
-        '../media_capture/navigator.idl',
         '../media_session/navigator_media_session.idl',
         '../page_visibility/document.idl',
     ],
