@@ -77,6 +77,29 @@ def TargetOsPathJoin(*path_elements):
   return '/'.join(path_elements)
 
 
+def CleanLine(line):
+  """Removes trailing carriages returns from ADB output."""
+  return line.replace('\r', '')
+
+
+class Timer(object):
+  """Class for timing how long install/run steps take."""
+
+  def __init__(self, step_name):
+    self.step_name = step_name
+    self.start_time = time.time()
+    self.end_time = None
+
+  def Stop(self):
+    if self.start_time is None:
+      sys.stderr.write('Cannot stop timer; not started\n')
+    else:
+      self.end_time = time.time()
+      total_time = self.end_time - self.start_time
+      sys.stderr.write('Step \"{}\" took {} seconds.\n'.format(
+          self.step_name, total_time))
+
+
 class AdbCommandBuilder(object):
   """Builder for 'adb' commands."""
 
@@ -96,10 +119,12 @@ class AdbCommandBuilder(object):
 class ExitFileWatch(object):
   """Watches for an exitcode file to be created on the target."""
 
-  def __init__(self, adb_builder, exitcode_path, done_queue):
+  def __init__(self, adb_builder, exitcode_path, done_queue,
+               return_code_queue):
     self.adb_builder = adb_builder
     self.shutdown_event = threading.Event()
     self.done_queue = done_queue
+    self.return_code_queue = return_code_queue
     self.exitcode_path = exitcode_path
     self.thread = threading.Thread(target=self._Run)
     self.thread.start()
@@ -119,20 +144,36 @@ class ExitFileWatch(object):
     Restart() function can be used to start the search process again.
     """
     while not self.shutdown_event.is_set():
-      p = subprocess.Popen(
-          self.adb_builder.Build('shell', 'cat', self.exitcode_path),
-          stdout=_DEV_NULL,
-          stderr=_DEV_NULL,
-          close_fds=True)
-      if 0 == p.wait():
+      return_code = None
+      try:
+        p = subprocess.Popen(
+            self.adb_builder.Build('shell', 'cat', self.exitcode_path),
+            stdout=subprocess.PIPE,
+            stderr=_DEV_NULL,
+            close_fds=True)
+      except IOError:
+        pass
+      p.wait()
+
+      line = CleanLine(p.stdout.readline().rstrip('\n'))
+      if not line:
+        continue
+      try:
+        return_code = int(line)
+      except ValueError:  # Error message was printed to stdout
+        continue
+
+      if return_code is not None:
         self.done_queue.put(_QUEUE_CODE_EXITED)
+        self.return_code_queue.put(return_code)
         # This log line will wake up the main thread
         subprocess.call(
             self.adb_builder.Build('shell', 'log', '-t', 'starboard',
                                    'exitcode file created'),
             close_fds=True)
         break
-      time.sleep(1)
+      else:
+        time.sleep(1)
 
 
 class AdbAmMonitorWatcher(object):
@@ -155,7 +196,7 @@ class AdbAmMonitorWatcher(object):
 
   def _Run(self):
     while True:
-      line = self.process.stdout.readline()
+      line = CleanLine(self.process.stdout.readline())
       if not line:
         return
       if re.search(_RE_ADB_AM_MONITOR_ERROR, line):
@@ -249,15 +290,17 @@ class Launcher(abstract_launcher.AbstractLauncher):
     Returns:
       True if the app is installed on the device, False otherwise.
     """
+    package_string = 'package:{}'.format(_APP_PACKAGE_NAME)
+
     p = self._PopenAdb(
-        'shell', 'cmd',
-        'package', 'list',
-        'packages', '|', 'grep',
-        _APP_PACKAGE_NAME,
+        'shell', 'pm', 'list',
+        'packages', _APP_PACKAGE_NAME,
         stdout=subprocess.PIPE,
         stderr=_DEV_NULL)
 
-    return p.wait() == 0
+    p.wait()
+    line = CleanLine(p.stdout.readline())
+    return package_string in line
 
   def _GetInstalledAppDataDir(self):
     """Returns the "dataDir" for the installed android app.
@@ -356,9 +399,10 @@ class Launcher(abstract_launcher.AbstractLauncher):
                        stderr=_DEV_NULL)
 
     for line in p.stdout:
-      checksum_result = re.search(_RE_CHECKSUM, line)
+      cleaned_line = CleanLine(line).rstrip('\n')
+      checksum_result = re.search(_RE_CHECKSUM, cleaned_line)
       if checksum_result:
-        return checksum_result.group(1).rstrip('\n')
+        return checksum_result.group(1)
 
     if p.wait() != 0:
       return None
@@ -413,9 +457,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
       needs_install = True
 
     if needs_install:
+      install_timer = Timer('initial install')
       self._CheckCallAdb('install', self.apk_path)
+      install_timer.Stop()
 
-    self.data_dir = self._GetInstalledAppDataDir()
+    # Sometimes the app data directory has a carriage return attached.
+    self.data_dir = self._GetInstalledAppDataDir().rstrip('\r')
 
     if self.data_dir is None:
       raise Exception('Could not find installed app data dir')
@@ -442,10 +489,14 @@ class Launcher(abstract_launcher.AbstractLauncher):
     if needs_update:
       # If the app has not already been installed this run, re-install it.
       if not needs_install:
+        reinstall_timer = Timer('reinstall')
         self._CheckCallAdb('uninstall', _APP_PACKAGE_NAME)
         self._CheckCallAdb('install', self.apk_path)
+        reinstall_timer.Stop()
 
+      content_timer = Timer('pushing content files')
       self._CheckCallAdb('push', self.host_content_path, android_content_path)
+      content_timer.Stop()
 
       # Without this, the 'files' dir won't be writable by the app
       self._CheckCallAdb('shell', 'chmod', 'a+rwx', android_files_path)
@@ -454,7 +505,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
 
     # Regardless of whether the apk or extra data needed to be copied, we still
     # push the shared libary containing the binary.
+    so_timer = Timer('pushing .so file')
     self._CheckCallAdb('push', host_lib_path, android_lib_path)
+    so_timer.Stop()
 
   def Run(self):
 
@@ -470,9 +523,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
     self._CheckCallAdb('shell', 'rm', '-f', self.exit_code_path)
     self._CheckCallAdb('shell', 'rm', '-f', self.log_file_path)
 
-    queue = Queue.Queue()
-    am_monitor = AdbAmMonitorWatcher(self.adb_builder, queue)
-    exit_watcher = ExitFileWatch(self.adb_builder, self.exit_code_path, queue)
+    done_queue = Queue.Queue()
+    return_code_queue = Queue.Queue()
+    am_monitor = AdbAmMonitorWatcher(self.adb_builder, done_queue)
+    exit_watcher = ExitFileWatch(self.adb_builder, self.exit_code_path,
+                                 done_queue, return_code_queue)
 
     # Increases the size of the logcat buffer.  Without this, the log buffer
     # will not flush quickly enough and output will be cut off.
@@ -484,6 +539,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
         stderr=subprocess.STDOUT)
 
     # Actually running executable
+    run_timer = Timer('running executable')
     try:
       args = [_APP_START_INTENT]
 
@@ -497,37 +553,16 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._CheckCallAdb(*args)
 
       while True:
-        if not queue.empty():
-          queue_code = queue.get_nowait()
+        if not done_queue.empty():
+          done_queue_code = done_queue.get_nowait()
 
-          if queue_code == _QUEUE_CODE_CRASHED:
+          if done_queue_code == _QUEUE_CODE_CRASHED:
             self.output_file.write('***Application Crashed***\n')
             break
-          else:
-            # Occasionally, the exit file watcher will detect an exitcode file
-            # when it has not actually been generated yet.  The reason for this
-            # is unknown, but the try/except below will restart the exit code
-            # watcher if there is a false alarm.
-            try:
-              p = self._PopenAdb(
-                  'shell', 'cat', self.exit_code_path, stdout=subprocess.PIPE,
-                  stderr=_DEV_NULL)
-              p.wait()
-              lines = p.stdout.readlines()
-              if lines:
-                return_code = int(lines[0])
-              else:
-                exit_watcher.Restart()
-                continue
-            except IndexError:  # Output was not the expected exit code
-              # If something failed, restart the exit file watcher
-              self.exit_watcher.Restart()
-              continue
-          break
 
         # Note we cannot use "for line in logcat_process.stdout" because
         # that uses a large buffer which will cause us to deadlock.
-        line = logcat_process.stdout.readline()
+        line = CleanLine(logcat_process.stdout.readline())
         # Some crashes are not caught by the crash monitor thread, but
         # They do produce the following string in logcat before they exit.
         if 'beginning of crash' in line:
@@ -537,6 +572,12 @@ class Launcher(abstract_launcher.AbstractLauncher):
           break
         else:
           self._WriteLine(line)
+          # Don't break until we see the below text in logcat, which should be
+          # written after all of our executable's output.
+          if 'exitcode file created' in line:
+            return_code = return_code_queue.get_nowait()
+            logcat_process.kill()
+            break
 
     finally:
       self._Shutdown()
@@ -545,6 +586,7 @@ class Launcher(abstract_launcher.AbstractLauncher):
       exit_watcher.Shutdown()
       self._CloseOutputFile()
       self.killed.set()
+      run_timer.Stop()
 
     return return_code
 
@@ -575,5 +617,5 @@ class Launcher(abstract_launcher.AbstractLauncher):
         stderr=_DEV_NULL)
     forward_p.wait()
 
-    local_port = forward_p.stdout.readline()
+    local_port = CleanLine(forward_p.stdout.readline()).rstrip('\n')
     return socket.gethostbyname('localhost'), local_port
