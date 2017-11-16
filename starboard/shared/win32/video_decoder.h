@@ -18,7 +18,6 @@
 #include <D3d11_1.h>
 #include <wrl/client.h>
 
-#include <deque>
 #include <list>
 #include <memory>
 
@@ -119,7 +118,7 @@ class VideoDecoder
   volatile bool decoder_thread_stop_requested_;
   bool decoder_thread_stopped_;
   Mutex thread_lock_;
-  std::deque<std::unique_ptr<Event> > thread_events_;
+  std::list<std::unique_ptr<Event> > thread_events_;
 
   // This structure shadows the list of outstanding frames held by the host.
   // When a new output is added to this structure, the host should be notified
@@ -134,7 +133,7 @@ class VideoDecoder
 
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
-  SbDecodeTarget prev_decode_target_;
+  std::list<SbDecodeTarget> prev_decode_targets_;
 };
 
 }  // namespace win32

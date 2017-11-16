@@ -35,6 +35,11 @@ const int kMaxOutputSamples = 5;
 // Throttle the number of queued inputs to control memory usage.
 const int kMaxInputSamples = 15;
 
+// Decode targets are cached for reuse. Ensure the cache size is large enough
+// to accommodate the depth of the presentation swap chain, otherwise the
+// video textures may be updated before or while they are actually rendered.
+const int kDecodeTargetCacheSize = 2;
+
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
 struct CreateDecodeTargetContext {
@@ -86,8 +91,7 @@ VideoDecoder::VideoDecoder(
       decoder_thread_(kSbThreadInvalid),
       decoder_thread_stop_requested_(false),
       decoder_thread_stopped_(false),
-      current_decode_target_(kSbDecodeTargetInvalid),
-      prev_decode_target_(kSbDecodeTargetInvalid) {
+      current_decode_target_(kSbDecodeTargetInvalid) {
   SB_DCHECK(output_mode == kSbPlayerOutputModeDecodeToTexture);
 
   HardwareDecoderContext hardware_context = GetDirectXForHardwareDecoding();
@@ -109,7 +113,10 @@ VideoDecoder::~VideoDecoder() {
 
   ScopedLock lock(decode_target_lock_);
   SbDecodeTargetRelease(current_decode_target_);
-  SbDecodeTargetRelease(prev_decode_target_);
+  while (!prev_decode_targets_.empty()) {
+    SbDecodeTargetRelease(prev_decode_targets_.front());
+    prev_decode_targets_.pop_front();
+  }
 }
 
 void VideoDecoder::SetHost(Host* host) {
@@ -171,8 +178,9 @@ SbDecodeTarget VideoDecoder::GetCurrentDecodeTarget() {
 
   ScopedLock lock(decode_target_lock_);
   if (SbDecodeTargetIsValid(decode_target_context.out_decode_target)) {
-    SbDecodeTargetRelease(prev_decode_target_);
-    prev_decode_target_ = current_decode_target_;
+    if (SbDecodeTargetIsValid(current_decode_target_)) {
+      prev_decode_targets_.emplace_back(current_decode_target_);
+    }
     current_decode_target_ = decode_target_context.out_decode_target;
   }
   if (SbDecodeTargetIsValid(current_decode_target_)) {
@@ -220,13 +228,19 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
     // Try reusing the previous decode target to avoid the performance hit of
     // creating a new texture.
-    if (SbDecodeTargetIsValid(prev_decode_target_) &&
-        prev_decode_target_->Update(d3d_device_, video_device_,
-            video_context_, video_enumerator_, video_processor_,
-            video_sample, video_area)) {
-      decode_target = prev_decode_target_;
-      prev_decode_target_ = kSbDecodeTargetInvalid;
-    } else {
+    SB_DCHECK(prev_decode_targets_.size() <= kDecodeTargetCacheSize);
+    if (prev_decode_targets_.size() >= kDecodeTargetCacheSize) {
+      decode_target = prev_decode_targets_.front();
+      prev_decode_targets_.pop_front();
+      if (!decode_target->Update(d3d_device_, video_device_, video_context_,
+              video_enumerator_, video_processor_, video_sample, video_area)) {
+        // The cached decode target was not compatible; just release it.
+        SbDecodeTargetRelease(decode_target);
+        decode_target = kSbDecodeTargetInvalid;
+      }
+    }
+
+    if (!SbDecodeTargetIsValid(decode_target)) {
       decode_target = new SbDecodeTargetPrivate(d3d_device_, video_device_,
           video_context_, video_enumerator_, video_processor_,
           video_sample, video_area);
