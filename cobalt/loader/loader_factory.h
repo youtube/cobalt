@@ -41,24 +41,24 @@ class LoaderFactory {
 
   // Creates a loader that fetches and decodes an image.
   scoped_ptr<Loader> CreateImageLoader(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::ErrorCallback& error_callback,
-      const Origin& origin);
+      const image::ImageDecoder::ErrorCallback& error_callback);
 
   // Creates a loader that fetches and decodes a render_tree::Typeface.
   scoped_ptr<Loader> CreateTypefaceLoader(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const GURL& url, const Origin& orgin,
+      const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::ErrorCallback& error_callback,
-      const Origin& orgin);
+      const font::TypefaceDecoder::ErrorCallback& error_callback);
 
   // Creates a loader that fetches and decodes a Mesh.
   scoped_ptr<Loader> CreateMeshLoader(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
       const mesh::MeshDecoder::SuccessCallback& success_callback,
-      const mesh::MeshDecoder::ErrorCallback& error_callback,
-      const Origin& origin);
+      const mesh::MeshDecoder::ErrorCallback& error_callback);
 
   // Clears out the loader factory's resource provider, aborting any in-progress
   // loads.
