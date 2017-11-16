@@ -42,19 +42,19 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 8
+#define SB_MAXIMUM_API_VERSION 9
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 8
+#define SB_EXPERIMENTAL_API_VERSION 9
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-// #define SB_RELEASE_CANDIDATE_API_VERSION 8
+#define SB_RELEASE_CANDIDATE_API_VERSION 8
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -68,9 +68,9 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-#define SB_PLAYER_WITH_URL_API_VERSION SB_EXPERIMENTAL_API_VERSION
-#define SB_WINDOW_SIZE_CHANGED_API_VERSION SB_EXPERIMENTAL_API_VERSION
-#define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION SB_EXPERIMENTAL_API_VERSION
+#define SB_PLAYER_WITH_URL_API_VERSION 8
+#define SB_WINDOW_SIZE_CHANGED_API_VERSION 8
+#define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION 8
 
 // --- Release Candidate Feature Defines -------------------------------------
 
