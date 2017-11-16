@@ -133,6 +133,16 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
   if (status.is_success() && IsResponseCodeSuccess(response_code)) {
     handler()->OnDone(this);
   } else {
+    // Check for response codes and errors that are considered transient. These
+    // are the ones that net::URLFetcherCore is willing to attempt retries on,
+    // along with ERR_NAME_RESOLUTION_FAILED, which indicates a socket error.
+    if (response_code >= 500 ||
+        status.error() == net::ERR_TEMPORARILY_THROTTLED ||
+        status.error() == net::ERR_NETWORK_CHANGED ||
+        status.error() == net::ERR_NAME_RESOLUTION_FAILED) {
+      SetFailedFromTransientError();
+    }
+
     std::string msg(
         base::StringPrintf("NetFetcher error on %s: %s, response code %d",
                            source->GetURL().spec().c_str(),

@@ -48,9 +48,10 @@ typedef ResourceCache<MeshResourceCacheType> MeshCache;
 inline static scoped_ptr<MeshCache> CreateMeshCache(
     const std::string& name, uint32 cache_capacity,
     loader::LoaderFactory* loader_factory) {
-  return make_scoped_ptr<MeshCache>(new MeshCache(
-      name, cache_capacity, base::Bind(&loader::LoaderFactory::CreateMeshLoader,
-                                       base::Unretained(loader_factory))));
+  return make_scoped_ptr<MeshCache>(
+      new MeshCache(name, cache_capacity, false /*are_loading_retries_enabled*/,
+                    base::Bind(&loader::LoaderFactory::CreateMeshLoader,
+                               base::Unretained(loader_factory))));
 }
 
 }  // namespace mesh

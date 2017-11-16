@@ -79,6 +79,7 @@ FontCacheTest::FontCacheTest()
           &mock_resource_provider_)),
       rtc(new loader::font::RemoteTypefaceCache(
           "test_cache", 32 * 1024 /* 32 KB */,
+          true /*are_loading_retries_enabled*/,
           base::Bind(&loader::MockLoaderFactory::CreateTypefaceLoader,
                      base::Unretained(&loader_factory_)))),
       font_cache_(
