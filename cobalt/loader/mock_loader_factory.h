@@ -31,17 +31,18 @@ namespace loader {
 
 class MockLoaderFactory {
  public:
-  MOCK_METHOD4(CreateImageLoaderMock,
+  MOCK_METHOD5(CreateImageLoaderMock,
                loader::Loader*(
-                   const GURL& url,
+                   const GURL& url, const Origin&,
                    const csp::SecurityCallback& url_security_callback,
                    const image::ImageDecoder::SuccessCallback& success_callback,
                    const image::ImageDecoder::ErrorCallback& error_callback));
 
-  MOCK_METHOD4(
+  MOCK_METHOD5(
       CreateTypefaceLoaderMock,
       loader::Loader*(
-          const GURL& url, const csp::SecurityCallback& url_security_callback,
+          const GURL& url, const Origin&,
+          const csp::SecurityCallback& url_security_callback,
           const font::TypefaceDecoder::SuccessCallback& success_callback,
           const font::TypefaceDecoder::ErrorCallback& error_callback));
 
@@ -49,22 +50,21 @@ class MockLoaderFactory {
   // see:
   // https://groups.google.com/a/chromium.org/forum/#!msg/chromium-dev/01sDxsJ1OYw/I_S0xCBRF2oJ
   scoped_ptr<Loader> CreateImageLoader(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
       const image::ImageDecoder::SuccessCallback& success_callback,
-      const image::ImageDecoder::ErrorCallback& error_callback, const Origin&) {
-    return scoped_ptr<Loader>(
-        CreateImageLoaderMock(url, url_security_callback, success_callback,
-                              error_callback));
+      const image::ImageDecoder::ErrorCallback& error_callback) {
+    return scoped_ptr<Loader>(CreateImageLoaderMock(
+        url, origin, url_security_callback, success_callback, error_callback));
   }
 
   scoped_ptr<Loader> CreateTypefaceLoader(
-      const GURL& url, const csp::SecurityCallback& url_security_callback,
+      const GURL& url, const Origin& origin,
+      const csp::SecurityCallback& url_security_callback,
       const font::TypefaceDecoder::SuccessCallback& success_callback,
-      const font::TypefaceDecoder::ErrorCallback& error_callback,
-      const Origin&) {
-    return scoped_ptr<Loader>(
-        CreateTypefaceLoaderMock(url, url_security_callback, success_callback,
-                                 error_callback));
+      const font::TypefaceDecoder::ErrorCallback& error_callback) {
+    return scoped_ptr<Loader>(CreateTypefaceLoaderMock(
+        url, origin, url_security_callback, success_callback, error_callback));
   }
 
   MOCK_METHOD0(Suspend, void());

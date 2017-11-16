@@ -24,15 +24,12 @@
 #include "base/threading/thread_checker.h"
 #include "cobalt/loader/decoder.h"
 #include "cobalt/loader/fetcher.h"
-#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace loader {
 
 // Loader class consists of a Fetcher and a Decoder, that loads and decodes a
-// resource respectively. See the Loader design doc under the Cobalt intranet
-// home page.
-// TODO: Migrate Loader design doc to markdown in this directory.
+// resource respectively.
 class Loader {
  public:
   typedef base::Callback<scoped_ptr<Fetcher>(Fetcher::Handler*)> FetcherCreator;
@@ -59,13 +56,16 @@ class Loader {
   // called.
   void Resume(render_tree::ResourceProvider* resource_provider);
 
+  bool DidFailFromTransientError() const;
+
  private:
   class FetcherToDecoderAdapter;
 
   // Starts the fetch-and-decode.
   void Start();
 
-  FetcherCreator fetcher_creator_;
+  const FetcherCreator fetcher_creator_;
+
   scoped_ptr<Decoder> decoder_;
   scoped_ptr<FetcherToDecoderAdapter> fetcher_to_decoder_adaptor_;
   scoped_ptr<Fetcher> fetcher_;
@@ -73,8 +73,8 @@ class Loader {
   base::CancelableClosure fetcher_creator_error_closure_;
   base::ThreadChecker thread_checker_;
 
-  OnErrorFunction on_error_;
-  OnDestructionFunction on_destruction_;
+  const OnErrorFunction on_error_;
+  const OnDestructionFunction on_destruction_;
 
   bool is_suspended_;
 

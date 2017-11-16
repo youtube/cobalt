@@ -79,6 +79,7 @@ FontCacheTest::FontCacheTest()
           &mock_resource_provider_)),
       rtc(new loader::font::RemoteTypefaceCache(
           "test_cache", 32 * 1024 /* 32 KB */,
+          true /*are_loading_retries_enabled*/,
           base::Bind(&loader::MockLoaderFactory::CreateTypefaceLoader,
                      base::Unretained(&loader_factory_)))),
       font_cache_(
@@ -96,7 +97,7 @@ TEST_F(FontCacheTest, FindPostscriptFont) {
       CreateFontFaceMapHelper(family_name, postscript_font_name);
   font_cache_->SetFontFaceMap(ffm.Pass());
 
-  EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _))
+  EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _, _))
       .Times(0);
 
   EXPECT_CALL(mock_resource_provider_,
@@ -120,7 +121,7 @@ TEST_F(FontCacheTest, UseRemote) {
   EXPECT_CALL(mock_resource_provider_,
               GetLocalTypefaceIfAvailableMock(invalid_postscript_font_name))
       .Times(1);
-  EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _));
+  EXPECT_CALL(loader_factory_, CreateTypefaceLoaderMock(_, _, _, _, _));
 
   FontListFont::State state;
   scoped_refptr<render_tree::Font> f =
