@@ -60,7 +60,7 @@ bool GetAndroidSystemProperty(const char* system_property_name,
   // Note that __system_property_get returns empty string on no value
   __system_property_get(system_property_name, out_value);
 
-  if (strlen(out_value) == 0) {
+  if (SbStringGetLength(out_value) == 0) {
     SbStringCopy(out_value, default_value, value_length);
   }
   return true;
