@@ -79,7 +79,7 @@ is_windows = platform.system() == 'Windows'
 
 microsoft_flavors = ['win', 'win-win32', 'win-win32-lib', 'xb1', 'xb1-future',
     'xb1-youtubetv']
-sony_flavors = ['ps3', 'ps4']
+sony_flavors = ['ps3', 'ps4', 'ps4-vr']
 windows_host_flavors = microsoft_flavors + sony_flavors
 
 
@@ -1821,7 +1821,7 @@ def CalculateVariables(default_variables, params):
     default_variables['SHARED_LIB_SUFFIX'] = '.sprx'
     generator_flags = params.get('generator_flags', {})
 
-  elif flavor == 'ps4':
+  elif flavor in ['ps4', 'ps4-vr']:
     if is_windows:
       # This is required for BuildCygwinBashCommandLine() to work.
       import gyp.generator.msvs as msvs_generator
