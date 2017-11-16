@@ -344,14 +344,13 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
     *state = FontListFont::kLoadedState;
     return GetFontFromTypefaceAndSize(typeface, size);
   } else {
-    if (cached_remote_typeface->IsLoading()) {
-      if (requested_remote_typeface_iterator->second->HasActiveRequestTimer()) {
-        *state = FontListFont::kLoadingWithTimerActiveState;
-      } else {
-        *state = FontListFont::kLoadingWithTimerExpiredState;
-      }
-    } else {
+    if (cached_remote_typeface->IsLoadingComplete()) {
       *state = FontListFont::kUnavailableState;
+    } else if (requested_remote_typeface_iterator->second
+                   ->HasActiveRequestTimer()) {
+      *state = FontListFont::kLoadingWithTimerActiveState;
+    } else {
+      *state = FontListFont::kLoadingWithTimerExpiredState;
     }
     return NULL;
   }
