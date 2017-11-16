@@ -23,5 +23,5 @@ bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value) {
     return false;
   }
   DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
-  return TlsSetValue(tls_index, value);
+  return FlsSetValue(tls_index, value);
 }

@@ -45,23 +45,50 @@ class ThreadCreateInfo {
   std::string name_;
 };
 
-void CallThreadLocalDestructors() {
-  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+bool RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
+  int num_destructors_called = 0;
 
+  // Copy thread local keyes. This is necessary because the unordered_map may
+  // invalidate its iterators on insert. This happens if a destructor inserts
+  // new elements into the tls.
+  auto copy_thread_local_keys = singleton->thread_local_keys_;
+
+  for (auto it = copy_thread_local_keys.begin();
+       it != copy_thread_local_keys.end(); ++it) {
+    if (!it->second->destructor) {
+      continue;
+    }
+    auto key = it->second;
+    void* entry = SbThreadGetLocalValue(key);
+    if (!entry) {
+      continue;
+    }
+    SbThreadSetLocalValue(key, nullptr);
+    ++num_destructors_called;
+    it->second->destructor(entry);
+  }
+  return num_destructors_called > 0;
+}
+
+void CallThreadLocalDestructorsMultipleTimes() {
+  // The number of passes conforms to the base_unittests. This is useful for
+  // destructors that insert new objects into thread local storage. These
+  // objects then need to be destroyed as well in subsequent passes. The total
+  // number of passes is 4, which is one more than what base_unittest tests
+  // for.
+  const int kNumDestructorPasses = 4;
+
+  ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
   // TODO note that the implementation below holds a global lock
   // while processing TLS destructors on thread exit. This could
   // be a bottleneck in some scenarios. A lockless approach may be preferrable.
   SbMutexAcquire(&singleton->mutex_);
-  for (auto it = singleton->thread_local_keys_.begin();
-       it != singleton->thread_local_keys_.end(); ++it) {
-    if (!it->second->destructor) {
-      continue;
+
+  for (int i = 0; i < kNumDestructorPasses; ++i) {
+    // Run through each destructor and call it.
+    if (!RunThreadLocalDestructors(singleton)) {
+      break;  // No more destructors to call.
     }
-    void* entry = SbThreadGetLocalValue(it->second);
-    if (!entry) {
-      continue;
-    }
-    it->second->destructor(entry);
   }
   SbMutexRelease(&singleton->mutex_);
 }
@@ -71,14 +98,12 @@ unsigned ThreadTrampoline(void* thread_create_info_context) {
       static_cast<ThreadCreateInfo*>(thread_create_info_context));
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
-
   SbThreadSetLocalValue(singleton->thread_private_key_, &info->thread_private_);
-
   SbThreadSetName(info->name_.c_str());
 
   void* result = info->entry_point_(info->user_context_);
 
-  CallThreadLocalDestructors();
+  CallThreadLocalDestructorsMultipleTimes();
 
   SbMutexAcquire(&info->thread_private_.mutex_);
   info->thread_private_.result_ = result;

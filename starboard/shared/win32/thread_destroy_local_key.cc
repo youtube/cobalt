@@ -33,6 +33,6 @@ void SbThreadDestroyLocalKey(SbThreadLocalKey key) {
   singleton->thread_local_keys_.erase(tls_index);
   SbMutexRelease(&singleton->mutex_);
 
-  TlsFree(tls_index);
+  FlsFree(tls_index);
   SbMemoryDeallocateNoReport(key);
 }
