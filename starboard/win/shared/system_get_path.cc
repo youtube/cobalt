@@ -78,11 +78,8 @@ bool GetExecutableDirectory(char* out_path, int path_size) {
   return SbStringCopy(out_path, utf8_string.c_str(), path_size);
 }
 
-// Places up to |path_size| - 1 characters of the path to the content directory
-// in |out_path|, ensuring it is NULL-terminated. Returns success
-// status. The result being greater than |path_size| - 1 characters is a
-// failure. |out_path| may be written to in unsuccessful cases.
-bool GetContentPath(char* out_path, int path_size) {
+bool GetRelativeDirectory(const char* relative_path,
+                          char* out_path, int path_size) {
   if (!out_path || (path_size <= 0)) {
     return false;
   }
@@ -91,11 +88,24 @@ bool GetContentPath(char* out_path, int path_size) {
   if (!GetExecutableDirectory(file_path, path_size)) {
     return false;
   }
-  if (SbStringConcat(file_path, "\\content\\data", SB_FILE_MAX_PATH) >=
+  if (SbStringConcat(file_path, relative_path, SB_FILE_MAX_PATH) >=
       path_size) {
     return false;
   }
   return SbStringCopy(out_path, file_path, path_size);
+}
+
+// Places up to |path_size| - 1 characters of the path to the content directory
+// in |out_path|, ensuring it is NULL-terminated. Returns success
+// status. The result being greater than |path_size| - 1 characters is a
+// failure. |out_path| may be written to in unsuccessful cases.
+bool GetContentPath(char* out_path, int path_size) {
+  return GetRelativeDirectory("\\content\\data", out_path, path_size);
+}
+
+bool GetSourceRootPath(char* out_path, int path_size) {
+  return GetRelativeDirectory("\\content\\dir_source_root",
+                              out_path, path_size);
 }
 
 bool CreateAndGetTempPath(char* out_path, int path_size) {
@@ -146,7 +156,7 @@ bool SbSystemGetPath(SbSystemPathId path_id, char* out_path, int path_size) {
     case kSbSystemPathTempDirectory:
       return CreateAndGetTempPath(out_path, path_size);
     case kSbSystemPathSourceDirectory:
-      return SbSystemGetPath(kSbSystemPathTempDirectory, out_path, path_size);
+      return GetSourceRootPath(out_path, path_size);
     case kSbSystemPathFontConfigurationDirectory:
       return false;
     case kSbSystemPathFontDirectory:
