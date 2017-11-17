@@ -598,6 +598,7 @@ void Window::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(local_storage_);
   tracer->Trace(session_storage_);
   tracer->Trace(screen_);
+  tracer->Trace(on_screen_keyboard_);
 }
 
 void Window::CacheSplashScreen(const std::string& content) {
