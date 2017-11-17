@@ -73,6 +73,10 @@ class UserAuthorizer {
   // On success, a scoped_ptr holding a valid AccessToken is returned.
   virtual scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) = 0;
 
+  // Signals that the account manager is shutting down, and unblocks any pending
+  // request. Calling other methods after |Shutdown| may have no effect.
+  virtual void Shutdown() {}
+
   // Instantiates an instance of the platform-specific implementation.
   static UserAuthorizer* Create();
 

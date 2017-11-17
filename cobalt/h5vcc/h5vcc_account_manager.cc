@@ -15,59 +15,62 @@
 #include "cobalt/h5vcc/h5vcc_account_manager.h"
 
 #include "base/memory/scoped_ptr.h"
+#include "base/memory/weak_ptr.h"
 #include "starboard/user.h"
 
 namespace cobalt {
 namespace h5vcc {
 
 H5vccAccountManager::H5vccAccountManager()
-    : thread_("AccountManager"), owning_message_loop_(MessageLoop::current()),
-      user_authorizer_(account::UserAuthorizer::Create()) {
+    : user_authorizer_(account::UserAuthorizer::Create()),
+      owning_message_loop_(MessageLoop::current()), thread_("AccountManager") {
   thread_.Start();
 }
 
 void H5vccAccountManager::GetAuthToken(
     const AccessTokenCallbackHolder& callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Get authorization token.";
-  scoped_ptr<AccessTokenCallbackReference> token_callback(
-      new AccessTokenCallbackHolder::Reference(this, callback));
-  thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&H5vccAccountManager::RequestOperationInternal,
-                            this, kGetToken, base::Passed(&token_callback)));
+  PostOperation(kGetToken, callback);
 }
 
 void H5vccAccountManager::RequestPairing(
     const AccessTokenCallbackHolder& callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Request application linking.";
-  scoped_ptr<AccessTokenCallbackReference> token_callback(
-      new AccessTokenCallbackHolder::Reference(this, callback));
-  thread_.message_loop()->PostTask(
-      FROM_HERE, base::Bind(&H5vccAccountManager::RequestOperationInternal,
-                            this, kPairing, base::Passed(&token_callback)));
+  PostOperation(kPairing, callback);
 }
 
 void H5vccAccountManager::RequestUnpairing(
     const AccessTokenCallbackHolder& callback) {
-  DCHECK(thread_checker_.CalledOnValidThread());
   DLOG(INFO) << "Request application unlinking.";
-  scoped_ptr<AccessTokenCallbackReference> token_callback(
-      new AccessTokenCallbackHolder::Reference(this, callback));
+  PostOperation(kUnpairing, callback);
+}
+
+void H5vccAccountManager::PostOperation(
+    OperationType operation_type, const AccessTokenCallbackHolder& callback) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  AccessTokenCallbackReference* token_callback =
+      new AccessTokenCallbackHolder::Reference(this, callback);
+  pending_callbacks_.push_back(token_callback);
   thread_.message_loop()->PostTask(
       FROM_HERE, base::Bind(&H5vccAccountManager::RequestOperationInternal,
-                            this, kUnpairing, base::Passed(&token_callback)));
+                            user_authorizer_.get(), operation_type,
+                            base::Bind(&H5vccAccountManager::PostResult,
+                                       owning_message_loop_,
+                                       base::AsWeakPtr(this),
+                                       token_callback)));
 }
 
 H5vccAccountManager::~H5vccAccountManager() {
   DCHECK(thread_checker_.CalledOnValidThread());
+  // Give the UserAuthorizer a chance to abort any long running pending requests
+  // before the message loop gets shut down.
+  user_authorizer_->Shutdown();
 }
 
+// static
 void H5vccAccountManager::RequestOperationInternal(
-    OperationType operation,
-    scoped_ptr<AccessTokenCallbackReference> token_callback) {
-  DCHECK_EQ(thread_.message_loop(), MessageLoop::current());
-
+    account::UserAuthorizer* user_authorizer, OperationType operation,
+    const base::Callback<void(const std::string&, uint64_t)>& post_result) {
   SbUser current_user = SbUserGetCurrent();
   DCHECK(SbUserIsValid(current_user));
 
@@ -75,18 +78,18 @@ void H5vccAccountManager::RequestOperationInternal(
 
   switch (operation) {
     case kPairing:
-      access_token = user_authorizer_->AuthorizeUser(current_user);
+      access_token = user_authorizer->AuthorizeUser(current_user);
       DLOG_IF(INFO, !access_token) << "User authorization request failed.";
       break;
     case kUnpairing:
-      if (user_authorizer_->DeauthorizeUser(current_user)) {
+      if (user_authorizer->DeauthorizeUser(current_user)) {
         break;
       }
       // The user canceled the flow, or there was some error. Fall into the next
       // case to get an access token if available and return that.
       DLOG(INFO) << "User deauthorization request failed. Try to get token.";
     case kGetToken:
-      access_token = user_authorizer_->RefreshAuthorization(current_user);
+      access_token = user_authorizer->RefreshAuthorization(current_user);
       DLOG_IF(INFO, !access_token) << "Authorization refresh request failed.";
       break;
   }
@@ -109,18 +112,37 @@ void H5vccAccountManager::RequestOperationInternal(
     }
   }
 
-  owning_message_loop_->PostTask(
+  post_result.Run(token_value, expiration_in_seconds);
+}
+
+// static
+void H5vccAccountManager::PostResult(
+    MessageLoop* message_loop,
+    base::WeakPtr<H5vccAccountManager> h5vcc_account_manager,
+    AccessTokenCallbackReference* token_callback,
+    const std::string& token, uint64_t expiration_in_seconds) {
+  message_loop->PostTask(
       FROM_HERE,
-      base::Bind(&H5vccAccountManager::SendResult, this,
-                 base::Passed(&token_callback), token_value,
-                 expiration_in_seconds));
+      base::Bind(&H5vccAccountManager::SendResult, h5vcc_account_manager,
+                 token_callback, token, expiration_in_seconds));
 }
 
 void H5vccAccountManager::SendResult(
-    scoped_ptr<AccessTokenCallbackReference> token_callback,
+    AccessTokenCallbackReference* token_callback,
     const std::string& token, uint64_t expiration_in_seconds) {
   DCHECK(thread_checker_.CalledOnValidThread());
+  ScopedVector<AccessTokenCallbackReference>::iterator found = std::find(
+      pending_callbacks_.begin(), pending_callbacks_.end(), token_callback);
+  if (found == pending_callbacks_.end()) {
+    DLOG(ERROR) << "Account manager callback not valid.";
+    return;
+  }
+  // In case a new account manager request is made as part of the callback,
+  // erase the callback in the pending vector before running it, but we can't
+  // delete it until after we've made the callback.
+  pending_callbacks_.weak_erase(found);
   token_callback->value().Run(token, expiration_in_seconds);
+  delete token_callback;
 }
 
 }  // namespace h5vcc
