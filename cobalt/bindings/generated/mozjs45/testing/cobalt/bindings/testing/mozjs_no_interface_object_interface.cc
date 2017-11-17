@@ -119,6 +119,12 @@ MozjsNoInterfaceObjectInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsNoInterfaceObjectInterfaceHandler>
     proxy_handler;
 
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "NoInterfaceObjectInterface is not constructible.");
+  return false;
+}
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
