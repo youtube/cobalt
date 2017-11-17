@@ -323,6 +323,13 @@ static base::LazyInstance<{{binding_class}}Handler>
 
 {% if constructor %}
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+{% else %}
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "{{interface_name}} is not constructible.");
+  return false;
+}
 {% endif %}
 {% for constant in constants %}
 bool get_{{constant.idl_name}}(
@@ -736,17 +743,30 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "{{ named_constructor if named_constructor else interface.name }}";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+{% if constructor %}
+      Constructor,
+      {{constructor.length}},
+{% else %}
+      DummyConstructor,
+      0,
+{% endif %}
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "{{ named_constructor if named_constructor else interface.name }}";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
