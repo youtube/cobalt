@@ -12,10 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// https://www.w3.org/TR/2014/WD-url-1-20141209/#dom-url
+// URL for MSE
+// https://www.w3.org/TR/media-source/#dom-url-createobjecturl
 
-interface URL {
+partial interface URL {
   [CallWith=EnvironmentSettings] static DOMString
-      createObjectURL(Blob blob);
-  [CallWith=EnvironmentSettings] static void revokeObjectURL(DOMString url);
+      createObjectURL(MediaSource mediaSource);
 };
