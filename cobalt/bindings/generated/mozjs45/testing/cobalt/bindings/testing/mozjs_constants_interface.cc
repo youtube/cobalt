@@ -119,6 +119,12 @@ MozjsConstantsInterfaceHandler::indexed_property_hooks = {
 static base::LazyInstance<MozjsConstantsInterfaceHandler>
     proxy_handler;
 
+bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
+  MozjsExceptionState exception(context);
+  exception.SetSimpleException(
+      script::kTypeError, "ConstantsInterface is not constructible.");
+  return false;
+}
 bool get_INTEGER_CONSTANT(
     JSContext* context, unsigned argc, JS::Value* vp) {
   COMPILE_ASSERT(ConstantsInterface::kIntegerConstant == 5,
@@ -295,17 +301,25 @@ void InitializePrototypeAndInterfaceObject(
   JS::RootedObject function_prototype(
       context, JS_GetFunctionPrototype(context, global_object));
   DCHECK(function_prototype);
-  // Create the Interface object.
-  interface_data->interface_object = JS_NewObjectWithGivenProto(
-      context, &interface_object_class_definition,
-      function_prototype);
+
+  const char name[] =
+      "ConstantsInterface";
+
+  JSFunction* function = js::NewFunctionWithReserved(
+      context,
+      DummyConstructor,
+      0,
+      JSFUN_CONSTRUCTOR,
+      name);
+  interface_data->interface_object = JS_GetFunctionObject(function);
 
   // Add the InterfaceObject.name property.
   JS::RootedObject rooted_interface_object(
       context, interface_data->interface_object);
   JS::RootedValue name_value(context);
-  const char name[] =
-      "ConstantsInterface";
+
+  js::SetPrototype(context, rooted_interface_object, function_prototype);
+
   name_value.setString(JS_NewStringCopyZ(context, name));
   success = JS_DefineProperty(
       context, rooted_interface_object, "name", name_value, JSPROP_READONLY,
