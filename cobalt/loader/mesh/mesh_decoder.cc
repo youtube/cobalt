@@ -217,6 +217,9 @@ void MeshDecoder::DecodeChunk(const char* data, size_t size) {
   size_t start_size = raw_data_->size();
 
   raw_data_->resize(start_size + size);
+  if (raw_data_->empty()) {
+    return;
+  }
   memcpy(&((*raw_data_)[start_size]), data, size);
 }
 

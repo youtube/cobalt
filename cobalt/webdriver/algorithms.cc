@@ -248,8 +248,8 @@ void GetElementTextInternal(dom::Element* element,
       if (lines->empty()) {
         lines->push_back(text);
       } else {
-        if (*(lines->back().rbegin()) == ' ' && !text.empty() &&
-            *(text.begin()) == ' ') {
+        if (!lines->back().empty() && *(lines->back().rbegin()) == ' ' &&
+            !text.empty() && *(text.begin()) == ' ') {
           text.erase(0);
         }
         lines->back().append(text);
