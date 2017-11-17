@@ -38,6 +38,7 @@
       'dependencies': [
         'speech',
         '<(DEPTH)/base/base.gyp:run_all_unittests',
+        '<(DEPTH)/cobalt/media/media2.gyp:media2',
         '<(DEPTH)/testing/gtest.gyp:gtest',
       ],
     },
