@@ -10,6 +10,7 @@ font-weight
 image-from-blob
 inline-box-with-overflow-words
 inline-style-allowed-while-cloning-objects
+interface-object-types-are-correct
 onload_event_fired_even_though_link_file_does_not_exist
 platform-object-user-properties-survive-gc
 positioned-boxes-with-same-z-index-are-processed-in-insertion-order
