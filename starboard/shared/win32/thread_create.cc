@@ -45,7 +45,7 @@ class ThreadCreateInfo {
   std::string name_;
 };
 
-bool RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
+int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
   int num_destructors_called = 0;
 
   // Copy thread local keyes. This is necessary because the unordered_map may
@@ -67,7 +67,30 @@ bool RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
     ++num_destructors_called;
     it->second->destructor(entry);
   }
-  return num_destructors_called > 0;
+  return num_destructors_called;
+}
+
+int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton) {
+  int num_objects_remain = 0;
+
+  // Copy thread local keyes. This is necessary because the unordered_map may
+  // invalidate its iterators on insert. This happens if a destructor inserts
+  // new elements into the tls.
+  auto copy_thread_local_keys = singleton->thread_local_keys_;
+
+  for (auto it = singleton->thread_local_keys_.begin();
+       it != singleton->thread_local_keys_.end(); ++it) {
+    if (!it->second->destructor) {
+      continue;
+    }
+    auto key = it->second;
+    void* entry = SbThreadGetLocalValue(key);
+    if (!entry) {
+      continue;
+    }
+    ++num_objects_remain;
+  }
+  return num_objects_remain;
 }
 
 void CallThreadLocalDestructorsMultipleTimes() {
@@ -79,6 +102,7 @@ void CallThreadLocalDestructorsMultipleTimes() {
   const int kNumDestructorPasses = 4;
 
   ThreadSubsystemSingleton* singleton = GetThreadSubsystemSingleton();
+  int num_tls_objects_remaining = 0;
   // TODO note that the implementation below holds a global lock
   // while processing TLS destructors on thread exit. This could
   // be a bottleneck in some scenarios. A lockless approach may be preferrable.
@@ -86,11 +110,15 @@ void CallThreadLocalDestructorsMultipleTimes() {
 
   for (int i = 0; i < kNumDestructorPasses; ++i) {
     // Run through each destructor and call it.
-    if (!RunThreadLocalDestructors(singleton)) {
+    const int num_destructors_called = RunThreadLocalDestructors(singleton);
+    if (0 == num_destructors_called) {
       break;  // No more destructors to call.
     }
   }
+  num_tls_objects_remaining = CountTlsObjectsRemaining(singleton);
   SbMutexRelease(&singleton->mutex_);
+
+  SB_DCHECK(num_tls_objects_remaining == 0) << "Dangling objects in TLS exist.";
 }
 
 unsigned ThreadTrampoline(void* thread_create_info_context) {
