@@ -129,6 +129,7 @@ class AudioContext : public dom::EventTarget {
   const scoped_refptr<AudioLock>& audio_lock() const { return audio_lock_; }
 
   DEFINE_WRAPPABLE_TYPE(AudioContext);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   struct DecodeCallbackInfo {

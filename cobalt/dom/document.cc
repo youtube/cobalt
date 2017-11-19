@@ -954,16 +954,12 @@ void Document::TraceMembers(script::Tracer* tracer) {
 
   tracer->Trace(implementation_);
   tracer->Trace(style_sheets_);
-  for (std::deque<HTMLScriptElement*>::iterator it =
-           scripts_to_be_executed_.begin();
-       it != scripts_to_be_executed_.end(); ++it) {
-    tracer->Trace(static_cast<Wrappable*>(*it));
-  }
-  for (cssom::CSSKeyframesRule::NameMap::iterator it = keyframes_map_.begin();
-       it != keyframes_map_.end(); ++it) {
-    tracer->Trace(it->second);
-  }
+  tracer->TraceItems(scripts_to_be_executed_);
+  tracer->TraceValues(keyframes_map_);
   tracer->Trace(location_);
+  tracer->Trace(active_element_);
+  tracer->Trace(indicated_element_);
+  tracer->Trace(default_timeline_);
   tracer->Trace(user_agent_style_sheet_);
   tracer->Trace(initial_computed_style_declaration_);
 }

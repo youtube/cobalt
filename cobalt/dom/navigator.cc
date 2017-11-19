@@ -253,5 +253,12 @@ Navigator::RequestMediaKeySystemAccess(
 
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
+void Navigator::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(mime_types_);
+  tracer->Trace(plugins_);
+  tracer->Trace(media_session_);
+  tracer->Trace(media_devices_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

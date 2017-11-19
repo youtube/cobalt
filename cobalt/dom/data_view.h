@@ -79,6 +79,7 @@ class DataView : public script::Wrappable {
   uint32 byte_length() const { return byte_length_; }
 
   DEFINE_WRAPPABLE_TYPE(DataView);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   static void CopyBytes(const uint8* src, size_t size, bool little_endian,

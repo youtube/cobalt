@@ -55,9 +55,8 @@ class DOMTokenList : public script::Wrappable {
   // The associated element.
   Element* element() { return element_; }
 
-  void TraceMembers(script::Tracer* tracer) override;
-
   DEFINE_WRAPPABLE_TYPE(DOMTokenList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~DOMTokenList();

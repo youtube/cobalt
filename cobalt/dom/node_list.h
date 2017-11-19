@@ -44,6 +44,7 @@ class NodeList : public script::Wrappable {
   void AppendNode(const scoped_refptr<Node>& node);
 
   DEFINE_WRAPPABLE_TYPE(NodeList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   ~NodeList() override;

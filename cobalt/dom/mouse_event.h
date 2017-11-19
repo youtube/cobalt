@@ -88,6 +88,7 @@ class MouseEvent : public UIEventWithKeyState {
   uint32 which() const override;
 
   DEFINE_WRAPPABLE_TYPE(MouseEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   ~MouseEvent() override {}

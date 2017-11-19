@@ -48,6 +48,12 @@ const std::string& Attr::node_value() const {
   return value_;
 }
 
+void Attr::TraceMembers(script::Tracer* tracer) {
+  // This const cast is safe, as the tracer will only be using it as a
+  // |Wrappable|, which is threadsafe, as JavaScript is single threaded.
+  tracer->Trace(const_cast<NamedNodeMap*>(container_.get()));
+}
+
 Attr::~Attr() { GlobalStats::GetInstance()->Remove(this); }
 
 scoped_refptr<const NamedNodeMap> Attr::container() const { return container_; }

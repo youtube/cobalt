@@ -43,6 +43,7 @@ class SpeechRecognitionEvent : public dom::Event {
   }
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~SpeechRecognitionEvent() override {}

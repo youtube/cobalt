@@ -173,6 +173,11 @@ void NamedNodeMap::RemoveAttributeInternal(const std::string& name) {
 
 scoped_refptr<Element> NamedNodeMap::element() const { return element_; }
 
+void NamedNodeMap::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(element_);
+  tracer->TraceValues(proxy_attributes_);
+}
+
 NamedNodeMap::~NamedNodeMap() { GlobalStats::GetInstance()->Remove(this); }
 
 scoped_refptr<Attr> NamedNodeMap::GetOrCreateAttr(

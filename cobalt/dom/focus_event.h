@@ -42,6 +42,7 @@ class FocusEvent : public UIEvent {
   }
 
   DEFINE_WRAPPABLE_TYPE(FocusEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   scoped_refptr<EventTarget> related_target_;

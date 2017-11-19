@@ -182,5 +182,11 @@ float MouseEvent::offset_y() const {
 
 uint32 MouseEvent::which() const { return button_ + 1; }
 
+void MouseEvent::TraceMembers(script::Tracer* tracer) {
+  UIEventWithKeyState::TraceMembers(tracer);
+
+  tracer->Trace(related_target_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

@@ -117,6 +117,11 @@ void Animation::set_current_time(const base::optional<double>& current_time) {
   NOTIMPLEMENTED();
 }
 
+void Animation::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(effect_);
+  tracer->Trace(timeline_);
+}
+
 Animation::~Animation() {
   const KeyframeEffectReadOnly* keyframe_effect =
       base::polymorphic_downcast<const KeyframeEffectReadOnly*>(effect_.get());

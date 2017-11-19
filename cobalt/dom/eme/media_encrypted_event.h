@@ -42,6 +42,7 @@ class MediaEncryptedEvent : public Event {
   const scoped_refptr<ArrayBuffer>& init_data() const { return init_data_; }
 
   DEFINE_WRAPPABLE_TYPE(MediaEncryptedEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   std::string init_data_type_;

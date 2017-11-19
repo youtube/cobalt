@@ -91,5 +91,10 @@ scoped_refptr<dom::Int16Array> AudioBuffer::GetChannelDataInt16(
   return channels_int16_data_[channel_index];
 }
 
+void AudioBuffer::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(channels_data_);
+  tracer->TraceItems(channels_int16_data_);
+}
+
 }  // namespace audio
 }  // namespace cobalt

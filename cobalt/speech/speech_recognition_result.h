@@ -51,6 +51,7 @@ class SpeechRecognitionResult : public script::Wrappable {
   bool is_final() const { return final_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionResult);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   SpeechRecognitionAlternatives alternatives_;

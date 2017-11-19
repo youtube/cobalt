@@ -148,5 +148,11 @@ scoped_ptr<ShellAudioBus> AudioBufferSourceNode::PassAudioBusFromSource(
   return scoped_ptr<ShellAudioBus>();
 }
 
+void AudioBufferSourceNode::TraceMembers(script::Tracer* tracer) {
+  AudioNode::TraceMembers(tracer);
+
+  tracer->Trace(buffer_);
+}
+
 }  // namespace audio
 }  // namespace cobalt

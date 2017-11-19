@@ -37,6 +37,10 @@ void NodeList::AppendNode(const scoped_refptr<Node>& node) {
   collection_.push_back(node);
 }
 
+void NodeList::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(collection_);
+}
+
 NodeList::~NodeList() { GlobalStats::GetInstance()->Remove(this); }
 
 }  // namespace dom

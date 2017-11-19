@@ -74,6 +74,7 @@ class Navigator : public script::Wrappable {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
   DEFINE_WRAPPABLE_TYPE(Navigator);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~Navigator() override {}

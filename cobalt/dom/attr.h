@@ -54,6 +54,7 @@ class Attr : public script::Wrappable,
   const std::string& node_value() const;
 
   DEFINE_WRAPPABLE_TYPE(Attr);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~Attr();

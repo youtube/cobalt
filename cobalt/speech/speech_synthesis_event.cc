@@ -27,5 +27,9 @@ SpeechSynthesisEvent::SpeechSynthesisEvent(
 
 SpeechSynthesisEvent::~SpeechSynthesisEvent() {}
 
+void SpeechSynthesisEvent::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(utterance_);
+}
+
 }  // namespace speech
 }  // namespace cobalt

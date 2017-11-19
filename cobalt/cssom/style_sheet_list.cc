@@ -51,6 +51,10 @@ void StyleSheetList::OnCSSMutation() {
   }
 }
 
+void StyleSheetList::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(style_sheets_);
+}
+
 StyleSheetList::~StyleSheetList() {
   for (StyleSheetVector::const_iterator iter = style_sheets_.begin();
        iter != style_sheets_.end(); ++iter) {
