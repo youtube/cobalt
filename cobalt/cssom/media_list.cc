@@ -87,6 +87,10 @@ bool MediaList::EvaluateConditionValue(const math::Size& viewport_size) {
   return false;
 }
 
+void MediaList::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(media_queries_);
+}
+
 MediaList::~MediaList() {}
 
 }  // namespace cssom

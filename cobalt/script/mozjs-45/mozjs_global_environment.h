@@ -109,8 +109,8 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
 
   WeakHeapObjectManager* weak_object_manager() { return &weak_object_manager_; }
 
-  base::hash_set<Wrappable*>* visited_wrappables() {
-    return &visited_wrappables_;
+  base::hash_set<Traceable*>* visited_traceables() {
+    return &visited_traceables_;
   }
 
   EnvironmentSettings* GetEnvironmentSettings() const {
@@ -182,7 +182,7 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
   JS::Heap<JSObject*> global_object_proxy_;
   EnvironmentSettings* environment_settings_;
   // TODO: Should be |std::unordered_set| once C++11 is enabled.
-  base::hash_set<Wrappable*> visited_wrappables_;
+  base::hash_set<Traceable*> visited_traceables_;
 
   // If non-NULL, the error message from the ReportErrorHandler will get
   // assigned to this instead of being printed.

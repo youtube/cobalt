@@ -62,6 +62,10 @@ DebugHub::~DebugHub() {
       log_message_handler_callback_id_);
 }
 
+void DebugHub::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(debugger_);
+}
+
 bool DebugHub::OnLogMessage(int severity, const char* file, int line,
                             size_t message_start, const std::string& str) {
   // Don't run recursively.

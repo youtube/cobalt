@@ -59,6 +59,7 @@ class MediaList : public script::Wrappable {
   bool EvaluateConditionValue(const math::Size& viewport_size);
 
   DEFINE_WRAPPABLE_TYPE(MediaList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   typedef std::vector<scoped_refptr<MediaQuery> > MediaQueries;

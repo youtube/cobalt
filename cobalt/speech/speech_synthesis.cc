@@ -66,6 +66,14 @@ void SpeechSynthesis::Resume() {
   }
 }
 
+void SpeechSynthesis::TraceMembers(script::Tracer* tracer) {
+  dom::EventTarget::TraceMembers(tracer);
+
+  tracer->TraceItems(utterances_);
+  tracer->TraceSequence(voices_);
+  tracer->Trace(navigator_);
+}
+
 void SpeechSynthesis::DispatchErrorEvent(
     const scoped_refptr<SpeechSynthesisUtterance>& utterance,
     SpeechSynthesisErrorCode error_code) {

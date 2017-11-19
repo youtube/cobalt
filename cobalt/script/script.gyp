@@ -50,6 +50,7 @@
         'source_provider.h',
         'stack_frame.cc',
         'stack_frame.h',
+        'tracer.h',
         'union_type.h',
         'union_type_internal.h',
         'util/stack_trace_helpers.h',

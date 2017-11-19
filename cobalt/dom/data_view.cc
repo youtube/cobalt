@@ -51,5 +51,7 @@ DataView::DataView(const scoped_refptr<ArrayBuffer>& buffer, uint32 byte_offset,
   }
 }
 
+void DataView::TraceMembers(script::Tracer* tracer) { tracer->Trace(buffer_); }
+
 }  // namespace dom
 }  // namespace cobalt

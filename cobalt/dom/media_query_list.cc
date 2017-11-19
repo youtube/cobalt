@@ -42,6 +42,11 @@ bool MediaQueryList::matches() const {
                  math::ToRoundedInt(screen_->avail_height())));
 }
 
+void MediaQueryList::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(media_list_);
+  tracer->Trace(screen_);
+}
+
 MediaQueryList::~MediaQueryList() {}
 
 }  // namespace dom

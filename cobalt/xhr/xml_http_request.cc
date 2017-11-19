@@ -889,8 +889,8 @@ void XMLHttpRequest::OnRedirect(const net::HttpResponseHeaders& headers) {
 void XMLHttpRequest::TraceMembers(script::Tracer* tracer) {
   XMLHttpRequestEventTarget::TraceMembers(tracer);
 
-  tracer->Trace(upload_or_null());
-  tracer->Trace(response_array_buffer_or_null());
+  tracer->Trace(response_array_buffer_);
+  tracer->Trace(upload_);
 }
 
 XMLHttpRequest::~XMLHttpRequest() {

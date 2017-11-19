@@ -48,6 +48,7 @@ class SpeechSynthesisEvent : public dom::Event {
   const base::optional<std::string>& name() const { return name_; }
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   const scoped_refptr<SpeechSynthesisUtterance> utterance_;

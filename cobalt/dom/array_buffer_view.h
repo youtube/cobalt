@@ -35,6 +35,7 @@ class ArrayBufferView : public script::Wrappable {
   const void* base_address() const;
 
   DEFINE_WRAPPABLE_TYPE(ArrayBufferView);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   explicit ArrayBufferView(const scoped_refptr<ArrayBuffer>& buffer);

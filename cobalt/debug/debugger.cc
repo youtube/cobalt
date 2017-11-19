@@ -73,6 +73,10 @@ void Debugger::SendCommand(const std::string& method,
       base::Bind(&Debugger::OnCommandResponse, this, callback_info));
 }
 
+void Debugger::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(on_event_);
+}
+
 void Debugger::OnCommandResponse(
     const scoped_refptr<CommandCallbackInfo>& callback_info,
     const base::optional<std::string>& response) const {

@@ -76,6 +76,7 @@ class H5vcc : public script::Wrappable {
   }
 
   DEFINE_WRAPPABLE_TYPE(H5vcc);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   scoped_refptr<H5vccAccessibility> accessibility_;

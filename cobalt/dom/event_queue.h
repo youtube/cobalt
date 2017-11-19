@@ -36,7 +36,8 @@ namespace dom {
 // media element work in this way.
 // Note: After putting an event to the queue, the caller should no longer modify
 // the content of the event until it is fired or cancelled.
-class EventQueue : public base::SupportsWeakPtr<EventQueue> {
+class EventQueue : public base::SupportsWeakPtr<EventQueue>,
+                   public script::Traceable {
  public:
   // The EventTarget is guaranteed to be valid during the life time and should
   // usually be the owner.
@@ -44,7 +45,7 @@ class EventQueue : public base::SupportsWeakPtr<EventQueue> {
   void Enqueue(const scoped_refptr<Event>& event);
   void CancelAllEvents();
 
-  void TraceMembers(script::Tracer* tracer);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   typedef std::vector<scoped_refptr<Event> > Events;
