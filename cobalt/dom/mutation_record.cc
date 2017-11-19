@@ -58,6 +58,14 @@ scoped_refptr<MutationRecord> MutationRecord::CreateChildListMutationRecord(
   return record;
 }
 
+void MutationRecord::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(target_);
+  tracer->Trace(added_nodes_);
+  tracer->Trace(removed_nodes_);
+  tracer->Trace(previous_sibling_);
+  tracer->Trace(next_sibling_);
+}
+
 MutationRecord::MutationRecord(const base::Token& type,
                                const scoped_refptr<Node>& target)
     : type_(type),

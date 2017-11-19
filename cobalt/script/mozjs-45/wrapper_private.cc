@@ -27,68 +27,6 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-void Tracer::Trace(Wrappable* wrappable) {
-  // Clearly, a null wrappable could not possibly reference any other
-  // wrappables.
-  if (!wrappable) {
-    return;
-  }
-
-  // Unfortunately, |JSTracer| will only supply us with a |JSRuntime|,
-  // rather than a |JSContext|. Fortunately, Cobalt will only create one
-  // global environment per runtime, so we can still safely get back to our
-  // context, and thus our global environment.
-  JSContext* context = NULL;
-  JS_ContextIterator(js_tracer_->runtime(), &context);
-  DCHECK(context);
-  MozjsGlobalEnvironment* global_environment =
-      MozjsGlobalEnvironment::GetFromContext(context);
-  DCHECK(global_environment);
-
-  // Clearly, if we have already visited this wrappable during the current
-  // tracing session, there is no need to visit it again. We rely on
-  // |JS_SetGCCallback| in the |MozjsEngine| to properly manage clearing
-  // |visited_wrappables_| in between GC sessions.
-  base::hash_set<Wrappable*>* visited_wrappables =
-      global_environment->visited_wrappables();
-  DCHECK(visited_wrappables);
-  if (!visited_wrappables->insert(wrappable).second) {
-    return;
-  }
-
-  // There are now two cases left to handle. Since we cannot create the
-  // wrapper while tracing due to internal SpiderMonkey restrictions, we will
-  // instead directly call |TraceMembers| here if the wrapper does not exist.
-  // In the case where the wrapper already does exist, we will pass the
-  // wrapper to |JS_CallObjectTracer|, and rely on SpiderMonkey to begin
-  // another |WrapperPrivate::Trace| on that wrapper.
-  WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  if (!wrapper_factory->HasWrapperProxy(wrappable)) {
-    frontier_.push_back(wrappable);
-  } else {
-    JSObject* proxy_object = wrapper_factory->GetWrapperProxy(wrappable);
-    JSObject* target = js::GetProxyTargetObject(proxy_object);
-    WrapperPrivate* wrapper_private =
-        static_cast<WrapperPrivate*>(JS_GetPrivate(target));
-    DCHECK(wrapper_private->context_ == context);
-    DCHECK(wrapper_private->wrapper_proxy_);
-    JS_CallObjectTracer(js_tracer_, &wrapper_private->wrapper_proxy_,
-                        "WrapperPrivate::TraceWrappable");
-  }
-
-  DCHECK(JS_ContextIterator(js_tracer_->runtime(), &context) == NULL);
-}
-
-void Tracer::TraceFrom(Wrappable* wrappable) {
-  DCHECK(frontier_.empty());
-  frontier_.push_back(wrappable);
-  while (!frontier_.empty()) {
-    Wrappable* wrappable = frontier_.back();
-    frontier_.pop_back();
-    wrappable->TraceMembers(this);
-  }
-}
-
 // static
 void WrapperPrivate::AddPrivateData(JSContext* context,
                                     JS::HandleObject wrapper_proxy,
@@ -191,8 +129,8 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
         wrapper_private->wrappable_.get());
     global_environment->referenced_objects()->TraceReferencedObjects(trace,
                                                                      key);
-    Tracer tracer(trace);
-    tracer.TraceFrom(wrapper_private->wrappable_);
+    MozjsTracer mozjs_tracer(trace);
+    mozjs_tracer.TraceFrom(wrapper_private->wrappable_);
   }
 }
 

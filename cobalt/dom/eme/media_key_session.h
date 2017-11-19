@@ -62,9 +62,8 @@ class MediaKeySession : public EventTarget {
   scoped_ptr<VoidPromiseValue> Update(const BufferSource& response);
   scoped_ptr<VoidPromiseValue> Close();
 
-  void TraceMembers(script::Tracer* tracer) override;
-
   DEFINE_WRAPPABLE_TYPE(MediaKeySession);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~MediaKeySession() override;

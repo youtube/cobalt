@@ -42,6 +42,7 @@ class H5vccAudioConfigArray : public script::Wrappable {
   }
 
   DEFINE_WRAPPABLE_TYPE(H5vccAudioConfigArray);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void MaybeRefreshAudioConfigs();

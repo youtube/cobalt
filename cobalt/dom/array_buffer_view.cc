@@ -35,6 +35,10 @@ const void* ArrayBufferView::base_address() const {
   return buffer_->data() + byte_offset_;
 }
 
+void ArrayBufferView::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(buffer_);
+}
+
 ArrayBufferView::~ArrayBufferView() {}
 
 }  // namespace dom

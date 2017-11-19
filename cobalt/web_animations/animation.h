@@ -153,6 +153,7 @@ class Animation : public script::Wrappable {
       const base::Closure& on_enter_after_phase);
 
   DEFINE_WRAPPABLE_TYPE(Animation);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~Animation() override;

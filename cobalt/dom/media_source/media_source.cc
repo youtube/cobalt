@@ -519,7 +519,7 @@ HTMLMediaElement* MediaSource::GetMediaElement() const {
 void MediaSource::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
-  event_queue_.TraceMembers(tracer);
+  tracer->Trace(event_queue_);
   tracer->Trace(attached_element_);
   tracer->Trace(source_buffers_);
   tracer->Trace(active_source_buffers_);

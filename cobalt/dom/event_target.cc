@@ -166,12 +166,6 @@ bool EventTarget::ShouldKeepWrapperAlive() {
   return !event_listener_infos_.empty();
 }
 
-void EventTarget::TraceMembers(script::Tracer* tracer) {
-  UNREFERENCED_PARAMETER(tracer);
-  // TODO: EventListenerInfo references can be removed and logically live here
-  // instead.
-}
-
 void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   DCHECK(event->IsBeingDispatched());
   DCHECK(event->target());
@@ -207,6 +201,12 @@ void EventTarget::FireEventOnListeners(const scoped_refptr<Event>& event) {
   }
 
   event->set_current_target(NULL);
+}
+
+void EventTarget::TraceMembers(script::Tracer* tracer) {
+  UNREFERENCED_PARAMETER(tracer);
+  // TODO: EventListenerInfo references can be removed and logically live here
+  // instead.
 }
 
 void EventTarget::AddEventListenerInternal(

@@ -344,9 +344,7 @@ double SourceBuffer::GetHighestPresentationTimestamp() const {
 void SourceBuffer::TraceMembers(script::Tracer* tracer) {
   EventTarget::TraceMembers(tracer);
 
-  if (event_queue_) {
-    event_queue_->TraceMembers(tracer);
-  }
+  tracer->Trace(event_queue_);
   tracer->Trace(media_source_);
   tracer->Trace(track_defaults_);
   tracer->Trace(audio_tracks_);

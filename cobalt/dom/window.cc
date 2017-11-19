@@ -588,6 +588,11 @@ void Window::OnDocumentRootElementUnableToProvideOffsetDimensions() {
 }
 
 void Window::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+#if defined(ENABLE_TEST_RUNNER)
+  tracer->Trace(test_runner_);
+#endif  // ENABLE_TEST_RUNNER
   tracer->Trace(performance_);
   tracer->Trace(document_);
   tracer->Trace(history_);

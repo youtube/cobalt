@@ -103,5 +103,10 @@ void RegisteredObserverList::RemoveMutationObserver(
   }
   NOTREACHED() << "Did not find a mutation observer to unregister.";
 }
+
+void RegisteredObserverList::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(registered_observers_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

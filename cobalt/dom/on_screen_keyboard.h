@@ -66,11 +66,11 @@ class OnScreenKeyboard : public EventTarget {
   // If the keyboard is shown.
   bool shown() const;
 
-  DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
-
   // Called by the WebModule to dispatch DOM show and hide events.
   void DispatchHideEvent(int ticket);
   void DispatchShowEvent(int ticket);
+
+  DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
 
  private:
   ~OnScreenKeyboard() override {}

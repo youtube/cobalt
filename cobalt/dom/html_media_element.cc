@@ -754,8 +754,7 @@ void HTMLMediaElement::OnInsertedIntoDocument() {
 void HTMLMediaElement::TraceMembers(script::Tracer* tracer) {
   HTMLElement::TraceMembers(tracer);
 
-  event_queue_.TraceMembers(tracer);
-
+  tracer->Trace(event_queue_);
   tracer->Trace(played_time_ranges_);
   tracer->Trace(media_source_);
   tracer->Trace(error_);

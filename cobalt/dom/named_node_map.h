@@ -69,6 +69,7 @@ class NamedNodeMap : public script::Wrappable,
   scoped_refptr<Element> element() const;
 
   DEFINE_WRAPPABLE_TYPE(NamedNodeMap);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~NamedNodeMap();

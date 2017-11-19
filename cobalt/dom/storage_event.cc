@@ -41,5 +41,9 @@ scoped_refptr<Storage> StorageEvent::storage_area() const {
   return storage_area_;
 }
 
+void StorageEvent::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(storage_area_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

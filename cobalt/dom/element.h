@@ -179,6 +179,7 @@ class Element : public Node {
   }
 
   DEFINE_WRAPPABLE_TYPE(Element);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   ~Element() override;

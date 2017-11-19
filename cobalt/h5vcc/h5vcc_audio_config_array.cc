@@ -23,6 +23,10 @@ namespace h5vcc {
 
 H5vccAudioConfigArray::H5vccAudioConfigArray() : audio_config_updated_(false) {}
 
+void H5vccAudioConfigArray::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(audio_configs_);
+}
+
 void H5vccAudioConfigArray::MaybeRefreshAudioConfigs() {
 #if !defined(COBALT_MEDIA_SOURCE_2016)
   using ::media::ShellAudioStreamer;

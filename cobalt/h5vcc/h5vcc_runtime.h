@@ -37,6 +37,7 @@ class H5vccRuntime : public script::Wrappable {
   const scoped_refptr<H5vccRuntimeEventTarget>& on_resume() const;
 
   DEFINE_WRAPPABLE_TYPE(H5vccRuntime);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   // Called by the event dispatcher to handle various event types.
