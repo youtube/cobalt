@@ -335,8 +335,6 @@ class Window : public EventTarget,
   // and is unable to provide them.
   void OnDocumentRootElementUnableToProvideOffsetDimensions();
 
-  void TraceMembers(script::Tracer* tracer) override;
-
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content);
 
@@ -348,6 +346,7 @@ class Window : public EventTarget,
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
 
   DEFINE_WRAPPABLE_TYPE(Window);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void StartDocumentLoad(

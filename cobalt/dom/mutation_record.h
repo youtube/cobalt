@@ -69,6 +69,7 @@ class MutationRecord : public script::Wrappable {
       const scoped_refptr<dom::Node>& next_sibling);
 
   DEFINE_WRAPPABLE_TYPE(MutationRecord);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   MutationRecord(const base::Token& type, const scoped_refptr<Node>& target);

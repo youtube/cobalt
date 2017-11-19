@@ -21,6 +21,7 @@
 #include "cobalt/media_session/media_image.h"
 #include "cobalt/media_session/media_metadata_init.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/wrappable.h"
 
 namespace cobalt {
 namespace media_session {

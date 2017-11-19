@@ -60,6 +60,7 @@ class Blob : public script::Wrappable {
   uint64 size() const { return static_cast<uint64>(buffer_->byte_length()); }
 
   DEFINE_WRAPPABLE_TYPE(Blob);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   static const BlobPropertyBag& EmptyBlobPropertyBag();

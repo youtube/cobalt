@@ -27,11 +27,16 @@ double Performance::Now() const {
   return timing_->GetNavigationStartClock()->Now().InMillisecondsF();
 }
 
-Performance::~Performance() {}
-
 scoped_refptr<PerformanceTiming> Performance::timing() const { return timing_; }
 
 scoped_refptr<MemoryInfo> Performance::memory() const { return memory_; }
+
+void Performance::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(timing_);
+  tracer->Trace(memory_);
+}
+
+Performance::~Performance() {}
 
 }  // namespace dom
 }  // namespace cobalt

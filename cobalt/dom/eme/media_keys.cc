@@ -56,6 +56,10 @@ void MediaKeys::OnSessionClosed(MediaKeySession* session) {
       open_sessions_.end());
 }
 
+void MediaKeys::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(open_sessions_);
+}
+
 MediaKeys::~MediaKeys() {}
 
 }  // namespace eme

@@ -32,5 +32,9 @@ scoped_refptr<SpeechRecognitionAlternative> SpeechRecognitionResult::Item(
   return alternatives_[index];
 }
 
+void SpeechRecognitionResult::TraceMembers(script::Tracer* tracer) {
+  tracer->TraceItems(alternatives_);
+}
+
 }  // namespace speech
 }  // namespace cobalt

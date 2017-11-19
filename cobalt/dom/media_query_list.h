@@ -40,6 +40,7 @@ class MediaQueryList : public script::Wrappable {
   bool matches() const;
 
   DEFINE_WRAPPABLE_TYPE(MediaQueryList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~MediaQueryList();

@@ -126,6 +126,7 @@ class SpeechSynthesisUtterance : public dom::EventTarget {
   void DispatchErrorEvent(SpeechSynthesisErrorCode error_code);
 
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisUtterance);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~SpeechSynthesisUtterance() override;

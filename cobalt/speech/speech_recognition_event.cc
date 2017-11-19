@@ -41,5 +41,11 @@ SpeechRecognitionEvent::SpeechRecognitionEvent(
       result_index_(result_index),
       speech_recognition_result_list_(speech_recognition_result_list) {}
 
+void SpeechRecognitionEvent::TraceMembers(script::Tracer* tracer) {
+  dom::Event::TraceMembers(tracer);
+
+  tracer->Trace(speech_recognition_result_list_);
+}
+
 }  // namespace speech
 }  // namespace cobalt

@@ -637,6 +637,13 @@ scoped_refptr<HTMLElement> Element::AsHTMLElement() { return NULL; }
 
 Element::~Element() { --(element_count_log.Get().count); }
 
+void Element::TraceMembers(script::Tracer* tracer) {
+  Node::TraceMembers(tracer);
+
+  tracer->Trace(named_node_map_);
+  tracer->Trace(class_list_);
+}
+
 bool Element::GetBooleanAttribute(const std::string& name) const {
   return HasAttribute(name);
 }

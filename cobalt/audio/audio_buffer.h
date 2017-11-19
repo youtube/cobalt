@@ -78,6 +78,7 @@ class AudioBuffer : public script::Wrappable {
       uint32 channel_index, script::ExceptionState* exception_state) const;
 
   DEFINE_WRAPPABLE_TYPE(AudioBuffer);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   typedef std::vector<scoped_refptr<dom::Float32Array> > Float32ArrayVector;

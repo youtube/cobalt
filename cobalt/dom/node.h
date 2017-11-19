@@ -233,9 +233,8 @@ class Node : public EventTarget {
     registered_observers_.RemoveMutationObserver(observer);
   }
 
-  void TraceMembers(script::Tracer* tracer) override;
-
   DEFINE_WRAPPABLE_TYPE(Node);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   explicit Node(Document* document);

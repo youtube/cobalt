@@ -329,5 +329,11 @@ KeyframeEffectReadOnly::Data::ComputeAnimatedPropertyValue(
                                   interval_endpoints.second->value);
 }
 
+void KeyframeEffectReadOnly::TraceMembers(script::Tracer* tracer) {
+  AnimationEffectReadOnly::TraceMembers(tracer);
+
+  tracer->Trace(target_);
+}
+
 }  // namespace web_animations
 }  // namespace cobalt

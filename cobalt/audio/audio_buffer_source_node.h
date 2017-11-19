@@ -81,6 +81,7 @@ class AudioBufferSourceNode : public AudioNode {
       int32 number_of_frames, SampleType sample_type) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioBufferSourceNode);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   ~AudioBufferSourceNode() override;

@@ -394,8 +394,6 @@ class Document : public Node,
   void OnVisibilityStateChanged(
       page_visibility::VisibilityState visibility_state) override;
 
-  void TraceMembers(script::Tracer* tracer) override;
-
   PointerState* pointer_state() { return &pointer_state_; }
 
   // render_postponed is a Cobalt-specific Web API.
@@ -408,6 +406,7 @@ class Document : public Node,
   void OnRootElementUnableToProvideOffsetDimensions();
 
   DEFINE_WRAPPABLE_TYPE(Document);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   ~Document() override;

@@ -28,6 +28,12 @@ MediaKeyMessageEvent::MediaKeyMessageEvent(
       message_type_(event_init_dict.message_type()),
       message_(event_init_dict.message()) {}
 
+void MediaKeyMessageEvent::TraceMembers(script::Tracer* tracer) {
+  Event::TraceMembers(tracer);
+
+  tracer->Trace(message_);
+}
+
 }  // namespace eme
 }  // namespace dom
 }  // namespace cobalt

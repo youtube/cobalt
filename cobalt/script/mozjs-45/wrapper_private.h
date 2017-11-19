@@ -21,6 +21,7 @@
 #include "base/memory/scoped_vector.h"
 #include "base/memory/weak_ptr.h"
 #include "cobalt/base/polymorphic_downcast.h"
+#include "cobalt/script/mozjs-45/mozjs_tracer.h"
 #include "cobalt/script/mozjs-45/wrapper_factory.h"
 #include "cobalt/script/wrappable.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
@@ -28,29 +29,6 @@
 namespace cobalt {
 namespace script {
 namespace mozjs {
-
-// Our mozjs specific implementation of |script::Tracer|. Tracing sessions
-// will be initiated from a |Wrapper| of SpiderMonkey's choice, and then it
-// will be the |mozjs::Tracer|'s job to assist SpiderMonkey's garbage
-// collector in traversing the graph of |Wrapper|s and |Wrappable|s.
-// |Wrappable|s will inform us about what they can reach through their
-// |TraceMembers| implementation, and then we will pass the reachable
-// |Wrappable|'s |Wrapper| to SpiderMonkey GC if it exists, and otherwise
-// continue traversing ourselves from |Wrappable| to (the unwrapped)
-// |Wrappable|.
-class Tracer : public ::cobalt::script::Tracer {
- public:
-  explicit Tracer(JSTracer* js_tracer) : js_tracer_(js_tracer) {}
-  void Trace(Wrappable* wrappable) override;
-
-  void TraceFrom(Wrappable* wrappable);
-
- private:
-  JSTracer* js_tracer_;
-  // Pending |Wrappable|s that we must traverse ourselves, since they did not
-  // have a |Wrapper|.
-  std::vector<Wrappable*> frontier_;
-};
 
 // Contains private data associated with a JSObject representing a JS wrapper
 // for a Cobalt platform object. There should be a one-to-one mapping of such
@@ -111,7 +89,7 @@ class WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   scoped_refptr<Wrappable> wrappable_;
   JS::Heap<JSObject*> wrapper_proxy_;
 
-  friend Tracer;
+  friend MozjsTracer;
 };
 
 }  // namespace mozjs

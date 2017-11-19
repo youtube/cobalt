@@ -117,6 +117,7 @@ class DebugHub : public script::Wrappable {
   void SendCommand(const std::string& channel, const std::string& message);
 
   DEFINE_WRAPPABLE_TYPE(DebugHub);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   // Called by LogMessageHandler for each log message.

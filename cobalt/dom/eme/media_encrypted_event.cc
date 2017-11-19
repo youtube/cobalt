@@ -31,6 +31,12 @@ MediaEncryptedEvent::MediaEncryptedEvent(
       init_data_type_(event_init_dict.init_data_type()),
       init_data_(event_init_dict.init_data()) {}
 
+void MediaEncryptedEvent::TraceMembers(script::Tracer* tracer) {
+  Event::TraceMembers(tracer);
+
+  tracer->Trace(init_data_);
+}
+
 }  // namespace eme
 }  // namespace dom
 }  // namespace cobalt

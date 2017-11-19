@@ -40,6 +40,7 @@ class Performance : public script::Wrappable {
   double Now() const;
 
   DEFINE_WRAPPABLE_TYPE(Performance);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~Performance() override;

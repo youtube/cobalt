@@ -469,11 +469,7 @@ void Node::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(last_child_);
   tracer->Trace(first_child_);
   tracer->Trace(next_sibling_);
-  for (RegisteredObserverList::RegisteredObserverVector::const_iterator it =
-           registered_observers_.registered_observers().begin();
-       it != registered_observers_.registered_observers().end(); ++it) {
-    tracer->Trace(it->observer());
-  }
+  tracer->Trace(registered_observers_);
   tracer->Trace(children_collection_);
 }
 

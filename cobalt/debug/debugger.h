@@ -82,6 +82,7 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   }
 
   DEFINE_WRAPPABLE_TYPE(Debugger);
+  void TraceMembers(script::Tracer* tracer) override;
 
  protected:
   // Called by the debug server with the response of a command on the message
