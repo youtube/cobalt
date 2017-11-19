@@ -42,6 +42,7 @@ class MediaKeyMessageEvent : public Event {
   const scoped_refptr<ArrayBuffer>& message() const { return message_; }
 
   DEFINE_WRAPPABLE_TYPE(MediaKeyMessageEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   MediaKeyMessageType message_type_;

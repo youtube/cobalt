@@ -435,7 +435,7 @@ void MozjsGlobalEnvironment::BeginGarbageCollection() {
   garbage_collection_count_++;
 
   if (garbage_collection_count_ == 1) {
-    DCHECK_EQ(visited_wrappables_.size(), 0);
+    DCHECK_EQ(visited_traceables_.size(), 0);
   }
 }
 
@@ -444,7 +444,7 @@ void MozjsGlobalEnvironment::EndGarbageCollection() {
   garbage_collection_count_--;
   DCHECK_GE(garbage_collection_count_, 0);
   if (garbage_collection_count_ == 0) {
-    visited_wrappables_.clear();
+    visited_traceables_.clear();
   }
 }
 

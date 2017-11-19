@@ -21,17 +21,13 @@
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/type_id.h"
+#include "cobalt/script/sequence.h"
+#include "cobalt/script/tracer.h"
 
 namespace cobalt {
 namespace script {
 
-class Wrappable;
-class Tracer {
- public:
-  virtual void Trace(Wrappable* wrappable) = 0;
-};
-
-class Wrappable : public base::RefCounted<Wrappable> {
+class Wrappable : public base::RefCounted<Wrappable>, public Traceable {
  public:
   // A handle to this Wrappable's corresponding Wrapper object. It may be
   // NULL if no wrapper has been created. A Wrapper may get garbage collected
@@ -72,11 +68,10 @@ class Wrappable : public base::RefCounted<Wrappable> {
   // this (which will result in the Wrappable being destructed as well.)
   virtual bool ShouldKeepWrapperAlive() { return false; }
 
-  // Trace all native |Wrappable|s accessible by the |Wrappable|. Must be
-  // manually implemented by the |Wrappable|.
-  // TODO: Should be pure virtual after static analysis tool for |Wrappable|s
-  // is created.
-  virtual void TraceMembers(Tracer* /*tracer*/) {}
+  // Our implementation of the |Traceable| interface.  All |Wrappable|s that
+  // own any |Traceable|s must override |TraceMembers| and trace them.
+  void TraceMembers(Tracer* /*tracer*/) override {}
+  bool IsWrappable() const final { return true; }
 
  protected:
   virtual ~Wrappable() { }

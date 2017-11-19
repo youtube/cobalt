@@ -25,5 +25,11 @@ FocusEvent::FocusEvent(base::Token type, Bubbles bubbles, Cancelable cancelable,
     : UIEvent(type, bubbles, cancelable, view),
       related_target_(related_target) {}
 
+void FocusEvent::TraceMembers(script::Tracer* tracer) {
+  UIEvent::TraceMembers(tracer);
+
+  tracer->Trace(related_target_);
+}
+
 }  // namespace dom
 }  // namespace cobalt

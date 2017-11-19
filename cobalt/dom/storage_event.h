@@ -42,6 +42,7 @@ class StorageEvent : public Event {
   scoped_refptr<Storage> storage_area() const;
 
   DEFINE_WRAPPABLE_TYPE(StorageEvent);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   base::optional<std::string> key_;

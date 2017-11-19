@@ -51,6 +51,7 @@ class MediaKeys : public script::Wrappable,
       script::ExceptionState* exception_state);
 
   DEFINE_WRAPPABLE_TYPE(MediaKeys);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~MediaKeys() override;

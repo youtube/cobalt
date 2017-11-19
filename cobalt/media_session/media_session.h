@@ -64,6 +64,7 @@ class MediaSession : public script::Wrappable {
                         const MediaSessionActionHandlerHolder& handler);
 
   DEFINE_WRAPPABLE_TYPE(MediaSession);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   void MaybeQueueChangeTask();

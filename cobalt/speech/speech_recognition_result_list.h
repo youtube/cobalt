@@ -46,6 +46,7 @@ class SpeechRecognitionResultList : public script::Wrappable {
   scoped_refptr<SpeechRecognitionResult> Item(uint32 index) const;
 
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionResultList);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~SpeechRecognitionResultList() override {}

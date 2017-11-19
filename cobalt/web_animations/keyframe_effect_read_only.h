@@ -99,6 +99,7 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
   const Data& data() const { return data_; }
 
   DEFINE_WRAPPABLE_TYPE(KeyframeEffectReadOnly);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~KeyframeEffectReadOnly() override {}

@@ -38,5 +38,19 @@ H5vcc::H5vcc(const Settings& settings, const scoped_refptr<dom::Window>& window,
   trace_event_ = new H5vccTraceEvent();
 }
 
+void H5vcc::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(accessibility_);
+  tracer->Trace(account_info_);
+  tracer->Trace(audio_config_array_);
+  tracer->Trace(c_val_);
+  tracer->Trace(crash_log_);
+  tracer->Trace(runtime_);
+  tracer->Trace(settings_);
+  tracer->Trace(sso_);
+  tracer->Trace(storage_);
+  tracer->Trace(system_);
+  tracer->Trace(trace_event_);
+}
+
 }  // namespace h5vcc
 }  // namespace cobalt

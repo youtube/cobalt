@@ -63,6 +63,12 @@ const scoped_refptr<H5vccRuntimeEventTarget>& H5vccRuntime::on_resume() const {
   return on_resume_;
 }
 
+void H5vccRuntime::TraceMembers(script::Tracer* tracer) {
+  tracer->Trace(on_deep_link_);
+  tracer->Trace(on_pause_);
+  tracer->Trace(on_resume_);
+}
+
 void H5vccRuntime::OnApplicationEvent(const base::Event* event) {
   const base::ApplicationEvent* app_event =
       base::polymorphic_downcast<const base::ApplicationEvent*>(event);

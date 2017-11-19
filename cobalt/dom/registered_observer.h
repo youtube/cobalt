@@ -18,6 +18,7 @@
 #include "base/memory/ref_counted.h"
 #include "cobalt/dom/mutation_observer.h"
 #include "cobalt/dom/mutation_observer_init.h"
+#include "cobalt/script/tracer.h"
 
 namespace cobalt {
 namespace dom {
@@ -29,7 +30,7 @@ class Node;
 // https://www.w3.org/TR/dom/#registered-observer
 // This class is expected to be used internally in the Node class as a part of
 // mutation reporting.
-class RegisteredObserver {
+class RegisteredObserver : public script::Traceable {
  public:
   // A RegisteredObserver must not outlive the |target| node that is being
   // observed.
@@ -42,6 +43,10 @@ class RegisteredObserver {
   const MutationObserverInit& options() const { return options_; }
   void set_options(const MutationObserverInit& options) { options_ = options; }
   const Node* target() const { return target_; }
+
+  void TraceMembers(script::Tracer* tracer) override {
+    tracer->Trace(observer_);
+  }
 
  private:
   const Node* target_;

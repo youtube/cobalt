@@ -83,10 +83,10 @@ NodeCollection<NodeIterator>::NodeCollection(
 template <typename NodeIterator>
 void NodeCollection<NodeIterator>::TraceMembers(
     script::Tracer* tracer) {
+  HTMLCollection::TraceMembers(tracer);
+
   tracer->Trace(base_);
-  for (auto& element : cached_collection_) {
-    tracer->Trace(element);
-  }
+  tracer->TraceItems(cached_collection_);
 }
 
 template <typename NodeIterator>
