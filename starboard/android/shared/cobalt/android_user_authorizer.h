@@ -45,11 +45,14 @@ class AndroidUserAuthorizer : public ::cobalt::account::UserAuthorizer {
   scoped_ptr<AccessToken> AuthorizeUser(SbUser user) SB_OVERRIDE;
   bool DeauthorizeUser(SbUser user) SB_OVERRIDE;
   scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) SB_OVERRIDE;
+  void Shutdown() SB_OVERRIDE;
 
  private:
   scoped_ptr<AccessToken> CreateAccessToken(jobject j_token);
 
   jobject j_user_authorizer_;
+
+  bool shutdown_;
 };
 
 }  // namespace cobalt
