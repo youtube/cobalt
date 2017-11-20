@@ -15,6 +15,6 @@
 #define COBALT_VERSION_H_
 
 // Cobalt release number.
-#define COBALT_VERSION "15"
+#define COBALT_VERSION "16"
 
 #endif  // COBALT_VERSION_H_
