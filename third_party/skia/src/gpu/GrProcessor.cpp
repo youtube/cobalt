@@ -258,13 +258,13 @@ void GrResourceIOProcessor::TextureSampler::reset(sk_sp<GrTextureProxy> proxy,
 GrResourceIOProcessor::ImageStorageAccess::ImageStorageAccess(sk_sp<GrTextureProxy> proxy,
                                                               GrIOType ioType,
                                                               GrSLMemoryModel memoryModel,
-                                                              GrSLRestrict restrict,
+                                                              GrSLRestrict restricted,
                                                               GrShaderFlags visibility)
         : fProxyRef(std::move(proxy), ioType) {
     SkASSERT(fProxyRef.get());
 
     fMemoryModel = memoryModel;
-    fRestrict = restrict;
+    fRestrict = restricted;
     fVisibility = visibility;
     // We currently infer this from the config. However, we could allow the client to specify
     // a format that is different but compatible with the config.
