@@ -98,7 +98,7 @@ GrGLSLUniformHandler::TexelBufferHandle GrGLUniformHandler::addTexelBuffer(uint3
 
 GrGLSLUniformHandler::ImageStorageHandle GrGLUniformHandler::addImageStorage(
         uint32_t visibility, GrSLType type, GrImageStorageFormat format, GrSLMemoryModel model,
-        GrSLRestrict restrict, GrIOType ioType, const char* name) {
+        GrSLRestrict restricted, GrIOType ioType, const char* name) {
     SkASSERT(name && strlen(name));
     SkASSERT(0 != visibility);
     SkString mangleName;
@@ -113,7 +113,7 @@ GrGLSLUniformHandler::ImageStorageHandle GrGLUniformHandler::addImageStorage(
     imageStorage.fVariable.setTypeModifier(GrShaderVar::kUniform_TypeModifier);
     imageStorage.fVariable.setImageStorageFormat(format);
     imageStorage.fVariable.setMemoryModel(model);
-    imageStorage.fVariable.setRestrict(restrict);
+    imageStorage.fVariable.setRestrict(restricted);
     imageStorage.fVariable.setIOType(ioType);
     imageStorage.fVariable.setPrecision(kHigh_GrSLPrecision);
     imageStorage.fLocation = -1;

@@ -4,8 +4,9 @@
  * Use of this source code is governed by a BSD-style license that can be
  * found in the LICENSE file.
  */
-
+#if !defined(__STDC_LIMIT_MACROS)
 #define __STDC_LIMIT_MACROS
+#endif
 
 #include "SkArenaAlloc.h"
 #include "SkAutoBlitterChoose.h"
