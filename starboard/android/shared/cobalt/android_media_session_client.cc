@@ -196,7 +196,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
     SbMutexRelease(&mutex);
   }
 
-  virtual void OnMediaSessionChanged() OVERRIDE {
+  void OnMediaSessionChanged() override {
     JniEnvExt* env = JniEnvExt::Get();
 
     jint playback_state =
