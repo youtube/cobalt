@@ -66,6 +66,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
       except OSError:
         sys.stderr.write("Cannot kill launcher.  Process already closed.\n")
 
+  def SupportsSuspendResume(self):
+    return True
+
   def SendResume(self):
     """Sends continue to the launcher's executable."""
     sys.stderr.write("\n***Sending continue signal to executable***\n")
@@ -73,3 +76,11 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self.proc.send_signal(signal.SIGCONT)
     else:
       sys.stderr.write("Cannot send continue to executable; it is closed.\n")
+
+  def SendSuspend(self):
+    """Sends suspend to the launcher's executable."""
+    sys.stderr.write("\n***Sending suspend signal to executable***\n")
+    if self.proc:
+      self.proc.send_signal(signal.SIGUSR1)
+    else:
+      sys.stderr.write("Cannot send suspend to executable; it is closed.\n")
