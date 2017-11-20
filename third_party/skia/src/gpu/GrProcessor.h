@@ -336,7 +336,7 @@ public:
     GrIOType ioType() const { return fProxyRef.ioType(); }
     GrImageStorageFormat format() const { return fFormat; }
     GrSLMemoryModel memoryModel() const { return fMemoryModel; }
-    GrSLRestrict restrict() const { return fRestrict; }
+    GrSLRestrict restricted() const { return fRestrict; }
 
     // 'instantiate' should only ever be called at flush time.
     bool instantiate(GrResourceProvider* resourceProvider) const {

@@ -349,7 +349,7 @@ GrGLSLProgramBuilder::ImageStorageHandle GrGLSLProgramBuilder::emitImageStorage(
     GrSLType uniformType = access.proxy()->imageStorageType();
     return this->uniformHandler()->addImageStorage(access.visibility(), uniformType,
                                                    access.format(), access.memoryModel(),
-                                                   access.restrict(), access.ioType(), name);
+                                                   access.restricted(), access.ioType(), name);
 }
 
 void GrGLSLProgramBuilder::emitFSOutputSwizzle(bool hasSecondaryOutput) {
