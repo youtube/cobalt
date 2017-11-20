@@ -55,8 +55,8 @@ void GrShaderVar::setMemoryModel(GrSLMemoryModel model) {
     SkFAIL("Unknown memory model.");
 }
 
-void GrShaderVar::setRestrict(GrSLRestrict restrict) {
-    switch (restrict) {
+void GrShaderVar::setRestrict(GrSLRestrict restricted) {
+    switch (restricted) {
         case GrSLRestrict::kNo:
             return;
         case GrSLRestrict::kYes:
