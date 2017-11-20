@@ -156,7 +156,11 @@ void MediaTransform::Drain() {
     return;
   }
 
-  SendMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM);
+  // The VP9 codec may crash when MFT_MESSAGE_NOTIFY_END_OF_STREAM is processed
+  // at the same time an IMFSample is released. Per documentation, the client
+  // is not required to send this message for IMFTransforms. Avoid the possible
+  // race condition by not sending this message.
+  // SendMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM);
   SendMessage(MFT_MESSAGE_COMMAND_DRAIN);
   state_ = kDraining;
 }
