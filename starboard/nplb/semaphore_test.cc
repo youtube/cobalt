@@ -49,7 +49,7 @@ TEST(Semaphore, InitialValue_One) {
 class ThreadTakesSemaphore : public AbstractTestThread {
  public:
   explicit ThreadTakesSemaphore(Semaphore* s) : semaphore_(s) {}
-  virtual void Run() SB_OVERRIDE { semaphore_->Take(); }
+  void Run() override { semaphore_->Take(); }
 
  private:
   Semaphore* semaphore_;
@@ -67,7 +67,7 @@ class ThreadTakesWaitSemaphore : public AbstractTestThread {
   explicit ThreadTakesWaitSemaphore(SbTime wait_us)
       : wait_us_(wait_us), result_signaled_(false),
         result_wait_time_(0) {}
-  virtual void Run() SB_OVERRIDE {
+  void Run() override {
     SbTime start_time = SbTimeGetMonotonicNow();
     result_signaled_ = semaphore_.TakeWait(wait_us_);
     result_wait_time_ = SbTimeGetMonotonicNow() - start_time;
@@ -131,7 +131,7 @@ TEST(Semaphore, ThreadTakesWait_TimeExpires) {
 class ThreadPutsSemaphore : public AbstractTestThread {
  public:
   explicit ThreadPutsSemaphore(Semaphore* s) : semaphore_(s) {}
-  virtual void Run() SB_OVERRIDE { semaphore_->Put(); }
+  void Run() override { semaphore_->Put(); }
 
  private:
   Semaphore* semaphore_;
