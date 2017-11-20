@@ -32,6 +32,6 @@ THIRD_PARTY_ROOT = path.join(REPOSITORY_ROOT, 'third_party')
 BUILD_OUTPUT_ROOT = path.join(REPOSITORY_ROOT, 'out')
 
 
-def GetBuildOutputDirectory(platform, config):
+def BuildOutputDirectory(platform, config):
   """Gets the build output directory for the given platform and config."""
   return path.join(BUILD_OUTPUT_ROOT, '%s_%s' % (platform, config))
