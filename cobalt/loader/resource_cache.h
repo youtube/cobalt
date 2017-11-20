@@ -280,6 +280,8 @@ template <typename CacheType>
 void CachedResource<CacheType>::StartLoading() {
   DCHECK(cached_resource_thread_checker_.CalledOnValidThread());
   DCHECK(!loader_);
+  DCHECK(!retry_timer_ || !retry_timer_->IsRunning());
+
   loader_ = resource_cache_->StartLoadingResource(this);
 }
 
