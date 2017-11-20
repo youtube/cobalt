@@ -52,15 +52,20 @@ def DynamicallyBuildOutDirectory(platform_name, config):
     The path to the directory containing executables and/or their components.
   """
   path = os.path.abspath(
-      os.path.join(os.path.dirname(__file__),
-                   os.pardir, os.pardir, "out",
-                   "{}_{}".format(platform_name, config)))
+      os.path.join(
+          os.path.dirname(__file__), os.pardir, os.pardir, "out",
+          "{}_{}".format(platform_name, config)))
   return path
 
 
-def LauncherFactory(platform_name, target_name, config, device_id=None,
-                    target_params=None, output_file=None,
-                    out_directory=None, env_variables=None):
+def LauncherFactory(platform_name,
+                    target_name,
+                    config,
+                    device_id=None,
+                    target_params=None,
+                    output_file=None,
+                    out_directory=None,
+                    env_variables=None):
   """Creates the proper launcher based upon command line args.
 
   Args:
@@ -89,23 +94,34 @@ def LauncherFactory(platform_name, target_name, config, device_id=None,
   #  If a platform that does not have a new launcher is provided, attempt
   #  to create an adapter to the old one.
   if not launcher_module:
-    old_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                            os.pardir, os.pardir, "tools",
-                                            "lbshell"))
+    old_path = os.path.abspath(
+        os.path.join(
+            os.path.dirname(__file__), os.pardir, os.pardir, "tools",
+            "lbshell"))
     if os.path.exists(os.path.join(old_path, "app_launcher.py")):
       sys.path.append(old_path)
       bridge_module = importlib.import_module("app_launcher_bridge")
       return bridge_module.LauncherAdapter(
-          platform_name, target_name, config, device_id,
-          target_params=target_params, output_file=output_file,
-          out_directory=out_directory, env_variables=env_variables)
+          platform_name,
+          target_name,
+          config,
+          device_id,
+          target_params=target_params,
+          output_file=output_file,
+          out_directory=out_directory,
+          env_variables=env_variables)
     else:
       raise RuntimeError("No launcher implemented for the given platform.")
   else:
     return launcher_module.Launcher(
-        platform_name, target_name, config, device_id,
-        target_params=target_params, output_file=output_file,
-        out_directory=out_directory, env_variables=env_variables)
+        platform_name,
+        target_name,
+        config,
+        device_id,
+        target_params=target_params,
+        output_file=output_file,
+        out_directory=out_directory,
+        env_variables=env_variables)
 
 
 class AbstractLauncher(object):
@@ -156,9 +172,16 @@ class AbstractLauncher(object):
     """Kills the launcher. Must be implemented in subclasses."""
     pass
 
+  def SupportsSuspendResume():
+    return False
+
   def SendResume(self):
     """Sends resume signal to the launcher's executable."""
     raise RuntimeError("Resume not supported for this platform.")
+
+  def SendSuspend(self):
+    """sends suspend signal to the launcher's executable."""
+    raise RuntimeError("Suspend not supported for this platform.")
 
   def GetStartupTimeout(self):
     """Gets the number of seconds to wait before assuming a launcher timeout."""
