@@ -67,6 +67,17 @@ class ContextImpl {
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
   virtual int GetMaxFragmentTextureUnits() const = 0;
 
+  // Called via glGetIntegerv(GL_MAX_VERTEX_TEXTURE_IMAGE_UNITS).
+  // Returns the maximum supported number of textures per vertex shader.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxVertexTextureImageUnits() const = 0;
+
+  // Called via glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS).
+  // Returns the maximum supported number of textures that can be used
+  // to access textures from both vertex and fragment shaders combined.
+  //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
+  virtual int GetMaxCombinedTextureImageUnits() const = 0;
+
   // Called via glGetIntegerv(GL_MAX_TEXTURE_SIZE).
   // Returns the maximum width and height of a texture, in pixels.
   //   https://www.khronos.org/opengles/sdk/docs/man/xhtml/glGet.xml
