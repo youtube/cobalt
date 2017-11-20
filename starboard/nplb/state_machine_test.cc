@@ -159,8 +159,8 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
 
   // --- StateMachine Implementation ---
  protected:
-  virtual optional<hsm::TestState> GetUserParentState(
-      hsm::TestState state) const SB_OVERRIDE {
+  optional<hsm::TestState> GetUserParentState(
+      hsm::TestState state) const override {
     switch (state) {
       case hsm::kStateS1:
       case hsm::kStateS2:
@@ -176,8 +176,8 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-  virtual optional<hsm::TestState> GetUserInitialSubstate(
-      hsm::TestState state) const SB_OVERRIDE {
+  optional<hsm::TestState> GetUserInitialSubstate(
+      hsm::TestState state) const override {
     switch (state) {
       case hsm::kStateS0:
         return hsm::kStateS1;
@@ -192,12 +192,9 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-  virtual hsm::TestState GetUserInitialState() const SB_OVERRIDE {
-    return hsm::kStateS0;
-  }
+  hsm::TestState GetUserInitialState() const override { return hsm::kStateS0; }
 
-  virtual const char* GetUserStateString(hsm::TestState state) const
-      SB_OVERRIDE {
+  const char* GetUserStateString(hsm::TestState state) const override {
     switch (state) {
       case hsm::kStateS0:
         return "S0";
@@ -218,8 +215,7 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-  virtual const char* GetUserEventString(hsm::TestEvent event) const
-      SB_OVERRIDE {
+  const char* GetUserEventString(hsm::TestEvent event) const override {
     switch (event) {
       case hsm::kEventA:
         return "A";
@@ -246,9 +242,9 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     }
   }
 
-  virtual Result HandleUserStateEvent(hsm::TestState state,
-                                      hsm::TestEvent event,
-                                      void* data) SB_OVERRIDE {
+  Result HandleUserStateEvent(hsm::TestState state,
+                              hsm::TestEvent event,
+                              void* data) override {
 #if STATE_MACHINE_TEST_DEBUG
     SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", "
                   << GetEventString(event) << ", 0x" << std::hex << data
@@ -395,7 +391,7 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     return result;
   }
 
-  virtual void HandleUserStateEnter(hsm::TestState state) SB_OVERRIDE {
+  void HandleUserStateEnter(hsm::TestState state) override {
 #if STATE_MACHINE_TEST_DEBUG
     SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state)
                   << ", ENTER);";
@@ -404,7 +400,7 @@ class TestHsm : public StateMachine<hsm::TestState, hsm::TestEvent> {
     AddEvent(state, nullopt, NULL, hsm::kHsmEnter);
   }
 
-  virtual void HandleUserStateExit(hsm::TestState state) SB_OVERRIDE {
+  void HandleUserStateExit(hsm::TestState state) override {
 #if STATE_MACHINE_TEST_DEBUG
     SB_DLOG(INFO) << __FUNCTION__ << "(" << GetStateString(state) << ", EXIT);";
 #endif  // STATE_MACHINE_TEST_DEBUG
