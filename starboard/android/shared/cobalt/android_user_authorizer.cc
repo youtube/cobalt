@@ -29,7 +29,7 @@ namespace android {
 namespace shared {
 namespace cobalt {
 
-AndroidUserAuthorizer::AndroidUserAuthorizer() {
+AndroidUserAuthorizer::AndroidUserAuthorizer() : shutdown_(false) {
   JniEnvExt* env = JniEnvExt::Get();
   jobject local_ref = env->CallActivityObjectMethodOrAbort(
       "getUserAuthorizer", "()Lfoo/cobalt/account/UserAuthorizer;");
@@ -41,8 +41,18 @@ AndroidUserAuthorizer::~AndroidUserAuthorizer() {
   env->DeleteGlobalRef(j_user_authorizer_);
 }
 
+void AndroidUserAuthorizer::Shutdown() {
+  shutdown_ = true;
+  JniEnvExt* env = JniEnvExt::Get();
+  env->CallVoidMethodOrAbort(j_user_authorizer_, "interrupt", "()V");
+}
+
 scoped_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+  if (shutdown_) {
+    DLOG(WARNING) << "No-op AuthorizeUser after shutdown";
+    return scoped_ptr<AccessToken>(NULL);
+  }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
       env->CallObjectMethodOrAbort(j_user_authorizer_, "authorizeUser",
@@ -52,6 +62,10 @@ scoped_ptr<AccessToken> AndroidUserAuthorizer::AuthorizeUser(SbUser user) {
 
 bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+  if (shutdown_) {
+    DLOG(WARNING) << "No-op DeauthorizeUser after shutdown";
+    return false;
+  }
   JniEnvExt* env = JniEnvExt::Get();
   return env->CallBooleanMethodOrAbort(j_user_authorizer_, "deauthorizeUser",
                                        "()Z");
@@ -60,6 +74,10 @@ bool AndroidUserAuthorizer::DeauthorizeUser(SbUser user) {
 scoped_ptr<AccessToken>
 AndroidUserAuthorizer::RefreshAuthorization(SbUser user) {
   SB_DCHECK(user == &::starboard::shared::nouser::g_user);
+  if (shutdown_) {
+    DLOG(WARNING) << "No-op RefreshAuthorization after shutdown";
+    return scoped_ptr<AccessToken>(NULL);
+  }
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_token(
       env->CallObjectMethodOrAbort(j_user_authorizer_, "refreshAuthorization",
