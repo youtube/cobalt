@@ -14,7 +14,7 @@
 
 class SkBaseSemaphore {
 public:
-    constexpr SkBaseSemaphore(int count = 0)
+    SkBaseSemaphore(int count = 0)
         : fCount(count), fOSSemaphore(nullptr) {}
 
     // Increment the counter n times.
