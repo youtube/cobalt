@@ -173,7 +173,7 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
 
   // Returns the current media playback time, which progresses from 0 until
   // GetMediaDuration().
-  virtual base::TimeDelta GetMediaTime() const = 0;
+  virtual base::TimeDelta GetMediaTime() = 0;
 
   // Get approximate time ranges of buffered media.
   virtual Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
