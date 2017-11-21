@@ -48,36 +48,27 @@ class ThreadCreateInfo {
 int RunThreadLocalDestructors(ThreadSubsystemSingleton* singleton) {
   int num_destructors_called = 0;
 
-  // Copy thread local keyes. This is necessary because the unordered_map may
-  // invalidate its iterators on insert. This happens if a destructor inserts
-  // new elements into the tls.
-  auto copy_thread_local_keys = singleton->thread_local_keys_;
+  for (auto it = singleton->thread_local_keys_.begin();
+       it != singleton->thread_local_keys_.end();) {
+    auto curr_it = it++;
 
-  for (auto it = copy_thread_local_keys.begin();
-       it != copy_thread_local_keys.end(); ++it) {
-    if (!it->second->destructor) {
+    if (!curr_it->second->destructor) {
       continue;
     }
-    auto key = it->second;
+    auto key = curr_it->second;
     void* entry = SbThreadGetLocalValue(key);
     if (!entry) {
       continue;
     }
     SbThreadSetLocalValue(key, nullptr);
     ++num_destructors_called;
-    it->second->destructor(entry);
+    curr_it->second->destructor(entry);
   }
   return num_destructors_called;
 }
 
 int CountTlsObjectsRemaining(ThreadSubsystemSingleton* singleton) {
   int num_objects_remain = 0;
-
-  // Copy thread local keyes. This is necessary because the unordered_map may
-  // invalidate its iterators on insert. This happens if a destructor inserts
-  // new elements into the tls.
-  auto copy_thread_local_keys = singleton->thread_local_keys_;
-
   for (auto it = singleton->thread_local_keys_.begin();
        it != singleton->thread_local_keys_.end(); ++it) {
     if (!it->second->destructor) {

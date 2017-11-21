@@ -16,8 +16,9 @@
 #define STARBOARD_SHARED_WIN32_THREAD_PRIVATE_H_
 
 #include <windows.h>
+
+#include <map>
 #include <string>
-#include <unordered_map>
 
 #include "starboard/condition_variable.h"
 #include "starboard/mutex.h"
@@ -50,8 +51,9 @@ class ThreadSubsystemSingleton {
         thread_private_key_(SbThreadCreateLocalKeyInternal(NULL, this)) {}
   // This mutex protects all class members
   SbMutex mutex_;
-  // Allocated thread_local_keys
-  std::unordered_map<DWORD, SbThreadLocalKeyPrivate*> thread_local_keys_;
+  // Allocated thread_local_keys. Note that std::map is used
+  // so that elements can be deleted without triggering an allocation.
+  std::map<DWORD, SbThreadLocalKeyPrivate*> thread_local_keys_;
   // Thread-local key for the thread's SbThreadPrivate
   SbThreadLocalKey thread_private_key_;
 };
