@@ -31,6 +31,8 @@
     # our rendering with this.
     'cobalt_minimum_frame_time_in_milliseconds': 0,
 
+    'fallback_splash_screen_url%': 'h5vcc-embedded://youtube_splash_screen.html',
+
     # Platform-specific implementations to compile into cobalt.
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
