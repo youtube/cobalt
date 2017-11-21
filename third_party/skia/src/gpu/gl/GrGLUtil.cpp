@@ -7,7 +7,14 @@
 
 #include "GrGLUtil.h"
 #include "SkMatrix.h"
+
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#define sscanf SbStringScanF
+#else
 #include <stdio.h>
+#endif
+
 #include <EGL/egl.h>
 
 void GrGLClearErr(const GrGLInterface* gl) {

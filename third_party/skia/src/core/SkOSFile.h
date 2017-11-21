@@ -11,7 +11,13 @@
 #ifndef SkOSFile_DEFINED
 #define SkOSFile_DEFINED
 
+#if defined(STARBOARD)
+#include "starboard/file.h"
+#define SkFile SbFilePrivate
+#else
 #include <stdio.h>
+#define SkFile FILE
+#endif
 
 #include "SkString.h"
 
@@ -20,23 +26,23 @@ enum SkFILE_Flags {
     kWrite_SkFILE_Flag  = 0x02
 };
 
-FILE* sk_fopen(const char path[], SkFILE_Flags);
-void    sk_fclose(FILE*);
+SkFile* sk_fopen(const char path[], SkFILE_Flags);
+void    sk_fclose(SkFile*);
 
-size_t  sk_fgetsize(FILE*);
+size_t  sk_fgetsize(SkFile*);
 
-size_t  sk_fwrite(const void* buffer, size_t byteCount, FILE*);
+size_t  sk_fwrite(const void* buffer, size_t byteCount, SkFile*);
 
-void    sk_fflush(FILE*);
-void    sk_fsync(FILE*);
+void    sk_fflush(SkFile*);
+void    sk_fsync(SkFile*);
 
-size_t  sk_ftell(FILE*);
+size_t  sk_ftell(SkFile*);
 
 /** Maps a file into memory. Returns the address and length on success, NULL otherwise.
  *  The mapping is read only.
  *  When finished with the mapping, free the returned pointer with sk_fmunmap.
  */
-void*   sk_fmmap(FILE* f, size_t* length);
+void*   sk_fmmap(SkFile* f, size_t* length);
 
 /** Maps a file descriptor into memory. Returns the address and length on success, NULL otherwise.
  *  The mapping is read only.
@@ -50,12 +56,12 @@ void*   sk_fdmmap(int fd, size_t* length);
 void    sk_fmunmap(const void* addr, size_t length);
 
 /** Returns true if the two point at the exact same filesystem object. */
-bool    sk_fidentical(FILE* a, FILE* b);
+bool    sk_fidentical(SkFile* a, SkFile* b);
 
 /** Returns the underlying file descriptor for the given file.
  *  The return value will be < 0 on failure.
  */
-int     sk_fileno(FILE* f);
+int     sk_fileno(SkFile* f);
 
 /** Returns true if something (file, directory, ???) exists at this path,
  *  and has the specified access flags.
@@ -67,7 +73,7 @@ bool    sk_isdir(const char *path);
 
 // Like pread, but may affect the file position marker.
 // Returns the number of bytes read or SIZE_MAX if failed.
-size_t sk_qread(FILE*, void* buffer, size_t count, size_t offset);
+size_t sk_qread(SkFile*, void* buffer, size_t count, size_t offset);
 
 
 // Create a new directory at this path; returns true if successful.

@@ -103,7 +103,7 @@ using StartPipeline2dFn = void(size_t,size_t,size_t,size_t, void**,K*);
 
 extern "C" {
 
-#if __has_feature(memory_sanitizer)
+#if __has_feature(memory_sanitizer) || defined(STARBOARD)
     // We'll just run portable code.
 
 #elif defined(__aarch64__)
@@ -184,6 +184,8 @@ extern "C" {
     #undef M
 }
 
+
+#if !defined(STARBOARD)
 #if !__has_feature(memory_sanitizer) && (defined(__x86_64__) || defined(_M_X64))
     template <SkRasterPipeline::StockStage st>
     static constexpr StageFn* hsw_lowp() { return nullptr; }
@@ -201,6 +203,7 @@ extern "C" {
         LOWP_STAGES(M)
     #undef M
 #endif
+#endif  // !defined(STARBOARD)
 
 // Engines comprise everything we need to run SkRasterPipelines.
 struct SkJumper_Engine {
@@ -223,7 +226,7 @@ static SkJumper_Engine gEngine = kPortable;
 static SkOnce gChooseEngineOnce;
 
 static SkJumper_Engine choose_engine() {
-#if __has_feature(memory_sanitizer)
+#if __has_feature(memory_sanitizer) || defined(STARBOARD)
     // We'll just run portable code.
 
 #elif defined(__aarch64__)
@@ -320,6 +323,7 @@ static SkJumper_Engine choose_engine() {
     static SkOnce gChooseLowpOnce;
 
     static SkJumper_Engine choose_lowp() {
+#if !defined(STARBOARD)
     #if !__has_feature(memory_sanitizer) && (defined(__x86_64__) || defined(_M_X64))
         if (1 && SkCpu::Supports(SkCpu::HSW)) {
             return {
@@ -342,6 +346,7 @@ static SkJumper_Engine choose_engine() {
             };
         }
     #endif
+#endif  // !defined(STARBOARD)
         return kNone;
     }
 #endif

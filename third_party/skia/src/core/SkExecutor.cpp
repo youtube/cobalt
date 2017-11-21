@@ -13,6 +13,12 @@
 #include "SkTArray.h"
 #include "SkThreadUtils.h"
 
+#if defined(STARBOARD)
+#include "starboard/system.h"
+static int num_cores() {
+  return SbSystemGetNumberOfProcessors();
+}
+#else  // defined(STARBOARD)
 #if defined(SK_BUILD_FOR_WIN32)
     #include <windows.h>
     static int num_cores() {
@@ -26,6 +32,7 @@
         return (int)sysconf(_SC_NPROCESSORS_ONLN);
     }
 #endif
+#endif  // defined(STARBOARD)
 
 SkExecutor::~SkExecutor() {}
 
