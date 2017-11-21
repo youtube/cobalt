@@ -10,8 +10,6 @@
 #include "gl/GrGLExtensions.h"
 #include "gl/GrGLUtil.h"
 
-#include <stdio.h>
-
 const GrGLInterface* GrGLInterfaceAddTestDebugMarker(const GrGLInterface* interface,
                                                      GrGLInsertEventMarkerProc insertEventMarkerFn,
                                                      GrGLPushGroupMarkerProc pushGroupMarkerFn,

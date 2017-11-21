@@ -10,7 +10,15 @@
 
 #include "SkMalloc.h"
 
+#if defined(STARBOARD)
+#include "starboard/character.h"
+#include "starboard/string.h"
+#define strncmp SbStringCompare
+#define strlen SbStringGetLength
+#define tolower SbCharacterToLower
+#else
 #include <ctype.h>
+#endif
 
 static inline const char* index_into_base(const char*const* base, int index,
                                           size_t elemSize)
