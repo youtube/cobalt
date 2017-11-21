@@ -398,9 +398,7 @@
       "<(skia_src_path)/gpu/gl/GrGLCaps.h",
       "<(skia_src_path)/gpu/gl/GrGLContext.cpp",
       "<(skia_src_path)/gpu/gl/GrGLContext.h",
-      "<(skia_src_path)/gpu/gl/GrGLCreateNativeInterface_none.cpp",
       "<(skia_src_path)/gpu/gl/GrGLCreateNullInterface.cpp",
-      "<(skia_src_path)/gpu/gl/GrGLDefaultInterface_none.cpp",
       "<(skia_src_path)/gpu/gl/GrGLDefines.h",
       "<(skia_src_path)/gpu/gl/GrGLGLSL.cpp",
       "<(skia_src_path)/gpu/gl/GrGLGLSL.h",
@@ -595,12 +593,6 @@
 
     'skia_native_gpu_sources': [
       "<(skia_src_path)/gpu/gl/GrGLDefaultInterface_native.cpp",
-      "<(skia_src_path)/gpu/gl/mac/GrGLCreateNativeInterface_mac.cpp",
-      "<(skia_src_path)/gpu/gl/win/GrGLCreateNativeInterface_win.cpp",
-      "<(skia_src_path)/gpu/gl/glx/GrGLCreateNativeInterface_glx.cpp",
-      "<(skia_src_path)/gpu/gl/egl/GrGLCreateNativeInterface_egl.cpp",
-      "<(skia_src_path)/gpu/gl/iOS/GrGLCreateNativeInterface_iOS.cpp",
-      "<(skia_src_path)/gpu/gl/android/GrGLCreateNativeInterface_android.cpp",
     ],
   },
 }

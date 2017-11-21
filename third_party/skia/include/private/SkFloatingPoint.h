@@ -12,7 +12,12 @@
 
 #include "SkTypes.h"
 #include "SkSafe_math.h"
+
+#if defined(STARBOARD)
+#include "starboard/double.h"
+#else
 #include <float.h>
+#endif
 
 #if SK_CPU_SSE_LEVEL >= SK_CPU_SSE_LEVEL_SSE1
     #include <xmmintrin.h>
@@ -49,7 +54,11 @@ static inline float sk_float_pow(float base, float exp) {
 #    define sk_float_asin(x)    asinf(x)
 #endif
 #define sk_float_atan2(y,x)     atan2f(y,x)
+#if defined(STARBOARD)
+#define sk_float_abs(x)         static_cast<float>(SbDoubleAbsolute(x))
+#else
 #define sk_float_abs(x)         fabsf(x)
+#endif
 #define sk_float_copysign(x, y) copysignf(x, y)
 #define sk_float_mod(x,y)       fmodf(x,y)
 #define sk_float_exp(x)         expf(x)
@@ -67,6 +76,11 @@ static inline float sk_float_pow(float base, float exp) {
     #define sk_float_log2(x)        log2f(x)
 #endif
 
+#if defined(STARBOARD)
+#define sk_float_isfinite(x)    SbDoubleIsFinite(x)
+#define sk_float_isnan(x)       SbDoubleIsNaN(x)
+#define sk_float_isinf(x)       !(SbDoubleIsFinite(x) || SbDoubleIsNaN(x))
+#else
 #ifdef SK_BUILD_FOR_WIN
     #define sk_float_isfinite(x)    _finite(x)
     #define sk_float_isnan(x)       _isnan(x)
@@ -78,6 +92,7 @@ static inline float sk_float_pow(float base, float exp) {
     #define sk_float_isfinite(x)    isfinite(x)
     #define sk_float_isnan(x)       isnan(x)
     #define sk_float_isinf(x)       isinf(x)
+#endif
 #endif
 
 #define sk_double_isnan(a)          sk_float_isnan(a)

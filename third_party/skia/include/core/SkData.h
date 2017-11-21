@@ -8,8 +8,11 @@
 #ifndef SkData_DEFINED
 #define SkData_DEFINED
 
+#if !defined(STARBOARD)
 #include <stdio.h>
+#endif
 
+#include "SkOSFile.h"  // Included for SkFile.
 #include "SkRefCnt.h"
 
 class SkStream;
@@ -127,7 +130,7 @@ public:
      *  The FILE must be open for reading only.
      *  Returns NULL on failure.
      */
-    static sk_sp<SkData> MakeFromFILE(FILE* f);
+    static sk_sp<SkData> MakeFromFILE(SkFile* f);
 
     /**
      *  Create a new dataref from a file descriptor.
