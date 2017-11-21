@@ -15,7 +15,7 @@
 
 // Every function in this file should be marked static and inline using SI (see SkJumper_misc.h).
 
-#if !defined(JUMPER)
+#if defined(STARBOARD) || !defined(JUMPER)
     // This path should lead to portable code that can be compiled directly into Skia.
     // (All other paths are compiled offline by Clang into SkJumper_generated.S.)
     #include <math.h>

@@ -9,6 +9,7 @@
 #define SkStream_DEFINED
 
 #include "SkData.h"
+#include "SkOSFile.h"  // Included for SkFile.
 #include "SkRefCnt.h"
 #include "SkScalar.h"
 
@@ -246,8 +247,6 @@ private:
 
 ////////////////////////////////////////////////////////////////////////////////////////
 
-#include <stdio.h>
-
 /** A stream that wraps a C FILE* file stream. */
 class SK_API SkFILEStream : public SkStreamAsset {
 public:
@@ -259,7 +258,7 @@ public:
     /** Initialize the stream with an existing C file stream.
      *  The C file stream will be closed in the destructor.
      */
-    explicit SkFILEStream(FILE* file);
+    explicit SkFILEStream(SkFile* file);
 
     ~SkFILEStream() override;
 
@@ -283,10 +282,10 @@ public:
     size_t getLength() const override;
 
 private:
-    explicit SkFILEStream(std::shared_ptr<FILE>, size_t size, size_t offset);
-    explicit SkFILEStream(std::shared_ptr<FILE>, size_t size, size_t offset, size_t originalOffset);
+    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset);
+    explicit SkFILEStream(std::shared_ptr<SkFile>, size_t size, size_t offset, size_t originalOffset);
 
-    std::shared_ptr<FILE> fFILE;
+    std::shared_ptr<SkFile> fFILE;
     // My own council will I keep on sizes and offsets.
     size_t fSize;
     size_t fOffset;
@@ -367,7 +366,7 @@ public:
     size_t bytesWritten() const override;
 
 private:
-    FILE* fFILE;
+    SkFile* fFILE;
 
     typedef SkWStream INHERITED;
 };

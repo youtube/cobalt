@@ -7,6 +7,10 @@
 
 // IWYU pragma: private, include "SkTypes.h"
 
+#if defined(STARBOARD)
+#include "starboard/configuration.h"
+#endif
+
 #ifndef SkPreConfig_DEFINED
 #define SkPreConfig_DEFINED
 
@@ -51,6 +55,16 @@
 #endif
 
 //////////////////////////////////////////////////////////////////////
+
+#if defined(STARBOARD)
+    #define SK_RESTRICT SB_RESTRICT
+    #define SK_WARN_UNUSED_RESULT SB_WARN_UNUSED_RESULT
+    #if SB_IS(BIG_ENDIAN)
+        #define SK_CPU_BENDIAN
+    #else
+        #define SK_CPU_LENDIAN
+    #endif
+#endif  // defined(STARBOARD)
 
 #ifdef SK_BUILD_FOR_WIN32
     #if !defined(SK_RESTRICT)

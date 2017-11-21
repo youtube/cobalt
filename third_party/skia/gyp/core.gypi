@@ -309,7 +309,6 @@
     "<(skia_src_path)/core/SkTextFormatParams.h",
     "<(skia_src_path)/core/SkTextMapStateProc.h",
     "<(skia_src_path)/core/SkTextToPathIter.h",
-    "<(skia_src_path)/core/SkTime.cpp",
     "<(skia_src_path)/core/SkTDPQueue.h",
     "<(skia_src_path)/core/SkThreadID.cpp",
     "<(skia_src_path)/core/SkTLList.h",
@@ -523,19 +522,8 @@
 
     "<(skia_src_path)/jumper/SkJumper.cpp",
     "<(skia_src_path)/jumper/SkJumper_stages.cpp",
-    "<(skia_src_path)/jumper/SkJumper_generated.S",
-    "<(skia_src_path)/jumper/SkJumper_generated_win.S",
   ],
   'defines': [
     'SK_BUILD_NO_OPTS',
-  ],
-
-  'conditions': [
-    ['target_arch == "win"', {
-      'sources!': [ "<(skia_src_path)/jumper/SkJumper_generated.S", ],
-    }],
-    ['target_arch != "win"', {
-      'sources!': [ "<(skia_src_path)/jumper/SkJumper_generated_win.S", ],
-    }],
   ],
 }
