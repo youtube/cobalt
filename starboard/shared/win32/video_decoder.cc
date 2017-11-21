@@ -18,6 +18,7 @@
 #include "starboard/shared/win32/decode_target_internal.h"
 #include "starboard/shared/win32/dx_context_video_decoder.h"
 #include "starboard/shared/win32/error_utils.h"
+#include "starboard/time.h"
 
 namespace starboard {
 namespace shared {
@@ -45,6 +46,11 @@ const int kDecodeTargetCacheSize = 2;
 struct CreateDecodeTargetContext {
   VideoDecoder* video_decoder;
   SbDecodeTarget out_decode_target;
+};
+
+struct ShutdownCodecContext {
+  VideoDecoder* video_decoder;
+  bool force_shutdown;
 };
 
 scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
@@ -110,13 +116,6 @@ VideoDecoder::~VideoDecoder() {
   SB_DCHECK(thread_checker_.CalledOnValidThread());
   Reset();
   ShutdownCodec();
-
-  ScopedLock lock(decode_target_lock_);
-  SbDecodeTargetRelease(current_decode_target_);
-  while (!prev_decode_targets_.empty()) {
-    SbDecodeTargetRelease(prev_decode_targets_.front());
-    prev_decode_targets_.pop_front();
-  }
 }
 
 void VideoDecoder::SetHost(Host* host) {
@@ -323,9 +322,65 @@ void VideoDecoder::InitializeCodec() {
 
 void VideoDecoder::ShutdownCodec() {
   SB_DCHECK(!SbThreadIsValid(decoder_thread_));
-  decoder_.reset();
-  video_processor_.Reset();
-  video_enumerator_.Reset();
+  SB_DCHECK(thread_outputs_.empty());
+  SB_DCHECK(decoder_ != nullptr);
+
+  // Work around a VP9 decoder crash. All IMFSamples and anything that may
+  // reference them indirectly (the d3d texture in SbDecodeTarget) must be
+  // released before releasing the IMFTransform. Do this on the render thread
+  // since graphics resources are being released.
+  decode_target_lock_.Acquire();
+  if (SbDecodeTargetIsValid(current_decode_target_)) {
+    // Reset the current decode target so that it will not be used further.
+    prev_decode_targets_.emplace_back(current_decode_target_);
+    current_decode_target_ = kSbDecodeTargetInvalid;
+  }
+  decode_target_lock_.Release();
+
+  // Try releasing the codec. It will be done when all its resources are
+  // no longer used.
+  ShutdownCodecContext shutdown_context = { this };
+  shutdown_context.force_shutdown = false;
+  SbTimeMonotonic timeout = SbTimeGetMonotonicNow() + 500 * kSbTimeMillisecond;
+  for (;;) {
+    graphics_context_provider_->gles_context_runner(graphics_context_provider_,
+        &VideoDecoder::TryShutdownCodec, &shutdown_context);
+    if (decoder_ == nullptr || shutdown_context.force_shutdown) {
+      return;
+    }
+    SbThreadSleep(20 * kSbTimeMillisecond);
+    if (SbTimeGetMonotonicNow() > timeout) {
+      SB_NOTREACHED() << "Forcefully shutting down video codec";
+      shutdown_context.force_shutdown = true;
+    }
+  }
+}
+
+// static
+void VideoDecoder::TryShutdownCodec(void* context) {
+  ShutdownCodecContext* shutdown_context =
+      static_cast<ShutdownCodecContext*>(context);
+  VideoDecoder* this_ptr = shutdown_context->video_decoder;
+
+  ScopedLock lock(this_ptr->decode_target_lock_);
+  while (!this_ptr->prev_decode_targets_.empty()) {
+    // Make sure the decode target has been released by all other modules.
+    // This check is a proxy to check whether anything might still reference
+    // the decode target's resources.
+    SbDecodeTarget decode_target = this_ptr->prev_decode_targets_.front();
+    if (!shutdown_context->force_shutdown &&
+        SbAtomicNoBarrier_Load(&decode_target->refcount) > 1) {
+      // It's not safe to delete the IMFTransform yet. Something is still
+      // referencing this decode target and the d3d texture it contains
+      // (which might reference the IMFSample used to blit the contents).
+      return;
+    }
+    SbDecodeTargetRelease(decode_target);
+    this_ptr->prev_decode_targets_.pop_front();
+  }
+  this_ptr->decoder_.reset();
+  this_ptr->video_processor_.Reset();
+  this_ptr->video_enumerator_.Reset();
 }
 
 void VideoDecoder::EnsureDecoderThreadRunning() {
