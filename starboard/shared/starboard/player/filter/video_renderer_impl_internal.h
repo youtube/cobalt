@@ -68,7 +68,7 @@ class VideoRendererImpl : public VideoRenderer,
 
   // Preroll considered finished after either kPrerollFrames is cached or EOS
   // is reached.
-  static const size_t kPrerollFrames = 1;
+  static const size_t kPrerollFrames = 3;
   // Set a soft limit for the max video frames we can cache so we can:
   // 1. Avoid using too much memory.
   // 2. Have the frame cache full to simulate the state that the renderer can
