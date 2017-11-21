@@ -156,7 +156,7 @@ bool SkWStream::writeStream(SkStream* stream, size_t length) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t size,
+SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t size,
                            size_t offset, size_t originalOffset)
     : fFILE(std::move(file))
     , fSize(size)
@@ -164,12 +164,12 @@ SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t size,
     , fOriginalOffset(SkTMin(originalOffset, fSize))
 { }
 
-SkFILEStream::SkFILEStream(std::shared_ptr<FILE> file, size_t size, size_t offset)
+SkFILEStream::SkFILEStream(std::shared_ptr<SkFile> file, size_t size, size_t offset)
     : SkFILEStream(std::move(file), size, offset, offset)
 { }
 
-SkFILEStream::SkFILEStream(FILE* file)
-    : SkFILEStream(std::shared_ptr<FILE>(file, sk_fclose),
+SkFILEStream::SkFILEStream(SkFile* file)
+    : SkFILEStream(std::shared_ptr<SkFile>(file, sk_fclose),
                    file ? sk_fgetsize(file) : 0,
                    file ? sk_ftell(file) : 0)
 { }
@@ -790,7 +790,7 @@ std::unique_ptr<SkStreamAsset> SkDynamicMemoryWStream::detachAsStream() {
 ///////////////////////////////////////////////////////////////////////////////
 
 static sk_sp<SkData> mmap_filename(const char path[]) {
-    FILE* file = sk_fopen(path, kRead_SkFILE_Flag);
+    SkFile* file = sk_fopen(path, kRead_SkFILE_Flag);
     if (nullptr == file) {
         return nullptr;
     }

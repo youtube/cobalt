@@ -10,11 +10,20 @@
 #include "SkString.h"
 #include "SkUtils.h"
 #include <stdarg.h>
+
+#if defined(STARBOARD)
+#include "starboard/string.h"
+#else
 #include <stdio.h>
+#endif  // defined(STARBOARD)
 
 // number of bytes (on the stack) to receive the printf result
 static const size_t kBufferSize = 1024;
 
+#if defined(STARBOARD)
+#define VSNPRINTF   SbStringFormat
+#define SNPRINTF    SbStringFormatF
+#else  // defined(STARBOARD)
 #ifdef SK_BUILD_FOR_WIN
     #define VSNPRINTF(buffer, size, format, args) \
         _vsnprintf_s(buffer, size, _TRUNCATE, format, args)
@@ -23,6 +32,7 @@ static const size_t kBufferSize = 1024;
     #define VSNPRINTF   vsnprintf
     #define SNPRINTF    snprintf
 #endif
+#endif  // defined(STARBOARD)
 
 #define ARGS_TO_BUFFER(format, buffer, size, written)      \
     do {                                                   \
