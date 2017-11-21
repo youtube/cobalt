@@ -338,7 +338,8 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
 
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
                               uint32* video_frames_dropped,
-                              base::TimeDelta* media_time) {
+                              base::TimeDelta* media_time, int* frame_width,
+                              int* frame_height) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
@@ -367,6 +368,12 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   }
   if (media_time) {
     *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
+  }
+  if (frame_width) {
+    *frame_width = info.frame_width;
+  }
+  if (frame_height) {
+    *frame_height = info.frame_height;
   }
 }
 
@@ -568,7 +575,7 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
   if (state_ != kResuming) {
     base::TimeDelta media_time;
-    GetInfo(NULL, NULL, &media_time);
+    GetInfo(NULL, NULL, &media_time, NULL, NULL);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 
