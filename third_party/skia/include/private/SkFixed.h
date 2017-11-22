@@ -95,7 +95,7 @@ inline SkFixed SkFixedMul_longlong(SkFixed a, SkFixed b) {
 #define SkFixedMul(a,b)     SkFixedMul_longlong(a,b)
 
 
-#if defined(SK_CPU_ARM32)
+#if defined(SK_CPU_ARM32) && !defined(SK_BUILD_NO_OPTS)
     /* This guy does not handle NaN or other obscurities, but is faster than
        than (int)(x*65536).  When built on Android with -Os, needs forcing
        to inline or we lose the speed benefit.
