@@ -47,6 +47,7 @@ class VideoDecoder
   ~VideoDecoder() SB_OVERRIDE;
 
   void SetHost(Host* host) SB_OVERRIDE;
+  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 1; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       SB_OVERRIDE;
   void WriteEndOfStream() SB_OVERRIDE;
