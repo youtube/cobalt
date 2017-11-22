@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Test cookies between sessions.</title>
+  <style>
+    h1 {
+      color: #c50000;
+      font-size: 6em;
+    }
+  </style>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <h1>
+    <span id="unique_id">Test cookies between sessions.</span>
+  </h1>
+  <script>
+    document.body.style.backgroundColor = "green";
+    const persistent_cookie = "persistent_cookie_status=exists";
+    const persistent_cookie_expire_time = "; expires=Fri, 18 Dec 2023 12:00:00 UTC";
+    const very_old_date = "; expires=Fri, 18 Dec 2003 12:00:00 UTC";
+
+    function firstRun() {
+      console.log(
+          "First run, verifying basic functionalities and write persistent cookie");
+      // If the previous run failed, persistent cookie might not be deleted.
+      // Clear it to avoid affecting this test run.
+      document.cookie = persistent_cookie + very_old_date;
+      // Verify basic cookie functionalities work before testing persistent cookie.
+      const cookie_1 = "test_content=exist";
+      const cookie_2 = "second_test_content=still_exist";
+      const cookie_1_change = "test_content=changed";
+
+      document.cookie = cookie_1;
+      assertEqual(cookie_1, document.cookie);
+      document.cookie = cookie_2;
+      assertEqual(cookie_1 + '; ' + cookie_2, document.cookie);
+      document.cookie = cookie_1_change;
+      assertEqual(cookie_2 + '; ' + cookie_1_change, document.cookie);
+      document.cookie = cookie_1 + very_old_date;
+      assertEqual(cookie_2, document.cookie);
+      // End of basic functionality tests.
+
+      // Add persistent cookie that's supposed to last till next opening.
+      document.cookie = persistent_cookie + persistent_cookie_expire_time;
+      assertEqual(cookie_2 + '; ' + persistent_cookie, document.cookie);
+    }
+
+    function secondRun() {
+      console.log("Second run: Verifying persistent cookie is written.");
+      assertEqual(persistent_cookie, document.cookie);
+      document.cookie = persistent_cookie + very_old_date;
+      assertEqual('', document.cookie);
+    }
+
+    function thirdRun() {
+      console.log("Third run: verifying persistent cookie is wiped.");
+      assertEqual('', document.cookie);
+    }
+
+    window.onkeydown = function(event) {
+      if (event.keyCode === 97) {
+        firstRun();
+      } else if (event.keyCode === 98) {
+        secondRun();
+      } else if (event.keyCode === 99) {
+        thirdRun();
+      }
+      // Flush local storage to ensure cookie is written before closing.
+      h5vcc.storage.flush();
+      onEndTest();
+    }
+  </script>
+</body>
