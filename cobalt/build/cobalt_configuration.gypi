@@ -60,7 +60,7 @@
     #                exit, resulting in the application being "minimized".
     #   'noexit'  -- The application should never allow the user to trigger an
     #                exit, this will be managed by the system.
-    'cobalt_user_on_exit_strategy': 'stop',
+    'cobalt_user_on_exit_strategy%': 'stop',
 
     # Contains the current font package selection.  This can be used to trade
     # font quality, coverage, and latency for different font package sizes.
