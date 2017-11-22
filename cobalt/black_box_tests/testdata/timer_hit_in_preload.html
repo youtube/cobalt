@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+
+<head>
+  <title>timer callback in preload mode test</title>
+  <style>
+    h1 {
+      color: #c50000;
+    }
+  </style>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <h1>
+    <span id="unique_id">This test is for timer callback while preloading</span>
+  </h1>
+  <script>
+    let setTimeoutMethod = new TimerTestCase('setTimeout', 1);
+    let setIntervalMethod = new TimerTestCase('setInterval', 3);
+
+    function verifyAllMethods() {
+      setTimeoutMethod.verify();
+      setIntervalMethod.verify();
+      onEndTest();
+    }
+
+    let set_interval_id = setInterval(() => {
+      setIntervalMethod.called();
+    }, 300);
+
+    setTimeout(() => {
+      setTimeoutMethod.called();
+      clearInterval(set_interval_id);
+    }, 1150);
+
+    setTimeout(() => {
+      verifyAllMethods();
+    }, 1500);
+  </script>
+</body>

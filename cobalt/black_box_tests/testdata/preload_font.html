@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+
+<head>
+  <title>Font Loading After Preload Test</title>
+  <style>
+    @font-face {
+      font-family: networkfont;
+      src: url('test_font.ttf');
+    }
+
+    h1 {
+      font-family: networkfont;
+      color: #c50000;
+    }
+  </style>
+  <script src='black_box_js_test_utils.js'></script>
+</head>
+
+<body>
+  <h1>
+    <span id="unique_id">ID element</span>
+  </h1>
+  <script>
+    // 80.34375 is the size of "unique_id" in the designated web font.
+    assertNotEqual(80.34375,
+      document.getElementsByTagName('span').item(0).offsetWidth);
+
+    function handleVisibilityChange() {
+      // Visibility Change happens when Cobalt receives resume signal, check font every .1 sec.
+      const font_loading_time_maximum_in_milliseconds = 1000;
+      let time_elapsed = 0;
+      let set_interval_id = setInterval(() => {
+        if (80.34375 === document.getElementsByTagName('span').item(0).offsetWidth) {
+          onEndTest();
+          clearInterval(set_interval_id);
+        } else if (time_elapsed >= font_loading_time_maximum_in_milliseconds) {
+          notReached();
+          clearInterval(set_interval_id);
+        } else {
+          time_elapsed += 100;
+        }
+      }, 100);
+    }
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  </script>
+</body>

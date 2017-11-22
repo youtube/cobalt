@@ -79,17 +79,6 @@ class CobaltRunner(object):
   class AssertException(Exception):
     """Raised when assert condition fails."""
 
-  test_script_started = threading.Event()
-  selenium_webdriver_module = None
-  launcher = None
-  webdriver = None
-  thread = None
-  failed = False
-  should_exit = threading.Event()
-  launcher_is_running = False
-  windowdriver_created = threading.Event()
-  webmodule_loaded = threading.Event()
-
   def __init__(self,
                device_params,
                url,
@@ -108,6 +97,15 @@ class CobaltRunner(object):
       exit.
     """
 
+    self.test_script_started = threading.Event()
+    self.launcher = None
+    self.webdriver = None
+    self.failed = False
+    self.should_exit = threading.Event()
+    self.launcher_is_running = False
+    self.windowdriver_created = threading.Event()
+    self.webmodule_loaded = threading.Event()
+
     self.selenium_webdriver_module = webdriver_utils.import_selenium_module(
         'webdriver')
 
@@ -122,7 +120,11 @@ class CobaltRunner(object):
     self.url = url
     self.target_params = target_params
     self.success_message = success_message
-    self.target_params.append('--url=' + self.url)
+    url_string = '--url=' + self.url
+    if not self.target_params:
+      self.target_params = [url_string]
+    else:
+      self.target_params.append(url_string)
 
   def SendResume(self):
     """Sends a resume signal to start Cobalt from preload."""
@@ -152,6 +154,8 @@ class CobaltRunner(object):
       line = self.launcher_read_pipe.readline()
       if line:
         self.log_file.write(line)
+        # Calling flush() to ensure the logs are delievered timely.
+        self.log_file.flush()
       else:
         break
 
@@ -234,9 +238,9 @@ class CobaltRunner(object):
     self.failed = failed
     self.should_exit.set()
 
-    self.KillLauncher()
+    self._KillLauncher()
 
-  def KillLauncher(self):
+  def _KillLauncher(self):
     """Kills the launcher and its attached Cobalt instance."""
     try:
       self.launcher.Kill()
@@ -283,8 +287,7 @@ class CobaltRunner(object):
     try:
       print('Running launcher', file=self.log_file)
       self.launcher.Run()
-      print(
-          'Cobalt terminated. failed: ' + str(self.failed), file=self.log_file)
+      print('Cobalt terminated.', file=self.log_file)
       if not self.failed and self.success_message:
         print('{}\n'.format(self.success_message))
     # pylint: disable=broad-except
