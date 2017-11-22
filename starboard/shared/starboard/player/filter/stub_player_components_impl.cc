@@ -178,6 +178,7 @@ class StubVideoDecoder : public HostedVideoDecoder {
     SB_DCHECK(host_ == NULL);
     host_ = host;
   }
+  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 1; }
 
  private:
   Host* host_;

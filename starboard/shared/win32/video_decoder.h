@@ -50,6 +50,7 @@ class VideoDecoder
 
   // Implement HostedVideoDecoder interface.
   void SetHost(Host* host) SB_OVERRIDE;
+  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 3; }
   void Initialize(const Closure& error_cb) SB_OVERRIDE;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       SB_OVERRIDE;

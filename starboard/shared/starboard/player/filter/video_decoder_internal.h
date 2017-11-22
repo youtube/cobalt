@@ -93,6 +93,9 @@ class HostedVideoDecoder : public VideoDecoder {
   };
 
   virtual void SetHost(Host* host) = 0;
+  // Returns the number of frames the VideoRenderer has to cache before preroll
+  // is considered to be complete.
+  virtual size_t GetPrerollFrameCount() const = 0;
 };
 
 }  // namespace filter
