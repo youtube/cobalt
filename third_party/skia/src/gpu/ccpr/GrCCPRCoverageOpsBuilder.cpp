@@ -22,6 +22,8 @@
 #include "../pathops/SkPathOpsCubic.h"
 #include <numeric>
 
+#include "starboard/client_porting/poem/stdlib_poem.h"  // Useful for abs().
+
 class GrCCPRCoverageOpsBuilder::CoverageOp : public GrDrawOp {
 public:
     using PrimitiveTallies = GrCCPRCoverageOpsBuilder::PrimitiveTallies;
