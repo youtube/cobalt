@@ -85,7 +85,8 @@ class FetcherBufferedDataSource : public BufferedDataSource,
   void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
 
   // BufferedDataSource methods.
-  void SetDownloadingStatusCB(const DownloadingStatusCB& downloading_status_cb);
+  void SetDownloadingStatusCB(
+      const DownloadingStatusCB& downloading_status_cb) OVERRIDE;
 
  private:
   class CancelableClosure
