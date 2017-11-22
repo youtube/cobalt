@@ -141,7 +141,7 @@ void VideoRendererImpl::OnDecoderStatusUpdate(
       frames_.push_back(frame);
     }
 
-    if (seeking_ && frames_.size() >= kPrerollFrames) {
+    if (seeking_ && frames_.size() >= decoder_->GetPrerollFrameCount()) {
       seeking_ = false;
     }
   }
