@@ -23,7 +23,7 @@ MyNewInterface::MyNewInterface(const scoped_refptr<dom::Window>& window) {
   enum_value_ = kMyNewEnumApples;
 }
 
-MyNewInterface::~MyNewInterface() OVERRIDE {}
+MyNewInterface::~MyNewInterface() {}
 
 }  // namespace webapi_extension
 }  // namespace cobalt
