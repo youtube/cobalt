@@ -526,4 +526,10 @@
   'defines': [
     'SK_BUILD_NO_OPTS',
   ],
+  'direct_dependent_settings':
+  {
+    'defines': [
+      'SK_BUILD_NO_OPTS',
+    ],
+  }
 }
