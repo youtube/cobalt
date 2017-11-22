@@ -36,7 +36,10 @@ namespace render_tree {
 
 class MockResourceProvider : public ResourceProvider {
  public:
-  base::TypeId GetTypeId() const OVERRIDE {
+  // Comment out OVERRIDE in order to enable
+  // "-Winconsistent-missing-override" on Clang.  TODO: Remove this hack once
+  // gmock adds override support.
+  virtual base::TypeId GetTypeId() const /*OVERRIDE*/ {
     return base::GetTypeId<MockResourceProvider>();
   }
 
