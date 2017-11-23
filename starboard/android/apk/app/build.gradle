@@ -42,8 +42,8 @@ final getProductDir = { configType, arch ->
 }
 
 android {
-    compileSdkVersion 25
-    buildToolsVersion "25.0.2"
+    compileSdkVersion 27
+    buildToolsVersion "27.0.1"
     publishNonDefault true
 
     defaultConfig {
@@ -51,7 +51,7 @@ android {
         // Note: Please also change these values in
         // starboard/android.shared/platform_deploy.gypi
         minSdkVersion 21
-        targetSdkVersion 25
+        targetSdkVersion 27
         versionCode 1
         versionName "1.0"
         ndk {
@@ -176,8 +176,8 @@ COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
 
 dependencies {
     compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:support-annotations:25.3.1'
-    compile 'com.android.support:leanback-v17:25.3.1'
-    compile 'com.android.support:support-v4:25.3.1'
-    compile 'com.google.android.gms:play-services-auth:10.2.1'
+    compile 'com.android.support:support-annotations:27.0.1'
+    compile 'com.android.support:leanback-v17:27.0.1'
+    compile 'com.android.support:support-v4:27.0.1'
+    compile 'com.google.android.gms:play-services-auth:11.6.0'
 }
