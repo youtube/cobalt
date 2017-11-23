@@ -42,14 +42,16 @@ _ANDROID_NDK_API_LEVEL = '21'
 _ANDROID_SDK_PACKAGES = [
     'extras;android;m2repository',
     'ndk-bundle',
-    'platforms;android-25',
+    'platforms;android-27',
     'tools',
 ]
 
 # Seconds to sleep before writing "y" for android sdk update license prompt.
 _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 
-_SDK_URL = 'https://dl.google.com/android/repository/tools_r25.2.3-linux.zip'
+# Location from which to download the SDK command-line tools
+# see https://developer.android.com/studio/index.html#command-tools
+_SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
 
 _SCRIPT_CTIME = os.path.getctime(__file__)
 _COBALT_TOOLCHAINS_DIR = build.GetToolchainsDir()
