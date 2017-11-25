@@ -38,11 +38,10 @@ class URLUtils {
  public:
   typedef base::Callback<void(const std::string&)> UpdateStepsCallback;
 
-  explicit URLUtils(const GURL& url, bool is_opaque = false);
+  explicit URLUtils(const GURL& url);
   explicit URLUtils(const UpdateStepsCallback& update_steps)
       : update_steps_(update_steps) {}
-  URLUtils(const GURL& url, const UpdateStepsCallback& update_steps,
-           bool is_opaque = false);
+  URLUtils(const GURL& url, const UpdateStepsCallback& update_steps);
 
   // From the spec: URLUtils.
   //
@@ -77,7 +76,7 @@ class URLUtils {
   const GURL& url() const { return url_; }
   void set_url(const GURL& url) { url_ = url; }
 
-  const loader::Origin& OriginObject() const { return origin_; }
+  loader::Origin GetOriginAsObject() const;
 
  private:
   // From the spec: URLUtils.
@@ -85,7 +84,6 @@ class URLUtils {
 
   GURL url_;
   UpdateStepsCallback update_steps_;
-  loader::Origin origin_;
 };
 
 }  // namespace dom
