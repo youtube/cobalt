@@ -1045,7 +1045,7 @@ void HTMLMediaElement::LoadResource(const GURL& initial_url,
         new media::FetcherBufferedDataSource(
             base::MessageLoopProxy::current(), url, csp_callback,
             html_element_context()->fetcher_factory()->network_module(),
-            request_mode_, node_document()->location()->OriginObject()));
+            request_mode_, node_document()->location()->GetOriginAsObject()));
     player_->LoadProgressive(url, data_source.Pass());
   }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -1820,7 +1820,7 @@ void HTMLMediaElement::EncryptedMediaInitDataEncountered(
   }
   if (!current_url.SchemeIs("http") &&
       OriginIsSafe(request_mode_, current_url,
-                   node_document()->location()->OriginObject())) {
+                   node_document()->location()->GetOriginAsObject())) {
     media_encrypted_event_init.set_init_data_type(
         ToInitDataTypeString(init_data_type));
     media_encrypted_event_init.set_init_data(

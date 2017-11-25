@@ -400,7 +400,7 @@ void Document::set_cookie(const std::string& cookie,
                      "setting cookie.";
     return;
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DOMException::Raise(DOMException::kSecurityErr,
                         "Document origin is opaque, cookie setting failed",
                         exception_state);
@@ -418,7 +418,7 @@ std::string Document::cookie(script::ExceptionState* exception_state) const {
                      "empty cookie.";
     return "";
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DOMException::Raise(DOMException::kSecurityErr,
                         "Document origin is opaque, cookie getting failed",
                         exception_state);
@@ -438,7 +438,7 @@ void Document::set_cookie(const std::string& cookie) {
                      "setting cookie.";
     return;
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DLOG(WARNING) << "Document origin is opaque, cookie setting failed";
     return;
   }
@@ -453,7 +453,7 @@ std::string Document::cookie() const {
                      "empty cookie.";
     return "";
   }
-  if (location_->OriginObject().is_opaque()) {
+  if (location_->GetOriginAsObject().is_opaque()) {
     DLOG(WARNING) << "Document origin is opaque, cookie getting failed";
     return "";
   }
