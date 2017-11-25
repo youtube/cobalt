@@ -61,8 +61,8 @@ const GURL& DOMSettings::base_url() const {
   return window()->document()->url_as_gurl();
 }
 
-const loader::Origin& DOMSettings::document_origin() const {
-  return window()->document()->location()->OriginObject();
+loader::Origin DOMSettings::document_origin() const {
+  return window()->document()->location()->GetOriginAsObject();
 }
 
 }  // namespace dom
