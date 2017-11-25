@@ -311,7 +311,7 @@ scoped_refptr<render_tree::Font> FontCache::TryGetRemoteFont(
   // load.
   scoped_refptr<loader::font::CachedRemoteTypeface> cached_remote_typeface =
       remote_typeface_cache_->CreateCachedResource(
-          url, document_location_ ? document_location_->OriginObject()
+          url, document_location_ ? document_location_->GetOriginAsObject()
                                   : loader::Origin());
 
   RequestedRemoteTypefaceMap::iterator requested_remote_typeface_iterator =

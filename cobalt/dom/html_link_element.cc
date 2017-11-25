@@ -178,7 +178,7 @@ void HTMLLinkElement::Obtain() {
           &loader::FetcherFactory::CreateSecureFetcher,
           base::Unretained(document->html_element_context()->fetcher_factory()),
           absolute_url_, csp_callback, request_mode_,
-          document->location() ? document->location()->OriginObject()
+          document->location() ? document->location()->GetOriginAsObject()
                                : loader::Origin()),
       scoped_ptr<loader::Decoder>(new loader::TextDecoder(
           base::Bind(&HTMLLinkElement::OnLoadingDone, base::Unretained(this)))),
@@ -265,7 +265,7 @@ void HTMLLinkElement::OnStylesheetLoaded(Document* document,
   // origin as the document, set origin-clean flag to true.
   if (request_mode_ != loader::kNoCORSMode || !loader_ ||
       document->url_as_gurl().SchemeIsFile() ||
-      (fetched_last_url_origin_ == document->location()->OriginObject())) {
+      (fetched_last_url_origin_ == document->location()->GetOriginAsObject())) {
     css_style_sheet->SetOriginClean(true);
   }
   style_sheet_ = css_style_sheet;
