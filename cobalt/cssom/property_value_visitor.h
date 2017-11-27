@@ -100,40 +100,40 @@ class PropertyValueVisitor {
 // and handle every other value type generically.
 class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
  public:
-  void VisitAbsoluteURL(AbsoluteURLValue* url_value) OVERRIDE;
-  void VisitCalc(CalcValue* calc_value) OVERRIDE;
+  void VisitAbsoluteURL(AbsoluteURLValue* url_value) override;
+  void VisitCalc(CalcValue* calc_value) override;
   void VisitFilterFunctionList(
-      FilterFunctionListValue* filter_function_list_value) OVERRIDE;
-  void VisitFontStyle(FontStyleValue* font_style_value) OVERRIDE;
-  void VisitFontWeight(FontWeightValue* font_weight_value) OVERRIDE;
-  void VisitKeyword(KeywordValue* keyword_value) OVERRIDE;
-  void VisitInteger(IntegerValue* integer_value) OVERRIDE;
-  void VisitLength(LengthValue* length_value) OVERRIDE;
-  void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
-  void VisitLocalSrc(LocalSrcValue* local_src_value) OVERRIDE;
+      FilterFunctionListValue* filter_function_list_value) override;
+  void VisitFontStyle(FontStyleValue* font_style_value) override;
+  void VisitFontWeight(FontWeightValue* font_weight_value) override;
+  void VisitKeyword(KeywordValue* keyword_value) override;
+  void VisitInteger(IntegerValue* integer_value) override;
+  void VisitLength(LengthValue* length_value) override;
+  void VisitLinearGradient(LinearGradientValue* linear_gradient_value) override;
+  void VisitLocalSrc(LocalSrcValue* local_src_value) override;
   void VisitMediaFeatureKeywordValue(
-      MediaFeatureKeywordValue* media_feature_keyword_value) OVERRIDE;
-  void VisitNumber(NumberValue* number_value) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage_value) OVERRIDE;
+      MediaFeatureKeywordValue* media_feature_keyword_value) override;
+  void VisitNumber(NumberValue* number_value) override;
+  void VisitPercentage(PercentageValue* percentage_value) override;
   void VisitPropertyKeyList(
-      PropertyKeyListValue* property_key_list_value) OVERRIDE;
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
-  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
-  void VisitRatio(RatioValue* ratio_value) OVERRIDE;
-  void VisitResolution(ResolutionValue* resolution_value) OVERRIDE;
-  void VisitRGBAColor(RGBAColorValue* color_value) OVERRIDE;
-  void VisitShadow(ShadowValue* shadow_value) OVERRIDE;
-  void VisitString(StringValue* string_value) OVERRIDE;
-  void VisitTimeList(TimeListValue* time_list_value) OVERRIDE;
+      PropertyKeyListValue* property_key_list_value) override;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) override;
+  void VisitRatio(RatioValue* ratio_value) override;
+  void VisitResolution(ResolutionValue* resolution_value) override;
+  void VisitRGBAColor(RGBAColorValue* color_value) override;
+  void VisitShadow(ShadowValue* shadow_value) override;
+  void VisitString(StringValue* string_value) override;
+  void VisitTimeList(TimeListValue* time_list_value) override;
   void VisitTimingFunctionList(
-      TimingFunctionListValue* timing_function_list_value) OVERRIDE;
+      TimingFunctionListValue* timing_function_list_value) override;
   void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list_value) OVERRIDE;
+      TransformFunctionListValue* transform_function_list_value) override;
   void VisitTransformMatrixFunction(
-      TransformMatrixFunctionValue* transform_matrix_function_value) OVERRIDE;
-  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) OVERRIDE;
-  void VisitURL(URLValue* url_value) OVERRIDE;
-  void VisitUrlSrc(UrlSrcValue* url_src_value) OVERRIDE;
+      TransformMatrixFunctionValue* transform_matrix_function_value) override;
+  void VisitUnicodeRange(UnicodeRangeValue* unicode_range_value) override;
+  void VisitURL(URLValue* url_value) override;
+  void VisitUrlSrc(UrlSrcValue* url_src_value) override;
 
  protected:
   virtual void VisitDefault(PropertyValue* property_value) = 0;
@@ -145,7 +145,7 @@ class DefaultingPropertyValueVisitor : public PropertyValueVisitor {
 // result in an error.
 class NotReachedPropertyValueVisitor : public DefaultingPropertyValueVisitor {
  protected:
-  void VisitDefault(PropertyValue* property_value) OVERRIDE;
+  void VisitDefault(PropertyValue* property_value) override;
 };
 
 }  // namespace cssom

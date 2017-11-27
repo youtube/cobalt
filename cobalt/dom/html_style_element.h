@@ -49,26 +49,26 @@ class HTMLStyleElement : public HTMLElement {
   // Custom, not in any spec.
   //
   // From Node.
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
+  void OnRemovedFromDocument() override;
 
   // From Element.
   void OnParserStartTag(
-      const base::SourceLocation& opening_tag_location) OVERRIDE;
-  void OnParserEndTag() OVERRIDE;
+      const base::SourceLocation& opening_tag_location) override;
+  void OnParserEndTag() override;
 
   // From HTMLElement.
-  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() OVERRIDE;
+  scoped_refptr<HTMLStyleElement> AsHTMLStyleElement() override;
 
   DEFINE_WRAPPABLE_TYPE(HTMLStyleElement);
 
  private:
-  ~HTMLStyleElement() OVERRIDE {}
+  ~HTMLStyleElement() override {}
 
   void Process();
 
   // Add this element's style sheet to the style sheet vector.
-  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const OVERRIDE;
+  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const override;
 
   // Whether the style element is inserted by parser.
   bool is_parser_inserted_;

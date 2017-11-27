@@ -98,9 +98,9 @@ class MockPipeline : public Pipeline {
  private:
   // Forwarding stubs (see comment above).
   void Start(Demuxer* demuxer, std::unique_ptr<Renderer> renderer,
-             Client* client, const PipelineStatusCB& seek_cb) OVERRIDE;
+             Client* client, const PipelineStatusCB& seek_cb) override;
   void Resume(std::unique_ptr<Renderer> renderer, base::TimeDelta timestamp,
-              const PipelineStatusCB& seek_cb) OVERRIDE;
+              const PipelineStatusCB& seek_cb) override;
 
   DISALLOW_COPY_AND_ASSIGN(MockPipeline);
 };
@@ -138,11 +138,11 @@ class MockDemuxerStream : public DemuxerStream {
   virtual ~MockDemuxerStream();
 
   // DemuxerStream implementation.
-  Type type() const OVERRIDE;
-  Liveness liveness() const OVERRIDE;
+  Type type() const override;
+  Liveness liveness() const override;
   MOCK_METHOD1(Read, void(const ReadCB& read_cb));
-  AudioDecoderConfig audio_decoder_config() OVERRIDE;
-  VideoDecoderConfig video_decoder_config() OVERRIDE;
+  AudioDecoderConfig audio_decoder_config() override;
+  VideoDecoderConfig video_decoder_config() override;
   MOCK_METHOD0(EnableBitstreamConverter, void());
   MOCK_METHOD0(SupportsConfigChanges, bool());
 
@@ -150,7 +150,7 @@ class MockDemuxerStream : public DemuxerStream {
   void set_video_decoder_config(const VideoDecoderConfig& config);
   void set_liveness(Liveness liveness);
 
-  VideoRotation video_rotation() OVERRIDE;
+  VideoRotation video_rotation() override;
   MOCK_CONST_METHOD0(enabled, bool());
   MOCK_METHOD2(set_enabled, void(bool, base::TimeDelta));
   MOCK_METHOD1(SetStreamStatusChangeCB, void(const StreamStatusChangeCB&));
@@ -343,10 +343,10 @@ class MockDecryptor : public Decryptor {
 class MockCdmContext : public CdmContext {
  public:
   MockCdmContext();
-  ~MockCdmContext() OVERRIDE;
+  ~MockCdmContext() override;
 
   MOCK_METHOD0(GetDecryptor, Decryptor*());
-  int GetCdmId() const OVERRIDE;
+  int GetCdmId() const override;
 
   void set_cdm_id(int cdm_id);
 
@@ -359,7 +359,7 @@ class MockCdmContext : public CdmContext {
 class MockStreamParser : public StreamParser {
  public:
   MockStreamParser();
-  ~MockStreamParser() OVERRIDE;
+  ~MockStreamParser() override;
 
   // StreamParser interface
   MOCK_METHOD8(

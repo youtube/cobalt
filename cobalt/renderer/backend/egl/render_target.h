@@ -40,7 +40,7 @@ class RenderTargetEGL : public RenderTarget {
   // Since all RenderTargets defined at this level are EGL objects, they
   // will always be set via eglMakeCurrent() and so they can always be
   // referenced by OpenGL by binding framebuffer 0.
-  intptr_t GetPlatformHandle() const OVERRIDE { return 0; }
+  intptr_t GetPlatformHandle() const override { return 0; }
 
   virtual bool IsWindowRenderTarget() const { return false; }
 

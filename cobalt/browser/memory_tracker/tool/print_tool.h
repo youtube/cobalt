@@ -30,11 +30,11 @@ namespace memory_tracker {
 class PrintTool : public AbstractTool {
  public:
   PrintTool();
-  ~PrintTool() OVERRIDE;
+  ~PrintTool() override;
 
   // Overridden so that the thread can exit gracefully.
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE;
+  void Run(Params* params) override;
+  std::string tool_name() const override;
 
  private:
   class CvalsMap;

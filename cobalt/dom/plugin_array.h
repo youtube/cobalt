@@ -34,7 +34,7 @@ class PluginArray : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(PluginArray);
 
  private:
-  ~PluginArray() OVERRIDE {}
+  ~PluginArray() override {}
 
   DISALLOW_COPY_AND_ASSIGN(PluginArray);
 };

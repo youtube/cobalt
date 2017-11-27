@@ -88,12 +88,12 @@ class BoxGenerator : public dom::NodeVisitor {
                const int dom_element_depth_, const Context* context);
   ~BoxGenerator();
 
-  void Visit(dom::CDATASection* cdata_section) OVERRIDE;
-  void Visit(dom::Comment* comment) OVERRIDE;
-  void Visit(dom::Document* document) OVERRIDE;
-  void Visit(dom::DocumentType* document_type) OVERRIDE;
-  void Visit(dom::Element* element) OVERRIDE;
-  void Visit(dom::Text* text) OVERRIDE;
+  void Visit(dom::CDATASection* cdata_section) override;
+  void Visit(dom::Comment* comment) override;
+  void Visit(dom::Document* document) override;
+  void Visit(dom::DocumentType* document_type) override;
+  void Visit(dom::Element* element) override;
+  void Visit(dom::Text* text) override;
 
   const Boxes& boxes() const { return boxes_; }
 

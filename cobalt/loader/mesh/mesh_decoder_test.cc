@@ -46,13 +46,13 @@ struct MockMeshDecoderCallback {
 class MockMeshDecoder : public Decoder {
  public:
   MockMeshDecoder();
-  ~MockMeshDecoder() OVERRIDE {}
+  ~MockMeshDecoder() override {}
 
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
+  void DecodeChunk(const char* data, size_t size) override;
 
-  void Finish() OVERRIDE;
-  bool Suspend() OVERRIDE;
-  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+  void Finish() override;
+  bool Suspend() override;
+  void Resume(render_tree::ResourceProvider* resource_provider) override;
 
   scoped_refptr<MeshProjection> GetMeshProjection();
 

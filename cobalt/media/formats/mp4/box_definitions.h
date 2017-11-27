@@ -29,9 +29,9 @@ enum SampleFlags { kSampleIsNonSyncSample = 0x10000 };
 
 #define DECLARE_BOX_METHODS(T)            \
   T();                                    \
-  ~T() OVERRIDE;                          \
-  bool Parse(BoxReader* reader) OVERRIDE; \
-  FourCC BoxType() const OVERRIDE;
+  ~T() override;                          \
+  bool Parse(BoxReader* reader) override; \
+  FourCC BoxType() const override;
 
 struct MEDIA_EXPORT FileType : Box {
   DECLARE_BOX_METHODS(FileType);

@@ -69,17 +69,17 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   // Custom, not in any spec.
   //
   // From StyleSheet.
-  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) OVERRIDE;
-  void DetachFromStyleSheetList() OVERRIDE;
-  StyleSheetList* ParentStyleSheetList() const OVERRIDE {
+  void AttachToStyleSheetList(StyleSheetList* style_sheet_list) override;
+  void DetachFromStyleSheetList() override;
+  StyleSheetList* ParentStyleSheetList() const override {
     return parent_style_sheet_list_;
   }
-  void SetLocationUrl(const GURL& url) OVERRIDE { location_url_ = url; }
-  const GURL& LocationUrl() const OVERRIDE { return location_url_; }
-  scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() OVERRIDE { return this; }
+  void SetLocationUrl(const GURL& url) override { location_url_ = url; }
+  const GURL& LocationUrl() const override { return location_url_; }
+  scoped_refptr<CSSStyleSheet> AsCSSStyleSheet() override { return this; }
 
   // From MutationObserver.
-  void OnCSSMutation() OVERRIDE;
+  void OnCSSMutation() override;
 
   CSSParser* css_parser() const { return css_parser_; }
   void set_css_rules(const scoped_refptr<CSSRuleList>& css_rule_list);
@@ -99,7 +99,7 @@ class CSSStyleSheet : public StyleSheet, public MutationObserver {
   DEFINE_WRAPPABLE_TYPE(CSSStyleSheet);
 
  private:
-  ~CSSStyleSheet() OVERRIDE;
+  ~CSSStyleSheet() override;
 
   scoped_refptr<CSSRuleList> css_rule_list_;
 

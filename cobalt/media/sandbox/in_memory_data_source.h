@@ -34,11 +34,11 @@ class InMemoryDataSource : public ::media::DataSource {
 
   // DataSource methods.
   void Read(int64 position, int size, uint8* data,
-            const ReadCB& read_cb) OVERRIDE;
-  void Stop() OVERRIDE;
-  bool GetSize(int64* size_out) OVERRIDE;
-  bool IsStreaming() OVERRIDE { return false; }
-  void SetBitrate(int bitrate) OVERRIDE { UNREFERENCED_PARAMETER(bitrate); }
+            const ReadCB& read_cb) override;
+  void Stop() override;
+  bool GetSize(int64* size_out) override;
+  bool IsStreaming() override { return false; }
+  void SetBitrate(int bitrate) override { UNREFERENCED_PARAMETER(bitrate); }
 
  private:
   std::vector<uint8> content_;

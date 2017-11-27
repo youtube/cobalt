@@ -45,7 +45,7 @@ class SpeechRecognitionEvent : public dom::Event {
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionEvent);
 
  private:
-  ~SpeechRecognitionEvent() OVERRIDE {}
+  ~SpeechRecognitionEvent() override {}
 
   // The result index MUST be set to the lowest index in the "results" array
   // that has changed.

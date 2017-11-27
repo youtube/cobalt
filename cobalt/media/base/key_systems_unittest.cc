@@ -167,14 +167,14 @@ static bool CanRunExternalKeySystemTests() {
 class TestMediaClient : public MediaClient {
  public:
   TestMediaClient();
-  ~TestMediaClient() OVERRIDE;
+  ~TestMediaClient() override;
 
   // MediaClient implementation.
   void AddKeySystemsInfoForUMA(
       std::vector<KeySystemInfoForUMA>* key_systems_info_for_uma) final;
   bool IsKeySystemsUpdateNeeded() final;
   void AddSupportedKeySystems(std::vector<std::unique_ptr<KeySystemProperties>>*
-                                  key_systems_properties) OVERRIDE;
+                                  key_systems_properties) override;
   void RecordRapporURL(const std::string& metric, const GURL& url) final;
   bool IsSupportedVideoConfig(media::VideoCodec codec,
                               media::VideoCodecProfile profile,

@@ -65,7 +65,7 @@ class CspDelegatePermissive : public dom::CspDelegateSecure {
                                      require_csp, policy_changed_callback);
   }
 
-  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE {
+  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) override {
     csp_->OnReceiveHeaders(headers);
     if (!policy_changed_callback_.is_null()) {
       policy_changed_callback_.Run();

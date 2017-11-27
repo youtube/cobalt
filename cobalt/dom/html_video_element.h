@@ -55,7 +55,7 @@ class HTMLVideoElement : public HTMLMediaElement {
   // Custom, not in any spec
   //
   // From HTMLElement
-  scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLVideoElement> AsHTMLVideoElement() override { return this; }
 
   // TODO: ShellVideoFrameProvider is guaranteed to be long live and
   // thread safe. However, it is actually a singleton internally. We should find

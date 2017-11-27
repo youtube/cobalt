@@ -42,56 +42,56 @@ class TextBox : public Box {
           LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
-  TextBox* AsTextBox() OVERRIDE;
-  const TextBox* AsTextBox() const OVERRIDE;
+  Level GetLevel() const override;
+  TextBox* AsTextBox() override;
+  const TextBox* AsTextBox() const override;
 
-  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) override;
 
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
                        WrapOpportunityPolicy wrap_opportunity_policy,
                        bool is_line_existence_justified,
                        LayoutUnit available_width,
-                       bool should_collapse_trailing_white_space) OVERRIDE;
+                       bool should_collapse_trailing_white_space) override;
 
-  Box* GetSplitSibling() const OVERRIDE;
+  Box* GetSplitSibling() const override;
 
-  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void DoPreEllipsisPlacementProcessing() OVERRIDE;
-  void DoPostEllipsisPlacementProcessing() OVERRIDE;
+  bool DoesFulfillEllipsisPlacementRequirement() const override;
+  void DoPreEllipsisPlacementProcessing() override;
+  void DoPostEllipsisPlacementProcessing() override;
 
-  void SplitBidiLevelRuns() OVERRIDE;
-  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
-  base::optional<int> GetBidiLevel() const OVERRIDE;
+  void SplitBidiLevelRuns() override;
+  bool TrySplitAtSecondBidiLevelRun() override;
+  base::optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
-      bool should_collapse_leading_white_space) OVERRIDE;
+      bool should_collapse_leading_white_space) override;
   void SetShouldCollapseTrailingWhiteSpace(
-      bool should_collapse_trailing_white_space) OVERRIDE;
-  bool HasLeadingWhiteSpace() const OVERRIDE;
-  bool HasTrailingWhiteSpace() const OVERRIDE;
-  bool IsCollapsed() const OVERRIDE;
+      bool should_collapse_trailing_white_space) override;
+  bool HasLeadingWhiteSpace() const override;
+  bool HasTrailingWhiteSpace() const override;
+  bool IsCollapsed() const override;
 
-  bool JustifiesLineExistence() const OVERRIDE;
-  bool HasTrailingLineBreak() const OVERRIDE;
-  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
-  LayoutUnit GetInlineLevelBoxHeight() const OVERRIDE;
-  LayoutUnit GetInlineLevelTopMargin() const OVERRIDE;
+  bool JustifiesLineExistence() const override;
+  bool HasTrailingLineBreak() const override;
+  bool AffectsBaselineInBlockFormattingContext() const override;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const override;
+  LayoutUnit GetInlineLevelBoxHeight() const override;
+  LayoutUnit GetInlineLevelTopMargin() const override;
 
-  bool ValidateUpdateSizeInputs(const LayoutParams& params) OVERRIDE;
+  bool ValidateUpdateSizeInputs(const LayoutParams& params) override;
 
  protected:
   // From |Box|.
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      ContainerBox* stacking_context) const OVERRIDE;
-  bool IsTransformable() const OVERRIDE;
+      ContainerBox* stacking_context) const override;
+  bool IsTransformable() const override;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
-  void DumpProperties(std::ostream* stream) const OVERRIDE;
-  void DumpChildrenWithIndent(std::ostream* stream, int indent) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
+  void DumpProperties(std::ostream* stream) const override;
+  void DumpChildrenWithIndent(std::ostream* stream, int indent) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
@@ -99,7 +99,7 @@ class TextBox : public Box {
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      LayoutUnit* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) override;
 
   void UpdateTextHasLeadingWhiteSpace();
   void UpdateTextHasTrailingWhiteSpace();

@@ -51,7 +51,7 @@ class PointerEvent : public MouseEvent {
   DEFINE_WRAPPABLE_TYPE(PointerEvent);
 
  private:
-  ~PointerEvent() OVERRIDE {}
+  ~PointerEvent() override {}
 
   int32_t pointer_id_;
   double width_;

@@ -46,17 +46,17 @@ class HTMLImageElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  scoped_refptr<HTMLImageElement> AsHTMLImageElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLImageElement> AsHTMLImageElement() override { return this; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLImageElement);
 
  private:
-  ~HTMLImageElement() OVERRIDE {}
+  ~HTMLImageElement() override {}
 
   // From Element.
   void OnSetAttribute(const std::string& name,
-                      const std::string& value) OVERRIDE;
-  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+                      const std::string& value) override;
+  void OnRemoveAttribute(const std::string& name) override;
 
   // From the spec: HTMLImageElement.
   void UpdateImageData();

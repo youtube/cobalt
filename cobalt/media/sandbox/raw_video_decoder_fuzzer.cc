@@ -171,7 +171,7 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
 
   std::vector<uint8> ParseFileContent(
       const std::string& file_name,
-      const std::vector<uint8>& file_content) OVERRIDE {
+      const std::vector<uint8>& file_content) override {
     std::string ext = FilePath(file_name).Extension();
     if (ext != ".webm" && ext != ".mp4" && ext != ".ivf") {
       LOG(ERROR) << "Skip unsupported file " << file_name;
@@ -189,7 +189,7 @@ class RawVideoDecoderFuzzerApp : public FuzzerApp {
   }
 
   void Fuzz(const std::string& file_name,
-            const std::vector<uint8>& fuzzing_content) OVERRIDE {
+            const std::vector<uint8>& fuzzing_content) override {
     DCHECK(demuxers_.find(file_name) != demuxers_.end());
     MediaSourceDemuxer* demuxer = demuxers_[file_name];
     scoped_ptr<ShellRawVideoDecoder> decoder =

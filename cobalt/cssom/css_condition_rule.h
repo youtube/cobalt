@@ -41,7 +41,7 @@ class CSSConditionRule : public CSSGroupingRule {
   // Custom, not in any spec.
   //
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE {
+  void Accept(CSSRuleVisitor* visitor) override {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
@@ -59,7 +59,7 @@ class CSSConditionRule : public CSSGroupingRule {
   CSSConditionRule();
   explicit CSSConditionRule(const scoped_refptr<CSSRuleList>& css_rule_list);
 
-  virtual ~CSSConditionRule() OVERRIDE {}
+  ~CSSConditionRule() override {}
 
  private:
   bool cached_condition_value_;

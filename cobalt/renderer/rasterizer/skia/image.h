@@ -74,7 +74,7 @@ class SinglePlaneImage : public Image {
  public:
   virtual const SkBitmap* GetBitmap() const = 0;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<SinglePlaneImage>();
   }
 
@@ -98,12 +98,12 @@ class MultiPlaneImage : public Image {
     return NULL;
   }
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<MultiPlaneImage>();
   }
 
   // All currently supported MultiPlaneImage formats do not feature alpha.
-  bool IsOpaque() const OVERRIDE { return true; }
+  bool IsOpaque() const override { return true; }
 };
 
 }  // namespace skia

@@ -30,7 +30,7 @@ namespace dom {
 class DOMTokenListTest : public ::testing::Test {
  protected:
   DOMTokenListTest();
-  ~DOMTokenListTest() OVERRIDE;
+  ~DOMTokenListTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

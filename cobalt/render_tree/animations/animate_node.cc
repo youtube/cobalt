@@ -69,20 +69,20 @@ class AnimateNode::TraverseListBuilder : public NodeVisitor {
         expiry_(-base::TimeDelta::Max()),
         depends_on_time_expiry_(-base::TimeDelta::Max()) {}
 
-  void Visit(animations::AnimateNode* animate) OVERRIDE;
-  void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
-  void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
-  void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
-  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+  void Visit(animations::AnimateNode* animate) override;
+  void Visit(CompositionNode* composition) override { VisitNode(composition); }
+  void Visit(FilterNode* text) override { VisitNode(text); }
+  void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }
-  void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
-  void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
+  void Visit(MatrixTransformNode* transform) override { VisitNode(transform); }
+  void Visit(PunchThroughVideoNode* punch_through) override {
     VisitNode(punch_through);
   }
-  void Visit(RectNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(RectShadowNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(TextNode* text) OVERRIDE { VisitNode(text); }
+  void Visit(RectNode* rect) override { VisitNode(rect); }
+  void Visit(RectShadowNode* rect) override { VisitNode(rect); }
+  void Visit(TextNode* text) override { VisitNode(text); }
 
  private:
   template <typename T>
@@ -237,25 +237,25 @@ class AnimateNode::BoundsVisitor : public NodeVisitor {
   BoundsVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
                 base::TimeDelta since);
 
-  void Visit(animations::AnimateNode* /* animate */) OVERRIDE {
+  void Visit(animations::AnimateNode* /* animate */) override {
     // An invariant of AnimateNodes is that they should never contain descendant
     // AnimateNodes.
     NOTREACHED();
   }
   // Immediately switch to a templated visitor function.
-  void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
-  void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
-  void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
-  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+  void Visit(CompositionNode* composition) override { VisitNode(composition); }
+  void Visit(FilterNode* text) override { VisitNode(text); }
+  void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }
-  void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
-  void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
+  void Visit(MatrixTransformNode* transform) override { VisitNode(transform); }
+  void Visit(PunchThroughVideoNode* punch_through) override {
     VisitNode(punch_through);
   }
-  void Visit(RectNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(RectShadowNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(TextNode* text) OVERRIDE { VisitNode(text); }
+  void Visit(RectNode* rect) override { VisitNode(rect); }
+  void Visit(RectShadowNode* rect) override { VisitNode(rect); }
+  void Visit(TextNode* text) override { VisitNode(text); }
 
   const math::RectF& bounds() const { return bounds_; }
 
@@ -391,25 +391,25 @@ class AnimateNode::ApplyVisitor : public NodeVisitor {
   ApplyVisitor(const TraverseList& traverse_list, base::TimeDelta time_offset,
                const base::optional<base::TimeDelta>& snapshot_time);
 
-  void Visit(animations::AnimateNode* /* animate */) OVERRIDE {
+  void Visit(animations::AnimateNode* /* animate */) override {
     // An invariant of AnimateNodes is that they should never contain descendant
     // AnimateNodes.
     NOTREACHED();
   }
   // Immediately switch to a templated visitor function.
-  void Visit(CompositionNode* composition) OVERRIDE { VisitNode(composition); }
-  void Visit(FilterNode* text) OVERRIDE { VisitNode(text); }
-  void Visit(ImageNode* image) OVERRIDE { VisitNode(image); }
-  void Visit(MatrixTransform3DNode* transform) OVERRIDE {
+  void Visit(CompositionNode* composition) override { VisitNode(composition); }
+  void Visit(FilterNode* text) override { VisitNode(text); }
+  void Visit(ImageNode* image) override { VisitNode(image); }
+  void Visit(MatrixTransform3DNode* transform) override {
     VisitNode(transform);
   }
-  void Visit(MatrixTransformNode* transform) OVERRIDE { VisitNode(transform); }
-  void Visit(PunchThroughVideoNode* punch_through) OVERRIDE {
+  void Visit(MatrixTransformNode* transform) override { VisitNode(transform); }
+  void Visit(PunchThroughVideoNode* punch_through) override {
     VisitNode(punch_through);
   }
-  void Visit(RectNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(RectShadowNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(TextNode* text) OVERRIDE { VisitNode(text); }
+  void Visit(RectNode* rect) override { VisitNode(rect); }
+  void Visit(RectShadowNode* rect) override { VisitNode(rect); }
+  void Visit(TextNode* text) override { VisitNode(text); }
 
   // Returns the animated version of the node last visited.  This is how the
   // final animated result can be pulled from this visitor.

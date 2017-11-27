@@ -386,11 +386,11 @@ class KeywordValue : public PropertyValue {
   static const scoped_refptr<KeywordValue>& GetUppercase();
   static const scoped_refptr<KeywordValue>& GetVisible();
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const KeywordValue& other) const {
     return value_ == other.value_;
@@ -403,7 +403,7 @@ class KeywordValue : public PropertyValue {
 
  private:
   explicit KeywordValue(Value value) : value_(value) {}
-  ~KeywordValue() OVERRIDE {}
+  ~KeywordValue() override {}
 
   const Value value_;
 

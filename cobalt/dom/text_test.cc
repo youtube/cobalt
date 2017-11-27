@@ -31,7 +31,7 @@ namespace dom {
 class TextTest : public ::testing::Test {
  protected:
   TextTest();
-  ~TextTest() OVERRIDE;
+  ~TextTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

@@ -43,7 +43,7 @@ class AnimationEffectReadOnly : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(AnimationEffectReadOnly);
 
  protected:
-  ~AnimationEffectReadOnly() OVERRIDE {}
+  ~AnimationEffectReadOnly() override {}
 
  private:
   scoped_refptr<AnimationEffectTimingReadOnly> timing_;

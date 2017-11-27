@@ -31,14 +31,14 @@ class DummyGIFImageDecoder : public ImageDataDecoder {
  public:
   explicit DummyGIFImageDecoder(
       render_tree::ResourceProvider* resource_provider);
-  ~DummyGIFImageDecoder() OVERRIDE {}
+  ~DummyGIFImageDecoder() override {}
 
   // From ImageDataDecoder
-  std::string GetTypeString() const OVERRIDE { return "DummyGIFImageDecoder"; }
+  std::string GetTypeString() const override { return "DummyGIFImageDecoder"; }
 
  private:
   // From ImageDataDecoder
-  size_t DecodeChunkInternal(const uint8* data, size_t input_byte) OVERRIDE;
+  size_t DecodeChunkInternal(const uint8* data, size_t input_byte) override;
 };
 
 }  // namespace image

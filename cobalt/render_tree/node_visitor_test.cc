@@ -86,18 +86,18 @@ TEST(NodeVisitorTest, VisitsFilter) {
 namespace {
 
 class DummyImage : public Image {
-  const cobalt::math::Size& GetSize() const OVERRIDE { return size_; }
+  const cobalt::math::Size& GetSize() const override { return size_; }
 
  private:
   cobalt::math::Size size_;
 };
 
 class DummyBrush : public Brush {
-  void Accept(BrushVisitor* visitor) const OVERRIDE {
+  void Accept(BrushVisitor* visitor) const override {
     UNREFERENCED_PARAMETER(visitor);
   }
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<DummyBrush>();
   }
 };

@@ -61,7 +61,7 @@ scoped_refptr<AnimateNode> CreateSingleAnimation(
 
 class ImageFake : public Image {
  public:
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
  private:
   math::Size size_;

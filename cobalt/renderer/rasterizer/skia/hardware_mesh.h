@@ -39,7 +39,7 @@ class HardwareMesh : public render_tree::Mesh {
     thread_checker_.DetachFromThread();
   }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE;
+  uint32 GetEstimatedSizeInBytes() const override;
 
   // Float array of vertices, contiguously interleaved X, Y, Z, U, V coords.
   const float* GetVertices() const {

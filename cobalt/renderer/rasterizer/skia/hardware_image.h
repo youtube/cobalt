@@ -58,8 +58,8 @@ class HardwareImageData : public render_tree::ImageData {
                     render_tree::PixelFormat pixel_format,
                     render_tree::AlphaFormat alpha_format);
 
-  const render_tree::ImageDataDescriptor& GetDescriptor() const OVERRIDE;
-  uint8_t* GetMemory() OVERRIDE;
+  const render_tree::ImageDataDescriptor& GetDescriptor() const override;
+  uint8_t* GetMemory() override;
 
   scoped_ptr<backend::TextureDataEGL> PassTextureData();
 
@@ -73,8 +73,8 @@ class HardwareRawImageMemory : public render_tree::RawImageMemory {
   HardwareRawImageMemory(
       scoped_ptr<backend::RawTextureMemoryEGL> raw_texture_memory);
 
-  size_t GetSizeInBytes() const OVERRIDE;
-  uint8_t* GetMemory() OVERRIDE;
+  size_t GetSizeInBytes() const override;
+  uint8_t* GetMemory() override;
 
   scoped_ptr<backend::RawTextureMemoryEGL> PassRawTextureMemory();
 
@@ -114,7 +114,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
       backend::GraphicsContextEGL* cobalt_context, GrContext* gr_context,
       MessageLoop* rasterizer_message_loop);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
   // This method must only be called on the rasterizer thread.  This should not
   // be tricky to enforce since it is declared in skia::Image, and not Image.
@@ -122,26 +122,26 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // the skia render tree visitor that is aware of skia::Images.  Since the
   // skia render tree should only be visited on the rasterizer thread, this
   // restraint should always be satisfied naturally.
-  const SkBitmap* GetBitmap() const OVERRIDE;
+  const SkBitmap* GetBitmap() const override;
 
-  const backend::TextureEGL* GetTextureEGL() const OVERRIDE;
+  const backend::TextureEGL* GetTextureEGL() const override;
 
-  const math::Rect* GetContentRegion() const OVERRIDE {
+  const math::Rect* GetContentRegion() const override {
     return content_region_.get();
   }
 
-  bool CanRenderInSkia() const OVERRIDE;
+  bool CanRenderInSkia() const override;
 
-  bool EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() override;
 
-  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+  bool IsOpaque() const override { return is_opaque_; }
 
   base::optional<AlternateRgbaFormat> alternate_rgba_format() {
     return alternate_rgba_format_;
   }
 
  private:
-  ~HardwareFrontendImage() OVERRIDE;
+  ~HardwareFrontendImage() override;
 
   // Helper function to be called from the constructor.
   void InitializeBackend();
@@ -202,17 +202,17 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
       render_tree::MultiPlaneImageFormat format,
       const std::vector<scoped_refptr<HardwareFrontendImage> >& planes);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
-  render_tree::MultiPlaneImageFormat GetFormat() const OVERRIDE {
+  const math::Size& GetSize() const override { return size_; }
+  render_tree::MultiPlaneImageFormat GetFormat() const override {
     return format_;
   }
 
   // Forward the request to get a bitmap to the internal single-plane image
   // specified by plane_index.
-  const SkBitmap* GetBitmap(int plane_index) const OVERRIDE {
+  const SkBitmap* GetBitmap(int plane_index) const override {
     return planes_[plane_index]->GetBitmap();
   }
-  const backend::TextureEGL* GetTextureEGL(int plane_index) const OVERRIDE {
+  const backend::TextureEGL* GetTextureEGL(int plane_index) const override {
     return planes_[plane_index]->GetTextureEGL();
   }
 
@@ -230,12 +230,12 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
   // to set it up as, but Skia's GL_RED support decision is private information
   // that we can't access.  So, we choose instead to just not rely on Skia
   // for this so that we don't have to worry about format mismatches.
-  bool CanRenderInSkia() const OVERRIDE { return false; }
+  bool CanRenderInSkia() const override { return false; }
 
-  bool EnsureInitialized() OVERRIDE;
+  bool EnsureInitialized() override;
 
  private:
-  ~HardwareMultiPlaneImage() OVERRIDE;
+  ~HardwareMultiPlaneImage() override;
 
   const math::Size size_;
 

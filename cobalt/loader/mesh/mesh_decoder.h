@@ -49,10 +49,10 @@ class MeshDecoder : public Decoder {
   }
 
   // From Decoder.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
-  void Finish() OVERRIDE;
-  bool Suspend() OVERRIDE;
-  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+  void DecodeChunk(const char* data, size_t size) override;
+  void Finish() override;
+  bool Suspend() override;
+  void Resume(render_tree::ResourceProvider* resource_provider) override;
 
  private:
   void ReleaseRawData();

@@ -45,31 +45,31 @@ class InlineLevelReplacedBox : public ReplacedBox {
       const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
+  Level GetLevel() const override;
 
-  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void DoPreEllipsisPlacementProcessing() OVERRIDE;
-  void DoPostEllipsisPlacementProcessing() OVERRIDE;
-  bool IsHiddenByEllipsis() const OVERRIDE;
+  bool DoesFulfillEllipsisPlacementRequirement() const override;
+  void DoPreEllipsisPlacementProcessing() override;
+  void DoPostEllipsisPlacementProcessing() override;
+  bool IsHiddenByEllipsis() const override;
 
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::optional<LayoutUnit>& maybe_margin_left,
-      const base::optional<LayoutUnit>& maybe_margin_right) OVERRIDE;
+      const base::optional<LayoutUnit>& maybe_margin_right) override;
 
  private:
   // From |Box|.
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      LayoutUnit* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) override;
 
   // This flag indicates that the box is fully hidden by the ellipsis and it,
   // along with its contents will not be visible.

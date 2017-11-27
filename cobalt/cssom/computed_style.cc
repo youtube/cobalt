@@ -153,7 +153,7 @@ class ComputedBorderWidthProvider : public NotReachedPropertyValueVisitor {
                               const math::Size& viewport_size,
                               const PropertyValue* border_style);
 
-  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitLength(LengthValue* length) override;
 
   const scoped_refptr<PropertyValue>& computed_border_width() const {
     return computed_border_width_;
@@ -197,7 +197,7 @@ class ComputedFontWeightProvider : public NotReachedPropertyValueVisitor {
  public:
   ComputedFontWeightProvider() {}
 
-  void VisitFontWeight(FontWeightValue* weight) OVERRIDE;
+  void VisitFontWeight(FontWeightValue* weight) override;
 
   const scoped_refptr<FontWeightValue>& computed_font_weight() const {
     return computed_font_weight_;
@@ -227,8 +227,8 @@ class ComputedFontSizeProvider : public NotReachedPropertyValueVisitor {
                            const LengthValue* root_computed_font_size,
                            const math::Size& viewport_size);
 
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<LengthValue>& computed_font_size() const {
     return computed_font_size_;
@@ -279,10 +279,10 @@ class ComputedLineHeightProvider : public NotReachedPropertyValueVisitor {
                              const LengthValue* root_computed_font_size,
                              const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitNumber(NumberValue* number) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitNumber(NumberValue* number) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_line_height() const {
     return computed_line_height_;
@@ -400,9 +400,9 @@ class ComputedMarginOrPaddingEdgeProvider
       const LengthValue* root_computed_font_size,
       const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_margin_or_padding_edge() const {
     return computed_margin_or_padding_edge_;
@@ -507,9 +507,9 @@ class ComputedPositionOffsetProvider : public NotReachedPropertyValueVisitor {
                                  const LengthValue* root_computed_font_size,
                                  const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_position_offset() const {
     return computed_position_offset_;
@@ -619,9 +619,9 @@ class ComputedHeightProvider : public NotReachedPropertyValueVisitor {
                          const LengthValue* root_computed_font_size,
                          const math::Size& viewport_size, bool out_of_flow);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_height() const {
     return computed_height_;
@@ -750,9 +750,9 @@ class ComputedMaxHeightProvider : public NotReachedPropertyValueVisitor {
                             const LengthValue* root_computed_font_size,
                             const math::Size& viewport_size, bool out_of_flow);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_max_height() const {
     return computed_max_height_;
@@ -873,9 +873,9 @@ class ComputedMinHeightProvider : public NotReachedPropertyValueVisitor {
                             const LengthValue* root_computed_font_size,
                             const math::Size& viewport_size, bool out_of_flow);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_min_height() const {
     return computed_min_height_;
@@ -996,9 +996,9 @@ class ComputedWidthProvider : public NotReachedPropertyValueVisitor {
                         const LengthValue* root_computed_font_size,
                         const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_width() const {
     return computed_width_;
@@ -1104,9 +1104,9 @@ class ComputedMinMaxWidthProvider : public NotReachedPropertyValueVisitor {
                               const LengthValue* root_computed_font_size,
                               const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
 
   const scoped_refptr<PropertyValue>& computed_min_max_width() const {
     return computed_min_max_width_;
@@ -1206,7 +1206,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
  public:
   ComputedLengthIsNegativeProvider() : computed_length_is_negative_(false) {}
 
-  void VisitLength(LengthValue* length_value) OVERRIDE {
+  void VisitLength(LengthValue* length_value) override {
     switch (length_value->unit()) {
       case kPixelsUnit:
       case kFontSizesAkaEmUnit:
@@ -1220,7 +1220,7 @@ class ComputedLengthIsNegativeProvider : public DefaultingPropertyValueVisitor {
     }
   }
 
-  void VisitDefault(PropertyValue* property_value) OVERRIDE {
+  void VisitDefault(PropertyValue* property_value) override {
     UNREFERENCED_PARAMETER(property_value);
   }
 
@@ -1538,10 +1538,10 @@ class ComputedBackgroundImageSingleLayerProvider
         root_computed_font_size_(root_computed_font_size),
         viewport_size_(viewport_size) {}
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitLinearGradient(LinearGradientValue* linear_gradient_value) OVERRIDE;
-  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) OVERRIDE;
-  void VisitURL(URLValue* url_value) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitLinearGradient(LinearGradientValue* linear_gradient_value) override;
+  void VisitRadialGradient(RadialGradientValue* radial_gradient_value) override;
+  void VisitURL(URLValue* url_value) override;
 
   const scoped_refptr<PropertyValue>& computed_background_image() const {
     return computed_background_image_;
@@ -1754,7 +1754,7 @@ class ComputedBackgroundImageProvider : public NotReachedPropertyValueVisitor {
         root_computed_font_size_(root_computed_font_size),
         viewport_size_(viewport_size) {}
 
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
 
   const scoped_refptr<PropertyValue>& computed_background_image() const {
     return computed_background_image_;
@@ -1795,9 +1795,9 @@ class ComputedBackgroundSizeSingleValueProvider
       const LengthValue* root_computed_font_size,
       const math::Size& viewport_size);
 
-  void VisitLength(LengthValue* length) OVERRIDE;
-  void VisitPercentage(PercentageValue* percentage) OVERRIDE;
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitLength(LengthValue* length) override;
+  void VisitPercentage(PercentageValue* percentage) override;
+  void VisitKeyword(KeywordValue* keyword) override;
 
   const scoped_refptr<PropertyValue>& computed_background_size() const {
     return computed_background_size_;
@@ -1911,7 +1911,7 @@ class ComputedBackgroundPositionProvider
                                      const LengthValue* root_computed_font_size,
                                      const math::Size& viewport_size);
 
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
 
   const scoped_refptr<PropertyValue>& computed_background_position() const {
     return computed_background_position_;
@@ -1958,8 +1958,8 @@ class ComputedBackgroundSizeProvider : public NotReachedPropertyValueVisitor {
                                  const LengthValue* root_computed_font_size,
                                  const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
 
   const scoped_refptr<PropertyValue>& computed_background_size() const {
     return computed_background_size_;
@@ -2057,8 +2057,8 @@ class ComputedShadowProvider : public NotReachedPropertyValueVisitor {
                          const math::Size& viewport_size,
                          const RGBAColorValue* computed_color);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
 
   const scoped_refptr<PropertyValue>& computed_shadow() const {
     return computed_shadow_;
@@ -2188,10 +2188,10 @@ class ComputedTransformFunctionProvider : public TransformFunctionVisitor {
                                     const LengthValue* root_computed_font_size,
                                     const math::Size& viewport_size);
 
-  void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE;
-  void VisitRotate(const RotateFunction* rotate_function) OVERRIDE;
-  void VisitScale(const ScaleFunction* scale_function) OVERRIDE;
-  void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE;
+  void VisitMatrix(const MatrixFunction* matrix_function) override;
+  void VisitRotate(const RotateFunction* rotate_function) override;
+  void VisitScale(const ScaleFunction* scale_function) override;
+  void VisitTranslate(const TranslateFunction* translate_function) override;
 
   scoped_ptr<TransformFunction> PassComputedTransformFunction() {
     return computed_transform_function_.Pass();
@@ -2261,7 +2261,7 @@ class ComputedTextIndentProvider : public NotReachedPropertyValueVisitor {
                              const LengthValue* root_computed_font_size,
                              const math::Size& viewport_size);
 
-  void VisitLength(LengthValue* length) OVERRIDE;
+  void VisitLength(LengthValue* length) override;
 
   const scoped_refptr<LengthValue>& computed_text_indent() const {
     return computed_text_indent_;
@@ -2302,7 +2302,7 @@ class ComputedTransformOriginProvider : public NotReachedPropertyValueVisitor {
                                   const LengthValue* root_computed_font_size,
                                   const math::Size& viewport_size);
 
-  void VisitPropertyList(PropertyListValue* property_list_value) OVERRIDE;
+  void VisitPropertyList(PropertyListValue* property_list_value) override;
 
   const scoped_refptr<PropertyValue>& computed_transform_origin() const {
     return computed_transform_origin_;
@@ -2372,16 +2372,16 @@ class TransformFunctionContainsRelativeUnitVisitor
   TransformFunctionContainsRelativeUnitVisitor()
       : contains_relative_unit_(false) {}
 
-  void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE {
+  void VisitMatrix(const MatrixFunction* matrix_function) override {
     UNREFERENCED_PARAMETER(matrix_function);
   }
-  void VisitRotate(const RotateFunction* rotate_function) OVERRIDE {
+  void VisitRotate(const RotateFunction* rotate_function) override {
     UNREFERENCED_PARAMETER(rotate_function);
   }
-  void VisitScale(const ScaleFunction* scale_function) OVERRIDE {
+  void VisitScale(const ScaleFunction* scale_function) override {
     UNREFERENCED_PARAMETER(scale_function);
   }
-  void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE {
+  void VisitTranslate(const TranslateFunction* translate_function) override {
     contains_relative_unit_ =
         translate_function->offset_type() == TranslateFunction::kLength &&
         translate_function->offset_as_length()->IsUnitRelative();
@@ -2417,9 +2417,9 @@ class ComputedTransformProvider : public NotReachedPropertyValueVisitor {
                             const LengthValue* root_computed_font_size,
                             const math::Size& viewport_size);
 
-  void VisitKeyword(KeywordValue* keyword) OVERRIDE;
+  void VisitKeyword(KeywordValue* keyword) override;
   void VisitTransformFunctionList(
-      TransformFunctionListValue* transform_function_list) OVERRIDE;
+      TransformFunctionListValue* transform_function_list) override;
 
   const scoped_refptr<PropertyValue>& computed_transform_list() const {
     return computed_transform_list_;

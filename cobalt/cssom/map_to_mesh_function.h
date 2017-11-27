@@ -138,7 +138,7 @@ class MapToMeshFunction : public FilterFunction {
     DCHECK(stereo_mode_);
   }
 
-  ~MapToMeshFunction() OVERRIDE {}
+  ~MapToMeshFunction() override {}
 
   const MeshSpec& mesh_spec() const { return *mesh_spec_; }
   float horizontal_fov_in_radians() const { return horizontal_fov_in_radians_; }
@@ -148,7 +148,7 @@ class MapToMeshFunction : public FilterFunction {
     return stereo_mode_;
   }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const MapToMeshFunction& rhs) const;
 

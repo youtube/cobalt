@@ -19,13 +19,13 @@ namespace media {
 class MEDIA_EXPORT ADTSStreamParser : public MPEGAudioStreamParserBase {
  public:
   explicit ADTSStreamParser(DecoderBuffer::Allocator* buffer_allocator);
-  ~ADTSStreamParser() OVERRIDE;
+  ~ADTSStreamParser() override;
 
   // MPEGAudioStreamParserBase overrides.
   int ParseFrameHeader(const uint8_t* data, int size, int* frame_size,
                        int* sample_rate, ChannelLayout* channel_layout,
                        int* sample_count, bool* metadata_frame,
-                       std::vector<uint8_t>* extra_data) const OVERRIDE;
+                       std::vector<uint8_t>* extra_data) const override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ADTSStreamParser);

@@ -36,13 +36,13 @@ namespace speech {
 class MicrophoneFake : public Microphone {
  public:
   explicit MicrophoneFake(const Options& options);
-  ~MicrophoneFake() SB_OVERRIDE {}
+  ~MicrophoneFake() override {}
 
-  bool Open() SB_OVERRIDE;
-  int Read(char* out_data, int data_size) SB_OVERRIDE;
-  bool Close() SB_OVERRIDE;
-  int MinMicrophoneReadInBytes() SB_OVERRIDE;
-  bool IsValid() SB_OVERRIDE { return is_valid_; }
+  bool Open() override;
+  int Read(char* out_data, int data_size) override;
+  bool Close() override;
+  int MinMicrophoneReadInBytes() override;
+  bool IsValid() override { return is_valid_; }
 
  private:
   base::ThreadChecker thread_checker_;

@@ -46,7 +46,7 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
           output_post_scale_(output_post_scale),
           output_pre_translate_(output_pre_translate),
           output_bounds_(output_bounds) {}
-    ~CachedSurface() OVERRIDE {}
+    ~CachedSurface() override {}
 
     SkImage* image() const { return image_.get(); }
     const math::Vector2dF& output_post_scale() const {
@@ -114,12 +114,12 @@ class SurfaceCacheDelegate : public common::SurfaceCache::Delegate {
   // when visiting a MatrixTransformNode.
   void UpdateCanvasScale();
 
-  void ApplySurface(common::SurfaceCache::CachedSurface* surface) OVERRIDE;
-  void StartRecording(const math::RectF& local_bounds) OVERRIDE;
-  common::SurfaceCache::CachedSurface* EndRecording() OVERRIDE;
-  void ReleaseSurface(common::SurfaceCache::CachedSurface* surface) OVERRIDE;
-  math::Size GetRenderSize(const math::SizeF& local_size) OVERRIDE;
-  math::Size MaximumSurfaceSize() OVERRIDE;
+  void ApplySurface(common::SurfaceCache::CachedSurface* surface) override;
+  void StartRecording(const math::RectF& local_bounds) override;
+  common::SurfaceCache::CachedSurface* EndRecording() override;
+  void ReleaseSurface(common::SurfaceCache::CachedSurface* surface) override;
+  math::Size GetRenderSize(const math::SizeF& local_size) override;
+  math::Size MaximumSurfaceSize() override;
 
  private:
   // Defines a set of data that is relevant only while recording.

@@ -57,7 +57,7 @@ class MozjsUserObjectHolder
     DCHECK(!persistent_root_);
   }
 
-  void RegisterOwner(Wrappable* owner) OVERRIDE {
+  void RegisterOwner(Wrappable* owner) override {
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
     DLOG_IF(WARNING, handle_->WasCollected())
@@ -72,7 +72,7 @@ class MozjsUserObjectHolder
     }
   }
 
-  void DeregisterOwner(Wrappable* owner) OVERRIDE {
+  void DeregisterOwner(Wrappable* owner) override {
     // |owner| may be in the process of being destructed, so don't use it.
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
@@ -86,14 +86,14 @@ class MozjsUserObjectHolder
     }
   }
 
-  void PreventGarbageCollection() OVERRIDE {
+  void PreventGarbageCollection() override {
     if (prevent_garbage_collection_count_++ == 0 && handle_) {
       JSAutoRequest auto_request(context_);
       persistent_root_ = JS::PersistentRootedValue(context_, handle_->value());
     }
   }
 
-  void AllowGarbageCollection() OVERRIDE {
+  void AllowGarbageCollection() override {
     if (--prevent_garbage_collection_count_ == 0 && handle_) {
       JSAutoRequest auto_request(context_);
       persistent_root_ = base::nullopt;
@@ -101,11 +101,11 @@ class MozjsUserObjectHolder
   }
 
   const typename MozjsUserObjectType::BaseType* GetScriptValue()
-      const OVERRIDE {
+      const override {
     return handle_ ? &handle_.value() : NULL;
   }
 
-  scoped_ptr<BaseClass> MakeCopy() const OVERRIDE {
+  scoped_ptr<BaseClass> MakeCopy() const override {
     TRACK_MEMORY_SCOPE("Javascript");
     DCHECK(handle_);
     JSAutoRequest auto_request(context_);
@@ -114,7 +114,7 @@ class MozjsUserObjectHolder
         new MozjsUserObjectHolder(context_, rooted_value));
   }
 
-  bool EqualTo(const BaseClass& other) const OVERRIDE {
+  bool EqualTo(const BaseClass& other) const override {
     const MozjsUserObjectHolder* mozjs_other =
         base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
     if (!handle_) {

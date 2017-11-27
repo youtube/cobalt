@@ -25,15 +25,15 @@ typedef std::vector<ContentEncoding> ContentEncodings;
 class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
  public:
   explicit WebMContentEncodingsClient(const scoped_refptr<MediaLog>& media_log);
-  ~WebMContentEncodingsClient() OVERRIDE;
+  ~WebMContentEncodingsClient() override;
 
   const ContentEncodings& content_encodings() const;
 
   // WebMParserClient methods
-  WebMParserClient* OnListStart(int id) OVERRIDE;
-  bool OnListEnd(int id) OVERRIDE;
-  bool OnUInt(int id, int64_t val) OVERRIDE;
-  bool OnBinary(int id, const uint8_t* data, int size) OVERRIDE;
+  WebMParserClient* OnListStart(int id) override;
+  bool OnListEnd(int id) override;
+  bool OnUInt(int id, int64_t val) override;
+  bool OnBinary(int id, const uint8_t* data, int size) override;
 
  private:
   scoped_refptr<MediaLog> media_log_;

@@ -34,7 +34,7 @@ class DisplayBlitter : public Display {
   DisplayBlitter(SbBlitterDevice device,
                  system_window::SystemWindow* system_window);
 
-  scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE;
+  scoped_refptr<RenderTarget> GetRenderTarget() override;
 
  private:
   scoped_refptr<RenderTarget> render_target_;

@@ -29,7 +29,7 @@ class SkiaSurface : public common::ScratchSurfaceCache::Surface {
   SkiaSurface(SkSurface* surface, const math::Size& size)
       : surface_(surface), size_(size) {}
 
-  math::Size GetSize() const OVERRIDE { return size_; }
+  math::Size GetSize() const override { return size_; }
 
   SkSurface* sk_surface() { return surface_.get(); }
 

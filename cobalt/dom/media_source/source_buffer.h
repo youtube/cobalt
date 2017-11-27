@@ -133,7 +133,7 @@ class SourceBuffer : public dom::EventTarget {
   void OnRemovedFromMediaSource();
   double GetHighestPresentationTimestamp() const;
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   DEFINE_WRAPPABLE_TYPE(SourceBuffer);
 

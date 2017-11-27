@@ -46,7 +46,7 @@ class EmbeddedFetcher : public Fetcher {
                   const csp::SecurityCallback& security_callback,
                   Handler* handler, const Options& options);
 
-  ~EmbeddedFetcher() OVERRIDE;
+  ~EmbeddedFetcher() override;
 
  private:
   void Fetch(const Options& options);

@@ -28,11 +28,11 @@ class RenderTargetStub : public RenderTarget {
  public:
   explicit RenderTargetStub(const math::Size& size) : size_(size) {}
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
-  intptr_t GetPlatformHandle() const OVERRIDE { return 0; }
+  intptr_t GetPlatformHandle() const override { return 0; }
 
-  bool CreationError() OVERRIDE { return false; }
+  bool CreationError() override { return false; }
 
  private:
   ~RenderTargetStub() {}

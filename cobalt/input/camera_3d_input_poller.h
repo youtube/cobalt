@@ -37,19 +37,19 @@ class Camera3DInputPoller : public Camera3D {
       const scoped_refptr<input::InputPoller>& input_poller);
 
   void CreateKeyMapping(int keycode, uint32 camera_axis,
-                        float degrees_per_second) OVERRIDE;
-  void ClearKeyMapping(int keycode) OVERRIDE;
-  void ClearAllKeyMappings() OVERRIDE;
-  glm::quat GetOrientation() const OVERRIDE;
+                        float degrees_per_second) override;
+  void ClearKeyMapping(int keycode) override;
+  void ClearAllKeyMappings() override;
+  glm::quat GetOrientation() const override;
 
   // Returns the camera transforms based on hand-controlled inputs mapped
   // by the functions above
-  base::CameraTransform GetCameraTransformAndUpdateOrientation() OVERRIDE;
+  base::CameraTransform GetCameraTransformAndUpdateOrientation() override;
 
-  virtual void UpdatePerspective(float width_to_height_aspect_ratio,
-                                 float vertical_fov) OVERRIDE;
+  void UpdatePerspective(float width_to_height_aspect_ratio,
+                         float vertical_fov) override;
 
-  virtual void Reset() OVERRIDE;
+  void Reset() override;
 
  private:
   struct KeycodeMappingInfo {

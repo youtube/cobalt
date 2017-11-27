@@ -24,7 +24,7 @@ namespace dom {
 class DocumentTypeTest : public ::testing::Test {
  protected:
   DocumentTypeTest() : document_(new Document(&html_element_context_)) {}
-  ~DocumentTypeTest() OVERRIDE {}
+  ~DocumentTypeTest() override {}
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

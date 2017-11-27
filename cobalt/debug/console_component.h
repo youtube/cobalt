@@ -33,7 +33,7 @@ class ConsoleComponent {
    public:
     Listener(dom::Console* console, ConsoleComponent* console_component);
     void OnMessage(const std::string& message,
-                   dom::Console::Level level) OVERRIDE;
+                   dom::Console::Level level) override;
 
    private:
     ConsoleComponent* console_component_;

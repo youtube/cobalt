@@ -53,8 +53,8 @@ class DOMException : public script::ScriptException {
   DOMException(ExceptionCode code, const std::string& message);
 
   uint16 code() const { return static_cast<uint16>(code_); }
-  std::string name() const OVERRIDE { return name_; }
-  std::string message() const OVERRIDE { return message_; }
+  std::string name() const override { return name_; }
+  std::string message() const override { return message_; }
 
   // Helper function to raise a DOMException in the ExceptionState passed in.
   static void Raise(ExceptionCode code,

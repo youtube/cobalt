@@ -30,8 +30,8 @@ namespace memory_tracker {
 class MallocStatsTool : public AbstractTool {
  public:
   MallocStatsTool();
-  std::string tool_name() const OVERRIDE;
-  void Run(Params* params) OVERRIDE;
+  std::string tool_name() const override;
+  void Run(Params* params) override;
 };
 
 }  // namespace memory_tracker

@@ -39,7 +39,7 @@ class GraphicsContextEGL : public GraphicsContext {
  public:
   GraphicsContextEGL(GraphicsSystem* parent_system, EGLDisplay display,
                      EGLConfig config, ResourceContext* resource_context);
-  ~GraphicsContextEGL() OVERRIDE;
+  ~GraphicsContextEGL() override;
 
   GraphicsSystemEGL* system_egl();
 
@@ -53,17 +53,17 @@ class GraphicsContextEGL : public GraphicsContext {
       int pitch_in_bytes);
 
   scoped_refptr<RenderTarget> CreateOffscreenRenderTarget(
-      const math::Size& dimensions) OVERRIDE;
+      const math::Size& dimensions) override;
 
   scoped_refptr<RenderTarget> CreateDownloadableOffscreenRenderTarget(
-      const math::Size& dimensions) OVERRIDE;
+      const math::Size& dimensions) override;
 
-  void InitializeDebugContext() OVERRIDE;
+  void InitializeDebugContext() override;
 
   scoped_array<uint8_t> DownloadPixelDataAsRGBA(
-      const scoped_refptr<RenderTarget>& render_target) OVERRIDE;
+      const scoped_refptr<RenderTarget>& render_target) override;
 
-  void Finish() OVERRIDE;
+  void Finish() override;
 
   // Helper class to allow one to create a RAII object that will acquire the
   // current context upon construction and release it upon destruction.

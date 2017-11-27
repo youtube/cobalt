@@ -52,9 +52,9 @@ class SolidColorBrush : public Brush {
   }
 
   // A type-safe branching.
-  void Accept(BrushVisitor* visitor) const OVERRIDE;
+  void Accept(BrushVisitor* visitor) const override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<SolidColorBrush>();
   }
 
@@ -163,9 +163,9 @@ class LinearGradientBrush : public Brush {
   };
 
   // A type-safe branching.
-  void Accept(BrushVisitor* visitor) const OVERRIDE;
+  void Accept(BrushVisitor* visitor) const override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<LinearGradientBrush>();
   }
 
@@ -225,9 +225,9 @@ class RadialGradientBrush : public Brush {
   }
 
   // A type-safe branching.
-  void Accept(BrushVisitor* visitor) const OVERRIDE;
+  void Accept(BrushVisitor* visitor) const override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<RadialGradientBrush>();
   }
 
@@ -256,19 +256,19 @@ class EqualsBrushVisitor : public BrushVisitor {
 
   bool result() const { return result_; }
 
-  void Visit(const SolidColorBrush* solid_color_brush) OVERRIDE {
+  void Visit(const SolidColorBrush* solid_color_brush) override {
     result_ =
         brush_a_->GetTypeId() == base::GetTypeId<SolidColorBrush>() &&
         *static_cast<const SolidColorBrush*>(brush_a_) == *solid_color_brush;
   }
 
-  void Visit(const LinearGradientBrush* linear_gradient_brush) OVERRIDE {
+  void Visit(const LinearGradientBrush* linear_gradient_brush) override {
     result_ = brush_a_->GetTypeId() == base::GetTypeId<LinearGradientBrush>() &&
               *static_cast<const LinearGradientBrush*>(brush_a_) ==
                   *linear_gradient_brush;
   }
 
-  void Visit(const RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+  void Visit(const RadialGradientBrush* radial_gradient_brush) override {
     result_ = brush_a_->GetTypeId() == base::GetTypeId<RadialGradientBrush>() &&
               *static_cast<const RadialGradientBrush*>(brush_a_) ==
                   *radial_gradient_brush;

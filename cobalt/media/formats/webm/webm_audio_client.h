@@ -22,7 +22,7 @@ class EncryptionScheme;
 class WebMAudioClient : public WebMParserClient {
  public:
   explicit WebMAudioClient(const scoped_refptr<MediaLog>& media_log);
-  ~WebMAudioClient() OVERRIDE;
+  ~WebMAudioClient() override;
 
   // Reset this object's state so it can process a new audio track element.
   void Reset();
@@ -41,8 +41,8 @@ class WebMAudioClient : public WebMParserClient {
 
  private:
   // WebMParserClient implementation.
-  bool OnUInt(int id, int64_t val) OVERRIDE;
-  bool OnFloat(int id, double val) OVERRIDE;
+  bool OnUInt(int id, int64_t val) override;
+  bool OnFloat(int id, double val) override;
 
   scoped_refptr<MediaLog> media_log_;
   int channels_;

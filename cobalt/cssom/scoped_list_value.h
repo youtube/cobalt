@@ -58,7 +58,7 @@ class ScopedListValue : public PropertyValue {
   }
 
  protected:
-  ~ScopedListValue() OVERRIDE {}
+  ~ScopedListValue() override {}
 
   const Builder value_;
 

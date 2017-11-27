@@ -47,7 +47,7 @@ class GarbageCollectionTestInterface : public script::Wrappable {
 
   static GarbageCollectionTestInterfaceVector& instances();
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   DEFINE_WRAPPABLE_TYPE(GarbageCollectionTestInterface);
 

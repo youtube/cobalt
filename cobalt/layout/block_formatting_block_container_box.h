@@ -33,7 +33,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
       LayoutStatTracker* layout_stat_tracker);
 
   // From |ContainerBox|.
-  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) override;
 
   // Rest of the public methods.
 
@@ -45,7 +45,7 @@ class BlockFormattingBlockContainerBox : public BlockContainerBox {
  protected:
   // From |BlockContainerBox|.
   scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
-      const LayoutParams& child_layout_params) OVERRIDE;
+      const LayoutParams& child_layout_params) override;
 
  private:
   AnonymousBlockBox* GetLastChildAsAnonymousBlockBox();
@@ -70,15 +70,15 @@ class BlockLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
           css_computed_style_declaration,
       BaseDirection base_direction, UsedStyleProvider* used_style_provider,
       LayoutStatTracker* layout_stat_tracker);
-  ~BlockLevelBlockContainerBox() OVERRIDE;
+  ~BlockLevelBlockContainerBox() override;
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
+  Level GetLevel() const override;
 
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 };
 
@@ -101,29 +101,29 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
       BaseDirection base_direction, const scoped_refptr<Paragraph>& paragraph,
       int32 text_position, UsedStyleProvider* used_style_provider,
       LayoutStatTracker* layout_stat_tracker);
-  ~InlineLevelBlockContainerBox() OVERRIDE;
+  ~InlineLevelBlockContainerBox() override;
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
+  Level GetLevel() const override;
 
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
                        WrapOpportunityPolicy wrap_opportunity_policy,
                        bool is_line_existence_justified,
                        LayoutUnit available_width,
-                       bool should_collapse_trailing_white_space) OVERRIDE;
+                       bool should_collapse_trailing_white_space) override;
 
-  base::optional<int> GetBidiLevel() const OVERRIDE;
+  base::optional<int> GetBidiLevel() const override;
 
-  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void DoPreEllipsisPlacementProcessing() OVERRIDE;
-  void DoPostEllipsisPlacementProcessing() OVERRIDE;
-  bool IsHiddenByEllipsis() const OVERRIDE;
+  bool DoesFulfillEllipsisPlacementRequirement() const override;
+  void DoPreEllipsisPlacementProcessing() override;
+  void DoPostEllipsisPlacementProcessing() override;
+  bool IsHiddenByEllipsis() const override;
 
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
-  void DumpProperties(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
+  void DumpProperties(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
@@ -131,7 +131,7 @@ class InlineLevelBlockContainerBox : public BlockFormattingBlockContainerBox {
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      LayoutUnit* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) override;
 
   const scoped_refptr<Paragraph> paragraph_;
   int32 text_position_;

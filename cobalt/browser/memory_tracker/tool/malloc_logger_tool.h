@@ -40,18 +40,18 @@ class MallocLoggerTool: public AbstractTool,
   virtual ~MallocLoggerTool();
 
   // Interface AbstractMemoryTrackerTool
-  virtual std::string tool_name() const OVERRIDE;
-  virtual void Run(Params* params) OVERRIDE;
+  std::string tool_name() const override;
+  void Run(Params* params) override;
 
   // OnMemoryAllocation() and OnMemoryDeallocation() are part of
   // class MemoryTrackerDebugCallback.
   void OnMemoryAllocation(const void* memory_block,
                           const nb::analytics::AllocationRecord& record,
-                          const nb::analytics::CallStack& callstack) OVERRIDE;
+                          const nb::analytics::CallStack& callstack) override;
 
   void OnMemoryDeallocation(const void* memory_block,
                             const nb::analytics::AllocationRecord& record,
-                            const nb::analytics::CallStack& callstack) OVERRIDE;
+                            const nb::analytics::CallStack& callstack) override;
 
   // Method to obtain allocation, stack information and generate records
   void LogRecord(const void* memory_block,

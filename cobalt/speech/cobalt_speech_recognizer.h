@@ -51,8 +51,8 @@ class CobaltSpeechRecognizer : public SpeechRecognizer {
                          const EventCallback& event_callback);
   ~CobaltSpeechRecognizer();
 
-  void Start(const SpeechRecognitionConfig& config) SB_OVERRIDE;
-  void Stop() SB_OVERRIDE;
+  void Start(const SpeechRecognitionConfig& config) override;
+  void Stop() override;
 
  private:
   // Callbacks from mic.

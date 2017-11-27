@@ -36,17 +36,17 @@ class Text : public CharacterData {
 
   // Web API: Node
   //
-  base::Token node_name() const OVERRIDE;
-  NodeType node_type() const OVERRIDE { return Node::kTextNode; }
+  base::Token node_name() const override;
+  NodeType node_type() const override { return Node::kTextNode; }
 
   // Custom, not in any spec: Node.
   //
-  Text* AsText() OVERRIDE { return this; }
+  Text* AsText() override { return this; }
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  void Accept(ConstNodeVisitor* visitor) const override;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE {
+  scoped_refptr<Node> Duplicate() const override {
     TRACK_MEMORY_SCOPE("DOM");
     return new Text(node_document(), data());
   }
@@ -54,7 +54,7 @@ class Text : public CharacterData {
   DEFINE_WRAPPABLE_TYPE(Text);
 
  protected:
-  ~Text() OVERRIDE {}
+  ~Text() override {}
 };
 
 }  // namespace dom

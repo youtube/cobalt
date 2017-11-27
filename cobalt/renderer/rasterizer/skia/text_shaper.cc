@@ -38,11 +38,11 @@ class SingleFontFontProvider : public render_tree::FontProvider {
       : size_(base::polymorphic_downcast<Font*>(font.get())->size()),
         font_(font) {}
 
-  const render_tree::FontStyle& style() const OVERRIDE { return style_; }
-  float size() const OVERRIDE { return size_; }
+  const render_tree::FontStyle& style() const override { return style_; }
+  float size() const override { return size_; }
 
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
-      int32 utf32_character, render_tree::GlyphIndex* glyph_index) OVERRIDE {
+      int32 utf32_character, render_tree::GlyphIndex* glyph_index) override {
     *glyph_index = font_->GetGlyphForCharacter(utf32_character);
     return font_;
   }

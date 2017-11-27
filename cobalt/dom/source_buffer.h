@@ -64,7 +64,7 @@ class SourceBuffer : public dom::EventTarget {
   // Detach it from the MediaSource object.
   void Close();
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   DEFINE_WRAPPABLE_TYPE(SourceBuffer);
 

@@ -45,14 +45,14 @@ class FontFaceUpdater : public cssom::CSSRuleVisitor {
       const scoped_refptr<cssom::StyleSheetList>& style_sheet_list);
 
  private:
-  void VisitCSSStyleRule(cssom::CSSStyleRule* /*css_style_rule*/) OVERRIDE {}
+  void VisitCSSStyleRule(cssom::CSSStyleRule* /*css_style_rule*/) override {}
   void VisitCSSFontFaceRule(
-      cssom::CSSFontFaceRule* css_font_face_rule) OVERRIDE;
-  void VisitCSSMediaRule(cssom::CSSMediaRule* /*css_media_rule*/) OVERRIDE {}
+      cssom::CSSFontFaceRule* css_font_face_rule) override;
+  void VisitCSSMediaRule(cssom::CSSMediaRule* /*css_media_rule*/) override {}
   void VisitCSSKeyframeRule(
-      cssom::CSSKeyframeRule* /*css_keyframe_rule*/) OVERRIDE {}
+      cssom::CSSKeyframeRule* /*css_keyframe_rule*/) override {}
   void VisitCSSKeyframesRule(
-      cssom::CSSKeyframesRule* /*css_keyframes_rule*/) OVERRIDE {}
+      cssom::CSSKeyframesRule* /*css_keyframes_rule*/) override {}
 
   const GURL& document_base_url_;
   FontCache* const cache_;
