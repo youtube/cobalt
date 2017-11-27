@@ -42,14 +42,14 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
-  void SetHost(Host* host) SB_OVERRIDE;
-  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 8; }
+  void SetHost(Host* host) override;
+  size_t GetPrerollFrameCount() const override { return 8; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
+      override;
+  void WriteEndOfStream() override;
+  void Reset() override;
 
  private:
   enum EventType {
@@ -84,7 +84,7 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   void TeardownCodec();
   void DecodeOneBuffer(const scoped_refptr<InputBuffer>& input_buffer);
 
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
   bool UpdateDecodeTarget(const scoped_refptr<VideoFrame>& frame);
 

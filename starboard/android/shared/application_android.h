@@ -35,7 +35,7 @@ class ApplicationAndroid
     : public ::starboard::shared::starboard::QueueApplication {
  public:
   explicit ApplicationAndroid(struct android_app* android_state);
-  ~ApplicationAndroid() SB_OVERRIDE;
+  ~ApplicationAndroid() override;
 
   static ApplicationAndroid* Get() {
     return static_cast<ApplicationAndroid*>(
@@ -53,14 +53,14 @@ class ApplicationAndroid
 
  protected:
   // --- Application overrides ---
-  void Initialize() SB_OVERRIDE;
-  void Teardown() SB_OVERRIDE;
-  bool IsStartImmediate() SB_OVERRIDE { return false; }
+  void Initialize() override;
+  void Teardown() override;
+  bool IsStartImmediate() override { return false; }
 
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() SB_OVERRIDE { return true; }
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
-  void WakeSystemEventWait() SB_OVERRIDE;
+  bool MayHaveSystemEvents() override { return true; }
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  void WakeSystemEventWait() override;
 
  private:
   // Helpers to bind to android_native_app_glue

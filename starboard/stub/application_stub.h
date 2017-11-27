@@ -28,7 +28,7 @@ namespace stub {
 class ApplicationStub : public shared::starboard::QueueApplication {
  public:
   ApplicationStub();
-  ~ApplicationStub() SB_OVERRIDE;
+  ~ApplicationStub() override;
 
   static ApplicationStub* Get() {
     return static_cast<ApplicationStub*>(shared::starboard::Application::Get());
@@ -36,14 +36,14 @@ class ApplicationStub : public shared::starboard::QueueApplication {
 
  protected:
   // --- Application overrides ---
-  void Initialize() SB_OVERRIDE;
-  void Teardown() SB_OVERRIDE;
+  void Initialize() override;
+  void Teardown() override;
 
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() SB_OVERRIDE;
-  Event* PollNextSystemEvent() SB_OVERRIDE;
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
-  void WakeSystemEventWait() SB_OVERRIDE;
+  bool MayHaveSystemEvents() override;
+  Event* PollNextSystemEvent() override;
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  void WakeSystemEventWait() override;
 };
 
 }  // namespace stub

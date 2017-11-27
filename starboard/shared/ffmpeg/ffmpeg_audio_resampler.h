@@ -37,11 +37,11 @@ class AudioResampler : public starboard::player::filter::AudioResampler {
                  SbMediaAudioFrameStorageType destination_storage_type,
                  int destination_sample_rate,
                  int channels);
-  ~AudioResampler() SB_OVERRIDE;
+  ~AudioResampler() override;
 
   scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& audio_data) SB_OVERRIDE;
-  scoped_refptr<DecodedAudio> WriteEndOfStream() SB_OVERRIDE;
+      const scoped_refptr<DecodedAudio>& audio_data) override;
+  scoped_refptr<DecodedAudio> WriteEndOfStream() override;
 
  private:
   scoped_refptr<DecodedAudio> RetrieveOutput();

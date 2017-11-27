@@ -49,27 +49,27 @@ class AudioRendererImpl : public AudioRenderer,
   AudioRendererImpl(scoped_ptr<AudioDecoder> decoder,
                     scoped_ptr<AudioRendererSink> audio_renderer_sink,
                     const SbMediaAudioHeader& audio_header);
-  ~AudioRendererImpl() SB_OVERRIDE;
+  ~AudioRendererImpl() override;
 
-  void Initialize(const Closure& error_cb) SB_OVERRIDE;
-  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
+  void Initialize(const Closure& error_cb) override;
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteEndOfStream() override;
 
-  void Play() SB_OVERRIDE;
-  void Pause() SB_OVERRIDE;
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-  void SetVolume(double volume) SB_OVERRIDE;
-  void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
+  void Play() override;
+  void Pause() override;
+  void SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
+  void Seek(SbMediaTime seek_to_pts) override;
 
-  bool IsEndOfStreamWritten() const SB_OVERRIDE {
+  bool IsEndOfStreamWritten() const override {
     return eos_state_.load() >= kEOSWrittenToDecoder;
   };
-  bool IsEndOfStreamPlayed() const SB_OVERRIDE;
-  bool CanAcceptMoreData() const SB_OVERRIDE;
-  bool IsSeekingInProgress() const SB_OVERRIDE;
+  bool IsEndOfStreamPlayed() const override;
+  bool CanAcceptMoreData() const override;
+  bool IsSeekingInProgress() const override;
 
   // This function can be called from any thread.
-  SbMediaTime GetCurrentTime() SB_OVERRIDE;
+  SbMediaTime GetCurrentTime() override;
 
  protected:
   atomic_bool paused_;
@@ -108,8 +108,8 @@ class AudioRendererImpl : public AudioRenderer,
   void GetSourceStatus(int* frames_in_buffer,
                        int* offset_in_frames,
                        bool* is_playing,
-                       bool* is_eos_reached) SB_OVERRIDE;
-  void ConsumeFrames(int frames_consumed) SB_OVERRIDE;
+                       bool* is_eos_reached) override;
+  void ConsumeFrames(int frames_consumed) override;
 
   void CreateAudioSinkAndResampler();
   void LogFramesConsumed();

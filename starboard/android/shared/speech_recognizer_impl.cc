@@ -53,9 +53,9 @@ class SbSpeechRecognizerImpl : public SbSpeechRecognizerPrivate {
   ~SbSpeechRecognizerImpl();
 
   // Called from constructor's thread.
-  bool Start(const SbSpeechConfiguration* configuration) SB_OVERRIDE;
-  void Stop() SB_OVERRIDE;
-  void Cancel() SB_OVERRIDE;
+  bool Start(const SbSpeechConfiguration* configuration) override;
+  void Stop() override;
+  void Cancel() override;
 
   // Called from Android's UI thread.
   void OnSpeechDetected(bool detected);

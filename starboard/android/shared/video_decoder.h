@@ -48,14 +48,14 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider*
                    decode_target_graphics_context_provider);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
-  void Initialize(const Closure& error_cb) SB_OVERRIDE;
+  void Initialize(const Closure& error_cb) override;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+      override;
+  void WriteEndOfStream() override;
+  void Reset() override;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
   void SetHost(VideoRenderer* host);
   bool is_valid() const { return media_decoder_ != NULL; }
@@ -67,10 +67,10 @@ class VideoDecoder
   void TeardownCodec();
 
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
-                           const DequeueOutputResult& output) SB_OVERRIDE;
-  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
-  bool Tick(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
-  void OnFlushing() SB_OVERRIDE;
+                           const DequeueOutputResult& output) override;
+  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
+  bool Tick(MediaCodecBridge* media_codec_bridge) override;
+  void OnFlushing() override;
 
   // These variables will be initialized inside ctor or SetHost() and will not
   // be changed during the life time of this class.

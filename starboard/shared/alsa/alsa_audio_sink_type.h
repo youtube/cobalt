@@ -38,11 +38,11 @@ class AlsaAudioSinkType : public SbAudioSinkPrivate::Type {
       SbAudioSinkConsumeFramesFunc consume_frames_func,
       void* context);
 
-  bool IsValid(SbAudioSink audio_sink) SB_OVERRIDE {
+  bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) SB_OVERRIDE {
+  void Destroy(SbAudioSink audio_sink) override {
     if (audio_sink != kSbAudioSinkInvalid && !IsValid(audio_sink)) {
       SB_LOG(WARNING) << "audio_sink is invalid.";
       return;
