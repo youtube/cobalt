@@ -28,26 +28,26 @@ namespace nb {
 // starboard/memory.h.
 class StarboardMemoryAllocator : public Allocator {
  public:
-  void* Allocate(std::size_t size) SB_OVERRIDE { return Allocate(size, 1); }
+  void* Allocate(std::size_t size) override { return Allocate(size, 1); }
 
-  void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE {
+  void* Allocate(std::size_t size, std::size_t alignment) override {
     return SbMemoryAllocateAligned(alignment, size);
   }
 
   void* AllocateForAlignment(std::size_t* size,
-                             std::size_t alignment) SB_OVERRIDE {
+                             std::size_t alignment) override {
     return Allocate(*size, alignment);
   }
-  void Free(void* memory) SB_OVERRIDE { SbMemoryDeallocateAligned(memory); }
-  std::size_t GetCapacity() const SB_OVERRIDE {
+  void Free(void* memory) override { SbMemoryDeallocateAligned(memory); }
+  std::size_t GetCapacity() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
-  std::size_t GetAllocated() const SB_OVERRIDE {
+  std::size_t GetAllocated() const override {
     // Returns 0 here to avoid tracking the allocated memory.
     return 0;
   }
-  void PrintAllocations() const SB_OVERRIDE {}
+  void PrintAllocations() const override {}
 };
 
 }  // namespace nb
