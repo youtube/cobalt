@@ -34,12 +34,12 @@ class IdentityAudioResampler : public AudioResampler {
  public:
   IdentityAudioResampler() : eos_reached_(false) {}
   scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& audio_data) SB_OVERRIDE {
+      const scoped_refptr<DecodedAudio>& audio_data) override {
     SB_DCHECK(!eos_reached_);
 
     return audio_data;
   }
-  scoped_refptr<DecodedAudio> WriteEndOfStream() SB_OVERRIDE {
+  scoped_refptr<DecodedAudio> WriteEndOfStream() override {
     SB_DCHECK(!eos_reached_);
     eos_reached_ = true;
     return new DecodedAudio();

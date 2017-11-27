@@ -39,7 +39,7 @@ namespace x11 {
 class ApplicationX11 : public shared::starboard::QueueApplication {
  public:
   ApplicationX11();
-  ~ApplicationX11() SB_OVERRIDE;
+  ~ApplicationX11() override;
 
   static ApplicationX11* Get() {
     return static_cast<ApplicationX11*>(shared::starboard::Application::Get());
@@ -57,22 +57,22 @@ class ApplicationX11 : public shared::starboard::QueueApplication {
                    int x,
                    int y,
                    int width,
-                   int height) SB_OVERRIDE;
+                   int height) override;
 
 #if SB_API_VERSION >= 6
-  bool IsStartImmediate() SB_OVERRIDE { return !HasPreloadSwitch(); }
-  bool IsPreloadImmediate() SB_OVERRIDE { return HasPreloadSwitch(); }
+  bool IsStartImmediate() override { return !HasPreloadSwitch(); }
+  bool IsPreloadImmediate() override { return HasPreloadSwitch(); }
 #endif  // SB_API_VERSION >= 6
 
  protected:
   // --- Application overrides ---
-  void Initialize() SB_OVERRIDE;
-  void Teardown() SB_OVERRIDE;
+  void Initialize() override;
+  void Teardown() override;
 
   // --- QueueApplication overrides ---
-  bool MayHaveSystemEvents() SB_OVERRIDE;
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
-  void WakeSystemEventWait() SB_OVERRIDE;
+  bool MayHaveSystemEvents() override;
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  void WakeSystemEventWait() override;
 
  private:
   typedef std::vector<SbWindow> SbWindowVector;

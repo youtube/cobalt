@@ -46,7 +46,7 @@ class OpenMaxVideoDecodeComponent : private OpenMaxComponent {
   void DropOutputBuffer(OMX_BUFFERHEADERTYPE* buffer);
 
  private:
-  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) SB_OVERRIDE;
+  bool OnEnableOutputPort(OMXParamPortDefinition* port_definition) override;
 
   OMXParamPortDefinition output_port_definition_;
 };

@@ -34,15 +34,15 @@ class StubAudioSink : public SbAudioSinkPrivate {
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 SbAudioSinkConsumeFramesFunc consume_frame_func,
                 void* context);
-  ~StubAudioSink() SB_OVERRIDE;
+  ~StubAudioSink() override;
 
-  bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+  bool IsType(Type* type) override { return type_ == type; }
+  void SetPlaybackRate(double playback_rate) override {
     SB_UNREFERENCED_PARAMETER(playback_rate);
     SB_NOTIMPLEMENTED();
   }
 
-  void SetVolume(double volume) SB_OVERRIDE {
+  void SetVolume(double volume) override {
     SB_UNREFERENCED_PARAMETER(volume);
   }
 

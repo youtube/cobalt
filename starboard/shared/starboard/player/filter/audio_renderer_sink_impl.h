@@ -29,29 +29,29 @@ namespace filter {
 class AudioRendererSinkImpl : public AudioRendererSink {
  public:
   AudioRendererSinkImpl();
-  ~AudioRendererSinkImpl() SB_OVERRIDE;
+  ~AudioRendererSinkImpl() override;
 
  private:
   // AudioRendererSink methods
   bool IsAudioSampleTypeSupported(
-      SbMediaAudioSampleType audio_sample_type) const SB_OVERRIDE;
+      SbMediaAudioSampleType audio_sample_type) const override;
   bool IsAudioFrameStorageTypeSupported(
-      SbMediaAudioFrameStorageType audio_frame_storage_type) const SB_OVERRIDE;
+      SbMediaAudioFrameStorageType audio_frame_storage_type) const override;
   int GetNearestSupportedSampleFrequency(int sampling_frequency_hz) const
-      SB_OVERRIDE;
+      override;
 
-  bool HasStarted() const SB_OVERRIDE;
+  bool HasStarted() const override;
   void Start(int channels,
              int sampling_frequency_hz,
              SbMediaAudioSampleType audio_sample_type,
              SbMediaAudioFrameStorageType audio_frame_storage_type,
              SbAudioSinkFrameBuffers frame_buffers,
              int frames_per_channel,
-             RenderCallback* render_callback) SB_OVERRIDE;
-  void Stop() SB_OVERRIDE;
+             RenderCallback* render_callback) override;
+  void Stop() override;
 
-  void SetVolume(double volume) SB_OVERRIDE;
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE;
+  void SetVolume(double volume) override;
+  void SetPlaybackRate(double playback_rate) override;
 
   // SbAudioSink callbacks
   static void UpdateSourceStatusFunc(int* frames_in_buffer,

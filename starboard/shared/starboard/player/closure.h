@@ -61,7 +61,7 @@ inline Closure Bind(void (*closure)()) {
    public:
     explicit FunctorImpl(void (*closure)()) : closure_(closure) {}
 
-    void Run() SB_OVERRIDE { closure_(); }
+    void Run() override { closure_(); }
 
    private:
     void (*closure_)();
@@ -76,7 +76,7 @@ inline Closure Bind(void (*func)(Param), Param param) {
     FunctorImpl(void (*func)(Param), Param param)
         : func_(func), param_(param) {}
 
-    void Run() SB_OVERRIDE { func_(param_); }
+    void Run() override { func_(param_); }
 
    private:
     void (*func_)(Param);
@@ -91,7 +91,7 @@ inline Closure Bind(void (C::*func)(), C* obj) {
    public:
     FunctorImpl(void (C::*func)(), C* obj) : func_(func), obj_(obj) {}
 
-    void Run() SB_OVERRIDE { ((*obj_).*func_)(); }
+    void Run() override { ((*obj_).*func_)(); }
 
    private:
     void (C::*func_)();
@@ -107,7 +107,7 @@ inline Closure Bind(void (C::*func)(Param), C* obj, Param param) {
     FunctorImpl(void (C::*func)(Param), C* obj, Param param)
         : func_(func), obj_(obj), param_(param) {}
 
-    void Run() SB_OVERRIDE { ((*obj_).*func_)(param_); }
+    void Run() override { ((*obj_).*func_)(param_); }
 
    private:
     void (C::*func_)(Param);
@@ -124,7 +124,7 @@ inline Closure Bind(void (C::*func)(const Param&), C* obj, const Param& param) {
     FunctorImpl(void (C::*func)(const Param&), C* obj, const Param& param)
         : func_(func), obj_(obj), param_(param) {}
 
-    void Run() SB_OVERRIDE { ((*obj_).*func_)(param_); }
+    void Run() override { ((*obj_).*func_)(param_); }
 
    private:
     void (C::*func_)(const Param&);
@@ -147,7 +147,7 @@ inline Closure Bind(void (C::*func)(Param1, Param2),
                 Param2 param2)
         : func_(func), obj_(obj), param1_(param1), param2_(param2) {}
 
-    void Run() SB_OVERRIDE { ((*obj_).*func_)(param1_, param2_); }
+    void Run() override { ((*obj_).*func_)(param1_, param2_); }
 
    private:
     void (C::*func_)(Param1, Param2);
