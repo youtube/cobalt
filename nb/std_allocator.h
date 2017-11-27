@@ -98,12 +98,12 @@ class StdAllocator : public std::allocator<T> {
 // Example of Allocator Definition:
 //  class MyAllocator : public SimpleAllocator {
 //   public:
-//    void* Allocate(size_t size) SB_OVERRIDE {
+//    void* Allocate(size_t size) override {
 //      return SbMemoryAllocate(size);
 //    }
 //
 //    // Second argument can be used for accounting, but is otherwise optional.
-//    void FreeWithSize(void* ptr, size_t optional_size) SB_OVERRIDE {
+//    void FreeWithSize(void* ptr, size_t optional_size) override {
 //      SbMemoryDeallocate(ptr);
 //    }
 //
