@@ -61,7 +61,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   // Adds tracking to the supplied memory pointer. An AllocationRecord is
   // generated for the supplied allocation which can be queried immediately
   // with GetMemoryTracking(...).
-  bool InstallGlobalTrackingHooks() SB_OVERRIDE {
+  bool InstallGlobalTrackingHooks() override {
     if (global_hooks_installed_)
       return true;
     global_hooks_installed_ = true;
@@ -69,34 +69,34 @@ class MemoryTrackerImpl : public MemoryTracker {
     ok &= NbSetMemoryScopeReporter(GetMemoryScopeReporter());
     return ok;
   }
-  void RemoveGlobalTrackingHooks() SB_OVERRIDE {
+  void RemoveGlobalTrackingHooks() override {
     SbMemorySetReporter(NULL);
     NbSetMemoryScopeReporter(NULL);
     global_hooks_installed_ = false;
   }
 
-  bool AddMemoryTracking(const void* memory, size_t size) SB_OVERRIDE;
-  size_t RemoveMemoryTracking(const void* memory) SB_OVERRIDE;
+  bool AddMemoryTracking(const void* memory, size_t size) override;
+  size_t RemoveMemoryTracking(const void* memory) override;
   // Returns true if the allocation record was successfully found.
   // If true then the output will be written to with the values.
   // Otherwise the output is reset to the empty AllocationRecord.
   bool GetMemoryTracking(const void* memory,
-                         AllocationRecord* record) const SB_OVERRIDE;
+                         AllocationRecord* record) const override;
   // Thread local function to get and set the memory tracking state. When set
   // to disabled then memory allocations are not recorded. However memory
   // deletions are still recorded.
-  void SetMemoryTrackingEnabled(bool on) SB_OVERRIDE;
-  bool IsMemoryTrackingEnabled() const SB_OVERRIDE;
+  void SetMemoryTrackingEnabled(bool on) override;
+  bool IsMemoryTrackingEnabled() const override;
 
   // REPORTING
   //
   // Total allocation bytes that have been allocated by this
   // MemoryTrackerImpl.
-  int64_t GetTotalAllocationBytes() SB_OVERRIDE;
+  int64_t GetTotalAllocationBytes() override;
   // Retrieves a collection of all known allocation groups. Locking is done
   // internally.
-  void GetAllocationGroups(std::vector<const AllocationGroup*>* output)
-      SB_OVERRIDE;
+  void GetAllocationGroups(
+      std::vector<const AllocationGroup*>* output) override;
   // Retrieves a collection of all known allocation groups. Locking is done
   // internally. The output is a map of names to AllocationGroups.
   void GetAllocationGroups(
@@ -105,9 +105,9 @@ class MemoryTrackerImpl : public MemoryTracker {
   // Provides access to the internal allocations in a thread safe way.
   // Allocation tracking is disabled in the current thread for the duration
   // of the visitation.
-  void Accept(AllocationVisitor* visitor) SB_OVERRIDE;
+  void Accept(AllocationVisitor* visitor) override;
 
-  int64_t GetTotalNumberOfAllocations() SB_OVERRIDE {
+  int64_t GetTotalNumberOfAllocations() override {
     return pointer_map()->Size();
   }
 
@@ -129,8 +129,7 @@ class MemoryTrackerImpl : public MemoryTracker {
   void SetThreadFilter(SbThreadId tid);
   bool IsCurrentThreadAllowedToReport() const;
 
-  virtual void SetMemoryTrackerDebugCallback(MemoryTrackerDebugCallback* cb)
-      SB_OVERRIDE;
+  void SetMemoryTrackerDebugCallback(MemoryTrackerDebugCallback* cb) override;
 
  private:
   struct DisableMemoryTrackingInScope {

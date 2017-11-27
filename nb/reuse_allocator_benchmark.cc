@@ -177,14 +177,14 @@ void ReplayCommands(nb::Allocator* allocator,
 
 class DefaultAllocator : public nb::Allocator {
  public:
-  void* Allocate(std::size_t size) SB_OVERRIDE { return Allocate(size, 0); }
-  void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE {
+  void* Allocate(std::size_t size) override { return Allocate(size, 0); }
+  void* Allocate(std::size_t size, std::size_t alignment) override {
     return SbMemoryAllocateAligned(alignment, size);
   }
-  void Free(void* memory) SB_OVERRIDE { SbMemoryDeallocate(memory); }
-  std::size_t GetCapacity() const SB_OVERRIDE { return 0; }
-  std::size_t GetAllocated() const SB_OVERRIDE { return 0; }
-  void PrintAllocations() const SB_OVERRIDE {}
+  void Free(void* memory) override { SbMemoryDeallocate(memory); }
+  std::size_t GetCapacity() const override { return 0; }
+  std::size_t GetAllocated() const override { return 0; }
+  void PrintAllocations() const override {}
 };
 
 // TODO: Make this work with other ReuseAllocator types.

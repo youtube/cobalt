@@ -105,40 +105,40 @@ TEST(StdAllocator, map) {
 class CountingDynamicAllocator : public nb::Allocator {
  public:
   CountingDynamicAllocator() : bytes_allocated_(0), num_allocations_(0) {}
-  void* Allocate(size_t size) SB_OVERRIDE {
+  void* Allocate(size_t size) override {
     bytes_allocated_ += size;
     ++num_allocations_;
     return SbMemoryAllocate(size);
   }
 
-  virtual void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE {
+  void* Allocate(std::size_t size, std::size_t alignment) override {
     EXPECT_TRUE(false) << "Unexpected that aligned version is called.";
     return Allocate(size);
   }
 
-  virtual void Free(void* memory) SB_OVERRIDE {
+  void Free(void* memory) override {
     FreeWithSize(memory, 0);
     ASSERT_TRUE(false) << "Unexpected that free without size "
                           "version is called.";
   }
 
-  void FreeWithSize(void* ptr, size_t optional_size) SB_OVERRIDE {
+  void FreeWithSize(void* ptr, size_t optional_size) override {
     SbMemoryDeallocate(ptr);
 
     bytes_allocated_ -= optional_size;
     --num_allocations_;
   }
 
-  std::size_t GetCapacity() const SB_OVERRIDE {
+  std::size_t GetCapacity() const override {
     EXPECT_TRUE(false) << "Unexpected that GetCapacity().";
     return 0;
   }
 
-  std::size_t GetAllocated() const SB_OVERRIDE {
+  std::size_t GetAllocated() const override {
     return static_cast<size_t>(bytes_allocated_);
   }
 
-  void PrintAllocations() const SB_OVERRIDE {}
+  void PrintAllocations() const override {}
 
   int64_t bytes_allocated_;
   int64_t num_allocations_;

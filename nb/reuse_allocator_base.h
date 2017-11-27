@@ -34,16 +34,16 @@ namespace nb {
 // additional memory from as needed.
 class ReuseAllocatorBase : public Allocator {
  public:
-  void* Allocate(std::size_t size) SB_OVERRIDE;
-  void* Allocate(std::size_t size, std::size_t alignment) SB_OVERRIDE;
+  void* Allocate(std::size_t size) override;
+  void* Allocate(std::size_t size, std::size_t alignment) override;
 
   // Marks the memory block as being free and it will then become recyclable
-  void Free(void* memory) SB_OVERRIDE;
+  void Free(void* memory) override;
 
-  std::size_t GetCapacity() const SB_OVERRIDE { return capacity_; }
-  std::size_t GetAllocated() const SB_OVERRIDE { return total_allocated_; }
+  std::size_t GetCapacity() const override { return capacity_; }
+  std::size_t GetAllocated() const override { return total_allocated_; }
 
-  void PrintAllocations() const SB_OVERRIDE;
+  void PrintAllocations() const override;
 
   bool TryFree(void* memory);
 
@@ -107,7 +107,7 @@ class ReuseAllocatorBase : public Allocator {
   ReuseAllocatorBase(Allocator* fallback_allocator,
                      std::size_t initial_capacity,
                      std::size_t allocation_increment);
-  ~ReuseAllocatorBase() SB_OVERRIDE;
+  ~ReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
   // class which free block to take.  It returns |end| if no suitable free
