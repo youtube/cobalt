@@ -40,10 +40,10 @@ class SimpleSelector : public Selector {
  public:
   SimpleSelector(SimpleSelectorType type, base::Token prefix, base::Token text)
       : type_(type), prefix_(prefix), text_(text) {}
-  ~SimpleSelector() OVERRIDE {}
+  ~SimpleSelector() override {}
 
   // From Selector.
-  SimpleSelector* AsSimpleSelector() OVERRIDE { return this; }
+  SimpleSelector* AsSimpleSelector() override { return this; }
 
   // Rest of public methods.
   virtual PseudoElement* AsPseudoElement() { return NULL; }

@@ -51,25 +51,25 @@ class Font : public render_tree::Font {
 
   // Returns the font's typeface id, which is guaranteed to be unique among the
   // typefaces registered with the font's resource provider.
-  render_tree::TypefaceId GetTypefaceId() const OVERRIDE;
+  render_tree::TypefaceId GetTypefaceId() const override;
 
   // Invokes Skia to determine the font metrics common for all glyphs in the
   // font.
-  render_tree::FontMetrics GetFontMetrics() const OVERRIDE;
+  render_tree::FontMetrics GetFontMetrics() const override;
 
   // Invokes Skia to retrieve the index of the glyph that the typeface provides
   // for the given UTF-32 unicode character.
-  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE;
+  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) override;
 
   // Invokes Skia to determine the bounds of the given glyph if it were to be
   // rendered using this particular font. The results are cached to speed up
   // subsequent requests for the same glyph.
-  const math::RectF& GetGlyphBounds(render_tree::GlyphIndex glyph) OVERRIDE;
+  const math::RectF& GetGlyphBounds(render_tree::GlyphIndex glyph) override;
 
   // Invokes Skia to determine the width of the given glyph if it were to be
   // rendered using this particular font. The results are cached to speed up
   // subsequent requests for the same glyph.
-  float GetGlyphWidth(render_tree::GlyphIndex glyph) OVERRIDE;
+  float GetGlyphWidth(render_tree::GlyphIndex glyph) override;
 
   // Returns a SkPaint setup for rendering text with this font.  Clients
   // are free to customize the SkPaint further after obtaining it, if they

@@ -12,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
 """Parse GLSL shader files to generate C++ classes.
 
 This script parses all GLSL shader input files to generate C++ class
@@ -65,8 +64,8 @@ def GetBasename(filename):
 def GetShaderClassName(filename):
   """Returns a C++ class name based on the given file name."""
   # Convert underscore-delineated string to camelcase and prepends 'Shader'.
-  class_name = ''.join(x.capitalize() for x in
-                       GetBasename(filename).lower().split('_'))
+  class_name = ''.join(
+      x.capitalize() for x in GetBasename(filename).lower().split('_'))
   return 'Shader' + class_name
 
 
@@ -116,9 +115,7 @@ def GetDataDefinitionStringForFile(filename):
   data_definition_string = '{\n'
   for output_line_data in GetChunk(file_contents, chunk_size):
     data_definition_string += (
-        '  ' +
-        ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) +
-        '\n')
+        '  ' + ' '.join(['0x%02x,' % ord(y) for y in output_line_data]) + '\n')
   data_definition_string += '};\n'
   return data_definition_string
 
@@ -187,8 +184,8 @@ def GetShaderInputs(filename):
     file_contents = re.sub(r'//.*', '', file_contents)
 
     # Remove everything associated with the main program.
-    file_contents = re.sub(r'void main\(\) .*', '', file_contents,
-                           flags=re.DOTALL)
+    file_contents = re.sub(
+        r'void main\(\) .*', '', file_contents, flags=re.DOTALL)
 
     # Match attributes, uniforms, and samplers (a subset of uniforms).
     for line in file_contents.split(';'):
@@ -280,19 +277,19 @@ def GetVariables(variable_names):
 CLASS_TEMPLATE = """\
 class {class_name} : public ShaderBase {{
  public:
-  const char* GetSource() const OVERRIDE {{ return kSource; }}
+  const char* GetSource() const override {{ return kSource; }}
 {attribute_methods}\
 {uniform_methods}\
 {sampler_methods}
 
  private:
-  void InitializePreLink(GLuint program) OVERRIDE {{\
+  void InitializePreLink(GLuint program) override {{\
 {initialize_prelink}
   }}
-  void InitializePostLink(GLuint program) OVERRIDE {{\
+  void InitializePostLink(GLuint program) override {{\
 {initialize_postlink}
   }}
-  void InitializePostUse() OVERRIDE {{\
+  void InitializePostUse() override {{\
 {initialize_postuse}
   }}
 {variables}

@@ -37,36 +37,36 @@ namespace testing {
 class StubCSSParser : public cssom::CSSParser {
   scoped_refptr<cssom::CSSStyleSheet> ParseStyleSheet(
       const std::string& input,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<cssom::CSSRule> ParseRule(
       const std::string& input,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<cssom::CSSDeclaredStyleData> ParseStyleDeclarationList(
       const std::string& input,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<cssom::CSSFontFaceDeclarationData> ParseFontFaceDeclarationList(
       const std::string& input,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<cssom::PropertyValue> ParsePropertyValue(
       const std::string& property_name, const std::string& property_value,
-      const base::SourceLocation& property_location) OVERRIDE;
+      const base::SourceLocation& property_location) override;
 
   void ParsePropertyIntoDeclarationData(
       const std::string& property_name, const std::string& property_value,
       const base::SourceLocation& property_location,
-      cssom::CSSDeclarationData* declaration_data) OVERRIDE;
+      cssom::CSSDeclarationData* declaration_data) override;
 
   scoped_refptr<cssom::MediaQuery> ParseMediaQuery(
       const std::string& media_query,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 
   scoped_refptr<cssom::MediaList> ParseMediaList(
       const std::string& media_list,
-      const base::SourceLocation& input_location) OVERRIDE;
+      const base::SourceLocation& input_location) override;
 };
 
 }  // namespace testing

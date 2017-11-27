@@ -96,7 +96,7 @@ class FakeSettings : public dom::DOMSettings {
       : dom::DOMSettings(0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
                          NULL),
         example_("http://example.com") {}
-  const GURL& base_url() const OVERRIDE { return example_; }
+  const GURL& base_url() const override { return example_; }
 
  private:
   GURL example_;
@@ -116,7 +116,7 @@ class FakeXmlHttpRequest : public XMLHttpRequest {
   FakeXmlHttpRequest(script::EnvironmentSettings* settings,
                      dom::CspDelegate* csp_delegate)
       : XMLHttpRequest(settings), csp_delegate_(csp_delegate) {}
-  dom::CspDelegate* csp_delegate() const OVERRIDE { return csp_delegate_; }
+  dom::CspDelegate* csp_delegate() const override { return csp_delegate_; }
 
  private:
   dom::CspDelegate* csp_delegate_;
@@ -130,7 +130,7 @@ class XhrTest : public ::testing::Test {
 
  protected:
   XhrTest();
-  ~XhrTest() OVERRIDE;
+  ~XhrTest() override;
 
   scoped_ptr<FakeSettings> settings_;
   scoped_refptr<XMLHttpRequest> xhr_;

@@ -98,9 +98,8 @@ class AllocationSizeBinner : public nb::analytics::AllocationVisitor {
 
   explicit AllocationSizeBinner(
       const nb::analytics::AllocationGroup* group_filter);
-  virtual bool Visit(
-      const void* memory,
-      const nb::analytics::AllocationRecord& alloc_record) OVERRIDE;
+  bool Visit(const void* memory,
+             const nb::analytics::AllocationRecord& alloc_record) override;
 
   size_t GetIndexRepresentingMostMemoryConsumption() const;
   void GetLargestSizeRange(size_t* min_value, size_t* max_value) const;
@@ -130,9 +129,8 @@ class FindTopSizes : public nb::analytics::AllocationVisitor {
   FindTopSizes(size_t minimum_size, size_t maximum_size,
                const nb::analytics::AllocationGroup* group);
 
-  virtual bool Visit(
-      const void* memory,
-      const nb::analytics::AllocationRecord& alloc_record) OVERRIDE;
+  bool Visit(const void* memory,
+             const nb::analytics::AllocationRecord& alloc_record) override;
 
   struct GroupAllocation {
     size_t allocation_size;

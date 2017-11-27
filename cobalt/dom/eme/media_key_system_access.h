@@ -48,7 +48,7 @@ class MediaKeySystemAccess : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(MediaKeySystemAccess);
 
  private:
-  ~MediaKeySystemAccess() OVERRIDE {}
+  ~MediaKeySystemAccess() override {}
 
   const std::string key_system_;
   const MediaKeySystemConfiguration configuration_;

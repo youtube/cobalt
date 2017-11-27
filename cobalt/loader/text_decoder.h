@@ -37,7 +37,7 @@ class TextDecoder : public Decoder {
       base::Callback<void(const std::string&, const loader::Origin&)>
           done_callback)
       : done_callback_(done_callback), suspended_(false) {}
-  ~TextDecoder() OVERRIDE {}
+  ~TextDecoder() override {}
 
   // This function is used for binding callback for creating TextDecoder.
   static scoped_ptr<Decoder> Create(
@@ -47,7 +47,7 @@ class TextDecoder : public Decoder {
   }
 
   // From Decoder.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE {
+  void DecodeChunk(const char* data, size_t size) override {
     DCHECK(thread_checker_.CalledOnValidThread());
     if (suspended_) {
       return;
@@ -55,7 +55,7 @@ class TextDecoder : public Decoder {
     text_.append(data, size);
   }
 
-  void DecodeChunkPassed(scoped_ptr<std::string> data) OVERRIDE {
+  void DecodeChunkPassed(scoped_ptr<std::string> data) override {
     DCHECK(thread_checker_.CalledOnValidThread());
     DCHECK(data);
     if (suspended_) {
@@ -69,22 +69,22 @@ class TextDecoder : public Decoder {
     }
   }
 
-  void Finish() OVERRIDE {
+  void Finish() override {
     DCHECK(thread_checker_.CalledOnValidThread());
     if (suspended_) {
       return;
     }
     done_callback_.Run(text_, last_url_origin_);
   }
-  bool Suspend() OVERRIDE {
+  bool Suspend() override {
     suspended_ = true;
     text_.clear();
     return true;
   }
-  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
     suspended_ = false;
   }
-  void SetLastURLOrigin(const loader::Origin& last_url_origin) OVERRIDE {
+  void SetLastURLOrigin(const loader::Origin& last_url_origin) override {
     last_url_origin_ = last_url_origin;
   }
 

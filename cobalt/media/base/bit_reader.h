@@ -20,7 +20,7 @@ class MEDIA_EXPORT BitReader
   // Initialize the reader to start reading at |data|, |size| being size
   // of |data| in bytes.
   BitReader(const uint8_t* data, int size);
-  ~BitReader() OVERRIDE;
+  ~BitReader() override;
 
   template <typename T>
   bool ReadBits(int num_bits, T* out) {
@@ -37,7 +37,7 @@ class MEDIA_EXPORT BitReader
 
  private:
   // BitReaderCore::ByteStreamProvider implementation.
-  int GetBytes(int max_n, const uint8_t** out) OVERRIDE;
+  int GetBytes(int max_n, const uint8_t** out) override;
 
   // Total number of bytes that was initially passed to BitReader.
   const int initial_size_;

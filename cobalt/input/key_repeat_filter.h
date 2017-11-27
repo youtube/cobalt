@@ -32,7 +32,7 @@ class KeyRepeatFilter : public KeyEventHandler {
   explicit KeyRepeatFilter(KeyEventHandler* filter);
 
   void HandleKeyboardEvent(
-      base::Token type, const dom::KeyboardEventInit& keyboard_event) OVERRIDE;
+      base::Token type, const dom::KeyboardEventInit& keyboard_event) override;
 
  private:
   void HandleKeyDown(base::Token type,

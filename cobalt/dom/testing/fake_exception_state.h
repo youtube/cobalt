@@ -27,12 +27,12 @@ namespace testing {
 class FakeExceptionState : public script::ExceptionState {
  public:
   void SetException(
-      const scoped_refptr<script::ScriptException>& exception) OVERRIDE {
+      const scoped_refptr<script::ScriptException>& exception) override {
     dom_exception_ = make_scoped_refptr(
         base::polymorphic_downcast<dom::DOMException*>(exception.get()));
   }
   void SetSimpleExceptionVA(script::SimpleExceptionType /*type*/,
-                            const char* /*format*/, va_list /*args*/) OVERRIDE {
+                            const char* /*format*/, va_list /*args*/) override {
     // no-op
   }
   dom::DOMException::ExceptionCode GetExceptionCode() {

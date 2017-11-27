@@ -29,34 +29,34 @@ namespace layout {
 class LayoutBoxes : public dom::LayoutBoxes {
  public:
   LayoutBoxes();
-  ~LayoutBoxes() OVERRIDE;
+  ~LayoutBoxes() override;
 
   // From: dom:LayoutBoxes
   //
-  Type type() const OVERRIDE;
+  Type type() const override;
 
-  scoped_refptr<dom::DOMRectList> GetClientRects() const OVERRIDE;
-  bool IsInline() const OVERRIDE;
+  scoped_refptr<dom::DOMRectList> GetClientRects() const override;
+  bool IsInline() const override;
 
-  float GetBorderEdgeLeft() const OVERRIDE;
-  float GetBorderEdgeTop() const OVERRIDE;
-  float GetBorderEdgeWidth() const OVERRIDE;
-  float GetBorderEdgeHeight() const OVERRIDE;
+  float GetBorderEdgeLeft() const override;
+  float GetBorderEdgeTop() const override;
+  float GetBorderEdgeWidth() const override;
+  float GetBorderEdgeHeight() const override;
 
-  float GetBorderLeftWidth() const OVERRIDE;
-  float GetBorderTopWidth() const OVERRIDE;
+  float GetBorderLeftWidth() const override;
+  float GetBorderTopWidth() const override;
 
-  float GetMarginEdgeWidth() const OVERRIDE;
-  float GetMarginEdgeHeight() const OVERRIDE;
+  float GetMarginEdgeWidth() const override;
+  float GetMarginEdgeHeight() const override;
 
-  float GetPaddingEdgeLeft() const OVERRIDE;
-  float GetPaddingEdgeTop() const OVERRIDE;
-  float GetPaddingEdgeWidth() const OVERRIDE;
-  float GetPaddingEdgeHeight() const OVERRIDE;
+  float GetPaddingEdgeLeft() const override;
+  float GetPaddingEdgeTop() const override;
+  float GetPaddingEdgeWidth() const override;
+  float GetPaddingEdgeHeight() const override;
 
-  void InvalidateSizes() OVERRIDE;
-  void InvalidateCrossReferences() OVERRIDE;
-  void InvalidateRenderTreeNodes() OVERRIDE;
+  void InvalidateSizes() override;
+  void InvalidateCrossReferences() override;
+  void InvalidateRenderTreeNodes() override;
 
   // Other
   //

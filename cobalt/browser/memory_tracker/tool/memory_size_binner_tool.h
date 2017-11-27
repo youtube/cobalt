@@ -35,8 +35,8 @@ class MemorySizeBinnerTool : public AbstractTool {
   // memory_scope_name represents the memory scope that is to be investigated.
   explicit MemorySizeBinnerTool(const std::string& memory_scope_name);
 
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE;
+  void Run(Params* params) override;
+  std::string tool_name() const override;
 
  private:
   std::string memory_scope_name_;

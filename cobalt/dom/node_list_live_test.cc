@@ -33,7 +33,7 @@ class NodeListLiveTest : public ::testing::Test {
                               base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
 
-  ~NodeListLiveTest() OVERRIDE {}
+  ~NodeListLiveTest() override {}
 
   DomStatTracker dom_stat_tracker_;
   HTMLElementContext html_element_context_;

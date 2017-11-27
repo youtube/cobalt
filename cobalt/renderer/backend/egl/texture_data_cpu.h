@@ -30,19 +30,19 @@ class TextureDataCPU : public TextureDataEGL {
  public:
   TextureDataCPU(const math::Size& size, GLenum format);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
-  GLenum GetFormat() const OVERRIDE { return format_; }
+  const math::Size& GetSize() const override { return size_; }
+  GLenum GetFormat() const override { return format_; }
 
-  int GetPitchInBytes() const OVERRIDE {
+  int GetPitchInBytes() const override {
     return size_.width() * BytesPerPixelForGLFormat(format_);
   }
 
-  uint8_t* GetMemory() OVERRIDE { return static_cast<uint8_t*>(memory_.get()); }
+  uint8_t* GetMemory() override { return static_cast<uint8_t*>(memory_.get()); }
 
   GLuint ConvertToTexture(GraphicsContextEGL* graphics_context,
                           bool bgra_supported);
 
-  bool CreationError() OVERRIDE;
+  bool CreationError() override;
 
  private:
   math::Size size_;
@@ -56,17 +56,17 @@ class RawTextureMemoryCPU : public RawTextureMemoryEGL {
   RawTextureMemoryCPU(size_t size_in_bytes, size_t alignment);
 
   // Returns the allocated size of the texture memory.
-  size_t GetSizeInBytes() const OVERRIDE { return size_in_bytes_; }
+  size_t GetSizeInBytes() const override { return size_in_bytes_; }
 
   // Returns a CPU-accessible pointer to the allocated memory.
-  uint8_t* GetMemory() OVERRIDE { return memory_.get(); }
+  uint8_t* GetMemory() override { return memory_.get(); }
 
   GLuint CreateTexture(GraphicsContextEGL* graphics_context, intptr_t offset,
                        const math::Size& size, GLenum format,
-                       int pitch_in_bytes, bool bgra_supported) const OVERRIDE;
+                       int pitch_in_bytes, bool bgra_supported) const override;
 
  protected:
-  void MakeConst() OVERRIDE {}
+  void MakeConst() override {}
 
  private:
   size_t size_in_bytes_;

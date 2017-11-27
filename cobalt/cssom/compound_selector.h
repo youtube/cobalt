@@ -39,12 +39,12 @@ class CompoundSelector : public Selector {
   typedef ScopedVector<SimpleSelector> SimpleSelectors;
 
   CompoundSelector();
-  ~CompoundSelector() OVERRIDE;
+  ~CompoundSelector() override;
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
-  CompoundSelector* AsCompoundSelector() OVERRIDE { return this; }
-  Specificity GetSpecificity() const OVERRIDE { return specificity_; }
+  void Accept(SelectorVisitor* visitor) override;
+  CompoundSelector* AsCompoundSelector() override { return this; }
+  Specificity GetSpecificity() const override { return specificity_; }
 
   // Rest of public methods.
 

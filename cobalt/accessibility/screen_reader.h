@@ -40,9 +40,9 @@ class ScreenReader : public dom::DocumentObserver {
  protected:
   ~ScreenReader();
   // dom::DocumentObserver overrides.
-  void OnLoad() OVERRIDE;
-  void OnMutation() OVERRIDE {}
-  void OnFocusChanged() OVERRIDE;
+  void OnLoad() override;
+  void OnMutation() override {}
+  void OnFocusChanged() override;
 
  private:
   typedef script::Sequence<scoped_refptr<dom::MutationRecord> >

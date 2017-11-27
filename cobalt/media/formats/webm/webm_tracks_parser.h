@@ -33,7 +33,7 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
  public:
   WebMTracksParser(const scoped_refptr<MediaLog>& media_log,
                    bool ignore_text_tracks);
-  ~WebMTracksParser() OVERRIDE;
+  ~WebMTracksParser() override;
 
   // Parses a WebM Tracks element in |buf|.
   //
@@ -96,12 +96,12 @@ class MEDIA_EXPORT WebMTracksParser : public WebMParserClient {
   void ResetTrackEntry();
 
   // WebMParserClient implementation.
-  WebMParserClient* OnListStart(int id) OVERRIDE;
-  bool OnListEnd(int id) OVERRIDE;
-  bool OnUInt(int id, int64_t val) OVERRIDE;
-  bool OnFloat(int id, double val) OVERRIDE;
-  bool OnBinary(int id, const uint8_t* data, int size) OVERRIDE;
-  bool OnString(int id, const std::string& str) OVERRIDE;
+  WebMParserClient* OnListStart(int id) override;
+  bool OnListEnd(int id) override;
+  bool OnUInt(int id, int64_t val) override;
+  bool OnFloat(int id, double val) override;
+  bool OnBinary(int id, const uint8_t* data, int size) override;
+  bool OnString(int id, const std::string& str) override;
 
   bool reset_on_next_parse_;
   int64_t track_type_;

@@ -50,15 +50,15 @@ class LeakFinderTool : public AbstractTool,
   // class MemoryTrackerDebugCallback.
   void OnMemoryAllocation(const void* memory_block,
                           const nb::analytics::AllocationRecord& record,
-                          const nb::analytics::CallStack& callstack) OVERRIDE;
+                          const nb::analytics::CallStack& callstack) override;
 
   void OnMemoryDeallocation(const void* memory_block,
                             const nb::analytics::AllocationRecord& record,
-                            const nb::analytics::CallStack& callstack) OVERRIDE;
+                            const nb::analytics::CallStack& callstack) override;
 
   // Interface AbstractMemoryTrackerTool
-  virtual std::string tool_name() const OVERRIDE;
-  virtual void Run(Params* params) OVERRIDE;
+  std::string tool_name() const override;
+  void Run(Params* params) override;
 
   const std::string* GetOrCreateSymbol(
       const nb::analytics::CallStack& callstack);

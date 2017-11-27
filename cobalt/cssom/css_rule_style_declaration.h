@@ -43,7 +43,7 @@ class CSSRuleStyleDeclaration : public CSSDeclaredStyleDeclaration {
   CSSRuleStyleDeclaration(const scoped_refptr<CSSDeclaredStyleData>& style,
                           CSSParser* css_parser);
 
-  scoped_refptr<CSSRule> parent_rule() const OVERRIDE;
+  scoped_refptr<CSSRule> parent_rule() const override;
   void set_parent_rule(CSSRule* parent_rule);
 
  private:

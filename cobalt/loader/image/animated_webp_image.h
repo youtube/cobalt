@@ -41,27 +41,27 @@ class AnimatedWebPImage : public AnimatedImage {
   AnimatedWebPImage(const math::Size& size, bool is_opaque,
                     render_tree::ResourceProvider* resource_provider);
 
-  const math::Size& GetSize() const OVERRIDE { return size_; }
+  const math::Size& GetSize() const override { return size_; }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE {
+  uint32 GetEstimatedSizeInBytes() const override {
     // Return the size of 2 frames of images, since we can have two frames in
     // memory at a time (the previous decode image passed to the frame provider
     // and the next frame that is composed from the previous frame).
     return size_.GetArea() * 4 * 2 + static_cast<uint32>(data_buffer_.size());
   }
 
-  bool IsOpaque() const OVERRIDE { return is_opaque_; }
+  bool IsOpaque() const override { return is_opaque_; }
 
-  scoped_refptr<FrameProvider> GetFrameProvider() OVERRIDE;
+  scoped_refptr<FrameProvider> GetFrameProvider() override;
 
-  void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) OVERRIDE;
+  void Play(const scoped_refptr<base::MessageLoopProxy>& message_loop) override;
 
-  void Stop() OVERRIDE;
+  void Stop() override;
 
   void AppendChunk(const uint8* data, size_t input_byte);
 
  private:
-  ~AnimatedWebPImage() OVERRIDE;
+  ~AnimatedWebPImage() override;
 
   // To be called the decoding thread, to cancel future decodings.
   void StopInternal();

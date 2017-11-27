@@ -48,11 +48,11 @@ class XMLDecoder : public loader::Decoder {
   ~XMLDecoder();
 
   // From Decoder.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
-  void Finish() OVERRIDE;
-  bool Suspend() OVERRIDE { return false; }
+  void DecodeChunk(const char* data, size_t size) override;
+  void Finish() override;
+  bool Suspend() override { return false; }
 
-  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
     NOTIMPLEMENTED();
   };
 

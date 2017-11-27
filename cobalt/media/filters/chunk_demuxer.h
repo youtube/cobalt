@@ -38,7 +38,7 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
 
   ChunkDemuxerStream(Type type, bool splice_frames_enabled,
                      MediaTrack::Id media_track_id);
-  ~ChunkDemuxerStream() OVERRIDE;
+  ~ChunkDemuxerStream() override;
 
   // ChunkDemuxerStream control methods.
   void StartReturningData();
@@ -107,16 +107,16 @@ class MEDIA_EXPORT ChunkDemuxerStream : public DemuxerStream {
   void UnmarkEndOfStream();
 
   // DemuxerStream methods.
-  void Read(const ReadCB& read_cb) OVERRIDE;
-  Type type() const OVERRIDE;
-  Liveness liveness() const OVERRIDE;
-  AudioDecoderConfig audio_decoder_config() OVERRIDE;
-  VideoDecoderConfig video_decoder_config() OVERRIDE;
-  bool SupportsConfigChanges() OVERRIDE;
-  VideoRotation video_rotation() OVERRIDE;
-  bool enabled() const OVERRIDE;
-  void set_enabled(bool enabled, base::TimeDelta timestamp) OVERRIDE;
-  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) OVERRIDE;
+  void Read(const ReadCB& read_cb) override;
+  Type type() const override;
+  Liveness liveness() const override;
+  AudioDecoderConfig audio_decoder_config() override;
+  VideoDecoderConfig video_decoder_config() override;
+  bool SupportsConfigChanges() override;
+  VideoRotation video_rotation() override;
+  bool enabled() const override;
+  void set_enabled(bool enabled, base::TimeDelta timestamp) override;
+  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) override;
 
   // Returns the text track configuration.  It is an error to call this method
   // if type() != TEXT.
@@ -189,29 +189,29 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
                const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
                const scoped_refptr<MediaLog>& media_log,
                bool splice_frames_enabled);
-  ~ChunkDemuxer() OVERRIDE;
+  ~ChunkDemuxer() override;
 
   // Demuxer implementation.
-  std::string GetDisplayName() const OVERRIDE;
+  std::string GetDisplayName() const override;
 
   // |enable_text| Process inband text tracks in the normal way when true,
   //   otherwise ignore them.
   void Initialize(DemuxerHost* host, const PipelineStatusCB& init_cb,
-                  bool enable_text_tracks) OVERRIDE;
-  void Stop() OVERRIDE;
-  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  base::Time GetTimelineOffset() const OVERRIDE;
-  DemuxerStream* GetStream(DemuxerStream::Type type) OVERRIDE;
-  base::TimeDelta GetStartTime() const OVERRIDE;
-  int64_t GetMemoryUsage() const OVERRIDE;
-  void AbortPendingReads() OVERRIDE;
+                  bool enable_text_tracks) override;
+  void Stop() override;
+  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) override;
+  base::Time GetTimelineOffset() const override;
+  DemuxerStream* GetStream(DemuxerStream::Type type) override;
+  base::TimeDelta GetStartTime() const override;
+  int64_t GetMemoryUsage() const override;
+  void AbortPendingReads() override;
 
   // ChunkDemuxer reads are abortable. StartWaitingForSeek() and
   // CancelPendingSeek() always abort pending and future reads until the
   // expected seek occurs, so that ChunkDemuxer can stay synchronized with the
   // associated JS method calls.
-  void StartWaitingForSeek(base::TimeDelta seek_time) OVERRIDE;
-  void CancelPendingSeek(base::TimeDelta seek_time) OVERRIDE;
+  void StartWaitingForSeek(base::TimeDelta seek_time) override;
+  void CancelPendingSeek(base::TimeDelta seek_time) override;
 
   // Registers a new |id| to use for AppendData() calls. |type| indicates
   // the MIME type for the data that we intend to append for this ID.
@@ -240,10 +240,10 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
   base::TimeDelta GetHighestPresentationTimestamp(const std::string& id) const;
 
   void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE;
+                                   base::TimeDelta currTime) override;
   // |track_ids| is either empty or contains a single video track id.
   void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE;
+                                   base::TimeDelta currTime) override;
 
   // Appends media data to the source buffer associated with |id|, applying
   // and possibly updating |*timestamp_offset| during coded frame processing.

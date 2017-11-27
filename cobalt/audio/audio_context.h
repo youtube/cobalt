@@ -160,7 +160,7 @@ class AudioContext : public dom::EventTarget {
   typedef base::hash_map<int, DecodeCallbackInfo*> DecodeCallbacks;
 
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "AudioContext"; }
+  std::string GetDebugName() override { return "AudioContext"; }
 
   void DecodeAudioDataInternal(scoped_ptr<DecodeCallbackInfo> info);
   void DecodeFinish(int callback_id, float sample_rate, int32 number_of_frames,

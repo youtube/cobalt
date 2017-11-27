@@ -85,13 +85,13 @@ class WebDriverServer : private net::HttpServer::Delegate {
  protected:
   // net::HttpServer::Delegate implementation.
   void OnHttpRequest(int connection_id,
-                     const net::HttpServerRequestInfo& info) OVERRIDE;
+                     const net::HttpServerRequestInfo& info) override;
 
-  void OnWebSocketRequest(int, const net::HttpServerRequestInfo&) OVERRIDE {}
+  void OnWebSocketRequest(int, const net::HttpServerRequestInfo&) override {}
 
-  void OnWebSocketMessage(int, const std::string&) OVERRIDE {}
+  void OnWebSocketMessage(int, const std::string&) override {}
 
-  void OnClose(int) OVERRIDE {}  // NOLINT(readability/casting)
+  void OnClose(int) override {}  // NOLINT(readability/casting)
 
  private:
   int GetLocalAddress(GURL* out) const;

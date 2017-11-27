@@ -41,18 +41,18 @@ class ShellDemuxerStream : public DemuxerStream {
   ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
-  void Read(const ReadCB& read_cb) OVERRIDE;
-  AudioDecoderConfig audio_decoder_config() OVERRIDE;
-  VideoDecoderConfig video_decoder_config() OVERRIDE;
-  Type type() const OVERRIDE;
-  void EnableBitstreamConverter() OVERRIDE;
-  bool SupportsConfigChanges() OVERRIDE { return false; }
-  VideoRotation video_rotation() OVERRIDE { return VIDEO_ROTATION_0; }
-  bool enabled() const OVERRIDE { return true; }
-  void set_enabled(bool enabled, base::TimeDelta timestamp) OVERRIDE {
+  void Read(const ReadCB& read_cb) override;
+  AudioDecoderConfig audio_decoder_config() override;
+  VideoDecoderConfig video_decoder_config() override;
+  Type type() const override;
+  void EnableBitstreamConverter() override;
+  bool SupportsConfigChanges() override { return false; }
+  VideoRotation video_rotation() override { return VIDEO_ROTATION_0; }
+  bool enabled() const override { return true; }
+  void set_enabled(bool enabled, base::TimeDelta timestamp) override {
     DCHECK(enabled);
   }
-  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) OVERRIDE {
+  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) override {
     NOTREACHED();
   }
 
@@ -104,30 +104,30 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
                DecoderBuffer::Allocator* buffer_allocator,
                DataSource* data_source,
                const scoped_refptr<MediaLog>& media_log);
-  ~ShellDemuxer() OVERRIDE;
+  ~ShellDemuxer() override;
 
   // Demuxer implementation.
-  std::string GetDisplayName() const OVERRIDE { return "ShellDemuxer"; }
+  std::string GetDisplayName() const override { return "ShellDemuxer"; }
   void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
-                  bool enable_text_tracks) OVERRIDE;
-  void AbortPendingReads() OVERRIDE {}
-  void StartWaitingForSeek(base::TimeDelta seek_time) OVERRIDE {}
-  void CancelPendingSeek(base::TimeDelta seek_time) OVERRIDE {}
-  void Stop() OVERRIDE;
-  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  DemuxerStream* GetStream(DemuxerStream::Type type) OVERRIDE;
-  base::TimeDelta GetStartTime() const OVERRIDE;
-  base::Time GetTimelineOffset() const OVERRIDE { return base::Time(); }
-  int64_t GetMemoryUsage() const OVERRIDE {
+                  bool enable_text_tracks) override;
+  void AbortPendingReads() override {}
+  void StartWaitingForSeek(base::TimeDelta seek_time) override {}
+  void CancelPendingSeek(base::TimeDelta seek_time) override {}
+  void Stop() override;
+  void Seek(base::TimeDelta time, const PipelineStatusCB& cb) override;
+  DemuxerStream* GetStream(DemuxerStream::Type type) override;
+  base::TimeDelta GetStartTime() const override;
+  base::Time GetTimelineOffset() const override { return base::Time(); }
+  int64_t GetMemoryUsage() const override {
     NOTREACHED();
     return 0;
   }
   void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE {
+                                   base::TimeDelta currTime) override {
     NOTREACHED();
   }
   void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE {
+                                   base::TimeDelta currTime) override {
     NOTREACHED();
   }
 

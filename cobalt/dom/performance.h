@@ -42,7 +42,7 @@ class Performance : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Performance);
 
  private:
-  ~Performance() OVERRIDE;
+  ~Performance() override;
 
   scoped_refptr<PerformanceTiming> timing_;
   scoped_refptr<MemoryInfo> memory_;

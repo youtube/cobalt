@@ -37,16 +37,16 @@ class PropertyKeyListValue : public ListValue<PropertyKey> {
       scoped_ptr<ListValue<PropertyKey>::Builder> value)
       : ListValue<PropertyKey>(value.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitPropertyKeyList(this);
   }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(PropertyKeyListValue);
 
  private:
-  virtual ~PropertyKeyListValue() OVERRIDE {}
+  ~PropertyKeyListValue() override {}
 
   DISALLOW_COPY_AND_ASSIGN(PropertyKeyListValue);
 };

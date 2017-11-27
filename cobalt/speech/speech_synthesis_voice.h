@@ -36,7 +36,7 @@ class SpeechSynthesisVoice : public script::Wrappable {
         lang_(lang),
         local_service_(local_service),
         default_(default_voice) {}
-  ~SpeechSynthesisVoice() OVERRIDE {}
+  ~SpeechSynthesisVoice() override {}
 
   // Readonly Attributes.
   const std::string& voice_uri() const { return voice_uri_; }

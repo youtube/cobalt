@@ -28,7 +28,7 @@ class RenderTargetBlitter : public RenderTarget {
  public:
   virtual SbBlitterRenderTarget GetSbRenderTarget() const = 0;
 
-  intptr_t GetPlatformHandle() const OVERRIDE {
+  intptr_t GetPlatformHandle() const override {
     return reinterpret_cast<intptr_t>(SbBlitterRenderTarget());
   }
 

@@ -33,11 +33,11 @@ class PropertyListValue : public ScopedRefListValue<PropertyValue> {
       scoped_ptr<ScopedRefListValue<PropertyValue>::Builder> value)
       : ScopedRefListValue<PropertyValue>(value.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitPropertyList(this);
   }
 
-  std::string ToString() const OVERRIDE {
+  std::string ToString() const override {
     std::string result;
     for (size_t i = 0; i < value().size(); ++i) {
       if (!result.empty()) result.append(", ");
@@ -49,7 +49,7 @@ class PropertyListValue : public ScopedRefListValue<PropertyValue> {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(PropertyListValue);
 
  private:
-  virtual ~PropertyListValue() OVERRIDE {}
+  ~PropertyListValue() override {}
 };
 
 }  // namespace cssom

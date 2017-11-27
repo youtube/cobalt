@@ -27,7 +27,7 @@ class DummyDecoder : public loader::Decoder {
 
   explicit DummyDecoder(const DoneCallback& done_callback)
       : done_callback_(done_callback) {}
-  ~DummyDecoder() OVERRIDE {}
+  ~DummyDecoder() override {}
 
   // This function is used for binding callback for creating DummyDecoder.
   static scoped_ptr<Decoder> Create(const DoneCallback& done_callback) {
@@ -35,7 +35,7 @@ class DummyDecoder : public loader::Decoder {
   }
 
   // From Decoder.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE {
+  void DecodeChunk(const char* data, size_t size) override {
     DCHECK(thread_checker_.CalledOnValidThread());
 
     // Because we load data into memory, set a maximum buffer size.
@@ -46,7 +46,7 @@ class DummyDecoder : public loader::Decoder {
     buffer_.insert(buffer_.end(), data, data + size);
   }
 
-  void Finish() OVERRIDE {
+  void Finish() override {
     DCHECK(thread_checker_.CalledOnValidThread());
 
     if (buffer_.size() == 0) {
@@ -57,11 +57,11 @@ class DummyDecoder : public loader::Decoder {
 
     done_callback_.Run(reinterpret_cast<uint8*>(&buffer_[0]), buffer_.size());
   }
-  bool Suspend() OVERRIDE {
+  bool Suspend() override {
     NOTIMPLEMENTED();
     return false;
   }
-  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
     NOTIMPLEMENTED();
   }
 

@@ -39,7 +39,7 @@ class SoftwareScratchSurface : public RenderTreeNodeVisitor::ScratchSurface {
  public:
   explicit SoftwareScratchSurface(SkSurface* sk_surface)
       : surface_(sk_surface) {}
-  SkSurface* GetSurface() OVERRIDE { return surface_.get(); }
+  SkSurface* GetSurface() override { return surface_.get(); }
 
  private:
   SkAutoTUnref<SkSurface> surface_;

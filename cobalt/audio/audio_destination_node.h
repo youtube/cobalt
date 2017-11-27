@@ -54,20 +54,20 @@ class AudioDestinationNode : public AudioNode,
   uint32 max_channel_count() const { return max_channel_count_; }
 
   // From AudioNode.
-  void OnInputNodeConnected() OVERRIDE;
+  void OnInputNodeConnected() override;
   scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32 /*number_of_frames*/,
-                                                   SampleType) OVERRIDE {
+                                                   SampleType) override {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();
   }
 
   // From AudioDevice::RenderCallback.
-  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) OVERRIDE;
+  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) override;
 
   DEFINE_WRAPPABLE_TYPE(AudioDestinationNode);
 
  protected:
-  ~AudioDestinationNode() OVERRIDE;
+  ~AudioDestinationNode() override;
 
  private:
   uint32 max_channel_count_;

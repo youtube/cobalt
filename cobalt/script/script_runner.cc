@@ -70,8 +70,8 @@ class ScriptRunnerImpl : public ScriptRunner {
 
   std::string Execute(const std::string& script_utf8,
                       const base::SourceLocation& script_location,
-                      bool mute_errors, bool* out_succeeded) OVERRIDE;
-  GlobalEnvironment* GetGlobalEnvironment() const OVERRIDE {
+                      bool mute_errors, bool* out_succeeded) override;
+  GlobalEnvironment* GetGlobalEnvironment() const override {
     return global_environment_;
   }
 

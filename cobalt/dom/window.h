@@ -327,15 +327,15 @@ class Window : public EventTarget,
   bool ReportScriptError(const script::ErrorReport& error_report);
 
   // page_visibility::PageVisibilityState::Observer implementation.
-  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) OVERRIDE;
+      page_visibility::VisibilityState visibility_state) override;
 
   // Called when the document's root element has its offset dimensions requested
   // and is unable to provide them.
   void OnDocumentRootElementUnableToProvideOffsetDimensions();
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   // Cache the passed in splash screen content for the window.location URL.
   void CacheSplashScreen(const std::string& content);
@@ -356,10 +356,10 @@ class Window : public EventTarget,
       const base::Callback<void(const std::string&)>& error_callback);
   class RelayLoadEvent;
 
-  ~Window() OVERRIDE;
+  ~Window() override;
 
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "Window"; }
+  std::string GetDebugName() override { return "Window"; }
 
   void FireHashChangeEvent();
 

@@ -103,13 +103,13 @@ class RendererBenchmarkRunner {
 class LayoutBenchmark : public trace_event::Benchmark {
  public:
   explicit LayoutBenchmark(const TestInfo& test_info);
-  ~LayoutBenchmark() OVERRIDE {}
+  ~LayoutBenchmark() override {}
 
-  void Experiment() OVERRIDE;
+  void Experiment() override;
   void AnalyzeTraceEvent(
       const scoped_refptr<trace_event::EventParser::ScopedEvent>& event)
-      OVERRIDE;
-  std::vector<trace_event::Benchmark::Result> CompileResults() OVERRIDE;
+      override;
+  std::vector<trace_event::Benchmark::Result> CompileResults() override;
 
  private:
   typedef base::hash_map<std::string, double> IntermediateResultsMap;
@@ -297,7 +297,7 @@ std::vector<trace_event::Benchmark::Result> LayoutBenchmark::CompileResults() {
 
 class LayoutBenchmarkCreator : public trace_event::BenchmarkCreator {
  public:
-  std::vector<CreateBenchmarkFunction> GetBenchmarkCreators() OVERRIDE {
+  std::vector<CreateBenchmarkFunction> GetBenchmarkCreators() override {
     std::vector<CreateBenchmarkFunction> benchmarks;
 
     std::vector<TestInfo> benchmark_infos = EnumerateLayoutTests("benchmarks");

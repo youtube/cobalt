@@ -51,9 +51,9 @@ class LayoutManager::Impl : public dom::DocumentObserver {
   ~Impl();
 
   // From dom::DocumentObserver.
-  void OnLoad() OVERRIDE;
-  void OnMutation() OVERRIDE;
-  void OnFocusChanged() OVERRIDE {}
+  void OnLoad() override;
+  void OnMutation() override;
+  void OnFocusChanged() override {}
 
   // Called to perform a synchronous layout.
   void DoSynchronousLayout();

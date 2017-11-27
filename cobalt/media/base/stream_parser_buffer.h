@@ -160,7 +160,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
     return preroll_buffer_;
   }
 
-  void set_timestamp(base::TimeDelta timestamp) OVERRIDE;
+  void set_timestamp(base::TimeDelta timestamp) override;
 
   bool is_duration_estimated() const { return is_duration_estimated_; }
 
@@ -175,7 +175,7 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
                      bool is_key_frame, Type type, TrackId track_id);
   StreamParserBuffer(Allocator* allocator, Allocator::Allocations allocations,
                      bool is_key_frame, Type type, TrackId track_id);
-  ~StreamParserBuffer() OVERRIDE;
+  ~StreamParserBuffer() override;
 
   scoped_refptr<StreamParserBuffer> Clone() const;
 

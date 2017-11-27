@@ -459,7 +459,7 @@ TEST(CValTest, ValueChangedCallback) {
    public:
     TestOnChangedHook() : got_callback_(false) {}
     void OnValueChanged(const std::string& name,
-                        const base::CValGenericValue& value) OVERRIDE {
+                        const base::CValGenericValue& value) override {
       EXPECT_EQ(name, "S32");
       EXPECT_EQ(value.GetTypeId(), GetTypeId<int32_t>());
       EXPECT_EQ(value.IsNativeType<int32_t>(), true);
@@ -602,7 +602,7 @@ class ReadCValThread : public base::SimpleThread {
         thread_ready_event_(thread_ready_event),
         start_processing_event_(start_processing_event) {}
 
-  void Run() OVERRIDE {
+  void Run() override {
     thread_ready_event_->Signal();
     start_processing_event_->Wait();
 
@@ -640,7 +640,7 @@ class CreateDestroyCValThread : public base::SimpleThread {
         thread_ready_event_(thread_ready_event),
         start_processing_event_(start_processing_event) {}
 
-  void Run() OVERRIDE {
+  void Run() override {
     thread_ready_event_->Signal();
     start_processing_event_->Wait();
 

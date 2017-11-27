@@ -73,7 +73,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
         connection_id_(connection_id) {}
 
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Responses
-  void Success(scoped_ptr<base::Value> value) OVERRIDE {
+  void Success(scoped_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
     base::JSONWriter::Write(value.get(), &data);
@@ -84,7 +84,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // parameters, but otherwise failed to execute for some reason. This should
   // send a 500 Internal Server Error.
   // https://code.google.com/p/selenium/wiki/JsonWireProtocol#Error_Handling
-  void FailedCommand(scoped_ptr<base::Value> value) OVERRIDE {
+  void FailedCommand(scoped_ptr<base::Value> value) override {
     DCHECK(value);
     std::string data;
     base::JSONWriter::Write(value.get(), &data);
@@ -97,7 +97,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // message
 
   // The command request is not mapped to anything.
-  void UnknownCommand(const std::string& path) OVERRIDE {
+  void UnknownCommand(const std::string& path) override {
     LOG(INFO) << "Unknown command: " << path;
     SendInternal(net::HTTP_NOT_FOUND, "Unknown command",
                  kTextPlainContentType);
@@ -105,7 +105,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
   // The command request is mapped to a valid command, but this WebDriver
   // implementation has not implemented it.
-  void UnimplementedCommand(const std::string& path) OVERRIDE {
+  void UnimplementedCommand(const std::string& path) override {
     LOG(INFO) << "Unimplemented command: " << path;
     SendInternal(net::HTTP_NOT_IMPLEMENTED, "Unimplemented command",
                  kTextPlainContentType);
@@ -113,7 +113,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
   // The request maps to a valid command, but the variable part of the path
   // does not map to a valid instance.
-  void VariableResourceNotFound(const std::string& variable_name) OVERRIDE {
+  void VariableResourceNotFound(const std::string& variable_name) override {
     SendInternal(net::HTTP_NOT_FOUND,
                  "Unknown variable resource: " + variable_name,
                  kTextPlainContentType);
@@ -122,7 +122,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
   // The request maps to a valid command, but with an unsupported Http method.
   void InvalidCommandMethod(WebDriverServer::HttpMethod requested_method,
                             const std::vector<WebDriverServer::HttpMethod>&
-                                allowed_methods) OVERRIDE {
+                                allowed_methods) override {
     DCHECK(!allowed_methods.empty());
     std::vector<std::string> allowed_method_strings;
     for (int i = 0; i < allowed_methods.size(); ++i) {
@@ -137,7 +137,7 @@ class ResponseHandlerImpl : public WebDriverServer::ResponseHandler {
 
   // The POST command's JSON request body does not contain the required
   // parameters.
-  void MissingCommandParameters(const std::string& message) OVERRIDE {
+  void MissingCommandParameters(const std::string& message) override {
     SendInternal(net::HTTP_BAD_REQUEST, message, kTextPlainContentType);
   }
 

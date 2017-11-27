@@ -41,10 +41,8 @@ class PrintCSVTool : public AbstractTool {
   PrintCSVTool(int sampling_interval_ms, int sampling_time_ms);
 
   // Overridden so that the thread can exit gracefully.
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE {
-    return "MemoryTrackerPrintCSV";
-  }
+  void Run(Params* params) override;
+  std::string tool_name() const override { return "MemoryTrackerPrintCSV"; }
 
  private:
   typedef std::map<std::string, AllocationSamples> MapAllocationSamples;

@@ -77,10 +77,10 @@ class ImageNode : public Node {
             const math::RectF& destination_rect,
             const math::Matrix3F& local_transform);
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  math::RectF GetBounds() const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  math::RectF GetBounds() const override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<ImageNode>();
   }
 

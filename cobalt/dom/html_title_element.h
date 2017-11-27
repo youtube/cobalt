@@ -38,12 +38,12 @@ class HTMLTitleElement : public HTMLElement {
       : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLTitleElement> AsHTMLTitleElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLTitleElement> AsHTMLTitleElement() override { return this; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLTitleElement);
 
  private:
-  ~HTMLTitleElement() OVERRIDE {}
+  ~HTMLTitleElement() override {}
 };
 
 }  // namespace dom

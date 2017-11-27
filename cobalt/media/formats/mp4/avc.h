@@ -70,10 +70,10 @@ class AVCBitstreamConverter : public BitstreamConverter {
 
   // BitstreamConverter interface
   bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
-                    std::vector<SubsampleEntry>* subsamples) const OVERRIDE;
+                    std::vector<SubsampleEntry>* subsamples) const override;
 
  private:
-  ~AVCBitstreamConverter() OVERRIDE;
+  ~AVCBitstreamConverter() override;
   scoped_ptr<AVCDecoderConfigurationRecord> avc_config_;
 };
 

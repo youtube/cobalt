@@ -37,16 +37,16 @@ class IdSelector : public SimpleSelector {
   explicit IdSelector(const std::string& id)
       : SimpleSelector(kIdSelector, base::Tokens::id_selector_prefix(),
                        base::Token(id)) {}
-  ~IdSelector() OVERRIDE {}
+  ~IdSelector() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
-  Specificity GetSpecificity() const OVERRIDE { return Specificity(1, 0, 0); }
+  void Accept(SelectorVisitor* visitor) override;
+  Specificity GetSpecificity() const override { return Specificity(1, 0, 0); }
 
   // From SimpleSelector.
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE;
+                             CombinatorType combinator) override;
 
   // Rest of public methods.
   base::Token id() const { return text(); }

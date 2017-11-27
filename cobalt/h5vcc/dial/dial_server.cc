@@ -50,10 +50,10 @@ class DialServer::ServiceHandler : public net::DialServiceHandler {
                  const std::string& sevice_name);
 
   // net::DialServiceHandler implementation.
-  const std::string& service_name() const OVERRIDE { return service_name_; }
+  const std::string& service_name() const override { return service_name_; }
   void HandleRequest(const std::string& path,
                      const net::HttpServerRequestInfo& request,
-                     const CompletionCB& completion_cb) OVERRIDE;
+                     const CompletionCB& completion_cb) override;
 
  private:
   ~ServiceHandler();

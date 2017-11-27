@@ -73,7 +73,7 @@ class V8cCallbackFunction<R($for ARG , [[A$(ARG)]])>
   CallbackResult<R> Run($for ARG , [[
 
       typename base::internal::CallbackParamTraits<A$(ARG)>::ForwardType a$(ARG)]])
-      const OVERRIDE {
+      const override {
     NOTIMPLEMENTED();
     CallbackResult<R> callback_result;
     return callback_result;

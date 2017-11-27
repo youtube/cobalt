@@ -30,7 +30,7 @@ namespace dom {
 class SerializerTest : public ::testing::Test {
  protected:
   SerializerTest();
-  ~SerializerTest() OVERRIDE {}
+  ~SerializerTest() override {}
 
   scoped_ptr<dom_parser::Parser> dom_parser_;
   scoped_ptr<DomStatTracker> dom_stat_tracker_;
