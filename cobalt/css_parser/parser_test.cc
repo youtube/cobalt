@@ -96,7 +96,7 @@ class MockParserObserver {
 class ParserTestBase : public ::testing::Test {
  public:
   explicit ParserTestBase(Parser::SupportsMapToMeshFlag supports_map_to_mesh);
-  ~ParserTestBase() OVERRIDE {}
+  ~ParserTestBase() override {}
 
  protected:
   ::testing::StrictMock<MockParserObserver> parser_observer_;

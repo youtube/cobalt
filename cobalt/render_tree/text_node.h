@@ -70,10 +70,10 @@ class TextNode : public Node {
            const ColorRGBA& color)
       : data_(offset, glyph_buffer, color) {}
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  math::RectF GetBounds() const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  math::RectF GetBounds() const override;
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<TextNode>();
   }
 

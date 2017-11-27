@@ -48,15 +48,15 @@ class FontFaceProvider : public cssom::NotReachedPropertyValueVisitor {
  public:
   explicit FontFaceProvider(const GURL& base_url) : base_url_(base_url) {}
 
-  void VisitFontStyle(cssom::FontStyleValue* font_style) OVERRIDE;
-  void VisitFontWeight(cssom::FontWeightValue* font_weight) OVERRIDE;
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLocalSrc(cssom::LocalSrcValue* local_src) OVERRIDE;
-  void VisitPropertyList(cssom::PropertyListValue* property_list) OVERRIDE;
-  void VisitString(cssom::StringValue* percentage) OVERRIDE;
-  void VisitUnicodeRange(cssom::UnicodeRangeValue* unicode_range) OVERRIDE;
-  void VisitUrlSrc(cssom::UrlSrcValue* url_src) OVERRIDE;
-  void VisitURL(cssom::URLValue* url) OVERRIDE;
+  void VisitFontStyle(cssom::FontStyleValue* font_style) override;
+  void VisitFontWeight(cssom::FontWeightValue* font_weight) override;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
+  void VisitLocalSrc(cssom::LocalSrcValue* local_src) override;
+  void VisitPropertyList(cssom::PropertyListValue* property_list) override;
+  void VisitString(cssom::StringValue* percentage) override;
+  void VisitUnicodeRange(cssom::UnicodeRangeValue* unicode_range) override;
+  void VisitUrlSrc(cssom::UrlSrcValue* url_src) override;
+  void VisitURL(cssom::URLValue* url) override;
 
   bool IsFontFaceValid() const;
 

@@ -38,10 +38,10 @@ $range ARG 1..ARITY
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& event)\
-      OVERRIDE {\
+      override {\
 
 $for ARG
 [[
@@ -73,7 +73,7 @@ $for ARG
 
 ]]
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
 
 $for ARG

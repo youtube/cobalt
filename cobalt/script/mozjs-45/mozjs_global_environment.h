@@ -48,9 +48,9 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
                                public Wrappable::CachedWrapperAccessor {
  public:
   explicit MozjsGlobalEnvironment(JSRuntime* runtime);
-  ~MozjsGlobalEnvironment() OVERRIDE;
+  ~MozjsGlobalEnvironment() override;
 
-  void CreateGlobalObject() OVERRIDE;
+  void CreateGlobalObject() override;
   // |script::GlobalEnvironment| will dispatch to this implementation in the
   // create_global_object_impl block of the bindings interface template.
   template <typename GlobalInterface>
@@ -59,37 +59,37 @@ class MozjsGlobalEnvironment : public GlobalEnvironment,
       EnvironmentSettings* environment_settings);
 
   bool EvaluateScript(const scoped_refptr<SourceCode>& script, bool mute_errors,
-                      std::string* out_result_utf8) OVERRIDE;
+                      std::string* out_result_utf8) override;
 
   bool EvaluateScript(
       const scoped_refptr<SourceCode>& script_utf8,
       const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
-      base::optional<ValueHandleHolder::Reference>* out_value_handle) OVERRIDE;
+      base::optional<ValueHandleHolder::Reference>* out_value_handle) override;
 
-  std::vector<StackFrame> GetStackTrace(int max_frames) OVERRIDE;
+  std::vector<StackFrame> GetStackTrace(int max_frames) override;
   using GlobalEnvironment::GetStackTrace;
 
   void PreventGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
+      const scoped_refptr<Wrappable>& wrappable) override;
 
   void AllowGarbageCollection(
-      const scoped_refptr<Wrappable>& wrappable) OVERRIDE;
+      const scoped_refptr<Wrappable>& wrappable) override;
 
-  void DisableEval(const std::string& message) OVERRIDE;
+  void DisableEval(const std::string& message) override;
 
-  void EnableEval() OVERRIDE;
+  void EnableEval() override;
 
-  void DisableJit() OVERRIDE;
+  void DisableJit() override;
 
-  void SetReportEvalCallback(const base::Closure& report_eval) OVERRIDE;
+  void SetReportEvalCallback(const base::Closure& report_eval) override;
 
   void SetReportErrorCallback(
-      const ReportErrorCallback& report_error_callback) OVERRIDE;
+      const ReportErrorCallback& report_error_callback) override;
 
   void Bind(const std::string& identifier,
-            const scoped_refptr<Wrappable>& impl) OVERRIDE;
+            const scoped_refptr<Wrappable>& impl) override;
 
-  ScriptValueFactory* script_value_factory() OVERRIDE;
+  ScriptValueFactory* script_value_factory() override;
 
   // Evaluates any automatically included Javascript for the environment.
   void EvaluateAutomatics();

@@ -49,21 +49,21 @@ class MeshDecoderSink : public projection_codec::ProjectionDecoder::Sink {
                            MeshCollectionList* dest_mesh_collection_list,
                            uint32* crc);
 
-  ~MeshDecoderSink() OVERRIDE;
+  ~MeshDecoderSink() override;
 
-  bool IsCached(uint32 crc) OVERRIDE;
+  bool IsCached(uint32 crc) override;
 
-  void BeginMeshCollection() OVERRIDE;
-  void AddCoordinate(float value) OVERRIDE;
-  void AddVertex(const projection_codec::IndexedVert& v) OVERRIDE;
+  void BeginMeshCollection() override;
+  void AddCoordinate(float value) override;
+  void AddVertex(const projection_codec::IndexedVert& v) override;
 
-  void BeginMeshInstance() OVERRIDE;
-  void SetTextureId(uint8 texture_id) OVERRIDE;
-  void SetMeshGeometryType(projection_codec::MeshGeometryType type) OVERRIDE;
-  void AddVertexIndex(size_t v_index) OVERRIDE;
-  void EndMeshInstance() OVERRIDE;
+  void BeginMeshInstance() override;
+  void SetTextureId(uint8 texture_id) override;
+  void SetMeshGeometryType(projection_codec::MeshGeometryType type) override;
+  void AddVertexIndex(size_t v_index) override;
+  void EndMeshInstance() override;
 
-  void EndMeshCollection() OVERRIDE;
+  void EndMeshCollection() override;
 
  private:
   render_tree::ResourceProvider* resource_provider_;

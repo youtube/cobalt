@@ -40,12 +40,12 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
     SetInstance(NULL);
   }
 
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE {
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override {
     return video_frame_provider_;
   }
 
   SbDecodeTargetGraphicsContextProvider*
-  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+  GetSbDecodeTargetGraphicsContextProvider() override {
 #if SB_HAS(GRAPHICS)
     return resource_provider_->GetSbDecodeTargetGraphicsContextProvider();
 #else   // SB_HAS(GRAPHICS)
@@ -53,26 +53,26 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 #endif  // SB_HAS(GRAPHICS)
   }
 
-  void Suspend() OVERRIDE { resource_provider_ = NULL; }
-  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+  void Suspend() override { resource_provider_ = NULL; }
+  void Resume(render_tree::ResourceProvider* resource_provider) override {
     resource_provider_ = resource_provider;
   }
 
  private:
-  void* AllocateBuffer(size_t size) OVERRIDE {
+  void* AllocateBuffer(size_t size) override {
     UNREFERENCED_PARAMETER(size);
     NOTREACHED();
     return NULL;
   }
-  void FreeBuffer(void* ptr) OVERRIDE {
+  void FreeBuffer(void* ptr) override {
     UNREFERENCED_PARAMETER(ptr);
     NOTREACHED();
   }
-  size_t GetSourceBufferStreamAudioMemoryLimit() const OVERRIDE {
+  size_t GetSourceBufferStreamAudioMemoryLimit() const override {
     NOTREACHED();
     return 0;
   }
-  size_t GetSourceBufferStreamVideoMemoryLimit() const OVERRIDE {
+  size_t GetSourceBufferStreamVideoMemoryLimit() const override {
     NOTREACHED();
     return 0;
   }
@@ -101,31 +101,31 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
  public:
   ShellMediaPlatformStarboard(
       cobalt::render_tree::ResourceProvider* resource_provider);
-  ~ShellMediaPlatformStarboard() OVERRIDE;
+  ~ShellMediaPlatformStarboard() override;
 
-  void* AllocateBuffer(size_t size) OVERRIDE;
-  void FreeBuffer(void* ptr) OVERRIDE;
-  size_t GetSourceBufferStreamAudioMemoryLimit() const OVERRIDE {
+  void* AllocateBuffer(size_t size) override;
+  void FreeBuffer(void* ptr) override;
+  size_t GetSourceBufferStreamAudioMemoryLimit() const override {
     return SB_MEDIA_SOURCE_BUFFER_STREAM_AUDIO_MEMORY_LIMIT;
   }
-  size_t GetSourceBufferStreamVideoMemoryLimit() const OVERRIDE {
+  size_t GetSourceBufferStreamVideoMemoryLimit() const override {
     return SB_MEDIA_SOURCE_BUFFER_STREAM_VIDEO_MEMORY_LIMIT;
   }
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE {
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override {
     return video_frame_provider_;
   }
-  int GetMaxVideoPrerollFrames() const OVERRIDE {
+  int GetMaxVideoPrerollFrames() const override {
     return SB_MEDIA_MAXIMUM_VIDEO_PREROLL_FRAMES;
   }
-  int GetMaxVideoFrames() const OVERRIDE {
+  int GetMaxVideoFrames() const override {
     return SB_MEDIA_MAXIMUM_VIDEO_FRAMES;
   }
   scoped_refptr<DecoderBuffer> ProcessBeforeLeavingDemuxer(
-      const scoped_refptr<DecoderBuffer>& buffer) OVERRIDE;
-  bool IsOutputProtected() OVERRIDE;
+      const scoped_refptr<DecoderBuffer>& buffer) override;
+  bool IsOutputProtected() override;
 
   SbDecodeTargetGraphicsContextProvider*
-  GetSbDecodeTargetGraphicsContextProvider() OVERRIDE {
+  GetSbDecodeTargetGraphicsContextProvider() override {
 #if SB_HAS(GRAPHICS)
     return resource_provider_->GetSbDecodeTargetGraphicsContextProvider();
 #else   // SB_HAS(GRAPHICS)
@@ -133,9 +133,9 @@ class ShellMediaPlatformStarboard : public ShellMediaPlatform {
 #endif  // SB_HAS(GRAPHICS)
   }
 
-  void Suspend() OVERRIDE { resource_provider_ = NULL; }
+  void Suspend() override { resource_provider_ = NULL; }
   void Resume(
-      cobalt::render_tree::ResourceProvider* resource_provider) OVERRIDE {
+      cobalt::render_tree::ResourceProvider* resource_provider) override {
     resource_provider_ = resource_provider;
   }
 

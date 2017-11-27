@@ -34,11 +34,11 @@ class StringValue : public PropertyValue {
  public:
   explicit StringValue(const std::string& value) : value_(value) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   const std::string& value() const { return value_; }
 
-  std::string ToString() const OVERRIDE { return "'" + value_ + "'"; }
+  std::string ToString() const override { return "'" + value_ + "'"; }
 
   bool operator==(const StringValue& other) const {
     return value_ == other.value_;
@@ -47,7 +47,7 @@ class StringValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(StringValue);
 
  private:
-  ~StringValue() OVERRIDE {}
+  ~StringValue() override {}
 
   const std::string value_;
 

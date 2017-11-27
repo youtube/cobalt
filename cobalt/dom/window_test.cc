@@ -69,7 +69,7 @@ class WindowTest : public ::testing::Test {
             base::Closure() /* window_minimize */, base::Bind(&GetNullSbWindow),
             NULL, NULL)) {}
 
-  ~WindowTest() OVERRIDE {}
+  ~WindowTest() override {}
 
   MessageLoop message_loop_;
   MockErrorCallback mock_error_callback_;

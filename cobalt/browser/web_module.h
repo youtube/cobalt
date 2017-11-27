@@ -291,12 +291,12 @@ class WebModule : public LifecycleObserver {
   void SetJavascriptGcThreshold(int64_t bytes);
 
   // LifecycleObserver implementation
-  void Prestart() OVERRIDE;
-  void Start(render_tree::ResourceProvider* resource_provider) OVERRIDE;
-  void Pause() OVERRIDE;
-  void Unpause() OVERRIDE;
-  void Suspend() OVERRIDE;
-  void Resume(render_tree::ResourceProvider* resource_provider) OVERRIDE;
+  void Prestart() override;
+  void Start(render_tree::ResourceProvider* resource_provider) override;
+  void Pause() override;
+  void Unpause() override;
+  void Suspend() override;
+  void Resume(render_tree::ResourceProvider* resource_provider) override;
 
   // Attempt to reduce overall memory consumption. Called in response to a
   // system indication that memory usage is nearing a critical level.
@@ -364,7 +364,7 @@ class WebModule : public LifecycleObserver {
   class DestructionObserver : public MessageLoop::DestructionObserver {
    public:
     explicit DestructionObserver(WebModule* web_module);
-    void WillDestroyCurrentMessageLoop() OVERRIDE;
+    void WillDestroyCurrentMessageLoop() override;
 
    private:
     WebModule* web_module_;

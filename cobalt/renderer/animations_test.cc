@@ -110,7 +110,7 @@ class CreateImageThread : public base::SimpleThread {
         image_(image),
         resource_provider_(resource_provider) {}
 
-  void Run() OVERRIDE {
+  void Run() override {
     // Wait until we receive the signal that the renderer has called the
     // animation callback.
     animate_has_started_->Wait();

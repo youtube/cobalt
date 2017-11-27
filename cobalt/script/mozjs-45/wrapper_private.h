@@ -41,7 +41,7 @@ namespace mozjs {
 class Tracer : public ::cobalt::script::Tracer {
  public:
   explicit Tracer(JSTracer* js_tracer) : js_tracer_(js_tracer) {}
-  void Trace(Wrappable* wrappable) OVERRIDE;
+  void Trace(Wrappable* wrappable) override;
 
   void TraceFrom(Wrappable* wrappable);
 

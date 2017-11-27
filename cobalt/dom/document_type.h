@@ -37,8 +37,8 @@ class DocumentType : public Node {
         system_id_(system_id) {}
 
   // WebAPI: Node
-  NodeType node_type() const OVERRIDE { return Node::kDocumentTypeNode; }
-  base::Token node_name() const OVERRIDE { return name_; }
+  NodeType node_type() const override { return Node::kDocumentTypeNode; }
+  base::Token node_name() const override { return name_; }
 
   // WebAPI: DocumentType
   base::Token name() const { return name_; }
@@ -47,19 +47,19 @@ class DocumentType : public Node {
 
   // Custom, not in any spec: Node.
   //
-  DocumentType* AsDocumentType() OVERRIDE { return this; }
+  DocumentType* AsDocumentType() override { return this; }
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  void Accept(ConstNodeVisitor* visitor) const override;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE {
+  scoped_refptr<Node> Duplicate() const override {
     return new DocumentType(node_document(), name_, public_id_, system_id_);
   }
 
   DEFINE_WRAPPABLE_TYPE(DocumentType);
 
  private:
-  ~DocumentType() OVERRIDE {}
+  ~DocumentType() override {}
 
   base::Token name_;
   std::string public_id_;

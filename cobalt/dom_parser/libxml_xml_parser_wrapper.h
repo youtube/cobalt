@@ -43,14 +43,14 @@ class LibxmlXMLParserWrapper : LibxmlParserWrapper {
                             dom_max_element_depth, input_location,
                             error_callback),
         xml_parser_context_(NULL) {}
-  ~LibxmlXMLParserWrapper() OVERRIDE;
+  ~LibxmlXMLParserWrapper() override;
 
   // From LibxmlParserWrapper.
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
-  void Finish() OVERRIDE;
+  void DecodeChunk(const char* data, size_t size) override;
+  void Finish() override;
 
  private:
-  base::SourceLocation GetSourceLocation() OVERRIDE;
+  base::SourceLocation GetSourceLocation() override;
 
   xmlParserCtxtPtr xml_parser_context_;
 

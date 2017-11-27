@@ -33,18 +33,18 @@ class FocusPseudoClass : public PseudoClass {
  public:
   FocusPseudoClass()
       : PseudoClass(base::Tokens::focus_pseudo_class_selector()) {}
-  ~FocusPseudoClass() OVERRIDE {}
+  ~FocusPseudoClass() override {}
 
   // From Selector.
-  void Accept(SelectorVisitor* visitor) OVERRIDE;
+  void Accept(SelectorVisitor* visitor) override;
 
   // From SimpleSelector.
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
-                             CombinatorType combinator) OVERRIDE;
+                             CombinatorType combinator) override;
 
   // From PseudoClass.
-  FocusPseudoClass* AsFocusPseudoClass() OVERRIDE { return this; }
+  FocusPseudoClass* AsFocusPseudoClass() override { return this; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(FocusPseudoClass);

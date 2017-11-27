@@ -28,7 +28,7 @@ class StorageUpgradeHandler : public storage::StorageManager::UpgradeHandler {
   explicit StorageUpgradeHandler(const GURL& gurl);
 
   void OnUpgrade(storage::StorageManager* storage, const char* data,
-                 int size) OVERRIDE;
+                 int size) override;
 
   const std::string& default_local_storage_id() const {
     return default_local_storage_id_;

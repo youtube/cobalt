@@ -57,7 +57,7 @@ class InlineFormattingContext : public FormattingContext {
       const scoped_refptr<cssom::PropertyValue>& text_align,
       const scoped_refptr<cssom::PropertyValue>& font_size,
       LayoutUnit text_indent_offset, LayoutUnit ellipsis_width);
-  ~InlineFormattingContext() OVERRIDE;
+  ~InlineFormattingContext() override;
 
   // Attempt to add the child box to the line, which may cause a line wrap to
   // occur if the box overflows the line and a usable wrap location is available

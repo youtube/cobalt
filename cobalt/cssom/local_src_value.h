@@ -34,11 +34,11 @@ class LocalSrcValue : public PropertyValue {
  public:
   explicit LocalSrcValue(const std::string& src);
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   const std::string& value() const { return src_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const LocalSrcValue& other) const {
     return src_ == other.src_;
@@ -47,7 +47,7 @@ class LocalSrcValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LocalSrcValue);
 
  private:
-  ~LocalSrcValue() OVERRIDE {}
+  ~LocalSrcValue() override {}
 
   const std::string src_;
 

@@ -68,7 +68,7 @@ class SpeechSynthesis : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesis);
 
  private:
-  ~SpeechSynthesis() OVERRIDE;
+  ~SpeechSynthesis() override;
 
   void DispatchErrorEvent(
       const scoped_refptr<SpeechSynthesisUtterance>& utterance,

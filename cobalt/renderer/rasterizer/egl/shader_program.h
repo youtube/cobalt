@@ -70,9 +70,7 @@ class ShaderProgram : public ShaderProgramBase {
   ShaderProgram() {
     Create(&vertex_shader_, &fragment_shader_);
   }
-  ~ShaderProgram() OVERRIDE {
-    Destroy(&vertex_shader_, &fragment_shader_);
-  }
+  ~ShaderProgram() override { Destroy(&vertex_shader_, &fragment_shader_); }
 
   VertexShader vertex_shader_;
   FragmentShader fragment_shader_;

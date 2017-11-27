@@ -101,7 +101,7 @@ class KeyframeEffectReadOnly : public AnimationEffectReadOnly {
   DEFINE_WRAPPABLE_TYPE(KeyframeEffectReadOnly);
 
  private:
-  ~KeyframeEffectReadOnly() OVERRIDE {}
+  ~KeyframeEffectReadOnly() override {}
 
   scoped_refptr<Animatable> target_;
 

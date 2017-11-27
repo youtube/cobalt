@@ -27,16 +27,16 @@ class DisplayRenderTargetEGL : public RenderTargetEGL {
   DisplayRenderTargetEGL(EGLDisplay display, EGLConfig config,
                          EGLNativeWindowType window_handle);
 
-  const math::Size& GetSize() const OVERRIDE;
+  const math::Size& GetSize() const override;
 
-  EGLSurface GetSurface() const OVERRIDE;
+  EGLSurface GetSurface() const override;
 
-  bool IsWindowRenderTarget() const OVERRIDE { return true; }
+  bool IsWindowRenderTarget() const override { return true; }
 
-  bool CreationError() OVERRIDE { return false; }
+  bool CreationError() override { return false; }
 
  private:
-  ~DisplayRenderTargetEGL() OVERRIDE;
+  ~DisplayRenderTargetEGL() override;
 
   EGLDisplay display_;
   EGLConfig config_;

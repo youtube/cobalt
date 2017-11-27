@@ -120,7 +120,7 @@ class CookieVerifier : public CallbackWaiter {
 
 class DummyUpgradeHandler : public storage::StorageManager::UpgradeHandler {
   void OnUpgrade(storage::StorageManager* /*storage*/, const char* /*data*/,
-                 int /*size*/) OVERRIDE {}
+                 int /*size*/) override {}
 };
 
 std::string GetSavePath() {

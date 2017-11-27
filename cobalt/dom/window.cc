@@ -63,11 +63,11 @@ class Window::RelayLoadEvent : public DocumentObserver {
   explicit RelayLoadEvent(Window* window) : window_(window) {}
 
   // From DocumentObserver.
-  void OnLoad() OVERRIDE {
+  void OnLoad() override {
     window_->PostToDispatchEvent(FROM_HERE, base::Tokens::load());
   }
-  void OnMutation() OVERRIDE {}
-  void OnFocusChanged() OVERRIDE {}
+  void OnMutation() override {}
+  void OnFocusChanged() override {}
 
  private:
   Window* window_;

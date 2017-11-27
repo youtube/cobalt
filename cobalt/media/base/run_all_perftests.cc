@@ -14,7 +14,7 @@ class TestSuiteNoAtExit : public base::TestSuite {
   ~TestSuiteNoAtExit() override {}
 
  protected:
-  void Initialize() OVERRIDE;
+  void Initialize() override;
 };
 
 void TestSuiteNoAtExit::Initialize() {

@@ -50,15 +50,15 @@ class HTMLMetaElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  scoped_refptr<HTMLMetaElement> AsHTMLMetaElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLMetaElement> AsHTMLMetaElement() override { return this; }
 
   // From Node.
-  void OnInsertedIntoDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
 
   DEFINE_WRAPPABLE_TYPE(HTMLMetaElement);
 
  private:
-  ~HTMLMetaElement() OVERRIDE {}
+  ~HTMLMetaElement() override {}
 
   bool IsDescendantOfHeadElement() const;
 };

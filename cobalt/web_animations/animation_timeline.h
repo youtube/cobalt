@@ -59,7 +59,7 @@ class AnimationTimeline : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(AnimationTimeline);
 
  protected:
-  ~AnimationTimeline() OVERRIDE;
+  ~AnimationTimeline() override;
 
  private:
   // Registers and deregisters an animation with this timeline so that we are

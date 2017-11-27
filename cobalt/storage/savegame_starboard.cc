@@ -100,10 +100,10 @@ bool EnsureRecord(scoped_ptr<starboard::StorageRecord>* record,
 class SavegameStarboard : public Savegame {
  public:
   explicit SavegameStarboard(const Options& options);
-  ~SavegameStarboard() OVERRIDE;
-  bool PlatformRead(ByteVector* bytes, size_t max_to_read) OVERRIDE;
-  bool PlatformWrite(const ByteVector& bytes) OVERRIDE;
-  bool PlatformDelete() OVERRIDE;
+  ~SavegameStarboard() override;
+  bool PlatformRead(ByteVector* bytes, size_t max_to_read) override;
+  bool PlatformWrite(const ByteVector& bytes) override;
+  bool PlatformDelete() override;
 
  private:
   bool MigrateFromFallback();

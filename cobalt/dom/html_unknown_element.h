@@ -33,14 +33,14 @@ class HTMLUnknownElement : public HTMLElement {
   // Custom, not in any spec.
   //
   // From HTMLElement.
-  scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement() OVERRIDE {
+  scoped_refptr<HTMLUnknownElement> AsHTMLUnknownElement() override {
     return this;
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLUnknownElement);
 
  private:
-  ~HTMLUnknownElement() OVERRIDE {}
+  ~HTMLUnknownElement() override {}
 };
 
 }  // namespace dom

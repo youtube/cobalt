@@ -44,7 +44,7 @@ class MockErrorCallback : public base::Callback<void(const std::string&)> {
 class HTMLDecoderTest : public ::testing::Test {
  protected:
   HTMLDecoderTest();
-  ~HTMLDecoderTest() OVERRIDE {}
+  ~HTMLDecoderTest() override {}
 
   loader::FetcherFactory fetcher_factory_;
   scoped_ptr<Parser> dom_parser_;

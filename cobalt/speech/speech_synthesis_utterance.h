@@ -128,7 +128,7 @@ class SpeechSynthesisUtterance : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(SpeechSynthesisUtterance);
 
  private:
-  ~SpeechSynthesisUtterance() OVERRIDE;
+  ~SpeechSynthesisUtterance() override;
 
   std::string text_;
   std::string lang_;

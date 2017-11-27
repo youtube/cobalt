@@ -49,8 +49,8 @@ class ShellAVCParser : public ShellParser {
   // GetNextAU we must pass on to FLV or MP4 children.
   virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) = 0;
   // Prepends are common to all AVC/AAC containers so we can do this one here.
-  virtual bool Prepend(scoped_refptr<ShellAU> au,
-                       scoped_refptr<DecoderBuffer> buffer) OVERRIDE;
+  bool Prepend(scoped_refptr<ShellAU> au,
+               scoped_refptr<DecoderBuffer> buffer) override;
 
  protected:
   virtual bool DownloadAndParseAVCConfigRecord(uint64 offset, uint32 size);

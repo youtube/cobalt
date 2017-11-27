@@ -34,29 +34,29 @@ class MEDIA_EXPORT MediaUrlDemuxer : public Demuxer {
   MediaUrlDemuxer(
       const scoped_refptr<base::SingleThreadTaskRunner>& task_runner,
       const GURL& url);
-  ~MediaUrlDemuxer() OVERRIDE;
+  ~MediaUrlDemuxer() override;
 
   // DemuxerStreamProvider interface.
-  DemuxerStream* GetStream(DemuxerStream::Type type) OVERRIDE;
-  GURL GetUrl() const OVERRIDE;
-  DemuxerStreamProvider::Type GetType() const OVERRIDE;
+  DemuxerStream* GetStream(DemuxerStream::Type type) override;
+  GURL GetUrl() const override;
+  DemuxerStreamProvider::Type GetType() const override;
 
   // Demuxer interface.
-  std::string GetDisplayName() const OVERRIDE;
+  std::string GetDisplayName() const override;
   void Initialize(DemuxerHost* host, const PipelineStatusCB& status_cb,
-                  bool enable_text_tracks) OVERRIDE;
-  void StartWaitingForSeek(base::TimeDelta seek_time) OVERRIDE;
-  void CancelPendingSeek(base::TimeDelta seek_time) OVERRIDE;
-  void Seek(base::TimeDelta time, const PipelineStatusCB& status_cb) OVERRIDE;
-  void Stop() OVERRIDE;
-  void AbortPendingReads() OVERRIDE;
-  base::TimeDelta GetStartTime() const OVERRIDE;
-  base::Time GetTimelineOffset() const OVERRIDE;
-  int64_t GetMemoryUsage() const OVERRIDE;
+                  bool enable_text_tracks) override;
+  void StartWaitingForSeek(base::TimeDelta seek_time) override;
+  void CancelPendingSeek(base::TimeDelta seek_time) override;
+  void Seek(base::TimeDelta time, const PipelineStatusCB& status_cb) override;
+  void Stop() override;
+  void AbortPendingReads() override;
+  base::TimeDelta GetStartTime() const override;
+  base::Time GetTimelineOffset() const override;
+  int64_t GetMemoryUsage() const override;
   void OnEnabledAudioTracksChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE;
+                                   base::TimeDelta currTime) override;
   void OnSelectedVideoTrackChanged(const std::vector<MediaTrack::Id>& track_ids,
-                                   base::TimeDelta currTime) OVERRIDE;
+                                   base::TimeDelta currTime) override;
 
  private:
   GURL url_;

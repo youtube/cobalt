@@ -69,7 +69,7 @@ class Console : public script::Wrappable {
  private:
   typedef std::set<Listener*> ListenerSet;
 
-  ~Console() OVERRIDE { weak_ptr_factory_.InvalidateWeakPtrs(); }
+  ~Console() override { weak_ptr_factory_.InvalidateWeakPtrs(); }
 
   void AddListener(Listener* listener);
   void RemoveListener(Listener* listener);

@@ -46,7 +46,7 @@ namespace dom {
 class ElementTest : public ::testing::Test {
  protected:
   ElementTest();
-  ~ElementTest() OVERRIDE;
+  ~ElementTest() override;
 
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<dom_parser::Parser> dom_parser_;

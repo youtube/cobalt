@@ -28,15 +28,15 @@ namespace speech {
 class MicrophoneStarboard : public Microphone {
  public:
   MicrophoneStarboard(int sample_rate, int buffer_size_bytes);
-  ~MicrophoneStarboard() OVERRIDE;
+  ~MicrophoneStarboard() override;
 
-  bool Open() OVERRIDE;
-  int Read(char* out_data, int data_size) OVERRIDE;
-  bool Close() OVERRIDE;
-  int MinMicrophoneReadInBytes() OVERRIDE {
+  bool Open() override;
+  int Read(char* out_data, int data_size) override;
+  bool Close() override;
+  int MinMicrophoneReadInBytes() override {
     return min_microphone_read_in_bytes_;
   }
-  bool IsValid() OVERRIDE { return SbMicrophoneIsValid(microphone_); }
+  bool IsValid() override { return SbMicrophoneIsValid(microphone_); }
 
  private:
   // Minimum requested bytes per microphone read.

@@ -35,14 +35,14 @@ class HTMLHeadingElement : public HTMLElement {
       : HTMLElement(document, tag_name) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement() OVERRIDE {
+  scoped_refptr<HTMLHeadingElement> AsHTMLHeadingElement() override {
     return this;
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLHeadingElement);
 
  private:
-  ~HTMLHeadingElement() OVERRIDE {}
+  ~HTMLHeadingElement() override {}
 };
 
 }  // namespace dom

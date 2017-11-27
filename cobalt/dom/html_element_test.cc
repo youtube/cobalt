@@ -117,7 +117,7 @@ class HTMLElementTest : public ::testing::Test {
                               dom_stat_tracker_.get(), "",
                               base::kApplicationStateStarted),
         document_(new Document(&html_element_context_)) {}
-  ~HTMLElementTest() OVERRIDE {}
+  ~HTMLElementTest() override {}
 
   // This creates simple DOM tree with mock layout boxes for all elements except
   // the last child element. It returns the root html element.

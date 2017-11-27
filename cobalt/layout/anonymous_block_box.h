@@ -38,23 +38,23 @@ class AnonymousBlockBox : public BlockContainerBox {
                     LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
-  AnonymousBlockBox* AsAnonymousBlockBox() OVERRIDE;
-  const AnonymousBlockBox* AsAnonymousBlockBox() const OVERRIDE;
+  Level GetLevel() const override;
+  AnonymousBlockBox* AsAnonymousBlockBox() override;
+  const AnonymousBlockBox* AsAnonymousBlockBox() const override;
 
-  void SplitBidiLevelRuns() OVERRIDE;
+  void SplitBidiLevelRuns() override;
 
-  bool HasTrailingLineBreak() const OVERRIDE;
+  bool HasTrailingLineBreak() const override;
 
   void RenderAndAnimateContent(
       render_tree::CompositionNode::Builder* border_node_builder,
-      ContainerBox* stacking_context) const OVERRIDE;
+      ContainerBox* stacking_context) const override;
 
   // From |ContainerBox|.
 
   // This method should never be called, instead all children have to be added
   // through |AddInlineLevelChild|.
-  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) override;
 
   // Rest of the public methods.
 
@@ -64,12 +64,12 @@ class AnonymousBlockBox : public BlockContainerBox {
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // From |BlockContainerBox|.
   scoped_ptr<FormattingContext> UpdateRectOfInFlowChildBoxes(
-      const LayoutParams& child_layout_params) OVERRIDE;
+      const LayoutParams& child_layout_params) override;
 
  private:
   bool AreEllipsesEnabled() const;

@@ -137,7 +137,7 @@ class MockLoaderCallback : public LoaderCallback {
 class LoaderTest : public ::testing::Test {
  protected:
   LoaderTest();
-  ~LoaderTest() OVERRIDE {}
+  ~LoaderTest() override {}
 
   FilePath data_dir_;
   MessageLoop message_loop_;

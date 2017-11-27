@@ -43,7 +43,7 @@ class BlobFetcher : public Fetcher {
 
   void Fetch();
 
-  ~BlobFetcher() OVERRIDE;
+  ~BlobFetcher() override;
 
  private:
   void GetData();

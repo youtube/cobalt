@@ -45,7 +45,7 @@ class AttributeMutationRecordBuilder : public MutationRecordBuilder {
 
   scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
       const scoped_refptr<Node>& target,
-      const MutationObserverInit& options) OVERRIDE {
+      const MutationObserverInit& options) override {
     if (!IsInterested(options)) {
       return NULL;
     }
@@ -95,7 +95,7 @@ class CharacterDataMutationRecordBuilder : public MutationRecordBuilder {
 
   scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
       const scoped_refptr<Node>& target,
-      const MutationObserverInit& options) OVERRIDE {
+      const MutationObserverInit& options) override {
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 4. If type is "characterData" and options's characterData is not true,
     //    continue.
@@ -130,7 +130,7 @@ class ChildListMutationRecordBuilder : public MutationRecordBuilder {
 
   scoped_refptr<MutationRecord> MaybeCreateMutationRecord(
       const scoped_refptr<Node>& target,
-      const MutationObserverInit& options) OVERRIDE {
+      const MutationObserverInit& options) override {
     // https://www.w3.org/TR/dom/#queue-a-mutation-record
     // 5. If type is "childList" and options's childList is false, continue.
     if (!options.child_list()) {

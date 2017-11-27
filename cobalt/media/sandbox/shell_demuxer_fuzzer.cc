@@ -68,26 +68,26 @@ class ShellDemuxerFuzzer : DemuxerHost {
 
  private:
   // DataSourceHost methods (parent class of DemuxerHost)
-  void SetTotalBytes(int64 total_bytes) OVERRIDE {
+  void SetTotalBytes(int64 total_bytes) override {
     UNREFERENCED_PARAMETER(total_bytes);
   }
 
-  void AddBufferedByteRange(int64 start, int64 end) OVERRIDE {
+  void AddBufferedByteRange(int64 start, int64 end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
 
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) OVERRIDE {
+                            base::TimeDelta end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
 
   // DemuxerHost methods
-  void SetDuration(base::TimeDelta duration) OVERRIDE {
+  void SetDuration(base::TimeDelta duration) override {
     UNREFERENCED_PARAMETER(duration);
   }
-  void OnDemuxerError(PipelineStatus error) OVERRIDE {
+  void OnDemuxerError(PipelineStatus error) override {
     UNREFERENCED_PARAMETER(error);
     error_occurred_ = true;
   }
@@ -145,7 +145,7 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
 
   std::vector<uint8> ParseFileContent(
       const std::string& file_name,
-      const std::vector<uint8>& file_content) OVERRIDE {
+      const std::vector<uint8>& file_content) override {
     std::string ext = FilePath(file_name).Extension();
     if (ext != ".flv" && ext != ".mp4") {
       LOG(ERROR) << "Skip unsupported file " << file_name;
@@ -155,7 +155,7 @@ class ShellDemuxerFuzzerApp : public FuzzerApp {
   }
 
   void Fuzz(const std::string& file_name,
-            const std::vector<uint8>& fuzzing_content) OVERRIDE {
+            const std::vector<uint8>& fuzzing_content) override {
     ShellDemuxerFuzzer demuxer_fuzzer(fuzzing_content);
     demuxer_fuzzer.Fuzz();
   }

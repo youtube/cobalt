@@ -57,7 +57,7 @@ scoped_ptr<FontCache::FontFaceMap> CreateFontFaceMapHelper(
 class FontCacheTest : public ::testing::Test {
  public:
   FontCacheTest();
-  ~FontCacheTest() OVERRIDE {}
+  ~FontCacheTest() override {}
 
   void DummyOnTypefaceLoadEvent() {}
 

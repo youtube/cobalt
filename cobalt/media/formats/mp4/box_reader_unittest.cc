@@ -68,7 +68,7 @@ struct SkipBox : Box {
   FourCC BoxType() const override { return FOURCC_SKIP; }
 
   SkipBox();
-  ~SkipBox() OVERRIDE;
+  ~SkipBox() override;
 };
 
 SkipBox::SkipBox() {}

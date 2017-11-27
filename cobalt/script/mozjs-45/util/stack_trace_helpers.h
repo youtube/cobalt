@@ -61,25 +61,25 @@ class MozjsStackTraceGenerator
 
   // Returns |true| if the current StackTraceGenerator can generate information
   // about the stack.
-  bool Valid() OVERRIDE { return context_ != NULL; }
+  bool Valid() override { return context_ != NULL; }
 
   // Generates stack traces in the raw form. Returns true if any stack
   // frames were generated. False otherwise. Output vector will be
   // unconditionally rewound to being empty.
   bool GenerateStackTrace(int depth,
-                          nb::RewindableVector<StackFrame>* out) OVERRIDE;
+                          nb::RewindableVector<StackFrame>* out) override;
 
   // Returns true if any stack traces were written. The output vector will be
   // re-wound to being empty.
   // The first position is the most immediate stack frame.
   bool GenerateStackTraceLines(int depth,
-                               nb::RewindableVector<std::string>* out) OVERRIDE;
+                               nb::RewindableVector<std::string>* out) override;
 
   // Prints stack trace. Returns true on success.
-  bool GenerateStackTraceString(int depth, std::string* out) OVERRIDE;
+  bool GenerateStackTraceString(int depth, std::string* out) override;
 
   bool GenerateStackTraceString(int depth, char* buff,
-                                size_t buff_size) OVERRIDE;
+                                size_t buff_size) override;
 
   // Gets the internal data structure used to generate stack traces.
   JSContext* context() { return context_; }

@@ -76,7 +76,7 @@ class Navigator : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Navigator);
 
  private:
-  ~Navigator() OVERRIDE {}
+  ~Navigator() override {}
 
   std::string user_agent_;
   std::string language_;

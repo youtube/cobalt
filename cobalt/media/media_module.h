@@ -113,8 +113,8 @@ class MediaModule : public WebMediaPlayerFactory,
   // TODO: Move the following methods into class like MediaModuleBase
   // to ensure that MediaModule is an interface.
   // WebMediaPlayerDelegate methods
-  void RegisterPlayer(WebMediaPlayer* player) OVERRIDE;
-  void UnregisterPlayer(WebMediaPlayer* player) OVERRIDE;
+  void RegisterPlayer(WebMediaPlayer* player) override;
+  void UnregisterPlayer(WebMediaPlayer* player) override;
 
   // This function should be defined on individual platform to create the
   // platform specific MediaModule.

@@ -67,17 +67,17 @@ class FetcherToDecoderAdapter : public Fetcher::Handler {
         error_callback_(error_callback) {}
 
   // From Fetcher::Handler.
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
-  void OnDone(Fetcher* fetcher) OVERRIDE {
+  void OnDone(Fetcher* fetcher) override {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
     loader_on_thread_->Signal();
   }
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
     loader_on_thread_->Signal();

@@ -49,7 +49,7 @@ class InputEvent : public UIEvent {
   DEFINE_WRAPPABLE_TYPE(InputEvent);
 
  private:
-  ~InputEvent() OVERRIDE {}
+  ~InputEvent() override {}
 
   std::string data_;
   bool is_composing_;

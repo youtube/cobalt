@@ -42,7 +42,7 @@ class NativePromiseBase : public Promise<T> {
   // The Promise JS object (not the resolver).
   JSObject* promise() const { return promise_resolver_->GetPromise(); }
 
-  void Reject() const OVERRIDE {
+  void Reject() const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
     if (promise_resolver) {
@@ -52,7 +52,7 @@ class NativePromiseBase : public Promise<T> {
     }
   }
 
-  void Reject(SimpleExceptionType exception) const OVERRIDE {
+  void Reject(SimpleExceptionType exception) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
     if (promise_resolver) {
@@ -65,7 +65,7 @@ class NativePromiseBase : public Promise<T> {
     }
   }
 
-  void Reject(const scoped_refptr<ScriptException>& result) const OVERRIDE {
+  void Reject(const scoped_refptr<ScriptException>& result) const override {
     JS::RootedObject promise_resolver(context_,
                                       promise_resolver_->get().GetObject());
     if (promise_resolver) {
@@ -95,7 +95,7 @@ class NativePromise : public NativePromiseBase<T> {
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<T>(context, resolver_value) {}
 
-  void Resolve(const T& value) const OVERRIDE {
+  void Resolve(const T& value) const override {
     JS::RootedObject promise_wrapper(
         this->context_, this->promise_resolver_->get().GetObject());
     if (promise_wrapper) {
@@ -115,7 +115,7 @@ class NativePromise<void> : public NativePromiseBase<void> {
   NativePromise(JSContext* context, JS::HandleValue resolver_value)
       : NativePromiseBase<void>(context, resolver_value) {}
 
-  void Resolve() const OVERRIDE {
+  void Resolve() const override {
     JS::RootedObject promise_wrapper(context_,
                                      promise_resolver_->get().GetObject());
     if (promise_wrapper) {

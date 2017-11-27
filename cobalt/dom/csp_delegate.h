@@ -82,20 +82,20 @@ class CspDelegate {
 class CspDelegateInsecure : public CspDelegate {
  public:
   CspDelegateInsecure() {}
-  bool CanLoad(ResourceType, const GURL&, bool) const OVERRIDE { return true; }
-  bool IsValidNonce(ResourceType, const std::string&) const OVERRIDE {
+  bool CanLoad(ResourceType, const GURL&, bool) const override { return true; }
+  bool IsValidNonce(ResourceType, const std::string&) const override {
     return true;
   }
   bool AllowInline(ResourceType, const base::SourceLocation&,
-                   const std::string&) const OVERRIDE {
+                   const std::string&) const override {
     return true;
   }
-  bool AllowEval(std::string*) const OVERRIDE { return true; }
-  void ReportEval() const OVERRIDE {}
-  bool OnReceiveHeaders(const csp::ResponseHeaders&) OVERRIDE { return true; }
+  bool AllowEval(std::string*) const override { return true; }
+  void ReportEval() const override {}
+  bool OnReceiveHeaders(const csp::ResponseHeaders&) override { return true; }
   void OnReceiveHeader(const std::string&, csp::HeaderType,
-                       csp::HeaderSource) OVERRIDE {}
-  void NotifyUrlChanged(const GURL&) const OVERRIDE {}
+                       csp::HeaderSource) override {}
+  void NotifyUrlChanged(const GURL&) const override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CspDelegateInsecure);
@@ -111,28 +111,28 @@ class CspDelegateSecure : public CspDelegate {
   // Return |true| if the given resource type can be loaded from |url|.
   // Set |did_redirect| if url was the result of a redirect.
   bool CanLoad(ResourceType type, const GURL& url,
-               bool did_redirect) const OVERRIDE;
-  bool IsValidNonce(ResourceType type, const std::string& nonce) const OVERRIDE;
+               bool did_redirect) const override;
+  bool IsValidNonce(ResourceType type, const std::string& nonce) const override;
 
   bool AllowInline(ResourceType type, const base::SourceLocation& location,
-                   const std::string& script_content) const OVERRIDE;
+                   const std::string& script_content) const override;
 
   // Return |true| if 'unsafe-eval' is set. No report will be generated in any
   // case. If eval_disabled_message is non-NULL, it will be set with a message
   // that should be reported when an application attempts to use eval().
-  bool AllowEval(std::string* eval_disabled_message) const OVERRIDE;
+  bool AllowEval(std::string* eval_disabled_message) const override;
 
   // Report that code was generated from a string, such as through eval() or the
   // Function constructor. If eval() is not allowed, generate a violation
   // report. Otherwise if eval() is allowed this is a no-op.
-  void ReportEval() const OVERRIDE;
+  void ReportEval() const override;
 
   // Signal to the CSP object that CSP policy directives have been received.
   // Return |true| if success, |false| if failure and load should be aborted.
-  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) OVERRIDE;
+  bool OnReceiveHeaders(const csp::ResponseHeaders& headers) override;
   void OnReceiveHeader(const std::string& header, csp::HeaderType header_type,
-                       csp::HeaderSource header_source) OVERRIDE;
-  void NotifyUrlChanged(const GURL& url) const OVERRIDE {
+                       csp::HeaderSource header_source) override;
+  void NotifyUrlChanged(const GURL& url) const override {
     return csp_->NotifyUrlChanged(url);
   }
 

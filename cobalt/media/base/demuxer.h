@@ -74,7 +74,7 @@ class MEDIA_EXPORT Demuxer : public DemuxerStreamProvider {
   typedef base::Callback<void(scoped_ptr<MediaTracks>)> MediaTracksUpdatedCB;
 
   Demuxer();
-  ~Demuxer() OVERRIDE;
+  ~Demuxer() override;
 
   // Returns the name of the demuxer for logging purpose.
   virtual std::string GetDisplayName() const = 0;

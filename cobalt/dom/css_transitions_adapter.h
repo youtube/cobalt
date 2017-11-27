@@ -40,8 +40,8 @@ class CSSTransitionsAdapter : public cssom::TransitionSet::EventHandler {
       const scoped_refptr<dom::DOMAnimatable>& target);
   ~CSSTransitionsAdapter();
 
-  void OnTransitionStarted(const cssom::Transition& transition) OVERRIDE;
-  void OnTransitionRemoved(const cssom::Transition& transition) OVERRIDE;
+  void OnTransitionStarted(const cssom::Transition& transition) override;
+  void OnTransitionRemoved(const cssom::Transition& transition) override;
 
  private:
   // The AnimationWithEventHandler struct maintains a reference to the Animation

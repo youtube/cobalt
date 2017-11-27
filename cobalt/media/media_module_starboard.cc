@@ -47,7 +47,7 @@ typedef ::media::ShellMediaPlatformStarboard ShellMediaPlatformStarboard;
 class CanPlayTypeHandlerStarboard : public CanPlayTypeHandler {
  public:
   std::string CanPlayType(const std::string& mime_type,
-                          const std::string& key_system) OVERRIDE {
+                          const std::string& key_system) override {
     SbMediaSupportType type =
         SbMediaCanPlayMimeAndKeySystem(mime_type.c_str(), key_system.c_str());
     switch (type) {
@@ -73,7 +73,7 @@ class MediaModuleStarboard : public MediaModule {
         media_platform_(resource_provider) {}
 
   scoped_ptr<WebMediaPlayer> CreateWebMediaPlayer(
-      WebMediaPlayerClient* client) OVERRIDE {
+      WebMediaPlayerClient* client) override {
     TRACK_MEMORY_SCOPE("Media");
 #if defined(COBALT_MEDIA_SOURCE_2016)
     SbWindow window = kSbWindowInvalid;
@@ -99,13 +99,13 @@ class MediaModuleStarboard : public MediaModule {
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
   }
 
-  system_window::SystemWindow* system_window() const OVERRIDE {
+  system_window::SystemWindow* system_window() const override {
     return system_window_;
   }
 
-  void OnSuspend() OVERRIDE { media_platform_.Suspend(); }
+  void OnSuspend() override { media_platform_.Suspend(); }
 
-  void OnResume(render_tree::ResourceProvider* resource_provider) OVERRIDE {
+  void OnResume(render_tree::ResourceProvider* resource_provider) override {
     media_platform_.Resume(resource_provider);
   }
 

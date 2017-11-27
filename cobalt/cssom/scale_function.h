@@ -34,12 +34,12 @@ class ScaleFunction : public TransformFunction {
   ScaleFunction(float x_factor, float y_factor)
       : x_factor_(x_factor), y_factor_(y_factor) {}
 
-  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const override;
 
   float x_factor() const { return x_factor_; }
   float y_factor() const { return y_factor_; }
 
-  std::string ToString() const OVERRIDE {
+  std::string ToString() const override {
     if (y_factor_ == 1.0f) {
       return base::StringPrintf("scaleX(%.7g)", x_factor_);
     }

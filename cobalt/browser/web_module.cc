@@ -415,14 +415,14 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
   explicit DocumentLoadedObserver(const ClosureVector& loaded_callbacks)
       : loaded_callbacks_(loaded_callbacks) {}
   // Called at most once, when document and all referred resources are loaded.
-  void OnLoad() OVERRIDE {
+  void OnLoad() override {
     for (size_t i = 0; i < loaded_callbacks_.size(); ++i) {
       loaded_callbacks_[i].Run();
     }
   }
 
-  void OnMutation() OVERRIDE{};
-  void OnFocusChanged() OVERRIDE{};
+  void OnMutation() override{};
+  void OnFocusChanged() override{};
 
  private:
   ClosureVector loaded_callbacks_;

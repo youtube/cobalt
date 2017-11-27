@@ -87,9 +87,9 @@ class DocumentLoader : public dom::DocumentObserver {
   static void OnError(const std::string& error) { DLOG(ERROR) << error; }
 
   // dom::DocumentObserver functions
-  void OnLoad() OVERRIDE { nested_loop_.Quit(); }
-  void OnMutation() OVERRIDE {}
-  void OnFocusChanged() OVERRIDE {}
+  void OnLoad() override { nested_loop_.Quit(); }
+  void OnMutation() override {}
+  void OnFocusChanged() override {}
 
   script::FakeScriptRunner script_runner_;
   loader::FetcherFactory fetcher_factory_;

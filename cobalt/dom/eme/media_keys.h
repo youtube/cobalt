@@ -53,7 +53,7 @@ class MediaKeys : public script::Wrappable,
   DEFINE_WRAPPABLE_TYPE(MediaKeys);
 
  private:
-  ~MediaKeys() OVERRIDE;
+  ~MediaKeys() override;
 
   void OnSessionClosed(MediaKeySession* session);
 

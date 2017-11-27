@@ -34,7 +34,7 @@ class MimeTypeArray : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(MimeTypeArray);
 
  private:
-  ~MimeTypeArray() OVERRIDE {}
+  ~MimeTypeArray() override {}
 
   DISALLOW_COPY_AND_ASSIGN(MimeTypeArray);
 };

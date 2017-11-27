@@ -33,16 +33,16 @@ class FilterFunctionListValue : public ScopedListValue<FilterFunction> {
       ScopedListValue<FilterFunction>::Builder value)
       : ScopedListValue<FilterFunction>(value.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE {
+  void Accept(PropertyValueVisitor* visitor) override {
     visitor->VisitFilterFunctionList(this);
   }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(FilterFunctionListValue);
 
  private:
-  virtual ~FilterFunctionListValue() OVERRIDE {}
+  ~FilterFunctionListValue() override {}
 };
 
 }  // namespace cssom

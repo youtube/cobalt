@@ -108,7 +108,7 @@ class Keyframe : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Keyframe);
 
  private:
-  ~Keyframe() OVERRIDE {}
+  ~Keyframe() override {}
 
   Data data_;
 

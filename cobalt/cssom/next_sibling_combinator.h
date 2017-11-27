@@ -32,11 +32,11 @@ class CombinatorVisitor;
 class NextSiblingCombinator : public Combinator {
  public:
   NextSiblingCombinator() {}
-  ~NextSiblingCombinator() OVERRIDE {}
+  ~NextSiblingCombinator() override {}
 
   // From Combinator.
-  void Accept(CombinatorVisitor* visitor) OVERRIDE;
-  CombinatorType GetCombinatorType() OVERRIDE { return kNextSiblingCombinator; }
+  void Accept(CombinatorVisitor* visitor) override;
+  CombinatorType GetCombinatorType() override { return kNextSiblingCombinator; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NextSiblingCombinator);

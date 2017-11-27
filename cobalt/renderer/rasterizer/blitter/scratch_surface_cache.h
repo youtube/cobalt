@@ -46,10 +46,10 @@ class ScratchSurfaceCache {
     Delegate(SbBlitterDevice device, SbBlitterContext context);
 
     common::ScratchSurfaceCache::Surface* CreateSurface(
-        const math::Size& size) OVERRIDE;
-    void DestroySurface(common::ScratchSurfaceCache::Surface* surface) OVERRIDE;
+        const math::Size& size) override;
+    void DestroySurface(common::ScratchSurfaceCache::Surface* surface) override;
     void PrepareForUse(common::ScratchSurfaceCache::Surface* surface,
-                       const math::Size& area) OVERRIDE;
+                       const math::Size& area) override;
 
    private:
     SbBlitterDevice device_;

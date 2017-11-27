@@ -110,9 +110,9 @@ class IntSetting : public MemorySetting {
  public:
   explicit IntSetting(const std::string& name);
 
-  std::string ValueToString() const OVERRIDE;
-  virtual int64_t MemoryConsumption() const OVERRIDE;
-  virtual void ScaleMemory(double absolute_constraining_value) OVERRIDE;
+  std::string ValueToString() const override;
+  int64_t MemoryConsumption() const override;
+  void ScaleMemory(double absolute_constraining_value) override;
 
   int64_t value() const { return valid() ? value_ : 0; }
   base::optional<int64_t> optional_value() const {
@@ -137,8 +137,8 @@ class DimensionSetting : public MemorySetting {
  public:
   explicit DimensionSetting(const std::string& name);
 
-  std::string ValueToString() const OVERRIDE;
-  virtual int64_t MemoryConsumption() const OVERRIDE;
+  std::string ValueToString() const override;
+  int64_t MemoryConsumption() const override;
 
   TextureDimensions value() const {
     return valid() ? value_ : TextureDimensions();
@@ -163,7 +163,7 @@ class DimensionSetting : public MemorySetting {
 class SkiaGlyphAtlasTextureSetting : public DimensionSetting {
  public:
   SkiaGlyphAtlasTextureSetting();
-  virtual void ScaleMemory(double absolute_constraining_value) OVERRIDE;
+  void ScaleMemory(double absolute_constraining_value) override;
 
  private:
   static size_t NumberOfReductions(double reduction_factor);

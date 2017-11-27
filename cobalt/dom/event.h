@@ -66,7 +66,7 @@ class Event : public script::Wrappable {
   Event(base::Token type, Bubbles bubbles, Cancelable cancelable);
   Event(base::Token type, const EventInit& init_dict);
 
-  ~Event() OVERRIDE;
+  ~Event() override;
 
   // Web API: Event
   //
@@ -126,7 +126,7 @@ class Event : public script::Wrappable {
     return immediate_propagation_stopped_;
   }
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   DEFINE_WRAPPABLE_TYPE(Event);
 

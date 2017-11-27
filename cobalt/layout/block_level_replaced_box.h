@@ -43,19 +43,19 @@ class BlockLevelReplacedBox : public ReplacedBox {
       const math::SizeF& content_size, LayoutStatTracker* layout_stat_tracker);
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
+  Level GetLevel() const override;
 
  protected:
   // From |Box|.
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // From |ReplacedBox|.
   void UpdateHorizontalMargins(
       LayoutUnit containing_block_width, LayoutUnit border_box_width,
       const base::optional<LayoutUnit>& maybe_margin_left,
-      const base::optional<LayoutUnit>& maybe_margin_right) OVERRIDE;
+      const base::optional<LayoutUnit>& maybe_margin_right) override;
 };
 
 }  // namespace layout

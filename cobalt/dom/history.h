@@ -34,7 +34,7 @@ class History : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(History);
 
  private:
-  ~History() OVERRIDE {}
+  ~History() override {}
 
   DISALLOW_COPY_AND_ASSIGN(History);
 };

@@ -35,15 +35,15 @@ class FetcherHandlerForTest : public Fetcher::Handler {
       : fetcher_(NULL), run_loop_(run_loop) {}
 
   // From Fetcher::Handler.
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
     CheckFetcher(fetcher);
     data_.append(data, size);
   }
-  void OnDone(Fetcher* fetcher) OVERRIDE {
+  void OnDone(Fetcher* fetcher) override {
     CheckFetcher(fetcher);
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());
   }
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(error);
     CheckFetcher(fetcher);
     MessageLoop::current()->PostTask(FROM_HERE, run_loop_->QuitClosure());

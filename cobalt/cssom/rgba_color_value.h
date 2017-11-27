@@ -67,7 +67,7 @@ class RGBAColorValue : public PropertyValue {
       : value_(static_cast<uint32>(r << 24) | static_cast<uint32>(g << 16) |
                static_cast<uint32>(b << 8) | static_cast<uint32>(a << 0)) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   uint32 value() const { return value_; }
 
@@ -76,7 +76,7 @@ class RGBAColorValue : public PropertyValue {
   uint8 b() const { return static_cast<uint8>((value_ >> 8) & 0xFF); }
   uint8 a() const { return static_cast<uint8>((value_ >> 0) & 0xFF); }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const RGBAColorValue& other) const {
     return value_ == other.value_;
@@ -85,7 +85,7 @@ class RGBAColorValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(RGBAColorValue);
 
  private:
-  ~RGBAColorValue() OVERRIDE {}
+  ~RGBAColorValue() override {}
 
   const uint32 value_;
 

@@ -31,16 +31,16 @@ class MEDIA_EXPORT MP4StreamParser : public StreamParser {
  public:
   MP4StreamParser(DecoderBuffer::Allocator* buffer_allocator,
                   const std::set<int>& audio_object_types, bool has_sbr);
-  ~MP4StreamParser() OVERRIDE;
+  ~MP4StreamParser() override;
 
   void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
             const NewBuffersCB& new_buffers_cb, bool ignore_text_tracks,
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
-            const scoped_refptr<MediaLog>& media_log) OVERRIDE;
-  void Flush() OVERRIDE;
-  bool Parse(const uint8_t* buf, int size) OVERRIDE;
+            const scoped_refptr<MediaLog>& media_log) override;
+  void Flush() override;
+  bool Parse(const uint8_t* buf, int size) override;
 
  private:
   enum State {

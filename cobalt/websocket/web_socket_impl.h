@@ -73,16 +73,16 @@ class WebSocketImpl : public net::SocketStream::Delegate,
   // the IO thread.
 
   void OnConnected(net::SocketStream* socket,
-                   int max_pending_send_allowed) OVERRIDE;
+                   int max_pending_send_allowed) override;
   // Called when |amount_sent| bytes of data are sent.
-  void OnSentData(net::SocketStream* socket, int amount_sent) OVERRIDE;
+  void OnSentData(net::SocketStream* socket, int amount_sent) override;
   // Called when |len| bytes of |data| are received.
   void OnReceivedData(net::SocketStream* socket, const char* data,
-                      int len) OVERRIDE;
+                      int len) override;
   // Called when the socket stream has been closed.
-  void OnClose(net::SocketStream* socket) OVERRIDE;
+  void OnClose(net::SocketStream* socket) override;
 
-  void OnError(const net::SocketStream* socket, int error) OVERRIDE;
+  void OnError(const net::SocketStream* socket, int error) override;
 
  private:
   struct CloseInfo {
