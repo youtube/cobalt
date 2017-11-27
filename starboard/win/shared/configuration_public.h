@@ -116,7 +116,7 @@
 #define SB_HAS_SSIZE_T 0
 
 // Whether the current platform has microphone supported.
-#define SB_HAS_MICROPHONE 0 
+#define SB_HAS_MICROPHONE 0
 
 // Whether the current platform has speech synthesis.
 #define SB_HAS_SPEECH_SYNTHESIS 0
@@ -364,7 +364,7 @@
 
 // Specifies whether this platform has webm/vp9 support.  This should be set to
 // non-zero on platforms with webm/vp9 support.
-#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 0
+#define SB_HAS_MEDIA_WEBM_VP9_SUPPORT 1
 
 // Specifies the stack size for threads created inside media stack.  Set to 0 to
 // use the default thread stack size.  Set to non-zero to explicitly set the
