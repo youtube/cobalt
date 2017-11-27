@@ -35,12 +35,12 @@ class VideoDecoder : public starboard::player::filter::HostedVideoDecoder {
   typedef starboard::player::VideoFrame VideoFrame;
 
   explicit VideoDecoder(SbMediaVideoCodec video_codec);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
-  void SetHost(Host* host) SB_OVERRIDE;
-  void WriteInputBuffer(const InputBuffer& input_buffer) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
+  void SetHost(Host* host) override;
+  void WriteInputBuffer(const InputBuffer& input_buffer) override;
+  void WriteEndOfStream() override;
+  void Reset() override;
 
   bool is_valid() const { return codec_context_ != NULL; }
 

@@ -41,44 +41,44 @@ class SbDrmSystemWidevine : public SbDrmSystemPrivate, public cdm::Host {
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback
 #endif    // SB_HAS(DRM_KEY_STATUSES)
       );  // NOLINT(whitespace/parens)
-  ~SbDrmSystemWidevine() SB_OVERRIDE;
+  ~SbDrmSystemWidevine() override;
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(
       int ticket,
       const char* type,
       const void* initialization_data,
-      int initialization_data_size) SB_OVERRIDE;
+      int initialization_data_size) override;
   void UpdateSession(
       int ticket,
       const void* key,
       int key_size,
       const void* session_id,
-      int session_id_size) SB_OVERRIDE;
-  void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
-  DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
+      int session_id_size) override;
+  void CloseSession(const void* session_id, int session_id_size) override;
+  DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   // From |cdm::Host|.
   //
   // At least |SendKeyMessage| and |SendKeyError| are known to be called
   // by the CDM from both constructor and timer threads.
-  cdm::Buffer* Allocate(int32_t capacity) SB_OVERRIDE;
-  void SetTimer(int64_t delay_in_milliseconds, void* context) SB_OVERRIDE;
-  double GetCurrentWallTimeInSeconds() SB_OVERRIDE;
+  cdm::Buffer* Allocate(int32_t capacity) override;
+  void SetTimer(int64_t delay_in_milliseconds, void* context) override;
+  double GetCurrentWallTimeInSeconds() override;
   void SendKeyMessage(const char* web_session_id,
                       int32_t web_session_id_length,
                       const char* message,
                       int32_t message_length,
                       const char* default_url,
-                      int32_t default_url_length) SB_OVERRIDE;
+                      int32_t default_url_length) override;
   void SendKeyError(const char* web_session_id,
                     int32_t web_session_id_length,
                     cdm::MediaKeyError error_code,
-                    uint32_t system_code) SB_OVERRIDE;
+                    uint32_t system_code) override;
   void GetPlatformString(const std::string& name,
-                         std::string* value) SB_OVERRIDE;
+                         std::string* value) override;
   void SetPlatformString(const std::string& name,
-                         const std::string& value) SB_OVERRIDE;
+                         const std::string& value) override;
 
  private:
   class BufferImpl;

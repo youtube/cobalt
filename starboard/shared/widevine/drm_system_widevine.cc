@@ -33,15 +33,15 @@ class SbDrmSystemWidevine::BufferImpl : public cdm::Buffer {
   BufferImpl() : size_(0) {}
 
   // cdm::Buffer methods
-  void Destroy() SB_OVERRIDE {}
-  int32_t Capacity() const SB_OVERRIDE { return buffer_.capacity(); }
-  uint8_t* Data() SB_OVERRIDE { return buffer_.empty() ? NULL : &buffer_[0]; }
-  void SetSize(int32_t size) SB_OVERRIDE {
+  void Destroy() override {}
+  int32_t Capacity() const override { return buffer_.capacity(); }
+  uint8_t* Data() override { return buffer_.empty() ? NULL : &buffer_[0]; }
+  void SetSize(int32_t size) override {
     SB_DCHECK(size >= 0);
     SB_DCHECK(size <= buffer_.capacity());
     size_ = size;
   }
-  int32_t Size() const SB_OVERRIDE { return size_; }
+  int32_t Size() const override { return size_; }
 
   void Reset(int32_t new_capacity) {
     if (new_capacity > buffer_.capacity()) {
@@ -65,10 +65,10 @@ class SbDrmSystemWidevine::DecryptedBlockImpl : public cdm::DecryptedBlock {
   }
 
   // cdm::DecryptedBlock methods
-  void SetDecryptedBuffer(cdm::Buffer* buffer) SB_OVERRIDE { buffer_ = buffer; }
-  cdm::Buffer* DecryptedBuffer() SB_OVERRIDE { return buffer_; }
-  void SetTimestamp(int64_t timestamp) SB_OVERRIDE { timestamp_ = timestamp; }
-  int64_t Timestamp() const SB_OVERRIDE { return timestamp_; }
+  void SetDecryptedBuffer(cdm::Buffer* buffer) override { buffer_ = buffer; }
+  cdm::Buffer* DecryptedBuffer() override { return buffer_; }
+  void SetTimestamp(int64_t timestamp) override { timestamp_ = timestamp; }
+  int64_t Timestamp() const override { return timestamp_; }
 
  private:
   cdm::Buffer* buffer_;

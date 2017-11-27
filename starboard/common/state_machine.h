@@ -455,33 +455,33 @@ class StateMachine {
                    const std::string& name)
         : StateMachineBase(name), wrapper_(wrapper) {}
 
-    optional<State> GetUserParentState(State state) const SB_OVERRIDE {
+    optional<State> GetUserParentState(State state) const override {
       optional<StateEnum> result =
           wrapper_->GetUserParentState(static_cast<StateEnum>(state));
       return (result ? static_cast<State>(*result) : optional<State>());
     }
 
-    optional<State> GetUserInitialSubstate(State state) const SB_OVERRIDE {
+    optional<State> GetUserInitialSubstate(State state) const override {
       optional<StateEnum> result =
           wrapper_->GetUserInitialSubstate(static_cast<StateEnum>(state));
       return (result ? static_cast<State>(*result) : optional<State>());
     }
 
-    State GetUserInitialState() const SB_OVERRIDE {
+    State GetUserInitialState() const override {
       return static_cast<State>(wrapper_->GetUserInitialState());
     }
 
-    const char* GetUserStateString(State state) const SB_OVERRIDE {
+    const char* GetUserStateString(State state) const override {
       return wrapper_->GetUserStateString(static_cast<StateEnum>(state));
     }
 
-    const char* GetUserEventString(Event event) const SB_OVERRIDE {
+    const char* GetUserEventString(Event event) const override {
       return wrapper_->GetUserEventString(static_cast<EventEnum>(event));
     }
 
     Result HandleUserStateEvent(State state,
                                 Event event,
-                                void* data) SB_OVERRIDE {
+                                void* data) override {
       typename StateMachine<StateEnum, EventEnum>::Result result =
           wrapper_->HandleUserStateEvent(static_cast<StateEnum>(state),
                                          static_cast<EventEnum>(event), data);
@@ -492,11 +492,11 @@ class StateMachine {
       return result.is_handled ? kHandled : kNotHandled;
     }
 
-    void HandleUserStateEnter(State state) SB_OVERRIDE {
+    void HandleUserStateEnter(State state) override {
       wrapper_->HandleUserStateEnter(static_cast<StateEnum>(state));
     }
 
-    void HandleUserStateExit(State state) SB_OVERRIDE {
+    void HandleUserStateExit(State state) override {
       wrapper_->HandleUserStateExit(static_cast<StateEnum>(state));
     }
 

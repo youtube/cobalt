@@ -44,14 +44,14 @@ class VideoDecoder
   typedef ::starboard::shared::starboard::player::Closure Closure;
 
   VideoDecoder(SbMediaVideoCodec video_codec, JobQueue* job_queue);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
-  void SetHost(Host* host) SB_OVERRIDE;
-  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 1; }
+  void SetHost(Host* host) override;
+  size_t GetPrerollFrameCount() const override { return 1; }
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
+      override;
+  void WriteEndOfStream() override;
+  void Reset() override;
 
  private:
   struct Event {

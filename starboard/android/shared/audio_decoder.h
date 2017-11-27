@@ -41,23 +41,23 @@ class AudioDecoder
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
                SbDrmSystem drm_system);
-  ~AudioDecoder() SB_OVERRIDE;
+  ~AudioDecoder() override;
 
   void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) SB_OVERRIDE;
+                  const Closure& error_cb) override;
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
+              const Closure& consumed_cb) override;
+  void WriteEndOfStream() override;
+  scoped_refptr<DecodedAudio> Read() override;
+  void Reset() override;
 
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
+  SbMediaAudioSampleType GetSampleType() const override {
     return sample_type_;
   }
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+  SbMediaAudioFrameStorageType GetStorageType() const override {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
-  int GetSamplesPerSecond() const SB_OVERRIDE {
+  int GetSamplesPerSecond() const override {
     return audio_header_.samples_per_second;
   }
 
@@ -70,10 +70,10 @@ class AudioDecoder
 
   bool InitializeCodec();
   void ProcessOutputBuffer(MediaCodecBridge* media_codec_bridge,
-                           const DequeueOutputResult& output) SB_OVERRIDE;
-  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE;
-  bool Tick(MediaCodecBridge* media_codec_bridge) SB_OVERRIDE { return false; }
-  void OnFlushing() SB_OVERRIDE {}
+                           const DequeueOutputResult& output) override;
+  void RefreshOutputFormat(MediaCodecBridge* media_codec_bridge) override;
+  bool Tick(MediaCodecBridge* media_codec_bridge) override { return false; }
+  void OnFlushing() override {}
 
   SbMediaAudioCodec audio_codec_;
   SbMediaAudioHeader audio_header_;

@@ -41,7 +41,7 @@ class AudioResamplerImpl : public AudioResampler {
         channels_(channels) {}
 
   scoped_refptr<DecodedAudio> Resample(
-      const scoped_refptr<DecodedAudio>& audio_data) SB_OVERRIDE {
+      const scoped_refptr<DecodedAudio>& audio_data) override {
     SB_DCHECK(audio_data->sample_type() == source_sample_type_);
     SB_DCHECK(audio_data->storage_type() == source_storage_type_);
     SB_DCHECK(audio_data->channels() == channels_);
@@ -50,7 +50,7 @@ class AudioResamplerImpl : public AudioResampler {
     return audio_data;
   }
 
-  scoped_refptr<DecodedAudio> WriteEndOfStream() SB_OVERRIDE {
+  scoped_refptr<DecodedAudio> WriteEndOfStream() override {
     return new DecodedAudio;
   }
 

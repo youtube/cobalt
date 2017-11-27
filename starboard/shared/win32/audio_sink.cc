@@ -78,10 +78,10 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
                   SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                   SbAudioSinkConsumeFramesFunc consume_frame_func,
                   void* context);
-  ~XAudioAudioSink() SB_OVERRIDE;
+  ~XAudioAudioSink() override;
 
-  bool IsType(Type* type) SB_OVERRIDE;
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+  bool IsType(Type* type) override;
+  void SetPlaybackRate(double playback_rate) override {
     SB_DCHECK(playback_rate >= 0.0);
     if (playback_rate != 0.0 && playback_rate != 1.0) {
       SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
@@ -91,7 +91,7 @@ class XAudioAudioSink : public SbAudioSinkPrivate {
     ScopedLock lock(mutex_);
     playback_rate_ = playback_rate;
   }
-  void SetVolume(double volume) SB_OVERRIDE {
+  void SetVolume(double volume) override {
     ScopedLock lock(mutex_);
     volume_ = volume;
   }
@@ -142,18 +142,18 @@ class XAudioAudioSinkType : public SbAudioSinkPrivate::Type,
       SbAudioSinkConsumeFramesFunc consume_frames_func,
       void* context);
 
-  bool IsValid(SbAudioSink audio_sink) SB_OVERRIDE {
+  bool IsValid(SbAudioSink audio_sink) override {
     return audio_sink != kSbAudioSinkInvalid && audio_sink->IsType(this);
   }
 
-  void Destroy(SbAudioSink audio_sink) SB_OVERRIDE;
+  void Destroy(SbAudioSink audio_sink) override;
 
  private:
   // IXAudio2EngineCallback methods
   // This function will be called periodically with an interval of ~10ms.
-  void OnProcessingPassStart() SB_OVERRIDE;
-  void OnProcessingPassEnd() SB_OVERRIDE {}
-  void OnCriticalError(HRESULT) SB_OVERRIDE {}
+  void OnProcessingPassStart() override;
+  void OnProcessingPassEnd() override {}
+  void OnCriticalError(HRESULT) override {}
 
   ComPtr<IXAudio2> x_audio2_;
   IXAudio2MasteringVoice* mastering_voice_;

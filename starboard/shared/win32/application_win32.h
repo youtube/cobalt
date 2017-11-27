@@ -37,7 +37,7 @@ namespace win32 {
 class ApplicationWin32 : public starboard::QueueApplication {
  public:
   ApplicationWin32();
-  ~ApplicationWin32() SB_OVERRIDE;
+  ~ApplicationWin32() override;
 
   static ApplicationWin32* Get() {
     return static_cast<ApplicationWin32*>(
@@ -66,16 +66,16 @@ class ApplicationWin32 : public starboard::QueueApplication {
   }
 
   // Returns true if it is valid to poll/query for system events.
-  bool MayHaveSystemEvents() SB_OVERRIDE { return true; }
+  bool MayHaveSystemEvents() override { return true; }
 
   // Waits for an event until the timeout |time| runs out.  If an event occurs
   // in this time, it is returned, otherwise NULL is returned. If |time| is zero
   // or negative, then this should function effectively like a no-wait poll.
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
 
   // Wakes up any thread waiting within a call to
   // WaitForSystemEventWithTimeout().
-  void WakeSystemEventWait() SB_OVERRIDE {
+  void WakeSystemEventWait() override {
     ScopedLock lock(stop_waiting_for_system_events_mutex_);
     stop_waiting_for_system_events_ = true;
   }
@@ -85,12 +85,12 @@ class ApplicationWin32 : public starboard::QueueApplication {
 
  private:
   // --- Application overrides ---
-  bool IsStartImmediate() SB_OVERRIDE { return true; }
-  void Initialize() SB_OVERRIDE {}
-  void Teardown() SB_OVERRIDE {}
+  bool IsStartImmediate() override { return true; }
+  void Initialize() override {}
+  void Teardown() override {}
 
   bool ProcessNextSystemMessage();
-  SbTimeMonotonic GetNextTimedEventTargetTime() SB_OVERRIDE {
+  SbTimeMonotonic GetNextTimedEventTargetTime() override {
     return SbTimeGetMonotonicNow();
   }
 

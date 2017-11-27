@@ -41,22 +41,22 @@ class AudioDecoder
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header,
                SbDrmSystem drm_system);
-  ~AudioDecoder() SB_OVERRIDE;
+  ~AudioDecoder() override;
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
-  int GetSamplesPerSecond() const SB_OVERRIDE;
+              const Closure& consumed_cb) override;
+  void WriteEndOfStream() override;
+  scoped_refptr<DecodedAudio> Read() override;
+  void Reset() override;
+  SbMediaAudioSampleType GetSampleType() const override;
+  int GetSamplesPerSecond() const override;
 
   void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) SB_OVERRIDE;
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+                  const Closure& error_cb) override;
+  SbMediaAudioFrameStorageType GetStorageType() const override {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
-  void OnAudioDecoded(DecodedAudioPtr data) SB_OVERRIDE;
+  void OnAudioDecoded(DecodedAudioPtr data) override;
 
  private:
   class CallbackScheduler;

@@ -51,21 +51,21 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
             SbPlayer player,
             UpdateMediaTimeCB update_media_time_cb,
             GetPlayerStateCB get_player_state_cb,
-            UpdatePlayerStateCB update_player_state_cb) SB_OVERRIDE;
-  bool Seek(SbMediaTime seek_to_pts, int ticket) SB_OVERRIDE;
+            UpdatePlayerStateCB update_player_state_cb) override;
+  bool Seek(SbMediaTime seek_to_pts, int ticket) override;
   bool WriteSample(const scoped_refptr<InputBuffer>& input_buffer,
-                   bool* written) SB_OVERRIDE;
-  bool WriteEndOfStream(SbMediaType sample_type) SB_OVERRIDE;
-  bool SetPause(bool pause) SB_OVERRIDE;
-  bool SetPlaybackRate(double playback_rate) SB_OVERRIDE;
-  void SetVolume(double volume) SB_OVERRIDE;
-  bool SetBounds(const PlayerWorker::Bounds& bounds) SB_OVERRIDE;
-  void Stop() SB_OVERRIDE;
+                   bool* written) override;
+  bool WriteEndOfStream(SbMediaType sample_type) override;
+  bool SetPause(bool pause) override;
+  bool SetPlaybackRate(double playback_rate) override;
+  void SetVolume(double volume) override;
+  bool SetBounds(const PlayerWorker::Bounds& bounds) override;
+  void Stop() override;
 
   void Update();
   void OnError();
 
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
   PlayerWorker* player_worker_;
   JobQueue* job_queue_;

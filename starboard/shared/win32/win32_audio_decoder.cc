@@ -101,7 +101,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     media_buffer->Unlock();
   }
 
-  bool TryWrite(const scoped_refptr<InputBuffer>& buff) SB_OVERRIDE {
+  bool TryWrite(const scoped_refptr<InputBuffer>& buff) override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
     // The incoming audio is in ADTS format which has a 7 bytes header.  But
@@ -112,7 +112,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     return write_ok;
   }
 
-  void WriteEndOfStream() SB_OVERRIDE {
+  void WriteEndOfStream() override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
     impl_->Drain();
@@ -126,7 +126,7 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     output_queue_.push(new DecodedAudio);
   }
 
-  scoped_refptr<DecodedAudio> ProcessAndRead() SB_OVERRIDE {
+  scoped_refptr<DecodedAudio> ProcessAndRead() override {
     SB_DCHECK(thread_checker_.CalledOnValidThread());
 
     ComPtr<IMFSample> sample;
@@ -144,14 +144,14 @@ class AbstractWin32AudioDecoderImpl : public AbstractWin32AudioDecoder {
     return output;
   }
 
-  void Reset() SB_OVERRIDE {
+  void Reset() override {
     impl_->Reset();
     std::queue<DecodedAudioPtr> empty;
     output_queue_.swap(empty);
     thread_checker_.Detach();
   }
 
-  int GetSamplesPerSecond() const SB_OVERRIDE {
+  int GetSamplesPerSecond() const override {
     if (heaac_detected_.load()) {
       return samples_per_second_ * 2;
     }

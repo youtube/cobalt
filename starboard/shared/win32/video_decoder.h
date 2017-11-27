@@ -46,17 +46,17 @@ class VideoDecoder
                SbPlayerOutputMode output_mode,
                SbDecodeTargetGraphicsContextProvider* graphics_context_provider,
                SbDrmSystem drm_system);
-  ~VideoDecoder() SB_OVERRIDE;
+  ~VideoDecoder() override;
 
   // Implement HostedVideoDecoder interface.
-  void SetHost(Host* host) SB_OVERRIDE;
-  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 3; }
-  void Initialize(const Closure& error_cb) SB_OVERRIDE;
+  void SetHost(Host* host) override;
+  size_t GetPrerollFrameCount() const override { return 3; }
+  void Initialize(const Closure& error_cb) override;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbDecodeTarget GetCurrentDecodeTarget() SB_OVERRIDE;
+      override;
+  void WriteEndOfStream() override;
+  void Reset() override;
+  SbDecodeTarget GetCurrentDecodeTarget() override;
 
  private:
   template <typename T>

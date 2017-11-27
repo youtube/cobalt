@@ -56,23 +56,23 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
       SbDrmSessionUpdatedFunc session_updated_callback,
       SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-  ~SbDrmSystemPlayready() SB_OVERRIDE;
+  ~SbDrmSystemPlayready() override;
 
   // From |SbDrmSystemPrivate|.
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
-                                    int initialization_data_size) SB_OVERRIDE;
+                                    int initialization_data_size) override;
 
   void UpdateSession(int ticket,
                      const void* key,
                      int key_size,
                      const void* session_id,
-                     int session_id_size) SB_OVERRIDE;
+                     int session_id_size) override;
 
-  void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
+  void CloseSession(const void* session_id, int session_id_size) override;
 
-  DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
+  DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   // Used by audio and video decoders to retrieve the decryptors.
   scoped_refptr<License> GetLicense(const uint8_t* key_id, int key_id_size);
