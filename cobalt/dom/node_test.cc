@@ -68,7 +68,7 @@ void ExpectNodeChildrenEq(scoped_refptr<Node>(&children)[N],
 class NodeTest : public ::testing::Test {
  protected:
   NodeTest();
-  ~NodeTest() OVERRIDE;
+  ~NodeTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

@@ -57,11 +57,11 @@ class FontWeightValue : public PropertyValue {
   static const scoped_refptr<FontWeightValue>& GetExtraBoldAka800();
   static const scoped_refptr<FontWeightValue>& GetBlackAka900();
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const FontWeightValue& other) const {
     return value_ == other.value_;
@@ -74,7 +74,7 @@ class FontWeightValue : public PropertyValue {
 
  private:
   explicit FontWeightValue(Value value) : value_(value) {}
-  ~FontWeightValue() OVERRIDE {}
+  ~FontWeightValue() override {}
 
   const Value value_;
 

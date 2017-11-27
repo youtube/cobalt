@@ -30,9 +30,9 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
   SurfaceRenderTargetBlitter(SbBlitterDevice device,
                              const math::Size& dimensions);
 
-  const math::Size& GetSize() const OVERRIDE;
+  const math::Size& GetSize() const override;
 
-  SbBlitterRenderTarget GetSbRenderTarget() const OVERRIDE;
+  SbBlitterRenderTarget GetSbRenderTarget() const override;
 
   SbBlitterSurface GetSbSurface() const { return surface_; }
 
@@ -45,12 +45,12 @@ class SurfaceRenderTargetBlitter : public RenderTargetBlitter {
     return original_surface_;
   }
 
-  void Flip() OVERRIDE {}
+  void Flip() override {}
 
-  bool CreationError() OVERRIDE { return !SbBlitterIsSurfaceValid(surface_); }
+  bool CreationError() override { return !SbBlitterIsSurfaceValid(surface_); }
 
  private:
-  ~SurfaceRenderTargetBlitter() OVERRIDE;
+  ~SurfaceRenderTargetBlitter() override;
 
   SbBlitterSurface surface_;
   SbBlitterRenderTarget render_target_;

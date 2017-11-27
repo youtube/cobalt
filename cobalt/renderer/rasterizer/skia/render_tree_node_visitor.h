@@ -93,20 +93,20 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       SurfaceCacheDelegate* surface_cache_delegate,
       common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
 
-  void Visit(render_tree::animations::AnimateNode* animate_node) OVERRIDE {
+  void Visit(render_tree::animations::AnimateNode* animate_node) override {
     NOTREACHED();
   }
-  void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
-  void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
-  void Visit(render_tree::ImageNode* image_node) OVERRIDE;
+  void Visit(render_tree::CompositionNode* composition_node) override;
+  void Visit(render_tree::FilterNode* filter_node) override;
+  void Visit(render_tree::ImageNode* image_node) override;
   void Visit(
-      render_tree::MatrixTransform3DNode* matrix_transform_3d_node) OVERRIDE;
-  void Visit(render_tree::MatrixTransformNode* matrix_transform_node) OVERRIDE;
+      render_tree::MatrixTransform3DNode* matrix_transform_3d_node) override;
+  void Visit(render_tree::MatrixTransformNode* matrix_transform_node) override;
   void Visit(
-      render_tree::PunchThroughVideoNode* punch_through_video_node) OVERRIDE;
-  void Visit(render_tree::RectNode* rect_node) OVERRIDE;
-  void Visit(render_tree::RectShadowNode* rect_shadow_node) OVERRIDE;
-  void Visit(render_tree::TextNode* text_node) OVERRIDE;
+      render_tree::PunchThroughVideoNode* punch_through_video_node) override;
+  void Visit(render_tree::RectNode* rect_node) override;
+  void Visit(render_tree::RectShadowNode* rect_shadow_node) override;
+  void Visit(render_tree::TextNode* text_node) override;
 
  private:
   // Helper function to render the filter's source to an offscreen surface and

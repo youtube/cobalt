@@ -27,7 +27,7 @@ class StubScriptRunner : public script::ScriptRunner {
  public:
   std::string Execute(const std::string& script_utf8,
                       const base::SourceLocation& script_location,
-                      bool mute_errors, bool* out_succeeded) OVERRIDE;
+                      bool mute_errors, bool* out_succeeded) override;
 };
 
 }  // namespace testing

@@ -36,22 +36,22 @@ class Comment : public CharacterData {
 
   // Web API: Node
   //
-  base::Token node_name() const OVERRIDE;
-  NodeType node_type() const OVERRIDE { return Node::kCommentNode; }
+  base::Token node_name() const override;
+  NodeType node_type() const override { return Node::kCommentNode; }
 
   // Custom, not in any spec: Node.
   //
-  Comment* AsComment() OVERRIDE { return this; }
+  Comment* AsComment() override { return this; }
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  void Accept(ConstNodeVisitor* visitor) const override;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE;
+  scoped_refptr<Node> Duplicate() const override;
 
   DEFINE_WRAPPABLE_TYPE(Comment);
 
  private:
-  ~Comment() OVERRIDE {}
+  ~Comment() override {}
 };
 
 }  // namespace dom

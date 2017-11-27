@@ -174,7 +174,7 @@ class AnimationEffectTimingReadOnly : public script::Wrappable {
   Data data_;
 
  private:
-  ~AnimationEffectTimingReadOnly() OVERRIDE {}
+  ~AnimationEffectTimingReadOnly() override {}
 
   DISALLOW_COPY_AND_ASSIGN(AnimationEffectTimingReadOnly);
 };

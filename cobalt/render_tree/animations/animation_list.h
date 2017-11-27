@@ -159,13 +159,13 @@ class AnimationList : public AnimationListBase {
 
   const Builder& data() const { return data_; }
 
-  base::TimeDelta GetExpiry() const OVERRIDE { return data_.expiry; }
-  base::TimeDelta GetDependsOnTimeExpiry() const OVERRIDE {
+  base::TimeDelta GetExpiry() const override { return data_.expiry; }
+  base::TimeDelta GetDependsOnTimeExpiry() const override {
     return data_.depends_on_time_expiry;
   }
 
  private:
-  ~AnimationList() OVERRIDE {}
+  ~AnimationList() override {}
 
   const Builder data_;
 

@@ -38,7 +38,7 @@ class NetworkDelegate : public net::NetworkDelegate {
  public:
   NetworkDelegate(net::StaticCookiePolicy::Type cookie_policy,
                   network::HTTPSRequirement https_requirement);
-  ~NetworkDelegate() OVERRIDE;
+  ~NetworkDelegate() override;
 
   // For debugging, we allow blocking all cookies.
   void set_cookies_enabled(bool enabled) { cookies_enabled_ = enabled; }
@@ -48,43 +48,43 @@ class NetworkDelegate : public net::NetworkDelegate {
   // net::NetworkDelegate implementation.
   int OnBeforeURLRequest(net::URLRequest* request,
                          const net::CompletionCallback& callback,
-                         GURL* new_url) OVERRIDE;
+                         GURL* new_url) override;
   int OnBeforeSendHeaders(net::URLRequest* request,
                           const net::CompletionCallback& callback,
-                          net::HttpRequestHeaders* headers) OVERRIDE;
+                          net::HttpRequestHeaders* headers) override;
   void OnSendHeaders(net::URLRequest* request,
-                     const net::HttpRequestHeaders& headers) OVERRIDE;
+                     const net::HttpRequestHeaders& headers) override;
   int OnHeadersReceived(
       net::URLRequest* request, const net::CompletionCallback& callback,
       const net::HttpResponseHeaders* original_response_headers,
       scoped_refptr<net::HttpResponseHeaders>* override_response_headers)
-      OVERRIDE;
+      override;
   void OnBeforeRedirect(net::URLRequest* request,
-                        const GURL& new_location) OVERRIDE;
-  void OnResponseStarted(net::URLRequest* request) OVERRIDE;
-  void OnRawBytesRead(const net::URLRequest& request, int bytes_read) OVERRIDE;
-  void OnCompleted(net::URLRequest* request, bool started) OVERRIDE;
-  void OnURLRequestDestroyed(net::URLRequest* request) OVERRIDE;
+                        const GURL& new_location) override;
+  void OnResponseStarted(net::URLRequest* request) override;
+  void OnRawBytesRead(const net::URLRequest& request, int bytes_read) override;
+  void OnCompleted(net::URLRequest* request, bool started) override;
+  void OnURLRequestDestroyed(net::URLRequest* request) override;
 
-  void OnPACScriptError(int line_number, const string16& error) OVERRIDE;
+  void OnPACScriptError(int line_number, const string16& error) override;
   AuthRequiredResponse OnAuthRequired(
       net::URLRequest* request, const net::AuthChallengeInfo& auth_info,
-      const AuthCallback& callback, net::AuthCredentials* credentials) OVERRIDE;
+      const AuthCallback& callback, net::AuthCredentials* credentials) override;
   bool OnCanGetCookies(const net::URLRequest& request,
-                       const net::CookieList& cookie_list) OVERRIDE;
+                       const net::CookieList& cookie_list) override;
   bool OnCanSetCookie(const net::URLRequest& request,
                       const std::string& cookie_line,
-                      net::CookieOptions* options) OVERRIDE;
+                      net::CookieOptions* options) override;
   bool OnCanAccessFile(const net::URLRequest& request,
-                       const FilePath& path) const OVERRIDE;
-  bool OnCanThrottleRequest(const net::URLRequest& request) const OVERRIDE;
+                       const FilePath& path) const override;
+  bool OnCanThrottleRequest(const net::URLRequest& request) const override;
 
   int OnBeforeSocketStreamConnect(
       net::SocketStream* stream,
-      const net::CompletionCallback& callback) OVERRIDE;
+      const net::CompletionCallback& callback) override;
 
   void OnRequestWaitStateChange(const net::URLRequest& request,
-                                RequestWaitState state) OVERRIDE;
+                                RequestWaitState state) override;
 
   net::StaticCookiePolicy::Type ComputeCookiePolicy() const;
 

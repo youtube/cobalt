@@ -174,7 +174,7 @@ class UsedBackgroundTranslateProvider
   UsedBackgroundTranslateProvider(float frame_length, float image_length)
       : frame_length_(frame_length), image_length_(image_length) {}
 
-  void VisitCalc(cssom::CalcValue* calc) OVERRIDE;
+  void VisitCalc(cssom::CalcValue* calc) override;
 
   // Returns the value based on the left top.
   float translate() { return translate_; }
@@ -214,9 +214,9 @@ class UsedBackgroundSizeScaleProvider
     DCHECK_GT(image_length, 0);
   }
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitLength(cssom::LengthValue* length) OVERRIDE;
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
+  void VisitLength(cssom::LengthValue* length) override;
+  void VisitPercentage(cssom::PercentageValue* percentage) override;
 
   float scale() const { return scale_; }
   bool auto_keyword() const { return auto_keyword_; }
@@ -312,9 +312,9 @@ class UsedFontFamilyProvider : public cssom::NotReachedPropertyValueVisitor {
   explicit UsedFontFamilyProvider(std::vector<std::string>* family_names)
       : family_names_(family_names) {}
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
-  void VisitPropertyList(cssom::PropertyListValue* property_list) OVERRIDE;
-  void VisitString(cssom::StringValue* percentage) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
+  void VisitPropertyList(cssom::PropertyListValue* property_list) override;
+  void VisitString(cssom::StringValue* percentage) override;
 
  private:
   std::vector<std::string>* family_names_;
@@ -551,19 +551,19 @@ class UsedLengthValueProvider : public cssom::NotReachedPropertyValueVisitor {
                                    bool calc_permitted = false)
       : percentage_base_(percentage_base), calc_permitted_(calc_permitted) {}
 
-  void VisitLength(cssom::LengthValue* length) OVERRIDE {
+  void VisitLength(cssom::LengthValue* length) override {
     depends_on_containing_block_ = false;
 
     DCHECK_EQ(cssom::kPixelsUnit, length->unit());
     used_length_ = LayoutUnit(length->value());
   }
 
-  void VisitPercentage(cssom::PercentageValue* percentage) OVERRIDE {
+  void VisitPercentage(cssom::PercentageValue* percentage) override {
     depends_on_containing_block_ = true;
     used_length_ = percentage->value() * percentage_base_;
   }
 
-  void VisitCalc(cssom::CalcValue* calc) OVERRIDE {
+  void VisitCalc(cssom::CalcValue* calc) override {
     if (!calc_permitted_) {
       NOTREACHED();
     }
@@ -1315,7 +1315,7 @@ class UsedLengthProvider : public UsedLengthValueProvider {
   explicit UsedLengthProvider(LayoutUnit percentage_base)
       : UsedLengthValueProvider(percentage_base) {}
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+  void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
       case cssom::KeywordValue::kAuto:
         depends_on_containing_block_ = true;
@@ -1387,7 +1387,7 @@ class UsedMaxLengthProvider : public UsedLengthValueProvider {
   explicit UsedMaxLengthProvider(LayoutUnit percentage_base)
       : UsedLengthValueProvider(percentage_base) {}
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+  void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
       case cssom::KeywordValue::kNone:
         depends_on_containing_block_ = true;

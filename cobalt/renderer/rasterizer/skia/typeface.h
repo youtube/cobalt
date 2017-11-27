@@ -48,20 +48,20 @@ class SkiaTypeface : public render_tree::Typeface {
 
   // Returns the typeface's id, which is guaranteed to be unique among the
   // typefaces registered with the resource provider.
-  render_tree::TypefaceId GetId() const OVERRIDE;
+  render_tree::TypefaceId GetId() const override;
 
   // Returns a size estimate for this typeface in bytes.
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE;
+  uint32 GetEstimatedSizeInBytes() const override;
 
   // Creates a font using this typeface, with the font's size set to the passed
   // in value.
-  scoped_refptr<render_tree::Font> CreateFontWithSize(float font_size) OVERRIDE;
+  scoped_refptr<render_tree::Font> CreateFontWithSize(float font_size) override;
 
   // Returns an index to the glyph that the typeface provides for a given UTF-32
   // unicode character. If the character is unsupported, then it returns
   // kInvalidGlyphIndex. The results are cached to speed up subsequent requests
   // for the same character.
-  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) OVERRIDE;
+  render_tree::GlyphIndex GetGlyphForCharacter(int32 utf32_character) override;
 
  private:
   // Usually covers Latin-1 in a single page.

@@ -75,7 +75,7 @@ class DOMSettings : public script::EnvironmentSettings {
               script::GlobalEnvironment* global_environment_proxy,
               MutationObserverTaskManager* mutation_observer_task_manager,
               const Options& options = Options());
-  ~DOMSettings() OVERRIDE;
+  ~DOMSettings() override;
 
   int max_dom_element_depth() { return max_dom_element_depth_; }
   const speech::Microphone::Options& microphone_options() const {

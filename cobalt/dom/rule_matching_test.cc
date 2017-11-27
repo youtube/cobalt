@@ -56,7 +56,7 @@ class RuleMatchingTest : public ::testing::Test {
     document_->AppendChild(root_);
   }
 
-  ~RuleMatchingTest() OVERRIDE {}
+  ~RuleMatchingTest() override {}
 
   void UpdateAllMatchingRules();
 

@@ -34,14 +34,14 @@ class HTMLParagraphElement : public HTMLElement {
       : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement() OVERRIDE {
+  scoped_refptr<HTMLParagraphElement> AsHTMLParagraphElement() override {
     return this;
   }
 
   DEFINE_WRAPPABLE_TYPE(HTMLParagraphElement);
 
  private:
-  ~HTMLParagraphElement() OVERRIDE {}
+  ~HTMLParagraphElement() override {}
 };
 
 }  // namespace dom

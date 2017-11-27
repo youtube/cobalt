@@ -48,7 +48,7 @@ class SpeechRecognitionResultList : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionResultList);
 
  private:
-  ~SpeechRecognitionResultList() OVERRIDE {}
+  ~SpeechRecognitionResultList() override {}
 
   SpeechRecognitionResults results_;
 

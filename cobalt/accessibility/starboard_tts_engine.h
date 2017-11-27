@@ -26,9 +26,9 @@ namespace accessibility {
 // Implementation of TTSEngine using the Starboard Speech Synthesis API.
 class StarboardTTSEngine : public TTSEngine {
  public:
-  void SpeakNow(const std::string& text) OVERRIDE;
-  void Speak(const std::string& text) OVERRIDE;
-  ~StarboardTTSEngine() OVERRIDE {}
+  void SpeakNow(const std::string& text) override;
+  void Speak(const std::string& text) override;
+  ~StarboardTTSEngine() override {}
 };
 }  // namespace accessibility
 }  // namespace cobalt

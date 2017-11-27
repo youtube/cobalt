@@ -62,14 +62,14 @@ class Element : public Node {
 
   // Web API: Node
   //
-  base::Token node_name() const OVERRIDE { return tag_name(); }
-  NodeType node_type() const OVERRIDE { return Node::kElementNode; }
+  base::Token node_name() const override { return tag_name(); }
+  NodeType node_type() const override { return Node::kElementNode; }
 
-  base::optional<std::string> text_content() const OVERRIDE;
+  base::optional<std::string> text_content() const override;
   void set_text_content(
-      const base::optional<std::string>& text_content) OVERRIDE;
+      const base::optional<std::string>& text_content) override;
 
-  bool HasAttributes() const OVERRIDE;
+  bool HasAttributes() const override;
 
   // Web API: Element
   //
@@ -128,12 +128,12 @@ class Element : public Node {
 
   // Custom, not in any spec: Node.
   //
-  Element* AsElement() OVERRIDE { return this; }
+  Element* AsElement() override { return this; }
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  void Accept(ConstNodeVisitor* visitor) const override;
 
-  scoped_refptr<Node> Duplicate() const OVERRIDE;
+  scoped_refptr<Node> Duplicate() const override;
 
   // Custom, not in any spec.
   //
@@ -181,7 +181,7 @@ class Element : public Node {
   DEFINE_WRAPPABLE_TYPE(Element);
 
  protected:
-  ~Element() OVERRIDE;
+  ~Element() override;
 
   // Getting and setting boolean attribute.
   //   https://www.w3.org/TR/html5/infrastructure.html#boolean-attribute
@@ -194,7 +194,7 @@ class Element : public Node {
 
  private:
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE;
+  std::string GetDebugName() override;
 
   virtual void OnSetAttribute(const std::string& /* name */,
                               const std::string& /* value */) {}

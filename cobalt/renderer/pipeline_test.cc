@@ -50,7 +50,7 @@ class MockRasterizer : public Rasterizer {
 
   void Submit(const scoped_refptr<cobalt::render_tree::Node>&,
               const scoped_refptr<cobalt::renderer::backend::RenderTarget>&,
-              const Options& options) OVERRIDE {
+              const Options& options) override {
     if (last_submission_time) {
       // Simulate a "wait for vsync".
       base::TimeDelta since_last_submit =
@@ -66,11 +66,11 @@ class MockRasterizer : public Rasterizer {
     ++(*submission_count_);
   }
 
-  cobalt::render_tree::ResourceProvider* GetResourceProvider() OVERRIDE {
+  cobalt::render_tree::ResourceProvider* GetResourceProvider() override {
     return NULL;
   }
 
-  void MakeCurrent() OVERRIDE {}
+  void MakeCurrent() override {}
 
  private:
   int* submission_count_;

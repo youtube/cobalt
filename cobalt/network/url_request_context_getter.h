@@ -29,9 +29,9 @@ class URLRequestContextGetter : public net::URLRequestContextGetter {
                           base::Thread* io_thread);
 
   // Implementation for net::UrlRequestContextGetter.
-  net::URLRequestContext* GetURLRequestContext() OVERRIDE;
+  net::URLRequestContext* GetURLRequestContext() override;
   scoped_refptr<base::SingleThreadTaskRunner> GetNetworkTaskRunner()
-      const OVERRIDE;
+      const override;
 
  protected:
   virtual ~URLRequestContextGetter();

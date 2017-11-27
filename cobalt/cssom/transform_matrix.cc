@@ -82,10 +82,10 @@ class PostMultiplyMatrixVisitor : public TransformFunctionVisitor {
         width_percentage_translation_(width_percentage_translation),
         height_percentage_translation_(height_percentage_translation) {}
 
-  void VisitMatrix(const MatrixFunction* matrix_function) OVERRIDE;
-  void VisitRotate(const RotateFunction* rotate_function) OVERRIDE;
-  void VisitScale(const ScaleFunction* scale_function) OVERRIDE;
-  void VisitTranslate(const TranslateFunction* translate_function) OVERRIDE;
+  void VisitMatrix(const MatrixFunction* matrix_function) override;
+  void VisitRotate(const RotateFunction* rotate_function) override;
+  void VisitScale(const ScaleFunction* scale_function) override;
+  void VisitTranslate(const TranslateFunction* translate_function) override;
 
  private:
   math::Matrix3F* matrix_;

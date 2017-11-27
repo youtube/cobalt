@@ -29,13 +29,13 @@ class FakeScriptRunner : public ScriptRunner {
   FakeScriptRunner() : fake_global_environment_(new FakeGlobalEnvironment()) {}
   std::string Execute(const std::string& /*script_utf8*/,
                       const base::SourceLocation& /*script_location*/,
-                      bool /*mute_errors*/, bool* out_succeeded) OVERRIDE {
+                      bool /*mute_errors*/, bool* out_succeeded) override {
     if (out_succeeded) {
       *out_succeeded = true;
     }
     return "";
   }
-  GlobalEnvironment* GetGlobalEnvironment() const OVERRIDE {
+  GlobalEnvironment* GetGlobalEnvironment() const override {
     return fake_global_environment_.get();
   }
 

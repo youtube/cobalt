@@ -25,7 +25,7 @@ class TestSuiteNoAtExit : public base::TestSuite {
   ~TestSuiteNoAtExit() override {}
 
  protected:
-  void Initialize() OVERRIDE;
+  void Initialize() override;
 
  private:
   base::TestDiscardableMemoryAllocator discardable_memory_allocator_;

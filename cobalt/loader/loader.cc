@@ -37,7 +37,7 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
   // From Fetcher::Handler.
   LoadResponseType OnResponseStarted(
       Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE {
+      const scoped_refptr<net::HttpResponseHeaders>& headers) override {
     if (headers) {
       return decoder_->OnResponseStarted(fetcher, headers);
     } else {
@@ -45,21 +45,21 @@ class Loader::FetcherToDecoderAdapter : public Fetcher::Handler {
     }
   }
 
-  void OnReceived(Fetcher* fetcher, const char* data, size_t size) OVERRIDE {
+  void OnReceived(Fetcher* fetcher, const char* data, size_t size) override {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunk(data, size);
   }
   void OnReceivedPassed(Fetcher* fetcher,
-                        scoped_ptr<std::string> data) OVERRIDE {
+                        scoped_ptr<std::string> data) override {
     UNREFERENCED_PARAMETER(fetcher);
     decoder_->DecodeChunkPassed(data.Pass());
   }
-  void OnDone(Fetcher* fetcher) OVERRIDE {
+  void OnDone(Fetcher* fetcher) override {
     DCHECK(fetcher);
     decoder_->SetLastURLOrigin(fetcher->last_url_origin());
     decoder_->Finish();
   }
-  void OnError(Fetcher* fetcher, const std::string& error) OVERRIDE {
+  void OnError(Fetcher* fetcher, const std::string& error) override {
     UNREFERENCED_PARAMETER(fetcher);
     error_callback_.Run(error);
   }

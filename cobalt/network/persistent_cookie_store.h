@@ -27,21 +27,21 @@ namespace network {
 class PersistentCookieStore : public net::CookieMonster::PersistentCookieStore {
  public:
   explicit PersistentCookieStore(storage::StorageManager* storage);
-  ~PersistentCookieStore() OVERRIDE;
+  ~PersistentCookieStore() override;
 
   // net::CookieMonster::PersistentCookieStore methods
-  void Load(const LoadedCallback& loaded_callback) OVERRIDE;
+  void Load(const LoadedCallback& loaded_callback) override;
 
   void LoadCookiesForKey(const std::string& key,
-                         const LoadedCallback& loaded_callback) OVERRIDE;
+                         const LoadedCallback& loaded_callback) override;
 
-  void AddCookie(const net::CanonicalCookie& cc) OVERRIDE;
-  void UpdateCookieAccessTime(const net::CanonicalCookie& cc) OVERRIDE;
-  void DeleteCookie(const net::CanonicalCookie& cc) OVERRIDE;
+  void AddCookie(const net::CanonicalCookie& cc) override;
+  void UpdateCookieAccessTime(const net::CanonicalCookie& cc) override;
+  void DeleteCookie(const net::CanonicalCookie& cc) override;
 
-  void SetForceKeepSessionState() OVERRIDE;
+  void SetForceKeepSessionState() override;
 
-  void Flush(const base::Closure& callback) OVERRIDE;
+  void Flush(const base::Closure& callback) override;
 
  private:
   storage::StorageManager* storage_;

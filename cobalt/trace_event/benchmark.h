@@ -209,7 +209,7 @@ enum MeasurementType {
     typedef std::vector<                                                       \
         cobalt::trace_event::BenchmarkCreator::CreateBenchmarkFunction>        \
         BenchmarkCreatorList;                                                  \
-    BenchmarkCreatorList GetBenchmarkCreators() OVERRIDE {                     \
+    BenchmarkCreatorList GetBenchmarkCreators() override {                     \
       BenchmarkCreatorList benchmark_list_of_one;                              \
       benchmark_list_of_one.push_back(base::Bind(&CreateAndSetupBenchmark));   \
       return benchmark_list_of_one;                                            \

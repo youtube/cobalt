@@ -36,7 +36,7 @@ namespace layout {
 class BlockFormattingContext : public FormattingContext {
  public:
   explicit BlockFormattingContext(const LayoutParams& layout_params);
-  ~BlockFormattingContext() OVERRIDE;
+  ~BlockFormattingContext() override;
 
   // Calculates the position and size of the given child box and updates
   // the internal state in the preparation for the next child.

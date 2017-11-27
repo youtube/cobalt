@@ -115,23 +115,23 @@ class Loader : public ::media::DemuxerHost {
   const ::media::VideoDecoderConfig& config() const { return config_; }
 
  private:
-  void SetTotalBytes(int64 total_bytes) OVERRIDE {
+  void SetTotalBytes(int64 total_bytes) override {
     UNREFERENCED_PARAMETER(total_bytes);
   }
-  void AddBufferedByteRange(int64 start, int64 end) OVERRIDE {
+  void AddBufferedByteRange(int64 start, int64 end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) OVERRIDE {
+                            base::TimeDelta end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
 
-  void SetDuration(base::TimeDelta duration) OVERRIDE {
+  void SetDuration(base::TimeDelta duration) override {
     UNREFERENCED_PARAMETER(duration);
   }
-  void OnDemuxerError(::media::PipelineStatus error) OVERRIDE {
+  void OnDemuxerError(::media::PipelineStatus error) override {
     valid_ = false;
   }
   void OnDemuxerOpen(bool is_mp4) {

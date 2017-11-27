@@ -121,7 +121,7 @@ class AudioNode : public dom::EventTarget {
   DEFINE_WRAPPABLE_TYPE(AudioNode);
 
  protected:
-  ~AudioNode() OVERRIDE;
+  ~AudioNode() override;
 
   void AddInput(const scoped_refptr<AudioNodeInput>& input);
   void AddOutput(const scoped_refptr<AudioNodeOutput>& output);
@@ -137,7 +137,7 @@ class AudioNode : public dom::EventTarget {
   typedef std::vector<scoped_refptr<AudioNodeOutput> > AudioNodeOutputVector;
 
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "AudioNode"; }
+  std::string GetDebugName() override { return "AudioNode"; }
 
   AudioNodeInputVector inputs_;
   AudioNodeOutputVector outputs_;

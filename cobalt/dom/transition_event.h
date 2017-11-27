@@ -50,7 +50,7 @@ class TransitionEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(TransitionEvent);
 
  private:
-  ~TransitionEvent() OVERRIDE {}
+  ~TransitionEvent() override {}
 
   cssom::PropertyKey property_;
   float elapsed_time_;

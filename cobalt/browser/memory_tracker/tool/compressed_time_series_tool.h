@@ -60,8 +60,8 @@ namespace memory_tracker {
 class CompressedTimeSeriesTool : public AbstractTool {
  public:
   CompressedTimeSeriesTool();
-  virtual void Run(Params* params) OVERRIDE;
-  virtual std::string tool_name() const OVERRIDE {
+  void Run(Params* params) override;
+  std::string tool_name() const override {
     return "MemoryTrackerCompressedTimeSeries";
   }
 

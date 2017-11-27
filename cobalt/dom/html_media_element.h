@@ -57,7 +57,7 @@ typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
  public:
   HTMLMediaElement(Document* document, base::Token tag_name);
-  ~HTMLMediaElement() OVERRIDE;
+  ~HTMLMediaElement() override;
 
   // Web API: HTMLMediaElement
   //
@@ -153,9 +153,9 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   // Custom, not in any spec
   //
   // From Node
-  void OnInsertedIntoDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
   // Called by MediaSource
@@ -234,37 +234,37 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void MediaEngineError(scoped_refptr<MediaError> error);
 
   // WebMediaPlayerClient methods
-  void NetworkStateChanged() OVERRIDE;
-  void ReadyStateChanged() OVERRIDE;
-  void TimeChanged(bool eos_played) OVERRIDE;
-  void DurationChanged() OVERRIDE;
-  void OutputModeChanged() OVERRIDE;
-  void ContentSizeChanged() OVERRIDE;
-  void PlaybackStateChanged() OVERRIDE;
-  void SawUnsupportedTracks() OVERRIDE;
-  float Volume() const OVERRIDE;
+  void NetworkStateChanged() override;
+  void ReadyStateChanged() override;
+  void TimeChanged(bool eos_played) override;
+  void DurationChanged() override;
+  void OutputModeChanged() override;
+  void ContentSizeChanged() override;
+  void PlaybackStateChanged() override;
+  void SawUnsupportedTracks() override;
+  float Volume() const override;
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened(ChunkDemuxer* chunk_demuxer) OVERRIDE;
+  void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened() OVERRIDE;
+  void SourceOpened() override;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  std::string SourceURL() const OVERRIDE;
-  bool PreferDecodeToTexture() OVERRIDE;
+  std::string SourceURL() const override;
+  bool PreferDecodeToTexture() override;
 #if defined(COBALT_MEDIA_SOURCE_2016)
   void EncryptedMediaInitDataEncountered(
       media::EmeInitDataType init_data_type, const unsigned char* init_data,
-      unsigned int init_data_length) OVERRIDE;
+      unsigned int init_data_length) override;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
   void KeyAdded(const std::string& key_system,
-                const std::string& session_id) OVERRIDE;
+                const std::string& session_id) override;
   void KeyError(const std::string& key_system, const std::string& session_id,
-                MediaKeyErrorCode error_code, uint16 system_code) OVERRIDE;
+                MediaKeyErrorCode error_code, uint16 system_code) override;
   void KeyMessage(const std::string& key_system, const std::string& session_id,
                   const unsigned char* message, unsigned int message_length,
-                  const std::string& default_url) OVERRIDE;
+                  const std::string& default_url) override;
   void KeyNeeded(const std::string& key_system, const std::string& session_id,
                  const unsigned char* init_data,
-                 unsigned int init_data_length) OVERRIDE;
+                 unsigned int init_data_length) override;
 #endif  // !defined(COBALT_MEDIA_SOURCE_2016)
   void ClearMediaSource();
 #if !defined(COBALT_MEDIA_SOURCE_2016)

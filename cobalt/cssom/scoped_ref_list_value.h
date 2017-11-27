@@ -62,7 +62,7 @@ class ScopedRefListValue : public PropertyValue {
   }
 
  protected:
-  ~ScopedRefListValue() OVERRIDE {}
+  ~ScopedRefListValue() override {}
 
   const scoped_ptr<Builder> value_;
 

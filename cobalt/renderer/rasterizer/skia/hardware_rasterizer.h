@@ -62,7 +62,7 @@ class HardwareRasterizer : public Rasterizer {
   // into the constructor.
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options) OVERRIDE;
+              const Options& options) override;
 
   // Consume the render tree and output the results to the specified canvas.
   void SubmitOffscreen(const scoped_refptr<render_tree::Node>& render_tree,
@@ -78,10 +78,10 @@ class HardwareRasterizer : public Rasterizer {
   // a frame has been submitted.
   void AdvanceFrame();
 
-  render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  render_tree::ResourceProvider* GetResourceProvider() override;
   GrContext* GetGrContext();
 
-  void MakeCurrent() OVERRIDE;
+  void MakeCurrent() override;
 
  private:
   class Impl;

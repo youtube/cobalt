@@ -38,14 +38,14 @@ EGLNativeWindowType GetHandleFromSystemWindow(
 class GraphicsSystemEGL : public GraphicsSystem {
  public:
   GraphicsSystemEGL();
-  ~GraphicsSystemEGL() OVERRIDE;
+  ~GraphicsSystemEGL() override;
 
   EGLDisplay GetDisplay() { return display_; }
 
   scoped_ptr<Display> CreateDisplay(
-      system_window::SystemWindow* system_window) OVERRIDE;
+      system_window::SystemWindow* system_window) override;
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE;
+  scoped_ptr<GraphicsContext> CreateGraphicsContext() override;
 
   scoped_ptr<TextureDataEGL> AllocateTextureData(const math::Size& size,
                                                  GLenum format);

@@ -61,11 +61,11 @@ class MediaFeatureKeywordValue : public PropertyValue {
   static const scoped_refptr<MediaFeatureKeywordValue>& GetPortrait();
   static const scoped_refptr<MediaFeatureKeywordValue>& GetProgressive();
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   Value value() const { return value_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
   bool operator==(const MediaFeatureKeywordValue& other) const {
     return value_ == other.value_;
   }
@@ -77,7 +77,7 @@ class MediaFeatureKeywordValue : public PropertyValue {
 
  private:
   explicit MediaFeatureKeywordValue(Value value) : value_(value) {}
-  ~MediaFeatureKeywordValue() OVERRIDE {}
+  ~MediaFeatureKeywordValue() override {}
 
   const Value value_;
 

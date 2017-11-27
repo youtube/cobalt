@@ -26,11 +26,11 @@
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -57,7 +57,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_1_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -96,11 +96,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -152,7 +152,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_2_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -213,11 +213,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -294,7 +294,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_3_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -378,11 +378,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -484,7 +484,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_4_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -590,11 +590,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -721,7 +721,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_5_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -850,11 +850,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -1006,7 +1006,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_6_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -1157,11 +1157,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -1338,7 +1338,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_7_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -1512,11 +1512,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -1718,7 +1718,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_8_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -1914,11 +1914,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -2145,7 +2145,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_9_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\
@@ -2364,11 +2364,11 @@ MSVC_POP_WARNING()
 MSVC_PUSH_DISABLE_WARNING(6326)\
 class benchmark : public cobalt::trace_event::Benchmark {\
  public:\
-  void Experiment() OVERRIDE;\
+  void Experiment() override;\
   void AnalyzeTraceEvent(\
       const scoped_refptr<cobalt::trace_event::EventParser::ScopedEvent>& \
           event)\
-      OVERRIDE {\
+      override {\
     if (event->name() == event_name_1) {\
       switch (measurement_type_1) {\
         case cobalt::trace_event::FLOW_DURATION: {\
@@ -2620,7 +2620,7 @@ class benchmark : public cobalt::trace_event::Benchmark {\
       event_10_last_begin_time_ = event->begin_event().timestamp();\
     }\
   }\
-  std::vector<Result> CompileResults() OVERRIDE {\
+  std::vector<Result> CompileResults() override {\
     std::vector<Result> results;\
     switch (measurement_type_1) {\
       case cobalt::trace_event::FLOW_DURATION: {\

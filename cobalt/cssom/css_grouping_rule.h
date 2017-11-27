@@ -50,7 +50,7 @@ class CSSGroupingRule : public CSSRule {
   // Custom, not in any spec.
   //
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE {
+  void Accept(CSSRuleVisitor* visitor) override {
     UNREFERENCED_PARAMETER(visitor);
     NOTREACHED();
   }
@@ -61,7 +61,7 @@ class CSSGroupingRule : public CSSRule {
   DEFINE_WRAPPABLE_TYPE(CSSGroupingRule);
 
  protected:
-  virtual ~CSSGroupingRule() OVERRIDE;
+  ~CSSGroupingRule() override;
 
  private:
   scoped_refptr<CSSRuleList> css_rule_list_;

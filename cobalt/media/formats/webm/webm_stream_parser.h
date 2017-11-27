@@ -27,7 +27,7 @@ class WebMClusterParser;
 class MEDIA_EXPORT WebMStreamParser : public StreamParser {
  public:
   explicit WebMStreamParser(DecoderBuffer::Allocator* buffer_allocator);
-  ~WebMStreamParser() OVERRIDE;
+  ~WebMStreamParser() override;
 
   // StreamParser implementation.
   void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
@@ -35,9 +35,9 @@ class MEDIA_EXPORT WebMStreamParser : public StreamParser {
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
-            const scoped_refptr<MediaLog>& media_log) OVERRIDE;
-  void Flush() OVERRIDE;
-  bool Parse(const uint8_t* buf, int size) OVERRIDE;
+            const scoped_refptr<MediaLog>& media_log) override;
+  void Flush() override;
+  bool Parse(const uint8_t* buf, int size) override;
 
  private:
   enum State { kWaitingForInit, kParsingHeaders, kParsingClusters, kError };

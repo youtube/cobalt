@@ -114,14 +114,14 @@ class NumericTypesTestInterfaceT : public NumericTypesTestInterface {
 
 class ByteTypeTest : public NumericTypesTestInterfaceT<int8_t> {
  public:
-  int8_t ByteReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
-  void ByteArgumentOperation(int8_t value) OVERRIDE {
+  int8_t ByteReturnOperation() override { return MockReturnValueOperation(); }
+  void ByteArgumentOperation(int8_t value) override {
     MockArgumentOperation(value);
   }
-  int8_t byte_property() OVERRIDE { return mock_get_property(); }
-  void set_byte_property(int8_t value) OVERRIDE { mock_set_property(value); }
-  int8_t byte_clamp_property() OVERRIDE { return mock_get_property(); }
-  void set_byte_clamp_property(int8_t value) OVERRIDE {
+  int8_t byte_property() override { return mock_get_property(); }
+  void set_byte_property(int8_t value) override { mock_set_property(value); }
+  int8_t byte_clamp_property() override { return mock_get_property(); }
+  void set_byte_clamp_property(int8_t value) override {
     mock_set_property(value);
   }
 
@@ -134,14 +134,14 @@ class ByteTypeTest : public NumericTypesTestInterfaceT<int8_t> {
 
 class OctetTypeTest : public NumericTypesTestInterfaceT<uint8_t> {
  public:
-  uint8_t OctetReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
-  void OctetArgumentOperation(uint8_t value) OVERRIDE {
+  uint8_t OctetReturnOperation() override { return MockReturnValueOperation(); }
+  void OctetArgumentOperation(uint8_t value) override {
     MockArgumentOperation(value);
   }
-  uint8_t octet_property() OVERRIDE { return mock_get_property(); }
-  void set_octet_property(uint8_t value) OVERRIDE { mock_set_property(value); }
-  uint8_t octet_clamp_property() OVERRIDE { return mock_get_property(); }
-  void set_octet_clamp_property(uint8_t value) OVERRIDE {
+  uint8_t octet_property() override { return mock_get_property(); }
+  void set_octet_property(uint8_t value) override { mock_set_property(value); }
+  uint8_t octet_clamp_property() override { return mock_get_property(); }
+  void set_octet_clamp_property(uint8_t value) override {
     mock_set_property(value);
   }
 
@@ -154,14 +154,14 @@ class OctetTypeTest : public NumericTypesTestInterfaceT<uint8_t> {
 
 class ShortTypeTest : public NumericTypesTestInterfaceT<int16_t> {
  public:
-  int16_t ShortReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
-  void ShortArgumentOperation(int16_t value) OVERRIDE {
+  int16_t ShortReturnOperation() override { return MockReturnValueOperation(); }
+  void ShortArgumentOperation(int16_t value) override {
     MockArgumentOperation(value);
   }
-  int16_t short_property() OVERRIDE { return mock_get_property(); }
-  void set_short_property(int16_t value) OVERRIDE { mock_set_property(value); }
-  int16_t short_clamp_property() OVERRIDE { return mock_get_property(); }
-  void set_short_clamp_property(int16_t value) OVERRIDE {
+  int16_t short_property() override { return mock_get_property(); }
+  void set_short_property(int16_t value) override { mock_set_property(value); }
+  int16_t short_clamp_property() override { return mock_get_property(); }
+  void set_short_clamp_property(int16_t value) override {
     mock_set_property(value);
   }
 
@@ -174,20 +174,20 @@ class ShortTypeTest : public NumericTypesTestInterfaceT<int16_t> {
 
 class UnsignedShortTypeTest : public NumericTypesTestInterfaceT<uint16_t> {
  public:
-  uint16_t UnsignedShortReturnOperation() OVERRIDE {
+  uint16_t UnsignedShortReturnOperation() override {
     return MockReturnValueOperation();
   }
-  void UnsignedShortArgumentOperation(uint16_t value) OVERRIDE {
+  void UnsignedShortArgumentOperation(uint16_t value) override {
     MockArgumentOperation(value);
   }
-  uint16_t unsigned_short_property() OVERRIDE { return mock_get_property(); }
-  void set_unsigned_short_property(uint16_t value) OVERRIDE {
+  uint16_t unsigned_short_property() override { return mock_get_property(); }
+  void set_unsigned_short_property(uint16_t value) override {
     mock_set_property(value);
   }
-  uint16_t unsigned_short_clamp_property() OVERRIDE {
+  uint16_t unsigned_short_clamp_property() override {
     return mock_get_property();
   }
-  void set_unsigned_short_clamp_property(uint16_t value) OVERRIDE {
+  void set_unsigned_short_clamp_property(uint16_t value) override {
     mock_set_property(value);
   }
 
@@ -200,14 +200,14 @@ class UnsignedShortTypeTest : public NumericTypesTestInterfaceT<uint16_t> {
 
 class LongTypeTest : public NumericTypesTestInterfaceT<int32_t> {
  public:
-  int32_t LongReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
-  void LongArgumentOperation(int32_t value) OVERRIDE {
+  int32_t LongReturnOperation() override { return MockReturnValueOperation(); }
+  void LongArgumentOperation(int32_t value) override {
     MockArgumentOperation(value);
   }
-  int32_t long_property() OVERRIDE { return mock_get_property(); }
-  void set_long_property(int32_t value) OVERRIDE { mock_set_property(value); }
-  int32_t long_clamp_property() OVERRIDE { return mock_get_property(); }
-  void set_long_clamp_property(int32_t value) OVERRIDE {
+  int32_t long_property() override { return mock_get_property(); }
+  void set_long_property(int32_t value) override { mock_set_property(value); }
+  int32_t long_clamp_property() override { return mock_get_property(); }
+  void set_long_clamp_property(int32_t value) override {
     mock_set_property(value);
   }
 
@@ -225,20 +225,20 @@ class LongTypeTest : public NumericTypesTestInterfaceT<int32_t> {
 
 class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
  public:
-  uint32_t UnsignedLongReturnOperation() OVERRIDE {
+  uint32_t UnsignedLongReturnOperation() override {
     return MockReturnValueOperation();
   }
-  void UnsignedLongArgumentOperation(uint32_t value) OVERRIDE {
+  void UnsignedLongArgumentOperation(uint32_t value) override {
     MockArgumentOperation(value);
   }
-  uint32_t unsigned_long_property() OVERRIDE { return mock_get_property(); }
-  void set_unsigned_long_property(uint32_t value) OVERRIDE {
+  uint32_t unsigned_long_property() override { return mock_get_property(); }
+  void set_unsigned_long_property(uint32_t value) override {
     mock_set_property(value);
   }
-  uint32_t unsigned_long_clamp_property() OVERRIDE {
+  uint32_t unsigned_long_clamp_property() override {
     return mock_get_property();
   }
-  void set_unsigned_long_clamp_property(uint32_t value) OVERRIDE {
+  void set_unsigned_long_clamp_property(uint32_t value) override {
     mock_set_property(value);
   }
 
@@ -252,18 +252,18 @@ class UnsignedLongTypeTest : public NumericTypesTestInterfaceT<uint32_t> {
 #if defined(ENGINE_SUPPORTS_INT64)
 class LongLongTypeTest : public NumericTypesTestInterfaceT<int64_t> {
  public:
-  int64_t LongLongReturnOperation() OVERRIDE {
+  int64_t LongLongReturnOperation() override {
     return MockReturnValueOperation();
   }
-  void LongLongArgumentOperation(int64_t value) OVERRIDE {
+  void LongLongArgumentOperation(int64_t value) override {
     MockArgumentOperation(value);
   }
-  int64_t long_long_property() OVERRIDE { return mock_get_property(); }
-  void set_long_long_property(int64_t value) OVERRIDE {
+  int64_t long_long_property() override { return mock_get_property(); }
+  void set_long_long_property(int64_t value) override {
     mock_set_property(value);
   }
-  int64_t long_long_clamp_property() OVERRIDE { return mock_get_property(); }
-  void set_long_long_clamp_property(int64_t value) OVERRIDE {
+  int64_t long_long_clamp_property() override { return mock_get_property(); }
+  void set_long_long_clamp_property(int64_t value) override {
     mock_set_property(value);
   }
 
@@ -277,22 +277,22 @@ class LongLongTypeTest : public NumericTypesTestInterfaceT<int64_t> {
 
 class UnsignedLongLongTypeTest : public NumericTypesTestInterfaceT<uint64_t> {
  public:
-  uint64_t UnsignedLongLongReturnOperation() OVERRIDE {
+  uint64_t UnsignedLongLongReturnOperation() override {
     return MockReturnValueOperation();
   }
-  void UnsignedLongLongArgumentOperation(uint64_t value) OVERRIDE {
+  void UnsignedLongLongArgumentOperation(uint64_t value) override {
     MockArgumentOperation(value);
   }
-  uint64_t unsigned_long_long_property() OVERRIDE {
+  uint64_t unsigned_long_long_property() override {
     return mock_get_property();
   }
-  void set_unsigned_long_long_property(uint64_t value) OVERRIDE {
+  void set_unsigned_long_long_property(uint64_t value) override {
     mock_set_property(value);
   }
-  uint64_t unsigned_long_long_clamp_property() OVERRIDE {
+  uint64_t unsigned_long_long_clamp_property() override {
     return mock_get_property();
   }
-  void set_unsigned_long_long_clamp_property(uint64_t value) OVERRIDE {
+  void set_unsigned_long_long_clamp_property(uint64_t value) override {
     mock_set_property(value);
   }
 
@@ -308,12 +308,12 @@ class UnsignedLongLongTypeTest : public NumericTypesTestInterfaceT<uint64_t> {
 
 class DoubleTypeTest : public NumericTypesTestInterfaceT<double> {
  public:
-  double DoubleReturnOperation() OVERRIDE { return MockReturnValueOperation(); }
-  void DoubleArgumentOperation(double value) OVERRIDE {
+  double DoubleReturnOperation() override { return MockReturnValueOperation(); }
+  void DoubleArgumentOperation(double value) override {
     MockArgumentOperation(value);
   }
-  double double_property() OVERRIDE { return mock_get_property(); }
-  void set_double_property(double value) OVERRIDE { mock_set_property(value); }
+  double double_property() override { return mock_get_property(); }
+  void set_double_property(double value) override { mock_set_property(value); }
 
   static const char* type_string() { return "double"; }
   static bool is_restricted() { return true; }
@@ -325,14 +325,14 @@ class DoubleTypeTest : public NumericTypesTestInterfaceT<double> {
 
 class UnrestrictedDoubleTypeTest : public NumericTypesTestInterfaceT<double> {
  public:
-  double UnrestrictedDoubleReturnOperation() OVERRIDE {
+  double UnrestrictedDoubleReturnOperation() override {
     return MockReturnValueOperation();
   }
-  void UnrestrictedDoubleArgumentOperation(double value) OVERRIDE {
+  void UnrestrictedDoubleArgumentOperation(double value) override {
     MockArgumentOperation(value);
   }
-  double unrestricted_double_property() OVERRIDE { return mock_get_property(); }
-  void set_unrestricted_double_property(double value) OVERRIDE {
+  double unrestricted_double_property() override { return mock_get_property(); }
+  void set_unrestricted_double_property(double value) override {
     mock_set_property(value);
   }
 

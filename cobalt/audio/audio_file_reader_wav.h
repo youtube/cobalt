@@ -28,11 +28,11 @@ class AudioFileReaderWAV : public AudioFileReader {
   static scoped_ptr<AudioFileReader> TryCreate(const uint8* data, size_t size,
                                                SampleType sample_type);
 
-  scoped_array<uint8> sample_data() OVERRIDE { return sample_data_.Pass(); }
-  float sample_rate() const OVERRIDE { return sample_rate_; }
-  int32 number_of_frames() const OVERRIDE { return number_of_frames_; }
-  int32 number_of_channels() const OVERRIDE { return number_of_channels_; }
-  SampleType sample_type() const OVERRIDE { return sample_type_; }
+  scoped_array<uint8> sample_data() override { return sample_data_.Pass(); }
+  float sample_rate() const override { return sample_rate_; }
+  int32 number_of_frames() const override { return number_of_frames_; }
+  int32 number_of_channels() const override { return number_of_channels_; }
+  SampleType sample_type() const override { return sample_type_; }
 
  private:
   AudioFileReaderWAV(const uint8* data, size_t size, SampleType sample_type);

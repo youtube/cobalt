@@ -30,30 +30,30 @@ class FinderNodeVisitor : public render_tree::NodeVisitor {
       : filter_function_(filter_function),
         replace_function_(replace_function) {}
 
-  void Visit(render_tree::animations::AnimateNode* animate) OVERRIDE {
+  void Visit(render_tree::animations::AnimateNode* animate) override {
     VisitNode(animate);
   }
-  void Visit(render_tree::CompositionNode* composition_node) OVERRIDE {
+  void Visit(render_tree::CompositionNode* composition_node) override {
     VisitNode(composition_node);
   }
-  void Visit(render_tree::FilterNode* filter_node) OVERRIDE {
+  void Visit(render_tree::FilterNode* filter_node) override {
     VisitNode(filter_node);
   }
-  void Visit(render_tree::ImageNode* image_node) OVERRIDE {
+  void Visit(render_tree::ImageNode* image_node) override {
     VisitNode(image_node);
   }
-  void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) OVERRIDE {
+  void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) override {
     VisitNode(transform_3d_node);
   }
-  void Visit(render_tree::MatrixTransformNode* transform_node) OVERRIDE {
+  void Visit(render_tree::MatrixTransformNode* transform_node) override {
     VisitNode(transform_node);
   }
-  void Visit(render_tree::PunchThroughVideoNode* punch_through) OVERRIDE {
+  void Visit(render_tree::PunchThroughVideoNode* punch_through) override {
     VisitNode(punch_through);
   }
-  void Visit(render_tree::RectNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(render_tree::RectShadowNode* rect) OVERRIDE { VisitNode(rect); }
-  void Visit(render_tree::TextNode* text) OVERRIDE { VisitNode(text); }
+  void Visit(render_tree::RectNode* rect) override { VisitNode(rect); }
+  void Visit(render_tree::RectShadowNode* rect) override { VisitNode(rect); }
+  void Visit(render_tree::TextNode* text) override { VisitNode(text); }
 
   virtual ~FinderNodeVisitor() {}
 

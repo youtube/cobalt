@@ -144,16 +144,16 @@ class AnimateNode : public Node {
   explicit AnimateNode(const scoped_refptr<Node>& source);
 
   // Cannot visit this node.
-  void Accept(NodeVisitor* visitor) OVERRIDE { visitor->Visit(this); }
+  void Accept(NodeVisitor* visitor) override { visitor->Visit(this); }
 
   // Since we don't have any bounds on the animations contained in this tree,
   // we cannot know the bounds of the tree over all time.  Indeed animations
   // may not have any bounds as time goes to infinity.  Despite this, we return
   // the bounds of the initial render tree to enable AnimateNodes to be setup
   // as children of CompositionNodes.
-  math::RectF GetBounds() const OVERRIDE { return source_->GetBounds(); }
+  math::RectF GetBounds() const override { return source_->GetBounds(); }
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<AnimateNode>();
   }
 

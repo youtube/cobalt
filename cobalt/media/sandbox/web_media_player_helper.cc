@@ -33,24 +33,24 @@ class WebMediaPlayerHelper::WebMediaPlayerClientStub
 
  private:
   // WebMediaPlayerClient methods
-  void NetworkStateChanged() OVERRIDE {}
-  void ReadyStateChanged() OVERRIDE {}
-  void TimeChanged(bool) OVERRIDE {}
-  void DurationChanged() OVERRIDE {}
-  void OutputModeChanged() OVERRIDE {}
-  void ContentSizeChanged() OVERRIDE {}
-  void PlaybackStateChanged() OVERRIDE {}
-  void SawUnsupportedTracks() OVERRIDE {}
-  float Volume() const OVERRIDE { return 1.f; }
+  void NetworkStateChanged() override {}
+  void ReadyStateChanged() override {}
+  void TimeChanged(bool) override {}
+  void DurationChanged() override {}
+  void OutputModeChanged() override {}
+  void ContentSizeChanged() override {}
+  void PlaybackStateChanged() override {}
+  void SawUnsupportedTracks() override {}
+  float Volume() const override { return 1.f; }
 #if defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened(ChunkDemuxer*) OVERRIDE {}
+  void SourceOpened(ChunkDemuxer*) override {}
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened() OVERRIDE {}
+  void SourceOpened() override {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
-  std::string SourceURL() const OVERRIDE { return ""; }
+  std::string SourceURL() const override { return ""; }
 #if defined(COBALT_MEDIA_SOURCE_2016)
   void EncryptedMediaInitDataEncountered(EmeInitDataType, const unsigned char*,
-                                         unsigned) OVERRIDE {}
+                                         unsigned) override {}
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 };
 

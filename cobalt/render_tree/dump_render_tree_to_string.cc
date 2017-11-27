@@ -42,16 +42,16 @@ class DebugTreePrinter : public NodeVisitor {
  public:
   DebugTreePrinter() : indent_(0) {}
 
-  void Visit(animations::AnimateNode* /* animate */) OVERRIDE { NOTREACHED(); }
-  void Visit(CompositionNode* composition) OVERRIDE;
-  void Visit(FilterNode* text) OVERRIDE;
-  void Visit(ImageNode* image) OVERRIDE;
-  void Visit(MatrixTransform3DNode* transform) OVERRIDE;
-  void Visit(MatrixTransformNode* transform) OVERRIDE;
-  void Visit(PunchThroughVideoNode* punch_through) OVERRIDE;
-  void Visit(RectNode* rect) OVERRIDE;
-  void Visit(RectShadowNode* rect) OVERRIDE;
-  void Visit(TextNode* text) OVERRIDE;
+  void Visit(animations::AnimateNode* /* animate */) override { NOTREACHED(); }
+  void Visit(CompositionNode* composition) override;
+  void Visit(FilterNode* text) override;
+  void Visit(ImageNode* image) override;
+  void Visit(MatrixTransform3DNode* transform) override;
+  void Visit(MatrixTransformNode* transform) override;
+  void Visit(PunchThroughVideoNode* punch_through) override;
+  void Visit(RectNode* rect) override;
+  void Visit(RectShadowNode* rect) override;
+  void Visit(TextNode* text) override;
 
   // Returns the final result after visitation is complete.
   const std::string Result() const { return result_.str(); }
@@ -156,17 +156,17 @@ class BrushPrinterVisitor : public render_tree::BrushVisitor {
   BrushPrinterVisitor() {}
 
   void Visit(
-      const cobalt::render_tree::SolidColorBrush* solid_color_brush) OVERRIDE {
+      const cobalt::render_tree::SolidColorBrush* solid_color_brush) override {
     UNREFERENCED_PARAMETER(solid_color_brush);
     brush_type_ = "(SolidColorBrush)";
   }
   void Visit(const cobalt::render_tree::LinearGradientBrush*
-                 linear_gradient_brush) OVERRIDE {
+                 linear_gradient_brush) override {
     UNREFERENCED_PARAMETER(linear_gradient_brush);
     brush_type_ = "(LinearGradientBrush)";
   }
   void Visit(const cobalt::render_tree::RadialGradientBrush*
-                 radial_gradient_brush) OVERRIDE {
+                 radial_gradient_brush) override {
     UNREFERENCED_PARAMETER(radial_gradient_brush);
     brush_type_ = "(RadialGradientBrush)";
   }

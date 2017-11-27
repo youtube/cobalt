@@ -111,9 +111,9 @@ class WindowDriver : private ElementMapping {
 
   // ScriptExecutor::ElementMapping implementation.
   protocol::ElementId ElementToId(
-      const scoped_refptr<dom::Element>& element) OVERRIDE;
+      const scoped_refptr<dom::Element>& element) override;
   scoped_refptr<dom::Element> IdToElement(
-      const protocol::ElementId& id) OVERRIDE;
+      const protocol::ElementId& id) override;
 
   dom::Window* GetWeak() {
     DCHECK_EQ(base::MessageLoopProxy::current(), window_message_loop_);

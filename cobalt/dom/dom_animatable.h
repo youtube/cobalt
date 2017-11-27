@@ -42,12 +42,12 @@ class DOMAnimatable : public web_animations::Animatable {
   // Returns the default timeline associated with the document that is
   // associated with the underlying Element or PseudoElement.
   scoped_refptr<web_animations::AnimationTimeline> GetDefaultTimeline()
-      const OVERRIDE;
+      const override;
 
   // Registers an animation with this Animatable (which may internally be
   // either an HTMLElement or a PseudoElement).
-  void Register(web_animations::Animation* animation) OVERRIDE;
-  void Deregister(web_animations::Animation* animation) OVERRIDE;
+  void Register(web_animations::Animation* animation) override;
+  void Deregister(web_animations::Animation* animation) override;
 
   // Returns the element that acts as an EventTarget for this animatable.
   // In the case of elements, it will be the element itself.  In the case of

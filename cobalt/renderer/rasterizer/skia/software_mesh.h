@@ -35,7 +35,7 @@ class SoftwareMesh : public render_tree::Mesh {
     DCHECK(vertices_);
   }
 
-  uint32 GetEstimatedSizeInBytes() const OVERRIDE {
+  uint32 GetEstimatedSizeInBytes() const override {
     return static_cast<uint32>(vertices_->size() * 5 * sizeof(float) +
                                sizeof(DrawMode));
   }

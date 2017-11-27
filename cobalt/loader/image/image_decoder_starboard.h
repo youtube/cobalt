@@ -34,17 +34,17 @@ class ImageDecoderStarboard : public ImageDataDecoder {
   explicit ImageDecoderStarboard(
       render_tree::ResourceProvider* resource_provider, const char* mime_type,
       SbDecodeTargetFormat format);
-  ~ImageDecoderStarboard() OVERRIDE;
+  ~ImageDecoderStarboard() override;
 
   // From ImageDataDecoder
-  std::string GetTypeString() const OVERRIDE { return "ImageDecoderStarboard"; }
+  std::string GetTypeString() const override { return "ImageDecoderStarboard"; }
 
-  SbDecodeTarget RetrieveSbDecodeTarget() OVERRIDE { return target_; }
+  SbDecodeTarget RetrieveSbDecodeTarget() override { return target_; }
 
  private:
   // From ImageDataDecoder
-  size_t DecodeChunkInternal(const uint8* data, size_t size) OVERRIDE;
-  void FinishInternal() OVERRIDE;
+  size_t DecodeChunkInternal(const uint8* data, size_t size) override;
+  void FinishInternal() override;
 
   const char* mime_type_;
   SbDecodeTargetFormat format_;

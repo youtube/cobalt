@@ -67,7 +67,7 @@ class ErrorEvent : public Event {
   DEFINE_WRAPPABLE_TYPE(ErrorEvent);
 
  protected:
-  ~ErrorEvent() OVERRIDE {}
+  ~ErrorEvent() override {}
 
  private:
   void InitError(const ErrorEventInit& init_dict) {

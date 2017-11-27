@@ -44,7 +44,7 @@ using testing::MockEventListener;
 class NodeDispatchEventTest : public ::testing::Test {
  protected:
   NodeDispatchEventTest();
-  ~NodeDispatchEventTest() OVERRIDE;
+  ~NodeDispatchEventTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

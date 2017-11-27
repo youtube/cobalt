@@ -94,12 +94,12 @@ class DebugServerModule : public script::ScriptDebugger::Delegate {
                      base::WaitableEvent* created);
 
   // script::ScriptDebugger::Delegate implementation.
-  void OnScriptDebuggerDetach(const std::string& reason) OVERRIDE;
-  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) OVERRIDE;
+  void OnScriptDebuggerDetach(const std::string& reason) override;
+  void OnScriptDebuggerPause(scoped_ptr<script::CallFrame> call_frame) override;
   void OnScriptFailedToParse(
-      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
+      scoped_ptr<script::SourceProvider> source_provider) override;
   void OnScriptParsed(
-      scoped_ptr<script::SourceProvider> source_provider) OVERRIDE;
+      scoped_ptr<script::SourceProvider> source_provider) override;
 
   // Handles routing of commands, responses and event notifications.
   scoped_ptr<DebugServer> debug_server_;

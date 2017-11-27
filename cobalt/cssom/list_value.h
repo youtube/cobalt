@@ -52,7 +52,7 @@ class ListValue : public PropertyValue {
   }
 
  protected:
-  ~ListValue() OVERRIDE {}
+  ~ListValue() override {}
 
   const scoped_ptr<Builder> value_;
 

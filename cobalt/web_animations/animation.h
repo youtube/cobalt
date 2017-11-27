@@ -155,7 +155,7 @@ class Animation : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Animation);
 
  private:
-  ~Animation() OVERRIDE;
+  ~Animation() override;
 
   // This will be called by EventHandler's destructor.
   void RemoveEventHandler(EventHandler* handler);

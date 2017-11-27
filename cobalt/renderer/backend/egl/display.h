@@ -34,7 +34,7 @@ class DisplayEGL : public Display {
   DisplayEGL(EGLDisplay display, EGLConfig config,
              EGLNativeWindowType window_handle);
 
-  scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE;
+  scoped_refptr<RenderTarget> GetRenderTarget() override;
 
  private:
   scoped_refptr<RenderTarget> render_target_;

@@ -80,10 +80,10 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   SbPlayerPipeline(PipelineWindow window,
                    const scoped_refptr<base::MessageLoopProxy>& message_loop,
                    MediaLog* media_log);
-  ~SbPlayerPipeline() OVERRIDE;
+  ~SbPlayerPipeline() override;
 
-  void Suspend() OVERRIDE;
-  void Resume() OVERRIDE;
+  void Suspend() override;
+  void Resume() override;
   void Start(Demuxer* demuxer,
              const SetDrmSystemReadyCB& set_drm_system_ready_cb,
 #if COBALT_MEDIA_ENABLE_VIDEO_DUMPER
@@ -99,27 +99,27 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
              const BufferingStateCB& buffering_state_cb,
              const base::Closure& duration_change_cb,
              const base::Closure& output_mode_change_cb,
-             const base::Closure& content_size_change_cb) OVERRIDE;
+             const base::Closure& content_size_change_cb) override;
 
-  void Stop(const base::Closure& stop_cb) OVERRIDE;
+  void Stop(const base::Closure& stop_cb) override;
   void Seek(TimeDelta time, const PipelineStatusCB& seek_cb);
-  bool HasAudio() const OVERRIDE;
-  bool HasVideo() const OVERRIDE;
+  bool HasAudio() const override;
+  bool HasVideo() const override;
 
-  float GetPlaybackRate() const OVERRIDE;
-  void SetPlaybackRate(float playback_rate) OVERRIDE;
-  float GetVolume() const OVERRIDE;
-  void SetVolume(float volume) OVERRIDE;
+  float GetPlaybackRate() const override;
+  void SetPlaybackRate(float playback_rate) override;
+  float GetVolume() const override;
+  void SetVolume(float volume) override;
 
-  TimeDelta GetMediaTime() const OVERRIDE;
-  Ranges<TimeDelta> GetBufferedTimeRanges() OVERRIDE;
-  TimeDelta GetMediaDuration() const OVERRIDE;
-  void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
+  TimeDelta GetMediaTime() const override;
+  Ranges<TimeDelta> GetBufferedTimeRanges() override;
+  TimeDelta GetMediaDuration() const override;
+  void GetNaturalVideoSize(gfx::Size* out_size) const override;
 
-  bool DidLoadingProgress() const OVERRIDE;
-  PipelineStatistics GetStatistics() const OVERRIDE;
-  SetBoundsCB GetSetBoundsCB() OVERRIDE;
-  void SetDecodeToTextureOutputMode(bool enabled) OVERRIDE;
+  bool DidLoadingProgress() const override;
+  PipelineStatistics GetStatistics() const override;
+  SetBoundsCB GetSetBoundsCB() override;
+  void SetDecodeToTextureOutputMode(bool enabled) override;
 
  private:
   void StartTask(const StartTaskParameters& parameters);
@@ -129,12 +129,12 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
 
   // DemuxerHost implementaion.
   void OnBufferedTimeRangesChanged(
-      const Ranges<base::TimeDelta>& ranges) OVERRIDE;
-  void SetDuration(TimeDelta duration) OVERRIDE;
-  void OnDemuxerError(PipelineStatus error) OVERRIDE;
+      const Ranges<base::TimeDelta>& ranges) override;
+  void SetDuration(TimeDelta duration) override;
+  void OnDemuxerError(PipelineStatus error) override;
   void AddTextStream(DemuxerStream* text_stream,
-                     const TextTrackConfig& config) OVERRIDE;
-  void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE;
+                     const TextTrackConfig& config) override;
+  void RemoveTextStream(DemuxerStream* text_stream) override;
 
 #if SB_HAS(PLAYER_WITH_URL)
   void CreatePlayerWithUrl(const std::string& source_url);
@@ -151,9 +151,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
                            DemuxerStream::Status status,
                            const scoped_refptr<DecoderBuffer>& buffer);
   // StarboardPlayer::Host implementation.
-  void OnNeedData(DemuxerStream::Type type) OVERRIDE;
+  void OnNeedData(DemuxerStream::Type type) override;
 #endif  // !SB_HAS(PLAYER_WITH_URL)
-  void OnPlayerStatus(SbPlayerState state) OVERRIDE;
+  void OnPlayerStatus(SbPlayerState state) override;
 
   void UpdateDecoderConfig(DemuxerStream* stream);
 

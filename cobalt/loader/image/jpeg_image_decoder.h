@@ -34,14 +34,14 @@ namespace image {
 class JPEGImageDecoder : public ImageDataDecoder {
  public:
   explicit JPEGImageDecoder(render_tree::ResourceProvider* resource_provider);
-  ~JPEGImageDecoder() OVERRIDE;
+  ~JPEGImageDecoder() override;
 
   // From ImageDataDecoder
-  std::string GetTypeString() const OVERRIDE { return "JPEGImageDecoder"; }
+  std::string GetTypeString() const override { return "JPEGImageDecoder"; }
 
  private:
   // From ImageDataDecoder
-  size_t DecodeChunkInternal(const uint8* data, size_t size) OVERRIDE;
+  size_t DecodeChunkInternal(const uint8* data, size_t size) override;
 
   bool ReadHeader();
   bool StartDecompress();

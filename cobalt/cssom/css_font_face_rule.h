@@ -37,10 +37,10 @@ class CSSFontFaceRule : public CSSRule {
       const scoped_refptr<CSSFontFaceDeclarationData>& data);
 
   // Web API: CSSRule
-  Type type() const OVERRIDE { return kFontFaceRule; }
-  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  Type type() const override { return kFontFaceRule; }
+  std::string css_text(script::ExceptionState* exception_state) const override;
   void set_css_text(const std::string& css_text,
-                    script::ExceptionState* exception_state) OVERRIDE;
+                    script::ExceptionState* exception_state) override;
 
   // Web API: CSSFontFaceRule
   //
@@ -63,8 +63,8 @@ class CSSFontFaceRule : public CSSRule {
   //
 
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
-  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
+  void Accept(CSSRuleVisitor* visitor) override;
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) override;
 
   // Rest of public methods.
 
@@ -79,7 +79,7 @@ class CSSFontFaceRule : public CSSRule {
   DEFINE_WRAPPABLE_TYPE(CSSFontFaceRule);
 
  private:
-  ~CSSFontFaceRule() OVERRIDE;
+  ~CSSFontFaceRule() override;
 
   void RecordMutation();
 

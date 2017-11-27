@@ -28,7 +28,7 @@ namespace mozjs {
 class MozjsPropertyEnumerator : public cobalt::script::PropertyEnumerator {
  public:
   MozjsPropertyEnumerator(JSContext* context, JS::AutoIdVector* properties);
-  void AddProperty(const std::string& property_name) OVERRIDE;
+  void AddProperty(const std::string& property_name) override;
 
  private:
   JSContext* context_;

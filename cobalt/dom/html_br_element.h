@@ -33,12 +33,12 @@ class HTMLBRElement : public HTMLElement {
   explicit HTMLBRElement(Document* document);
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLBRElement> AsHTMLBRElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLBRElement> AsHTMLBRElement() override { return this; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLBRElement);
 
  private:
-  ~HTMLBRElement() OVERRIDE {}
+  ~HTMLBRElement() override {}
 };
 
 }  // namespace dom
