@@ -37,18 +37,18 @@ class DrmSystem : public ::SbDrmSystemPrivate {
             SbDrmSessionUpdatedFunc session_updated_callback,
             SbDrmSessionKeyStatusesChangedFunc key_statuses_changed_callback);
 
-  ~DrmSystem() SB_OVERRIDE;
+  ~DrmSystem() override;
   void GenerateSessionUpdateRequest(int ticket,
                                     const char* type,
                                     const void* initialization_data,
-                                    int initialization_data_size) SB_OVERRIDE;
+                                    int initialization_data_size) override;
   void UpdateSession(int ticket,
                      const void* key,
                      int key_size,
                      const void* session_id,
                      int session_id_size);
-  void CloseSession(const void* session_id, int session_id_size) SB_OVERRIDE;
-  DecryptStatus Decrypt(InputBuffer* buffer) SB_OVERRIDE;
+  void CloseSession(const void* session_id, int session_id_size) override;
+  DecryptStatus Decrypt(InputBuffer* buffer) override;
 
   jobject GetMediaCrypto() const { return j_media_crypto_; }
   void CallUpdateRequestCallback(int ticket,

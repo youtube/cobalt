@@ -41,27 +41,27 @@ class VideoRendererImpl : public VideoRenderer,
                           private HostedVideoDecoder::Host {
  public:
   explicit VideoRendererImpl(scoped_ptr<HostedVideoDecoder> decoder);
-  ~VideoRendererImpl() SB_OVERRIDE;
+  ~VideoRendererImpl() override;
 
-  int GetDroppedFrames() const SB_OVERRIDE { return dropped_frames_; }
+  int GetDroppedFrames() const override { return dropped_frames_; }
 
-  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
+  void WriteSample(const scoped_refptr<InputBuffer>& input_buffer) override;
+  void WriteEndOfStream() override;
 
-  void Seek(SbMediaTime seek_to_pts) SB_OVERRIDE;
+  void Seek(SbMediaTime seek_to_pts) override;
 
   scoped_refptr<VideoFrame> GetCurrentFrame(SbMediaTime media_time,
-                                            bool audio_eos_reached) SB_OVERRIDE;
+                                            bool audio_eos_reached) override;
 
-  bool IsEndOfStreamWritten() const SB_OVERRIDE {
+  bool IsEndOfStreamWritten() const override {
     return end_of_stream_written_;
   }
-  bool IsEndOfStreamPlayed() const SB_OVERRIDE;
-  bool CanAcceptMoreData() const SB_OVERRIDE;
-  bool IsSeekingInProgress() const SB_OVERRIDE;
+  bool IsEndOfStreamPlayed() const override;
+  bool CanAcceptMoreData() const override;
+  bool IsSeekingInProgress() const override;
 
   SbDecodeTarget GetCurrentDecodeTarget(SbMediaTime media_time,
-                                        bool audio_eos_reached) SB_OVERRIDE;
+                                        bool audio_eos_reached) override;
 
  private:
   typedef std::list<scoped_refptr<VideoFrame> > Frames;
@@ -78,7 +78,7 @@ class VideoRendererImpl : public VideoRenderer,
   // VideoDecoder::Host method.
   void OnDecoderStatusUpdate(VideoDecoder::Status status,
                              const scoped_refptr<VideoFrame>& frame)
-      SB_OVERRIDE;
+      override;
 
   ThreadChecker thread_checker_;
   ::starboard::Mutex mutex_;

@@ -78,10 +78,10 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
       SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
       SbAudioSinkConsumeFramesFunc consume_frame_func,
       void* context);
-  ~AudioTrackAudioSink() SB_OVERRIDE;
+  ~AudioTrackAudioSink() override;
 
-  bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+  bool IsType(Type* type) override { return type_ == type; }
+  void SetPlaybackRate(double playback_rate) override {
     SB_DCHECK(playback_rate >= 0.0);
     if (playback_rate != 0.0 && playback_rate != 1.0) {
       SB_NOTIMPLEMENTED() << "TODO: Only playback rates of 0.0 and 1.0 are "
@@ -92,7 +92,7 @@ class AudioTrackAudioSink : public SbAudioSinkPrivate {
     playback_rate_ = playback_rate;
   }
 
-  void SetVolume(double volume) SB_OVERRIDE;
+  void SetVolume(double volume) override;
 
  private:
   static void* ThreadEntryPoint(void* context);
