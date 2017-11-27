@@ -82,7 +82,7 @@ class VideoDecoder
 
   void InitializeCodec();
   void ShutdownCodec();
-  static void TryShutdownCodec(void* context);
+  static void ReleaseDecodeTargets(void* context);
 
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);
   scoped_refptr<VideoFrame> CreateVideoFrame(const ComPtr<IMFSample>& sample);
