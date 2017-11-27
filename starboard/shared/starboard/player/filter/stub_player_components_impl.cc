@@ -50,13 +50,13 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
         stream_ended_(false) {}
 
   void Initialize(const Closure& output_cb,
-                  const Closure& error_cb) SB_OVERRIDE {
+                  const Closure& error_cb) override {
     SB_UNREFERENCED_PARAMETER(error_cb);
     output_cb_ = output_cb;
   }
 
   void Decode(const scoped_refptr<InputBuffer>& input_buffer,
-              const Closure& consumed_cb) SB_OVERRIDE {
+              const Closure& consumed_cb) override {
     SB_DCHECK(input_buffer);
 
     // Values to represent what kind of dummy audio to fill the decoded audio
@@ -102,7 +102,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     last_input_buffer_ = input_buffer;
   }
 
-  void WriteEndOfStream() SB_OVERRIDE {
+  void WriteEndOfStream() override {
     if (last_input_buffer_) {
       // There won't be a next pts, so just guess that the decoded size is
       // 4 times the encoded size.
@@ -121,7 +121,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     Schedule(output_cb_);
   }
 
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE {
+  scoped_refptr<DecodedAudio> Read() override {
     scoped_refptr<DecodedAudio> result;
     if (!decoded_audios_.empty()) {
       result = decoded_audios_.front();
@@ -130,7 +130,7 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
     return result;
   }
 
-  void Reset() SB_OVERRIDE {
+  void Reset() override {
     while (!decoded_audios_.empty()) {
       decoded_audios_.pop();
     }
@@ -139,13 +139,13 @@ class StubAudioDecoder : public AudioDecoder, private JobQueue::JobOwner {
 
     CancelPendingJobs();
   }
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
+  SbMediaAudioSampleType GetSampleType() const override {
     return sample_type_;
   }
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+  SbMediaAudioFrameStorageType GetStorageType() const override {
     return kSbMediaAudioFrameStorageTypeInterleaved;
   }
-  int GetSamplesPerSecond() const SB_OVERRIDE {
+  int GetSamplesPerSecond() const override {
     return audio_header_.samples_per_second;
   }
 
@@ -162,23 +162,23 @@ class StubVideoDecoder : public HostedVideoDecoder {
  public:
   StubVideoDecoder() : host_(NULL) {}
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
-      SB_OVERRIDE {
+      override {
     SB_DCHECK(input_buffer);
     SB_DCHECK(host_ != NULL);
     host_->OnDecoderStatusUpdate(
         kNeedMoreInput, VideoFrame::CreateEmptyFrame(input_buffer->pts()));
   }
-  void WriteEndOfStream() SB_OVERRIDE {
+  void WriteEndOfStream() override {
     SB_DCHECK(host_ != NULL);
     host_->OnDecoderStatusUpdate(kBufferFull, VideoFrame::CreateEOSFrame());
   }
-  void Reset() SB_OVERRIDE {}
+  void Reset() override {}
   void SetHost(Host* host) {
     SB_DCHECK(host != NULL);
     SB_DCHECK(host_ == NULL);
     host_ = host;
   }
-  size_t GetPrerollFrameCount() const SB_OVERRIDE { return 1; }
+  size_t GetPrerollFrameCount() const override { return 1; }
 
  private:
   Host* host_;

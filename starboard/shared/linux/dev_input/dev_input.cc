@@ -80,13 +80,13 @@ class DevInputImpl : public DevInput {
  public:
   explicit DevInputImpl(SbWindow window);
   DevInputImpl(SbWindow window, FileDescriptor wake_up_fd);
-  ~DevInputImpl() SB_OVERRIDE;
+  ~DevInputImpl() override;
 
   void InitDevInputImpl(SbWindow window);
 
-  Event* PollNextSystemEvent() SB_OVERRIDE;
-  Event* WaitForSystemEventWithTimeout(SbTime time) SB_OVERRIDE;
-  void WakeSystemEventWait() SB_OVERRIDE;
+  Event* PollNextSystemEvent() override;
+  Event* WaitForSystemEventWithTimeout(SbTime time) override;
+  void WakeSystemEventWait() override;
 
  private:
   // Converts an input_event into a kSbEventInput Application::Event. The caller

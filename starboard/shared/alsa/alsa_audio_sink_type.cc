@@ -88,16 +88,16 @@ class AlsaAudioSink : public SbAudioSinkPrivate {
                 SbAudioSinkUpdateSourceStatusFunc update_source_status_func,
                 SbAudioSinkConsumeFramesFunc consume_frame_func,
                 void* context);
-  ~AlsaAudioSink() SB_OVERRIDE;
+  ~AlsaAudioSink() override;
 
-  bool IsType(Type* type) SB_OVERRIDE { return type_ == type; }
+  bool IsType(Type* type) override { return type_ == type; }
 
-  void SetPlaybackRate(double playback_rate) SB_OVERRIDE {
+  void SetPlaybackRate(double playback_rate) override {
     ScopedLock lock(mutex_);
     playback_rate_ = playback_rate;
   }
 
-  void SetVolume(double volume) SB_OVERRIDE {
+  void SetVolume(double volume) override {
     ScopedLock lock(mutex_);
     volume_ = volume;
   }

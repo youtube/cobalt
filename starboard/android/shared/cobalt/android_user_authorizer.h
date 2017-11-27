@@ -40,12 +40,12 @@ using ::cobalt::account::AccessToken;
 class AndroidUserAuthorizer : public ::cobalt::account::UserAuthorizer {
  public:
   AndroidUserAuthorizer();
-  ~AndroidUserAuthorizer() SB_OVERRIDE;
+  ~AndroidUserAuthorizer() override;
 
-  scoped_ptr<AccessToken> AuthorizeUser(SbUser user) SB_OVERRIDE;
-  bool DeauthorizeUser(SbUser user) SB_OVERRIDE;
-  scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) SB_OVERRIDE;
-  void Shutdown() SB_OVERRIDE;
+  scoped_ptr<AccessToken> AuthorizeUser(SbUser user) override;
+  bool DeauthorizeUser(SbUser user) override;
+  scoped_ptr<AccessToken> RefreshAuthorization(SbUser user) override;
+  void Shutdown() override;
 
  private:
   scoped_ptr<AccessToken> CreateAccessToken(jobject j_token);

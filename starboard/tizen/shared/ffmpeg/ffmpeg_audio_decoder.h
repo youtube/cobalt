@@ -34,15 +34,15 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder {
 
   AudioDecoder(SbMediaAudioCodec audio_codec,
                const SbMediaAudioHeader& audio_header);
-  ~AudioDecoder() SB_OVERRIDE;
+  ~AudioDecoder() override;
 
-  void Decode(const InputBuffer& input_buffer) SB_OVERRIDE;
-  void WriteEndOfStream() SB_OVERRIDE;
-  scoped_refptr<DecodedAudio> Read() SB_OVERRIDE;
-  void Reset() SB_OVERRIDE;
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE;
-  int GetSamplesPerSecond() const SB_OVERRIDE;
-  bool CanAcceptMoreData() const SB_OVERRIDE {
+  void Decode(const InputBuffer& input_buffer) override;
+  void WriteEndOfStream() override;
+  scoped_refptr<DecodedAudio> Read() override;
+  void Reset() override;
+  SbMediaAudioSampleType GetSampleType() const override;
+  int GetSamplesPerSecond() const override;
+  bool CanAcceptMoreData() const override {
     return !stream_ended_ && decoded_audios_.size() <= kMaxDecodedAudiosSize;
   }
 

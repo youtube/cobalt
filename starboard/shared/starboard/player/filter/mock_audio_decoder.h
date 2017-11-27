@@ -49,13 +49,13 @@ class MockAudioDecoder : public AudioDecoder {
   MOCK_METHOD0(Read, scoped_refptr<DecodedAudio>());
   MOCK_METHOD0(Reset, void());
 
-  SbMediaAudioSampleType GetSampleType() const SB_OVERRIDE {
+  SbMediaAudioSampleType GetSampleType() const override {
     return sample_type_;
   }
-  SbMediaAudioFrameStorageType GetStorageType() const SB_OVERRIDE {
+  SbMediaAudioFrameStorageType GetStorageType() const override {
     return storage_type_;
   }
-  int GetSamplesPerSecond() const SB_OVERRIDE { return samples_per_second_; }
+  int GetSamplesPerSecond() const override { return samples_per_second_; }
 
  private:
   SbMediaAudioSampleType sample_type_;
