@@ -94,8 +94,8 @@ class Debugger : public script::Wrappable, public DebugClient::Delegate {
   // DebugClient::Delegate implementation.
   void OnDebugClientEvent(
       const std::string& method,
-      const base::optional<std::string>& json_params) OVERRIDE;
-  void OnDebugClientDetach(const std::string& reason) OVERRIDE;
+      const base::optional<std::string>& json_params) override;
+  void OnDebugClientDetach(const std::string& reason) override;
 
  private:
   // Runs a script command callback with the specified response.

@@ -31,7 +31,7 @@ class DisplayStub : public Display {
       : render_target_(new RenderTargetStub(math::Size(1920, 1080))) {}
 
   // Return the stub render target.
-  scoped_refptr<RenderTarget> GetRenderTarget() OVERRIDE {
+  scoped_refptr<RenderTarget> GetRenderTarget() override {
     return render_target_;
   }
 

@@ -39,7 +39,7 @@ class DOMImplementation : public script::Wrappable {
   explicit DOMImplementation(script::EnvironmentSettings* settings);
   explicit DOMImplementation(HTMLElementContext* html_element_context)
       : html_element_context_(html_element_context) {}
-  ~DOMImplementation() OVERRIDE {}
+  ~DOMImplementation() override {}
 
   // Web API: DOMImplementation
   scoped_refptr<XMLDocument> CreateDocument(

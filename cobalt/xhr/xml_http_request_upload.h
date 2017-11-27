@@ -27,7 +27,7 @@ class XMLHttpRequestUpload : public xhr::XMLHttpRequestEventTarget {
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequestUpload);
 
  protected:
-  ~XMLHttpRequestUpload() OVERRIDE {}
+  ~XMLHttpRequestUpload() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequestUpload);

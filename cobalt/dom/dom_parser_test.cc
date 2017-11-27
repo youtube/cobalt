@@ -29,7 +29,7 @@ namespace dom {
 class DOMParserTest : public ::testing::Test {
  protected:
   DOMParserTest();
-  ~DOMParserTest() OVERRIDE {}
+  ~DOMParserTest() override {}
 
   loader::FetcherFactory fetcher_factory_;
   testing::StubCSSParser stub_css_parser_;

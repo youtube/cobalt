@@ -29,8 +29,8 @@ class CookieJarImpl : public network_bridge::CookieJar {
  public:
   explicit CookieJarImpl(net::CookieStore* cookie_store);
 
-  std::string GetCookies(const GURL& origin) OVERRIDE;
-  void SetCookie(const GURL& origin, const std::string& cookie_line) OVERRIDE;
+  std::string GetCookies(const GURL& origin) override;
+  void SetCookie(const GURL& origin, const std::string& cookie_line) override;
 
  private:
   // We use a dedicated thread for making GetCookiesWithOptionsAsync() calls in

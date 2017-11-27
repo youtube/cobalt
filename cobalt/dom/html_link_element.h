@@ -58,16 +58,16 @@ class HTMLLinkElement : public HTMLElement {
 
   // Custom, not in any spec.
   //
-  scoped_refptr<HTMLLinkElement> AsHTMLLinkElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLLinkElement> AsHTMLLinkElement() override { return this; }
 
   // From Node.
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
+  void OnRemovedFromDocument() override;
 
   DEFINE_WRAPPABLE_TYPE(HTMLLinkElement);
 
  private:
-  ~HTMLLinkElement() OVERRIDE {}
+  ~HTMLLinkElement() override {}
 
   void ResolveAndSetAbsoluteURL();
 
@@ -82,7 +82,7 @@ class HTMLLinkElement : public HTMLElement {
   void ReleaseLoader();
 
   // Add this element's style sheet to the style sheet vector.
-  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const OVERRIDE;
+  void CollectStyleSheet(cssom::StyleSheetVector* style_sheets) const override;
 
   // Thread checker ensures all calls to DOM element are made from the same
   // thread that it is created in.

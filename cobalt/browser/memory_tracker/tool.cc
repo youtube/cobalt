@@ -85,8 +85,8 @@ struct SwitchVal {
 
 class SbLogger : public AbstractLogger {
  public:
-  virtual void Output(const char* str) OVERRIDE { SbLogRaw(str); }
-  virtual void Flush() OVERRIDE { SbLogFlush(); }
+  void Output(const char* str) override { SbLogRaw(str); }
+  void Flush() override { SbLogFlush(); }
 };
 
 // Parses out the toolname for a tool command.
@@ -147,7 +147,7 @@ class MemoryTrackerThreadImpl : public Tool {
  public:
   explicit MemoryTrackerThreadImpl(base::SimpleThread* ptr)
       : thread_ptr_(ptr) {}
-  virtual ~MemoryTrackerThreadImpl() OVERRIDE { thread_ptr_.reset(NULL); }
+  ~MemoryTrackerThreadImpl() override { thread_ptr_.reset(NULL); }
   scoped_ptr<base::SimpleThread> thread_ptr_;
 };
 

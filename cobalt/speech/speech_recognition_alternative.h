@@ -36,7 +36,7 @@ class SpeechRecognitionAlternative : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionAlternative);
 
  private:
-  ~SpeechRecognitionAlternative() OVERRIDE {}
+  ~SpeechRecognitionAlternative() override {}
 
   // The transcript string represents the raw words that the user spoke.
   std::string transcript_;

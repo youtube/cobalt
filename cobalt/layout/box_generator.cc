@@ -199,7 +199,7 @@ class ReplacedBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         is_video_punched_out_(is_video_punched_out),
         content_size_(content_size) {}
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
 
   const scoped_refptr<ReplacedBox>& replaced_box() { return replaced_box_; }
 
@@ -427,7 +427,7 @@ class ContainerBoxGenerator : public cssom::NotReachedPropertyValueVisitor {
         paragraph_scoped_(false) {}
   ~ContainerBoxGenerator();
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE;
+  void VisitKeyword(cssom::KeywordValue* keyword) override;
 
   const scoped_refptr<ContainerBox>& container_box() { return container_box_; }
 
@@ -690,18 +690,18 @@ class ContentProvider : public cssom::NotReachedPropertyValueVisitor {
   const std::string& content_string() const { return content_string_; }
   bool is_element_generated() const { return is_element_generated_; }
 
-  void VisitString(cssom::StringValue* string_value) OVERRIDE {
+  void VisitString(cssom::StringValue* string_value) override {
     content_string_ = string_value->value();
     is_element_generated_ = true;
   }
 
-  void VisitURL(cssom::URLValue* url_value) OVERRIDE {
+  void VisitURL(cssom::URLValue* url_value) override {
     // TODO: Implement support for 'content: url(foo)'.
     DLOG(ERROR) << "Unsupported content property value: "
                 << url_value->ToString();
   }
 
-  void VisitKeyword(cssom::KeywordValue* keyword) OVERRIDE {
+  void VisitKeyword(cssom::KeywordValue* keyword) override {
     switch (keyword->value()) {
       case cssom::KeywordValue::kNone:
       case cssom::KeywordValue::kNormal:

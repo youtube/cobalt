@@ -44,42 +44,42 @@ class BlockContainerBox : public ContainerBox {
                     BaseDirection base_direction,
                     UsedStyleProvider* used_style_provider,
                     LayoutStatTracker* layout_stat_tracker);
-  ~BlockContainerBox() OVERRIDE;
+  ~BlockContainerBox() override;
 
   // From |Box|.
-  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) override;
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
                        WrapOpportunityPolicy wrap_opportunity_policy,
                        bool is_line_existence_justified,
                        LayoutUnit available_width,
-                       bool should_collapse_trailing_white_space) OVERRIDE;
+                       bool should_collapse_trailing_white_space) override;
 
-  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
-  base::optional<int> GetBidiLevel() const OVERRIDE;
+  bool TrySplitAtSecondBidiLevelRun() override;
+  base::optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
-      bool should_collapse_leading_white_space) OVERRIDE;
+      bool should_collapse_leading_white_space) override;
   void SetShouldCollapseTrailingWhiteSpace(
-      bool should_collapse_trailing_white_space) OVERRIDE;
-  bool HasLeadingWhiteSpace() const OVERRIDE;
-  bool HasTrailingWhiteSpace() const OVERRIDE;
-  bool IsCollapsed() const OVERRIDE;
+      bool should_collapse_trailing_white_space) override;
+  bool HasLeadingWhiteSpace() const override;
+  bool HasTrailingWhiteSpace() const override;
+  bool IsCollapsed() const override;
 
-  bool JustifiesLineExistence() const OVERRIDE;
-  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
+  bool JustifiesLineExistence() const override;
+  bool AffectsBaselineInBlockFormattingContext() const override;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const override;
 
   // From |ContainerBox|.
-  scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
+  scoped_refptr<ContainerBox> TrySplitAtEnd() override;
 
   BaseDirection GetBaseDirection() const;
 
  protected:
   // From |Box|.
-  bool IsTransformable() const OVERRIDE;
+  bool IsTransformable() const override;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpProperties(std::ostream* stream) const OVERRIDE;
+  void DumpProperties(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
   // Rest of the protected methods.

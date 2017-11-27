@@ -30,16 +30,16 @@ namespace {
 
 class DemuxerHostStub : public DemuxerHost {
   void OnBufferedTimeRangesChanged(
-      const Ranges<base::TimeDelta>& ranges) OVERRIDE {}
+      const Ranges<base::TimeDelta>& ranges) override {}
 
-  void SetDuration(base::TimeDelta duration) OVERRIDE {}
+  void SetDuration(base::TimeDelta duration) override {}
 
-  void OnDemuxerError(PipelineStatus error) OVERRIDE {}
+  void OnDemuxerError(PipelineStatus error) override {}
 
   void AddTextStream(DemuxerStream* text_stream,
-                     const TextTrackConfig& config) OVERRIDE {}
+                     const TextTrackConfig& config) override {}
 
-  void RemoveTextStream(DemuxerStream* text_stream) OVERRIDE {}
+  void RemoveTextStream(DemuxerStream* text_stream) override {}
 };
 
 void OnDemuxerOpen() {}

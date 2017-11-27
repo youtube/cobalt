@@ -34,12 +34,12 @@ class HTMLHeadElement : public HTMLElement {
       : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLHeadElement> AsHTMLHeadElement() override { return this; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLHeadElement);
 
  private:
-  ~HTMLHeadElement() OVERRIDE {}
+  ~HTMLHeadElement() override {}
 };
 
 }  // namespace dom

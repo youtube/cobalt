@@ -37,11 +37,12 @@ class DrawRectLinearGradient : public DrawObject {
                          const math::RectF& rect,
                          const render_tree::LinearGradientBrush& brush);
 
-  void ExecuteUpdateVertexBuffer(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
+  void ExecuteUpdateVertexBuffer(
+      GraphicsState* graphics_state,
+      ShaderProgramManager* program_manager) override;
   void ExecuteRasterize(GraphicsState* graphics_state,
-      ShaderProgramManager* program_manager) OVERRIDE;
-  base::TypeId GetTypeId() const OVERRIDE;
+                        ShaderProgramManager* program_manager) override;
+  base::TypeId GetTypeId() const override;
 
  private:
   void AddRectWithHorizontalGradient(

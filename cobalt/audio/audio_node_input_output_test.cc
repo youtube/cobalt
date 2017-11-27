@@ -46,13 +46,13 @@ class AudioDestinationNodeMock : public AudioNode,
 
   // From AudioNode.
   scoped_ptr<ShellAudioBus> PassAudioBusFromSource(int32, /*number_of_frames*/
-                                                   SampleType) OVERRIDE {
+                                                   SampleType) override {
     NOTREACHED();
     return scoped_ptr<ShellAudioBus>();
   }
 
   // From AudioDevice::RenderCallback.
-  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) OVERRIDE {
+  void FillAudioBus(ShellAudioBus* audio_bus, bool* silence) override {
     AudioLock::AutoLock lock(audio_lock());
 
     // Destination node only has one input.

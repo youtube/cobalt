@@ -42,10 +42,10 @@ class CSSKeyframesRule : public CSSRule {
                    const scoped_refptr<CSSRuleList>& css_rules);
 
   // Web API: CSSRule
-  Type type() const OVERRIDE { return kKeyframesRule; }
-  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  Type type() const override { return kKeyframesRule; }
+  std::string css_text(script::ExceptionState* exception_state) const override;
   void set_css_text(const std::string& css_text,
-                    script::ExceptionState* exception_state) OVERRIDE;
+                    script::ExceptionState* exception_state) override;
 
   // Web API: CSSKeyframesRule
   //
@@ -69,13 +69,13 @@ class CSSKeyframesRule : public CSSRule {
   }
 
   // From CSSRule.
-  void Accept(CSSRuleVisitor* visitor) OVERRIDE;
-  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) OVERRIDE;
+  void Accept(CSSRuleVisitor* visitor) override;
+  void AttachToCSSStyleSheet(CSSStyleSheet* style_sheet) override;
 
   DEFINE_WRAPPABLE_TYPE(CSSKeyframesRule);
 
  private:
-  ~CSSKeyframesRule() OVERRIDE;
+  ~CSSKeyframesRule() override;
   void UpdateSortedKeyframes();
 
   // The unprocessed key text.

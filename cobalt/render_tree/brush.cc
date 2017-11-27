@@ -27,15 +27,15 @@ class BrushCloner : public BrushVisitor {
  public:
   virtual ~BrushCloner() {}
 
-  void Visit(const SolidColorBrush* solid_color_brush) OVERRIDE {
+  void Visit(const SolidColorBrush* solid_color_brush) override {
     cloned_.reset(new SolidColorBrush(*solid_color_brush));
   }
 
-  void Visit(const LinearGradientBrush* linear_gradient_brush) OVERRIDE {
+  void Visit(const LinearGradientBrush* linear_gradient_brush) override {
     cloned_.reset(new LinearGradientBrush(*linear_gradient_brush));
   }
 
-  void Visit(const RadialGradientBrush* radial_gradient_brush) OVERRIDE {
+  void Visit(const RadialGradientBrush* radial_gradient_brush) override {
     cloned_.reset(new RadialGradientBrush(*radial_gradient_brush));
   }
 

@@ -67,18 +67,18 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
                         backend::RenderTarget* render_target,
                         const math::Rect& content_rect);
 
-  void Visit(render_tree::animations::AnimateNode* /* animate */) OVERRIDE {
+  void Visit(render_tree::animations::AnimateNode* /* animate */) override {
     NOTREACHED();
   }
-  void Visit(render_tree::CompositionNode* composition_node) OVERRIDE;
-  void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) OVERRIDE;
-  void Visit(render_tree::MatrixTransformNode* transform_node) OVERRIDE;
-  void Visit(render_tree::FilterNode* filter_node) OVERRIDE;
-  void Visit(render_tree::ImageNode* image_node) OVERRIDE;
-  void Visit(render_tree::PunchThroughVideoNode* video_node) OVERRIDE;
-  void Visit(render_tree::RectNode* rect_node) OVERRIDE;
-  void Visit(render_tree::RectShadowNode* shadow_node) OVERRIDE;
-  void Visit(render_tree::TextNode* text_node) OVERRIDE;
+  void Visit(render_tree::CompositionNode* composition_node) override;
+  void Visit(render_tree::MatrixTransform3DNode* transform_3d_node) override;
+  void Visit(render_tree::MatrixTransformNode* transform_node) override;
+  void Visit(render_tree::FilterNode* filter_node) override;
+  void Visit(render_tree::ImageNode* image_node) override;
+  void Visit(render_tree::PunchThroughVideoNode* video_node) override;
+  void Visit(render_tree::RectNode* rect_node) override;
+  void Visit(render_tree::RectShadowNode* shadow_node) override;
+  void Visit(render_tree::TextNode* text_node) override;
 
  private:
   void GetScratchTexture(scoped_refptr<render_tree::Node> node, float size,

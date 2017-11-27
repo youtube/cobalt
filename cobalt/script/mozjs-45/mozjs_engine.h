@@ -29,13 +29,13 @@ namespace mozjs {
 class MozjsEngine : public JavaScriptEngine {
  public:
   explicit MozjsEngine(const Options& options);
-  ~MozjsEngine() OVERRIDE;
+  ~MozjsEngine() override;
 
-  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() OVERRIDE;
-  void CollectGarbage() OVERRIDE;
-  void ReportExtraMemoryCost(size_t bytes) OVERRIDE;
-  bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) OVERRIDE;
-  void SetGcThreshold(int64_t bytes) OVERRIDE;
+  scoped_refptr<GlobalEnvironment> CreateGlobalEnvironment() override;
+  void CollectGarbage() override;
+  void ReportExtraMemoryCost(size_t bytes) override;
+  bool RegisterErrorHandler(JavaScriptEngine::ErrorHandler handler) override;
+  void SetGcThreshold(int64_t bytes) override;
 
  private:
   static bool ContextCallback(JSContext* context, unsigned context_op,

@@ -28,7 +28,7 @@ namespace {
 
 class IsDisplayedTest : public ::testing::Test {
  protected:
-  void SetUp() OVERRIDE {
+  void SetUp() override {
     GURL url("file:///cobalt/webdriver_test/displayed_test.html");
     document_loader_.Load(url);
   }

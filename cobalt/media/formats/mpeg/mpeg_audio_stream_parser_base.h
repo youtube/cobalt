@@ -32,7 +32,7 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
   MPEGAudioStreamParserBase(DecoderBuffer::Allocator* buffer_allocator,
                             uint32_t start_code_mask, AudioCodec audio_codec,
                             int codec_delay);
-  ~MPEGAudioStreamParserBase() OVERRIDE;
+  ~MPEGAudioStreamParserBase() override;
 
   // StreamParser implementation.
   void Init(const InitCB& init_cb, const NewConfigCB& config_cb,
@@ -40,9 +40,9 @@ class MEDIA_EXPORT MPEGAudioStreamParserBase : public StreamParser {
             const EncryptedMediaInitDataCB& encrypted_media_init_data_cb,
             const NewMediaSegmentCB& new_segment_cb,
             const EndMediaSegmentCB& end_of_segment_cb,
-            const scoped_refptr<MediaLog>& media_log) OVERRIDE;
-  void Flush() OVERRIDE;
-  bool Parse(const uint8_t* buf, int size) OVERRIDE;
+            const scoped_refptr<MediaLog>& media_log) override;
+  void Flush() override;
+  bool Parse(const uint8_t* buf, int size) override;
 
  protected:
   // Subclasses implement this method to parse format specific frame headers.

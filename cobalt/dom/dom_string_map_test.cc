@@ -32,7 +32,7 @@ namespace dom {
 class DOMStringMapTest : public ::testing::Test {
  protected:
   DOMStringMapTest();
-  ~DOMStringMapTest() OVERRIDE {}
+  ~DOMStringMapTest() override {}
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

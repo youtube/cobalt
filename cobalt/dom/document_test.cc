@@ -58,7 +58,7 @@ using script::testing::MockExceptionState;
 class DocumentTest : public ::testing::Test {
  protected:
   DocumentTest();
-  ~DocumentTest() OVERRIDE;
+  ~DocumentTest() override;
 
   scoped_ptr<css_parser::Parser> css_parser_;
   scoped_ptr<DomStatTracker> dom_stat_tracker_;

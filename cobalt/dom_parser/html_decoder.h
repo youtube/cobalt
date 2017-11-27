@@ -57,12 +57,12 @@ class HTMLDecoder : public loader::Decoder {
   // From Decoder.
   loader::LoadResponseType OnResponseStarted(
       loader::Fetcher* fetcher,
-      const scoped_refptr<net::HttpResponseHeaders>& headers) OVERRIDE;
-  void DecodeChunk(const char* data, size_t size) OVERRIDE;
-  void Finish() OVERRIDE;
-  bool Suspend() OVERRIDE { return false; }
+      const scoped_refptr<net::HttpResponseHeaders>& headers) override;
+  void DecodeChunk(const char* data, size_t size) override;
+  void Finish() override;
+  bool Suspend() override { return false; }
 
-  void Resume(render_tree::ResourceProvider* /*resource_provider*/) OVERRIDE {
+  void Resume(render_tree::ResourceProvider* /*resource_provider*/) override {
     NOTIMPLEMENTED();
   };
 

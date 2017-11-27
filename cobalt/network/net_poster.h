@@ -39,11 +39,11 @@ class NetPoster : public network_bridge::NetPoster, net::URLFetcherDelegate {
   // content_type should reflect the mime type of data, e.g. "application/json".
   // data is the data to upload. May be empty.
   void Send(const GURL& url, const std::string& content_type,
-            const std::string& data) OVERRIDE;
+            const std::string& data) override;
 
  private:
   // From net::URLFetcherDelegate
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
 
   NetworkModule* network_module_;
   ScopedVector<net::URLFetcher> fetchers_;

@@ -32,7 +32,7 @@ namespace dom {
 class CommentTest : public ::testing::Test {
  protected:
   CommentTest();
-  ~CommentTest() OVERRIDE;
+  ~CommentTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

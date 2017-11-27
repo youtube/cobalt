@@ -46,7 +46,7 @@ class NodeList : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(NodeList);
 
  protected:
-  ~NodeList() OVERRIDE;
+  ~NodeList() override;
 
   void ReserveForInternalCollection(int capacity) {
     collection_.reserve(capacity);

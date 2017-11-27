@@ -27,7 +27,7 @@ class ExecutionStateImpl : public ExecutionState {
       const scoped_refptr<GlobalEnvironment>& global_environment)
       : global_environment_(global_environment) {}
 
-  std::string GetStackTrace() const OVERRIDE;
+  std::string GetStackTrace() const override;
 
  private:
   scoped_refptr<GlobalEnvironment> global_environment_;

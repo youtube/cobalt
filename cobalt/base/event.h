@@ -32,7 +32,7 @@ class Event {
 
 #define BASE_EVENT_SUBCLASS(name)                                  \
   static base::TypeId TypeId() { return base::GetTypeId<name>(); } \
-  base::TypeId GetTypeId() const OVERRIDE { return TypeId(); }
+  base::TypeId GetTypeId() const override { return TypeId(); }
 
 }  // namespace base
 

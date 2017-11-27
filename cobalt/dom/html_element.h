@@ -127,11 +127,11 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   // Web API: CSSOM View Module: Extensions to the Element Interface (partial
   // interface)
   //   https://www.w3.org/TR/2013/WD-cssom-view-20131217/#extensions-to-the-element-interface
-  scoped_refptr<DOMRectList> GetClientRects() OVERRIDE;
-  float client_top() OVERRIDE;
-  float client_left() OVERRIDE;
-  float client_width() OVERRIDE;
-  float client_height() OVERRIDE;
+  scoped_refptr<DOMRectList> GetClientRects() override;
+  float client_top() override;
+  float client_left() override;
+  float client_width() override;
+  float client_height() override;
 
   // Web API: CSSOM View Module: Extensions to the HTMLElement Interface
   // (partial interface)
@@ -143,19 +143,19 @@ class HTMLElement : public Element, public cssom::MutationObserver {
   float offset_height();
 
   // Custom, not in any spec: Node.
-  scoped_refptr<Node> Duplicate() const OVERRIDE;
+  scoped_refptr<Node> Duplicate() const override;
 
   // Custom, not in any spec: Element.
-  scoped_refptr<HTMLElement> AsHTMLElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLElement> AsHTMLElement() override { return this; }
 
-  base::optional<std::string> GetStyleAttribute() const OVERRIDE;
-  void SetStyleAttribute(const std::string& value) OVERRIDE;
-  void RemoveStyleAttribute() OVERRIDE;
+  base::optional<std::string> GetStyleAttribute() const override;
+  void SetStyleAttribute(const std::string& value) override;
+  void RemoveStyleAttribute() override;
 
   // Custom, not in any spec.
   //
   // From cssom::CSSStyleDeclaration::MutationObserver.
-  void OnCSSMutation() OVERRIDE;
+  void OnCSSMutation() override;
 
   // Safe type conversion methods that will downcast to the required type if
   // possible or return NULL otherwise.
@@ -208,14 +208,14 @@ class HTMLElement : public Element, public cssom::MutationObserver {
     return css_computed_style_declaration_->data();
   }
 
-  void MarkDisplayNoneOnNodeAndDescendants() OVERRIDE;
-  void PurgeCachedBackgroundImagesOfNodeAndDescendants() OVERRIDE;
-  void InvalidateComputedStylesOfNodeAndDescendants() OVERRIDE;
-  void InvalidateLayoutBoxesOfNodeAndAncestors() OVERRIDE;
-  void InvalidateLayoutBoxesOfNodeAndDescendants() OVERRIDE;
-  void InvalidateLayoutBoxSizes() OVERRIDE;
-  void InvalidateLayoutBoxCrossReferences() OVERRIDE;
-  void InvalidateLayoutBoxRenderTreeNodes() OVERRIDE;
+  void MarkDisplayNoneOnNodeAndDescendants() override;
+  void PurgeCachedBackgroundImagesOfNodeAndDescendants() override;
+  void InvalidateComputedStylesOfNodeAndDescendants() override;
+  void InvalidateLayoutBoxesOfNodeAndAncestors() override;
+  void InvalidateLayoutBoxesOfNodeAndDescendants() override;
+  void InvalidateLayoutBoxSizes() override;
+  void InvalidateLayoutBoxCrossReferences() override;
+  void InvalidateLayoutBoxRenderTreeNodes() override;
 
   // Updates the cached computed style of this element and its descendants.
   void UpdateComputedStyleRecursively(
@@ -281,10 +281,10 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
  protected:
   HTMLElement(Document* document, base::Token local_name);
-  ~HTMLElement() OVERRIDE;
+  ~HTMLElement() override;
 
-  void OnInsertedIntoDocument() OVERRIDE;
-  void OnRemovedFromDocument() OVERRIDE;
+  void OnInsertedIntoDocument() override;
+  void OnRemovedFromDocument() override;
 
   void CopyDirectionality(const HTMLElement& other);
 
@@ -295,12 +295,12 @@ class HTMLElement : public Element, public cssom::MutationObserver {
 
  private:
   // From Node.
-  void OnMutation() OVERRIDE;
+  void OnMutation() override;
 
   // From Element.
   void OnSetAttribute(const std::string& name,
-                      const std::string& value) OVERRIDE;
-  void OnRemoveAttribute(const std::string& name) OVERRIDE;
+                      const std::string& value) override;
+  void OnRemoveAttribute(const std::string& name) override;
 
   bool IsFocusable();
   bool HasTabindexFocusFlag() const;

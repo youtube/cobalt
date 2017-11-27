@@ -93,7 +93,7 @@ class HardwareRasterizer::Impl {
     CachedScratchSurfaceHolder(ScratchSurfaceCache* cache,
                                const math::Size& size)
         : cached_scratch_surface_(cache, size) {}
-    SkSurface* GetSurface() OVERRIDE {
+    SkSurface* GetSurface() override {
       return cached_scratch_surface_.GetSurface();
     }
 

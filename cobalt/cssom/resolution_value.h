@@ -41,7 +41,7 @@ class ResolutionValue : public PropertyValue {
   ResolutionValue(float value, ResolutionUnit unit)
       : value_(value), unit_(unit) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   float value() const { return value_; }
   ResolutionUnit unit() const { return unit_; }
@@ -49,7 +49,7 @@ class ResolutionValue : public PropertyValue {
   // Returns the value in dpi.
   float dpi_value() const;
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const ResolutionValue& other) const {
     return value_ == other.value_ && unit_ == other.unit_;
@@ -58,7 +58,7 @@ class ResolutionValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(ResolutionValue);
 
  private:
-  ~ResolutionValue() OVERRIDE {}
+  ~ResolutionValue() override {}
 
   const float value_;
   const ResolutionUnit unit_;

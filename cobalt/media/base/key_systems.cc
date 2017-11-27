@@ -178,35 +178,35 @@ class KeySystemsImpl : public KeySystems {
   void AddMimeTypeCodecMask(const std::string& mime_type, uint32_t mask);
 
   // Implementation of KeySystems interface.
-  bool IsSupportedKeySystem(const std::string& key_system) const OVERRIDE;
+  bool IsSupportedKeySystem(const std::string& key_system) const override;
 
   bool IsSupportedInitDataType(const std::string& key_system,
-                               EmeInitDataType init_data_type) const OVERRIDE;
+                               EmeInitDataType init_data_type) const override;
 
   EmeConfigRule GetContentTypeConfigRule(
       const std::string& key_system, EmeMediaType media_type,
       const std::string& container_mime_type,
-      const std::vector<std::string>& codecs) const OVERRIDE;
+      const std::vector<std::string>& codecs) const override;
 
   EmeConfigRule GetRobustnessConfigRule(
       const std::string& key_system, EmeMediaType media_type,
-      const std::string& requested_robustness) const OVERRIDE;
+      const std::string& requested_robustness) const override;
 
   EmeSessionTypeSupport GetPersistentLicenseSessionSupport(
-      const std::string& key_system) const OVERRIDE;
+      const std::string& key_system) const override;
 
   EmeSessionTypeSupport GetPersistentReleaseMessageSessionSupport(
-      const std::string& key_system) const OVERRIDE;
+      const std::string& key_system) const override;
 
   EmeFeatureSupport GetPersistentStateSupport(
-      const std::string& key_system) const OVERRIDE;
+      const std::string& key_system) const override;
 
   EmeFeatureSupport GetDistinctiveIdentifierSupport(
-      const std::string& key_system) const OVERRIDE;
+      const std::string& key_system) const override;
 
  private:
   KeySystemsImpl();
-  ~KeySystemsImpl() OVERRIDE;
+  ~KeySystemsImpl() override;
 
   void InitializeUMAInfo();
 

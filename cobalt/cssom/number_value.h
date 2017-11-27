@@ -34,11 +34,11 @@ class NumberValue : public PropertyValue {
  public:
   explicit NumberValue(float value) : value_(value) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   float value() const { return value_; }
 
-  std::string ToString() const OVERRIDE {
+  std::string ToString() const override {
     return base::StringPrintf("%.7g", value_);
   }
 
@@ -49,7 +49,7 @@ class NumberValue : public PropertyValue {
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(NumberValue);
 
  private:
-  ~NumberValue() OVERRIDE {}
+  ~NumberValue() override {}
 
   const float value_;
 

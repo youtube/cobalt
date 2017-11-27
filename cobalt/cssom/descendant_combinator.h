@@ -30,11 +30,11 @@ class CombinatorVisitor;
 class DescendantCombinator : public Combinator {
  public:
   DescendantCombinator() {}
-  ~DescendantCombinator() OVERRIDE {}
+  ~DescendantCombinator() override {}
 
   // From Combinator.
-  void Accept(CombinatorVisitor* visitor) OVERRIDE;
-  CombinatorType GetCombinatorType() OVERRIDE { return kDescendantCombinator; }
+  void Accept(CombinatorVisitor* visitor) override;
+  CombinatorType GetCombinatorType() override { return kDescendantCombinator; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(DescendantCombinator);

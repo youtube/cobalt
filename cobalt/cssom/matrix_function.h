@@ -37,11 +37,11 @@ class MatrixFunction : public TransformFunction {
   MatrixFunction(float m00, float m10, float m01, float m11, float m02,
                  float m12);
 
-  void Accept(TransformFunctionVisitor* visitor) const OVERRIDE;
+  void Accept(TransformFunctionVisitor* visitor) const override;
 
   const math::Matrix3F& value() const { return value_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const MatrixFunction& other) const {
     return value_ == other.value_;

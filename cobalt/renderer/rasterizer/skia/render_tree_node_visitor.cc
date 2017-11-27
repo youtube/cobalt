@@ -825,11 +825,11 @@ class SkiaBrushVisitor : public render_tree::BrushVisitor {
       : paint_(paint), draw_state_(draw_state) {}
 
   void Visit(
-      const cobalt::render_tree::SolidColorBrush* solid_color_brush) OVERRIDE;
+      const cobalt::render_tree::SolidColorBrush* solid_color_brush) override;
   void Visit(const cobalt::render_tree::LinearGradientBrush*
-                 linear_gradient_brush) OVERRIDE;
+                 linear_gradient_brush) override;
   void Visit(const cobalt::render_tree::RadialGradientBrush*
-                 radial_gradient_brush) OVERRIDE;
+                 radial_gradient_brush) override;
 
  private:
   SkPaint* paint_;
@@ -964,14 +964,14 @@ class CheckForSolidBrushVisitor : public render_tree::BrushVisitor {
   CheckForSolidBrushVisitor() : is_solid_brush_(false) {}
 
   void Visit(
-      const cobalt::render_tree::SolidColorBrush* solid_color_brush) OVERRIDE {
+      const cobalt::render_tree::SolidColorBrush* solid_color_brush) override {
     is_solid_brush_ = true;
   }
 
   void Visit(const cobalt::render_tree::LinearGradientBrush*
-                 linear_gradient_brush) OVERRIDE {}
+                 linear_gradient_brush) override {}
   void Visit(const cobalt::render_tree::RadialGradientBrush*
-                 radial_gradient_brush) OVERRIDE {}
+                 radial_gradient_brush) override {}
 
   bool is_solid_brush() const { return is_solid_brush_; }
 

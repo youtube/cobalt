@@ -31,12 +31,12 @@ namespace backend {
 class GraphicsSystemBlitter : public GraphicsSystem {
  public:
   GraphicsSystemBlitter();
-  ~GraphicsSystemBlitter() OVERRIDE;
+  ~GraphicsSystemBlitter() override;
 
   scoped_ptr<Display> CreateDisplay(
-      system_window::SystemWindow* system_window) OVERRIDE;
+      system_window::SystemWindow* system_window) override;
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE;
+  scoped_ptr<GraphicsContext> CreateGraphicsContext() override;
 
   SbBlitterDevice GetSbBlitterDevice() { return device_; }
 

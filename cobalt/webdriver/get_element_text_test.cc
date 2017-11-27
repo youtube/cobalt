@@ -45,7 +45,7 @@ class GetElementTextTest : public ::testing::Test {
                               dom_stat_tracker_.get(), "",
                               base::kApplicationStateStarted) {}
 
-  void SetUp() OVERRIDE {
+  void SetUp() override {
     dom::Document::Options options;
     options.viewport_size = math::Size(1920, 1080);
     options.navigation_start_clock = new base::SystemMonotonicClock();

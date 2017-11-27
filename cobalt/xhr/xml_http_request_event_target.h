@@ -43,12 +43,12 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
   void set_onprogress(const EventListenerScriptValue& listener);
   void set_ontimeout(const EventListenerScriptValue& listener);
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   DEFINE_WRAPPABLE_TYPE(XMLHttpRequestEventTarget);
 
  protected:
-  ~XMLHttpRequestEventTarget() OVERRIDE;
+  ~XMLHttpRequestEventTarget() override;
 
   base::optional<EventListenerScriptValue::Reference> onabort_listener_;
   base::optional<EventListenerScriptValue::Reference> onerror_listener_;
@@ -60,7 +60,7 @@ class XMLHttpRequestEventTarget : public dom::EventTarget {
 
  private:
   // From EventTarget.
-  std::string GetDebugName() OVERRIDE { return "XMLHttpRequestEventTarget"; }
+  std::string GetDebugName() override { return "XMLHttpRequestEventTarget"; }
 
   DISALLOW_COPY_AND_ASSIGN(XMLHttpRequestEventTarget);
 };

@@ -40,54 +40,54 @@ class InlineContainerBox : public ContainerBox {
                          css_computed_style_declaration,
                      UsedStyleProvider* used_style_provider,
                      LayoutStatTracker* layout_stat_tracker);
-  ~InlineContainerBox() OVERRIDE;
+  ~InlineContainerBox() override;
 
   // From |Box|.
-  Level GetLevel() const OVERRIDE;
+  Level GetLevel() const override;
 
-  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) OVERRIDE;
+  void UpdateContentSizeAndMargins(const LayoutParams& layout_params) override;
 
   WrapResult TryWrapAt(WrapAtPolicy wrap_at_policy,
                        WrapOpportunityPolicy wrap_opportunity_policy,
                        bool is_line_existence_justified,
                        LayoutUnit available_width,
-                       bool should_collapse_trailing_white_space) OVERRIDE;
+                       bool should_collapse_trailing_white_space) override;
 
-  Box* GetSplitSibling() const OVERRIDE;
+  Box* GetSplitSibling() const override;
 
-  bool DoesFulfillEllipsisPlacementRequirement() const OVERRIDE;
-  void DoPreEllipsisPlacementProcessing() OVERRIDE;
-  void DoPostEllipsisPlacementProcessing() OVERRIDE;
+  bool DoesFulfillEllipsisPlacementRequirement() const override;
+  void DoPreEllipsisPlacementProcessing() override;
+  void DoPostEllipsisPlacementProcessing() override;
 
-  bool TrySplitAtSecondBidiLevelRun() OVERRIDE;
-  base::optional<int> GetBidiLevel() const OVERRIDE;
+  bool TrySplitAtSecondBidiLevelRun() override;
+  base::optional<int> GetBidiLevel() const override;
 
   void SetShouldCollapseLeadingWhiteSpace(
-      bool should_collapse_leading_white_space) OVERRIDE;
+      bool should_collapse_leading_white_space) override;
   void SetShouldCollapseTrailingWhiteSpace(
-      bool should_collapse_trailing_white_space) OVERRIDE;
-  bool HasLeadingWhiteSpace() const OVERRIDE;
-  bool HasTrailingWhiteSpace() const OVERRIDE;
-  bool IsCollapsed() const OVERRIDE;
+      bool should_collapse_trailing_white_space) override;
+  bool HasLeadingWhiteSpace() const override;
+  bool HasTrailingWhiteSpace() const override;
+  bool IsCollapsed() const override;
 
-  bool JustifiesLineExistence() const OVERRIDE;
-  bool HasTrailingLineBreak() const OVERRIDE;
-  bool AffectsBaselineInBlockFormattingContext() const OVERRIDE;
-  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const OVERRIDE;
-  LayoutUnit GetInlineLevelBoxHeight() const OVERRIDE;
-  LayoutUnit GetInlineLevelTopMargin() const OVERRIDE;
+  bool JustifiesLineExistence() const override;
+  bool HasTrailingLineBreak() const override;
+  bool AffectsBaselineInBlockFormattingContext() const override;
+  LayoutUnit GetBaselineOffsetFromTopMarginEdge() const override;
+  LayoutUnit GetInlineLevelBoxHeight() const override;
+  LayoutUnit GetInlineLevelTopMargin() const override;
 
   // From |ContainerBox|.
-  bool TryAddChild(const scoped_refptr<Box>& child_box) OVERRIDE;
-  scoped_refptr<ContainerBox> TrySplitAtEnd() OVERRIDE;
+  bool TryAddChild(const scoped_refptr<Box>& child_box) override;
+  scoped_refptr<ContainerBox> TrySplitAtEnd() override;
 
  protected:
   // From |Box|.
-  bool IsTransformable() const OVERRIDE;
+  bool IsTransformable() const override;
 
 #ifdef COBALT_BOX_DUMP_ENABLED
-  void DumpClassName(std::ostream* stream) const OVERRIDE;
-  void DumpProperties(std::ostream* stream) const OVERRIDE;
+  void DumpClassName(std::ostream* stream) const override;
+  void DumpProperties(std::ostream* stream) const override;
 #endif  // COBALT_BOX_DUMP_ENABLED
 
  private:
@@ -95,7 +95,7 @@ class InlineContainerBox : public ContainerBox {
   void DoPlaceEllipsisOrProcessPlacedEllipsis(
       BaseDirection base_direction, LayoutUnit desired_offset,
       bool* is_placement_requirement_met, bool* is_placed,
-      LayoutUnit* placed_offset) OVERRIDE;
+      LayoutUnit* placed_offset) override;
 
   WrapResult TryWrapAtBefore(WrapOpportunityPolicy wrap_opportunity_policy,
                              bool is_line_requirement_met,

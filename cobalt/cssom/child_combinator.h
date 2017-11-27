@@ -29,11 +29,11 @@ class CombinatorVisitor;
 class ChildCombinator : public Combinator {
  public:
   ChildCombinator() {}
-  ~ChildCombinator() OVERRIDE {}
+  ~ChildCombinator() override {}
 
   // From Combinator.
-  void Accept(CombinatorVisitor* visitor) OVERRIDE;
-  CombinatorType GetCombinatorType() OVERRIDE { return kChildCombinator; }
+  void Accept(CombinatorVisitor* visitor) override;
+  CombinatorType GetCombinatorType() override { return kChildCombinator; }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ChildCombinator);

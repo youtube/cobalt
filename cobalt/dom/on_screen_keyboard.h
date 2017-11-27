@@ -60,7 +60,7 @@ class OnScreenKeyboard : public EventTarget {
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
 
  private:
-  ~OnScreenKeyboard() OVERRIDE {}
+  ~OnScreenKeyboard() override {}
   const base::Callback<SbWindow()> get_sb_window_callback_;
 
   std::string data_;

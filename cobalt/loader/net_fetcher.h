@@ -46,14 +46,14 @@ class NetFetcher : public Fetcher, public net::URLFetcherDelegate {
              Handler* handler, const network::NetworkModule* network_module,
              const Options& options, RequestMode request_mode,
              const Origin& origin);
-  ~NetFetcher() OVERRIDE;
+  ~NetFetcher() override;
 
   // net::URLFetcherDelegate interface
-  void OnURLFetchResponseStarted(const net::URLFetcher* source) OVERRIDE;
-  void OnURLFetchComplete(const net::URLFetcher* source) OVERRIDE;
-  bool ShouldSendDownloadData() OVERRIDE;
+  void OnURLFetchResponseStarted(const net::URLFetcher* source) override;
+  void OnURLFetchComplete(const net::URLFetcher* source) override;
+  bool ShouldSendDownloadData() override;
   void OnURLFetchDownloadData(const net::URLFetcher* source,
-                              scoped_ptr<std::string> download_data) OVERRIDE;
+                              scoped_ptr<std::string> download_data) override;
 
   net::URLFetcher* url_fetcher() const {
     DCHECK(thread_checker_.CalledOnValidThread());

@@ -41,8 +41,8 @@ class ToolThread : public base::SimpleThread {
              AbstractLogger* logger);
   virtual ~ToolThread();
 
-  virtual void Join() OVERRIDE;
-  virtual void Run() OVERRIDE;
+  void Join() override;
+  void Run() override;
 
  private:
   scoped_ptr<Params> params_;

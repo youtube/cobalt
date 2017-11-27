@@ -161,8 +161,8 @@ class FontList : public render_tree::FontProvider,
 
   // From render_tree::FontProvider
 
-  const render_tree::FontStyle& style() const OVERRIDE { return style_; }
-  float size() const OVERRIDE { return size_; }
+  const render_tree::FontStyle& style() const override { return style_; }
+  float size() const override { return size_; }
 
   // Returns the first font in the font list that supports the specified
   // UTF-32 character or a fallback font provided by the font cache if none of
@@ -172,7 +172,7 @@ class FontList : public render_tree::FontProvider,
   // that has the specified character or all fonts in the list have been
   // requested.
   const scoped_refptr<render_tree::Font>& GetCharacterFont(
-      int32 utf32_character, render_tree::GlyphIndex* glyph_index) OVERRIDE;
+      int32 utf32_character, render_tree::GlyphIndex* glyph_index) override;
 
  private:
   const scoped_refptr<render_tree::Font>& GetFallbackCharacterFont(

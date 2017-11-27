@@ -35,12 +35,12 @@ namespace backend {
 class GraphicsSystemStub : public GraphicsSystem {
  public:
   scoped_ptr<Display> CreateDisplay(
-      system_window::SystemWindow* system_window) OVERRIDE {
+      system_window::SystemWindow* system_window) override {
     UNREFERENCED_PARAMETER(system_window);
     return scoped_ptr<Display>(new DisplayStub());
   }
 
-  scoped_ptr<GraphicsContext> CreateGraphicsContext() OVERRIDE {
+  scoped_ptr<GraphicsContext> CreateGraphicsContext() override {
     return scoped_ptr<GraphicsContext>(new GraphicsContextStub(this));
   }
 };

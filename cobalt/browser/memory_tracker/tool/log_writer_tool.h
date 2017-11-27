@@ -38,8 +38,8 @@ class LogWriterTool : public AbstractTool {
   virtual ~LogWriterTool();
 
   // Interface AbstrctMemoryTrackerTool
-  virtual std::string tool_name() const OVERRIDE;
-  virtual void Run(Params* params) OVERRIDE;
+  std::string tool_name() const override;
+  void Run(Params* params) override;
 
   void OnMemoryAllocation(const void* memory_block, size_t size);
   void OnMemoryDeallocation(const void* memory_block);

@@ -37,19 +37,19 @@ class UrlSrcValue : public PropertyValue {
   explicit UrlSrcValue(const scoped_refptr<PropertyValue>& url,
                        const std::string& src);
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   const scoped_refptr<PropertyValue>& url() const { return url_; }
   const std::string& format() const { return format_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const UrlSrcValue& other) const { return url_ == other.url_; }
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(UrlSrcValue);
 
  private:
-  ~UrlSrcValue() OVERRIDE {}
+  ~UrlSrcValue() override {}
 
   const scoped_refptr<PropertyValue> url_;
   const std::string format_;

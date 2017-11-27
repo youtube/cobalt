@@ -59,7 +59,7 @@ class DemuxerStreamCache : public ::media::DemuxerStream {
 
  private:
   // DemuxerStream methods.
-  void Read(const ReadCB& read_cb) OVERRIDE {
+  void Read(const ReadCB& read_cb) override {
     scoped_refptr<DecoderBuffer> buffer;
     if (buffers_.empty()) {
       buffer = DecoderBuffer::CreateEOSBuffer(base::TimeDelta());
@@ -69,17 +69,17 @@ class DemuxerStreamCache : public ::media::DemuxerStream {
     }
     read_cb.Run(kOk, buffer);
   }
-  const AudioDecoderConfig& audio_decoder_config() OVERRIDE {
+  const AudioDecoderConfig& audio_decoder_config() override {
     DCHECK_EQ(type_, AUDIO);
     return audio_decoder_config_;
   }
-  const VideoDecoderConfig& video_decoder_config() OVERRIDE {
+  const VideoDecoderConfig& video_decoder_config() override {
     DCHECK_EQ(type_, VIDEO);
     return video_decoder_config_;
   }
-  Type type() OVERRIDE { return type_; }
-  void EnableBitstreamConverter() OVERRIDE {}
-  bool StreamWasEncrypted() const OVERRIDE { return false; }
+  Type type() override { return type_; }
+  void EnableBitstreamConverter() override {}
+  bool StreamWasEncrypted() const override { return false; }
 
   Type type_;
   AudioDecoderConfig audio_decoder_config_;
@@ -185,14 +185,14 @@ class DemuxerCache : public ::media::Demuxer {
 
   // Demuxer methods.
   void Initialize(::media::DemuxerHost* host,
-                  const ::media::PipelineStatusCB& status_cb) OVERRIDE {
+                  const ::media::PipelineStatusCB& status_cb) override {
     NOTREACHED();
   }
-  void Stop(const base::Closure& callback) OVERRIDE {
+  void Stop(const base::Closure& callback) override {
     DCHECK(!callback.is_null());
     callback.Run();
   }
-  scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type) OVERRIDE {
+  scoped_refptr<DemuxerStream> GetStream(DemuxerStream::Type type) override {
     if (type == DemuxerStream::AUDIO) {
       return audio_stream_;
     } else if (type == DemuxerStream::VIDEO) {
@@ -201,7 +201,7 @@ class DemuxerCache : public ::media::Demuxer {
     NOTREACHED();
     return NULL;
   }
-  base::TimeDelta GetStartTime() const OVERRIDE { return base::TimeDelta(); }
+  base::TimeDelta GetStartTime() const override { return base::TimeDelta(); }
 
   scoped_refptr<DemuxerStreamCache> audio_stream_;
   scoped_refptr<DemuxerStreamCache> video_stream_;
@@ -212,24 +212,24 @@ class DemuxerCache : public ::media::Demuxer {
 class DemuxerHelper::DemuxerHostStub : public ::media::DemuxerHost {
  private:
   // DataSourceHost methods
-  void SetTotalBytes(int64 total_bytes) OVERRIDE {
+  void SetTotalBytes(int64 total_bytes) override {
     UNREFERENCED_PARAMETER(total_bytes);
   }
-  void AddBufferedByteRange(int64 start, int64 end) OVERRIDE {
+  void AddBufferedByteRange(int64 start, int64 end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
   void AddBufferedTimeRange(base::TimeDelta start,
-                            base::TimeDelta end) OVERRIDE {
+                            base::TimeDelta end) override {
     UNREFERENCED_PARAMETER(start);
     UNREFERENCED_PARAMETER(end);
   }
 
   // DemuxerHost methods
-  void SetDuration(base::TimeDelta duration) OVERRIDE {
+  void SetDuration(base::TimeDelta duration) override {
     UNREFERENCED_PARAMETER(duration);
   }
-  void OnDemuxerError(::media::PipelineStatus error) OVERRIDE {
+  void OnDemuxerError(::media::PipelineStatus error) override {
     UNREFERENCED_PARAMETER(error);
   }
 };

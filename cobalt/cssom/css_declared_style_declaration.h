@@ -46,22 +46,22 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
 
   // From CSSStyleDeclaration.
 
-  std::string css_text(script::ExceptionState* exception_state) const OVERRIDE;
+  std::string css_text(script::ExceptionState* exception_state) const override;
   void set_css_text(const std::string& css_text,
-                    script::ExceptionState* exception_state) OVERRIDE;
+                    script::ExceptionState* exception_state) override;
 
-  unsigned int length() const OVERRIDE;
+  unsigned int length() const override;
 
-  base::optional<std::string> Item(unsigned int index) const OVERRIDE;
+  base::optional<std::string> Item(unsigned int index) const override;
 
   void SetPropertyValue(const std::string& property_name,
                         const std::string& property_value,
-                        script::ExceptionState* exception_state) OVERRIDE;
+                        script::ExceptionState* exception_state) override;
 
   void SetProperty(const std::string& property_name,
                    const std::string& property_value,
                    const std::string& priority,
-                   script::ExceptionState* exception_state) OVERRIDE;
+                   script::ExceptionState* exception_state) override;
 
   // Custom.
 
@@ -75,7 +75,7 @@ class CSSDeclaredStyleDeclaration : public CSSStyleDeclaration {
  private:
   // From CSSStyleDeclaration.
   std::string GetDeclaredPropertyValueStringByKey(
-      const PropertyKey key) const OVERRIDE;
+      const PropertyKey key) const override;
 
   // Custom.
   void RecordMutation();

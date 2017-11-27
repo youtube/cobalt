@@ -150,8 +150,8 @@ class Document : public Node,
 
   // Web API: Node
   //
-  NodeType node_type() const OVERRIDE { return Node::kDocumentNode; }
-  base::Token node_name() const OVERRIDE;
+  NodeType node_type() const override { return Node::kDocumentNode; }
+  base::Token node_name() const override;
 
   // Web API: Document
   //
@@ -230,11 +230,11 @@ class Document : public Node,
 
   // Custom, not in any spec: Node.
   //
-  Document* AsDocument() OVERRIDE { return this; }
+  Document* AsDocument() override { return this; }
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  void Accept(ConstNodeVisitor* visitor) const OVERRIDE;
-  scoped_refptr<Node> Duplicate() const OVERRIDE;
+  void Accept(NodeVisitor* visitor) override;
+  void Accept(ConstNodeVisitor* visitor) const override;
+  scoped_refptr<Node> Duplicate() const override;
 
   // Custom, not in any spec.
   //
@@ -302,7 +302,7 @@ class Document : public Node,
   void OnStyleSheetsModified();
 
   // From cssom::MutationObserver.
-  void OnCSSMutation() OVERRIDE;
+  void OnCSSMutation() override;
 
   // Called when the DOM is mutated in some way.
   void OnDOMMutation();
@@ -387,11 +387,11 @@ class Document : public Node,
   }
 
   // page_visibility::PageVisibilityState::Observer implementation.
-  void OnWindowFocusChanged(bool has_focus) OVERRIDE;
+  void OnWindowFocusChanged(bool has_focus) override;
   void OnVisibilityStateChanged(
-      page_visibility::VisibilityState visibility_state) OVERRIDE;
+      page_visibility::VisibilityState visibility_state) override;
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
   PointerState* pointer_state() { return &pointer_state_; }
 
@@ -407,7 +407,7 @@ class Document : public Node,
   DEFINE_WRAPPABLE_TYPE(Document);
 
  protected:
-  ~Document() OVERRIDE;
+  ~Document() override;
 
   page_visibility::PageVisibilityState* page_visibility_state() {
     return html_element_context_->page_visibility_state();

@@ -34,12 +34,12 @@ class HTMLSpanElement : public HTMLElement {
       : HTMLElement(document, base::Token(kTagName)) {}
 
   // Custom, not in any spec.
-  scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() OVERRIDE { return this; }
+  scoped_refptr<HTMLSpanElement> AsHTMLSpanElement() override { return this; }
 
   DEFINE_WRAPPABLE_TYPE(HTMLSpanElement);
 
  private:
-  ~HTMLSpanElement() OVERRIDE {}
+  ~HTMLSpanElement() override {}
 };
 
 }  // namespace dom

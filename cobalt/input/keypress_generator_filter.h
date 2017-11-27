@@ -33,7 +33,7 @@ class KeypressGeneratorFilter : public KeyEventHandler {
   // Conditionally generates an additional keypress event.
   // Passes on the new and original events for further processing/handling.
   void HandleKeyboardEvent(base::Token type,
-                           const dom::KeyboardEventInit& event) OVERRIDE;
+                           const dom::KeyboardEventInit& event) override;
 
  protected:
   // Generates a keypress event, if:

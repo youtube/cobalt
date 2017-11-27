@@ -51,17 +51,17 @@ class CSSDeclaredStyleData : public CSSDeclarationData {
 
   // From CSSDeclarationData
   //
-  bool IsSupportedPropertyKey(PropertyKey key) const OVERRIDE;
+  bool IsSupportedPropertyKey(PropertyKey key) const override;
 
-  scoped_refptr<PropertyValue> GetPropertyValue(PropertyKey key) const OVERRIDE;
+  scoped_refptr<PropertyValue> GetPropertyValue(PropertyKey key) const override;
 
   void SetPropertyValueAndImportance(
       PropertyKey key, const scoped_refptr<PropertyValue>& property_value,
-      bool important) OVERRIDE;
+      bool important) override;
 
   // Sets the specified property value to NULL and importance to false.  This
   // may be called on longhand properties as well as shorthand properties.
-  void ClearPropertyValueAndImportance(PropertyKey key) OVERRIDE;
+  void ClearPropertyValueAndImportance(PropertyKey key) override;
 
   // Rest of public methods.
 

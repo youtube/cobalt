@@ -35,7 +35,7 @@ namespace loader {
 class FileFetcherTest : public ::testing::Test {
  protected:
   FileFetcherTest();
-  ~FileFetcherTest() OVERRIDE {}
+  ~FileFetcherTest() override {}
 
   FilePath data_dir_;
   FilePath dir_source_root_;

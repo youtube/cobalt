@@ -87,18 +87,19 @@ class ProxyHandler : public js::DirectProxyHandler {
   // Overridden standard internal methods.
   bool getOwnPropertyDescriptor(
       JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE;
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const override;
 
   bool defineProperty(JSContext* context, JS::HandleObject proxy,
                       JS::HandleId id,
                       js::Handle<JSPropertyDescriptor> descriptor,
                       JS::ObjectOpResult& result  // NOLINT[runtime/references]
-                      ) const OVERRIDE;           // NOLINT[whitespace/parens]
+                      ) const override;           // NOLINT[whitespace/parens]
   bool ownPropertyKeys(JSContext* context, JS::HandleObject proxy,
-                       JS::AutoIdVector& properties) const OVERRIDE; // NOLINT[runtime/references]
+                       JS::AutoIdVector& properties)
+      const override;  // NOLINT[runtime/references]
   bool delete_(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
                JS::ObjectOpResult& result)  // NOLINT(runtime/references)
-      const OVERRIDE;
+      const override;
 
   // Standard methods that were overridden in DirectProxyHandler. These are
   // implemented in terms of the standard internal methods in BaseProxyHandler
@@ -106,24 +107,24 @@ class ProxyHandler : public js::DirectProxyHandler {
   // TODO: Consider overriding some of these as performance optimizations if
   // necessary.
   bool enumerate(JSContext* context, JS::HandleObject proxy,
-                 JS::MutableHandleObject objp) const OVERRIDE {
+                 JS::MutableHandleObject objp) const override {
     return js::BaseProxyHandler::enumerate(context, proxy, objp);
   }
 
   bool has(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-           bool* bp) const OVERRIDE {
+           bool* bp) const override {
     return js::BaseProxyHandler::has(context, proxy, id, bp);
   }
 
   bool get(JSContext* context, JS::HandleObject proxy, JS::HandleValue receiver,
-           JS::HandleId id, JS::MutableHandleValue vp) const OVERRIDE {
+           JS::HandleId id, JS::MutableHandleValue vp) const override {
     return js::BaseProxyHandler::get(context, proxy, receiver, id, vp);
   }
 
   bool set(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
            JS::HandleValue v, JS::HandleValue receiver,
            JS::ObjectOpResult& result)  // NOLINT(runtime/references)
-      const OVERRIDE {
+      const override {
     return js::BaseProxyHandler::set(context, proxy, id, v, receiver, result);
   }
 
@@ -131,16 +132,17 @@ class ProxyHandler : public js::DirectProxyHandler {
   // standard methods, as described above.
   bool getPropertyDescriptor(
       JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-      JS::MutableHandle<JSPropertyDescriptor> descriptor) const OVERRIDE {
+      JS::MutableHandle<JSPropertyDescriptor> descriptor) const override {
     return js::BaseProxyHandler::getPropertyDescriptor(context, proxy, id,
                                                        descriptor);
   }
   bool hasOwn(JSContext* context, JS::HandleObject proxy, JS::HandleId id,
-              bool* bp) const OVERRIDE {
+              bool* bp) const override {
     return js::BaseProxyHandler::hasOwn(context, proxy, id, bp);
   }
-  bool getOwnEnumerablePropertyKeys(JSContext* context, JS::HandleObject proxy,
-                                    JS::AutoIdVector& props) const OVERRIDE {  // NOLINT[runtime/references]
+  bool getOwnEnumerablePropertyKeys(
+      JSContext* context, JS::HandleObject proxy,
+      JS::AutoIdVector& props) const override {  // NOLINT[runtime/references]
     return js::BaseProxyHandler::getOwnEnumerablePropertyKeys(context, proxy,
                                                               props);
   }

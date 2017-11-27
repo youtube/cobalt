@@ -26,18 +26,18 @@ class FakeDemuxerStream : public DemuxerStream {
   // output buffers are encrypted if |is_encrypted| is true.
   FakeDemuxerStream(int num_configs, int num_buffers_in_one_config,
                     bool is_encrypted);
-  ~FakeDemuxerStream() OVERRIDE;
+  ~FakeDemuxerStream() override;
 
   // DemuxerStream implementation.
-  void Read(const ReadCB& read_cb) OVERRIDE;
-  AudioDecoderConfig audio_decoder_config() OVERRIDE;
-  VideoDecoderConfig video_decoder_config() OVERRIDE;
-  Type type() const OVERRIDE;
-  bool SupportsConfigChanges() OVERRIDE;
-  VideoRotation video_rotation() OVERRIDE;
-  bool enabled() const OVERRIDE;
-  void set_enabled(bool enabled, base::TimeDelta timestamp) OVERRIDE;
-  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) OVERRIDE;
+  void Read(const ReadCB& read_cb) override;
+  AudioDecoderConfig audio_decoder_config() override;
+  VideoDecoderConfig video_decoder_config() override;
+  Type type() const override;
+  bool SupportsConfigChanges() override;
+  VideoRotation video_rotation() override;
+  bool enabled() const override;
+  void set_enabled(bool enabled, base::TimeDelta timestamp) override;
+  void SetStreamStatusChangeCB(const StreamStatusChangeCB& cb) override;
 
   void Initialize();
 
@@ -115,10 +115,10 @@ class FakeDemuxerStreamProvider : public DemuxerStreamProvider {
   FakeDemuxerStreamProvider(int num_video_configs,
                             int num_video_buffers_in_one_config,
                             bool is_video_encrypted);
-  ~FakeDemuxerStreamProvider() OVERRIDE;
+  ~FakeDemuxerStreamProvider() override;
 
   // DemuxerStreamProvider implementation.
-  DemuxerStream* GetStream(DemuxerStream::Type type) OVERRIDE;
+  DemuxerStream* GetStream(DemuxerStream::Type type) override;
 
  private:
   FakeDemuxerStream fake_video_stream_;

@@ -31,7 +31,7 @@ namespace dom {
 class NamedNodeMapTest : public ::testing::Test {
  protected:
   NamedNodeMapTest();
-  ~NamedNodeMapTest() OVERRIDE;
+  ~NamedNodeMapTest() override;
 
   HTMLElementContext html_element_context_;
   scoped_refptr<Document> document_;

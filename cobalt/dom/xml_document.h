@@ -27,13 +27,13 @@ class XMLDocument : public Document {
       : Document(html_element_context, options) {}
 
   // Custom, not in any spec: Node.
-  scoped_refptr<Node> Duplicate() const OVERRIDE {
+  scoped_refptr<Node> Duplicate() const override {
     return new XMLDocument(html_element_context(),
                            Document::Options(url_as_gurl()));
   }
 
   // Custom, not in any spec: Document.
-  bool IsXMLDocument() const OVERRIDE { return true; }
+  bool IsXMLDocument() const override { return true; }
 
   DEFINE_WRAPPABLE_TYPE(XMLDocument);
 

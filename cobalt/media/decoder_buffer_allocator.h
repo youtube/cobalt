@@ -34,11 +34,11 @@ namespace media {
 class DecoderBufferAllocator : public DecoderBuffer::Allocator {
  public:
   DecoderBufferAllocator();
-  ~DecoderBufferAllocator() OVERRIDE;
+  ~DecoderBufferAllocator() override;
 
   Allocations Allocate(size_t size, size_t alignment,
-                       intptr_t context) OVERRIDE;
-  void Free(Allocations allocations) OVERRIDE;
+                       intptr_t context) override;
+  void Free(Allocations allocations) override;
 
  private:
 #if COBALT_MEDIA_BUFFER_USING_MEMORY_POOL
@@ -50,7 +50,7 @@ class DecoderBufferAllocator : public DecoderBuffer::Allocator {
     FreeBlockSet::iterator FindBestFreeBlock(
         std::size_t size, std::size_t alignment, intptr_t context,
         FreeBlockSet::iterator begin, FreeBlockSet::iterator end,
-        bool* allocate_from_front) SB_OVERRIDE;
+        bool* allocate_from_front) override;
   };
 
   void UpdateAllocationRecord(std::size_t blocks = 1) const;

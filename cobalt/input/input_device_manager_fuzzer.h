@@ -32,7 +32,7 @@ class InputDeviceManagerFuzzer : public InputDeviceManager {
  public:
   explicit InputDeviceManagerFuzzer(
       KeyboardEventCallback keyboard_event_callback);
-  ~InputDeviceManagerFuzzer() OVERRIDE {}
+  ~InputDeviceManagerFuzzer() override {}
 
  private:
   class KeyInfo {

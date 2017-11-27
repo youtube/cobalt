@@ -109,13 +109,13 @@ class Wrappable : public base::RefCounted<Wrappable> {
   static base::TypeId INTERFACE_NAME##WrappableType() {           \
     return base::GetTypeId<INTERFACE_NAME>();                     \
   }                                                               \
-  base::TypeId GetWrappableType() const OVERRIDE {                \
+  base::TypeId GetWrappableType() const override {                \
     return INTERFACE_NAME##WrappableType();                       \
   }                                                               \
   static const char* GetSourceLocationName() {                    \
     return "[object " #INTERFACE_NAME "]";                        \
   }                                                               \
-  base::SourceLocation GetInlineSourceLocation() const OVERRIDE { \
+  base::SourceLocation GetInlineSourceLocation() const override { \
     return base::SourceLocation(GetSourceLocationName(), 1, 1);   \
   }
 

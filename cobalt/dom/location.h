@@ -96,7 +96,7 @@ class Location : public script::Wrappable {
   DEFINE_WRAPPABLE_TYPE(Location);
 
  private:
-  ~Location() OVERRIDE {}
+  ~Location() override {}
 
   URLUtils url_utils_;
   base::Closure hashchange_callback_;

@@ -88,7 +88,7 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
 
   // Child combinator describes a childhood relationship between two elements.
   //   https://www.w3.org/TR/selectors4/#child-combinators
-  void VisitChildCombinator(cssom::ChildCombinator* child_combinator) OVERRIDE {
+  void VisitChildCombinator(cssom::ChildCombinator* child_combinator) override {
     element_ = MatchSelectorAndElement(child_combinator->left_selector(),
                                        element_->parent_element(), true);
   }
@@ -99,7 +99,7 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // element represented by the second one.
   //   https://www.w3.org/TR/selectors4/#adjacent-sibling-combinators
   void VisitNextSiblingCombinator(
-      cssom::NextSiblingCombinator* next_sibling_combinator) OVERRIDE {
+      cssom::NextSiblingCombinator* next_sibling_combinator) override {
     element_ =
         MatchSelectorAndElement(next_sibling_combinator->left_selector(),
                                 element_->previous_element_sibling(), true);
@@ -109,7 +109,7 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   // another element in the document tree.
   //   https://www.w3.org/TR/selectors4/#descendant-combinators
   void VisitDescendantCombinator(
-      cssom::DescendantCombinator* descendant_combinator) OVERRIDE {
+      cssom::DescendantCombinator* descendant_combinator) override {
     do {
       element_ = element_->parent_element();
       Element* element = MatchSelectorAndElement(
@@ -128,7 +128,7 @@ class CombinatorMatcher : public cssom::CombinatorVisitor {
   //   https://www.w3.org/TR/selectors4/#general-sibling-combinators
   void VisitFollowingSiblingCombinator(
       cssom::FollowingSiblingCombinator* following_sibling_combinator)
-      OVERRIDE {
+      override {
     do {
       element_ = element_->previous_element_sibling();
       Element* element = MatchSelectorAndElement(
@@ -165,12 +165,12 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // The universal selector represents the qualified name of any element type.
   //   https://www.w3.org/TR/selectors4/#universal-selector
   void VisitUniversalSelector(
-      cssom::UniversalSelector* /* universal_selector */) OVERRIDE {}
+      cssom::UniversalSelector* /* universal_selector */) override {}
 
   // A type selector represents an instance of the element type in the document
   // tree.
   //   https://www.w3.org/TR/selectors4/#type-selector
-  void VisitTypeSelector(cssom::TypeSelector* type_selector) OVERRIDE {
+  void VisitTypeSelector(cssom::TypeSelector* type_selector) override {
     if (type_selector->element_name() != element_->local_name()) {
       element_ = NULL;
     }
@@ -180,7 +180,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // matches the attribute represented by the attribute selector.
   //   https://www.w3.org/TR/selectors4/#attribute-selector
   void VisitAttributeSelector(
-      cssom::AttributeSelector* attribute_selector) OVERRIDE {
+      cssom::AttributeSelector* attribute_selector) override {
     if (!element_->HasAttribute(attribute_selector->attribute_name().c_str())) {
       element_ = NULL;
       return;
@@ -209,7 +209,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // The class selector represents an element belonging to the class identified
   // by the identifier.
   //   https://www.w3.org/TR/selectors4/#class-selector
-  void VisitClassSelector(cssom::ClassSelector* class_selector) OVERRIDE {
+  void VisitClassSelector(cssom::ClassSelector* class_selector) override {
     if (!element_->class_list()->ContainsValid(class_selector->class_name())) {
       element_ = NULL;
     }
@@ -218,7 +218,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // An ID selector represents an element instance that has an identifier that
   // matches the identifier in the ID selector.
   //   https://www.w3.org/TR/selectors4/#id-selector
-  void VisitIdSelector(cssom::IdSelector* id_selector) OVERRIDE {
+  void VisitIdSelector(cssom::IdSelector* id_selector) override {
     if (id_selector->id() != element_->id()) {
       element_ = NULL;
     }
@@ -230,14 +230,14 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // only to the primary or primary activation button (typically the "left"
   // mouse button), and any aliases thereof.
   //   https://www.w3.org/TR/selectors4/#active-pseudo
-  void VisitActivePseudoClass(cssom::ActivePseudoClass*) OVERRIDE {
+  void VisitActivePseudoClass(cssom::ActivePseudoClass*) override {
     NOTIMPLEMENTED();
     element_ = NULL;
   }
 
   // The :empty pseudo-class represents an element that has no content children.
   //   https://www.w3.org/TR/selectors4/#empty-pseudo
-  void VisitEmptyPseudoClass(cssom::EmptyPseudoClass*) OVERRIDE {
+  void VisitEmptyPseudoClass(cssom::EmptyPseudoClass*) override {
     if (!element_->IsEmpty()) {
       element_ = NULL;
     }
@@ -246,7 +246,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // The :focus pseudo-class applies while an element has the focus (accepts
   // keyboard or mouse events, or other forms of input).
   //   https://www.w3.org/TR/selectors4/#focus-pseudo
-  void VisitFocusPseudoClass(cssom::FocusPseudoClass*) OVERRIDE {
+  void VisitFocusPseudoClass(cssom::FocusPseudoClass*) override {
     if (!element_->HasFocus()) {
       element_ = NULL;
     }
@@ -259,7 +259,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // agents that cannot detect hovering due to hardware limitations (e.g., a pen
   // device that does not detect hovering) are still conforming.
   //   https://www.w3.org/TR/selectors4/#hover-pseudo
-  void VisitHoverPseudoClass(cssom::HoverPseudoClass*) OVERRIDE {
+  void VisitHoverPseudoClass(cssom::HoverPseudoClass*) override {
     if (!element_->AsHTMLElement() ||
         !element_->AsHTMLElement()->IsDesignated()) {
       element_ = NULL;
@@ -270,7 +270,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // selector list as an argument. It represents an element that is not
   // represented by its argument.
   //   https://www.w3.org/TR/selectors4/#negation-pseudo
-  void VisitNotPseudoClass(cssom::NotPseudoClass* not_pseudo_class) OVERRIDE {
+  void VisitNotPseudoClass(cssom::NotPseudoClass* not_pseudo_class) override {
     if (MatchSelectorAndElement(not_pseudo_class->selector(), element_, true)) {
       element_ = NULL;
     }
@@ -280,17 +280,17 @@ class SelectorMatcher : public cssom::SelectorVisitor {
 
   // The :after pseudo-element represents a generated element.
   //   https://www.w3.org/TR/CSS21/generate.html#before-after-content
-  void VisitAfterPseudoElement(cssom::AfterPseudoElement*) OVERRIDE {}
+  void VisitAfterPseudoElement(cssom::AfterPseudoElement*) override {}
 
   // The :before pseudo-element represents a generated element.
   //   https://www.w3.org/TR/CSS21/generate.html#before-after-content
-  void VisitBeforePseudoElement(cssom::BeforePseudoElement*) OVERRIDE {}
+  void VisitBeforePseudoElement(cssom::BeforePseudoElement*) override {}
 
   // A compound selector is a chain of simple selectors that are not separated
   // by a combinator.
   //   https://www.w3.org/TR/selectors4/#compound
   void VisitCompoundSelector(
-      cssom::CompoundSelector* compound_selector) OVERRIDE {
+      cssom::CompoundSelector* compound_selector) override {
     DCHECK_GT(compound_selector->simple_selectors().size(), 0U);
 
     // Iterate through all the simple selectors. If any of the simple selectors
@@ -316,7 +316,7 @@ class SelectorMatcher : public cssom::SelectorVisitor {
   // A complex selector is a chain of one or more compound selectors separated
   // by combinators.
   //   https://www.w3.org/TR/selectors4/#complex
-  void VisitComplexSelector(cssom::ComplexSelector* complex_selector) OVERRIDE {
+  void VisitComplexSelector(cssom::ComplexSelector* complex_selector) override {
     element_ = MatchSelectorAndElement(complex_selector->last_selector(),
                                        element_, true);
   }

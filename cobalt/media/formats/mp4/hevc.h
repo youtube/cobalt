@@ -97,10 +97,10 @@ class HEVCBitstreamConverter : public BitstreamConverter {
 
   // BitstreamConverter interface
   bool ConvertFrame(std::vector<uint8_t>* frame_buf, bool is_keyframe,
-                    std::vector<SubsampleEntry>* subsamples) const OVERRIDE;
+                    std::vector<SubsampleEntry>* subsamples) const override;
 
  private:
-  ~HEVCBitstreamConverter() OVERRIDE;
+  ~HEVCBitstreamConverter() override;
   scoped_ptr<HEVCDecoderConfigurationRecord> hevc_config_;
 };
 

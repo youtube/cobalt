@@ -55,7 +55,7 @@ class LinearGradientValue : public PropertyValue {
       : side_or_corner_(side_or_corner),
         color_stop_list_(color_stop_list.Pass()) {}
 
-  void Accept(PropertyValueVisitor* visitor) OVERRIDE;
+  void Accept(PropertyValueVisitor* visitor) override;
 
   const base::optional<float>& angle_in_radians() const {
     return angle_in_radians_;
@@ -65,14 +65,14 @@ class LinearGradientValue : public PropertyValue {
   }
   const ColorStopList& color_stop_list() const { return color_stop_list_; }
 
-  std::string ToString() const OVERRIDE;
+  std::string ToString() const override;
 
   bool operator==(const LinearGradientValue& other) const;
 
   DEFINE_POLYMORPHIC_EQUATABLE_TYPE(LinearGradientValue);
 
  private:
-  ~LinearGradientValue() OVERRIDE {}
+  ~LinearGradientValue() override {}
 
   // Exactly one of |angle_in_radians_| and |side_or_corner_| is engaged.
   const base::optional<float> angle_in_radians_;

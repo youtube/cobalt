@@ -46,18 +46,18 @@ class NodeCollection : public HTMLCollection {
  public:
   NodeCollection(const scoped_refptr<const Node>& base,
                  const Predicate& predicate);
-  ~NodeCollection() OVERRIDE {}
+  ~NodeCollection() override {}
 
-  uint32 length() const OVERRIDE;
+  uint32 length() const override;
 
-  scoped_refptr<Element> Item(uint32 item) const OVERRIDE;
-  scoped_refptr<Element> NamedItem(const std::string& name) const OVERRIDE;
+  scoped_refptr<Element> Item(uint32 item) const override;
+  scoped_refptr<Element> NamedItem(const std::string& name) const override;
 
-  bool CanQueryNamedProperty(const std::string& name) const OVERRIDE;
+  bool CanQueryNamedProperty(const std::string& name) const override;
   void EnumerateNamedProperties(
-      script::PropertyEnumerator* enumerator) const OVERRIDE;
+      script::PropertyEnumerator* enumerator) const override;
 
-  void TraceMembers(script::Tracer* tracer) OVERRIDE;
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   // Checks if the collection cache is up to date and refreshes it if it's not.

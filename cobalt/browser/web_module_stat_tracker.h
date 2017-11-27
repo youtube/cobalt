@@ -124,8 +124,8 @@ class WebModuleStatTracker : public base::StopWatchOwner {
   };
 
   // From base::StopWatchOwner
-  bool IsStopWatchEnabled(int id) const OVERRIDE;
-  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) OVERRIDE;
+  bool IsStopWatchEnabled(int id) const override;
+  void OnStopWatchStopped(int id, base::TimeDelta time_elapsed) override;
 
   // End the current event if one is active. This triggers an update of all
   // |EventStats| for the event.

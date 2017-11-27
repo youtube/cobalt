@@ -74,7 +74,7 @@ class KeyboardEvent : public UIEventWithKeyState {
   // the unmodified identifier associated with the key pressed. In most cases,
   // the value is identical to keyCode.
   //   https://www.w3.org/TR/2016/WD-uievents-20160804/#dom-keyboardevent-which
-  uint32 which() const OVERRIDE;
+  uint32 which() const override;
 
   // keyLocation is deprecated and non-standard.
   //   https://www.w3.org/TR/2009/WD-DOM-Level-3-Events-20090908/#events-Events-KeyboardEvent-keylocation
@@ -96,7 +96,7 @@ class KeyboardEvent : public UIEventWithKeyState {
   DEFINE_WRAPPABLE_TYPE(KeyboardEvent);
 
  private:
-  ~KeyboardEvent() OVERRIDE {}
+  ~KeyboardEvent() override {}
   std::string NonPrintableKey(int32_t key_code) const;
 
   KeyLocationCode key_location_;

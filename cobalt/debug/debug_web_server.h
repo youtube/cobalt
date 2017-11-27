@@ -51,14 +51,14 @@ class DebugWebServer : public net::HttpServer::Delegate,
  protected:
   // net::HttpServer::Delegate implementation.
   void OnHttpRequest(int connection_id,
-                     const net::HttpServerRequestInfo& info) OVERRIDE;
+                     const net::HttpServerRequestInfo& info) override;
 
   void OnWebSocketRequest(int connection_id,
-                          const net::HttpServerRequestInfo& info) OVERRIDE;
+                          const net::HttpServerRequestInfo& info) override;
 
-  void OnWebSocketMessage(int connection_id, const std::string& json) OVERRIDE;
+  void OnWebSocketMessage(int connection_id, const std::string& json) override;
 
-  void OnClose(int connection_id) OVERRIDE {
+  void OnClose(int connection_id) override {
     UNREFERENCED_PARAMETER(connection_id);
   }
 
@@ -68,9 +68,9 @@ class DebugWebServer : public net::HttpServer::Delegate,
   // DebugClient::Delegate implementation.
   void OnDebugClientEvent(
       const std::string& method,
-      const base::optional<std::string>& json_params) OVERRIDE;
+      const base::optional<std::string>& json_params) override;
 
-  void OnDebugClientDetach(const std::string& reason) OVERRIDE;
+  void OnDebugClientDetach(const std::string& reason) override;
 
  private:
   int GetLocalAddress(std::string* out) const;

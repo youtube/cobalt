@@ -37,11 +37,11 @@ const int kWebDriverMousePointerId = 0x12345678;
 
 class SyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
  public:
-  void OnResult(const std::string& result) OVERRIDE {
+  void OnResult(const std::string& result) override {
     DCHECK(!result_);
     result_ = result;
   }
-  void OnTimeout() OVERRIDE { NOTREACHED(); }
+  void OnTimeout() override { NOTREACHED(); }
   std::string result() const {
     DCHECK(result_);
     return result_.value_or(std::string());
@@ -60,11 +60,11 @@ class AsyncExecuteResultHandler : public ScriptExecutorResult::ResultHandler {
   const std::string& result() const { return result_; }
 
  private:
-  void OnResult(const std::string& result) OVERRIDE {
+  void OnResult(const std::string& result) override {
     result_ = result;
     event_.Signal();
   }
-  void OnTimeout() OVERRIDE {
+  void OnTimeout() override {
     timed_out_ = true;
     event_.Signal();
   }

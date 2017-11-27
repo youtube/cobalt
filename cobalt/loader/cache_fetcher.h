@@ -43,7 +43,7 @@ class CacheFetcher : public Fetcher {
           read_cache_callback =
               base::Callback<int(const std::string&, scoped_array<char>*)>());
 
-  ~CacheFetcher() OVERRIDE;
+  ~CacheFetcher() override;
 
  private:
   void Fetch();

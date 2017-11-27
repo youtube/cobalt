@@ -39,7 +39,7 @@ class SpeechRecognitionError : public dom::Event {
   DEFINE_WRAPPABLE_TYPE(SpeechRecognitionError);
 
  private:
-  ~SpeechRecognitionError() OVERRIDE {}
+  ~SpeechRecognitionError() override {}
 
   const SpeechRecognitionErrorCode error_code_;
   const std::string message_;

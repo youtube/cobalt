@@ -56,11 +56,11 @@ class HardwareRasterizer : public Rasterizer {
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
-              const Options& options) OVERRIDE;
+              const Options& options) override;
 
-  render_tree::ResourceProvider* GetResourceProvider() OVERRIDE;
+  render_tree::ResourceProvider* GetResourceProvider() override;
 
-  void MakeCurrent() OVERRIDE;
+  void MakeCurrent() override;
 
  private:
   class Impl;

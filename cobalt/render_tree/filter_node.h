@@ -97,10 +97,10 @@ class FilterNode : public Node {
   FilterNode(const MapToMeshFilter& map_to_mesh_filter,
              const scoped_refptr<render_tree::Node>& source);
 
-  void Accept(NodeVisitor* visitor) OVERRIDE;
-  math::RectF GetBounds() const OVERRIDE { return data_.GetBounds(); }
+  void Accept(NodeVisitor* visitor) override;
+  math::RectF GetBounds() const override { return data_.GetBounds(); }
 
-  base::TypeId GetTypeId() const OVERRIDE {
+  base::TypeId GetTypeId() const override {
     return base::GetTypeId<FilterNode>();
   }
 
