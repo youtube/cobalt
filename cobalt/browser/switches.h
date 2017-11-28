@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include <string>
+
 #ifndef COBALT_BROWSER_SWITCHES_H_
 #define COBALT_BROWSER_SWITCHES_H_
 
@@ -21,61 +23,115 @@ namespace switches {
 
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 extern const char kAudioDecoderStub[];
+extern const char kAudioDecoderStubHelp[];
 extern const char kDebugConsoleMode[];
+extern const char kDebugConsoleModeHelp[];
 extern const char kDisableImageAnimations[];
+extern const char kDisableImageAnimationsHelp[];
 extern const char kDisableSplashScreenOnReloads[];
+extern const char kDisableSplashScreenOnReloadsHelp[];
 extern const char kDisableWebDriver[];
+extern const char kDisableWebDriverHelp[];
 extern const char kDisableWebmVp9[];
+extern const char kDisableWebmVp9Help[];
 extern const char kExtraWebFileDir[];
+extern const char kExtraWebFileDirHelp[];
 extern const char kFakeMicrophone[];
+extern const char kFakeMicrophoneHelp[];
 extern const char kIgnoreCertificateErrors[];
+extern const char kIgnoreCertificateErrorsHelp[];
 extern const char kInputFuzzer[];
+extern const char kInputFuzzerHelp[];
 extern const char kMemoryTracker[];
+extern const char kMemoryTrackerHelp[];
 extern const char kMinLogLevel[];
+extern const char kMinLogLevelHelp[];
 extern const char kNullAudioStreamer[];
+extern const char kNullAudioStreamerHelp[];
 extern const char kNullSavegame[];
+extern const char kNullSavegameHelp[];
 extern const char kPartialLayout[];
+extern const char kPartialLayoutHelp[];
+extern const char kProd[];
+extern const char kProdHelp[];
 extern const char kProxy[];
+extern const char kProxyHelp[];
 extern const char kRemoteDebuggingPort[];
+extern const char kRemoteDebuggingPortHelp[];
+extern const char kRequireCSP[];
+extern const char kRequireCSPHelp[];
+extern const char kRequireHTTPSLocation[];
+extern const char kRequireHTTPSLocationHelp[];
 extern const char kShutdownAfter[];
+extern const char kShutdownAfterHelp[];
 extern const char kStubImageDecoder[];
+extern const char kStubImageDecoderHelp[];
 extern const char kSuspendFuzzer[];
+extern const char kSuspendFuzzerHelp[];
 extern const char kTimedTrace[];
+extern const char kTimedTraceHelp[];
 extern const char kUseTTS[];
+extern const char kUseTTSHelp[];
 extern const char kVideoContainerSizeOverride[];
+extern const char kVideoContainerSizeOverrideHelp[];
 extern const char kVideoDecoderStub[];
+extern const char kVideoDecoderStubHelp[];
 extern const char kWebDriverListenIp[];
+extern const char kWebDriverListenIpHelp[];
 extern const char kWebDriverPort[];
+extern const char kWebDriverPortHelp[];
 #endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 
-extern const char kFPSPrint[];
-extern const char kFPSOverlay[];
-extern const char kImageCacheSizeInBytes[];
-extern const char kInitialURL[];
-extern const char kLocalStoragePartitionUrl[];
-extern const char kOffscreenTargetCacheSizeInBytes[];
-extern const char kRemoteTypefaceCacheSizeInBytes[];
-extern const char kRetainRemoteTypefaceCacheDuringSuspend[];
-extern const char kScratchSurfaceCacheSizeInBytes[];
-extern const char kSkiaCacheSizeInBytes[];
-extern const char kSoftwareSurfaceCacheSizeInBytes[];
-extern const char kFallbackSplashScreenURL[];
-extern const char kSurfaceCacheSizeInBytes[];
-extern const char kViewport[];
 extern const char kDisableJavaScriptJit[];
+extern const char kDisableJavaScriptJitHelp[];
+extern const char kFPSPrint[];
+extern const char kFPSPrintHelp[];
+extern const char kFPSOverlay[];
+extern const char kFPSOverlayHelp[];
+extern const char kHelp[];
+extern const char kHelpHelp[];
+extern const char kImageCacheSizeInBytes[];
+extern const char kImageCacheSizeInBytesHelp[];
+extern const char kInitialURL[];
+extern const char kInitialURLHelp[];
 extern const char kJavaScriptGcThresholdInBytes[];
-extern const char kSkiaTextureAtlasDimensions[];
-
+extern const char kJavaScriptGcThresholdInBytesHelp[];
+extern const char kLocalStoragePartitionUrl[];
+extern const char kLocalStoragePartitionUrlHelp[];
 extern const char kMaxCobaltCpuUsage[];
+extern const char kMaxCobaltCpuUsageHelp[];
 extern const char kMaxCobaltGpuUsage[];
+extern const char kMaxCobaltGpuUsageHelp[];
+extern const char kOffscreenTargetCacheSizeInBytes[];
+extern const char kOffscreenTargetCacheSizeInBytesHelp[];
 extern const char kReduceCpuMemoryBy[];
+extern const char kReduceCpuMemoryByHelp[];
 extern const char kReduceGpuMemoryBy[];
-
+extern const char kReduceGpuMemoryByHelp[];
+extern const char kRemoteTypefaceCacheSizeInBytes[];
+extern const char kRemoteTypefaceCacheSizeInBytesHelp[];
+extern const char kRetainRemoteTypefaceCacheDuringSuspend[];
+extern const char kRetainRemoteTypefaceCacheDuringSuspendHelp[];
+extern const char kScratchSurfaceCacheSizeInBytes[];
+extern const char kScratchSurfaceCacheSizeInBytesHelp[];
+extern const char kSkiaCacheSizeInBytes[];
+extern const char kSkiaCacheSizeInBytesHelp[];
+extern const char kSkiaTextureAtlasDimensions[];
+extern const char kSkiaTextureAtlasDimensionsHelp[];
+extern const char kSoftwareSurfaceCacheSizeInBytes[];
+extern const char kSoftwareSurfaceCacheSizeInBytesHelp[];
+extern const char kFallbackSplashScreenURL[];
+extern const char kFallbackSplashScreenURLHelp[];
+extern const char kSurfaceCacheSizeInBytes[];
+extern const char kSurfaceCacheSizeInBytesHelp[];
+extern const char kVersion[];
+extern const char kVersionHelp[];
+extern const char kViewport[];
+extern const char kViewportHelp[];
 extern const char kVideoPlaybackRateMultiplier[];
+extern const char kVideoPlaybackRateMultiplierHelp[];
 
-extern const char kProd[];
-extern const char kRequireHTTPSLocation[];
-extern const char kRequireCSP[];
+std::string HelpMessage();
 
 }  // namespace switches
 }  // namespace browser
