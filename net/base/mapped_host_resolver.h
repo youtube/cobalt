@@ -47,13 +47,13 @@ class NET_EXPORT MappedHostResolver : public HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE;
+                      const BoundNetLog& net_log) override;
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual void ProbeIPv6Support() OVERRIDE;
-  virtual HostCache* GetHostCache() OVERRIDE;
+                               const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle req) override;
+  virtual void ProbeIPv6Support() override;
+  virtual HostCache* GetHostCache() override;
 
  private:
   // Modify the request |info| according to |rules_|.

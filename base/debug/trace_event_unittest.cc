@@ -77,10 +77,10 @@ class TraceEventTestFixture : public testing::Test {
                    base::Unretained(this)));
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     old_thread_name_ = PlatformThread::GetName();
   }
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     if (TraceLog::GetInstance())
       EXPECT_FALSE(TraceLog::GetInstance()->IsEnabled());
     PlatformThread::SetName(old_thread_name_ ? old_thread_name_  : "");

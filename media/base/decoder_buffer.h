@@ -33,9 +33,9 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
       base::TimeDelta timestamp);
 
   // Buffer implementation.
-  const uint8* GetData() const OVERRIDE { return buffer_; }
+  const uint8* GetData() const override { return buffer_; }
   // Data size can be less than allocated size after ShrinkTo is called.
-  int GetDataSize() const OVERRIDE { return static_cast<int>(size_); }
+  int GetDataSize() const override { return static_cast<int>(size_); }
 
   int GetAllocatedSize() const { return static_cast<int>(allocated_size_); }
   // This is used by the data that we don't know the exact size before reading.
@@ -101,8 +101,8 @@ class MEDIA_EXPORT DecoderBuffer : public Buffer {
   static scoped_refptr<DecoderBuffer> CreateEOSBuffer();
 
   // Buffer implementation.
-  virtual const uint8* GetData() const OVERRIDE;
-  virtual int GetDataSize() const OVERRIDE;
+  virtual const uint8* GetData() const override;
+  virtual int GetDataSize() const override;
 
   // Returns a read-write pointer to the buffer data.
   virtual uint8* GetWritableData();

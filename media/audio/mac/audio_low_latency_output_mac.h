@@ -42,12 +42,12 @@ class AUAudioOutputStream : public AudioOutputStream {
   virtual ~AUAudioOutputStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open() OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
+  virtual bool Open() override;
+  virtual void Close() override;
+  virtual void Start(AudioSourceCallback* callback) override;
+  virtual void Stop() override;
+  virtual void SetVolume(double volume) override;
+  virtual void GetVolume(double* volume) override;
 
   static int HardwareSampleRate();
 

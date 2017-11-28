@@ -63,20 +63,20 @@ class WebMediaPlayerProxy
 
   // DecryptorClient implementation.
   virtual void KeyAdded(const std::string& key_system,
-                        const std::string& session_id) OVERRIDE;
+                        const std::string& session_id) override;
   virtual void KeyError(const std::string& key_system,
                         const std::string& session_id,
                         Decryptor::KeyError error_code,
-                        int system_code) OVERRIDE;
+                        int system_code) override;
   virtual void KeyMessage(const std::string& key_system,
                           const std::string& session_id,
                           const std::string& message,
-                          const std::string& default_url) OVERRIDE;
+                          const std::string& default_url) override;
   virtual void NeedKey(const std::string& key_system,
                        const std::string& session_id,
                        const std::string& type,
                        scoped_array<uint8> init_data,
-                       int init_data_size) OVERRIDE;
+                       int init_data_size) override;
 
  private:
   friend class base::RefCountedThreadSafe<WebMediaPlayerProxy>;

@@ -36,18 +36,18 @@ class NET_EXPORT_PRIVATE HttpStreamFactoryImpl :
       const SSLConfig& server_ssl_config,
       const SSLConfig& proxy_ssl_config,
       HttpStreamRequest::Delegate* delegate,
-      const BoundNetLog& net_log) OVERRIDE;
+      const BoundNetLog& net_log) override;
 
   virtual void PreconnectStreams(int num_streams,
                                  const HttpRequestInfo& info,
                                  const SSLConfig& server_ssl_config,
-                                 const SSLConfig& proxy_ssl_config) OVERRIDE;
-  virtual base::Value* PipelineInfoToValue() const OVERRIDE;
-  virtual const HostMappingRules* GetHostMappingRules() const OVERRIDE;
+                                 const SSLConfig& proxy_ssl_config) override;
+  virtual base::Value* PipelineInfoToValue() const override;
+  virtual const HostMappingRules* GetHostMappingRules() const override;
 
   // HttpPipelinedHostPool::Delegate interface
   virtual void OnHttpPipelinedHostHasAdditionalCapacity(
-      HttpPipelinedHost* host) OVERRIDE;
+      HttpPipelinedHost* host) override;
 
  private:
   class Request;

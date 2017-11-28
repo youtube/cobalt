@@ -39,11 +39,11 @@ class NullAudioStreamer : public ShellAudioStreamer {
     return Singleton<NullAudioStreamer>::get();
   }
 
-  Config GetConfig() const OVERRIDE;
-  bool AddStream(ShellAudioStream* stream) OVERRIDE;
-  void RemoveStream(ShellAudioStream* stream) OVERRIDE;
-  bool HasStream(ShellAudioStream* stream) const OVERRIDE;
-  bool SetVolume(ShellAudioStream* /* stream */, double /* volume*/) OVERRIDE {
+  Config GetConfig() const override;
+  bool AddStream(ShellAudioStream* stream) override;
+  void RemoveStream(ShellAudioStream* stream) override;
+  bool HasStream(ShellAudioStream* stream) const override;
+  bool SetVolume(ShellAudioStream* /* stream */, double /* volume*/) override {
     return true;
   }
 
@@ -54,7 +54,7 @@ class NullAudioStreamer : public ShellAudioStreamer {
   };
 
   NullAudioStreamer();
-  ~NullAudioStreamer() OVERRIDE;
+  ~NullAudioStreamer() override;
 
   void StartNullStreamer();
   void StopNullStreamer();

@@ -40,12 +40,12 @@ class MockHostResolverWithMultipleResults : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) override {
     return ParseAddressList("192.168.1.1,172.22.34.1,200.100.1.2", "",
                             addresses);
   }
 
-  virtual void Shutdown() OVERRIDE {}
+  virtual void Shutdown() override {}
 
  private:
   virtual ~MockHostResolverWithMultipleResults() {}
@@ -58,12 +58,12 @@ class MockFailingHostResolver : public SyncHostResolver {
   // HostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) override {
     count_++;
     return ERR_NAME_NOT_RESOLVED;
   }
 
-  virtual void Shutdown() OVERRIDE {}
+  virtual void Shutdown() override {}
 
   // Returns the number of times Resolve() has been called.
   int count() const { return count_; }
@@ -81,12 +81,12 @@ class MockSyncHostResolver : public SyncHostResolver {
 
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const BoundNetLog& bound_net_log) OVERRIDE {
+                      const BoundNetLog& bound_net_log) override {
     return resolver_.Resolve(info, addresses, CompletionCallback(), NULL,
                              bound_net_log);
   }
 
-  virtual void Shutdown() OVERRIDE {}
+  virtual void Shutdown() override {}
 
   RuleBasedHostResolverProc* rules() {
     return resolver_.rules();

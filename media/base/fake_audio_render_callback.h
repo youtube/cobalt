@@ -27,12 +27,12 @@ class FakeAudioRenderCallback
   // Renders a sine wave into the provided audio data buffer.  If |half_fill_|
   // is set, will only fill half the buffer.
   virtual int Render(AudioBus* audio_bus,
-                     int audio_delay_milliseconds) OVERRIDE;
+                     int audio_delay_milliseconds) override;
   MOCK_METHOD0(OnRenderError, void());
 
   // AudioTransform::ProvideAudioTransformInput implementation.
   virtual double ProvideInput(AudioBus* audio_bus,
-                              base::TimeDelta buffer_delay) OVERRIDE;
+                              base::TimeDelta buffer_delay) override;
 
   // Toggles only filling half the requested amount during Render().
   void set_half_fill(bool half_fill) { half_fill_ = half_fill; }

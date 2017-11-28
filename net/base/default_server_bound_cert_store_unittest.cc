@@ -24,13 +24,13 @@ class MockPersistentStore
   // DefaultServerBoundCertStore::PersistentStore implementation.
   virtual bool Load(
       std::vector<DefaultServerBoundCertStore::ServerBoundCert*>* certs)
-          OVERRIDE;
+          override;
   virtual void AddServerBoundCert(
-      const DefaultServerBoundCertStore::ServerBoundCert& cert) OVERRIDE;
+      const DefaultServerBoundCertStore::ServerBoundCert& cert) override;
   virtual void DeleteServerBoundCert(
-      const DefaultServerBoundCertStore::ServerBoundCert& cert) OVERRIDE;
-  virtual void SetForceKeepSessionState() OVERRIDE;
-  virtual void Flush(const base::Closure& completion_task) OVERRIDE;
+      const DefaultServerBoundCertStore::ServerBoundCert& cert) override;
+  virtual void SetForceKeepSessionState() override;
+  virtual void Flush(const base::Closure& completion_task) override;
 
  protected:
   virtual ~MockPersistentStore();

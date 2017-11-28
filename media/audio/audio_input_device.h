@@ -93,24 +93,24 @@ class MEDIA_EXPORT AudioInputDevice
   // AudioCapturerSource implementation.
   virtual void Initialize(const AudioParameters& params,
                           CaptureCallback* callback,
-                          CaptureEventHandler* event_handler) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual void SetDevice(int session_id) OVERRIDE;
-  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
+                          CaptureEventHandler* event_handler) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void SetVolume(double volume) override;
+  virtual void SetDevice(int session_id) override;
+  virtual void SetAutomaticGainControl(bool enabled) override;
 
  protected:
   // Methods called on IO thread ----------------------------------------------
   // AudioInputIPCDelegate implementation.
   virtual void OnStreamCreated(base::SharedMemoryHandle handle,
                                base::SyncSocket::Handle socket_handle,
-                               int length) OVERRIDE;
-  virtual void OnVolume(double volume) OVERRIDE;
+                               int length) override;
+  virtual void OnVolume(double volume) override;
   virtual void OnStateChanged(
-      AudioInputIPCDelegate::State state) OVERRIDE;
-  virtual void OnDeviceReady(const std::string& device_id) OVERRIDE;
-  virtual void OnIPCClosed() OVERRIDE;
+      AudioInputIPCDelegate::State state) override;
+  virtual void OnDeviceReady(const std::string& device_id) override;
+  virtual void OnIPCClosed() override;
 
   friend class base::RefCountedThreadSafe<AudioInputDevice>;
   virtual ~AudioInputDevice();
@@ -129,7 +129,7 @@ class MEDIA_EXPORT AudioInputDevice
 
   // MessageLoop::DestructionObserver implementation for the IO loop.
   // If the IO loop dies before we do, we shut down the audio thread from here.
-  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
+  virtual void WillDestroyCurrentMessageLoop() override;
 
   AudioParameters audio_parameters_;
 

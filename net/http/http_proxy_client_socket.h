@@ -52,41 +52,41 @@ class HttpProxyClientSocket : public ProxyClientSocket {
   virtual ~HttpProxyClientSocket();
 
   // ProxyClientSocket implementation.
-  virtual const HttpResponseInfo* GetConnectResponseInfo() const OVERRIDE;
-  virtual HttpStream* CreateConnectResponseStream() OVERRIDE;
-  virtual int RestartWithAuth(const CompletionCallback& callback) OVERRIDE;
+  virtual const HttpResponseInfo* GetConnectResponseInfo() const override;
+  virtual HttpStream* CreateConnectResponseStream() override;
+  virtual int RestartWithAuth(const CompletionCallback& callback) override;
   virtual const scoped_refptr<HttpAuthController>& GetAuthController() const
-      OVERRIDE;
-  virtual bool IsUsingSpdy() const OVERRIDE;
-  virtual NextProto GetProtocolNegotiated() const OVERRIDE;
+      override;
+  virtual bool IsUsingSpdy() const override;
+  virtual NextProto GetProtocolNegotiated() const override;
 
   // StreamSocket implementation.
-  virtual int Connect(const CompletionCallback& callback) OVERRIDE;
-  virtual void Disconnect() OVERRIDE;
-  virtual bool IsConnected() const OVERRIDE;
-  virtual bool IsConnectedAndIdle() const OVERRIDE;
-  virtual const BoundNetLog& NetLog() const OVERRIDE;
-  virtual void SetSubresourceSpeculation() OVERRIDE;
-  virtual void SetOmniboxSpeculation() OVERRIDE;
-  virtual bool WasEverUsed() const OVERRIDE;
-  virtual bool UsingTCPFastOpen() const OVERRIDE;
-  virtual int64 NumBytesRead() const OVERRIDE;
-  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
-  virtual bool WasNpnNegotiated() const OVERRIDE;
-  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
-  virtual bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  virtual int Connect(const CompletionCallback& callback) override;
+  virtual void Disconnect() override;
+  virtual bool IsConnected() const override;
+  virtual bool IsConnectedAndIdle() const override;
+  virtual const BoundNetLog& NetLog() const override;
+  virtual void SetSubresourceSpeculation() override;
+  virtual void SetOmniboxSpeculation() override;
+  virtual bool WasEverUsed() const override;
+  virtual bool UsingTCPFastOpen() const override;
+  virtual int64 NumBytesRead() const override;
+  virtual base::TimeDelta GetConnectTimeMicros() const override;
+  virtual bool WasNpnNegotiated() const override;
+  virtual NextProto GetNegotiatedProtocol() const override;
+  virtual bool GetSSLInfo(SSLInfo* ssl_info) override;
 
   // Socket implementation.
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
+                   const CompletionCallback& callback) override;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
-  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
-  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
-  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+                    const CompletionCallback& callback) override;
+  virtual bool SetReceiveBufferSize(int32 size) override;
+  virtual bool SetSendBufferSize(int32 size) override;
+  virtual int GetPeerAddress(IPEndPoint* address) const override;
+  virtual int GetLocalAddress(IPEndPoint* address) const override;
 
  private:
   enum State {

@@ -1132,11 +1132,11 @@ class SimpleSpdyIOBufferProducer : public SpdySession::SpdyIOBufferProducer {
         priority_(priority) {
   }
 
-  virtual RequestPriority GetPriority() const OVERRIDE {
+  virtual RequestPriority GetPriority() const override {
     return priority_;
   }
 
-  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) OVERRIDE {
+  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) override {
     return SpdySession::SpdyIOBufferProducer::CreateIOBuffer(
         frame_.get(), priority_, NULL);
   }

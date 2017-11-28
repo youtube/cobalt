@@ -28,23 +28,23 @@ class MockFileStream : public net::FileStream {
       : net::FileStream(file, flags, net_log), forced_error_(net::OK) {}
 
   // FileStream methods.
-  virtual int OpenSync(const FilePath& path, int open_flags) OVERRIDE;
+  virtual int OpenSync(const FilePath& path, int open_flags) override;
   virtual int Seek(net::Whence whence, int64 offset,
-                   const Int64CompletionCallback& callback) OVERRIDE;
-  virtual int64 SeekSync(net::Whence whence, int64 offset) OVERRIDE;
-  virtual int64 Available() OVERRIDE;
+                   const Int64CompletionCallback& callback) override;
+  virtual int64 SeekSync(net::Whence whence, int64 offset) override;
+  virtual int64 Available() override;
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
-  virtual int ReadSync(char* buf, int buf_len) OVERRIDE;
-  virtual int ReadUntilComplete(char *buf, int buf_len) OVERRIDE;
+                   const CompletionCallback& callback) override;
+  virtual int ReadSync(char* buf, int buf_len) override;
+  virtual int ReadUntilComplete(char *buf, int buf_len) override;
   virtual int Write(IOBuffer* buf,
                     int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
-  virtual int WriteSync(const char* buf, int buf_len) OVERRIDE;
-  virtual int64 Truncate(int64 bytes) OVERRIDE;
-  virtual int Flush(const CompletionCallback& callback) OVERRIDE;
-  virtual int FlushSync() OVERRIDE;
+                    const CompletionCallback& callback) override;
+  virtual int WriteSync(const char* buf, int buf_len) override;
+  virtual int64 Truncate(int64 bytes) override;
+  virtual int Flush(const CompletionCallback& callback) override;
+  virtual int FlushSync() override;
 
   void set_forced_error(int error) { forced_error_ = error; }
   void clear_forced_error() { forced_error_ = net::OK; }

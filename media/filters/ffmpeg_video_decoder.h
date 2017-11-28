@@ -29,10 +29,10 @@ class MEDIA_EXPORT FFmpegVideoDecoder : public VideoDecoder {
   // VideoDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb) OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void Reset(const base::Closure& closure) OVERRIDE;
-  virtual void Stop(const base::Closure& closure) OVERRIDE;
+                          const StatisticsCB& statistics_cb) override;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual void Reset(const base::Closure& closure) override;
+  virtual void Stop(const base::Closure& closure) override;
 
   // Callback called from within FFmpeg to allocate a buffer based on
   // the dimensions of |codec_context|. See AVCodecContext.get_buffer

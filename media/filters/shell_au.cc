@@ -41,28 +41,28 @@ class ShellEndOfStreamAU : public media::ShellAU {
       : type_(type), timestamp_(timestamp), duration_(kInfiniteDuration()) {}
 
  private:
-  bool IsEndOfStream() const OVERRIDE { return true; }
-  bool IsValid() const OVERRIDE { return true; }
+  bool IsEndOfStream() const override { return true; }
+  bool IsValid() const override { return true; }
   bool Read(ShellDataSourceReader* reader,
-            media::DecoderBuffer* buffer) OVERRIDE {
+            media::DecoderBuffer* buffer) override {
     NOTREACHED();
     return false;
   }
-  Type GetType() const OVERRIDE { return type_; }
-  bool IsKeyframe() const OVERRIDE {
+  Type GetType() const override { return type_; }
+  bool IsKeyframe() const override {
     NOTREACHED();
     return false;
   }
-  bool AddPrepend() const OVERRIDE {
+  bool AddPrepend() const override {
     NOTREACHED();
     return false;
   }
-  size_t GetSize() const OVERRIDE { return 0; }
-  size_t GetMaxSize() const OVERRIDE { return 0; }
-  TimeDelta GetTimestamp() const OVERRIDE { return timestamp_; }
-  TimeDelta GetDuration() const OVERRIDE { return duration_; }
-  void SetDuration(TimeDelta duration) OVERRIDE { duration_ = duration; }
-  void SetTimestamp(TimeDelta timestamp) OVERRIDE { timestamp_ = timestamp; }
+  size_t GetSize() const override { return 0; }
+  size_t GetMaxSize() const override { return 0; }
+  TimeDelta GetTimestamp() const override { return timestamp_; }
+  TimeDelta GetDuration() const override { return duration_; }
+  void SetDuration(TimeDelta duration) override { duration_ = duration; }
+  void SetTimestamp(TimeDelta timestamp) override { timestamp_ = timestamp; }
 
   Type type_;
   TimeDelta timestamp_;
@@ -82,20 +82,20 @@ class ShellAudioAU : public media::ShellAU {
                ShellParser* parser);
 
  private:
-  bool IsEndOfStream() const OVERRIDE { return false; }
-  bool IsValid() const OVERRIDE {
+  bool IsEndOfStream() const override { return false; }
+  bool IsValid() const override {
     return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
   }
-  bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE;
-  Type GetType() const OVERRIDE { return media::DemuxerStream::AUDIO; }
-  bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
-  bool AddPrepend() const OVERRIDE { return true; }
-  size_t GetSize() const OVERRIDE { return size_; }
-  size_t GetMaxSize() const OVERRIDE { return size_ + prepend_size_; }
-  TimeDelta GetTimestamp() const OVERRIDE { return timestamp_; }
-  TimeDelta GetDuration() const OVERRIDE { return duration_; }
-  void SetDuration(TimeDelta duration) OVERRIDE { duration_ = duration; }
-  void SetTimestamp(TimeDelta timestamp) OVERRIDE { timestamp_ = timestamp; }
+  bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) override;
+  Type GetType() const override { return media::DemuxerStream::AUDIO; }
+  bool IsKeyframe() const override { return is_keyframe_; }
+  bool AddPrepend() const override { return true; }
+  size_t GetSize() const override { return size_; }
+  size_t GetMaxSize() const override { return size_ + prepend_size_; }
+  TimeDelta GetTimestamp() const override { return timestamp_; }
+  TimeDelta GetDuration() const override { return duration_; }
+  void SetDuration(TimeDelta duration) override { duration_ = duration; }
+  void SetTimestamp(TimeDelta timestamp) override { timestamp_ = timestamp; }
 
   uint64 offset_;
   size_t size_;
@@ -149,24 +149,24 @@ class ShellVideoAU : public media::ShellAU {
                ShellParser* parser);
 
  private:
-  bool IsEndOfStream() const OVERRIDE { return false; }
-  bool IsValid() const OVERRIDE {
+  bool IsEndOfStream() const override { return false; }
+  bool IsValid() const override {
     return offset_ != 0 && size_ != 0 && timestamp_ != media::kNoTimestamp();
   }
-  bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) OVERRIDE;
-  Type GetType() const OVERRIDE { return media::DemuxerStream::VIDEO; }
-  bool IsKeyframe() const OVERRIDE { return is_keyframe_; }
-  bool AddPrepend() const OVERRIDE { return is_keyframe_; }
-  size_t GetSize() const OVERRIDE { return size_; }
-  size_t GetMaxSize() const OVERRIDE {
+  bool Read(ShellDataSourceReader* reader, DecoderBuffer* buffer) override;
+  Type GetType() const override { return media::DemuxerStream::VIDEO; }
+  bool IsKeyframe() const override { return is_keyframe_; }
+  bool AddPrepend() const override { return is_keyframe_; }
+  size_t GetSize() const override { return size_; }
+  size_t GetMaxSize() const override {
     // TODO : This code is a proof of concept. It should be fixed
     // with more reasonable value once we have enough data.
     return size_ + prepend_size_ + size_ / 1024 + 1024;
   }
-  TimeDelta GetTimestamp() const OVERRIDE { return timestamp_; }
-  TimeDelta GetDuration() const OVERRIDE { return duration_; }
-  void SetDuration(TimeDelta duration) OVERRIDE { duration_ = duration; }
-  void SetTimestamp(TimeDelta timestamp) OVERRIDE { timestamp_ = timestamp; }
+  TimeDelta GetTimestamp() const override { return timestamp_; }
+  TimeDelta GetDuration() const override { return duration_; }
+  void SetDuration(TimeDelta duration) override { duration_ = duration; }
+  void SetTimestamp(TimeDelta timestamp) override { timestamp_ = timestamp; }
 
   uint64 offset_;
   size_t size_;

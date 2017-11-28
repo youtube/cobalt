@@ -52,7 +52,7 @@ class CallDoStuffOnThread : public SimpleThread {
         non_thread_safe_class_(non_thread_safe_class) {
   }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     non_thread_safe_class_->DoStuff();
   }
 
@@ -70,7 +70,7 @@ class DeleteNonThreadSafeClassOnThread : public SimpleThread {
         non_thread_safe_class_(non_thread_safe_class) {
   }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     non_thread_safe_class_.reset();
   }
 

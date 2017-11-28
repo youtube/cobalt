@@ -83,11 +83,11 @@ class SpdyStream::SpdyStreamIOBufferProducer
   SpdyStreamIOBufferProducer(SpdyStream* stream) : stream_(stream) {}
 
   // SpdyFrameProducer
-  virtual RequestPriority GetPriority() const OVERRIDE {
+  virtual RequestPriority GetPriority() const override {
     return stream_->priority();
   }
 
-  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) OVERRIDE {
+  virtual SpdyIOBuffer* ProduceNextBuffer(SpdySession* session) override {
     if (stream_->cancelled())
       return NULL;
     if (stream_->stream_id() == 0)

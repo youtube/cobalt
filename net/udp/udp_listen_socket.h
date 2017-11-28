@@ -95,11 +95,11 @@ class NET_EXPORT UDPListenSocket
   scoped_array<char> buffer_;
 
 #if defined(__LB_SHELL__) && !defined(__LB_ANDROID__)
-  virtual void OnObjectSignaled(int object) OVERRIDE;
+  virtual void OnObjectSignaled(int object) override;
   base::ObjectWatcher watcher_;
 #elif defined(OS_STARBOARD)
-  void OnSocketReadyToRead(SbSocket /*socket*/) OVERRIDE;
-  void OnSocketReadyToWrite(SbSocket /*socket*/) OVERRIDE {}
+  void OnSocketReadyToRead(SbSocket /*socket*/) override;
+  void OnSocketReadyToWrite(SbSocket /*socket*/) override {}
   MessageLoopForIO::SocketWatcher watcher_;
 #endif
 

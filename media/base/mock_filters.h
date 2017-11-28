@@ -236,9 +236,9 @@ class MockDecryptor : public Decryptor {
   MOCK_METHOD1(DeinitializeDecoder, void(StreamType stream_type));
 
   virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                      const DecoderInitCB& init_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) override;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                      const DecoderInitCB& init_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptor);
@@ -269,7 +269,7 @@ class MockDecryptorClient : public DecryptorClient {
                        const std::string& session_id,
                        const std::string& type,
                        scoped_array<uint8> init_data,
-                       int init_data_length) OVERRIDE;
+                       int init_data_length) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockDecryptorClient);

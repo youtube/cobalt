@@ -22,7 +22,7 @@ class PriorityQueueTest : public testing::Test {
  protected:
   PriorityQueueTest() : queue_(kNumPriorities) {}
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     CheckEmpty();
     for (size_t i = 0; i < kNumElements; ++i) {
       EXPECT_EQ(i, queue_.size());

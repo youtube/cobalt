@@ -329,12 +329,12 @@ class NET_EXPORT ProxyService : public NetworkChangeNotifier::IPAddressObserver,
 
   // NetworkChangeNotifier::IPAddressObserver
   // When this is called, we re-fetch PAC scripts and re-run WPAD.
-  virtual void OnIPAddressChanged() OVERRIDE;
+  virtual void OnIPAddressChanged() override;
 
   // ProxyConfigService::Observer
   virtual void OnProxyConfigChanged(
       const ProxyConfig& config,
-      ProxyConfigService::ConfigAvailability availability) OVERRIDE;
+      ProxyConfigService::ConfigAvailability availability) override;
 
   scoped_ptr<ProxyConfigService> config_service_;
   scoped_ptr<ProxyResolver> resolver_;

@@ -35,16 +35,16 @@ class NET_EXPORT_PRIVATE QuicConnectionHelper
   virtual ~QuicConnectionHelper();
 
   // QuicConnectionHelperInterface
-  virtual void SetConnection(QuicConnection* connection) OVERRIDE;
-  virtual const QuicClock* GetClock() const OVERRIDE;
+  virtual void SetConnection(QuicConnection* connection) override;
+  virtual const QuicClock* GetClock() const override;
   virtual int WritePacketToWire(const QuicEncryptedPacket& packet,
-                                int* error) OVERRIDE;
+                                int* error) override;
   virtual void SetResendAlarm(QuicPacketSequenceNumber sequence_number,
-                              QuicTime::Delta delay) OVERRIDE;
-  virtual void SetSendAlarm(QuicTime::Delta delay) OVERRIDE;
-  virtual void SetTimeoutAlarm(QuicTime::Delta delay) OVERRIDE;
-  virtual bool IsSendAlarmSet() OVERRIDE;
-  virtual void UnregisterSendAlarmIfRegistered() OVERRIDE;
+                              QuicTime::Delta delay) override;
+  virtual void SetSendAlarm(QuicTime::Delta delay) override;
+  virtual void SetTimeoutAlarm(QuicTime::Delta delay) override;
+  virtual bool IsSendAlarmSet() override;
+  virtual void UnregisterSendAlarmIfRegistered() override;
 
   int Read(IOBuffer* buf, int buf_len, const CompletionCallback& callback);
   void GetLocalAddress(IPEndPoint* local_address);

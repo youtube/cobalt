@@ -70,8 +70,8 @@ class NET_EXPORT SSLClientSocket : public SSLSocket {
   };
 
   // StreamSocket:
-  virtual bool WasNpnNegotiated() const OVERRIDE;
-  virtual NextProto GetNegotiatedProtocol() const OVERRIDE;
+  virtual bool WasNpnNegotiated() const override;
+  virtual NextProto GetNegotiatedProtocol() const override;
 
   // Gets the SSL CertificateRequest info of the socket after Connect failed
   // with ERR_SSL_CLIENT_AUTH_CERT_NEEDED.

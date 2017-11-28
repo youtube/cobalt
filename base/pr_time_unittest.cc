@@ -29,7 +29,7 @@ class PRTimeTest : public testing::Test {
   // that is more platform-abstracted.
 
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
 #if defined(OS_STARBOARD)
     Time local_time = base::test::time_helpers::TestDateToTime(
         base::test::time_helpers::kTimeZoneLocal);

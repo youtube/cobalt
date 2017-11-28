@@ -7559,13 +7559,13 @@ class CapturingProxyResolver : public ProxyResolver {
     NOTREACHED();
   }
 
-  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+  virtual LoadState GetLoadState(RequestHandle request) const override {
     NOTREACHED();
     return LOAD_STATE_IDLE;
   }
 
   virtual LoadState GetLoadStateThreadSafe(
-      RequestHandle request) const OVERRIDE {
+      RequestHandle request) const override {
     NOTREACHED();
     return LOAD_STATE_IDLE;
   }
@@ -9538,21 +9538,21 @@ class OneTimeCachingHostResolver : public net::HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE {
+                      const BoundNetLog& net_log) override {
     return host_resolver_.Resolve(
         info, addresses, callback, out_req, net_log);
   }
 
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE {
+                               const BoundNetLog& net_log) override {
     int rv = host_resolver_.ResolveFromCache(info, addresses, net_log);
     if (rv == OK && info.host_port_pair().Equals(host_port_))
       host_resolver_.GetHostCache()->clear();
     return rv;
   }
 
-  virtual void CancelRequest(RequestHandle req) OVERRIDE {
+  virtual void CancelRequest(RequestHandle req) override {
     host_resolver_.CancelRequest(req);
   }
 

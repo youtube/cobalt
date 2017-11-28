@@ -36,7 +36,7 @@ class MockAudioManagerLinuxInput : public AudioManagerLinux {
   // of active output streams. It is because the number of active streams
   // is managed inside MakeAudioInputStream, and we don't use
   // MakeAudioInputStream to create the stream in the tests.
-  virtual void ReleaseInputStream(AudioInputStream* stream) OVERRIDE {
+  virtual void ReleaseInputStream(AudioInputStream* stream) override {
     DCHECK(stream);
     delete stream;
   }

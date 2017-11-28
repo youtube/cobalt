@@ -73,17 +73,17 @@ class MEDIA_EXPORT ShellVideoDecoderImpl : public VideoDecoder {
   ShellVideoDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
       ShellRawVideoDecoderFactory* raw_video_decoder_factory);
-  ~ShellVideoDecoderImpl() OVERRIDE;
+  ~ShellVideoDecoderImpl() override;
 
   // ShellVideoDecoder implementation.
   void Initialize(const scoped_refptr<DemuxerStream>& stream,
                   const PipelineStatusCB& status_cb,
-                  const StatisticsCB& statistics_cb) OVERRIDE;
-  void Read(const ReadCB& read_cb) OVERRIDE;
-  void Reset(const base::Closure& closure) OVERRIDE;
-  void Stop(const base::Closure& closure) OVERRIDE;
-  void NearlyUnderflow() OVERRIDE;
-  void HaveEnoughFrames() OVERRIDE;
+                  const StatisticsCB& statistics_cb) override;
+  void Read(const ReadCB& read_cb) override;
+  void Reset(const base::Closure& closure) override;
+  void Stop(const base::Closure& closure) override;
+  void NearlyUnderflow() override;
+  void HaveEnoughFrames() override;
 
  private:
   enum DecoderState {

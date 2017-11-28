@@ -46,7 +46,7 @@ class SlowDelegate : public base::DelegateSimpleThread::Delegate {
   explicit SlowDelegate(base::LazyInstance<SlowConstructor>* lazy)
       : lazy_(lazy) {}
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     EXPECT_EQ(12, lazy_->Get().some_int());
     EXPECT_EQ(12, lazy_->Pointer()->some_int());
   }

@@ -408,7 +408,7 @@ class CookieMonster::SetCookieWithDetailsTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~SetCookieWithDetailsTask() {}
@@ -448,7 +448,7 @@ class CookieMonster::GetAllCookiesTask
   }
 
   // CookieMonster::CookieMonsterTask
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~GetAllCookiesTask() {}
@@ -483,7 +483,7 @@ class CookieMonster::GetAllCookiesForURLWithOptionsTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~GetAllCookiesForURLWithOptionsTask() {}
@@ -515,7 +515,7 @@ class CookieMonster::DeleteAllTask : public CookieMonster::CookieMonsterTask {
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteAllTask() {}
@@ -550,7 +550,7 @@ class CookieMonster::DeleteAllCreatedBetweenTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteAllCreatedBetweenTask() {}
@@ -585,7 +585,7 @@ class CookieMonster::DeleteAllForHostTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteAllForHostTask() {}
@@ -619,7 +619,7 @@ class CookieMonster::DeleteCanonicalCookieTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteCanonicalCookieTask() {}
@@ -656,7 +656,7 @@ class CookieMonster::SetCookieWithOptionsTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~SetCookieWithOptionsTask() {}
@@ -694,7 +694,7 @@ class CookieMonster::GetCookiesWithOptionsTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~GetCookiesWithOptionsTask() {}
@@ -730,7 +730,7 @@ class CookieMonster::GetCookiesWithInfoTask
         callback_(callback) { }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~GetCookiesWithInfoTask() {}
@@ -769,7 +769,7 @@ class CookieMonster::DeleteCookieTask
         callback_(callback) { }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteCookieTask() {}
@@ -801,7 +801,7 @@ class CookieMonster::DeleteSessionCookiesTask
   }
 
   // CookieMonster::CookieMonsterTask:
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
  protected:
   virtual ~DeleteSessionCookiesTask() {}

@@ -48,17 +48,17 @@ class NET_EXPORT_PRIVATE ProxyResolverV8 : public ProxyResolver {
                              ProxyInfo* results,
                              const net::CompletionCallback& /*callback*/,
                              RequestHandle* /*request*/,
-                             const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle request) OVERRIDE;
-  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE;
+                             const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle request) override;
+  virtual LoadState GetLoadState(RequestHandle request) const override;
   virtual LoadState GetLoadStateThreadSafe(
-      RequestHandle request) const OVERRIDE;
-  virtual void CancelSetPacScript() OVERRIDE;
-  virtual void PurgeMemory() OVERRIDE;
-  virtual void Shutdown() OVERRIDE;
+      RequestHandle request) const override;
+  virtual void CancelSetPacScript() override;
+  virtual void PurgeMemory() override;
+  virtual void Shutdown() override;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      const net::CompletionCallback& /*callback*/) OVERRIDE;
+      const net::CompletionCallback& /*callback*/) override;
 
  private:
   // Context holds the Javascript state for the most recently loaded PAC

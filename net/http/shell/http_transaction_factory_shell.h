@@ -33,10 +33,10 @@ class NET_EXPORT HttpTransactionFactoryShell
 
   // HttpTransactionFactory methods:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
-                                HttpTransactionDelegate* delegate) OVERRIDE;
+                                HttpTransactionDelegate* delegate) override;
 
-  virtual HttpCache* GetCache() OVERRIDE;
-  virtual HttpNetworkSession* GetSession() OVERRIDE;
+  virtual HttpCache* GetCache() override;
+  virtual HttpNetworkSession* GetSession() override;
 
  protected:
   // This function is used in unit test to use a MockStream object instead

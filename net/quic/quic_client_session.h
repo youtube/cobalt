@@ -33,10 +33,10 @@ class NET_EXPORT_PRIVATE QuicClientSession : public QuicSession {
   virtual ~QuicClientSession();
 
   // QuicSession methods:
-  virtual QuicReliableClientStream* CreateOutgoingReliableStream() OVERRIDE;
-  virtual QuicCryptoClientStream* GetCryptoStream() OVERRIDE;
-  virtual void CloseStream(QuicStreamId stream_id) OVERRIDE;
-  virtual void OnCryptoHandshakeComplete(QuicErrorCode error) OVERRIDE;
+  virtual QuicReliableClientStream* CreateOutgoingReliableStream() override;
+  virtual QuicCryptoClientStream* GetCryptoStream() override;
+  virtual void CloseStream(QuicStreamId stream_id) override;
+  virtual void OnCryptoHandshakeComplete(QuicErrorCode error) override;
 
   // Perform a crypto handshake with the server.
   int CryptoConnect(const CompletionCallback& callback);
@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE QuicClientSession : public QuicSession {
  protected:
   // QuicSession methods:
   virtual ReliableQuicStream* CreateIncomingReliableStream(
-      QuicStreamId id) OVERRIDE;
+      QuicStreamId id) override;
 
  private:
   typedef base::hash_map<QuicStreamId, ReliableQuicStream*> StreamMap;

@@ -24,7 +24,7 @@ class HttpPipelinedHostImplFactory : public HttpPipelinedHost::Factory {
       const HttpPipelinedHost::Key& key,
       HttpPipelinedConnection::Factory* factory,
       HttpPipelinedHostCapability capability,
-      bool force_pipelining) OVERRIDE {
+      bool force_pipelining) override {
     if (force_pipelining) {
       return new HttpPipelinedHostForced(delegate, key, factory);
     } else {

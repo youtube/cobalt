@@ -23,14 +23,14 @@ class DummyDemuxerStream : public DemuxerStream {
   explicit DummyDemuxerStream(Type type);
 
   // DemuxerStream implementation.
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual Type type() OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual Type type() override;
+  virtual const AudioDecoderConfig& audio_decoder_config() override;
+  virtual const VideoDecoderConfig& video_decoder_config() override;
+  virtual void EnableBitstreamConverter() override;
 
 #if defined(__LB_SHELL__) || defined(COBALT)
-  bool StreamWasEncrypted() const OVERRIDE {
+  bool StreamWasEncrypted() const override {
     return video_config_.is_encrypted();
   }
 #endif
@@ -52,10 +52,10 @@ class MEDIA_EXPORT DummyDemuxer : public Demuxer {
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
-                          const PipelineStatusCB& status_cb) OVERRIDE;
+                          const PipelineStatusCB& status_cb) override;
   virtual scoped_refptr<DemuxerStream> GetStream(
-      DemuxerStream::Type type) OVERRIDE;
-  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+      DemuxerStream::Type type) override;
+  virtual base::TimeDelta GetStartTime() const override;
 
  protected:
   virtual ~DummyDemuxer();

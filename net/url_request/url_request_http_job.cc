@@ -57,15 +57,15 @@ class URLRequestHttpJob::HttpFilterContext : public FilterContext {
   virtual ~HttpFilterContext();
 
   // FilterContext implementation.
-  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
-  virtual bool GetURL(GURL* gurl) const OVERRIDE;
-  virtual base::Time GetRequestTime() const OVERRIDE;
-  virtual bool IsCachedContent() const OVERRIDE;
-  virtual bool IsDownload() const OVERRIDE;
-  virtual bool IsSdchResponse() const OVERRIDE;
-  virtual int64 GetByteReadCount() const OVERRIDE;
-  virtual int GetResponseCode() const OVERRIDE;
-  virtual void RecordPacketStats(StatisticSelector statistic) const OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const override;
+  virtual bool GetURL(GURL* gurl) const override;
+  virtual base::Time GetRequestTime() const override;
+  virtual bool IsCachedContent() const override;
+  virtual bool IsDownload() const override;
+  virtual bool IsSdchResponse() const override;
+  virtual int64 GetByteReadCount() const override;
+  virtual int GetResponseCode() const override;
+  virtual void RecordPacketStats(StatisticSelector statistic) const override;
 
   // Method to allow us to reset filter context for a response that should have
   // been SDCH encoded when there is an update due to an explicit HTTP header.
@@ -99,7 +99,7 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
     network_active_ = false;
     request_ = NULL;
   }
-  virtual void OnCacheActionStart() OVERRIDE {
+  virtual void OnCacheActionStart() override {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
     DCHECK(!cache_active_ && !network_active_);
@@ -108,7 +108,7 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
         *request_,
         NetworkDelegate::REQUEST_WAIT_STATE_CACHE_START);
   }
-  virtual void OnCacheActionFinish() OVERRIDE {
+  virtual void OnCacheActionFinish() override {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
     DCHECK(cache_active_ && !network_active_);
@@ -117,7 +117,7 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
         *request_,
         NetworkDelegate::REQUEST_WAIT_STATE_CACHE_FINISH);
   }
-  virtual void OnNetworkActionStart() OVERRIDE {
+  virtual void OnNetworkActionStart() override {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
     DCHECK(!cache_active_ && !network_active_);
@@ -126,7 +126,7 @@ class URLRequestHttpJob::HttpTransactionDelegateImpl
         *request_,
         NetworkDelegate::REQUEST_WAIT_STATE_NETWORK_START);
   }
-  virtual void OnNetworkActionFinish() OVERRIDE {
+  virtual void OnNetworkActionFinish() override {
     if (request_ == NULL || network_delegate_ == NULL)
       return;
     DCHECK(!cache_active_ && network_active_);

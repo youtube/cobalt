@@ -61,21 +61,21 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
  public:
   NoOpFramerVisitor() {}
 
-  virtual void OnError(QuicFramer* framer) OVERRIDE {}
+  virtual void OnError(QuicFramer* framer) override {}
   virtual void OnPacket(const IPEndPoint& self_address,
-                        const IPEndPoint& peer_address) OVERRIDE {}
-  virtual void OnRevivedPacket() OVERRIDE {}
-  virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
-  virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE {}
-  virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE {}
-  virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE {}
+                        const IPEndPoint& peer_address) override {}
+  virtual void OnRevivedPacket() override {}
+  virtual bool OnPacketHeader(const QuicPacketHeader& header) override;
+  virtual void OnFecProtectedPayload(base::StringPiece payload) override {}
+  virtual void OnStreamFrame(const QuicStreamFrame& frame) override {}
+  virtual void OnAckFrame(const QuicAckFrame& frame) override {}
   virtual void OnCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame) OVERRIDE {}
-  virtual void OnFecData(const QuicFecData& fec) OVERRIDE {}
-  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE {}
+      const QuicCongestionFeedbackFrame& frame) override {}
+  virtual void OnFecData(const QuicFecData& fec) override {}
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) override {}
   virtual void OnConnectionCloseFrame(
-      const QuicConnectionCloseFrame& frame) OVERRIDE {}
-  virtual void OnPacketComplete() OVERRIDE {}
+      const QuicConnectionCloseFrame& frame) override {}
+  virtual void OnPacketComplete() override {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(NoOpFramerVisitor);
@@ -87,10 +87,10 @@ class FramerVisitorCapturingAcks : public NoOpFramerVisitor {
   virtual ~FramerVisitorCapturingAcks();
 
   // NoOpFramerVisitor
-  virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
-  virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
+  virtual bool OnPacketHeader(const QuicPacketHeader& header) override;
+  virtual void OnAckFrame(const QuicAckFrame& frame) override;
   virtual void OnCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame) OVERRIDE;
+      const QuicCongestionFeedbackFrame& frame) override;
 
   QuicPacketHeader* header() { return &header_; }
 
@@ -172,7 +172,7 @@ class PacketSavingConnection : public MockConnection {
                           QuicPacket* packet,
                           bool should_resend,
                           bool force,
-                          bool is_retransmit) OVERRIDE;
+                          bool is_retransmit) override;
 
   std::vector<QuicPacket*> packets_;
 

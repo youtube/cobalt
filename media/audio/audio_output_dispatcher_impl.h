@@ -41,23 +41,23 @@ class MEDIA_EXPORT AudioOutputDispatcherImpl : public AudioOutputDispatcher {
 
   // Opens a new physical stream if there are no pending streams in
   // |idle_streams_|.  Do not call Close() or Stop() if this method fails.
-  virtual bool OpenStream() OVERRIDE;
+  virtual bool OpenStream() override;
 
   // If there are pending streams in |idle_streams_| then it reuses one of
   // them, otherwise creates a new one.
   virtual bool StartStream(AudioOutputStream::AudioSourceCallback* callback,
-                           AudioOutputProxy* stream_proxy) OVERRIDE;
+                           AudioOutputProxy* stream_proxy) override;
 
   // Holds the physical stream temporarily in |pausing_streams_| and then
   // |stream| is  added to the pool of pending streams (i.e. |idle_streams_|).
-  virtual void StopStream(AudioOutputProxy* stream_proxy) OVERRIDE;
+  virtual void StopStream(AudioOutputProxy* stream_proxy) override;
 
   virtual void StreamVolumeSet(AudioOutputProxy* stream_proxy,
-                               double volume) OVERRIDE;
+                               double volume) override;
 
-  virtual void CloseStream(AudioOutputProxy* stream_proxy) OVERRIDE;
+  virtual void CloseStream(AudioOutputProxy* stream_proxy) override;
 
-  virtual void Shutdown() OVERRIDE;
+  virtual void Shutdown() override;
 
  private:
   typedef std::map<AudioOutputProxy*, AudioOutputStream*> AudioStreamMap;

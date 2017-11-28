@@ -41,7 +41,7 @@ class AssertReporter : public base::AsserterBase {
   AssertReporter()
       : failed_(false) {}
 
-  virtual void warn() OVERRIDE {
+  virtual void warn() override {
     failed_ = true;
   }
 
@@ -151,7 +151,7 @@ TEST(ThreadCollisionTest, MTBookCriticalSectionTest) {
     explicit QueueUser(NonThreadSafeQueue& queue)
         : queue_(queue) {}
 
-    virtual void Run() OVERRIDE {
+    virtual void Run() override {
       queue_.push(0);
       queue_.pop();
     }
@@ -209,7 +209,7 @@ TEST(ThreadCollisionTest, MTScopedBookCriticalSectionTest) {
     explicit QueueUser(NonThreadSafeQueue& queue)
         : queue_(queue) {}
 
-    virtual void Run() OVERRIDE {
+    virtual void Run() override {
       queue_.push(0);
       queue_.pop();
     }
@@ -270,7 +270,7 @@ TEST(ThreadCollisionTest, MTSynchedScopedBookCriticalSectionTest) {
         : queue_(queue),
           lock_(lock) {}
 
-    virtual void Run() OVERRIDE {
+    virtual void Run() override {
       {
         base::AutoLock auto_lock(lock_);
         queue_.push(0);
@@ -344,7 +344,7 @@ TEST(ThreadCollisionTest, MTSynchedScopedRecursiveBookCriticalSectionTest) {
         : queue_(queue),
           lock_(lock) {}
 
-    virtual void Run() OVERRIDE {
+    virtual void Run() override {
       {
         base::AutoLock auto_lock(lock_);
         queue_.push(0);

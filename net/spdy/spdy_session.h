@@ -514,40 +514,40 @@ class NET_EXPORT SpdySession : public base::RefCounted<SpdySession>,
   void DeleteExpiredPushedStreams();
 
   // BufferedSpdyFramerVisitorInterface:
-  virtual void OnError(SpdyFramer::SpdyError error_code) OVERRIDE;
+  virtual void OnError(SpdyFramer::SpdyError error_code) override;
   virtual void OnStreamError(SpdyStreamId stream_id,
-                             const std::string& description) OVERRIDE;
-  virtual void OnPing(uint32 unique_id) OVERRIDE;
+                             const std::string& description) override;
+  virtual void OnPing(uint32 unique_id) override;
   virtual void OnRstStream(SpdyStreamId stream_id,
-                           SpdyStatusCodes status) OVERRIDE;
+                           SpdyStatusCodes status) override;
   virtual void OnGoAway(SpdyStreamId last_accepted_stream_id,
-                        SpdyGoAwayStatus status) OVERRIDE;
+                        SpdyGoAwayStatus status) override;
   virtual void OnStreamFrameData(SpdyStreamId stream_id,
                                  const char* data,
                                  size_t len,
-                                 SpdyDataFlags flags) OVERRIDE;
+                                 SpdyDataFlags flags) override;
   virtual void OnSetting(
-      SpdySettingsIds id, uint8 flags, uint32 value) OVERRIDE;
+      SpdySettingsIds id, uint8 flags, uint32 value) override;
   virtual void OnWindowUpdate(SpdyStreamId stream_id,
-                              int delta_window_size) OVERRIDE;
+                              int delta_window_size) override;
   virtual void OnControlFrameCompressed(
       const SpdyControlFrame& uncompressed_frame,
-      const SpdyControlFrame& compressed_frame) OVERRIDE;
+      const SpdyControlFrame& compressed_frame) override;
   virtual void OnSynStream(SpdyStreamId stream_id,
                            SpdyStreamId associated_stream_id,
                            SpdyPriority priority,
                            uint8 credential_slot,
                            bool fin,
                            bool unidirectional,
-                           const SpdyHeaderBlock& headers) OVERRIDE;
+                           const SpdyHeaderBlock& headers) override;
   virtual void OnSynReply(
       SpdyStreamId stream_id,
       bool fin,
-      const SpdyHeaderBlock& headers) OVERRIDE;
+      const SpdyHeaderBlock& headers) override;
   virtual void OnHeaders(
       SpdyStreamId stream_id,
       bool fin,
-      const SpdyHeaderBlock& headers) OVERRIDE;
+      const SpdyHeaderBlock& headers) override;
 
   // --------------------------
   // Helper methods for testing

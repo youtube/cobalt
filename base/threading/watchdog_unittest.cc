@@ -28,7 +28,7 @@ class WatchdogCounter : public Watchdog {
 
   virtual ~WatchdogCounter() {}
 
-  virtual void Alarm() OVERRIDE {
+  virtual void Alarm() override {
     alarm_counter_++;
     Watchdog::Alarm();
   }
@@ -43,7 +43,7 @@ class WatchdogCounter : public Watchdog {
 
 class WatchdogTest : public testing::Test {
  public:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     Watchdog::ResetStaticData();
   }
 };
