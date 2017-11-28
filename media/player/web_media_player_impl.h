@@ -106,108 +106,108 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
       const scoped_refptr<AudioRendererSink>& audio_renderer_sink,
       scoped_ptr<MessageLoopFactory> message_loop_factory,
       const scoped_refptr<MediaLog>& media_log);
-  ~WebMediaPlayerImpl() OVERRIDE;
+  ~WebMediaPlayerImpl() override;
 
-  void LoadMediaSource() OVERRIDE;
+  void LoadMediaSource() override;
   void LoadProgressive(const GURL& url,
-                       scoped_ptr<BufferedDataSource> data_source) OVERRIDE;
-  void CancelLoad() OVERRIDE;
+                       scoped_ptr<BufferedDataSource> data_source) override;
+  void CancelLoad() override;
 
   // Playback controls.
-  void Play() OVERRIDE;
-  void Pause() OVERRIDE;
-  bool SupportsFullscreen() const OVERRIDE;
-  bool SupportsSave() const OVERRIDE;
-  void Seek(float seconds) OVERRIDE;
-  void SetEndTime(float seconds) OVERRIDE;
-  void SetRate(float rate) OVERRIDE;
-  void SetVolume(float volume) OVERRIDE;
-  void SetVisible(bool visible) OVERRIDE;
+  void Play() override;
+  void Pause() override;
+  bool SupportsFullscreen() const override;
+  bool SupportsSave() const override;
+  void Seek(float seconds) override;
+  void SetEndTime(float seconds) override;
+  void SetRate(float rate) override;
+  void SetVolume(float volume) override;
+  void SetVisible(bool visible) override;
   virtual bool GetTotalBytesKnown();
-  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() OVERRIDE;
-  float GetMaxTimeSeekable() const OVERRIDE;
+  const Ranges<base::TimeDelta>& GetBufferedTimeRanges() override;
+  float GetMaxTimeSeekable() const override;
 
   // Suspend/Resume
-  void Suspend() OVERRIDE;
-  void Resume() OVERRIDE;
+  void Suspend() override;
+  void Resume() override;
 
   // True if the loaded media has a playable video/audio track.
-  bool HasVideo() const OVERRIDE;
-  bool HasAudio() const OVERRIDE;
+  bool HasVideo() const override;
+  bool HasAudio() const override;
 
   // Dimensions of the video.
-  gfx::Size GetNaturalSize() const OVERRIDE;
+  gfx::Size GetNaturalSize() const override;
 
   // Getters of playback state.
-  bool IsPaused() const OVERRIDE;
-  bool IsSeeking() const OVERRIDE;
-  float GetDuration() const OVERRIDE;
-  float GetCurrentTime() const OVERRIDE;
+  bool IsPaused() const override;
+  bool IsSeeking() const override;
+  float GetDuration() const override;
+  float GetCurrentTime() const override;
 
   // Get rate of loading the resource.
-  int32 GetDataRate() const OVERRIDE;
+  int32 GetDataRate() const override;
 
   // Internal states of loading and network.
   // TODO(hclam): Ask the pipeline about the state rather than having reading
   // them from members which would cause race conditions.
-  WebMediaPlayer::NetworkState GetNetworkState() const OVERRIDE;
-  WebMediaPlayer::ReadyState GetReadyState() const OVERRIDE;
+  WebMediaPlayer::NetworkState GetNetworkState() const override;
+  WebMediaPlayer::ReadyState GetReadyState() const override;
 
-  bool DidLoadingProgress() const OVERRIDE;
-  unsigned long long GetTotalBytes() const OVERRIDE;
+  bool DidLoadingProgress() const override;
+  unsigned long long GetTotalBytes() const override;
 
-  bool HasSingleSecurityOrigin() const OVERRIDE;
-  bool DidPassCORSAccessCheck() const OVERRIDE;
+  bool HasSingleSecurityOrigin() const override;
+  bool DidPassCORSAccessCheck() const override;
 
-  float MediaTimeForTimeValue(float timeValue) const OVERRIDE;
+  float MediaTimeForTimeValue(float timeValue) const override;
 
-  unsigned GetDecodedFrameCount() const OVERRIDE;
-  unsigned GetDroppedFrameCount() const OVERRIDE;
-  unsigned GetAudioDecodedByteCount() const OVERRIDE;
-  unsigned GetVideoDecodedByteCount() const OVERRIDE;
+  unsigned GetDecodedFrameCount() const override;
+  unsigned GetDroppedFrameCount() const override;
+  unsigned GetAudioDecodedByteCount() const override;
+  unsigned GetVideoDecodedByteCount() const override;
 
-  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() OVERRIDE;
+  scoped_refptr<ShellVideoFrameProvider> GetVideoFrameProvider() override;
   // TODO: Remove Get/PutCurrentFrame.
-  scoped_refptr<VideoFrame> GetCurrentFrame() OVERRIDE;
-  void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) OVERRIDE;
+  scoped_refptr<VideoFrame> GetCurrentFrame() override;
+  void PutCurrentFrame(const scoped_refptr<VideoFrame>& video_frame) override;
 
   AddIdStatus SourceAddId(const std::string& id,
                           const std::string& type,
-                          const std::vector<std::string>& codecs) OVERRIDE;
-  bool SourceRemoveId(const std::string& id) OVERRIDE;
-  Ranges<base::TimeDelta> SourceBuffered(const std::string& id) OVERRIDE;
+                          const std::vector<std::string>& codecs) override;
+  bool SourceRemoveId(const std::string& id) override;
+  Ranges<base::TimeDelta> SourceBuffered(const std::string& id) override;
   bool SourceAppend(const std::string& id,
                     const unsigned char* data,
-                    unsigned length) OVERRIDE;
-  bool SourceAbort(const std::string& id) OVERRIDE;
-  double SourceGetDuration() const OVERRIDE;
-  void SourceSetDuration(double new_duration) OVERRIDE;
-  void SourceEndOfStream(EndOfStreamStatus status) OVERRIDE;
-  bool SourceSetTimestampOffset(const std::string& id, double offset) OVERRIDE;
+                    unsigned length) override;
+  bool SourceAbort(const std::string& id) override;
+  double SourceGetDuration() const override;
+  void SourceSetDuration(double new_duration) override;
+  void SourceEndOfStream(EndOfStreamStatus status) override;
+  bool SourceSetTimestampOffset(const std::string& id, double offset) override;
 
   MediaKeyException GenerateKeyRequest(const std::string& key_system,
                                        const unsigned char* init_data,
-                                       unsigned init_data_length) OVERRIDE;
+                                       unsigned init_data_length) override;
 
   MediaKeyException AddKey(const std::string& key_system,
                            const unsigned char* key,
                            unsigned key_length,
                            const unsigned char* init_data,
                            unsigned init_data_length,
-                           const std::string& session_id) OVERRIDE;
+                           const std::string& session_id) override;
 
   MediaKeyException CancelKeyRequest(const std::string& key_system,
-                                     const std::string& session_id) OVERRIDE;
+                                     const std::string& session_id) override;
 
-  SetBoundsCB GetSetBoundsCB() OVERRIDE;
+  SetBoundsCB GetSetBoundsCB() override;
 
   // As we are closing the tab or even the browser, |main_loop_| is destroyed
   // even before this object gets destructed, so we need to know when
   // |main_loop_| is being destroyed and we can stop posting repaint task
   // to it.
-  void WillDestroyCurrentMessageLoop() OVERRIDE;
+  void WillDestroyCurrentMessageLoop() override;
 
-  bool GetDebugReportDataAddress(void** out_address, size_t* out_size) OVERRIDE;
+  bool GetDebugReportDataAddress(void** out_address, size_t* out_size) override;
 
   void OnPipelineSeek(PipelineStatus status);
   void OnPipelineEnded(PipelineStatus status);

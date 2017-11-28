@@ -27,30 +27,30 @@ class MockFilterContext : public FilterContext {
     is_sdch_response_ = is_sdch_response;
   }
 
-  virtual bool GetMimeType(std::string* mime_type) const OVERRIDE;
+  virtual bool GetMimeType(std::string* mime_type) const override;
 
   // What URL was used to access this data?
   // Return false if gurl is not present.
-  virtual bool GetURL(GURL* gurl) const OVERRIDE;
+  virtual bool GetURL(GURL* gurl) const override;
 
   // What was this data requested from a server?
-  virtual base::Time GetRequestTime() const OVERRIDE;
+  virtual base::Time GetRequestTime() const override;
 
   // Is data supplied from cache, or fresh across the net?
-  virtual bool IsCachedContent() const OVERRIDE;
+  virtual bool IsCachedContent() const override;
 
   // Is this a download?
-  virtual bool IsDownload() const OVERRIDE;
+  virtual bool IsDownload() const override;
 
   // Was this data flagged as a response to a request with an SDCH dictionary?
-  virtual bool IsSdchResponse() const OVERRIDE;
+  virtual bool IsSdchResponse() const override;
 
   // How many bytes were fed to filter(s) so far?
-  virtual int64 GetByteReadCount() const OVERRIDE;
+  virtual int64 GetByteReadCount() const override;
 
-  virtual int GetResponseCode() const OVERRIDE;
+  virtual int GetResponseCode() const override;
 
-  virtual void RecordPacketStats(StatisticSelector statistic) const OVERRIDE {}
+  virtual void RecordPacketStats(StatisticSelector statistic) const override {}
 
  private:
   int buffer_size_;

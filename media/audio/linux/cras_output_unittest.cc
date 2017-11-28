@@ -45,14 +45,14 @@ class MockAudioManagerLinux : public AudioManagerLinux {
   // of active output streams. It is because the number of active streams
   // is managed inside MakeAudioOutputStream, and we don't use
   // MakeAudioOutputStream to create the stream in the tests.
-  virtual void ReleaseOutputStream(AudioOutputStream* stream) OVERRIDE {
+  virtual void ReleaseOutputStream(AudioOutputStream* stream) override {
     DCHECK(stream);
     delete stream;
   }
 
   // We don't mock this method since all tests will do the same thing
   // and use the current message loop.
-  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() override {
     return MessageLoop::current()->message_loop_proxy();
   }
 };

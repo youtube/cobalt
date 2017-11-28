@@ -171,9 +171,9 @@ class MEDIA_EXPORT AudioInputController
   // AudioInputCallback implementation. Threading details depends on the
   // device-specific implementation.
   virtual void OnData(AudioInputStream* stream, const uint8* src, uint32 size,
-                      uint32 hardware_delay_bytes, double volume) OVERRIDE;
-  virtual void OnClose(AudioInputStream* stream) OVERRIDE;
-  virtual void OnError(AudioInputStream* stream, int code) OVERRIDE;
+                      uint32 hardware_delay_bytes, double volume) override;
+  virtual void OnClose(AudioInputStream* stream) override;
+  virtual void OnError(AudioInputStream* stream, int code) override;
 
   bool LowLatencyMode() const { return sync_writer_ != NULL; }
 

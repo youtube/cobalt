@@ -69,7 +69,7 @@ class WorkQueue : public PlatformThread::Delegate {
   virtual ~WorkQueue();
 
   // PlatformThread::Delegate interface.
-  virtual void ThreadMain() OVERRIDE;
+  virtual void ThreadMain() override;
 
   //----------------------------------------------------------------------------
   // Worker threads only call the following methods.

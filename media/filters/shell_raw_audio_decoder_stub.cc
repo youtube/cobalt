@@ -32,11 +32,11 @@ class ShellRawAudioDecoderStub : public ShellRawAudioDecoder {
  public:
   ShellRawAudioDecoderStub();
 
-  int GetBytesPerSample() const OVERRIDE { return kSampleSizeInBytes; }
+  int GetBytesPerSample() const override { return kSampleSizeInBytes; }
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
-              const DecodeCB& decoder_cb) OVERRIDE;
-  bool Flush() OVERRIDE;
-  bool UpdateConfig(const AudioDecoderConfig& config) OVERRIDE;
+              const DecodeCB& decoder_cb) override;
+  bool Flush() override;
+  bool UpdateConfig(const AudioDecoderConfig& config) override;
 
  private:
   DecoderBufferPool decoder_buffer_pool_;

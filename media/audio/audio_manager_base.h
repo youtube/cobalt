@@ -39,26 +39,26 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   virtual ~AudioManagerBase();
 
-  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE;
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() override;
 
-  virtual string16 GetAudioInputDeviceModel() OVERRIDE;
+  virtual string16 GetAudioInputDeviceModel() override;
 
-  virtual bool CanShowAudioInputSettings() OVERRIDE;
-  virtual void ShowAudioInputSettings() OVERRIDE;
+  virtual bool CanShowAudioInputSettings() override;
+  virtual void ShowAudioInputSettings() override;
 
   virtual void GetAudioInputDeviceNames(
-      media::AudioDeviceNames* device_names) OVERRIDE;
+      media::AudioDeviceNames* device_names) override;
 
   virtual AudioOutputStream* MakeAudioOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
 
   virtual AudioInputStream* MakeAudioInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) override;
 
   virtual AudioOutputStream* MakeAudioOutputStreamProxy(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
 
-  virtual bool IsRecordingInProcess() OVERRIDE;
+  virtual bool IsRecordingInProcess() override;
 
   // Called internally by the audio stream when it has been closed.
   virtual void ReleaseOutputStream(AudioOutputStream* stream);
@@ -96,9 +96,9 @@ class MEDIA_EXPORT AudioManagerBase : public AudioManager {
 
   // Listeners will be notified on the AudioManager::GetMessageLoop() loop.
   virtual void AddOutputDeviceChangeListener(
-      AudioDeviceListener* listener) OVERRIDE;
+      AudioDeviceListener* listener) override;
   virtual void RemoveOutputDeviceChangeListener(
-      AudioDeviceListener* listener) OVERRIDE;
+      AudioDeviceListener* listener) override;
 
  protected:
   AudioManagerBase();

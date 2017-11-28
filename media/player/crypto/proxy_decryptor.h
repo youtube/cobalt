@@ -42,33 +42,33 @@ class ProxyDecryptor : public Decryptor {
   virtual bool GenerateKeyRequest(const std::string& key_system,
                                   const std::string& type,
                                   const uint8* init_data,
-                                  int init_data_length) OVERRIDE;
+                                  int init_data_length) override;
   virtual void AddKey(const std::string& key_system,
                       const uint8* key,
                       int key_length,
                       const uint8* init_data,
                       int init_data_length,
-                      const std::string& session_id) OVERRIDE;
+                      const std::string& session_id) override;
   virtual void CancelKeyRequest(const std::string& key_system,
-                                const std::string& session_id) OVERRIDE;
+                                const std::string& session_id) override;
   virtual void RegisterKeyAddedCB(StreamType stream_type,
-                                  const KeyAddedCB& key_added_cb) OVERRIDE;
+                                  const KeyAddedCB& key_added_cb) override;
   virtual void Decrypt(StreamType stream_type,
                        const scoped_refptr<DecoderBuffer>& encrypted,
-                       const DecryptCB& decrypt_cb) OVERRIDE;
-  virtual void CancelDecrypt(StreamType stream_type) OVERRIDE;
+                       const DecryptCB& decrypt_cb) override;
+  virtual void CancelDecrypt(StreamType stream_type) override;
   virtual void InitializeAudioDecoder(scoped_ptr<AudioDecoderConfig> config,
-                                      const DecoderInitCB& init_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) override;
   virtual void InitializeVideoDecoder(scoped_ptr<VideoDecoderConfig> config,
-                                      const DecoderInitCB& init_cb) OVERRIDE;
+                                      const DecoderInitCB& init_cb) override;
   virtual void DecryptAndDecodeAudio(
       const scoped_refptr<DecoderBuffer>& encrypted,
-      const AudioDecodeCB& audio_decode_cb) OVERRIDE;
+      const AudioDecodeCB& audio_decode_cb) override;
   virtual void DecryptAndDecodeVideo(
       const scoped_refptr<DecoderBuffer>& encrypted,
-      const VideoDecodeCB& video_decode_cb) OVERRIDE;
-  virtual void ResetDecoder(StreamType stream_type) OVERRIDE;
-  virtual void DeinitializeDecoder(StreamType stream_type) OVERRIDE;
+      const VideoDecodeCB& video_decode_cb) override;
+  virtual void ResetDecoder(StreamType stream_type) override;
+  virtual void DeinitializeDecoder(StreamType stream_type) override;
 
  private:
   // Helper functions to create decryptors to handle the given |key_system|.

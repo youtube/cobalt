@@ -122,13 +122,13 @@ class URLFetcherCore
   // Overridden from URLRequest::Delegate:
   virtual void OnReceivedRedirect(URLRequest* request,
                                   const GURL& new_url,
-                                  bool* defer_redirect) OVERRIDE;
-  virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
+                                  bool* defer_redirect) override;
+  virtual void OnResponseStarted(URLRequest* request) override;
   virtual void OnReadCompleted(URLRequest* request,
-                               int bytes_read) OVERRIDE;
+                               int bytes_read) override;
   virtual void OnCertificateRequested(
       URLRequest* request,
-      SSLCertRequestInfo* cert_request_info) OVERRIDE;
+      SSLCertRequestInfo* cert_request_info) override;
 
   URLFetcherDelegate* delegate() const { return delegate_; }
   static void CancelAll();

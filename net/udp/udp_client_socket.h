@@ -24,17 +24,17 @@ class NET_EXPORT_PRIVATE UDPClientSocket : public DatagramClientSocket {
   virtual ~UDPClientSocket();
 
   // DatagramClientSocket implementation.
-  virtual int Connect(const IPEndPoint& address) OVERRIDE;
+  virtual int Connect(const IPEndPoint& address) override;
   virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
+                   const CompletionCallback& callback) override;
   virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
-  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
-  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
-  virtual const BoundNetLog& NetLog() const OVERRIDE;
+                    const CompletionCallback& callback) override;
+  virtual void Close() override;
+  virtual int GetPeerAddress(IPEndPoint* address) const override;
+  virtual int GetLocalAddress(IPEndPoint* address) const override;
+  virtual bool SetReceiveBufferSize(int32 size) override;
+  virtual bool SetSendBufferSize(int32 size) override;
+  virtual const BoundNetLog& NetLog() const override;
 
  private:
   UDPSocket socket_;

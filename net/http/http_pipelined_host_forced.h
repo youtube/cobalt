@@ -46,24 +46,24 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostForced
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      NextProto protocol_negotiated) OVERRIDE;
+      NextProto protocol_negotiated) override;
 
-  virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() OVERRIDE;
+  virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() override;
 
-  virtual bool IsExistingPipelineAvailable() const OVERRIDE;
+  virtual bool IsExistingPipelineAvailable() const override;
 
-  virtual const Key& GetKey() const OVERRIDE;
+  virtual const Key& GetKey() const override;
 
-  virtual base::Value* PipelineInfoToValue() const OVERRIDE;
+  virtual base::Value* PipelineInfoToValue() const override;
 
   // HttpPipelinedConnection::Delegate interface
 
   virtual void OnPipelineHasCapacity(
-      HttpPipelinedConnection* pipeline) OVERRIDE;
+      HttpPipelinedConnection* pipeline) override;
 
   virtual void OnPipelineFeedback(
       HttpPipelinedConnection* pipeline,
-      HttpPipelinedConnection::Feedback feedback) OVERRIDE;
+      HttpPipelinedConnection::Feedback feedback) override;
 
  private:
   // Called when a pipeline is empty and there are no pending requests. Closes

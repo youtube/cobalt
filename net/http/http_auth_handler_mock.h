@@ -49,7 +49,7 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
         CreateReason reason,
         int nonce_count,
         const BoundNetLog& net_log,
-        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
+        scoped_ptr<HttpAuthHandler>* handler) override;
 
    private:
     ScopedVector<HttpAuthHandler> handlers_[HttpAuth::AUTH_NUM_TARGETS];
@@ -88,18 +88,18 @@ class HttpAuthHandlerMock : public HttpAuthHandler {
 
   // HttpAuthHandler:
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
-  virtual bool NeedsIdentity() OVERRIDE;
-  virtual bool AllowsDefaultCredentials() OVERRIDE;
-  virtual bool AllowsExplicitCredentials() OVERRIDE;
+      HttpAuth::ChallengeTokenizer* challenge) override;
+  virtual bool NeedsIdentity() override;
+  virtual bool AllowsDefaultCredentials() override;
+  virtual bool AllowsExplicitCredentials() override;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) override;
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     const CompletionCallback& callback,
-                                    std::string* auth_token) OVERRIDE;
+                                    std::string* auth_token) override;
 
  private:
   void OnResolveCanonicalName();

@@ -23,37 +23,37 @@ class MockAudioManager : public media::AudioManager {
  public:
   explicit MockAudioManager(base::MessageLoopProxy* message_loop_proxy);
 
-  virtual bool HasAudioOutputDevices() OVERRIDE;
+  virtual bool HasAudioOutputDevices() override;
 
-  virtual bool HasAudioInputDevices() OVERRIDE;
+  virtual bool HasAudioInputDevices() override;
 
-  virtual string16 GetAudioInputDeviceModel() OVERRIDE;
+  virtual string16 GetAudioInputDeviceModel() override;
 
-  virtual bool CanShowAudioInputSettings() OVERRIDE;
+  virtual bool CanShowAudioInputSettings() override;
 
-  virtual void ShowAudioInputSettings() OVERRIDE;
+  virtual void ShowAudioInputSettings() override;
 
   virtual void GetAudioInputDeviceNames(
-      media::AudioDeviceNames* device_names) OVERRIDE;
+      media::AudioDeviceNames* device_names) override;
 
   virtual media::AudioOutputStream* MakeAudioOutputStream(
-      const media::AudioParameters& params) OVERRIDE;
+      const media::AudioParameters& params) override;
 
   virtual media::AudioOutputStream* MakeAudioOutputStreamProxy(
-      const media::AudioParameters& params) OVERRIDE;
+      const media::AudioParameters& params) override;
 
   virtual media::AudioInputStream* MakeAudioInputStream(
       const media::AudioParameters& params,
-      const std::string& device_id) OVERRIDE;
+      const std::string& device_id) override;
 
-  virtual bool IsRecordingInProcess() OVERRIDE;
+  virtual bool IsRecordingInProcess() override;
 
-  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE;
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() override;
 
   virtual void AddOutputDeviceChangeListener(
-      AudioDeviceListener* listener) OVERRIDE;
+      AudioDeviceListener* listener) override;
   virtual void RemoveOutputDeviceChangeListener(
-      AudioDeviceListener* listener) OVERRIDE;
+      AudioDeviceListener* listener) override;
 
  private:
   virtual ~MockAudioManager();

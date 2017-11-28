@@ -36,15 +36,15 @@ class NET_EXPORT_PRIVATE TCPServerSocketStarboard
   virtual ~TCPServerSocketStarboard();
 
   // net::ServerSocket implementation.
-  virtual void AllowAddressReuse() OVERRIDE;
-  virtual int Listen(const net::IPEndPoint& address, int backlog) OVERRIDE;
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
+  virtual void AllowAddressReuse() override;
+  virtual int Listen(const net::IPEndPoint& address, int backlog) override;
+  virtual int GetLocalAddress(IPEndPoint* address) const override;
   virtual int Accept(scoped_ptr<StreamSocket>* socket,
-                     const CompletionCallback& callback) OVERRIDE;
+                     const CompletionCallback& callback) override;
 
   // MessageLoopForIO::Watcher implementation.
-  virtual void OnSocketReadyToRead(SbSocket socket) OVERRIDE;
-  virtual void OnSocketReadyToWrite(SbSocket socket) OVERRIDE;
+  virtual void OnSocketReadyToRead(SbSocket socket) override;
+  virtual void OnSocketReadyToWrite(SbSocket socket) override;
 
  private:
   int SetSocketOptions();

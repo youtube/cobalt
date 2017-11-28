@@ -39,12 +39,12 @@ class ShellDemuxerStream : public DemuxerStream {
   ShellDemuxerStream(ShellDemuxer* demuxer, Type type);
 
   // DemuxerStream implementation
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Type type() OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual bool StreamWasEncrypted() const OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual const AudioDecoderConfig& audio_decoder_config() override;
+  virtual const VideoDecoderConfig& video_decoder_config() override;
+  virtual Type type() override;
+  virtual void EnableBitstreamConverter() override;
+  virtual bool StreamWasEncrypted() const override;
 
   // Functions used by ShellDemuxer
   Ranges<base::TimeDelta> GetBufferedRanges();
@@ -93,14 +93,14 @@ class MEDIA_EXPORT ShellDemuxer : public Demuxer {
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
-                          const PipelineStatusCB& status_cb) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  virtual void OnAudioRendererDisabled() OVERRIDE;
-  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+                          const PipelineStatusCB& status_cb) override;
+  virtual void Stop(const base::Closure& callback) override;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) override;
+  virtual void OnAudioRendererDisabled() override;
+  virtual void SetPlaybackRate(float playback_rate) override;
   virtual scoped_refptr<DemuxerStream> GetStream(
-      DemuxerStream::Type type) OVERRIDE;
-  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+      DemuxerStream::Type type) override;
+  virtual base::TimeDelta GetStartTime() const override;
 
   // TODO: Consider move the following functions to private section.
 

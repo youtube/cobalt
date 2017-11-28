@@ -79,9 +79,9 @@ class ShellMP4Parser : public ShellAVCParser {
   virtual ~ShellMP4Parser();
 
   // === ShellParser implementation
-  virtual bool ParseConfig() OVERRIDE;
-  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) OVERRIDE;
-  virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
+  virtual bool ParseConfig() override;
+  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) override;
+  virtual bool SeekTo(base::TimeDelta timestamp) override;
 
  private:
   bool ParseNextAtom();

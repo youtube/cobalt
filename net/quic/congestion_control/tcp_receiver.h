@@ -22,12 +22,12 @@ class NET_EXPORT_PRIVATE TcpReceiver : public ReceiveAlgorithmInterface {
 
   // Start implementation of SendAlgorithmInterface.
   virtual bool GenerateCongestionFeedback(
-      QuicCongestionFeedbackFrame* feedback) OVERRIDE;
+      QuicCongestionFeedbackFrame* feedback) override;
 
   virtual void RecordIncomingPacket(size_t bytes,
                                     QuicPacketSequenceNumber sequence_number,
                                     QuicTime timestamp,
-                                    bool revived) OVERRIDE;
+                                    bool revived) override;
 
  private:
   // We need to keep track of FEC recovered packets.

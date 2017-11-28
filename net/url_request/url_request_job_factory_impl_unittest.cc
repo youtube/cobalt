@@ -24,7 +24,7 @@ class MockURLRequestJob : public URLRequestJob {
         status_(status),
         ALLOW_THIS_IN_INITIALIZER_LIST(weak_factory_(this)) {}
 
-  virtual void Start() OVERRIDE {
+  virtual void Start() override {
     // Start reading asynchronously so that all error reporting and data
     // callbacks happen as they would for network requests.
     MessageLoop::current()->PostTask(
@@ -49,7 +49,7 @@ class MockURLRequestJob : public URLRequestJob {
 class DummyProtocolHandler : public URLRequestJobFactory::ProtocolHandler {
  public:
   virtual URLRequestJob* MaybeCreateJob(
-      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
+      URLRequest* request, NetworkDelegate* network_delegate) const override {
     return new MockURLRequestJob(
         request,
         network_delegate,
@@ -65,7 +65,7 @@ class DummyInterceptor : public URLRequestJobFactory::Interceptor {
   }
 
   virtual URLRequestJob* MaybeIntercept(
-      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE {
+      URLRequest* request, NetworkDelegate* network_delegate) const override {
     did_intercept_ = true;
     return new MockURLRequestJob(
         request,
@@ -76,18 +76,18 @@ class DummyInterceptor : public URLRequestJobFactory::Interceptor {
   virtual URLRequestJob* MaybeInterceptRedirect(
       const GURL&                       /* location */,
       URLRequest*                       /* request */,
-      NetworkDelegate* network_delegate /* network delegate */) const OVERRIDE {
+      NetworkDelegate* network_delegate /* network delegate */) const override {
     return NULL;
   }
 
   virtual URLRequestJob* MaybeInterceptResponse(
       URLRequest*                       /* request */,
-      NetworkDelegate* network_delegate /* network delegate */) const OVERRIDE {
+      NetworkDelegate* network_delegate /* network delegate */) const override {
     return NULL;
   }
 
   virtual bool WillHandleProtocol(
-      const std::string& /* protocol */) const OVERRIDE {
+      const std::string& /* protocol */) const override {
     return handle_all_protocols_;
   }
 

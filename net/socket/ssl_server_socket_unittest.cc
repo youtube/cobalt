@@ -164,76 +164,76 @@ class FakeSocket : public StreamSocket {
   }
 
   virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) OVERRIDE {
+                   const CompletionCallback& callback) override {
     // Read random number of bytes.
     buf_len = rand() % buf_len + 1;
     return incoming_->Read(buf, buf_len, callback);
   }
 
   virtual int Write(IOBuffer* buf, int buf_len,
-                    const CompletionCallback& callback) OVERRIDE {
+                    const CompletionCallback& callback) override {
     // Write random number of bytes.
     buf_len = rand() % buf_len + 1;
     return outgoing_->Write(buf, buf_len, callback);
   }
 
-  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE {
+  virtual bool SetReceiveBufferSize(int32 size) override {
     return true;
   }
 
-  virtual bool SetSendBufferSize(int32 size) OVERRIDE {
+  virtual bool SetSendBufferSize(int32 size) override {
     return true;
   }
 
-  virtual int Connect(const CompletionCallback& callback) OVERRIDE {
+  virtual int Connect(const CompletionCallback& callback) override {
     return net::OK;
   }
 
-  virtual void Disconnect() OVERRIDE {
+  virtual void Disconnect() override {
     incoming_->Close();
     outgoing_->Close();
   }
 
-  virtual bool IsConnected() const OVERRIDE {
+  virtual bool IsConnected() const override {
     return true;
   }
 
-  virtual bool IsConnectedAndIdle() const OVERRIDE {
+  virtual bool IsConnectedAndIdle() const override {
     return true;
   }
 
-  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE {
+  virtual int GetPeerAddress(IPEndPoint* address) const override {
       net::IPAddressNumber ip_address(net::kIPv4AddressSize);
     *address = net::IPEndPoint(ip_address, 0 /*port*/);
     return net::OK;
   }
 
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE {
+  virtual int GetLocalAddress(IPEndPoint* address) const override {
     net::IPAddressNumber ip_address(4);
     *address = net::IPEndPoint(ip_address, 0);
     return net::OK;
   }
 
-  virtual const BoundNetLog& NetLog() const OVERRIDE {
+  virtual const BoundNetLog& NetLog() const override {
     return net_log_;
   }
 
-  virtual void SetSubresourceSpeculation() OVERRIDE {}
-  virtual void SetOmniboxSpeculation() OVERRIDE {}
+  virtual void SetSubresourceSpeculation() override {}
+  virtual void SetOmniboxSpeculation() override {}
 
-  virtual bool WasEverUsed() const OVERRIDE {
+  virtual bool WasEverUsed() const override {
     return true;
   }
 
-  virtual bool UsingTCPFastOpen() const OVERRIDE {
+  virtual bool UsingTCPFastOpen() const override {
     return false;
   }
 
-  virtual int64 NumBytesRead() const OVERRIDE {
+  virtual int64 NumBytesRead() const override {
     return -1;
   }
 
-  virtual base::TimeDelta GetConnectTimeMicros() const OVERRIDE {
+  virtual base::TimeDelta GetConnectTimeMicros() const override {
     return base::TimeDelta::FromMicroseconds(-1);
   }
 

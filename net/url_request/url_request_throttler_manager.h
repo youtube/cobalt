@@ -78,11 +78,11 @@ class NET_EXPORT URLRequestThrottlerManager
   NetLog* net_log() const;
 
   // IPAddressObserver interface.
-  virtual void OnIPAddressChanged() OVERRIDE;
+  virtual void OnIPAddressChanged() override;
 
   // ConnectionTypeObserver interface.
   virtual void OnConnectionTypeChanged(
-      NetworkChangeNotifier::ConnectionType type) OVERRIDE;
+      NetworkChangeNotifier::ConnectionType type) override;
 
   // Method that allows us to transform a URL into an ID that can be used in our
   // map. Resulting IDs will be lowercase and consist of the scheme, host, port

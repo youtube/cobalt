@@ -141,7 +141,7 @@ class ReadFromFileAudioSource : public AudioOutputStream::AudioSourceCallback {
 
   virtual int OnMoreIOData(AudioBus* source,
                            AudioBus* dest,
-                           AudioBuffersState buffers_state) OVERRIDE {
+                           AudioBuffersState buffers_state) override {
     NOTREACHED();
     return 0;
   }

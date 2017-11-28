@@ -28,11 +28,11 @@ class TestClientSocketFactory : public ClientSocketFactory {
       DatagramSocket::BindType bind_type,
       const RandIntCallback& rand_int_cb,
       net::NetLog* net_log,
-      const net::NetLog::Source& source) OVERRIDE;
+      const net::NetLog::Source& source) override;
 
   virtual StreamSocket* CreateTransportClientSocket(
       const AddressList& addresses,
-      NetLog*, const NetLog::Source&) OVERRIDE {
+      NetLog*, const NetLog::Source&) override {
     NOTIMPLEMENTED();
     return NULL;
   }
@@ -41,12 +41,12 @@ class TestClientSocketFactory : public ClientSocketFactory {
       ClientSocketHandle* transport_socket,
       const HostPortPair& host_and_port,
       const SSLConfig& ssl_config,
-      const SSLClientSocketContext& context) OVERRIDE {
+      const SSLClientSocketContext& context) override {
     NOTIMPLEMENTED();
     return NULL;
   }
 
-  virtual void ClearSSLSessionCache() OVERRIDE {
+  virtual void ClearSSLSessionCache() override {
     NOTIMPLEMENTED();
   }
 
@@ -90,19 +90,19 @@ class MockDnsSocketPool : public DnsSocketPool {
 
   virtual void Initialize(
       const std::vector<IPEndPoint>* nameservers,
-      NetLog* net_log) OVERRIDE {
+      NetLog* net_log) override {
     InitializeInternal(nameservers, net_log);
   }
 
   virtual scoped_ptr<DatagramClientSocket> AllocateSocket(
-      unsigned server_index) OVERRIDE {
+      unsigned server_index) override {
     test_->OnSocketAllocated(server_index);
     return CreateConnectedSocket(server_index);
   }
 
   virtual void FreeSocket(
       unsigned server_index,
-      scoped_ptr<DatagramClientSocket> socket) OVERRIDE {
+      scoped_ptr<DatagramClientSocket> socket) override {
     test_->OnSocketFreed(server_index);
   }
 

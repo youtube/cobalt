@@ -22,7 +22,7 @@ class CertVerifyProcOpenSSL : public CertVerifyProc {
                              const std::string& hostname,
                              int flags,
                              CRLSet* crl_set,
-                             CertVerifyResult* verify_result) OVERRIDE;
+                             CertVerifyResult* verify_result) override;
 };
 
 }  // namespace net

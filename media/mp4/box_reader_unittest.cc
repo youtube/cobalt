@@ -31,19 +31,19 @@ static const uint8 kSkipBox[] = {
   0x00 };
 
 struct FreeBox : Box {
-  virtual bool Parse(BoxReader* reader) OVERRIDE {
+  virtual bool Parse(BoxReader* reader) override {
     return true;
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_FREE; }
+  virtual FourCC BoxType() const override { return FOURCC_FREE; }
 };
 
 struct PsshBox : Box {
   uint32 val;
 
-  virtual bool Parse(BoxReader* reader) OVERRIDE {
+  virtual bool Parse(BoxReader* reader) override {
     return reader->Read4(&val);
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_PSSH; }
+  virtual FourCC BoxType() const override { return FOURCC_PSSH; }
 };
 
 struct SkipBox : Box {
@@ -55,7 +55,7 @@ struct SkipBox : Box {
   std::vector<PsshBox> kids;
   FreeBox mpty;
 
-  virtual bool Parse(BoxReader* reader) OVERRIDE {
+  virtual bool Parse(BoxReader* reader) override {
     RCHECK(reader->ReadFullBoxHeader() &&
            reader->Read1(&a) &&
            reader->Read1(&b) &&
@@ -66,7 +66,7 @@ struct SkipBox : Box {
            reader->ReadChildren(&kids) &&
            reader->MaybeReadChild(&mpty);
   }
-  virtual FourCC BoxType() const OVERRIDE { return FOURCC_SKIP; }
+  virtual FourCC BoxType() const override { return FOURCC_SKIP; }
 
   SkipBox();
   ~SkipBox();

@@ -13,7 +13,7 @@ namespace media {
 
 class OffsetByteQueueTest : public testing::Test {
  public:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     uint8 buf[256];
     for (int i = 0; i < 256; i++) {
       buf[i] = i;

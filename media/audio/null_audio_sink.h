@@ -28,13 +28,13 @@ class MEDIA_EXPORT NullAudioSink
 
   // AudioRendererSink implementation.
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Pause(bool flush) OVERRIDE;
-  virtual void Play() OVERRIDE;
-  virtual bool SetVolume(double volume) OVERRIDE;
-  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE {}
+                          RenderCallback* callback) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void Pause(bool flush) override;
+  virtual void Play() override;
+  virtual bool SetVolume(double volume) override;
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) override {}
 
   // Enables audio frame hashing and reinitializes the MD5 context.  Must be
   // called prior to Initialize().

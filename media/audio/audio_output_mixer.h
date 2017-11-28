@@ -33,21 +33,21 @@ class MEDIA_EXPORT AudioOutputMixer
                    const base::TimeDelta& close_delay);
 
   // AudioOutputDispatcher interface.
-  virtual bool OpenStream() OVERRIDE;
+  virtual bool OpenStream() override;
   virtual bool StartStream(AudioOutputStream::AudioSourceCallback* callback,
-                           AudioOutputProxy* stream_proxy) OVERRIDE;
-  virtual void StopStream(AudioOutputProxy* stream_proxy) OVERRIDE;
+                           AudioOutputProxy* stream_proxy) override;
+  virtual void StopStream(AudioOutputProxy* stream_proxy) override;
   virtual void StreamVolumeSet(AudioOutputProxy* stream_proxy,
-                               double volume) OVERRIDE;
-  virtual void CloseStream(AudioOutputProxy* stream_proxy) OVERRIDE;
-  virtual void Shutdown() OVERRIDE;
+                               double volume) override;
+  virtual void CloseStream(AudioOutputProxy* stream_proxy) override;
+  virtual void Shutdown() override;
 
   // AudioSourceCallback interface.
   virtual uint32 OnMoreData(uint8* dest,
                             uint32 max_size,
-                            AudioBuffersState buffers_state) OVERRIDE;
-  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
-  virtual void WaitTillDataReady() OVERRIDE;
+                            AudioBuffersState buffers_state) override;
+  virtual void OnError(AudioOutputStream* stream, int code) override;
+  virtual void WaitTillDataReady() override;
 
  private:
   friend class base::RefCountedThreadSafe<AudioOutputMixer>;

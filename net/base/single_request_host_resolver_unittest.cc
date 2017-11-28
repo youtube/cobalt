@@ -34,7 +34,7 @@ class HangingHostResolver : public HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE {
+                      const BoundNetLog& net_log) override {
     EXPECT_FALSE(has_outstanding_request());
     outstanding_request_ = reinterpret_cast<RequestHandle>(0x1234);
     *out_req = outstanding_request_;
@@ -46,12 +46,12 @@ class HangingHostResolver : public HostResolver {
 
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE {
+                               const BoundNetLog& net_log) override {
     NOTIMPLEMENTED();
     return ERR_UNEXPECTED;
   }
 
-  virtual void CancelRequest(RequestHandle req) OVERRIDE {
+  virtual void CancelRequest(RequestHandle req) override {
     EXPECT_TRUE(has_outstanding_request());
     EXPECT_EQ(req, outstanding_request_);
     outstanding_request_ = NULL;

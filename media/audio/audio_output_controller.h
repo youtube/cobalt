@@ -141,18 +141,18 @@ class MEDIA_EXPORT AudioOutputController
 
   // AudioSourceCallback implementation.
   virtual int OnMoreData(AudioBus* dest,
-                         AudioBuffersState buffers_state) OVERRIDE;
+                         AudioBuffersState buffers_state) override;
   virtual int OnMoreIOData(AudioBus* source,
                            AudioBus* dest,
-                           AudioBuffersState buffers_state) OVERRIDE;
-  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE;
-  virtual void WaitTillDataReady() OVERRIDE;
+                           AudioBuffersState buffers_state) override;
+  virtual void OnError(AudioOutputStream* stream, int code) override;
+  virtual void WaitTillDataReady() override;
 
   // AudioDeviceListener implementation.  When called AudioOutputController will
   // shutdown the existing |stream_|, transition to the kRecreating state,
   // create a new stream, and then transition back to an equivalent state prior
   // to being called.
-  virtual void OnDeviceChange() OVERRIDE;
+  virtual void OnDeviceChange() override;
 
  protected:
     // Internal state of the source.

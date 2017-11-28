@@ -64,9 +64,9 @@ class MockECSignatureCreator : public crypto::ECSignatureCreator {
   // crypto::ECSignatureCreator
   virtual bool Sign(const uint8* data,
                     int data_len,
-                    std::vector<uint8>* signature) OVERRIDE;
+                    std::vector<uint8>* signature) override;
   virtual bool DecodeSignature(const std::vector<uint8>& signature,
-                               std::vector<uint8>* out_raw_sig) OVERRIDE;
+                               std::vector<uint8>* out_raw_sig) override;
 
  private:
   crypto::ECPrivateKey* key_;
@@ -82,7 +82,7 @@ class MockECSignatureCreatorFactory : public crypto::ECSignatureCreatorFactory {
 
   // crypto::ECSignatureCreatorFactory
   virtual crypto::ECSignatureCreator* Create(
-      crypto::ECPrivateKey* key) OVERRIDE;
+      crypto::ECPrivateKey* key) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(MockECSignatureCreatorFactory);

@@ -92,7 +92,7 @@ class TestHttpTransactionDelegate : public net::HttpTransactionDelegate {
     EXPECT_FALSE(cache_action_in_progress_);
     EXPECT_FALSE(network_action_in_progress_);
   }
-  virtual void OnCacheActionStart() OVERRIDE {
+  virtual void OnCacheActionStart() override {
     num_callbacks_observed_++;
     EXPECT_FALSE(cache_action_in_progress_);
     EXPECT_FALSE(network_action_in_progress_);
@@ -100,12 +100,12 @@ class TestHttpTransactionDelegate : public net::HttpTransactionDelegate {
     num_remaining_cache_actions_to_observe_--;
     cache_action_in_progress_ = true;
   }
-  virtual void OnCacheActionFinish() OVERRIDE {
+  virtual void OnCacheActionFinish() override {
     num_callbacks_observed_++;
     EXPECT_TRUE(cache_action_in_progress_);
     cache_action_in_progress_ = false;
   }
-  virtual void OnNetworkActionStart() OVERRIDE {
+  virtual void OnNetworkActionStart() override {
     num_callbacks_observed_++;
     EXPECT_FALSE(cache_action_in_progress_);
     EXPECT_FALSE(network_action_in_progress_);
@@ -113,7 +113,7 @@ class TestHttpTransactionDelegate : public net::HttpTransactionDelegate {
     num_remaining_network_actions_to_observe_--;
     network_action_in_progress_ = true;
   }
-  virtual void OnNetworkActionFinish() OVERRIDE {
+  virtual void OnNetworkActionFinish() override {
     num_callbacks_observed_++;
     EXPECT_TRUE(network_action_in_progress_);
     network_action_in_progress_ = false;

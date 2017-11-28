@@ -295,13 +295,13 @@ class FakeURLFetcher : public TestURLFetcher {
 
   // Start the request.  This will call the given delegate asynchronously
   // with the pre-baked response as parameter.
-  virtual void Start() OVERRIDE {
+  virtual void Start() override {
     MessageLoop::current()->PostTask(
         FROM_HERE,
         base::Bind(&FakeURLFetcher::RunDelegate, weak_factory_.GetWeakPtr()));
   }
 
-  virtual const GURL& GetURL() const OVERRIDE {
+  virtual const GURL& GetURL() const override {
     return TestURLFetcher::GetOriginalURL();
   }
 

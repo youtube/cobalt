@@ -321,10 +321,10 @@ class NET_EXPORT_PRIVATE ClientSocketPoolBaseHelper
   void EnableConnectBackupJobs();
 
   // ConnectJob::Delegate methods:
-  virtual void OnConnectJobComplete(int result, ConnectJob* job) OVERRIDE;
+  virtual void OnConnectJobComplete(int result, ConnectJob* job) override;
 
   // NetworkChangeNotifier::IPAddressObserver methods:
-  virtual void OnIPAddressChanged() OVERRIDE;
+  virtual void OnIPAddressChanged() override;
 
  private:
   friend class base::RefCounted<ClientSocketPoolBaseHelper>;

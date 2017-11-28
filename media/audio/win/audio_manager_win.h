@@ -21,25 +21,25 @@ class MEDIA_EXPORT AudioManagerWin : public AudioManagerBase {
   AudioManagerWin();
 
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE;
-  virtual bool HasAudioInputDevices() OVERRIDE;
-  virtual string16 GetAudioInputDeviceModel() OVERRIDE;
-  virtual bool CanShowAudioInputSettings() OVERRIDE;
-  virtual void ShowAudioInputSettings() OVERRIDE;
+  virtual bool HasAudioOutputDevices() override;
+  virtual bool HasAudioInputDevices() override;
+  virtual string16 GetAudioInputDeviceModel() override;
+  virtual bool CanShowAudioInputSettings() override;
+  virtual void ShowAudioInputSettings() override;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+      override;
 
   // Implementation of AudioManagerBase.
   virtual AudioOutputStream* MakeLinearOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
   virtual AudioOutputStream* MakeLowLatencyOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
   virtual AudioInputStream* MakeLinearInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) override;
   virtual AudioInputStream* MakeLowLatencyInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) override;
   virtual AudioParameters GetPreferredLowLatencyOutputStreamParameters(
-      const AudioParameters& input_params) OVERRIDE;
+      const AudioParameters& input_params) override;
 
  protected:
   virtual ~AudioManagerWin();

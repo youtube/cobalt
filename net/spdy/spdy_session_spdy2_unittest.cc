@@ -29,26 +29,26 @@ class ClosingDelegate : public SpdyStream::Delegate {
   ClosingDelegate(SpdyStream* stream) : stream_(stream) {}
 
   // SpdyStream::Delegate implementation:
-  virtual bool OnSendHeadersComplete(int status) OVERRIDE {
+  virtual bool OnSendHeadersComplete(int status) override {
     return true;
   }
-  virtual int OnSendBody() OVERRIDE {
+  virtual int OnSendBody() override {
     return OK;
   }
-  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE {
+  virtual int OnSendBodyComplete(int status, bool* eof) override {
     return OK;
   }
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) OVERRIDE {
+                                 int status) override {
     return OK;
   }
-  virtual void OnHeadersSent() OVERRIDE {}
-  virtual int OnDataReceived(const char* data, int length) OVERRIDE {
+  virtual void OnHeadersSent() override {}
+  virtual int OnDataReceived(const char* data, int length) override {
     return OK;
   }
-  virtual void OnDataSent(int length) OVERRIDE {}
-  virtual void OnClose(int status) OVERRIDE {
+  virtual void OnDataSent(int length) override {}
+  virtual void OnClose(int status) override {
     stream_->Close();
   }
  private:
@@ -70,31 +70,31 @@ class TestSpdyStreamDelegate : public net::SpdyStream::Delegate {
       : callback_(callback) {}
   virtual ~TestSpdyStreamDelegate() {}
 
-  virtual bool OnSendHeadersComplete(int status) OVERRIDE { return true; }
+  virtual bool OnSendHeadersComplete(int status) override { return true; }
 
-  virtual int OnSendBody() OVERRIDE {
+  virtual int OnSendBody() override {
     return ERR_UNEXPECTED;
   }
 
-  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) OVERRIDE {
+  virtual int OnSendBodyComplete(int /*status*/, bool* /*eof*/) override {
     return ERR_UNEXPECTED;
   }
 
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) OVERRIDE {
+                                 int status) override {
     return status;
   }
 
-  virtual void OnHeadersSent() OVERRIDE {}
+  virtual void OnHeadersSent() override {}
 
-  virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE {
+  virtual int OnDataReceived(const char* buffer, int bytes) override {
     return OK;
   }
 
-  virtual void OnDataSent(int length) OVERRIDE {}
+  virtual void OnDataSent(int length) override {}
 
-  virtual void OnClose(int status) OVERRIDE {
+  virtual void OnClose(int status) override {
     CompletionCallback callback = callback_;
     callback_.Reset();
     callback.Run(OK);

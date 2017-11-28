@@ -25,7 +25,7 @@ class TestBackoffEntry : public BackoffEntry {
 
   virtual ~TestBackoffEntry() {}
 
-  virtual TimeTicks ImplGetTimeNow() const OVERRIDE {
+  virtual TimeTicks ImplGetTimeNow() const override {
     return now_;
   }
 

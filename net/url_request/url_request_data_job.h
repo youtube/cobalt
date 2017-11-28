@@ -24,7 +24,7 @@ class URLRequestDataJob : public URLRequestSimpleJob {
   virtual int GetData(std::string* mime_type,
                       std::string* charset,
                       std::string* data,
-                      const CompletionCallback& callback) const OVERRIDE;
+                      const CompletionCallback& callback) const override;
 
  private:
   virtual ~URLRequestDataJob();

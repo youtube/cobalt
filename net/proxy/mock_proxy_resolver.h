@@ -73,15 +73,15 @@ class MockAsyncProxyResolverBase : public ProxyResolver {
                              ProxyInfo* results,
                              const net::CompletionCallback& callback,
                              RequestHandle* request_handle,
-                             const BoundNetLog& /*net_log*/) OVERRIDE;
-  virtual void CancelRequest(RequestHandle request_handle) OVERRIDE;
-  virtual LoadState GetLoadState(RequestHandle request_handle) const OVERRIDE;
+                             const BoundNetLog& /*net_log*/) override;
+  virtual void CancelRequest(RequestHandle request_handle) override;
+  virtual LoadState GetLoadState(RequestHandle request_handle) const override;
   virtual LoadState GetLoadStateThreadSafe(
-      RequestHandle request_handle) const OVERRIDE;
+      RequestHandle request_handle) const override;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      const net::CompletionCallback& callback) OVERRIDE;
-  virtual void CancelSetPacScript() OVERRIDE;
+      const net::CompletionCallback& callback) override;
+  virtual void CancelSetPacScript() override;
 
   const RequestsList& pending_requests() const {
     return pending_requests_;

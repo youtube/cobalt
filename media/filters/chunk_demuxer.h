@@ -47,13 +47,13 @@ class MEDIA_EXPORT ChunkDemuxer : public Demuxer {
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
-                          const PipelineStatusCB& cb) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB&  cb) OVERRIDE;
-  virtual void OnAudioRendererDisabled() OVERRIDE;
+                          const PipelineStatusCB& cb) override;
+  virtual void Stop(const base::Closure& callback) override;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB&  cb) override;
+  virtual void OnAudioRendererDisabled() override;
   virtual scoped_refptr<DemuxerStream> GetStream(
-      DemuxerStream::Type type) OVERRIDE;
-  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+      DemuxerStream::Type type) override;
+  virtual base::TimeDelta GetStartTime() const override;
 
   // Methods used by an external object to control this demuxer.
   void StartWaitingForSeek();

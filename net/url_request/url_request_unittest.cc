@@ -233,23 +233,23 @@ class BlockingNetworkDelegate : public TestNetworkDelegate {
   // TestNetworkDelegate implementation.
   virtual int OnBeforeURLRequest(URLRequest* request,
                                  const CompletionCallback& callback,
-                                 GURL* new_url) OVERRIDE;
+                                 GURL* new_url) override;
 
   virtual int OnBeforeSendHeaders(URLRequest* request,
                                   const CompletionCallback& callback,
-                                  HttpRequestHeaders* headers) OVERRIDE;
+                                  HttpRequestHeaders* headers) override;
 
   virtual int OnHeadersReceived(
       URLRequest* request,
       const CompletionCallback& callback,
       const HttpResponseHeaders* original_response_headers,
-      scoped_refptr<HttpResponseHeaders>* override_response_headers) OVERRIDE;
+      scoped_refptr<HttpResponseHeaders>* override_response_headers) override;
 
   virtual NetworkDelegate::AuthRequiredResponse OnAuthRequired(
       URLRequest* request,
       const AuthChallengeInfo& auth_info,
       const AuthCallback& callback,
-      AuthCredentials* credentials) OVERRIDE;
+      AuthCredentials* credentials) override;
 
   // Resets the callbacks and |stage_blocked_for_callback_|.
   void Reset();
@@ -1778,7 +1778,7 @@ class FixedDateNetworkDelegate : public TestNetworkDelegate {
       const net::CompletionCallback& callback,
       const net::HttpResponseHeaders* original_response_headers,
       scoped_refptr<net::HttpResponseHeaders>* override_response_headers)
-      OVERRIDE;
+      override;
 
  private:
   std::string fixed_date_;
@@ -4493,7 +4493,7 @@ class TestSSLConfigService : public SSLConfigService {
   }
 
   // SSLConfigService:
-  virtual void GetSSLConfig(SSLConfig* config) OVERRIDE {
+  virtual void GetSSLConfig(SSLConfig* config) override {
     *config = SSLConfig();
     config->rev_checking_enabled = online_rev_checking_;
     config->verify_ev_cert = ev_enabled_;
@@ -4527,7 +4527,7 @@ class HTTPSOCSPTest : public HTTPSRequestTest {
                                    kOCSPTestCertPolicy)) {
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     SetupContext(&context_);
     context_.Init();
 
@@ -4688,7 +4688,7 @@ TEST_F(HTTPSOCSPTest, Invalid) {
 
 class HTTPSEVCRLSetTest : public HTTPSOCSPTest {
  protected:
-  virtual void SetupContext(URLRequestContext* context) OVERRIDE {
+  virtual void SetupContext(URLRequestContext* context) override {
     context->set_ssl_config_service(
         new TestSSLConfigService(true /* check for EV */,
                                  false /* online revocation checking */));
@@ -4812,7 +4812,7 @@ TEST_F(HTTPSEVCRLSetTest, ExpiredCRLSetAndRevokedNonEVCert) {
 
 class HTTPSCRLSetTest : public HTTPSOCSPTest {
  protected:
-  virtual void SetupContext(URLRequestContext* context) OVERRIDE {
+  virtual void SetupContext(URLRequestContext* context) override {
     context->set_ssl_config_service(
         new TestSSLConfigService(false /* check for EV */,
                                  false /* online revocation checking */));

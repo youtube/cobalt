@@ -71,11 +71,11 @@ class HttpServer : public StreamListenSocket::Delegate,
 
   // ListenSocketDelegate
   virtual void DidAccept(StreamListenSocket* server,
-                         StreamListenSocket* socket) OVERRIDE;
+                         StreamListenSocket* socket) override;
   virtual void DidRead(StreamListenSocket* socket,
                        const char* data,
-                       int len) OVERRIDE;
-  virtual void DidClose(StreamListenSocket* socket) OVERRIDE;
+                       int len) override;
+  virtual void DidClose(StreamListenSocket* socket) override;
 
   // Parse HTTP header information from a string.
   static bool ParseHeaders(const std::string& received_data,

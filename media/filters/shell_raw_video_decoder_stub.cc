@@ -30,9 +30,9 @@ class ShellRawVideoDecoderStub : public ShellRawVideoDecoder {
   explicit ShellRawVideoDecoderStub(ShellVideoDataAllocator* allocator)
       : allocator_(allocator) {}
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
-              const DecodeCB& decode_cb) OVERRIDE;
-  bool Flush() OVERRIDE;
-  bool UpdateConfig(const VideoDecoderConfig& config) OVERRIDE;
+              const DecodeCB& decode_cb) override;
+  bool Flush() override;
+  bool UpdateConfig(const VideoDecoderConfig& config) override;
 
  private:
   ShellVideoDataAllocator* allocator_;

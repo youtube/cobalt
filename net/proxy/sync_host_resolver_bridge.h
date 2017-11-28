@@ -25,12 +25,12 @@ class NET_EXPORT_PRIVATE SyncHostResolverBridge : public SyncHostResolver {
   // SyncHostResolver methods:
   virtual int Resolve(const HostResolver::RequestInfo& info,
                       AddressList* addresses,
-                      const BoundNetLog& net_log) OVERRIDE;
+                      const BoundNetLog& net_log) override;
 
   // The Shutdown() method should be called prior to destruction, from
   // |host_resolver_loop_|. It aborts any in progress synchronous resolves, to
   // prevent deadlocks from happening.
-  virtual void Shutdown() OVERRIDE;
+  virtual void Shutdown() override;
 
  private:
   class Core;

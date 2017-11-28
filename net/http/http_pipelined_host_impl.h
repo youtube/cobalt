@@ -48,28 +48,28 @@ class NET_EXPORT_PRIVATE HttpPipelinedHostImpl
       const ProxyInfo& used_proxy_info,
       const BoundNetLog& net_log,
       bool was_npn_negotiated,
-      NextProto protocol_negotiated) OVERRIDE;
+      NextProto protocol_negotiated) override;
 
-  virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() OVERRIDE;
+  virtual HttpPipelinedStream* CreateStreamOnExistingPipeline() override;
 
-  virtual bool IsExistingPipelineAvailable() const OVERRIDE;
+  virtual bool IsExistingPipelineAvailable() const override;
 
   // HttpPipelinedConnection::Delegate interface
 
   // Called when a pipelined connection completes a request. Adds a pending
   // request to the pipeline if the pipeline is still usable.
   virtual void OnPipelineHasCapacity(
-      HttpPipelinedConnection* pipeline) OVERRIDE;
+      HttpPipelinedConnection* pipeline) override;
 
   virtual void OnPipelineFeedback(
       HttpPipelinedConnection* pipeline,
-      HttpPipelinedConnection::Feedback feedback) OVERRIDE;
+      HttpPipelinedConnection::Feedback feedback) override;
 
-  virtual const Key& GetKey() const OVERRIDE;
+  virtual const Key& GetKey() const override;
 
   // Creates a Value summary of this host's |pipelines_|. Caller assumes
   // ownership of the returned Value.
-  virtual base::Value* PipelineInfoToValue() const OVERRIDE;
+  virtual base::Value* PipelineInfoToValue() const override;
 
   // Returns the maximum number of in-flight pipelined requests we'll allow on a
   // single connection.

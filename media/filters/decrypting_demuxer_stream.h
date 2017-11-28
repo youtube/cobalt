@@ -36,14 +36,14 @@ class MEDIA_EXPORT DecryptingDemuxerStream : public DemuxerStream {
   void Reset(const base::Closure& closure);
 
   // DemuxerStream implementation.
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
-  virtual Type type() OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual const AudioDecoderConfig& audio_decoder_config() override;
+  virtual const VideoDecoderConfig& video_decoder_config() override;
+  virtual Type type() override;
+  virtual void EnableBitstreamConverter() override;
 #if defined(__LB_SHELL__) || defined(COBALT)
-  virtual bool StreamWasEncrypted() const OVERRIDE;
-  virtual Decryptor* GetDecryptor() const OVERRIDE { return decryptor_; }
+  virtual bool StreamWasEncrypted() const override;
+  virtual Decryptor* GetDecryptor() const override { return decryptor_; }
 #endif
 
  protected:

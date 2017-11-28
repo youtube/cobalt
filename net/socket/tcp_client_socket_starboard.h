@@ -57,34 +57,34 @@ class TCPClientSocketStarboard : public StreamSocket, base::NonThreadSafe {
   int Bind(const IPEndPoint& address);
 
   // StreamSocket implementation.
-  int Connect(const CompletionCallback& callback) OVERRIDE;
-  void Disconnect() OVERRIDE;
-  bool IsConnected() const OVERRIDE;
-  bool IsConnectedAndIdle() const OVERRIDE;
-  int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
-  int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
-  const BoundNetLog& NetLog() const OVERRIDE;
-  void SetSubresourceSpeculation() OVERRIDE;
-  void SetOmniboxSpeculation() OVERRIDE;
-  bool WasEverUsed() const OVERRIDE;
-  bool UsingTCPFastOpen() const OVERRIDE;
-  int64 NumBytesRead() const OVERRIDE;
-  base::TimeDelta GetConnectTimeMicros() const OVERRIDE;
-  bool WasNpnNegotiated() const OVERRIDE;
-  NextProto GetNegotiatedProtocol() const OVERRIDE;
-  bool GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  int Connect(const CompletionCallback& callback) override;
+  void Disconnect() override;
+  bool IsConnected() const override;
+  bool IsConnectedAndIdle() const override;
+  int GetPeerAddress(IPEndPoint* address) const override;
+  int GetLocalAddress(IPEndPoint* address) const override;
+  const BoundNetLog& NetLog() const override;
+  void SetSubresourceSpeculation() override;
+  void SetOmniboxSpeculation() override;
+  bool WasEverUsed() const override;
+  bool UsingTCPFastOpen() const override;
+  int64 NumBytesRead() const override;
+  base::TimeDelta GetConnectTimeMicros() const override;
+  bool WasNpnNegotiated() const override;
+  NextProto GetNegotiatedProtocol() const override;
+  bool GetSSLInfo(SSLInfo* ssl_info) override;
 
   // Socket methods:
   // Multiple outstanding requests are not supported.
   // Full duplex mode (reading and writing at the same time) is supported
   int Read(IOBuffer* buf,
            int buf_len,
-           const CompletionCallback& callback) OVERRIDE;
+           const CompletionCallback& callback) override;
   int Write(IOBuffer* buf,
             int buf_len,
-            const CompletionCallback& callback) OVERRIDE;
-  bool SetReceiveBufferSize(int32 size) OVERRIDE;
-  bool SetSendBufferSize(int32 size) OVERRIDE;
+            const CompletionCallback& callback) override;
+  bool SetReceiveBufferSize(int32 size) override;
+  bool SetSendBufferSize(int32 size) override;
 
   virtual bool SetKeepAlive(bool enable, int delay);
   virtual bool SetNoDelay(bool no_delay);

@@ -39,47 +39,47 @@ class HttpPipelinedStream : public HttpStream {
   // HttpStream methods:
   virtual int InitializeStream(const HttpRequestInfo* request_info,
                                const BoundNetLog& net_log,
-                               const CompletionCallback& callback) OVERRIDE;
+                               const CompletionCallback& callback) override;
 
   virtual int SendRequest(const HttpRequestHeaders& headers,
                           HttpResponseInfo* response,
-                          const CompletionCallback& callback) OVERRIDE;
+                          const CompletionCallback& callback) override;
 
-  virtual UploadProgress GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const override;
 
-  virtual int ReadResponseHeaders(const CompletionCallback& callback) OVERRIDE;
+  virtual int ReadResponseHeaders(const CompletionCallback& callback) override;
 
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual const HttpResponseInfo* GetResponseInfo() const override;
 
   virtual int ReadResponseBody(IOBuffer* buf, int buf_len,
-                               const CompletionCallback& callback) OVERRIDE;
+                               const CompletionCallback& callback) override;
 
-  virtual void Close(bool not_reusable) OVERRIDE;
+  virtual void Close(bool not_reusable) override;
 
-  virtual HttpStream* RenewStreamForAuth() OVERRIDE;
+  virtual HttpStream* RenewStreamForAuth() override;
 
-  virtual bool IsResponseBodyComplete() const OVERRIDE;
+  virtual bool IsResponseBodyComplete() const override;
 
-  virtual bool CanFindEndOfResponse() const OVERRIDE;
+  virtual bool CanFindEndOfResponse() const override;
 
-  virtual bool IsMoreDataBuffered() const OVERRIDE;
+  virtual bool IsMoreDataBuffered() const override;
 
-  virtual bool IsConnectionReused() const OVERRIDE;
+  virtual bool IsConnectionReused() const override;
 
-  virtual void SetConnectionReused() OVERRIDE;
+  virtual void SetConnectionReused() override;
 
-  virtual bool IsConnectionReusable() const OVERRIDE;
+  virtual bool IsConnectionReusable() const override;
 
-  virtual void GetSSLInfo(SSLInfo* ssl_info) OVERRIDE;
+  virtual void GetSSLInfo(SSLInfo* ssl_info) override;
 
   virtual void GetSSLCertRequestInfo(
-      SSLCertRequestInfo* cert_request_info) OVERRIDE;
+      SSLCertRequestInfo* cert_request_info) override;
 
-  virtual bool IsSpdyHttpStream() const OVERRIDE;
+  virtual bool IsSpdyHttpStream() const override;
 
-  virtual void LogNumRttVsBytesMetrics() const OVERRIDE;
+  virtual void LogNumRttVsBytesMetrics() const override;
 
-  virtual void Drain(HttpNetworkSession* session) OVERRIDE;
+  virtual void Drain(HttpNetworkSession* session) override;
 
   // The SSLConfig used to establish this stream's pipeline.
   const SSLConfig& used_ssl_config() const;

@@ -206,7 +206,7 @@ class FileStream::Context {
   // Implementation of MessageLoopForIO::IOHandler
   virtual void OnIOCompleted(MessageLoopForIO::IOContext* context,
                              DWORD bytes_read,
-                             DWORD error) OVERRIDE;
+                             DWORD error) override;
 #elif defined(OS_POSIX) || defined(OS_STARBOARD)
   // ReadFileImpl() is a simple wrapper around read() that handles EINTR
   // signals and calls RecordAndMapError() to map errno to net error codes.

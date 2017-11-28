@@ -48,7 +48,7 @@ class MockHttpStreamFactoryImpl : public HttpStreamFactoryImpl {
 
  private:
   // HttpStreamFactoryImpl methods.
-  virtual void OnPreconnectsCompleteInternal() OVERRIDE {
+  virtual void OnPreconnectsCompleteInternal() override {
     preconnect_done_ = true;
     if (waiting_for_preconnect_)
       MessageLoop::current()->Quit();
@@ -69,7 +69,7 @@ class StreamRequestWaiter : public HttpStreamRequest::Delegate {
   virtual void OnStreamReady(
       const SSLConfig& used_ssl_config,
       const ProxyInfo& used_proxy_info,
-      HttpStreamBase* stream) OVERRIDE {
+      HttpStreamBase* stream) override {
     stream_done_ = true;
     if (waiting_for_stream_)
       MessageLoop::current()->Quit();
@@ -78,25 +78,25 @@ class StreamRequestWaiter : public HttpStreamRequest::Delegate {
 
   virtual void OnStreamFailed(
       int status,
-      const SSLConfig& used_ssl_config) OVERRIDE {}
+      const SSLConfig& used_ssl_config) override {}
 
   virtual void OnCertificateError(
       int status,
       const SSLConfig& used_ssl_config,
-      const SSLInfo& ssl_info) OVERRIDE {}
+      const SSLInfo& ssl_info) override {}
 
   virtual void OnNeedsProxyAuth(const HttpResponseInfo& proxy_response,
                                 const SSLConfig& used_ssl_config,
                                 const ProxyInfo& used_proxy_info,
-                                HttpAuthController* auth_controller) OVERRIDE {}
+                                HttpAuthController* auth_controller) override {}
 
   virtual void OnNeedsClientAuth(const SSLConfig& used_ssl_config,
-                                 SSLCertRequestInfo* cert_info) OVERRIDE {}
+                                 SSLCertRequestInfo* cert_info) override {}
 
   virtual void OnHttpsProxyTunnelResponse(const HttpResponseInfo& response_info,
                                           const SSLConfig& used_ssl_config,
                                           const ProxyInfo& used_proxy_info,
-                                          HttpStreamBase* stream) OVERRIDE {}
+                                          HttpStreamBase* stream) override {}
 
   void WaitForStream() {
     while (!stream_done_) {
@@ -203,7 +203,7 @@ class CapturePreconnectsSocketPool : public ParentPool {
                             RequestPriority priority,
                             ClientSocketHandle* handle,
                             const CompletionCallback& callback,
-                            const BoundNetLog& net_log) OVERRIDE {
+                            const BoundNetLog& net_log) override {
     ADD_FAILURE();
     return ERR_UNEXPECTED;
   }
@@ -211,38 +211,38 @@ class CapturePreconnectsSocketPool : public ParentPool {
   virtual void RequestSockets(const std::string& group_name,
                               const void* socket_params,
                               int num_sockets,
-                              const BoundNetLog& net_log) OVERRIDE {
+                              const BoundNetLog& net_log) override {
     last_num_streams_ = num_sockets;
   }
 
   virtual void CancelRequest(const std::string& group_name,
-                             ClientSocketHandle* handle) OVERRIDE {
+                             ClientSocketHandle* handle) override {
     ADD_FAILURE();
   }
   virtual void ReleaseSocket(const std::string& group_name,
                              StreamSocket* socket,
-                             int id) OVERRIDE {
+                             int id) override {
     ADD_FAILURE();
   }
-  virtual void CloseIdleSockets() OVERRIDE {
+  virtual void CloseIdleSockets() override {
     ADD_FAILURE();
   }
-  virtual int IdleSocketCount() const OVERRIDE {
+  virtual int IdleSocketCount() const override {
     ADD_FAILURE();
     return 0;
   }
   virtual int IdleSocketCountInGroup(
-      const std::string& group_name) const OVERRIDE {
+      const std::string& group_name) const override {
     ADD_FAILURE();
     return 0;
   }
   virtual LoadState GetLoadState(
       const std::string& group_name,
-      const ClientSocketHandle* handle) const OVERRIDE {
+      const ClientSocketHandle* handle) const override {
     ADD_FAILURE();
     return LOAD_STATE_IDLE;
   }
-  virtual base::TimeDelta ConnectionTimeout() const OVERRIDE {
+  virtual base::TimeDelta ConnectionTimeout() const override {
     return base::TimeDelta();
   }
 

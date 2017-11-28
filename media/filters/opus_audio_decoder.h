@@ -30,12 +30,12 @@ class MEDIA_EXPORT OpusAudioDecoder : public AudioDecoder {
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb) OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual int bits_per_channel() OVERRIDE;
-  virtual ChannelLayout channel_layout() OVERRIDE;
-  virtual int samples_per_second() OVERRIDE;
-  virtual void Reset(const base::Closure& closure) OVERRIDE;
+                          const StatisticsCB& statistics_cb) override;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual int bits_per_channel() override;
+  virtual ChannelLayout channel_layout() override;
+  virtual int samples_per_second() override;
+  virtual void Reset(const base::Closure& closure) override;
 
  protected:
   virtual ~OpusAudioDecoder();

@@ -54,7 +54,7 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
         const ProxyInfo& used_proxy_info,
         const BoundNetLog& net_log,
         bool was_npn_negotiated,
-        NextProto protocol_negotiated) OVERRIDE;
+        NextProto protocol_negotiated) override;
   };
 
   HttpPipelinedConnectionImpl(ClientSocketHandle* connection,
@@ -70,19 +70,19 @@ class NET_EXPORT_PRIVATE HttpPipelinedConnectionImpl
   // HttpPipelinedConnection interface.
 
   // Used by HttpStreamFactoryImpl and friends.
-  virtual HttpPipelinedStream* CreateNewStream() OVERRIDE;
+  virtual HttpPipelinedStream* CreateNewStream() override;
 
   // Used by HttpPipelinedHost.
-  virtual int depth() const OVERRIDE;
-  virtual bool usable() const OVERRIDE;
-  virtual bool active() const OVERRIDE;
+  virtual int depth() const override;
+  virtual bool usable() const override;
+  virtual bool active() const override;
 
   // Used by HttpStreamFactoryImpl.
-  virtual const SSLConfig& used_ssl_config() const OVERRIDE;
-  virtual const ProxyInfo& used_proxy_info() const OVERRIDE;
-  virtual const BoundNetLog& net_log() const OVERRIDE;
-  virtual bool was_npn_negotiated() const OVERRIDE;
-  virtual NextProto protocol_negotiated() const OVERRIDE;
+  virtual const SSLConfig& used_ssl_config() const override;
+  virtual const ProxyInfo& used_proxy_info() const override;
+  virtual const BoundNetLog& net_log() const override;
+  virtual bool was_npn_negotiated() const override;
+  virtual NextProto protocol_negotiated() const override;
 
   // Used by HttpPipelinedStream.
 

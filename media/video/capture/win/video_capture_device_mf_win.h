@@ -40,11 +40,11 @@ class VideoCaptureDeviceMFWin
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void DeAllocate() OVERRIDE;
-  virtual const Name& device_name() OVERRIDE;
+                        VideoCaptureDevice::EventHandler* observer) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void DeAllocate() override;
+  virtual const Name& device_name() override;
 
   // Returns true iff the current platform supports the Media Foundation API
   // and that the DLLs are available.  On Vista this API is an optional download

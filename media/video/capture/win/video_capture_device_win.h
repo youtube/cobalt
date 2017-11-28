@@ -43,11 +43,11 @@ class VideoCaptureDeviceWin
   virtual void Allocate(int width,
                         int height,
                         int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void DeAllocate() OVERRIDE;
-  virtual const Name& device_name() OVERRIDE;
+                        VideoCaptureDevice::EventHandler* observer) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void DeAllocate() override;
+  virtual const Name& device_name() override;
 
   static void GetDeviceNames(Names* device_names);
 

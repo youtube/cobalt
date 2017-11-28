@@ -116,7 +116,7 @@ class BASE_PREFS_EXPORT PrefMemberBase : public PrefObserver {
 
   // PrefObserver
   virtual void OnPreferenceChanged(PrefServiceBase* service,
-                                   const std::string& pref_name) OVERRIDE;
+                                   const std::string& pref_name) override;
 
   void VerifyValuePrefName() const {
     DCHECK(!pref_name_.empty());
@@ -262,7 +262,7 @@ class PrefMember : public subtle::PrefMemberBase {
     virtual ~Internal() {}
 
     virtual BASE_PREFS_EXPORT bool UpdateValueInternal(
-        const base::Value& value) const OVERRIDE;
+        const base::Value& value) const override;
 
     // We cache the value of the pref so we don't have to keep walking the pref
     // tree.
@@ -271,8 +271,8 @@ class PrefMember : public subtle::PrefMemberBase {
     DISALLOW_COPY_AND_ASSIGN(Internal);
   };
 
-  virtual Internal* internal() const OVERRIDE { return internal_; }
-  virtual void CreateInternal() const OVERRIDE {
+  virtual Internal* internal() const override { return internal_; }
+  virtual void CreateInternal() const override {
     internal_ = new Internal();
   }
 

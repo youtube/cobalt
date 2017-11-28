@@ -20,10 +20,10 @@ namespace net {
 class NET_EXPORT_PRIVATE PollingProxyConfigService : public ProxyConfigService {
  public:
   // ProxyConfigService implementation:
-  virtual void AddObserver(Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(Observer* observer) OVERRIDE;
-  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) OVERRIDE;
-  virtual void OnLazyPoll() OVERRIDE;
+  virtual void AddObserver(Observer* observer) override;
+  virtual void RemoveObserver(Observer* observer) override;
+  virtual ConfigAvailability GetLatestProxyConfig(ProxyConfig* config) override;
+  virtual void OnLazyPoll() override;
 
  protected:
   // Function for retrieving the current proxy configuration.

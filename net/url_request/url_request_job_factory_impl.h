@@ -20,22 +20,22 @@ class NET_EXPORT URLRequestJobFactoryImpl : public URLRequestJobFactory {
 
   // URLRequestJobFactory implementation
   virtual bool SetProtocolHandler(const std::string& scheme,
-                          ProtocolHandler* protocol_handler) OVERRIDE;
-  virtual void AddInterceptor(Interceptor* interceptor) OVERRIDE;
+                          ProtocolHandler* protocol_handler) override;
+  virtual void AddInterceptor(Interceptor* interceptor) override;
   virtual URLRequestJob* MaybeCreateJobWithInterceptor(
-      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE;
+      URLRequest* request, NetworkDelegate* network_delegate) const override;
   virtual URLRequestJob* MaybeCreateJobWithProtocolHandler(
       const std::string& scheme,
       URLRequest* request,
-      NetworkDelegate* network_delegate) const OVERRIDE;
+      NetworkDelegate* network_delegate) const override;
   virtual URLRequestJob* MaybeInterceptRedirect(
       const GURL& location,
       URLRequest* request,
-      NetworkDelegate* network_delegate) const OVERRIDE;
+      NetworkDelegate* network_delegate) const override;
   virtual URLRequestJob* MaybeInterceptResponse(
-      URLRequest* request, NetworkDelegate* network_delegate) const OVERRIDE;
-  virtual bool IsHandledProtocol(const std::string& scheme) const OVERRIDE;
-  virtual bool IsHandledURL(const GURL& url) const OVERRIDE;
+      URLRequest* request, NetworkDelegate* network_delegate) const override;
+  virtual bool IsHandledProtocol(const std::string& scheme) const override;
+  virtual bool IsHandledURL(const GURL& url) const override;
 
  private:
   typedef std::map<std::string, ProtocolHandler*> ProtocolHandlerMap;

@@ -208,7 +208,7 @@ class TOOLS_SANITY_TEST_CONCURRENT_THREAD : public PlatformThread::Delegate {
  public:
   explicit TOOLS_SANITY_TEST_CONCURRENT_THREAD(bool *value) : value_(value) {}
   virtual ~TOOLS_SANITY_TEST_CONCURRENT_THREAD() {}
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     *value_ = true;
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -224,7 +224,7 @@ class ReleaseStoreThread : public PlatformThread::Delegate {
  public:
   explicit ReleaseStoreThread(base::subtle::Atomic32 *value) : value_(value) {}
   virtual ~ReleaseStoreThread() {}
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     base::subtle::Release_Store(value_, kMagicValue);
 
     // Sleep for a few milliseconds so the two threads are more likely to live
@@ -240,7 +240,7 @@ class AcquireLoadThread : public PlatformThread::Delegate {
  public:
   explicit AcquireLoadThread(base::subtle::Atomic32 *value) : value_(value) {}
   virtual ~AcquireLoadThread() {}
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     // Wait for the other thread to make Release_Store
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(100));
     base::subtle::Acquire_Load(value_);

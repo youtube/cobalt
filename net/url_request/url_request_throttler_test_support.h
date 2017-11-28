@@ -19,7 +19,7 @@ class MockBackoffEntry : public BackoffEntry {
   virtual ~MockBackoffEntry();
 
   // BackoffEntry overrides.
-  virtual base::TimeTicks ImplGetTimeNow() const OVERRIDE;
+  virtual base::TimeTicks ImplGetTimeNow() const override;
 
   void set_fake_now(const base::TimeTicks& now);
 
@@ -45,8 +45,8 @@ class MockURLRequestThrottlerHeaderAdapter
   virtual ~MockURLRequestThrottlerHeaderAdapter();
 
   // URLRequestThrottlerHeaderInterface overrides.
-  virtual std::string GetNormalizedValue(const std::string& key) const OVERRIDE;
-  virtual int GetResponseCode() const OVERRIDE;
+  virtual std::string GetNormalizedValue(const std::string& key) const override;
+  virtual int GetResponseCode() const override;
 
  private:
   std::string fake_retry_value_;

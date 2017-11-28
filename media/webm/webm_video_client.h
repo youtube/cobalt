@@ -38,13 +38,13 @@ class WebMVideoClient : public WebMParserClient {
 
  private:
   // WebMParserClient implementation.
-  virtual bool OnUInt(int id, int64 val) OVERRIDE;
-  virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
-  virtual bool OnFloat(int id, double val) OVERRIDE;
+  virtual bool OnUInt(int id, int64 val) override;
+  virtual bool OnBinary(int id, const uint8* data, int size) override;
+  virtual bool OnFloat(int id, double val) override;
   // Exist to ignore the new Projection list element. This element has UINT,
   // FLOAT and BINARY fields which must also be ignored.
-  WebMParserClient* OnListStart(int id) OVERRIDE;
-  bool OnListEnd(int id) OVERRIDE;
+  WebMParserClient* OnListStart(int id) override;
+  bool OnListEnd(int id) override;
 
   LogCB log_cb_;
   int64 pixel_width_;

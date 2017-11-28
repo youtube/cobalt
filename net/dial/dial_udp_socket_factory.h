@@ -27,8 +27,8 @@ class DialUdpSocketFactory : public UdpSocketFactory {
   virtual ~DialUdpSocketFactory() { }
  protected:
   // UdpSocketFactory implementation
-  virtual void SetupSocketAfterCreate(SocketDescriptor) OVERRIDE;
-  virtual void SetupSocketAfterBind(SocketDescriptor) OVERRIDE;
+  virtual void SetupSocketAfterCreate(SocketDescriptor) override;
+  virtual void SetupSocketAfterBind(SocketDescriptor) override;
 };
 
 } // namespace net
