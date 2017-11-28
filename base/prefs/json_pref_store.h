@@ -45,26 +45,26 @@ class BASE_PREFS_EXPORT JsonPrefStore
 
   // PrefStore overrides:
   virtual bool GetValue(const std::string& key,
-                        const base::Value** result) const OVERRIDE;
-  virtual void AddObserver(PrefStore::Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(PrefStore::Observer* observer) OVERRIDE;
-  virtual size_t NumberOfObservers() const OVERRIDE;
-  virtual bool IsInitializationComplete() const OVERRIDE;
+                        const base::Value** result) const override;
+  virtual void AddObserver(PrefStore::Observer* observer) override;
+  virtual void RemoveObserver(PrefStore::Observer* observer) override;
+  virtual size_t NumberOfObservers() const override;
+  virtual bool IsInitializationComplete() const override;
 
   // PersistentPrefStore overrides:
   virtual bool GetMutableValue(const std::string& key,
-                               base::Value** result) OVERRIDE;
-  virtual void SetValue(const std::string& key, base::Value* value) OVERRIDE;
+                               base::Value** result) override;
+  virtual void SetValue(const std::string& key, base::Value* value) override;
   virtual void SetValueSilently(const std::string& key,
-                                base::Value* value) OVERRIDE;
-  virtual void RemoveValue(const std::string& key) OVERRIDE;
-  virtual void MarkNeedsEmptyValue(const std::string& key) OVERRIDE;
-  virtual bool ReadOnly() const OVERRIDE;
-  virtual PrefReadError GetReadError() const OVERRIDE;
-  virtual PrefReadError ReadPrefs() OVERRIDE;
-  virtual void ReadPrefsAsync(ReadErrorDelegate* error_delegate) OVERRIDE;
-  virtual void CommitPendingWrite() OVERRIDE;
-  virtual void ReportValueChanged(const std::string& key) OVERRIDE;
+                                base::Value* value) override;
+  virtual void RemoveValue(const std::string& key) override;
+  virtual void MarkNeedsEmptyValue(const std::string& key) override;
+  virtual bool ReadOnly() const override;
+  virtual PrefReadError GetReadError() const override;
+  virtual PrefReadError ReadPrefs() override;
+  virtual void ReadPrefsAsync(ReadErrorDelegate* error_delegate) override;
+  virtual void CommitPendingWrite() override;
+  virtual void ReportValueChanged(const std::string& key) override;
 
   // This method is called after JSON file has been read. Method takes
   // ownership of the |value| pointer. Note, this method is used with
@@ -76,7 +76,7 @@ class BASE_PREFS_EXPORT JsonPrefStore
   virtual ~JsonPrefStore();
 
   // ImportantFileWriter::DataSerializer overrides:
-  virtual bool SerializeData(std::string* output) OVERRIDE;
+  virtual bool SerializeData(std::string* output) override;
 
   FilePath path_;
   const scoped_refptr<base::SequencedTaskRunner> sequenced_task_runner_;

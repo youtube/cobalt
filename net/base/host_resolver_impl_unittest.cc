@@ -126,7 +126,7 @@ class MockHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error) OVERRIDE {
+                      int* os_error) override {
     base::AutoLock lock(lock_);
     capture_list_.push_back(ResolveKey(hostname, address_family));
     ++num_requests_waiting_;
@@ -351,7 +351,7 @@ class LookupAttemptHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error) OVERRIDE {
+                      int* os_error) override {
     bool wait_for_right_attempt_to_complete = true;
     {
       base::AutoLock auto_lock(lock_);
@@ -485,11 +485,11 @@ class HostResolverImplTest : public testing::Test {
     return CreateRequest(hostname, kDefaultPort);
   }
 
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     CreateResolver();
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     if (resolver_.get())
       EXPECT_EQ(0u, resolver_->num_running_jobs_for_tests());
     EXPECT_FALSE(proc_->HasBlockedRequests());
@@ -652,7 +652,7 @@ TEST_F(HostResolverImplTest, CanceledRequestsReleaseJobSlots) {
 
 TEST_F(HostResolverImplTest, CancelWithinCallback) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       // Port 80 is the first request that the callback will be invoked for.
       // While we are executing within that callback, cancel the other requests
       // in the job and start another request.
@@ -681,7 +681,7 @@ TEST_F(HostResolverImplTest, CancelWithinCallback) {
 
 TEST_F(HostResolverImplTest, DeleteWithinCallback) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       EXPECT_EQ("a", req->info().hostname());
       EXPECT_EQ(80, req->info().port());
 
@@ -706,7 +706,7 @@ TEST_F(HostResolverImplTest, DeleteWithinCallback) {
 
 TEST_F(HostResolverImplTest, DeleteWithinAbortedCallback) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       EXPECT_EQ("a", req->info().hostname());
       EXPECT_EQ(80, req->info().port());
 
@@ -745,7 +745,7 @@ TEST_F(HostResolverImplTest, DeleteWithinAbortedCallback) {
 
 TEST_F(HostResolverImplTest, StartWithinCallback) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       if (req->index() == 0) {
         // On completing the first request, start another request for "a".
         // Since caching is disabled, this will result in another async request.
@@ -777,7 +777,7 @@ TEST_F(HostResolverImplTest, StartWithinCallback) {
 
 TEST_F(HostResolverImplTest, BypassCache) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       if (req->index() == 0) {
         // On completing the first request, start another request for "a".
         // Since caching is enabled, this should complete synchronously.
@@ -874,7 +874,7 @@ TEST_F(HostResolverImplTest, ObeyPoolConstraintsAfterIPAddressChange) {
 // will not be aborted.
 TEST_F(HostResolverImplTest, AbortOnlyExistingRequestsOnIPAddressChange) {
   struct MyHandler : public Handler {
-    virtual void Handle(Request* req) OVERRIDE {
+    virtual void Handle(Request* req) override {
       // Start new request for a different hostname to ensure that the order
       // of jobs in HostResolverImpl is not stable.
       std::string hostname;
@@ -1228,7 +1228,7 @@ DnsConfig CreateValidDnsConfig() {
 // Specialized fixture for tests of DnsTask.
 class HostResolverImplDnsTest : public HostResolverImplTest {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     AddDnsRule("er", dns_protocol::kTypeA, MockDnsClientRule::FAIL_SYNC);
     AddDnsRule("er", dns_protocol::kTypeAAAA, MockDnsClientRule::FAIL_SYNC);
     AddDnsRule("nx", dns_protocol::kTypeA, MockDnsClientRule::FAIL_ASYNC);

@@ -145,21 +145,21 @@ class NET_EXPORT_PRIVATE QuicConnection : public QuicFramerVisitorInterface {
   virtual bool OnCanWrite();
 
   // From QuicFramerVisitorInterface
-  virtual void OnError(QuicFramer* framer) OVERRIDE;
+  virtual void OnError(QuicFramer* framer) override;
   virtual void OnPacket(const IPEndPoint& self_address,
-                        const IPEndPoint& peer_address) OVERRIDE;
-  virtual void OnRevivedPacket() OVERRIDE;
-  virtual bool OnPacketHeader(const QuicPacketHeader& header) OVERRIDE;
-  virtual void OnFecProtectedPayload(base::StringPiece payload) OVERRIDE;
-  virtual void OnStreamFrame(const QuicStreamFrame& frame) OVERRIDE;
-  virtual void OnAckFrame(const QuicAckFrame& frame) OVERRIDE;
+                        const IPEndPoint& peer_address) override;
+  virtual void OnRevivedPacket() override;
+  virtual bool OnPacketHeader(const QuicPacketHeader& header) override;
+  virtual void OnFecProtectedPayload(base::StringPiece payload) override;
+  virtual void OnStreamFrame(const QuicStreamFrame& frame) override;
+  virtual void OnAckFrame(const QuicAckFrame& frame) override;
   virtual void OnCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& frame) OVERRIDE;
-  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) OVERRIDE;
+      const QuicCongestionFeedbackFrame& frame) override;
+  virtual void OnRstStreamFrame(const QuicRstStreamFrame& frame) override;
   virtual void OnConnectionCloseFrame(
-      const QuicConnectionCloseFrame& frame) OVERRIDE;
-  virtual void OnFecData(const QuicFecData& fec) OVERRIDE;
-  virtual void OnPacketComplete() OVERRIDE;
+      const QuicConnectionCloseFrame& frame) override;
+  virtual void OnFecData(const QuicFecData& fec) override;
+  virtual void OnPacketComplete() override;
 
   // Accessors
   void set_visitor(QuicConnectionVisitorInterface* visitor) {

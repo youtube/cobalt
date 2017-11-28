@@ -38,7 +38,7 @@ class MockCertVerifyProc : public CertVerifyProc {
                              const std::string& hostname,
                              int flags,
                              CRLSet* crl_set,
-                             CertVerifyResult* verify_result) OVERRIDE {
+                             CertVerifyResult* verify_result) override {
     verify_result->Reset();
     verify_result->verified_cert = cert;
     verify_result->cert_status = CERT_STATUS_COMMON_NAME_INVALID;

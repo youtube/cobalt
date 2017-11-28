@@ -57,17 +57,17 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   FilePathWatcherImpl() : kqueue_(-1) {}
 
   // MessageLoopForIO::Watcher overrides.
-  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
-  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE;
+  virtual void OnFileCanReadWithoutBlocking(int fd) override;
+  virtual void OnFileCanWriteWithoutBlocking(int fd) override;
 
   // MessageLoop::DestructionObserver overrides.
-  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
+  virtual void WillDestroyCurrentMessageLoop() override;
 
   // FilePathWatcher::PlatformDelegate overrides.
   virtual bool Watch(const FilePath& path,
                      bool recursive,
-                     FilePathWatcher::Delegate* delegate) OVERRIDE;
-  virtual void Cancel() OVERRIDE;
+                     FilePathWatcher::Delegate* delegate) override;
+  virtual void Cancel() override;
 
  protected:
   virtual ~FilePathWatcherImpl() {}
@@ -83,7 +83,7 @@ class FilePathWatcherImpl : public FilePathWatcher::PlatformDelegate,
   typedef std::vector<struct kevent> EventVector;
 
   // Can only be called on |io_message_loop_|'s thread.
-  virtual void CancelOnMessageLoopThread() OVERRIDE;
+  virtual void CancelOnMessageLoopThread() override;
 
   // Returns true if the kevent values are error free.
   bool AreKeventValuesValid(struct kevent* kevents, int count);

@@ -85,18 +85,18 @@ class NullDnsSocketPool : public DnsSocketPool {
 
   virtual void Initialize(
       const std::vector<IPEndPoint>* nameservers,
-      NetLog* net_log) OVERRIDE {
+      NetLog* net_log) override {
     InitializeInternal(nameservers, net_log);
   }
 
   virtual scoped_ptr<DatagramClientSocket> AllocateSocket(
-      unsigned server_index) OVERRIDE {
+      unsigned server_index) override {
     return CreateConnectedSocket(server_index);
   }
 
   virtual void FreeSocket(
       unsigned server_index,
-      scoped_ptr<DatagramClientSocket> socket) OVERRIDE {
+      scoped_ptr<DatagramClientSocket> socket) override {
   }
 
  private:
@@ -119,14 +119,14 @@ class DefaultDnsSocketPool : public DnsSocketPool {
 
   virtual void Initialize(
       const std::vector<IPEndPoint>* nameservers,
-      NetLog* net_log) OVERRIDE;
+      NetLog* net_log) override;
 
   virtual scoped_ptr<DatagramClientSocket> AllocateSocket(
-      unsigned server_index) OVERRIDE;
+      unsigned server_index) override;
 
   virtual void FreeSocket(
       unsigned server_index,
-      scoped_ptr<DatagramClientSocket> socket) OVERRIDE;
+      scoped_ptr<DatagramClientSocket> socket) override;
 
  private:
   void FillPool(unsigned server_index, unsigned size);

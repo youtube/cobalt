@@ -64,7 +64,7 @@ class BASE_PREFS_EXPORT PrefChangeRegistrar : public PrefObserver {
  private:
   // PrefObserver:
   virtual void OnPreferenceChanged(PrefServiceBase* service,
-                                   const std::string& pref_name) OVERRIDE;
+                                   const std::string& pref_name) override;
 
   static void InvokeUnnamedCallback(const base::Closure& callback,
                                     const std::string& pref_name);

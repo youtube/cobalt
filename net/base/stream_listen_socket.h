@@ -129,15 +129,15 @@ class NET_EXPORT StreamListenSocket
   HANDLE socket_event_;
 #elif defined(OS_STARBOARD)
   // Called by MessagePumpIoStarboard when the socket is ready to do I/O.
-  void OnSocketReadyToRead(SbSocket fd) OVERRIDE;
-  void OnSocketReadyToWrite(SbSocket fd) OVERRIDE;
+  void OnSocketReadyToRead(SbSocket fd) override;
+  void OnSocketReadyToWrite(SbSocket fd) override;
   WaitState wait_state_;
   // The socket's SbSocketWaiter wrapper.
   MessageLoopForIO::SocketWatcher watcher_;
 #elif defined(OS_POSIX)
   // Called by MessagePumpLibevent when the socket is ready to do I/O.
-  virtual void OnFileCanReadWithoutBlocking(int fd) OVERRIDE;
-  virtual void OnFileCanWriteWithoutBlocking(int fd) OVERRIDE;
+  virtual void OnFileCanReadWithoutBlocking(int fd) override;
+  virtual void OnFileCanWriteWithoutBlocking(int fd) override;
   WaitState wait_state_;
   // The socket's libevent wrapper.
   MessageLoopForIO::FileDescriptorWatcher watcher_;

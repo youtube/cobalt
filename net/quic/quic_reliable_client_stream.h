@@ -58,8 +58,8 @@ class NET_EXPORT_PRIVATE QuicReliableClientStream : public ReliableQuicStream {
   virtual ~QuicReliableClientStream();
 
   // ReliableQuicStream
-  virtual uint32 ProcessData(const char* data, uint32 data_len) OVERRIDE;
-  virtual void TerminateFromPeer(bool half_close) OVERRIDE;
+  virtual uint32 ProcessData(const char* data, uint32 data_len) override;
+  virtual void TerminateFromPeer(bool half_close) override;
   using ReliableQuicStream::WriteData;
 
   // Set new |delegate|. |delegate| must not be NULL.

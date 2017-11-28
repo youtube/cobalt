@@ -670,7 +670,7 @@ class BASE_EXPORT NamedProcessIterator : public ProcessIterator {
   virtual ~NamedProcessIterator();
 
  protected:
-  virtual bool IncludeEntry() OVERRIDE;
+  virtual bool IncludeEntry() override;
 
  private:
   FilePath::StringType executable_name_;

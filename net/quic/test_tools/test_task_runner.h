@@ -42,12 +42,12 @@ class TestTaskRunner : public base::TaskRunner {
  public:
   explicit TestTaskRunner(MockClock* clock);
 
-  virtual bool RunsTasksOnCurrentThread() const OVERRIDE;
+  virtual bool RunsTasksOnCurrentThread() const override;
   virtual bool PostDelayedTask(const tracked_objects::Location& location,
                                const base::Closure& closure,
-                               base::TimeDelta delta) OVERRIDE;
+                               base::TimeDelta delta) override;
   virtual bool PostBlockingTask(const tracked_objects::Location& from_here,
-                                const base::Closure& task) OVERRIDE {
+                                const base::Closure& task) override {
     NOTREACHED() << "Unsupported.";
     return false;
   }

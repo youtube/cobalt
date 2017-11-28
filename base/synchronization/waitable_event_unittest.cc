@@ -78,7 +78,7 @@ class WaitableEventSignaler : public PlatformThread::Delegate {
         ev_(ev) {
   }
 
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     PlatformThread::Sleep(TimeDelta::FromSeconds(static_cast<int>(seconds_)));
     ev_->Signal();
   }

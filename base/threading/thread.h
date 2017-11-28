@@ -185,7 +185,7 @@ class BASE_EXPORT Thread : PlatformThread::Delegate {
 #endif
 
   // PlatformThread::Delegate methods:
-  virtual void ThreadMain() OVERRIDE;
+  virtual void ThreadMain() override;
 
 #if defined(OS_WIN)
   // Whether this thread needs to initialize COM, and if so, in what mode.

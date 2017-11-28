@@ -15,7 +15,7 @@ class TrivialThread : public PlatformThread::Delegate {
  public:
   TrivialThread() : did_run_(false) {}
 
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     did_run_ = true;
   }
 
@@ -57,7 +57,7 @@ class FunctionTestThread : public TrivialThread {
  public:
   FunctionTestThread() : thread_id_(0) {}
 
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     thread_id_ = PlatformThread::CurrentId();
     PlatformThread::YieldCurrentThread();
     PlatformThread::Sleep(TimeDelta::FromMilliseconds(50));

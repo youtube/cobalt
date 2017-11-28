@@ -48,7 +48,7 @@ class NET_EXPORT_PRIVATE QuicPacketCreator : public QuicFecBuilderInterface {
 
   // QuicFecBuilderInterface
   virtual void OnBuiltFecProtectedPayload(const QuicPacketHeader& header,
-                                          base::StringPiece payload) OVERRIDE;
+                                          base::StringPiece payload) override;
 
   typedef std::pair<QuicPacketSequenceNumber, QuicPacket*> PacketPair;
 

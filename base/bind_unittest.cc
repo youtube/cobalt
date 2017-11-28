@@ -66,7 +66,7 @@ class Parent {
 
 class Child : public Parent {
  public:
-  virtual void VirtualSet() OVERRIDE { value = kChildValue; }
+  virtual void VirtualSet() override { value = kChildValue; }
   void NonVirtualSet() { value = kChildValue; }
 };
 
@@ -78,7 +78,7 @@ class NoRefParent {
 };
 
 class NoRefChild : public NoRefParent {
-  virtual void VirtualSet() OVERRIDE { value = kChildValue; }
+  virtual void VirtualSet() override { value = kChildValue; }
   void NonVirtualSet() { value = kChildValue; }
 };
 

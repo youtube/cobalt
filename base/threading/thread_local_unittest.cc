@@ -37,7 +37,7 @@ class SetThreadLocal : public ThreadLocalTesterBase {
 
   void set_value(ThreadLocalTesterBase* val) { val_ = val; }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     DCHECK(!done_->IsSignaled());
     tlp_->Set(val_);
     done_->Signal();
@@ -57,7 +57,7 @@ class GetThreadLocal : public ThreadLocalTesterBase {
 
   void set_ptr(ThreadLocalTesterBase** ptr) { ptr_ = ptr; }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     DCHECK(!done_->IsSignaled());
     *ptr_ = tlp_->Get();
     done_->Signal();

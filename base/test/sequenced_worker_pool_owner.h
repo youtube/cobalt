@@ -42,9 +42,9 @@ class SequencedWorkerPoolOwner : public SequencedWorkerPool::TestingObserver {
 
  private:
   // SequencedWorkerPool::TestingObserver implementation.
-  virtual void OnHasWork() OVERRIDE;
-  virtual void WillWaitForShutdown() OVERRIDE;
-  virtual void OnDestruct() OVERRIDE;
+  virtual void OnHasWork() override;
+  virtual void WillWaitForShutdown() override;
+  virtual void OnDestruct() override;
 
   MessageLoop* const constructor_message_loop_;
   scoped_refptr<SequencedWorkerPool> pool_;

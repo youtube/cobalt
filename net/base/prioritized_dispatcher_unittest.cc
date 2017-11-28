@@ -113,7 +113,7 @@ class PrioritizedDispatcherTest : public testing::Test {
     }
 
     // PriorityDispatch::Job interface
-    virtual void Start() OVERRIDE {
+    virtual void Start() override {
       EXPECT_FALSE(running_);
       handle_ = PrioritizedDispatcher::Handle();
       running_ = true;

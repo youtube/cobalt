@@ -457,15 +457,15 @@ class SynchronousSuccessDhcpFetcher : public DhcpProxyScriptFetcher {
       : gurl_("http://dhcppac/"), expected_text_(expected_text) {
   }
 
-  int Fetch(string16* utf16_text, const CompletionCallback& callback) OVERRIDE {
+  int Fetch(string16* utf16_text, const CompletionCallback& callback) override {
     *utf16_text = expected_text_;
     return OK;
   }
 
-  void Cancel() OVERRIDE {
+  void Cancel() override {
   }
 
-  const GURL& GetPacURL() const OVERRIDE {
+  const GURL& GetPacURL() const override {
     return gurl_;
   }
 
@@ -538,7 +538,7 @@ class AsyncFailDhcpFetcher
   AsyncFailDhcpFetcher() {}
   ~AsyncFailDhcpFetcher() {}
 
-  int Fetch(string16* utf16_text, const CompletionCallback& callback) OVERRIDE {
+  int Fetch(string16* utf16_text, const CompletionCallback& callback) override {
     callback_ = callback;
     MessageLoop::current()->PostTask(
         FROM_HERE,
@@ -546,11 +546,11 @@ class AsyncFailDhcpFetcher
     return ERR_IO_PENDING;
   }
 
-  void Cancel() OVERRIDE {
+  void Cancel() override {
     callback_.Reset();
   }
 
-  const GURL& GetPacURL() const OVERRIDE {
+  const GURL& GetPacURL() const override {
     return dummy_gurl_;
   }
 

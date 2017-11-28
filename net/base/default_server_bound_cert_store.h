@@ -59,23 +59,23 @@ class NET_EXPORT DefaultServerBoundCertStore : public ServerBoundCertStore {
       base::Time* creation_time,
       base::Time* expiration_time,
       std::string* private_key_result,
-      std::string* cert_result) OVERRIDE;
+      std::string* cert_result) override;
   virtual void SetServerBoundCert(
       const std::string& server_identifier,
       SSLClientCertType type,
       base::Time creation_time,
       base::Time expiration_time,
       const std::string& private_key,
-      const std::string& cert) OVERRIDE;
+      const std::string& cert) override;
   virtual void DeleteServerBoundCert(const std::string& server_identifier)
-      OVERRIDE;
+      override;
   virtual void DeleteAllCreatedBetween(base::Time delete_begin,
-                                       base::Time delete_end) OVERRIDE;
-  virtual void DeleteAll() OVERRIDE;
+                                       base::Time delete_end) override;
+  virtual void DeleteAll() override;
   virtual void GetAllServerBoundCerts(
-      ServerBoundCertList* server_bound_certs) OVERRIDE;
-  virtual int GetCertCount() OVERRIDE;
-  virtual void SetForceKeepSessionState() OVERRIDE;
+      ServerBoundCertList* server_bound_certs) override;
+  virtual int GetCertCount() override;
+  virtual void SetForceKeepSessionState() override;
 
  private:
   static const size_t kMaxCerts;

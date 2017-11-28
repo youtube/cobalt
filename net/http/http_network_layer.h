@@ -42,13 +42,13 @@ class NET_EXPORT HttpNetworkLayer
 
   // HttpTransactionFactory methods:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
-                                HttpTransactionDelegate* delegate) OVERRIDE;
-  virtual HttpCache* GetCache() OVERRIDE;
-  virtual HttpNetworkSession* GetSession() OVERRIDE;
+                                HttpTransactionDelegate* delegate) override;
+  virtual HttpCache* GetCache() override;
+  virtual HttpNetworkSession* GetSession() override;
 
   // base::SystemMonitor::PowerObserver methods:
-  virtual void OnSuspend() OVERRIDE;
-  virtual void OnResume() OVERRIDE;
+  virtual void OnSuspend() override;
+  virtual void OnResume() override;
 
  private:
   const scoped_refptr<HttpNetworkSession> session_;

@@ -38,7 +38,7 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
   // Attempt to serialize the data structure represented by Value into
   // JSON.  If the return value is true, the result will have been written
   // into the string passed into the constructor.
-  virtual bool Serialize(const Value& root) OVERRIDE;
+  virtual bool Serialize(const Value& root) override;
 
   // Equivalent to Serialize(root) except binary values are omitted from the
   // output.
@@ -52,7 +52,7 @@ class BASE_EXPORT JSONStringValueSerializer : public base::ValueSerializer {
   // error message including the location of the error if appropriate.
   // The caller takes ownership of the returned value.
   virtual Value* Deserialize(int* error_code,
-                             std::string* error_message) OVERRIDE;
+                             std::string* error_message) override;
 
   void set_pretty_print(bool new_value) { pretty_print_ = new_value; }
   bool pretty_print() { return pretty_print_; }

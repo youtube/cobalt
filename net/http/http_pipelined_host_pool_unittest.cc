@@ -61,7 +61,7 @@ class MockHost : public HttpPipelinedHost {
   MOCK_CONST_METHOD0(IsExistingPipelineAvailable, bool());
   MOCK_CONST_METHOD0(PipelineInfoToValue, base::Value*());
 
-  virtual const Key& GetKey() const OVERRIDE { return key_; }
+  virtual const Key& GetKey() const override { return key_; }
 
  private:
   Key key_;

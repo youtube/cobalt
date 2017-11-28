@@ -34,7 +34,7 @@ class BlockableHostResolver : public HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE {
+                      const BoundNetLog& net_log) override {
     EXPECT_FALSE(callback.is_null());
     EXPECT_TRUE(out_req);
     *out_req = reinterpret_cast<RequestHandle*>(1);  // Magic value.
@@ -49,12 +49,12 @@ class BlockableHostResolver : public HostResolver {
 
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE {
+                               const BoundNetLog& net_log) override {
     NOTIMPLEMENTED();
     return ERR_UNEXPECTED;
   }
 
-  virtual void CancelRequest(RequestHandle req) OVERRIDE {
+  virtual void CancelRequest(RequestHandle req) override {
     EXPECT_EQ(reinterpret_cast<RequestHandle*>(1), req);
     was_request_cancelled_ = true;
   }
@@ -99,32 +99,32 @@ class SyncProxyResolver : public ProxyResolver {
     return rv;
   }
 
-  virtual void CancelRequest(RequestHandle request) OVERRIDE {
+  virtual void CancelRequest(RequestHandle request) override {
     NOTREACHED();
   }
 
-  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE {
+  virtual LoadState GetLoadState(RequestHandle request) const override {
     NOTREACHED();
     return LOAD_STATE_IDLE;
   }
 
   virtual LoadState GetLoadStateThreadSafe(
-      RequestHandle request) const OVERRIDE {
+      RequestHandle request) const override {
     NOTREACHED();
     return LOAD_STATE_IDLE;
   }
 
-  virtual void Shutdown() OVERRIDE {
+  virtual void Shutdown() override {
     host_resolver_->Shutdown();
   }
 
-  virtual void CancelSetPacScript() OVERRIDE {
+  virtual void CancelSetPacScript() override {
     NOTREACHED();
   }
 
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      const CompletionCallback& callback) OVERRIDE {
+      const CompletionCallback& callback) override {
     return OK;
   }
 
@@ -140,7 +140,7 @@ class SyncProxyResolverFactory : public ProxyResolverFactory {
         sync_host_resolver_(sync_host_resolver) {
   }
 
-  virtual ProxyResolver* CreateProxyResolver() OVERRIDE {
+  virtual ProxyResolver* CreateProxyResolver() override {
     return new SyncProxyResolver(sync_host_resolver_.get());
   }
 
@@ -164,7 +164,7 @@ class IOThread : public base::Thread {
   }
 
  protected:
-  virtual void Init() OVERRIDE {
+  virtual void Init() override {
     async_resolver_.reset(new BlockableHostResolver());
 
     // Create a synchronous host resolver that operates the async host
@@ -190,7 +190,7 @@ class IOThread : public base::Thread {
         BoundNetLog());
   }
 
-  virtual void CleanUp() OVERRIDE {
+  virtual void CleanUp() override {
     // Cancel the outstanding request (note however that this will not
     // unblock the PAC thread though).
     proxy_resolver_->CancelRequest(request_);

@@ -134,17 +134,17 @@ class NET_EXPORT HostResolverImpl
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& source_net_log) OVERRIDE;
+                      const BoundNetLog& source_net_log) override;
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& source_net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual void SetDefaultAddressFamily(AddressFamily address_family) OVERRIDE;
-  virtual AddressFamily GetDefaultAddressFamily() const OVERRIDE;
-  virtual void ProbeIPv6Support() OVERRIDE;
-  virtual void SetDnsClientEnabled(bool enabled) OVERRIDE;
-  virtual HostCache* GetHostCache() OVERRIDE;
-  virtual base::Value* GetDnsConfigAsValue() const OVERRIDE;
+                               const BoundNetLog& source_net_log) override;
+  virtual void CancelRequest(RequestHandle req) override;
+  virtual void SetDefaultAddressFamily(AddressFamily address_family) override;
+  virtual AddressFamily GetDefaultAddressFamily() const override;
+  virtual void ProbeIPv6Support() override;
+  virtual void SetDnsClientEnabled(bool enabled) override;
+  virtual HostCache* GetHostCache() override;
+  virtual base::Value* GetDnsConfigAsValue() const override;
 
  private:
   friend class HostResolverImplTest;
@@ -216,10 +216,10 @@ class NET_EXPORT HostResolverImpl
   void TryServingAllJobsFromHosts();
 
   // NetworkChangeNotifier::IPAddressObserver:
-  virtual void OnIPAddressChanged() OVERRIDE;
+  virtual void OnIPAddressChanged() override;
 
   // NetworkChangeNotifier::DNSObserver:
-  virtual void OnDNSChanged() OVERRIDE;
+  virtual void OnDNSChanged() override;
 
   // True if have a DnsClient with a valid DnsConfig.
   bool HaveDnsConfig() const;

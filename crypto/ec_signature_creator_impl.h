@@ -17,10 +17,10 @@ class ECSignatureCreatorImpl : public ECSignatureCreator {
 
   virtual bool Sign(const uint8* data,
                     int data_len,
-                    std::vector<uint8>* signature) OVERRIDE;
+                    std::vector<uint8>* signature) override;
 
   virtual bool DecodeSignature(const std::vector<uint8>& der_sig,
-                               std::vector<uint8>* out_raw_sig) OVERRIDE;
+                               std::vector<uint8>* out_raw_sig) override;
 
  private:
   ECPrivateKey* key_;
