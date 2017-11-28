@@ -111,7 +111,7 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   float GetVolume() const OVERRIDE;
   void SetVolume(float volume) OVERRIDE;
 
-  TimeDelta GetMediaTime() OVERRIDE;
+  TimeDelta GetMediaTime() const OVERRIDE;
   Ranges<TimeDelta> GetBufferedTimeRanges() OVERRIDE;
   TimeDelta GetMediaDuration() const OVERRIDE;
   void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
@@ -496,7 +496,7 @@ void SbPlayerPipeline::SetVolume(float volume) {
       FROM_HERE, base::Bind(&SbPlayerPipeline::SetVolumeTask, this, volume));
 }
 
-TimeDelta SbPlayerPipeline::GetMediaTime() {
+TimeDelta SbPlayerPipeline::GetMediaTime() const {
   base::AutoLock auto_lock(lock_);
 
   if (!seek_cb_.is_null()) {
@@ -509,18 +509,8 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     return duration_;
   }
   base::TimeDelta media_time;
-  int frame_width;
-  int frame_height;
   player_->GetInfo(&statistics_.video_frames_decoded,
-                   &statistics_.video_frames_dropped, &media_time, &frame_width,
-                   &frame_height);
-#if SB_HAS(PLAYER_WITH_URL)
-  if (frame_width != natural_size_.width() ||
-      frame_height != natural_size_.height()) {
-    natural_size_ = gfx::Size(frame_width, frame_height);
-    content_size_change_cb_.Run();
-  }
-#endif  // SB_HAS(PLAYER_WITH_URL)
+                   &statistics_.video_frames_dropped, &media_time);
   return media_time;
 }
 
@@ -858,6 +848,15 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     buffering_state_cb_.Run(kHaveMetadata);
 
     bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
+    bool natural_size_changed =
+        (video_stream_->video_decoder_config().natural_size().width() !=
+             natural_size_.width() ||
+         video_stream_->video_decoder_config().natural_size().height() !=
+             natural_size_.height());
+    natural_size_ = video_stream_->video_decoder_config().natural_size();
+    if (natural_size_changed) {
+      content_size_change_cb_.Run();
+    }
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
     if (is_encrypted) {
       set_drm_system_ready_cb_.Run(
@@ -1037,8 +1036,15 @@ void SbPlayerPipeline::UpdateDecoderConfig(DemuxerStream* stream) {
     DCHECK_EQ(stream->type(), DemuxerStream::VIDEO);
     const VideoDecoderConfig& decoder_config = stream->video_decoder_config();
     base::AutoLock auto_lock(lock_);
+    bool natural_size_changed =
+        (decoder_config.natural_size().width() != natural_size_.width() ||
+         decoder_config.natural_size().height() != natural_size_.height());
+    natural_size_ = decoder_config.natural_size();
     player_->UpdateVideoResolution(static_cast<int>(natural_size_.width()),
                                    static_cast<int>(natural_size_.height()));
+    if (natural_size_changed) {
+      content_size_change_cb_.Run();
+    }
   }
 }
 
