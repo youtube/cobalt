@@ -85,7 +85,7 @@ class MockAudioManager : public AudioManagerAnyPlatform {
   MockAudioManager() {}
   virtual ~MockAudioManager() {}
 
-  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() OVERRIDE {
+  virtual scoped_refptr<base::MessageLoopProxy> GetMessageLoop() override {
     return MessageLoop::current()->message_loop_proxy();
   }
 
@@ -183,7 +183,7 @@ class FullDuplexAudioSinkSource
   virtual void OnData(AudioInputStream* stream,
                       const uint8* src, uint32 size,
                       uint32 hardware_delay_bytes,
-                      double volume) OVERRIDE {
+                      double volume) override {
     base::AutoLock lock(lock_);
 
     // Update three components in the AudioDelayState for this recorded
@@ -210,12 +210,12 @@ class FullDuplexAudioSinkSource
     }
   }
 
-  virtual void OnClose(AudioInputStream* stream) OVERRIDE {}
-  virtual void OnError(AudioInputStream* stream, int code) OVERRIDE {}
+  virtual void OnClose(AudioInputStream* stream) override {}
+  virtual void OnError(AudioInputStream* stream, int code) override {}
 
   // AudioOutputStream::AudioSourceCallback.
   virtual int OnMoreData(AudioBus* audio_bus,
-                         AudioBuffersState buffers_state) OVERRIDE {
+                         AudioBuffersState buffers_state) override {
     base::AutoLock lock(lock_);
 
     // Update one component in the AudioDelayState for the packet
@@ -254,13 +254,13 @@ class FullDuplexAudioSinkSource
 
   virtual int OnMoreIOData(AudioBus* source,
                            AudioBus* dest,
-                           AudioBuffersState buffers_state) OVERRIDE {
+                           AudioBuffersState buffers_state) override {
     NOTREACHED();
     return 0;
   }
 
-  virtual void OnError(AudioOutputStream* stream, int code) OVERRIDE {}
-  virtual void WaitTillDataReady() OVERRIDE {}
+  virtual void OnError(AudioOutputStream* stream, int code) override {}
+  virtual void WaitTillDataReady() override {}
 
  protected:
   // Converts from bytes to milliseconds taking the sample rate and size

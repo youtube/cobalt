@@ -36,7 +36,7 @@ class NET_EXPORT TCPListenSocket : public StreamListenSocket {
   virtual ~TCPListenSocket();
 
   // Implements StreamListenSocket::Accept.
-  virtual void Accept() OVERRIDE;
+  virtual void Accept() override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(TCPListenSocket);
@@ -50,7 +50,7 @@ class NET_EXPORT TCPListenSocketFactory : public StreamListenSocketFactory {
 
   // StreamListenSocketFactory overrides.
   virtual scoped_refptr<StreamListenSocket> CreateAndListen(
-      StreamListenSocket::Delegate* delegate) const OVERRIDE;
+      StreamListenSocket::Delegate* delegate) const override;
 
  private:
   const std::string ip_;

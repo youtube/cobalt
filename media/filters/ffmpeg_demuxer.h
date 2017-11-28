@@ -73,11 +73,11 @@ class FFmpegDemuxerStream : public DemuxerStream {
   base::TimeDelta duration();
 
   // DemuxerStream implementation.
-  virtual Type type() OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+  virtual Type type() override;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual void EnableBitstreamConverter() override;
+  virtual const AudioDecoderConfig& audio_decoder_config() override;
+  virtual const VideoDecoderConfig& video_decoder_config() override;
 
   // Returns the range of buffered data in this stream.
   Ranges<base::TimeDelta> GetBufferedRanges() const;
@@ -131,14 +131,14 @@ class MEDIA_EXPORT FFmpegDemuxer : public Demuxer {
 
   // Demuxer implementation.
   virtual void Initialize(DemuxerHost* host,
-                          const PipelineStatusCB& status_cb) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) OVERRIDE;
-  virtual void OnAudioRendererDisabled() OVERRIDE;
-  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+                          const PipelineStatusCB& status_cb) override;
+  virtual void Stop(const base::Closure& callback) override;
+  virtual void Seek(base::TimeDelta time, const PipelineStatusCB& cb) override;
+  virtual void OnAudioRendererDisabled() override;
+  virtual void SetPlaybackRate(float playback_rate) override;
   virtual scoped_refptr<DemuxerStream> GetStream(
-      DemuxerStream::Type type) OVERRIDE;
-  virtual base::TimeDelta GetStartTime() const OVERRIDE;
+      DemuxerStream::Type type) override;
+  virtual base::TimeDelta GetStartTime() const override;
 
   // Allow FFmpegDemuxerStream to notify us when there is updated information
   // about capacity and what buffered data is available.

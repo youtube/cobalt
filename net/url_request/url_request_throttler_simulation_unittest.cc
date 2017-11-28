@@ -132,11 +132,11 @@ class Server : public DiscreteTimeSimulation::Actor {
     end_downtime_ = start_time + duration;
   }
 
-  virtual void AdvanceTime(const TimeTicks& absolute_time) OVERRIDE {
+  virtual void AdvanceTime(const TimeTicks& absolute_time) override {
     now_ = absolute_time;
   }
 
-  virtual void PerformAction() OVERRIDE {
+  virtual void PerformAction() override {
     // We are inserted at the end of the actor's list, so all Requester
     // instances have already done their bit.
     if (num_current_tick_queries_ > max_experienced_queries_per_tick_)
@@ -303,15 +303,15 @@ class MockURLRequestThrottlerEntry : public URLRequestThrottlerEntry {
         mock_backoff_entry_(&backoff_policy_) {
   }
 
-  virtual const BackoffEntry* GetBackoffEntry() const OVERRIDE {
+  virtual const BackoffEntry* GetBackoffEntry() const override {
     return &mock_backoff_entry_;
   }
 
-  virtual BackoffEntry* GetBackoffEntry() OVERRIDE {
+  virtual BackoffEntry* GetBackoffEntry() override {
     return &mock_backoff_entry_;
   }
 
-  virtual TimeTicks ImplGetTimeNow() const OVERRIDE {
+  virtual TimeTicks ImplGetTimeNow() const override {
     return fake_now_;
   }
 
@@ -411,14 +411,14 @@ class Requester : public DiscreteTimeSimulation::Actor {
     DCHECK(server_);
   }
 
-  void AdvanceTime(const TimeTicks& absolute_time) OVERRIDE {
+  void AdvanceTime(const TimeTicks& absolute_time) override {
     if (time_of_last_success_.is_null())
       time_of_last_success_ = absolute_time;
 
     throttler_entry_->SetFakeNow(absolute_time);
   }
 
-  void PerformAction() OVERRIDE {
+  void PerformAction() override {
     TimeDelta effective_delay = time_between_requests_;
     TimeDelta current_jitter = TimeDelta::FromMilliseconds(
         request_jitter_.InMilliseconds() * base::RandDouble());

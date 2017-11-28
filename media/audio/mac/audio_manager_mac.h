@@ -20,22 +20,22 @@ class MEDIA_EXPORT AudioManagerMac : public AudioManagerBase {
   AudioManagerMac();
 
   // Implementation of AudioManager.
-  virtual bool HasAudioOutputDevices() OVERRIDE;
-  virtual bool HasAudioInputDevices() OVERRIDE;
+  virtual bool HasAudioOutputDevices() override;
+  virtual bool HasAudioInputDevices() override;
   virtual void GetAudioInputDeviceNames(media::AudioDeviceNames* device_names)
-      OVERRIDE;
+      override;
 
   // Implementation of AudioManagerBase.
   virtual AudioOutputStream* MakeLinearOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
   virtual AudioOutputStream* MakeLowLatencyOutputStream(
-      const AudioParameters& params) OVERRIDE;
+      const AudioParameters& params) override;
   virtual AudioInputStream* MakeLinearInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) override;
   virtual AudioInputStream* MakeLowLatencyInputStream(
-      const AudioParameters& params, const std::string& device_id) OVERRIDE;
+      const AudioParameters& params, const std::string& device_id) override;
   virtual AudioParameters GetPreferredLowLatencyOutputStreamParameters(
-      const AudioParameters& input_params) OVERRIDE;
+      const AudioParameters& input_params) override;
 
   // Called by an internal device change listener.  Must be called on
   // |creating_message_loop_|.

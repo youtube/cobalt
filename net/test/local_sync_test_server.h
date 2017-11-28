@@ -28,7 +28,7 @@ class LocalSyncTestServer : public LocalTestServer {
   // Calls LocalTestServer::AddCommandLineArguments and then appends the
   // --xmpp-port flag to |command_line| if required. Returns true on success.
   virtual bool AddCommandLineArguments(
-      CommandLine* command_line) const OVERRIDE;
+      CommandLine* command_line) const override;
 
  private:
   // Port on which the Sync XMPP server listens.

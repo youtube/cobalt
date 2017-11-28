@@ -39,9 +39,9 @@ class ShellFLVParser : public ShellAVCParser {
   virtual ~ShellFLVParser();
 
   // === ShellParser Implementation
-  virtual bool ParseConfig() OVERRIDE;
-  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) OVERRIDE;
-  virtual bool SeekTo(base::TimeDelta timestamp) OVERRIDE;
+  virtual bool ParseConfig() override;
+  virtual scoped_refptr<ShellAU> GetNextAU(DemuxerStream::Type type) override;
+  virtual bool SeekTo(base::TimeDelta timestamp) override;
 
  protected:
   scoped_refptr<ShellAU> GetNextAudioAU();

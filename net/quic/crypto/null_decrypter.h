@@ -20,7 +20,7 @@ class NET_EXPORT_PRIVATE NullDecrypter : public QuicDecrypter {
 
   // QuicDecrypter implementation
   virtual QuicData* Decrypt(base::StringPiece associated_data,
-                            base::StringPiece ciphertext) OVERRIDE;
+                            base::StringPiece ciphertext) override;
 };
 
 }  // namespace net

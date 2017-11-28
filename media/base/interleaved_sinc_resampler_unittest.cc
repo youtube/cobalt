@@ -67,9 +67,9 @@ class TestBuffer : public Buffer {
         data_(static_cast<const uint8*>(data)),
         data_size_(data_size) {}
 
-  const uint8* GetData() const OVERRIDE { return data_; }
+  const uint8* GetData() const override { return data_; }
 
-  int GetDataSize() const OVERRIDE { return data_size_; }
+  int GetDataSize() const override { return data_size_; }
 
  private:
   const uint8* data_;

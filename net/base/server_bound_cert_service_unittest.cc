@@ -29,14 +29,14 @@ void FailTest(int /* result */) {
 
 class ServerBoundCertServiceTest : public testing::Test {
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     sequenced_worker_pool_ = new base::SequencedWorkerPool(
         3, "ServerBoundCertServiceTest");
     service_.reset(new ServerBoundCertService(
         new DefaultServerBoundCertStore(NULL), sequenced_worker_pool_));
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     sequenced_worker_pool_->Shutdown();
   }
 

@@ -100,8 +100,8 @@ class SpawnerCommunicator : public net::URLRequest::Delegate {
                                              std::string* data_received);
 
   // URLRequest::Delegate methods. Called on the IO thread.
-  virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
-  virtual void OnReadCompleted(URLRequest* request, int num_bytes) OVERRIDE;
+  virtual void OnResponseStarted(URLRequest* request) override;
+  virtual void OnReadCompleted(URLRequest* request, int num_bytes) override;
 
   // Reads Result from the response. Called on the IO thread.
   void ReadResult(URLRequest* request);

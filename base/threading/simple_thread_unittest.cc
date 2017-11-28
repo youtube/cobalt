@@ -17,7 +17,7 @@ class SetIntRunner : public DelegateSimpleThread::Delegate {
   SetIntRunner(int* ptr, int val) : ptr_(ptr), val_(val) { }
   virtual ~SetIntRunner() { }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     *ptr_ = val_;
   }
 
@@ -31,7 +31,7 @@ class WaitEventRunner : public DelegateSimpleThread::Delegate {
   explicit WaitEventRunner(WaitableEvent* event) : event_(event) { }
   virtual ~WaitEventRunner() { }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     EXPECT_FALSE(event_->IsSignaled());
     event_->Signal();
     EXPECT_TRUE(event_->IsSignaled());
@@ -43,7 +43,7 @@ class WaitEventRunner : public DelegateSimpleThread::Delegate {
 class SeqRunner : public DelegateSimpleThread::Delegate {
  public:
   explicit SeqRunner(AtomicSequenceNumber* seq) : seq_(seq) { }
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     seq_->GetNext();
   }
 
@@ -60,7 +60,7 @@ class VerifyPoolRunner : public DelegateSimpleThread::Delegate {
                    int total, WaitableEvent* event)
       : seq_(seq), total_(total), event_(event) { }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     if (seq_->GetNext() == total_) {
       event_->Signal();
     } else {

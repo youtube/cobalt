@@ -145,9 +145,9 @@ class ShellRawVideoDecoderLinux : public ShellRawVideoDecoder {
   ~ShellRawVideoDecoderLinux();
 
   virtual void Decode(const scoped_refptr<DecoderBuffer>& buffer,
-                      const DecodeCB& decode_cb) OVERRIDE;
-  virtual bool Flush() OVERRIDE;
-  virtual bool UpdateConfig(const VideoDecoderConfig& config) OVERRIDE;
+                      const DecodeCB& decode_cb) override;
+  virtual bool Flush() override;
+  virtual bool UpdateConfig(const VideoDecoderConfig& config) override;
 
  private:
   void ReleaseResource();

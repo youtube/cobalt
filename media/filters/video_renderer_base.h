@@ -73,17 +73,17 @@ class MEDIA_EXPORT VideoRendererBase
                           const base::Closure& ended_cb,
                           const PipelineStatusCB& error_cb,
                           const TimeDeltaCB& get_time_cb,
-                          const TimeDeltaCB& get_duration_cb) OVERRIDE;
-  virtual void Play(const base::Closure& callback) OVERRIDE;
-  virtual void Pause(const base::Closure& callback) OVERRIDE;
-  virtual void Flush(const base::Closure& callback) OVERRIDE;
+                          const TimeDeltaCB& get_duration_cb) override;
+  virtual void Play(const base::Closure& callback) override;
+  virtual void Pause(const base::Closure& callback) override;
+  virtual void Flush(const base::Closure& callback) override;
   virtual void Preroll(base::TimeDelta time,
-                       const PipelineStatusCB& cb) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+                       const PipelineStatusCB& cb) override;
+  virtual void Stop(const base::Closure& callback) override;
+  virtual void SetPlaybackRate(float playback_rate) override;
 
   // PlatformThread::Delegate implementation.
-  virtual void ThreadMain() OVERRIDE;
+  virtual void ThreadMain() override;
 
   // Clients of this class (painter/compositor) should use GetCurrentFrame()
   // obtain ownership of VideoFrame, it should always relinquish the ownership

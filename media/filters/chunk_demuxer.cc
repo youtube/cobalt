@@ -265,14 +265,14 @@ class ChunkDemuxerStream : public DemuxerStream {
   void Shutdown();
 
   // DemuxerStream methods.
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual Type type() OVERRIDE;
-  virtual void EnableBitstreamConverter() OVERRIDE;
-  virtual const AudioDecoderConfig& audio_decoder_config() OVERRIDE;
-  virtual const VideoDecoderConfig& video_decoder_config() OVERRIDE;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual Type type() override;
+  virtual void EnableBitstreamConverter() override;
+  virtual const AudioDecoderConfig& audio_decoder_config() override;
+  virtual const VideoDecoderConfig& video_decoder_config() override;
 
 #if defined(__LB_SHELL__) || defined(COBALT)
-  bool StreamWasEncrypted() const OVERRIDE;
+  bool StreamWasEncrypted() const override;
 #endif
 
  protected:

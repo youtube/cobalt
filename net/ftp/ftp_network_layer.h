@@ -24,8 +24,8 @@ class NET_EXPORT FtpNetworkLayer : public FtpTransactionFactory {
   static FtpTransactionFactory* CreateFactory(HostResolver* host_resolver);
 
   // FtpTransactionFactory methods:
-  virtual FtpTransaction* CreateTransaction() OVERRIDE;
-  virtual void Suspend(bool suspend) OVERRIDE;
+  virtual FtpTransaction* CreateTransaction() override;
+  virtual void Suspend(bool suspend) override;
 
  private:
   scoped_refptr<FtpNetworkSession> session_;

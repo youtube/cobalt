@@ -22,7 +22,7 @@ class StatementErrorHandler : public sql::ErrorDelegate {
   virtual ~StatementErrorHandler() {}
 
   virtual int OnError(int error, sql::Connection* connection,
-                      sql::Statement* stmt) OVERRIDE {
+                      sql::Statement* stmt) override {
     *error_ = error;
     const char* sql_txt = stmt ? stmt->GetSQLStatement() : NULL;
     *sql_text_ = sql_txt ? sql_txt : "no statement available";

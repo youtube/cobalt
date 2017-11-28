@@ -19,7 +19,7 @@ class NET_EXPORT_PRIVATE QuicCryptoClientStream : public QuicCryptoStream {
 
   // CryptoFramerVisitorInterface implementation
   virtual void OnHandshakeMessage(
-      const CryptoHandshakeMessage& message) OVERRIDE;
+      const CryptoHandshakeMessage& message) override;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(QuicCryptoClientStream);

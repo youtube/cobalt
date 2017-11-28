@@ -33,12 +33,12 @@ class NET_EXPORT_PRIVATE QuicSession : public QuicConnectionVisitorInterface {
   virtual bool OnPacket(const IPEndPoint& self_address,
                         const IPEndPoint& peer_address,
                         const QuicPacketHeader& header,
-                        const std::vector<QuicStreamFrame>& frame) OVERRIDE;
-  virtual void OnRstStream(const QuicRstStreamFrame& frame) OVERRIDE;
-  virtual void ConnectionClose(QuicErrorCode error, bool from_peer) OVERRIDE;
+                        const std::vector<QuicStreamFrame>& frame) override;
+  virtual void OnRstStream(const QuicRstStreamFrame& frame) override;
+  virtual void ConnectionClose(QuicErrorCode error, bool from_peer) override;
   // Not needed for HTTP.
-  virtual void OnAck(AckedPackets acked_packets) OVERRIDE {}
-  virtual bool OnCanWrite() OVERRIDE;
+  virtual void OnAck(AckedPackets acked_packets) override {}
+  virtual bool OnCanWrite() override;
 
   // Called by streams when they want to write data to the peer.
   virtual int WriteData(QuicStreamId id, base::StringPiece data,

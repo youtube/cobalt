@@ -32,16 +32,16 @@ class PCMWaveInAudioInputStream : public AudioInputStream {
   virtual ~PCMWaveInAudioInputStream();
 
   // Implementation of AudioInputStream.
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioInputCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Close() OVERRIDE;
+  virtual bool Open() override;
+  virtual void Start(AudioInputCallback* callback) override;
+  virtual void Stop() override;
+  virtual void Close() override;
   // TODO(henrika): Add volume support using the Audio Mixer API.
-  virtual double GetMaxVolume() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual double GetVolume() OVERRIDE;
-  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
-  virtual bool GetAutomaticGainControl() OVERRIDE;
+  virtual double GetMaxVolume() override;
+  virtual void SetVolume(double volume) override;
+  virtual double GetVolume() override;
+  virtual void SetAutomaticGainControl(bool enabled) override;
+  virtual bool GetAutomaticGainControl() override;
 
  private:
   enum State {

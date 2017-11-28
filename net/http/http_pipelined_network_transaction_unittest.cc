@@ -39,18 +39,18 @@ namespace {
 
 class SimpleProxyConfigService : public ProxyConfigService {
  public:
-  virtual void AddObserver(Observer* observer) OVERRIDE {
+  virtual void AddObserver(Observer* observer) override {
     observer_ = observer;
   }
 
-  virtual void RemoveObserver(Observer* observer) OVERRIDE {
+  virtual void RemoveObserver(Observer* observer) override {
     if (observer_ == observer) {
       observer_ = NULL;
     }
   }
 
   virtual ConfigAvailability GetLatestProxyConfig(
-      ProxyConfig* config) OVERRIDE {
+      ProxyConfig* config) override {
     *config = config_;
     return CONFIG_VALID;
   }
@@ -749,7 +749,7 @@ class DataRunnerObserver : public MessageLoop::TaskObserver {
         run_before_task_(run_before_task),
         current_task_(0) { }
 
-  virtual void WillProcessTask(base::TimeTicks) OVERRIDE {
+  virtual void WillProcessTask(base::TimeTicks) override {
     ++current_task_;
     if (current_task_ == run_before_task_) {
       data_->Run();
@@ -757,7 +757,7 @@ class DataRunnerObserver : public MessageLoop::TaskObserver {
     }
   }
 
-  virtual void DidProcessTask(base::TimeTicks) OVERRIDE { }
+  virtual void DidProcessTask(base::TimeTicks) override { }
 
  private:
   DeterministicSocketData* data_;

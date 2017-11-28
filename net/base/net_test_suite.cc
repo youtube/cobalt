@@ -17,7 +17,7 @@
 #endif
 
 class StaticReset : public ::testing::EmptyTestEventListener {
-  virtual void OnTestStart(const ::testing::TestInfo& test_info) OVERRIDE {
+  virtual void OnTestStart(const ::testing::TestInfo& test_info) override {
 #if !__LB_ENABLE_NATIVE_HTTP_STACK__
     net::HttpStreamFactory::ResetStaticSettingsToInit();
 #endif

@@ -78,12 +78,12 @@ class MockHostResolverBase : public HostResolver,
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE;
+                      const BoundNetLog& net_log) override;
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle req) OVERRIDE;
-  virtual HostCache* GetHostCache() OVERRIDE;
+                               const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle req) override;
+  virtual HostCache* GetHostCache() override;
 
   // Resolves all pending requests. It is only valid to invoke this if
   // set_ondemand_mode was set before. The requests are resolved asynchronously,
@@ -180,7 +180,7 @@ class RuleBasedHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addrlist,
-                      int* os_error) OVERRIDE;
+                      int* os_error) override;
 
  private:
   struct Rule;
@@ -201,11 +201,11 @@ class HangingHostResolver : public HostResolver {
                       AddressList* addresses,
                       const CompletionCallback& callback,
                       RequestHandle* out_req,
-                      const BoundNetLog& net_log) OVERRIDE;
+                      const BoundNetLog& net_log) override;
   virtual int ResolveFromCache(const RequestInfo& info,
                                AddressList* addresses,
-                               const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle req) OVERRIDE {}
+                               const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle req) override {}
 };
 
 // This class sets the default HostResolverProc for a particular scope.  The

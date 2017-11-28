@@ -96,8 +96,8 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   PipelineImpl(const scoped_refptr<base::MessageLoopProxy>& message_loop,
                MediaLog* media_log);
 
-  void Suspend() OVERRIDE;
-  void Resume() OVERRIDE;
+  void Suspend() override;
+  void Resume() override;
 
   // Build a pipeline to using the given filter collection to construct a filter
   // chain, executing |seek_cb| when the initial seek/preroll has completed.
@@ -124,14 +124,14 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
              const PipelineStatusCB& error_cb,
              const PipelineStatusCB& seek_cb,
              const BufferingStateCB& buffering_state_cb,
-             const base::Closure& duration_change_cb) OVERRIDE;
+             const base::Closure& duration_change_cb) override;
 
   // Asynchronously stops the pipeline, executing |stop_cb| when the pipeline
   // teardown has completed.
   //
   // Stop() must complete before destroying the pipeline. It it permissible to
   // call Stop() at any point during the lifetime of the pipeline.
-  void Stop(const base::Closure& stop_cb) OVERRIDE;
+  void Stop(const base::Closure& stop_cb) override;
 
   // Attempt to seek to the position specified by time.  |seek_cb| will be
   // executed when the all filters in the pipeline have processed the seek.
@@ -140,7 +140,7 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   // succeeded.
   //
   // It is an error to call this method if the pipeline has not started.
-  void Seek(base::TimeDelta time, const PipelineStatusCB& seek_cb) OVERRIDE;
+  void Seek(base::TimeDelta time, const PipelineStatusCB& seek_cb) override;
 
   // Returns true if the pipeline has been started via Start().  If IsRunning()
   // returns true, it is expected that Stop() will be called before destroying
@@ -148,60 +148,60 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   bool IsRunning() const;
 
   // Returns true if the media has audio.
-  bool HasAudio() const OVERRIDE;
+  bool HasAudio() const override;
 
   // Returns true if the media has video.
-  bool HasVideo() const OVERRIDE;
+  bool HasVideo() const override;
 
   // Gets the current playback rate of the pipeline.  When the pipeline is
   // started, the playback rate will be 0.0f.  A rate of 1.0f indicates
   // that the pipeline is rendering the media at the standard rate.  Valid
   // values for playback rate are >= 0.0f.
-  float GetPlaybackRate() const OVERRIDE;
+  float GetPlaybackRate() const override;
 
   // Attempt to adjust the playback rate. Setting a playback rate of 0.0f pauses
   // all rendering of the media.  A rate of 1.0f indicates a normal playback
   // rate.  Values for the playback rate must be greater than or equal to 0.0f.
   //
   // TODO(scherkus): What about maximum rate?  Does HTML5 specify a max?
-  void SetPlaybackRate(float playback_rate) OVERRIDE;
+  void SetPlaybackRate(float playback_rate) override;
 
   // Gets the current volume setting being used by the audio renderer.  When
   // the pipeline is started, this value will be 1.0f.  Valid values range
   // from 0.0f to 1.0f.
-  float GetVolume() const OVERRIDE;
+  float GetVolume() const override;
 
   // Attempt to set the volume of the audio renderer.  Valid values for volume
   // range from 0.0f (muted) to 1.0f (full volume).  This value affects all
   // channels proportionately for multi-channel audio streams.
-  void SetVolume(float volume) OVERRIDE;
+  void SetVolume(float volume) override;
 
   // Returns the current media playback time, which progresses from 0 until
   // GetMediaDuration().
-  base::TimeDelta GetMediaTime() const OVERRIDE;
+  base::TimeDelta GetMediaTime() const override;
 
   // Get approximate time ranges of buffered media.
-  Ranges<base::TimeDelta> GetBufferedTimeRanges() OVERRIDE;
+  Ranges<base::TimeDelta> GetBufferedTimeRanges() override;
 
   // Get the duration of the media in microseconds.  If the duration has not
   // been determined yet, then returns 0.
-  base::TimeDelta GetMediaDuration() const OVERRIDE;
+  base::TimeDelta GetMediaDuration() const override;
 
   // Get the total size of the media file.  If the size has not yet been
   // determined or can not be determined, this value is 0.
-  int64 GetTotalBytes() const OVERRIDE;
+  int64 GetTotalBytes() const override;
 
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will
   // be 0.
-  void GetNaturalVideoSize(gfx::Size* out_size) const OVERRIDE;
+  void GetNaturalVideoSize(gfx::Size* out_size) const override;
 
   // Return true if loading progress has been made since the last time this
   // method was called.
-  bool DidLoadingProgress() const OVERRIDE;
+  bool DidLoadingProgress() const override;
 
   // Gets the current pipeline statistics.
-  PipelineStatistics GetStatistics() const OVERRIDE;
+  PipelineStatistics GetStatistics() const override;
 
   void SetClockForTesting(Clock* clock);
   void SetErrorForTesting(PipelineStatus status);
@@ -241,14 +241,14 @@ class MEDIA_EXPORT PipelineImpl : public Pipeline, public DemuxerHost {
   void FinishSeek();
 
   // DataSourceHost (by way of DemuxerHost) implementation.
-  virtual void SetTotalBytes(int64 total_bytes) OVERRIDE;
-  virtual void AddBufferedByteRange(int64 start, int64 end) OVERRIDE;
+  virtual void SetTotalBytes(int64 total_bytes) override;
+  virtual void AddBufferedByteRange(int64 start, int64 end) override;
   virtual void AddBufferedTimeRange(base::TimeDelta start,
-                                    base::TimeDelta end) OVERRIDE;
+                                    base::TimeDelta end) override;
 
   // DemuxerHost implementaion.
-  virtual void SetDuration(base::TimeDelta duration) OVERRIDE;
-  virtual void OnDemuxerError(PipelineStatus error) OVERRIDE;
+  virtual void SetDuration(base::TimeDelta duration) override;
+  virtual void OnDemuxerError(PipelineStatus error) override;
 
   // Initiates teardown sequence in response to a runtime error.
   //

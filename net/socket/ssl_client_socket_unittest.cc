@@ -42,62 +42,62 @@ class WrappedStreamSocket : public net::StreamSocket {
   virtual ~WrappedStreamSocket() {}
 
   // StreamSocket implementation:
-  virtual int Connect(const net::CompletionCallback& callback) OVERRIDE {
+  virtual int Connect(const net::CompletionCallback& callback) override {
     return transport_->Connect(callback);
   }
-  virtual void Disconnect() OVERRIDE {
+  virtual void Disconnect() override {
     transport_->Disconnect();
   }
-  virtual bool IsConnected() const OVERRIDE {
+  virtual bool IsConnected() const override {
     return transport_->IsConnected();
   }
-  virtual bool IsConnectedAndIdle() const OVERRIDE {
+  virtual bool IsConnectedAndIdle() const override {
     return transport_->IsConnectedAndIdle();
   }
-  virtual int GetPeerAddress(net::IPEndPoint* address) const OVERRIDE {
+  virtual int GetPeerAddress(net::IPEndPoint* address) const override {
     return transport_->GetPeerAddress(address);
   }
-  virtual int GetLocalAddress(net::IPEndPoint* address) const OVERRIDE {
+  virtual int GetLocalAddress(net::IPEndPoint* address) const override {
     return transport_->GetLocalAddress(address);
   }
-  virtual const net::BoundNetLog& NetLog() const OVERRIDE {
+  virtual const net::BoundNetLog& NetLog() const override {
     return transport_->NetLog();
   }
-  virtual void SetSubresourceSpeculation() OVERRIDE {
+  virtual void SetSubresourceSpeculation() override {
     transport_->SetSubresourceSpeculation();
   }
-  virtual void SetOmniboxSpeculation() OVERRIDE {
+  virtual void SetOmniboxSpeculation() override {
     transport_->SetOmniboxSpeculation();
   }
-  virtual bool WasEverUsed() const OVERRIDE {
+  virtual bool WasEverUsed() const override {
     return transport_->WasEverUsed();
   }
-  virtual bool UsingTCPFastOpen() const OVERRIDE {
+  virtual bool UsingTCPFastOpen() const override {
     return transport_->UsingTCPFastOpen();
   }
-  virtual bool WasNpnNegotiated() const OVERRIDE {
+  virtual bool WasNpnNegotiated() const override {
     return transport_->WasNpnNegotiated();
   }
-  virtual net::NextProto GetNegotiatedProtocol() const OVERRIDE {
+  virtual net::NextProto GetNegotiatedProtocol() const override {
     return transport_->GetNegotiatedProtocol();
   }
-  virtual bool GetSSLInfo(net::SSLInfo* ssl_info) OVERRIDE {
+  virtual bool GetSSLInfo(net::SSLInfo* ssl_info) override {
     return transport_->GetSSLInfo(ssl_info);
   }
 
   // Socket implementation:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback) OVERRIDE {
+                   const net::CompletionCallback& callback) override {
     return transport_->Read(buf, buf_len, callback);
   }
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback) OVERRIDE {
+                    const net::CompletionCallback& callback) override {
     return transport_->Write(buf, buf_len, callback);
   }
-  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE {
+  virtual bool SetReceiveBufferSize(int32 size) override {
     return transport_->SetReceiveBufferSize(size);
   }
-  virtual bool SetSendBufferSize(int32 size) OVERRIDE {
+  virtual bool SetSendBufferSize(int32 size) override {
     return transport_->SetSendBufferSize(size);
   }
 
@@ -118,7 +118,7 @@ class ReadBufferingStreamSocket : public WrappedStreamSocket {
 
   // Socket implementation:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback) OVERRIDE;
+                   const net::CompletionCallback& callback) override;
 
   // Sets the internal buffer to |size|. This must not be greater than
   // the largest value supplied to Read() - that is, it does not handle
@@ -247,9 +247,9 @@ class SynchronousErrorStreamSocket : public WrappedStreamSocket {
 
   // Socket implementation:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback) OVERRIDE;
+                   const net::CompletionCallback& callback) override;
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback) OVERRIDE;
+                    const net::CompletionCallback& callback) override;
 
   // Sets the the next Read() call to return |error|.
   // If there is already a pending asynchronous read, the configured error
@@ -323,11 +323,11 @@ class FakeBlockingStreamSocket : public WrappedStreamSocket {
 
   // Socket implementation:
   virtual int Read(net::IOBuffer* buf, int buf_len,
-                   const net::CompletionCallback& callback) OVERRIDE {
+                   const net::CompletionCallback& callback) override {
     return read_state_.RunWrappedFunction(buf, buf_len, callback);
   }
   virtual int Write(net::IOBuffer* buf, int buf_len,
-                    const net::CompletionCallback& callback) OVERRIDE {
+                    const net::CompletionCallback& callback) override {
     return write_state_.RunWrappedFunction(buf, buf_len, callback);
   }
 

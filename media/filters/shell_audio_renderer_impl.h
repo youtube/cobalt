@@ -63,48 +63,48 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
                           const TimeCB& time_cb,
                           const base::Closure& ended_cb,
                           const base::Closure& disabled_cb,
-                          const PipelineStatusCB& error_cb) OVERRIDE;
+                          const PipelineStatusCB& error_cb) override;
 
   // Start prerolling audio data for samples starting at |time|, executing
   // |callback| when completed.
   //
   // Only valid to call after a successful Initialize() or Flush().
   virtual void Preroll(base::TimeDelta time,
-                       const PipelineStatusCB& callback) OVERRIDE;
+                       const PipelineStatusCB& callback) override;
 
   // Sets the output volume.
-  virtual void SetVolume(float volume) OVERRIDE;
+  virtual void SetVolume(float volume) override;
 
   // Resumes playback after underflow occurs.
   //
   // |buffer_more_audio| is set to true if you want to increase the size of the
   // decoded audio buffer.
-  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) override;
 
   // The pipeline has resumed playback.  Filters can continue requesting reads.
   // Filters may implement this method if they need to respond to this call.
-  virtual void Play(const base::Closure& callback) OVERRIDE;
+  virtual void Play(const base::Closure& callback) override;
 
   // The pipeline has paused playback.  Filters should stop buffer exchange.
   // Filters may implement this method if they need to respond to this call.
-  virtual void Pause(const base::Closure& callback) OVERRIDE;
+  virtual void Pause(const base::Closure& callback) override;
 
   // The pipeline has been flushed.  Filters should return buffer to owners.
   // Filters may implement this method if they need to respond to this call.
-  virtual void Flush(const base::Closure& callback) OVERRIDE;
+  virtual void Flush(const base::Closure& callback) override;
 
   // The pipeline is being stopped either as a result of an error or because
   // the client called Stop().
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
+  virtual void Stop(const base::Closure& callback) override;
 
   // The pipeline playback rate has been changed.  Filters may implement this
   // method if they need to respond to this call.
-  virtual void SetPlaybackRate(float playback_rate) OVERRIDE;
+  virtual void SetPlaybackRate(float playback_rate) override;
 
   // Carry out any actions required to seek to the given time, executing the
   // callback upon completion.
   // virtual void Seek(base::TimeDelta time,
-  //                   const PipelineStatusCB& callback) OVERRIDE;
+  //                   const PipelineStatusCB& callback) override;
 
  protected:
   virtual ~ShellAudioRendererImpl();
@@ -119,10 +119,10 @@ class MEDIA_EXPORT ShellAudioRendererImpl : public ShellAudioRenderer {
   // Attempts to completely fill all channels of |dest|, returns actual
   // number of frames filled.
   // Render() is run on the system audio thread
-  virtual int Render(AudioBus* dest, int audio_delay_milliseconds) OVERRIDE;
-  virtual void OnRenderError() OVERRIDE;
-  virtual void SinkFull() OVERRIDE;
-  virtual void SinkUnderflow() OVERRIDE;
+  virtual int Render(AudioBus* dest, int audio_delay_milliseconds) override;
+  virtual void OnRenderError() override;
+  virtual void SinkFull() override;
+  virtual void SinkUnderflow() override;
 
   void DecodedAudioReady(AudioDecoder::Status status,
                          const AudioDecoder::Buffers& buffers);

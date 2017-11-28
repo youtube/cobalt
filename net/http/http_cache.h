@@ -109,7 +109,7 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
     // BackendFactory implementation.
     virtual int CreateBackend(NetLog* net_log,
                               disk_cache::Backend** backend,
-                              const CompletionCallback& callback) OVERRIDE;
+                              const CompletionCallback& callback) override;
 
    private:
     const FilePath path_;
@@ -191,9 +191,9 @@ class NET_EXPORT HttpCache : public HttpTransactionFactory,
 
   // HttpTransactionFactory implementation:
   virtual int CreateTransaction(scoped_ptr<HttpTransaction>* trans,
-                                HttpTransactionDelegate* delegate) OVERRIDE;
-  virtual HttpCache* GetCache() OVERRIDE;
-  virtual HttpNetworkSession* GetSession() OVERRIDE;
+                                HttpTransactionDelegate* delegate) override;
+  virtual HttpCache* GetCache() override;
+  virtual HttpNetworkSession* GetSession() override;
 
  protected:
   // Disk cache entry data indices.

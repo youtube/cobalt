@@ -22,13 +22,13 @@ class MEDIA_EXPORT FileDataSource : public DataSource {
   bool Initialize(const FilePath& file_path);
 
   // Implementation of DataSource.
-  virtual void set_host(DataSourceHost* host) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
+  virtual void set_host(DataSourceHost* host) override;
+  virtual void Stop(const base::Closure& callback) override;
   virtual void Read(int64 position, int size, uint8* data,
-                    const DataSource::ReadCB& read_cb) OVERRIDE;
-  virtual bool GetSize(int64* size_out) OVERRIDE;
-  virtual bool IsStreaming() OVERRIDE;
-  virtual void SetBitrate(int bitrate) OVERRIDE;
+                    const DataSource::ReadCB& read_cb) override;
+  virtual bool GetSize(int64* size_out) override;
+  virtual bool IsStreaming() override;
+  virtual void SetBitrate(int bitrate) override;
 
   // Unit test helpers. Recreate the object if you want the default behaviour.
   void force_read_errors_for_testing() { force_read_errors_ = true; }

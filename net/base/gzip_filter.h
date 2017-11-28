@@ -49,7 +49,7 @@ class GZipFilter : public Filter {
   // return. For example, the internal zlib may process some pre-filter data
   // but not produce output yet.
   virtual FilterStatus ReadFilteredData(char* dest_buffer,
-                                        int* dest_len) OVERRIDE;
+                                        int* dest_len) override;
 
  private:
   enum DecodingStatus {

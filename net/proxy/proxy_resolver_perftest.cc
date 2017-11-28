@@ -27,11 +27,11 @@ class MockSyncHostResolver : public net::SyncHostResolver {
  public:
   virtual int Resolve(const net::HostResolver::RequestInfo& info,
                       net::AddressList* addresses,
-                      const net::BoundNetLog& net_log) OVERRIDE {
+                      const net::BoundNetLog& net_log) override {
     return net::ERR_NAME_NOT_RESOLVED;
   }
 
-  virtual void Shutdown() OVERRIDE {}
+  virtual void Shutdown() override {}
 };
 
 // This class holds the URL to use for resolving, and the expected result.

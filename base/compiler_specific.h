@@ -133,12 +133,6 @@
 #define ALIGNOF(type) __alignof__(type)
 #endif
 
-// Annotate a virtual method indicating it must be overriding a virtual
-// method in the parent class.
-// Use like:
-//   virtual void foo() OVERRIDE;
-#define OVERRIDE override
-
 // Annotate a function indicating the caller must examine the return value.
 // Use like:
 //   int foo() WARN_UNUSED_RESULT;

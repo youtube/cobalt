@@ -33,12 +33,12 @@ class MEDIA_EXPORT DecryptingAudioDecoder : public AudioDecoder {
   // AudioDecoder implementation.
   virtual void Initialize(const scoped_refptr<DemuxerStream>& stream,
                           const PipelineStatusCB& status_cb,
-                          const StatisticsCB& statistics_cb) OVERRIDE;
-  virtual void Read(const ReadCB& read_cb) OVERRIDE;
-  virtual void Reset(const base::Closure& closure) OVERRIDE;
-  virtual int bits_per_channel() OVERRIDE;
-  virtual ChannelLayout channel_layout() OVERRIDE;
-  virtual int samples_per_second() OVERRIDE;
+                          const StatisticsCB& statistics_cb) override;
+  virtual void Read(const ReadCB& read_cb) override;
+  virtual void Reset(const base::Closure& closure) override;
+  virtual int bits_per_channel() override;
+  virtual ChannelLayout channel_layout() override;
+  virtual int samples_per_second() override;
 
  protected:
   virtual ~DecryptingAudioDecoder();

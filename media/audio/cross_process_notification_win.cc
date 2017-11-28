@@ -107,7 +107,7 @@ class ExtraWaitThread : public base::PlatformThread::Delegate {
   }
   virtual ~ExtraWaitThread() {}
 
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     // Store the |stop_| event as the first event.
     HANDLE events[MAXIMUM_WAIT_OBJECTS] = { stop_ };
     HANDLE next_thread = NULL;

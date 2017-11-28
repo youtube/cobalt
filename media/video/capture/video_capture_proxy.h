@@ -45,17 +45,17 @@ class MEDIA_EXPORT VideoCaptureHandlerProxy
   const VideoCaptureState& state() const { return state_; }
 
   // VideoCapture::EventHandler implementation, called on VC thread.
-  virtual void OnStarted(VideoCapture* capture) OVERRIDE;
-  virtual void OnStopped(VideoCapture* capture) OVERRIDE;
-  virtual void OnPaused(VideoCapture* capture) OVERRIDE;
-  virtual void OnError(VideoCapture* capture, int error_code) OVERRIDE;
-  virtual void OnRemoved(VideoCapture* capture) OVERRIDE;
+  virtual void OnStarted(VideoCapture* capture) override;
+  virtual void OnStopped(VideoCapture* capture) override;
+  virtual void OnPaused(VideoCapture* capture) override;
+  virtual void OnError(VideoCapture* capture, int error_code) override;
+  virtual void OnRemoved(VideoCapture* capture) override;
   virtual void OnBufferReady(
       VideoCapture* capture,
-      scoped_refptr<VideoCapture::VideoFrameBuffer> buffer) OVERRIDE;
+      scoped_refptr<VideoCapture::VideoFrameBuffer> buffer) override;
   virtual void OnDeviceInfoReceived(
       VideoCapture* capture,
-      const VideoCaptureParams& device_info) OVERRIDE;
+      const VideoCaptureParams& device_info) override;
 
  private:
   // Called on main thread.

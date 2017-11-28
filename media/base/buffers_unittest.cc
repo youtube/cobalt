@@ -26,8 +26,8 @@ class TestBuffer : public Buffer {
   }
 
   // Buffer implementation.
-  virtual const uint8* GetData() const OVERRIDE { return data_; }
-  virtual int GetDataSize() const OVERRIDE { return size_; }
+  virtual const uint8* GetData() const override { return data_; }
+  virtual int GetDataSize() const override { return size_; }
 
  protected:
   virtual ~TestBuffer() {}

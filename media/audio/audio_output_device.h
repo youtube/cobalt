@@ -79,23 +79,23 @@ class MEDIA_EXPORT AudioOutputDevice
  public:
   // AudioRendererSink implementation.
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* callback) OVERRIDE;
+                          RenderCallback* callback) override;
   virtual void InitializeIO(const AudioParameters& params,
                             int input_channels,
-                            RenderCallback* callback) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Play() OVERRIDE;
-  virtual void Pause(bool flush) OVERRIDE;
-  virtual bool SetVolume(double volume) OVERRIDE;
+                            RenderCallback* callback) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void Play() override;
+  virtual void Pause(bool flush) override;
+  virtual bool SetVolume(double volume) override;
 
   // Methods called on IO thread ----------------------------------------------
   // AudioOutputIPCDelegate methods.
-  virtual void OnStateChanged(AudioOutputIPCDelegate::State state) OVERRIDE;
+  virtual void OnStateChanged(AudioOutputIPCDelegate::State state) override;
   virtual void OnStreamCreated(base::SharedMemoryHandle handle,
                                base::SyncSocket::Handle socket_handle,
-                               int length) OVERRIDE;
-  virtual void OnIPCClosed() OVERRIDE;
+                               int length) override;
+  virtual void OnIPCClosed() override;
 
   // Creates an uninitialized AudioOutputDevice. Clients must call Initialize()
   // before using.
@@ -135,7 +135,7 @@ class MEDIA_EXPORT AudioOutputDevice
 
   // MessageLoop::DestructionObserver implementation for the IO loop.
   // If the IO loop dies before we do, we shut down the audio thread from here.
-  virtual void WillDestroyCurrentMessageLoop() OVERRIDE;
+  virtual void WillDestroyCurrentMessageLoop() override;
 
   AudioParameters audio_parameters_;
 

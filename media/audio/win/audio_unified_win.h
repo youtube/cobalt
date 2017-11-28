@@ -60,12 +60,12 @@ class MEDIA_EXPORT WASAPIUnifiedStream
   virtual ~WASAPIUnifiedStream();
 
   // Implementation of AudioOutputStream.
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
+  virtual bool Open() override;
+  virtual void Start(AudioSourceCallback* callback) override;
+  virtual void Stop() override;
+  virtual void Close() override;
+  virtual void SetVolume(double volume) override;
+  virtual void GetVolume(double* volume) override;
 
   // Returns true if all conditions to support audio IO are fulfilled.
   // Input and output sides of the Audio Engine must use the same native
@@ -79,7 +79,7 @@ class MEDIA_EXPORT WASAPIUnifiedStream
 
  private:
   // DelegateSimpleThread::Delegate implementation.
-  virtual void Run() OVERRIDE;
+  virtual void Run() override;
 
   // Issues the OnError() callback to the |source_|.
   void HandleError(HRESULT err);

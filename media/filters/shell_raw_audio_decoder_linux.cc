@@ -77,18 +77,18 @@ void ResampleToInterleavedFloat(int source_sample_format,
 class ShellRawAudioDecoderLinux : public ShellRawAudioDecoder {
  public:
   ShellRawAudioDecoderLinux();
-  ~ShellRawAudioDecoderLinux() OVERRIDE;
+  ~ShellRawAudioDecoderLinux() override;
 
-  int GetBytesPerSample() const OVERRIDE { return kSampleSizeInBytes; }
+  int GetBytesPerSample() const override { return kSampleSizeInBytes; }
   // When the input buffer is not NULL, it can be a normal buffer or an EOS
   // buffer. In this case the function will return the decoded buffer if there
   // is any.
   // The input buffer can be NULL, in this case the function will return a
   // queued buffer if there is any or return NULL if there is no queued buffer.
   void Decode(const scoped_refptr<DecoderBuffer>& buffer,
-              const DecodeCB& decoder_cb) OVERRIDE;
-  bool Flush() OVERRIDE;
-  bool UpdateConfig(const AudioDecoderConfig& config) OVERRIDE;
+              const DecodeCB& decoder_cb) override;
+  bool Flush() override;
+  bool UpdateConfig(const AudioDecoderConfig& config) override;
 
  private:
   void ReleaseResource();

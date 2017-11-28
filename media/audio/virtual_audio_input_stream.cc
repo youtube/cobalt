@@ -37,7 +37,7 @@ class LoopbackAudioConverter : public AudioConverter::InputCallback {
 
  private:
   virtual double ProvideInput(AudioBus* audio_bus,
-                              base::TimeDelta buffer_delay) OVERRIDE {
+                              base::TimeDelta buffer_delay) override {
     audio_converter_.Convert(audio_bus);
     return 1.0;
   }

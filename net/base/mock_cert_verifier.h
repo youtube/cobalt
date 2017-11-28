@@ -32,8 +32,8 @@ class MockCertVerifier : public CertVerifier {
                      CertVerifyResult* verify_result,
                      const CompletionCallback& callback,
                      RequestHandle* out_req,
-                     const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle req) OVERRIDE;
+                     const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle req) override;
 
   // Sets the default return value for Verify() for certificates/hosts that do
   // not have explicit results added via the AddResult*() methods.

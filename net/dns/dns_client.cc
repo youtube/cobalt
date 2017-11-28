@@ -24,7 +24,7 @@ class DnsClientImpl : public DnsClient {
       : address_sorter_(AddressSorter::CreateAddressSorter()),
         net_log_(net_log) {}
 
-  virtual void SetConfig(const DnsConfig& config) OVERRIDE {
+  virtual void SetConfig(const DnsConfig& config) override {
     factory_.reset();
     session_ = NULL;
     if (config.IsValid()) {
@@ -37,15 +37,15 @@ class DnsClientImpl : public DnsClient {
     }
   }
 
-  virtual const DnsConfig* GetConfig() const OVERRIDE {
+  virtual const DnsConfig* GetConfig() const override {
     return session_.get() ? &session_->config() : NULL;
   }
 
-  virtual DnsTransactionFactory* GetTransactionFactory() OVERRIDE {
+  virtual DnsTransactionFactory* GetTransactionFactory() override {
     return session_.get() ? factory_.get() : NULL;
   }
 
-  virtual AddressSorter* GetAddressSorter() OVERRIDE {
+  virtual AddressSorter* GetAddressSorter() override {
     return address_sorter_.get();
   }
 

@@ -52,7 +52,7 @@ class CallDoStuffOnThread : public base::SimpleThread {
         thread_checker_class_(thread_checker_class) {
   }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     thread_checker_class_->DoStuff();
   }
 
@@ -70,7 +70,7 @@ class DeleteThreadCheckerClassOnThread : public base::SimpleThread {
         thread_checker_class_(thread_checker_class) {
   }
 
-  virtual void Run() OVERRIDE {
+  virtual void Run() override {
     thread_checker_class_.reset();
   }
 

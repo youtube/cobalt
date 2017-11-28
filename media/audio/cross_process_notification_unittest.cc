@@ -74,7 +74,7 @@ class SingleNotifierWorker : public base::PlatformThread::Delegate {
   virtual ~SingleNotifierWorker() {}
 
   // base::PlatformThread::Delegate:
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     for (size_t i = 0; i < repeats_; ++i) {
       notifier_->Wait();
       ++(*shared_data_);
@@ -102,7 +102,7 @@ class MultiNotifierWorker : public base::PlatformThread::Delegate {
   virtual ~MultiNotifierWorker() {}
 
   // base::PlatformThread::Delegate:
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     CrossProcessNotification::WaitForMultiple waiter(notifiers_);
     for (size_t i = 0; i < repeats_; ++i) {
       int signaled = waiter.Wait();
@@ -164,7 +164,7 @@ class MultiNotifierWorkerFlagArray : public base::PlatformThread::Delegate {
   virtual ~MultiNotifierWorkerFlagArray() {}
 
   // base::PlatformThread::Delegate:
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     for (size_t i = 0; i < repeats_; ++i) {
       notifier_->Wait();
       for (size_t s = 0; s < count_; ++s) {

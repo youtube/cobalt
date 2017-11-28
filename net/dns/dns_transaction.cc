@@ -283,17 +283,17 @@ class DnsTransactionImpl : public DnsTransaction,
     }  // otherwise logged in DoCallback or Start
   }
 
-  virtual const std::string& GetHostname() const OVERRIDE {
+  virtual const std::string& GetHostname() const override {
     DCHECK(CalledOnValidThread());
     return hostname_;
   }
 
-  virtual uint16 GetType() const OVERRIDE {
+  virtual uint16 GetType() const override {
     DCHECK(CalledOnValidThread());
     return qtype_;
   }
 
-  virtual int Start() OVERRIDE {
+  virtual int Start() override {
     DCHECK(!callback_.is_null());
     DCHECK(attempts_.empty());
     net_log_.BeginEvent(NetLog::TYPE_DNS_TRANSACTION,
@@ -574,7 +574,7 @@ class DnsTransactionFactoryImpl : public DnsTransactionFactory {
       const std::string& hostname,
       uint16 qtype,
       const CallbackType& callback,
-      const BoundNetLog& net_log) OVERRIDE {
+      const BoundNetLog& net_log) override {
     return scoped_ptr<DnsTransaction>(new DnsTransactionImpl(session_,
                                                              hostname,
                                                              qtype,

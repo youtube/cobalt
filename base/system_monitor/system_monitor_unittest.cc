@@ -24,15 +24,15 @@ class PowerTest : public SystemMonitor::PowerObserver {
   }
 
   // PowerObserver callbacks.
-  virtual void OnPowerStateChange(bool on_battery_power) OVERRIDE {
+  virtual void OnPowerStateChange(bool on_battery_power) override {
     power_state_changes_++;
   }
 
-  virtual void OnSuspend() OVERRIDE {
+  virtual void OnSuspend() override {
     suspends_++;
   }
 
-  virtual void OnResume() OVERRIDE {
+  virtual void OnResume() override {
     resumes_++;
   }
 

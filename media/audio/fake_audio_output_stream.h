@@ -22,12 +22,12 @@ class MEDIA_EXPORT FakeAudioOutputStream : public AudioOutputStream {
                                            const AudioParameters& params);
 
   // AudioOutputStream implementation.
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
-  virtual void Close() OVERRIDE;
+  virtual bool Open() override;
+  virtual void Start(AudioSourceCallback* callback) override;
+  virtual void Stop() override;
+  virtual void SetVolume(double volume) override;
+  virtual void GetVolume(double* volume) override;
+  virtual void Close() override;
 
  private:
   FakeAudioOutputStream(AudioManagerBase* manager,

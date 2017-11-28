@@ -225,7 +225,7 @@ class CallSystemHostResolverProc : public HostResolverProc {
                       AddressFamily address_family,
                       HostResolverFlags host_resolver_flags,
                       AddressList* addr_list,
-                      int* os_error) OVERRIDE {
+                      int* os_error) override {
     return SystemHostResolverProc(hostname,
                                   address_family,
                                   host_resolver_flags,
@@ -1347,7 +1347,7 @@ class HostResolverImpl::Job : public PrioritizedDispatcher::Job {
   }
 
   // PriorityDispatch::Job:
-  virtual void Start() OVERRIDE {
+  virtual void Start() override {
     DCHECK(!is_running());
     handle_.Reset();
 
