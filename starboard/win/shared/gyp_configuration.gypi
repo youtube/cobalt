@@ -25,12 +25,10 @@
 
     'cobalt_media_source_2016': 1,
 
-    # Note we must not use the default of 16.4 because win32 sleep
-    # rounds up to the next millisecond, and 17.0 is <60fps.
-    # Our rendering will be throttled appropriately by vsync with
-    # ANGLE/DirectX and thus we do not need to manually throttle
-    # our rendering with this.
-    'cobalt_minimum_frame_time_in_milliseconds': 0,
+    # Frame presentation is blocked on vsync, so the render thread will also
+    # block on vsync. However, use a non-zero minimum frame time to avoid
+    # possible busy-loops on unrendered submissions.
+    'cobalt_minimum_frame_time_in_milliseconds': '1',
 
     'fallback_splash_screen_url%': 'h5vcc-embedded://youtube_splash_screen.html',
 
