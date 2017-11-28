@@ -132,11 +132,11 @@ class BASE_EXPORT FundamentalValue : public Value {
   virtual ~FundamentalValue();
 
   // Overridden from Value:
-  virtual bool GetAsBoolean(bool* out_value) const OVERRIDE;
-  virtual bool GetAsInteger(int* out_value) const OVERRIDE;
-  virtual bool GetAsDouble(double* out_value) const OVERRIDE;
-  virtual FundamentalValue* DeepCopy() const OVERRIDE;
-  virtual bool Equals(const Value* other) const OVERRIDE;
+  virtual bool GetAsBoolean(bool* out_value) const override;
+  virtual bool GetAsInteger(int* out_value) const override;
+  virtual bool GetAsDouble(double* out_value) const override;
+  virtual FundamentalValue* DeepCopy() const override;
+  virtual bool Equals(const Value* other) const override;
 
  private:
   union {
@@ -157,10 +157,10 @@ class BASE_EXPORT StringValue : public Value {
   virtual ~StringValue();
 
   // Overridden from Value:
-  virtual bool GetAsString(std::string* out_value) const OVERRIDE;
-  virtual bool GetAsString(string16* out_value) const OVERRIDE;
-  virtual StringValue* DeepCopy() const OVERRIDE;
-  virtual bool Equals(const Value* other) const OVERRIDE;
+  virtual bool GetAsString(std::string* out_value) const override;
+  virtual bool GetAsString(string16* out_value) const override;
+  virtual StringValue* DeepCopy() const override;
+  virtual bool Equals(const Value* other) const override;
 
  private:
   std::string value_;
@@ -186,8 +186,8 @@ class BASE_EXPORT BinaryValue: public Value {
   const char* GetBuffer() const { return buffer_; }
 
   // Overridden from Value:
-  virtual BinaryValue* DeepCopy() const OVERRIDE;
-  virtual bool Equals(const Value* other) const OVERRIDE;
+  virtual BinaryValue* DeepCopy() const override;
+  virtual bool Equals(const Value* other) const override;
 
  private:
   // Constructor is private so that only objects with valid buffer pointers
@@ -209,9 +209,9 @@ class BASE_EXPORT DictionaryValue : public Value {
   virtual ~DictionaryValue();
 
   // Overridden from Value:
-  virtual bool GetAsDictionary(DictionaryValue** out_value) OVERRIDE;
+  virtual bool GetAsDictionary(DictionaryValue** out_value) override;
   virtual bool GetAsDictionary(
-      const DictionaryValue** out_value) const OVERRIDE;
+      const DictionaryValue** out_value) const override;
 
   // Returns true if the current dictionary has a value for the given key.
   bool HasKey(const std::string& key) const;
@@ -381,8 +381,8 @@ class BASE_EXPORT DictionaryValue : public Value {
   };
 
   // Overridden from Value:
-  virtual DictionaryValue* DeepCopy() const OVERRIDE;
-  virtual bool Equals(const Value* other) const OVERRIDE;
+  virtual DictionaryValue* DeepCopy() const override;
+  virtual bool Equals(const Value* other) const override;
 
  private:
   ValueMap dictionary_;
@@ -489,10 +489,10 @@ class BASE_EXPORT ListValue : public Value {
   const_iterator end() const { return list_.end(); }
 
   // Overridden from Value:
-  virtual bool GetAsList(ListValue** out_value) OVERRIDE;
-  virtual bool GetAsList(const ListValue** out_value) const OVERRIDE;
-  virtual ListValue* DeepCopy() const OVERRIDE;
-  virtual bool Equals(const Value* other) const OVERRIDE;
+  virtual bool GetAsList(ListValue** out_value) override;
+  virtual bool GetAsList(const ListValue** out_value) const override;
+  virtual ListValue* DeepCopy() const override;
+  virtual bool Equals(const Value* other) const override;
 
  private:
   ValueVector list_;

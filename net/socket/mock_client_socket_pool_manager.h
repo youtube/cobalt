@@ -27,17 +27,17 @@ class MockClientSocketPoolManager : public ClientSocketPoolManager {
                                     SSLClientSocketPool* pool);
 
   // ClientSocketPoolManager methods:
-  virtual void FlushSocketPoolsWithError(int error) OVERRIDE;
-  virtual void CloseIdleSockets() OVERRIDE;
-  virtual TransportClientSocketPool* GetTransportSocketPool() OVERRIDE;
-  virtual SSLClientSocketPool* GetSSLSocketPool() OVERRIDE;
+  virtual void FlushSocketPoolsWithError(int error) override;
+  virtual void CloseIdleSockets() override;
+  virtual TransportClientSocketPool* GetTransportSocketPool() override;
+  virtual SSLClientSocketPool* GetSSLSocketPool() override;
   virtual SOCKSClientSocketPool* GetSocketPoolForSOCKSProxy(
-      const HostPortPair& socks_proxy) OVERRIDE;
+      const HostPortPair& socks_proxy) override;
   virtual HttpProxyClientSocketPool* GetSocketPoolForHTTPProxy(
-      const HostPortPair& http_proxy) OVERRIDE;
+      const HostPortPair& http_proxy) override;
   virtual SSLClientSocketPool* GetSocketPoolForSSLWithProxy(
-      const HostPortPair& proxy_server) OVERRIDE;
-  virtual base::Value* SocketPoolInfoToValue() const OVERRIDE;
+      const HostPortPair& proxy_server) override;
+  virtual base::Value* SocketPoolInfoToValue() const override;
 
  private:
   typedef internal::OwnedPoolMap<HostPortPair, TransportClientSocketPool*>

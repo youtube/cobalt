@@ -37,7 +37,7 @@ class DictionaryHiddenRootValue : public base::DictionaryValue {
     DictionaryValue::Swap(static_cast<DictionaryValue*>(root));
   }
 
-  virtual void Swap(DictionaryValue* other) OVERRIDE {
+  virtual void Swap(DictionaryValue* other) override {
     DVLOG(1) << "Swap()ing a DictionaryValue inefficiently.";
 
     // First deep copy to convert JSONStringValue to std::string and swap that
@@ -56,7 +56,7 @@ class DictionaryHiddenRootValue : public base::DictionaryValue {
   // the method below.
 
   virtual bool RemoveWithoutPathExpansion(const std::string& key,
-                                          Value** out) OVERRIDE {
+                                          Value** out) override {
     // If the caller won't take ownership of the removed value, just call up.
     if (!out)
       return DictionaryValue::RemoveWithoutPathExpansion(key, out);
@@ -88,7 +88,7 @@ class ListHiddenRootValue : public base::ListValue {
     ListValue::Swap(static_cast<ListValue*>(root));
   }
 
-  virtual void Swap(ListValue* other) OVERRIDE {
+  virtual void Swap(ListValue* other) override {
     DVLOG(1) << "Swap()ing a ListValue inefficiently.";
 
     // First deep copy to convert JSONStringValue to std::string and swap that
@@ -103,7 +103,7 @@ class ListHiddenRootValue : public base::ListValue {
     ListValue::Swap(copy.get());
   }
 
-  virtual bool Remove(size_t index, Value** out) OVERRIDE {
+  virtual bool Remove(size_t index, Value** out) override {
     // If the caller won't take ownership of the removed value, just call up.
     if (!out)
       return ListValue::Remove(index, out);
@@ -139,18 +139,18 @@ class JSONStringValue : public base::Value {
   }
 
   // Overridden from base::Value:
-  virtual bool GetAsString(std::string* out_value) const OVERRIDE {
+  virtual bool GetAsString(std::string* out_value) const override {
     string_piece_.CopyToString(out_value);
     return true;
   }
-  virtual bool GetAsString(string16* out_value) const OVERRIDE {
+  virtual bool GetAsString(string16* out_value) const override {
     *out_value = UTF8ToUTF16(string_piece_);
     return true;
   }
-  virtual Value* DeepCopy() const OVERRIDE {
+  virtual Value* DeepCopy() const override {
     return new StringValue(string_piece_.as_string());
   }
-  virtual bool Equals(const Value* other) const OVERRIDE {
+  virtual bool Equals(const Value* other) const override {
     std::string other_string;
     return other->IsType(TYPE_STRING) && other->GetAsString(&other_string) &&
         StringPiece(other_string) == string_piece_;

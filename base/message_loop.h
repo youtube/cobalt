@@ -499,9 +499,9 @@ class BASE_EXPORT MessageLoop : public base::MessagePump::Delegate {
   void HistogramEvent(int event);
 
   // base::MessagePump::Delegate methods:
-  virtual bool DoWork() OVERRIDE;
-  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time) OVERRIDE;
-  virtual bool DoIdleWork() OVERRIDE;
+  virtual bool DoWork() override;
+  virtual bool DoDelayedWork(base::TimeTicks* next_delayed_work_time) override;
+  virtual bool DoIdleWork() override;
 
   Type type_;
 

@@ -64,13 +64,13 @@ class AUAudioInputStream : public AudioInputStreamImpl {
   virtual ~AUAudioInputStream();
 
   // Implementation of AudioInputStream.
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioInputCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual double GetMaxVolume() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual double GetVolume() OVERRIDE;
+  virtual bool Open() override;
+  virtual void Start(AudioInputCallback* callback) override;
+  virtual void Stop() override;
+  virtual void Close() override;
+  virtual double GetMaxVolume() override;
+  virtual void SetVolume(double volume) override;
+  virtual double GetVolume() override;
 
   // Returns the current hardware sample rate for the default input device.
   MEDIA_EXPORT static int HardwareSampleRate();

@@ -95,16 +95,16 @@ class NET_EXPORT_PRIVATE MultiThreadedProxyResolver
                              ProxyInfo* results,
                              const CompletionCallback& callback,
                              RequestHandle* request,
-                             const BoundNetLog& net_log) OVERRIDE;
-  virtual void CancelRequest(RequestHandle request) OVERRIDE;
-  virtual LoadState GetLoadState(RequestHandle request) const OVERRIDE;
+                             const BoundNetLog& net_log) override;
+  virtual void CancelRequest(RequestHandle request) override;
+  virtual LoadState GetLoadState(RequestHandle request) const override;
   virtual LoadState GetLoadStateThreadSafe(
-      RequestHandle request) const OVERRIDE;
-  virtual void CancelSetPacScript() OVERRIDE;
-  virtual void PurgeMemory() OVERRIDE;
+      RequestHandle request) const override;
+  virtual void CancelSetPacScript() override;
+  virtual void PurgeMemory() override;
   virtual int SetPacScript(
       const scoped_refptr<ProxyResolverScriptData>& script_data,
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
 
  private:
   class Executor;

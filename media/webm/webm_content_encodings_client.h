@@ -28,10 +28,10 @@ class MEDIA_EXPORT WebMContentEncodingsClient : public WebMParserClient {
   const ContentEncodings& content_encodings() const;
 
   // WebMParserClient methods
-  virtual WebMParserClient* OnListStart(int id) OVERRIDE;
-  virtual bool OnListEnd(int id) OVERRIDE;
-  virtual bool OnUInt(int id, int64 val) OVERRIDE;
-  virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
+  virtual WebMParserClient* OnListStart(int id) override;
+  virtual bool OnListEnd(int id) override;
+  virtual bool OnUInt(int id, int64 val) override;
+  virtual bool OnBinary(int id, const uint8* data, int size) override;
 
  private:
   LogCB log_cb_;

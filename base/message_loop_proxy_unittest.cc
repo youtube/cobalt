@@ -31,7 +31,7 @@ class MessageLoopProxyTest : public testing::Test {
   }
 
  protected:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     // Use SetUp() instead of the constructor to avoid posting a task to a
     // partialy constructed object.
     task_thread_.Start();
@@ -42,7 +42,7 @@ class MessageLoopProxyTest : public testing::Test {
         Bind(&MessageLoopProxyTest::BlockTaskThreadHelper, Unretained(this)));
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     // Make sure the |task_thread_| is not blocked, and stop the thread
     // fully before destuction because its tasks may still depend on the
     // |thread_sync_| event.

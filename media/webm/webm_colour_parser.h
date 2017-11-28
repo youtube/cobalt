@@ -37,13 +37,13 @@ struct MEDIA_EXPORT WebMColorMetadata {
 class WebMMasteringMetadataParser : public WebMParserClient {
  public:
   WebMMasteringMetadataParser();
-  ~WebMMasteringMetadataParser() OVERRIDE;
+  ~WebMMasteringMetadataParser() override;
 
   MasteringMetadata GetMasteringMetadata() const { return mastering_metadata_; }
 
  private:
   // WebMParserClient implementation.
-  bool OnFloat(int id, double val) OVERRIDE;
+  bool OnFloat(int id, double val) override;
 
   MasteringMetadata mastering_metadata_;
   DISALLOW_COPY_AND_ASSIGN(WebMMasteringMetadataParser);
@@ -54,7 +54,7 @@ class WebMMasteringMetadataParser : public WebMParserClient {
 class WebMColourParser : public WebMParserClient {
  public:
   WebMColourParser();
-  ~WebMColourParser() OVERRIDE;
+  ~WebMColourParser() override;
 
   void Reset();
 
@@ -62,9 +62,9 @@ class WebMColourParser : public WebMParserClient {
 
  private:
   // WebMParserClient implementation.
-  WebMParserClient* OnListStart(int id) OVERRIDE;
-  bool OnListEnd(int id) OVERRIDE;
-  bool OnUInt(int id, int64_t val) OVERRIDE;
+  WebMParserClient* OnListStart(int id) override;
+  bool OnListEnd(int id) override;
+  bool OnUInt(int id, int64_t val) override;
 
   int64_t matrix_coefficients_;
   int64_t bits_per_channel_;

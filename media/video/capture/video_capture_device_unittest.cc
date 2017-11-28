@@ -48,17 +48,17 @@ class MockFrameObserver : public media::VideoCaptureDevice::EventHandler {
   explicit MockFrameObserver(base::WaitableEvent* wait_event)
      : wait_event_(wait_event) {}
 
-  virtual void OnError() OVERRIDE {
+  virtual void OnError() override {
     OnErr();
   }
 
   virtual void OnFrameInfo(
-      const VideoCaptureCapability& info) OVERRIDE {
+      const VideoCaptureCapability& info) override {
     OnFrameInfo(info.width, info.height, info.frame_rate, info.color);
   }
 
   virtual void OnIncomingCapturedFrame(const uint8* data, int length,
-                                       base::Time timestamp) OVERRIDE {
+                                       base::Time timestamp) override {
     wait_event_->Signal();
   }
 

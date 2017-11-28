@@ -105,23 +105,23 @@ class HttpCache::Transaction : public HttpTransaction {
 
   // HttpTransaction methods:
   virtual int Start(const HttpRequestInfo*, const CompletionCallback&,
-                    const BoundNetLog&) OVERRIDE;
+                    const BoundNetLog&) override;
   virtual int RestartIgnoringLastError(
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
   virtual int RestartWithCertificate(
       X509Certificate* client_cert,
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              const CompletionCallback& callback) OVERRIDE;
-  virtual bool IsReadyToRestartForAuth() OVERRIDE;
+                              const CompletionCallback& callback) override;
+  virtual bool IsReadyToRestartForAuth() override;
   virtual int Read(IOBuffer* buf,
                    int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
-  virtual void StopCaching() OVERRIDE;
-  virtual void DoneReading() OVERRIDE;
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
-  virtual LoadState GetLoadState() const OVERRIDE;
-  virtual UploadProgress GetUploadProgress(void) const OVERRIDE;
+                   const CompletionCallback& callback) override;
+  virtual void StopCaching() override;
+  virtual void DoneReading() override;
+  virtual const HttpResponseInfo* GetResponseInfo() const override;
+  virtual LoadState GetLoadState() const override;
+  virtual UploadProgress GetUploadProgress(void) const override;
 
  private:
   static const size_t kNumValidationHeaders = 2;

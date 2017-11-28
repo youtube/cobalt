@@ -25,9 +25,9 @@ class NET_EXPORT StaticHttpUserAgentSettings : public HttpUserAgentSettings {
   virtual ~StaticHttpUserAgentSettings();
 
   // HttpUserAgentSettings implementation
-  virtual const std::string& GetAcceptLanguage() const OVERRIDE;
-  virtual const std::string& GetAcceptCharset() const OVERRIDE;
-  virtual const std::string& GetUserAgent() const OVERRIDE;
+  virtual const std::string& GetAcceptLanguage() const override;
+  virtual const std::string& GetAcceptCharset() const override;
+  virtual const std::string& GetUserAgent() const override;
 
  private:
   const std::string accept_language_;

@@ -57,16 +57,16 @@ class MEDIA_EXPORT AudioRendererImpl
                           const TimeCB& time_cb,
                           const base::Closure& ended_cb,
                           const base::Closure& disabled_cb,
-                          const PipelineStatusCB& error_cb) OVERRIDE;
-  virtual void Play(const base::Closure& callback) OVERRIDE;
-  virtual void Pause(const base::Closure& callback) OVERRIDE;
-  virtual void Flush(const base::Closure& callback) OVERRIDE;
-  virtual void Stop(const base::Closure& callback) OVERRIDE;
-  virtual void SetPlaybackRate(float rate) OVERRIDE;
+                          const PipelineStatusCB& error_cb) override;
+  virtual void Play(const base::Closure& callback) override;
+  virtual void Pause(const base::Closure& callback) override;
+  virtual void Flush(const base::Closure& callback) override;
+  virtual void Stop(const base::Closure& callback) override;
+  virtual void SetPlaybackRate(float rate) override;
   virtual void Preroll(base::TimeDelta time,
-                       const PipelineStatusCB& cb) OVERRIDE;
-  virtual void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
-  virtual void SetVolume(float volume) OVERRIDE;
+                       const PipelineStatusCB& cb) override;
+  virtual void ResumeAfterUnderflow(bool buffer_more_audio) override;
+  virtual void SetVolume(float volume) override;
 
   // Disables underflow support.  When used, |state_| will never transition to
   // kUnderflow resulting in Render calls that underflow returning 0 frames
@@ -128,8 +128,8 @@ class MEDIA_EXPORT AudioRendererImpl
   // media::AudioRendererSink::RenderCallback implementation.  Called on the
   // AudioDevice thread.
   virtual int Render(AudioBus* audio_bus,
-                     int audio_delay_milliseconds) OVERRIDE;
-  virtual void OnRenderError() OVERRIDE;
+                     int audio_delay_milliseconds) override;
+  virtual void OnRenderError() override;
 
   // Helper method that schedules an asynchronous read from the decoder and
   // increments |pending_reads_|.

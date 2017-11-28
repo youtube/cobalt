@@ -95,10 +95,10 @@ class TCPListenSocketTester :
 
   // StreamListenSocket::Delegate:
   virtual void DidAccept(StreamListenSocket* server,
-                         StreamListenSocket* connection) OVERRIDE;
+                         StreamListenSocket* connection) override;
   virtual void DidRead(StreamListenSocket* connection, const char* data,
-                       int len) OVERRIDE;
-  virtual void DidClose(StreamListenSocket* sock) OVERRIDE;
+                       int len) override;
+  virtual void DidClose(StreamListenSocket* sock) override;
 
   scoped_ptr<base::Thread> thread_;
   MessageLoopForIO* loop_;

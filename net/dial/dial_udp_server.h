@@ -31,9 +31,9 @@ class NET_EXPORT DialUdpServer : public UDPListenSocket::Delegate {
   virtual void DidRead(UDPListenSocket* server,
                        const char* data,
                        int len,
-                       const IPEndPoint* address) OVERRIDE;
+                       const IPEndPoint* address) override;
 
-  virtual void DidClose(UDPListenSocket* sock) OVERRIDE;
+  virtual void DidClose(UDPListenSocket* sock) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(DialUdpServerTest, ParseSearchRequest);

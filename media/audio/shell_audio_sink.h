@@ -58,20 +58,20 @@ class MEDIA_EXPORT ShellAudioSink : NON_EXPORTED_BASE(public AudioRendererSink),
 
   // AudioRendererSink implementation
   void Initialize(const AudioParameters& params,
-                  RenderCallback* callback) OVERRIDE;
-  void Start() OVERRIDE;
-  void Stop() OVERRIDE;
-  void Pause(bool flush) OVERRIDE;
-  void Play() OVERRIDE;
-  bool SetVolume(double volume) OVERRIDE;
-  void ResumeAfterUnderflow(bool buffer_more_audio) OVERRIDE;
+                  RenderCallback* callback) override;
+  void Start() override;
+  void Stop() override;
+  void Pause(bool flush) override;
+  void Play() override;
+  bool SetVolume(double volume) override;
+  void ResumeAfterUnderflow(bool buffer_more_audio) override;
 
   // ShellAudioStream implementation
-  bool PauseRequested() const OVERRIDE;
-  bool PullFrames(uint32_t* offset_in_frame, uint32_t* total_frames) OVERRIDE;
-  void ConsumeFrames(uint32_t frame_played) OVERRIDE;
-  const AudioParameters& GetAudioParameters() const OVERRIDE;
-  AudioBus* GetAudioBus() OVERRIDE;
+  bool PauseRequested() const override;
+  bool PullFrames(uint32_t* offset_in_frame, uint32_t* total_frames) override;
+  void ConsumeFrames(uint32_t frame_played) override;
+  const AudioParameters& GetAudioParameters() const override;
+  AudioBus* GetAudioBus() override;
 
  private:
   // Config the audio bus that will be sent to the AudioRenderer. It reueses

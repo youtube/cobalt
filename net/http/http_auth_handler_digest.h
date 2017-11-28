@@ -38,7 +38,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
   class DynamicNonceGenerator : public NonceGenerator {
    public:
     DynamicNonceGenerator();
-    virtual std::string GenerateNonce() const OVERRIDE;
+    virtual std::string GenerateNonce() const override;
    private:
     DISALLOW_COPY_AND_ASSIGN(DynamicNonceGenerator);
   };
@@ -49,7 +49,7 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
    public:
     explicit FixedNonceGenerator(const std::string& nonce);
 
-    virtual std::string GenerateNonce() const OVERRIDE;
+    virtual std::string GenerateNonce() const override;
 
    private:
     const std::string nonce_;
@@ -71,22 +71,22 @@ class NET_EXPORT_PRIVATE HttpAuthHandlerDigest : public HttpAuthHandler {
         CreateReason reason,
         int digest_nonce_count,
         const BoundNetLog& net_log,
-        scoped_ptr<HttpAuthHandler>* handler) OVERRIDE;
+        scoped_ptr<HttpAuthHandler>* handler) override;
 
    private:
     scoped_ptr<const NonceGenerator> nonce_generator_;
   };
 
   virtual HttpAuth::AuthorizationResult HandleAnotherChallenge(
-      HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+      HttpAuth::ChallengeTokenizer* challenge) override;
 
  protected:
-  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) OVERRIDE;
+  virtual bool Init(HttpAuth::ChallengeTokenizer* challenge) override;
 
   virtual int GenerateAuthTokenImpl(const AuthCredentials* credentials,
                                     const HttpRequestInfo* request,
                                     const CompletionCallback& callback,
-                                    std::string* auth_token) OVERRIDE;
+                                    std::string* auth_token) override;
 
  private:
   FRIEND_TEST_ALL_PREFIXES(HttpAuthHandlerDigestTest, ParseChallenge);

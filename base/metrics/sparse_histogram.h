@@ -28,22 +28,22 @@ class BASE_EXPORT_PRIVATE SparseHistogram : public HistogramBase {
   virtual ~SparseHistogram();
 
   // HistogramBase implementation:
-  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const override;
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
-                                        size_t bucket_count) const OVERRIDE;
-  virtual void Add(Sample value) OVERRIDE;
-  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
-  virtual void WriteAscii(std::string* output) const OVERRIDE;
-  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
+                                        size_t bucket_count) const override;
+  virtual void Add(Sample value) override;
+  virtual void WriteHTMLGraph(std::string* output) const override;
+  virtual void WriteAscii(std::string* output) const override;
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const override;
 
  private:
   // Clients should always use FactoryGet to create SparseHistogram.
   SparseHistogram(const std::string& name);
 
-  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
+  virtual void GetParameters(DictionaryValue* params) const override;
   virtual void GetCountAndBucketData(Count* count,
-                                     ListValue* buckets) const OVERRIDE;
+                                     ListValue* buckets) const override;
 
   friend class SparseHistogramTest;  // For constuctor calling.
 

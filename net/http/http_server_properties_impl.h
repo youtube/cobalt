@@ -74,63 +74,63 @@ class NET_EXPORT HttpServerPropertiesImpl
   // -----------------------------
 
   // Deletes all data.
-  virtual void Clear() OVERRIDE;
+  virtual void Clear() override;
 
   // Returns true if |server| supports SPDY.
-  virtual bool SupportsSpdy(const HostPortPair& server) const OVERRIDE;
+  virtual bool SupportsSpdy(const HostPortPair& server) const override;
 
   // Add |server| into the persistent store.
   virtual void SetSupportsSpdy(const HostPortPair& server,
-                               bool support_spdy) OVERRIDE;
+                               bool support_spdy) override;
 
   // Returns true if |server| has an Alternate-Protocol header.
-  virtual bool HasAlternateProtocol(const HostPortPair& server) const OVERRIDE;
+  virtual bool HasAlternateProtocol(const HostPortPair& server) const override;
 
   // Returns the Alternate-Protocol and port for |server|.
   // HasAlternateProtocol(server) must be true.
   virtual PortAlternateProtocolPair GetAlternateProtocol(
-      const HostPortPair& server) const OVERRIDE;
+      const HostPortPair& server) const override;
 
   // Sets the Alternate-Protocol for |server|.
   virtual void SetAlternateProtocol(
       const HostPortPair& server,
       uint16 alternate_port,
-      AlternateProtocol alternate_protocol) OVERRIDE;
+      AlternateProtocol alternate_protocol) override;
 
   // Sets the Alternate-Protocol for |server| to be BROKEN.
-  virtual void SetBrokenAlternateProtocol(const HostPortPair& server) OVERRIDE;
+  virtual void SetBrokenAlternateProtocol(const HostPortPair& server) override;
 
   // Returns all Alternate-Protocol mappings.
-  virtual const AlternateProtocolMap& alternate_protocol_map() const OVERRIDE;
+  virtual const AlternateProtocolMap& alternate_protocol_map() const override;
 
   // Gets a reference to the SettingsMap stored for a host.
   // If no settings are stored, returns an empty SettingsMap.
   virtual const SettingsMap& GetSpdySettings(
-      const HostPortPair& host_port_pair) const OVERRIDE;
+      const HostPortPair& host_port_pair) const override;
 
   // Saves an individual SPDY setting for a host. Returns true if SPDY setting
   // is to be persisted.
   virtual bool SetSpdySetting(const HostPortPair& host_port_pair,
                               SpdySettingsIds id,
                               SpdySettingsFlags flags,
-                              uint32 value) OVERRIDE;
+                              uint32 value) override;
 
   // Clears all entries in |spdy_settings_map_|.
-  virtual void ClearSpdySettings() OVERRIDE;
+  virtual void ClearSpdySettings() override;
 
   // Returns all persistent SPDY settings.
-  virtual const SpdySettingsMap& spdy_settings_map() const OVERRIDE;
+  virtual const SpdySettingsMap& spdy_settings_map() const override;
 
   virtual HttpPipelinedHostCapability GetPipelineCapability(
-      const HostPortPair& origin) OVERRIDE;
+      const HostPortPair& origin) override;
 
   virtual void SetPipelineCapability(
       const HostPortPair& origin,
-      HttpPipelinedHostCapability capability) OVERRIDE;
+      HttpPipelinedHostCapability capability) override;
 
-  virtual void ClearPipelineCapabilities() OVERRIDE;
+  virtual void ClearPipelineCapabilities() override;
 
-  virtual PipelineCapabilityMap GetPipelineCapabilityMap() const OVERRIDE;
+  virtual PipelineCapabilityMap GetPipelineCapabilityMap() const override;
 
  private:
   typedef base::MRUCache<

@@ -27,7 +27,7 @@ class Foo {
 class Adder : public Foo {
  public:
   explicit Adder(int scaler) : total(0), scaler_(scaler) {}
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     total += x * scaler_;
   }
   virtual ~Adder() {}
@@ -44,7 +44,7 @@ class Disrupter : public Foo {
         doomed_(doomed) {
   }
   virtual ~Disrupter() {}
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     list_->RemoveObserver(doomed_);
   }
 
@@ -60,7 +60,7 @@ class ThreadSafeDisrupter : public Foo {
         doomed_(doomed) {
   }
   virtual ~ThreadSafeDisrupter() {}
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     list_->RemoveObserver(doomed_);
   }
 
@@ -78,7 +78,7 @@ class AddInObserve : public Foo {
         adder(1) {
   }
 
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     if (!added) {
       added = true;
       observer_list->AddObserver(&adder);
@@ -113,7 +113,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
   virtual ~AddRemoveThread() {
   }
 
-  virtual void ThreadMain() OVERRIDE {
+  virtual void ThreadMain() override {
     loop_ = new MessageLoop();  // Fire up a message loop.
     loop_->PostTask(
         FROM_HERE,
@@ -158,7 +158,7 @@ class AddRemoveThread : public PlatformThread::Delegate,
     loop_->PostTask(FROM_HERE, MessageLoop::QuitClosure());
   }
 
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     count_observes_++;
 
     // If we're getting called after we removed ourselves from
@@ -334,7 +334,7 @@ class FooRemover : public Foo {
     foos_.push_back(foo);
   }
 
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     std::vector<Foo*> tmp;
     tmp.swap(foos_);
     for (std::vector<Foo*>::iterator it = tmp.begin();
@@ -494,7 +494,7 @@ class AddInClearObserve : public Foo {
   explicit AddInClearObserve(ObserverList<Foo>* list)
       : list_(list), added_(false), adder_(1) {}
 
-  virtual void Observe(int /* x */) OVERRIDE {
+  virtual void Observe(int /* x */) override {
     list_->Clear();
     list_->AddObserver(&adder_);
     added_ = true;
@@ -539,7 +539,7 @@ class ListDestructor : public Foo {
   explicit ListDestructor(ObserverList<Foo>* list) : list_(list) {}
   virtual ~ListDestructor() {}
 
-  virtual void Observe(int x) OVERRIDE {
+  virtual void Observe(int x) override {
     delete list_;
   }
 

@@ -26,17 +26,17 @@ class NET_EXPORT_PRIVATE TcpCubicSender : public SendAlgorithmInterface {
 
   // Start implementation of SendAlgorithmInterface.
   virtual void OnIncomingQuicCongestionFeedbackFrame(
-      const QuicCongestionFeedbackFrame& feedback) OVERRIDE;
+      const QuicCongestionFeedbackFrame& feedback) override;
   virtual void OnIncomingAck(QuicPacketSequenceNumber acked_sequence_number,
                              size_t acked_bytes,
-                             QuicTime::Delta rtt) OVERRIDE;
-  virtual void OnIncomingLoss(int number_of_lost_packets) OVERRIDE;
+                             QuicTime::Delta rtt) override;
+  virtual void OnIncomingLoss(int number_of_lost_packets) override;
   virtual void SentPacket(QuicPacketSequenceNumber sequence_number,
                           size_t bytes,
-                          bool retransmit) OVERRIDE;
-  virtual QuicTime::Delta TimeUntilSend(bool retransmit) OVERRIDE;
-  virtual size_t AvailableCongestionWindow() OVERRIDE;
-  virtual int BandwidthEstimate() OVERRIDE;
+                          bool retransmit) override;
+  virtual QuicTime::Delta TimeUntilSend(bool retransmit) override;
+  virtual size_t AvailableCongestionWindow() override;
+  virtual int BandwidthEstimate() override;
   // End implementation of SendAlgorithmInterface.
 
   // Visible for testing.

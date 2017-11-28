@@ -20,10 +20,10 @@ namespace media {
 class VideoCaptureDeviceDummy : public VideoCaptureDevice {
  public:
   virtual void Allocate(int width, int height, int frame_rate,
-                        VideoCaptureDevice::EventHandler* observer) OVERRIDE;
-  virtual void Start() OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void DeAllocate() OVERRIDE;
+                        VideoCaptureDevice::EventHandler* observer) override;
+  virtual void Start() override;
+  virtual void Stop() override;
+  virtual void DeAllocate() override;
 
  private:
   VideoCaptureDeviceDummy();

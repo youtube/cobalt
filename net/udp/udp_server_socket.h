@@ -22,23 +22,23 @@ class NET_EXPORT UDPServerSocket : public DatagramServerSocket {
   virtual ~UDPServerSocket();
 
   // Implement DatagramServerSocket:
-  virtual int Listen(const IPEndPoint& address) OVERRIDE;
+  virtual int Listen(const IPEndPoint& address) override;
   virtual int RecvFrom(IOBuffer* buf,
                        int buf_len,
                        IPEndPoint* address,
-                       const CompletionCallback& callback) OVERRIDE;
+                       const CompletionCallback& callback) override;
   virtual int SendTo(IOBuffer* buf,
                      int buf_len,
                      const IPEndPoint& address,
-                     const CompletionCallback& callback) OVERRIDE;
-  virtual bool SetReceiveBufferSize(int32 size) OVERRIDE;
-  virtual bool SetSendBufferSize(int32 size) OVERRIDE;
-  virtual void Close() OVERRIDE;
-  virtual int GetPeerAddress(IPEndPoint* address) const OVERRIDE;
-  virtual int GetLocalAddress(IPEndPoint* address) const OVERRIDE;
-  virtual const BoundNetLog& NetLog() const OVERRIDE;
-  virtual void AllowAddressReuse() OVERRIDE;
-  virtual void AllowBroadcast() OVERRIDE;
+                     const CompletionCallback& callback) override;
+  virtual bool SetReceiveBufferSize(int32 size) override;
+  virtual bool SetSendBufferSize(int32 size) override;
+  virtual void Close() override;
+  virtual int GetPeerAddress(IPEndPoint* address) const override;
+  virtual int GetLocalAddress(IPEndPoint* address) const override;
+  virtual const BoundNetLog& NetLog() const override;
+  virtual void AllowAddressReuse() override;
+  virtual void AllowBroadcast() override;
 
  private:
   UDPSocket socket_;

@@ -92,7 +92,7 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public AudioDecoder {
   ShellAudioDecoderImpl(
       const scoped_refptr<base::MessageLoopProxy>& message_loop,
       ShellRawAudioDecoderFactory* raw_audio_decoder_factory);
-  ~ShellAudioDecoderImpl() OVERRIDE;
+  ~ShellAudioDecoderImpl() override;
 
  private:
   static const int kMaxQueuedBuffers = 32;
@@ -100,12 +100,12 @@ class MEDIA_EXPORT ShellAudioDecoderImpl : public AudioDecoder {
   // AudioDecoder implementation.
   void Initialize(const scoped_refptr<DemuxerStream>& stream,
                   const PipelineStatusCB& status_cb,
-                  const StatisticsCB& statistics_cb) OVERRIDE;
-  void Read(const ReadCB& read_cb) OVERRIDE;
-  int bits_per_channel() OVERRIDE;
-  ChannelLayout channel_layout() OVERRIDE;
-  int samples_per_second() OVERRIDE;
-  void Reset(const base::Closure& reset_cb) OVERRIDE;
+                  const StatisticsCB& statistics_cb) override;
+  void Read(const ReadCB& read_cb) override;
+  int bits_per_channel() override;
+  ChannelLayout channel_layout() override;
+  int samples_per_second() override;
+  void Reset(const base::Closure& reset_cb) override;
 
   void TryToReadFromDemuxerStream();
   void OnDemuxerRead(DemuxerStream::Status status,

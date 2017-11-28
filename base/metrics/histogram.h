@@ -500,14 +500,14 @@ class BASE_EXPORT Histogram : public HistogramBase {
                                            size_t* bucket_count);
 
   // HistogramBase implementation:
-  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const override;
   virtual bool HasConstructionArguments(Sample minimum,
                                         Sample maximum,
-                                        size_t bucket_count) const OVERRIDE;
-  virtual void Add(Sample value) OVERRIDE;
-  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const OVERRIDE;
-  virtual void WriteHTMLGraph(std::string* output) const OVERRIDE;
-  virtual void WriteAscii(std::string* output) const OVERRIDE;
+                                        size_t bucket_count) const override;
+  virtual void Add(Sample value) override;
+  virtual scoped_ptr<HistogramSamples> SnapshotSamples() const override;
+  virtual void WriteHTMLGraph(std::string* output) const override;
+  virtual void WriteAscii(std::string* output) const override;
 
  protected:
   // |bucket_count| and |ranges| should contain the underflow and overflow
@@ -582,10 +582,10 @@ class BASE_EXPORT Histogram : public HistogramBase {
                              std::string* output) const;
 
   // WriteJSON calls these.
-  virtual void GetParameters(DictionaryValue* params) const OVERRIDE;
+  virtual void GetParameters(DictionaryValue* params) const override;
 
   virtual void GetCountAndBucketData(Count* count,
-                                     ListValue* buckets) const OVERRIDE;
+                                     ListValue* buckets) const override;
 
   // Does not own this object. Should get from StatisticsRecorder.
   const BucketRanges* bucket_ranges_;
@@ -641,7 +641,7 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                                      BucketRanges* ranges);
 
   // Overridden from Histogram:
-  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const override;
 
  protected:
   LinearHistogram(const std::string& name,
@@ -650,15 +650,15 @@ class BASE_EXPORT LinearHistogram : public Histogram {
                   size_t bucket_count,
                   const BucketRanges* ranges);
 
-  virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
+  virtual double GetBucketSize(Count current, size_t i) const override;
 
   // If we have a description for a bucket, then return that.  Otherwise
   // let parent class provide a (numeric) description.
-  virtual const std::string GetAsciiBucketRange(size_t i) const OVERRIDE;
+  virtual const std::string GetAsciiBucketRange(size_t i) const override;
 
   // Skip printing of name for numeric range if we have a name (and if this is
   // an empty bucket).
-  virtual bool PrintEmptyBucket(size_t index) const OVERRIDE;
+  virtual bool PrintEmptyBucket(size_t index) const override;
 
  private:
   // For some ranges, we store a printable description of a bucket range.
@@ -677,9 +677,9 @@ class BASE_EXPORT BooleanHistogram : public LinearHistogram {
  public:
   static Histogram* FactoryGet(const std::string& name, int32 flags);
 
-  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const override;
 
-  virtual void AddBoolean(bool value) OVERRIDE;
+  virtual void AddBoolean(bool value) override;
 
  private:
   BooleanHistogram(const std::string& name, const BucketRanges* ranges);
@@ -701,7 +701,7 @@ class BASE_EXPORT CustomHistogram : public Histogram {
                                int32 flags);
 
   // Overridden from Histogram:
-  virtual HistogramType GetHistogramType() const OVERRIDE;
+  virtual HistogramType GetHistogramType() const override;
 
   // Helper method for transforming an array of valid enumeration values
   // to the std::vector<int> expected by HISTOGRAM_CUSTOM_ENUMERATION.
@@ -720,9 +720,9 @@ class BASE_EXPORT CustomHistogram : public Histogram {
   CustomHistogram(const std::string& name,
                   const BucketRanges* ranges);
 
-  virtual bool SerializeRanges(Pickle* pickle) const OVERRIDE;
+  virtual bool SerializeRanges(Pickle* pickle) const override;
 
-  virtual double GetBucketSize(Count current, size_t i) const OVERRIDE;
+  virtual double GetBucketSize(Count current, size_t i) const override;
 
  private:
   static bool ValidateCustomRanges(const std::vector<Sample>& custom_ranges);

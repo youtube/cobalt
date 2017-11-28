@@ -18,7 +18,7 @@ class DialServiceTest : public testing::Test {
  protected:
   scoped_ptr<DialService> service_;
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     service_.reset();
   }
 

@@ -139,8 +139,8 @@ class NET_EXPORT UDPSocketStarboard : public base::NonThreadSafe {
 
     // MessageLoopForIO::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket /*socket*/) OVERRIDE;
-    void OnSocketReadyToWrite(SbSocket /*socket*/) OVERRIDE{};
+    void OnSocketReadyToRead(SbSocket /*socket*/) override;
+    void OnSocketReadyToWrite(SbSocket /*socket*/) override{};
 
    private:
     UDPSocketStarboard* const socket_;
@@ -154,8 +154,8 @@ class NET_EXPORT UDPSocketStarboard : public base::NonThreadSafe {
 
     // MessageLoopForIO::Watcher methods
 
-    void OnSocketReadyToRead(SbSocket /*socket*/) OVERRIDE{};
-    void OnSocketReadyToWrite(SbSocket /*socket*/) OVERRIDE;
+    void OnSocketReadyToRead(SbSocket /*socket*/) override{};
+    void OnSocketReadyToWrite(SbSocket /*socket*/) override;
 
    private:
     UDPSocketStarboard* const socket_;

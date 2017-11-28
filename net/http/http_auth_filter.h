@@ -46,7 +46,7 @@ class NET_EXPORT HttpAuthFilterWhitelist : public HttpAuthFilter {
   const ProxyBypassRules& rules() const { return rules_; }
 
   // HttpAuthFilter methods:
-  virtual bool IsValid(const GURL& url, HttpAuth::Target target) const OVERRIDE;
+  virtual bool IsValid(const GURL& url, HttpAuth::Target target) const override;
 
  private:
   // Installs the whitelist.

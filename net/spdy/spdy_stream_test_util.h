@@ -22,16 +22,16 @@ class TestSpdyStreamDelegate : public SpdyStream::Delegate {
                          const CompletionCallback& callback);
   virtual ~TestSpdyStreamDelegate();
 
-  virtual bool OnSendHeadersComplete(int status) OVERRIDE;
-  virtual int OnSendBody() OVERRIDE;
-  virtual int OnSendBodyComplete(int status, bool* eof) OVERRIDE;
+  virtual bool OnSendHeadersComplete(int status) override;
+  virtual int OnSendBody() override;
+  virtual int OnSendBodyComplete(int status, bool* eof) override;
   virtual int OnResponseReceived(const SpdyHeaderBlock& response,
                                  base::Time response_time,
-                                 int status) OVERRIDE;
-  virtual void OnHeadersSent() OVERRIDE;
-  virtual int OnDataReceived(const char* buffer, int bytes) OVERRIDE;
-  virtual void OnDataSent(int length) OVERRIDE;
-  virtual void OnClose(int status) OVERRIDE;
+                                 int status) override;
+  virtual void OnHeadersSent() override;
+  virtual int OnDataReceived(const char* buffer, int bytes) override;
+  virtual void OnDataSent(int length) override;
+  virtual void OnClose(int status) override;
 
   bool send_headers_completed() const { return send_headers_completed_; }
   const linked_ptr<SpdyHeaderBlock>& response() const {

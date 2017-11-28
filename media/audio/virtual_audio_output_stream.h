@@ -33,12 +33,12 @@ class MEDIA_EXPORT VirtualAudioOutputStream
   virtual ~VirtualAudioOutputStream();
 
   // AudioOutputStream:
-  virtual bool Open() OVERRIDE;
-  virtual void Start(AudioSourceCallback* callback) OVERRIDE;
-  virtual void Stop() OVERRIDE;
-  virtual void SetVolume(double volume) OVERRIDE;
-  virtual void GetVolume(double* volume) OVERRIDE;
-  virtual void Close() OVERRIDE;
+  virtual bool Open() override;
+  virtual void Start(AudioSourceCallback* callback) override;
+  virtual void Stop() override;
+  virtual void SetVolume(double volume) override;
+  virtual void GetVolume(double* volume) override;
+  virtual void Close() override;
 
  protected:
   VirtualAudioOutputStream(AudioManagerBase* manager,
@@ -49,7 +49,7 @@ class MEDIA_EXPORT VirtualAudioOutputStream
  private:
   // AudioConverter::InputCallback:
   virtual double ProvideInput(AudioBus* audio_bus,
-                              base::TimeDelta buffer_delay) OVERRIDE;
+                              base::TimeDelta buffer_delay) override;
 
   AudioManagerBase* audio_manager_;
   base::MessageLoopProxy* message_loop_;

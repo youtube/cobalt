@@ -47,9 +47,9 @@ class MockPipeline : public HttpPipelinedConnection {
     active_ = active;
   }
 
-  virtual int depth() const OVERRIDE { return depth_; }
-  virtual bool usable() const OVERRIDE { return usable_; }
-  virtual bool active() const OVERRIDE { return active_; }
+  virtual int depth() const override { return depth_; }
+  virtual bool usable() const override { return usable_; }
+  virtual bool active() const override { return active_; }
 
   MOCK_METHOD0(CreateNewStream, HttpPipelinedStream*());
   MOCK_METHOD1(OnStreamDeleted, void(int pipeline_id));

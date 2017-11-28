@@ -38,7 +38,7 @@ class PulseAudioHost : public ShellPulseAudioStream::Host {
                  int rate,
                  int channels);
   ~PulseAudioHost();
-  virtual void RequestFrame(size_t length, WriteFunc write) OVERRIDE;
+  virtual void RequestFrame(size_t length, WriteFunc write) override;
 
  private:
   enum StreamState {

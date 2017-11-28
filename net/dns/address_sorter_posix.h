@@ -65,13 +65,13 @@ class NET_EXPORT_PRIVATE AddressSorterPosix
 
   // AddressSorter:
   virtual void Sort(const AddressList& list,
-                    const CallbackType& callback) const OVERRIDE;
+                    const CallbackType& callback) const override;
 
  private:
   friend class AddressSorterPosixTest;
 
   // NetworkChangeNotifier::IPAddressObserver:
-  virtual void OnIPAddressChanged() OVERRIDE;
+  virtual void OnIPAddressChanged() override;
 
   // Fills |info| with values for |address| from policy tables.
   void FillPolicy(const IPAddressNumber& address,

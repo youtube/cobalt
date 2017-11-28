@@ -26,10 +26,10 @@ class MEDIA_EXPORT AudioInputStreamImpl : public AudioInputStream {
   // the microphone volume is queried periodically and the volume level is
   // provided in each AudioInputCallback::OnData() callback and fed to the
   // render-side AGC.
-  virtual void SetAutomaticGainControl(bool enabled) OVERRIDE;
+  virtual void SetAutomaticGainControl(bool enabled) override;
 
   // Gets the current automatic gain control state.
-  virtual bool GetAutomaticGainControl() OVERRIDE;
+  virtual bool GetAutomaticGainControl() override;
 
  protected:
   // Stores a new volume level by asking the audio hardware.

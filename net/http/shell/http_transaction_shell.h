@@ -31,45 +31,45 @@ class NET_EXPORT_PRIVATE HttpTransactionShell : public HttpTransaction {
   // Starts the HTTP transaction (i.e., sends the HTTP request).
   virtual int Start(const HttpRequestInfo* request_info,
                     const CompletionCallback& callback,
-                    const BoundNetLog& net_log) OVERRIDE;
+                    const BoundNetLog& net_log) override;
 
   // Restarts the HTTP transaction, ignoring the last error.
   virtual int RestartIgnoringLastError(
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
 
   // Restarts the HTTP transaction with a client certificate.
   virtual int RestartWithCertificate(X509Certificate* client_cert,
-      const CompletionCallback& callback) OVERRIDE;
+      const CompletionCallback& callback) override;
 
   // Restarts the HTTP transaction with authentication credentials.
   virtual int RestartWithAuth(const AuthCredentials& credentials,
-                              const CompletionCallback& callback) OVERRIDE;
+                              const CompletionCallback& callback) override;
 
   // Returns true if auth is ready to be continued.
-  virtual bool IsReadyToRestartForAuth() OVERRIDE;
+  virtual bool IsReadyToRestartForAuth() override;
 
   // Once response info is available for the transaction, response data may be
   // read by calling this method.
   virtual int Read(IOBuffer* buf, int buf_len,
-                   const CompletionCallback& callback) OVERRIDE;
+                   const CompletionCallback& callback) override;
 
   // Stops further caching of this request by the HTTP cache, if there is any.
-  virtual void StopCaching() OVERRIDE;
+  virtual void StopCaching() override;
 
   // Called to tell the transaction that we have successfully reached the end
   // of the stream.
-  virtual void DoneReading() OVERRIDE;
+  virtual void DoneReading() override;
 
   // Returns the response info for this transaction or NULL if the response
   // info is not available.
-  virtual const HttpResponseInfo* GetResponseInfo() const OVERRIDE;
+  virtual const HttpResponseInfo* GetResponseInfo() const override;
 
   // Returns the load state for this transaction.
-  virtual LoadState GetLoadState() const OVERRIDE;
+  virtual LoadState GetLoadState() const override;
 
   // Returns the upload progress in bytes.  If there is no upload data,
   // zero will be returned.  This does not include the request headers.
-  virtual UploadProgress GetUploadProgress() const OVERRIDE;
+  virtual UploadProgress GetUploadProgress() const override;
 
   // Access internal member variables
   scoped_refptr<IOBuffer>& GetReadBuffer() { return read_buf_; }

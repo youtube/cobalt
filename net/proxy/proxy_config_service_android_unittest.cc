@@ -25,7 +25,7 @@ class TestObserver : public ProxyConfigService::Observer {
   // ProxyConfigService::Observer:
   virtual void OnProxyConfigChanged(
       const ProxyConfig& config,
-      ProxyConfigService::ConfigAvailability availability) OVERRIDE {
+      ProxyConfigService::ConfigAvailability availability) override {
     config_ = config;
     availability_ = availability;
   }
@@ -63,12 +63,12 @@ class ProxyConfigServiceAndroidTestBase : public testing::Test {
   virtual ~ProxyConfigServiceAndroidTestBase() {}
 
   // testing::Test:
-  virtual void SetUp() OVERRIDE {
+  virtual void SetUp() override {
     message_loop_->RunUntilIdle();
     service_.AddObserver(&observer_);
   }
 
-  virtual void TearDown() OVERRIDE {
+  virtual void TearDown() override {
     service_.RemoveObserver(&observer_);
   }
 

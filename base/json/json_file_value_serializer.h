@@ -32,7 +32,7 @@ class BASE_EXPORT JSONFileValueSerializer : public base::ValueSerializer {
   // Attempt to serialize the data structure represented by Value into
   // JSON.  If the return value is true, the result will have been written
   // into the file whose name was passed into the constructor.
-  virtual bool Serialize(const Value& root) OVERRIDE;
+  virtual bool Serialize(const Value& root) override;
 
   // Equivalent to Serialize(root) except binary values are omitted from the
   // output.
@@ -46,7 +46,7 @@ class BASE_EXPORT JSONFileValueSerializer : public base::ValueSerializer {
   // error message including the location of the error if appropriate.
   // The caller takes ownership of the returned value.
   virtual Value* Deserialize(int* error_code,
-                             std::string* error_message) OVERRIDE;
+                             std::string* error_message) override;
 
   // This enum is designed to safely overlap with JSONReader::JsonParseError.
   enum JsonFileError {

@@ -20,9 +20,9 @@ class NET_EXPORT_PRIVATE NullEncrypter : public QuicEncrypter {
 
   // QuicEncrypter implementation
   virtual QuicData* Encrypt(base::StringPiece associated_data,
-                            base::StringPiece plaintext) OVERRIDE;
-  virtual size_t GetMaxPlaintextSize(size_t ciphertext_size) OVERRIDE;
-  virtual size_t GetCiphertextSize(size_t plaintext_size) OVERRIDE;
+                            base::StringPiece plaintext) override;
+  virtual size_t GetMaxPlaintextSize(size_t ciphertext_size) override;
+  virtual size_t GetCiphertextSize(size_t plaintext_size) override;
 };
 
 }  // namespace net

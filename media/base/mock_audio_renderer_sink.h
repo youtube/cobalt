@@ -25,7 +25,7 @@ class MockAudioRendererSink : public AudioRendererSink {
 #endif
 
   virtual void Initialize(const AudioParameters& params,
-                          RenderCallback* renderer) OVERRIDE;
+                          RenderCallback* renderer) override;
   AudioRendererSink::RenderCallback* callback() { return callback_; }
 
  protected:

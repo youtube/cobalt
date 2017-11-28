@@ -22,26 +22,26 @@ class TestingPrefStore : public PersistentPrefStore {
 
   // Overriden from PrefStore.
   virtual bool GetValue(const std::string& key,
-                        const base::Value** result) const OVERRIDE;
-  virtual void AddObserver(PrefStore::Observer* observer) OVERRIDE;
-  virtual void RemoveObserver(PrefStore::Observer* observer) OVERRIDE;
-  virtual size_t NumberOfObservers() const OVERRIDE;
-  virtual bool IsInitializationComplete() const OVERRIDE;
+                        const base::Value** result) const override;
+  virtual void AddObserver(PrefStore::Observer* observer) override;
+  virtual void RemoveObserver(PrefStore::Observer* observer) override;
+  virtual size_t NumberOfObservers() const override;
+  virtual bool IsInitializationComplete() const override;
 
   // PersistentPrefStore overrides:
   virtual bool GetMutableValue(const std::string& key,
-                               base::Value** result) OVERRIDE;
-  virtual void ReportValueChanged(const std::string& key) OVERRIDE;
-  virtual void SetValue(const std::string& key, base::Value* value) OVERRIDE;
+                               base::Value** result) override;
+  virtual void ReportValueChanged(const std::string& key) override;
+  virtual void SetValue(const std::string& key, base::Value* value) override;
   virtual void SetValueSilently(const std::string& key,
-                                base::Value* value) OVERRIDE;
-  virtual void RemoveValue(const std::string& key) OVERRIDE;
-  virtual void MarkNeedsEmptyValue(const std::string& key) OVERRIDE;
-  virtual bool ReadOnly() const OVERRIDE;
-  virtual PrefReadError GetReadError() const OVERRIDE;
-  virtual PersistentPrefStore::PrefReadError ReadPrefs() OVERRIDE;
-  virtual void ReadPrefsAsync(ReadErrorDelegate* error_delegate) OVERRIDE;
-  virtual void CommitPendingWrite() OVERRIDE {}
+                                base::Value* value) override;
+  virtual void RemoveValue(const std::string& key) override;
+  virtual void MarkNeedsEmptyValue(const std::string& key) override;
+  virtual bool ReadOnly() const override;
+  virtual PrefReadError GetReadError() const override;
+  virtual PersistentPrefStore::PrefReadError ReadPrefs() override;
+  virtual void ReadPrefsAsync(ReadErrorDelegate* error_delegate) override;
+  virtual void CommitPendingWrite() override {}
 
   // Marks the store as having completed initialization.
   void SetInitializationCompleted();

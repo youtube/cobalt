@@ -29,12 +29,12 @@ class MEDIA_EXPORT WebMInfoParser : public WebMParserClient {
 
  private:
   // WebMParserClient methods
-  virtual WebMParserClient* OnListStart(int id) OVERRIDE;
-  virtual bool OnListEnd(int id) OVERRIDE;
-  virtual bool OnUInt(int id, int64 val) OVERRIDE;
-  virtual bool OnFloat(int id, double val) OVERRIDE;
-  virtual bool OnBinary(int id, const uint8* data, int size) OVERRIDE;
-  virtual bool OnString(int id, const std::string& str) OVERRIDE;
+  virtual WebMParserClient* OnListStart(int id) override;
+  virtual bool OnListEnd(int id) override;
+  virtual bool OnUInt(int id, int64 val) override;
+  virtual bool OnFloat(int id, double val) override;
+  virtual bool OnBinary(int id, const uint8* data, int size) override;
+  virtual bool OnString(int id, const std::string& str) override;
 
   int64 timecode_scale_;
   double duration_;

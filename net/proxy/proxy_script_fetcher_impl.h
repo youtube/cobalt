@@ -46,18 +46,18 @@ class NET_EXPORT ProxyScriptFetcherImpl : public ProxyScriptFetcher,
 
   // ProxyScriptFetcher methods:
   virtual int Fetch(const GURL& url, string16* text,
-                    const net::CompletionCallback& callback) OVERRIDE;
-  virtual void Cancel() OVERRIDE;
-  virtual URLRequestContext* GetRequestContext() const OVERRIDE;
+                    const net::CompletionCallback& callback) override;
+  virtual void Cancel() override;
+  virtual URLRequestContext* GetRequestContext() const override;
 
   // URLRequest::Delegate methods:
   virtual void OnAuthRequired(URLRequest* request,
-                              AuthChallengeInfo* auth_info) OVERRIDE;
+                              AuthChallengeInfo* auth_info) override;
   virtual void OnSSLCertificateError(URLRequest* request,
                                      const SSLInfo& ssl_info,
-                                     bool is_hsts_ok) OVERRIDE;
-  virtual void OnResponseStarted(URLRequest* request) OVERRIDE;
-  virtual void OnReadCompleted(URLRequest* request, int num_bytes) OVERRIDE;
+                                     bool is_hsts_ok) override;
+  virtual void OnResponseStarted(URLRequest* request) override;
+  virtual void OnReadCompleted(URLRequest* request, int num_bytes) override;
 
  private:
   enum { kBufSize = 4096 };

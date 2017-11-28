@@ -38,8 +38,8 @@ class WebMAudioClient : public WebMParserClient {
 
  private:
   // WebMParserClient implementation.
-  virtual bool OnUInt(int id, int64 val) OVERRIDE;
-  virtual bool OnFloat(int id, double val) OVERRIDE;
+  virtual bool OnUInt(int id, int64 val) override;
+  virtual bool OnFloat(int id, double val) override;
 
   LogCB log_cb_;
   int channels_;

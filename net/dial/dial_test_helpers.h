@@ -20,7 +20,7 @@ class MockServiceHandler : public DialServiceHandler {
                void(const std::string&,
                     const HttpServerRequestInfo& request,
                     const CompletionCB& completion_cb));
-  const std::string& service_name() const OVERRIDE { return service_name_; }
+  const std::string& service_name() const override { return service_name_; }
 
  private:
   ~MockServiceHandler() {}
