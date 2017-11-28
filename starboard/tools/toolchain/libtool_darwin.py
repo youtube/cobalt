@@ -34,7 +34,8 @@ class StaticLinker(abstract.StaticLinker):
     # Run as much concurrent processes as possible.
     return None
 
-  def GetCommand(self, path, extra_flags, flags):
+  def GetCommand(self, path, extra_flags, flags, shell):
+    del flags, shell  # Not used.
     return '{0} -static {1} -filelist $rspfile -o $out'.format(
         path, extra_flags)
 

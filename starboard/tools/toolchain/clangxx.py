@@ -35,7 +35,8 @@ class ExecutableLinker(abstract.ExecutableLinker):
   def GetMaxConcurrentProcesses(self):
     return self._max_concurrent_processes
 
-  def GetCommand(self, path, extra_flags, flags):
+  def GetCommand(self, path, extra_flags, flags, shell):
+    del shell  # Not used.
     return '{0} {1} {2} @$rspfile -o $out'.format(path, extra_flags, flags)
 
   def GetDescription(self):
