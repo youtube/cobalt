@@ -18,12 +18,28 @@ import re
 from starboard.tools.toolchain import abstract
 
 
+def _MaybeJoin(shell, command):
+  if isinstance(command, basestring):
+    return command
+  return shell.Join(command)
+
+
 class Shell(abstract.Shell):
   """Constructs command lines using Bash syntax."""
 
   def MaybeQuoteArgument(self, argument):
     # Rather than attempting to enumerate the bad shell characters, just
     # whitelist common OK ones and quote anything else.
-    if re.match(r"^[a-zA-Z0-9_=.,\\/+-]+$", argument):
+    if re.match(r'^[a-zA-Z0-9_=.,\\/+-]+$', argument):
       return argument  # No quoting necessary.
     return "'" + argument.replace("'", "'\"'\"'") + "'"
+
+  def Join(self, command):
+    assert not isinstance(command, basestring)
+    return ' '.join(self.MaybeQuoteArgument(argument) for argument in command)
+
+  def And(self, *commands):
+    return ' && '.join(_MaybeJoin(self, command) for command in commands)
+
+  def Or(self, *commands):
+    return ' || '.join(_MaybeJoin(self, command) for command in commands)
