@@ -79,7 +79,7 @@ class Tool(object):
     pass
 
   @abc.abstractmethod
-  def GetCommand(self, path, extra_flags, flags):
+  def GetCommand(self, path, extra_flags, flags, shell):
     """Returns a command that invokes a tool.
 
     See 'command' at https://ninja-build.org/manual.html#ref_rule for details.
@@ -88,6 +88,7 @@ class Tool(object):
       path: A variable that contains a path to a tool.
       extra_flags: A variable that contains tool flags specific to a platform.
       flags: A variable that contains tool flags specific to a target.
+      shell: The shell that will be used to interpret the command.
 
     Returns:
       None if a tool doesn't have a corresponding rule.
@@ -213,6 +214,7 @@ class CxxCompiler(Tool):
     """
     pass
 
+
 class ObjectiveCxxCompiler(Tool):
   """Compiles Objective-C++ sources."""
 
@@ -242,6 +244,7 @@ class ObjectiveCxxCompiler(Tool):
       shell) before passing to a tool.
     """
     pass
+
 
 class AssemblerWithCPreprocessor(Tool):
   """Compiles assembler sources that contain C preprocessor directives."""
@@ -405,7 +408,7 @@ class Shell(Tool):
     # Shell should not be used by Ninja, only by other tools.
     return None
 
-  def GetCommand(self, path, extra_flags, flags):
+  def GetCommand(self, path, extra_flags, flags, shell):
     # Shell should not be used by Ninja, only by other tools.
     return None
 
@@ -439,5 +442,43 @@ class Shell(Tool):
     Returns:
       A quoted and appropriately escaped string. Returns the original string
       if no processing is necessary.
+    """
+    pass
+
+  @abc.abstractmethod
+  def Join(self, command):
+    """Joins a sequence of unquoted command line terms into a string.
+
+    Args:
+      command: An unquoted, unescaped sequence of command line terms.
+
+    Returns:
+      A quoted and appropriately escaped string for the same command line.
+    """
+    pass
+
+  @abc.abstractmethod
+  def And(self, *commands):
+    """Joins a sequence of command lines with the AND shell operator.
+
+    Args:
+      *commands: A sequence of either quoted strings or unquoted sequences of
+                 command line terms that make up the command lines to be ANDed.
+
+    Returns:
+      A quoted and appropriately escaped string for the ANDed command line.
+    """
+    pass
+
+  @abc.abstractmethod
+  def Or(self, *commands):
+    """Joins a sequence of command lines with the OR shell operator.
+
+    Args:
+      *commands: A sequence of either quoted strings or unquoted sequences of
+                 command line terms that make up the command lines to be ORed.
+
+    Returns:
+      A quoted and appropriately escaped string for the ORed command line.
     """
     pass
