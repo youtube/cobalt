@@ -359,6 +359,10 @@ scoped_refptr<HTMLHeadElement> Document::head() const {
   return NULL;
 }
 
+bool Document::HasFocus() const {
+  return page_visibility_state()->HasWindowFocus();
+}
+
 // https://www.w3.org/TR/html5/editing.html#dom-document-activeelement
 scoped_refptr<Element> Document::active_element() const {
   // The activeElement attribute on Document objects must return the element in
