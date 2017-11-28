@@ -49,15 +49,21 @@ class CompilerBase(object):
     pass
 
 
+def _GetClangCommand(path, language, extra_flags, flags, shell):
+  del shell  # Not used.
+  return ('{path} -x {language} -MMD -MF $out.d {extra_flags} {flags} -c $in '
+          '-o $out'.format(path=path, language=language,
+                           extra_flags=extra_flags, flags=flags))
+
+
 class CCompiler(CompilerBase, abstract.CCompiler):
   """Compiles C sources using Clang."""
 
   def __init__(self, **kwargs):
     super(CCompiler, self).__init__(**kwargs)
 
-  def GetCommand(self, path, extra_flags, flags):
-    return '{0} -x c -MMD -MF $out.d {1} {2} -c $in -o $out'.format(
-        path, extra_flags, flags)
+  def GetCommand(self, path, extra_flags, flags, shell):
+    return _GetClangCommand(path, 'c', extra_flags, flags, shell)
 
   def GetDescription(self):
     return 'CC $out'
@@ -76,9 +82,8 @@ class CxxCompiler(CompilerBase, abstract.CxxCompiler):
   def __init__(self, **kwargs):
     super(CxxCompiler, self).__init__(**kwargs)
 
-  def GetCommand(self, path, extra_flags, flags):
-    return '{0} -x c++ -MMD -MF $out.d {1} {2} -c $in -o $out'.format(
-        path, extra_flags, flags)
+  def GetCommand(self, path, extra_flags, flags, shell):
+    return _GetClangCommand(path, 'c++', extra_flags, flags, shell)
 
   def GetDescription(self):
     return 'CXX $out'
@@ -90,15 +95,15 @@ class CxxCompiler(CompilerBase, abstract.CxxCompiler):
     ]
     return define_flags + include_dir_flags + cflags
 
+
 class ObjectiveCxxCompiler(CompilerBase, abstract.ObjectiveCxxCompiler):
   """Compiles Objective-C++ sources using Clang."""
 
   def __init__(self, **kwargs):
     super(ObjectiveCxxCompiler, self).__init__(**kwargs)
 
-  def GetCommand(self, path, extra_flags, flags):
-    return '{0} -x objective-c++ -MMD -MF $out.d {1} {2} -c $in -o $out'.format(
-        path, extra_flags, flags)
+  def GetCommand(self, path, extra_flags, flags, shell):
+    return _GetClangCommand(path, 'objective-c++', extra_flags, flags, shell)
 
   def GetDescription(self):
     return 'OBJCXX $out'
@@ -118,9 +123,9 @@ class AssemblerWithCPreprocessor(CompilerBase,
   def __init__(self, **kwargs):
     super(AssemblerWithCPreprocessor, self).__init__(**kwargs)
 
-  def GetCommand(self, path, extra_flags, flags):
-    return ('{0} -x assembler-with-cpp -MMD -MF $out.d {1} {2} -c $in -o $out'.
-            format(path, extra_flags, flags))
+  def GetCommand(self, path, extra_flags, flags, shell):
+    return _GetClangCommand(path, 'assembler-with-cpp', extra_flags, flags,
+                            shell)
 
   def GetDescription(self):
     return 'ASM $out'
