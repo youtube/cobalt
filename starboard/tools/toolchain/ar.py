@@ -51,7 +51,7 @@ class StaticLinker(StaticLinkerBase, abstract.StaticLinker):
     super(StaticLinker, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags):
-    return '{0} rcs {1} $out @$rspfile'.format(path, extra_flags)
+    return 'rm -f $out && {0} rcs {1} $out @$rspfile'.format(path, extra_flags)
 
 
 class StaticThinLinker(StaticLinkerBase, abstract.StaticThinLinker):
@@ -61,4 +61,4 @@ class StaticThinLinker(StaticLinkerBase, abstract.StaticThinLinker):
     super(StaticThinLinker, self).__init__(**kwargs)
 
   def GetCommand(self, path, extra_flags, flags):
-    return '{0} rcsT {1} $out @$rspfile'.format(path, extra_flags)
+    return 'rm -f $out && {0} rcsT {1} $out @$rspfile'.format(path, extra_flags)
