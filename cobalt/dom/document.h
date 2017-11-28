@@ -194,6 +194,9 @@ class Document : public Node,
 
   scoped_refptr<HTMLHeadElement> head() const;
 
+  // https://www.w3.org/TR/html5/editing.html#dom-document-hasfocus
+  bool HasFocus() const;
+
   scoped_refptr<Element> active_element() const;
   scoped_refptr<HTMLElement> indicated_element() const;
 

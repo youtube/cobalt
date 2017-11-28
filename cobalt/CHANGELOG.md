@@ -2,6 +2,12 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 14
+ - **Add support for document.hasFocus()**
+
+   While support for firing blur and focus events was implemented, querying
+   the current state via document.hasFocus() was not implemented until now.
+
 ## Version 12
  - **Add support for touchpad not associated with a pointer**
 
