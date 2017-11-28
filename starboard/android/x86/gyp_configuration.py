@@ -11,16 +11,10 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Starboard Android X86 platform configuration for gyp_cobalt."""
+"""Starboard Android x86 platform build configuration."""
 
-import logging
-# Import the shared Android platform configuration.
-from starboard.android.shared import gyp_configuration
+from starboard.android.shared import gyp_configuration as shared_configuration
 
 
 def CreatePlatformConfig():
-  try:
-    return gyp_configuration.PlatformConfig('android-x86', 'x86')
-  except RuntimeError as e:
-    logging.critical(e)
-    return None
+  return shared_configuration.PlatformConfig('android-x86', 'x86')
