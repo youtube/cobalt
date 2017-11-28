@@ -24,6 +24,7 @@ partial /*sealed*/ interface Document {
   attribute HTMLBodyElement? body;
   readonly attribute HTMLHeadElement? head;
   readonly attribute DOMString title;
+  boolean hasFocus();
   readonly attribute Element? activeElement;
 
   [LenientThis] attribute EventHandler onreadystatechange;
