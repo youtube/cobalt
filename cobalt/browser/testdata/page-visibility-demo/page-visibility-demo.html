@@ -2,26 +2,36 @@
 <html>
 <head>
   <script type="text/javascript">
-    console.log("document.visibilityState: " + document.visibilityState);
+    function printVisibilityState() {
+      console.log("  document.hasFocus() == " + document.hasFocus());
+      console.log("  document.hidden == " + document.hidden);
+      console.log("  document.visibilityState == " + document.visibilityState);
+    }
+    printVisibilityState();
 
     window.onblur = function() {
       console.log("window.onblur");
+      printVisibilityState();
     };
 
     window.onfocus = function() {
       console.log("window.onfocus");
+      printVisibilityState();
     };
 
     document.onblur = function() {
-      console.log("document.onblur?!");
+      console.log("document.onblur");
+      printVisibilityState();
     };
 
     document.onfocus = function() {
-      console.log("document.onfocus?!");
+      console.log("document.onfocus");
+      printVisibilityState();
     };
 
     document.onvisibilitychange = function() {
       console.log("document.onvisibilitychange: " + document.visibilityState);
+      printVisibilityState();
     };
   </script>
 </head>
