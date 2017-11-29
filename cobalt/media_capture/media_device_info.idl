@@ -18,4 +18,5 @@
 [Exposed=Window]
 interface MediaDeviceInfo {
   readonly attribute MediaDeviceKind kind;
+  readonly attribute DOMString label;
 };

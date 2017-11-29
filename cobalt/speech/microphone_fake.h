@@ -43,6 +43,7 @@ class MicrophoneFake : public Microphone {
   bool Close() override;
   int MinMicrophoneReadInBytes() override;
   bool IsValid() override { return is_valid_; }
+  const char* Label() override { return ""; }
 
  private:
   base::ThreadChecker thread_checker_;
