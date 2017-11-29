@@ -18,34 +18,36 @@
 
 set -e
 
-base_path=${COBALT_TOOLCHAINS_DIR:=${HOME}/cobalt-toolchains}
-toolchain_path=${base_path}/${toolchain_folder}
+script_dir="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+root="$(readlink -f "${script_dir}/../../..")"
 
-toolchain_binary=${toolchain_path}/${binary_path}
+canonical_path="$(python "${root}/starboard/tools/get_toolchains_path.py")"
+base_path="${COBALT_TOOLCHAINS_DIR:=${canonical_path}}"
+toolchain_path="${base_path}/${toolchain_folder}"
+toolchain_binary="${toolchain_path}/${binary_path}"
 
-if [ -x ${toolchain_binary} ]; then
+if [ -x "${toolchain_binary}" ]; then
   # The toolchain binary already exist.
-  echo ${toolchain_name} ${version} already available.
+  1>&2 echo "${toolchain_name} ${version} already available."
   exit 0
 fi
 
-if [ -d ${toolchain_path} ]; then
+if [ -d "${toolchain_path}" ]; then
   cat <<EOF 1>&2
-  ERROR: ${toolchain_name} ${version} folder ${toolchain_path}
-  already exists, but it does not contain a binary.
-  Perhaps a previous download was interrupted or failed?
+  WARNING: ${toolchain_name} ${version} folder ${toolchain_path}
+  already exists, but it does not contain a binary.  Perhaps a previous download
+  was interrupted or failed?
 EOF
-  rm -rf ${toolchain_path}
+  rm -rf "${toolchain_path}"
 fi
 
-mkdir -p ${toolchain_path}
-cd ${toolchain_path}
+mkdir -p "${toolchain_path}"
+cd "${toolchain_path}"
 
-logfile=${toolchain_path}/"build_log.txt"
+logfile="${toolchain_path}/build_log.txt"
 
 cat <<EOF 1>&2
 Downloading and compiling ${toolchain_name} version ${version} into ${toolchain_path}
 Log file can be found at ${logfile}
 This may take ${build_duration}
 EOF
-
