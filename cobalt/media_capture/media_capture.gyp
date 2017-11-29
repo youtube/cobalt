@@ -34,7 +34,14 @@
         # headers are put on the include directories for targets that depend
         # on this one.
         '<(DEPTH)/cobalt/browser/browser_bindings_gen.gyp:generated_types',
-      ]
+      ],
+      'conditions': [
+        ['sb_disable_microphone_idl==1', {
+          'defines': [
+            'DISABLE_MICROPHONE_IDL',
+          ],
+        }],
+      ],
     },
   ],
 }
