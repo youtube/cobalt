@@ -266,9 +266,14 @@ void Pipeline::SetNewRenderTree(const Submission& render_tree_submission) {
 
   // Start the rasterization timer if it is not yet started.
   if (!rasterize_timer_) {
-    // We artificially limit the period between submissions to 7ms, in case a
-    // platform does not rate limit itself during swaps. This was changed from
-    // 15ms to accommodate 120fps requirements on some platforms.
+    // Artificially limit the period between submissions. This is useful for
+    // platforms which do not rate limit themselves during swaps. Be careful
+    // to use a non-zero interval time even if throttling occurs during frame
+    // swaps. It is possible that a submission is not rendered (this can
+    // happen if the render tree has not changed between submissions), so no
+    // frame swap occurs, and the minimum frame time is the only throttle.
+    COMPILE_ASSERT(COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS > 0,
+                   frame_time_must_be_positive);
     rasterize_timer_.emplace(
         FROM_HERE, base::TimeDelta::FromMillisecondsD(
                        COBALT_MINIMUM_FRAME_TIME_IN_MILLISECONDS),
