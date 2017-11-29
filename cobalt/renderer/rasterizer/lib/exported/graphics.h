@@ -31,6 +31,16 @@
 extern "C" {
 #endif
 
+typedef struct CbLibRenderContext {
+  CbLibRenderContext() {}
+  // An EGLSurface that will be mirrored to the system window, if provided.
+  // uintptr_t is used for the type, to avoid pulling in possibly conflicting
+  // EGL headers.
+  uintptr_t surface_to_mirror = 0;
+  // Horizontal amount of the surface to mirror, in the range [0.0, 1.0].
+  float width_to_mirror = 1.0f;
+} CbLibRenderContext;
+
 typedef struct CbLibSize {
   CbLibSize(int width, int height) : width(width), height(height) {}
   int width;
@@ -38,7 +48,8 @@ typedef struct CbLibSize {
 } CbLibSize;
 
 typedef void (*CbLibGraphicsContextCreatedCallback)(void* context);
-typedef void (*CbLibGraphicsBeginRenderFrameCallback)(void* context);
+typedef void (*CbLibGraphicsBeginRenderFrameCallback)(
+    void* context, CbLibRenderContext* host_render_context);
 typedef void (*CbLibGraphicsEndRenderFrameCallback)(void* context);
 
 // Sets a callback which will be called from the rasterization thread once the
