@@ -59,6 +59,8 @@ class Microphone {
   virtual int MinMicrophoneReadInBytes() = 0;
   // Returns true if the microphone is valid.
   virtual bool IsValid() = 0;
+  // Returns the label representing the microphone.
+  virtual const char* Label() = 0;
 
  protected:
   Microphone() {}
