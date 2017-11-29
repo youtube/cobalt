@@ -20,10 +20,14 @@
 namespace cobalt {
 namespace media_capture {
 
+#if SB_HAS(MICROPHONE) && !defined(DISABLE_MICROPHONE_IDL)
+#define ENABLE_MICROPHONE_IDL
+#endif
+
 namespace {
 
 int CountMicrophones() {
-#if SB_HAS(MICROPHONE)
+#ifdef ENABLE_MICROPHONE_IDL
   SbMicrophoneInfo info;
   int num_mics = SbMicrophoneGetAvailable(&info, 1);
   return num_mics;
