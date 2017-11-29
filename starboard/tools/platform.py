@@ -134,6 +134,11 @@ def Get(platform_name):
   return _GetInfoMap().get(platform_name)
 
 
+def GetAllInfos():
+  """Gets a sorted sequence of PlatformInfo objects for all valid platforms."""
+  return (Get(p) for p in GetAll())
+
+
 def IsValid(platform_name):
   """Determines whether the given platform name is valid."""
   return platform_name in _GetInfoMap()
