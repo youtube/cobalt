@@ -14,26 +14,29 @@
 
 #include "cobalt/media_capture/media_devices.h"
 
+#include <string>
+
 #include "cobalt/media_capture/media_device_info.h"
-#include "starboard/microphone.h"
+#include "cobalt/speech/microphone_starboard.h"
+#include "starboard/string.h"
 
 namespace cobalt {
 namespace media_capture {
 
-#if SB_HAS(MICROPHONE) && !defined(DISABLE_MICROPHONE_IDL)
+#if SB_USE_SB_MICROPHONE && !defined(DISABLE_MICROPHONE_IDL)
 #define ENABLE_MICROPHONE_IDL
 #endif
 
 namespace {
 
-int CountMicrophones() {
+scoped_ptr<speech::Microphone> CreateMicrophone() {
+  scoped_ptr<speech::Microphone> mic;
 #ifdef ENABLE_MICROPHONE_IDL
-  SbMicrophoneInfo info;
-  int num_mics = SbMicrophoneGetAvailable(&info, 1);
-  return num_mics;
-#else
-  return 0;
+  mic.reset(new speech::MicrophoneStarboard(
+      speech::MicrophoneStarboard::kDefaultSampleRate,
+      speech::MicrophoneStarboard::kDefaultSampleRate));
 #endif
+  return mic.Pass();
 }
 
 }  // namespace.
@@ -52,10 +55,12 @@ scoped_ptr<PromiseSequenceMediaInfo> MediaDevices::EnumerateDevices() {
   MediaDevices::PromiseSequenceMediaInfo::StrongReference promise_reference(
       *promise);
   script::Sequence<scoped_refptr<Wrappable>> output;
-  const int n_microphones = CountMicrophones();
-  for (int i = 0; i < n_microphones; ++i) {
-    output.push_back(new MediaDeviceInfo(script_value_factory_,
-                                         kMediaDeviceKindAudioinput));
+  scoped_ptr<speech::Microphone> microphone = CreateMicrophone();
+  if (microphone) {
+    scoped_refptr<Wrappable> media_device(
+        new MediaDeviceInfo(script_value_factory_, kMediaDeviceKindAudioinput,
+                            microphone->Label()));
+    output.push_back(media_device);
   }
 
   promise_reference.value().Resolve(output);
