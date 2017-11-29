@@ -37,6 +37,11 @@
         ['enable_map_to_mesh == 1', {
           'defines' : ['ENABLE_MAP_TO_MESH'],
         }],
+        ['gl_type == "angle"', {
+          'dependencies': [
+             '<(DEPTH)/third_party/angle/angle.gyp:libANGLE',
+           ],
+        }],
       ],
     }
   ],
