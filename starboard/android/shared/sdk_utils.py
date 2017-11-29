@@ -54,16 +54,17 @@ _SDK_LICENSE_PROMPT_SLEEP_SECONDS = 5
 _SDK_URL = 'https://dl.google.com/android/repository/sdk-tools-linux-3859397.zip'
 
 _SCRIPT_CTIME = os.path.getctime(__file__)
-_COBALT_TOOLCHAINS_DIR = build.GetToolchainsDir()
+_STARBOARD_TOOLCHAINS_DIR = build.GetToolchainsDir()
 
-# The path to the Android SDK if placed inside of cobalt-toolchains
-_COBALT_TOOLCHAINS_SDK_DIR = os.path.join(_COBALT_TOOLCHAINS_DIR, 'AndroidSdk')
+# The path to the Android SDK, if placed inside of starboard-toolchains.
+_STARBOARD_TOOLCHAINS_SDK_DIR = os.path.join(_STARBOARD_TOOLCHAINS_DIR,
+                                             'AndroidSdk')
 
 _ANDROID_HOME = os.environ.get('ANDROID_HOME')
 if _ANDROID_HOME:
   _SDK_PATH = _ANDROID_HOME
 else:
-  _SDK_PATH = _COBALT_TOOLCHAINS_SDK_DIR
+  _SDK_PATH = _STARBOARD_TOOLCHAINS_SDK_DIR
 
 _ANDROID_NDK_HOME = os.environ.get('ANDROID_NDK_HOME')
 if _ANDROID_NDK_HOME:
@@ -88,7 +89,7 @@ def GetToolsPath(abi):
   tools_arch = _TOOLS_ABI_ARCH_MAP[abi]
   tools_dir = 'android_toolchain_api{}_{}'.format(_ANDROID_NDK_API_LEVEL,
                                                   tools_arch)
-  return os.path.realpath(os.path.join(_COBALT_TOOLCHAINS_DIR, tools_dir))
+  return os.path.realpath(os.path.join(_STARBOARD_TOOLCHAINS_DIR, tools_dir))
 
 
 def GetEnvironmentVariables(abi):
@@ -165,10 +166,10 @@ def _UnzipFile(zip_path, dest_path):
 
 def _MaybeDownloadAndInstallSdkAndNdk():
   """Download the SDK and NDK if not already available."""
-  # Hold an exclusive advisory lock on the _COBALT_TOOLCHAINS_DIR, to
+  # Hold an exclusive advisory lock on the _STARBOARD_TOOLCHAINS_DIR, to
   # prevent issues with modification for multiple variants.
   try:
-    toolchains_dir_fd = os.open(_COBALT_TOOLCHAINS_DIR, os.O_RDONLY)
+    toolchains_dir_fd = os.open(_STARBOARD_TOOLCHAINS_DIR, os.O_RDONLY)
     fcntl.flock(toolchains_dir_fd, fcntl.LOCK_EX)
 
     if _ANDROID_HOME:
@@ -272,10 +273,11 @@ def _DownloadInstallOrUpdateSdk():
 
   # If we can't access the "sdkmanager" tool, we need to download the SDK
   if not os.access(_SDKMANAGER_TOOL, os.X_OK):
-    logging.warning('Downloading Android SDK to %s', _COBALT_TOOLCHAINS_SDK_DIR)
-    if os.path.exists(_COBALT_TOOLCHAINS_SDK_DIR):
-      shutil.rmtree(_COBALT_TOOLCHAINS_SDK_DIR)
-    _DownloadAndUnzipFile(_SDK_URL, _COBALT_TOOLCHAINS_SDK_DIR)
+    logging.warning('Downloading Android SDK to %s',
+                    _STARBOARD_TOOLCHAINS_SDK_DIR)
+    if os.path.exists(_STARBOARD_TOOLCHAINS_SDK_DIR):
+      shutil.rmtree(_STARBOARD_TOOLCHAINS_SDK_DIR)
+    _DownloadAndUnzipFile(_SDK_URL, _STARBOARD_TOOLCHAINS_SDK_DIR)
     if not os.access(_SDKMANAGER_TOOL, os.X_OK):
       logging.error('SDK download failed.')
       sys.exit(1)
