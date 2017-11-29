@@ -164,12 +164,11 @@ def GetToolchainsDir():
       os.getenv(_STARBOARD_TOOLCHAINS_DIR_KEY,
                 os.path.join(home_dir, _STARBOARD_TOOLCHAINS_DIR_NAME)))
 
-  # TODO: Remove, eventually.
   if not os.path.isdir(toolchains_dir):
+    # TODO: Remove backup, eventually.
     backup_toolchains_dir = os.path.realpath(
         os.getenv(_COBALT_TOOLCHAINS_DIR_KEY,
                   os.path.join(home_dir, _COBALT_TOOLCHAINS_DIR_NAME)))
-
     if os.path.isdir(backup_toolchains_dir):
       return backup_toolchains_dir
 
