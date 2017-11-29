@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,12 +23,14 @@
 
 from __future__ import print_function
 
-import fnmatch
 import os
 import re
 import sys
-import platform
-import paths
+
+import _env  # pylint: disable=unused-import
+from starboard.tools import paths
+from starboard.tools import platform
+
 
 # Sometimes files have weird encodings. This function will use a variety of
 # hand selected encoders that work on the starboard codebase.
@@ -34,9 +38,10 @@ def AutoDecodeString(file_data):
   for encoding in {'UTF-8', 'utf_16', 'windows-1253', 'iso-8859-7', 'macgreek'}:
     try:
       return file_data.decode(encoding)
-    except:
+    except ValueError:
       continue
   raise IOError('Could not read file')
+
 
 # Given a search_term, this will open the file_path and return the first
 # line that contains the search term. This will ignore C-style comments.
@@ -50,6 +55,7 @@ def SearchInFileReturnFirstMatchingLine(file_path, search_term):
   except IOError:
     print ('  error while reading file ', file_path)
 
+
 # Opens a header or cc file and decodes it to utf8 using a variety
 # of decoders. All lines will have their comments stripped out.
 # This will return the lines of the given file.
@@ -57,12 +63,12 @@ def OpenFileAndDecodeLinesAndRemoveComments(file_path):
   with open(file_path, 'rb+') as fd:
     lines = AutoDecodeString(fd.read()).splitlines()
     # remove c-style comments.
-    lines = [ re.sub('//.*', '', line) for line in lines]
+    lines = [re.sub('//.*', '', line) for line in lines]
     return lines
 
 
-# Given a file_path, return all include files that it contains.
 def FindIncludeFiles(file_path):
+  """Given a file_path, return all include files that it contains."""
   try:
     output_list = []
     lines = OpenFileAndDecodeLinesAndRemoveComments(file_path)
@@ -75,10 +81,12 @@ def FindIncludeFiles(file_path):
   except IOError:
     print ('  error while reading file ', file_path)
 
+
 # Searches from the search_location for a configuration.h file that
 # contains the definition of the SB_EXPERIMENTAL_API_VERSION and then
 # returns that as type int.
 def ExtractExperimentalApiVersion(config_file_path):
+  """Searches for and extracts the current experimental API version."""
   needle = '#define SB_EXPERIMENTAL_API_VERSION'
   line = SearchInFileReturnFirstMatchingLine(
       config_file_path,
@@ -89,6 +97,7 @@ def ExtractExperimentalApiVersion(config_file_path):
   elements = line.split(' ')
   exp_api_version = int(elements[2])
   return exp_api_version
+
 
 # Given platform path, this function will try and find the version. Returns
 # either the version if found, or None.
@@ -102,27 +111,25 @@ def FindVersion(platform_path):
   version_str = result.replace(api_version_str, '')
   return version_str.strip()
 
+
 # Given the path to the platform_include_file, this will find the include
 # files with "configuration_public.h" in the name and return those.
 def FindConfigIncludefile(platform_path_config_file):
   include_files = FindIncludeFiles(platform_path_config_file)
-  include_files = filter(lambda x: 'configuration_public.h' in x, include_files)
+  include_files = [x for x in include_files if 'configuration_public.h' in x]
   return include_files
 
-# Given the input starboard directory, this will return a map of
-# 'platform_name' -> 'full_path_to_platform'
-def GeneratePlatformPathMap(starboard_dir):
-  ports = [p for p in platform.PlatformInfo.EnumeratePorts(starboard_dir)]
+
+def GeneratePlatformPathMap():
+  """Return a map of platform-name -> full-path-to-platform-config-header."""
   def GenPath(p):
     full_path = os.path.abspath(os.path.join(p.path, 'configuration_public.h'))
     if not os.path.exists(full_path):
-      raise IOError("Could not find path " + full_path)
+      raise IOError('Could not find path ' + full_path)
     return full_path
 
-  port_dict = {}
-  for p in ports:
-    port_dict[p.port_name] = GenPath(p)
-  return port_dict
+  return {p.name: GenPath(p) for p in platform.GetAllInfos()}
+
 
 # Given the root starboard directory, and the full path to the platform,
 # this function will search for the API_VERSION of the platform. It will
@@ -135,20 +142,22 @@ def FindVersionRecursive(starboard_dir, platform_path):
     return version_str
   else:
     config_include_paths = FindConfigIncludefile(platform_path)
-    if len(config_include_paths) == 0:
-      return "<UNKNOWN>"
+    if not config_include_paths:
+      return '<UNKNOWN>'
     elif len(config_include_paths) > 1:
-      return "<AMBIGUIOUS>"
+      return '<AMBIGUIOUS>'
     else:
       include_path = config_include_paths[0]
       include_path = re.sub(r'^starboard/', '', include_path)
       full_include_path = os.path.join(starboard_dir, include_path)
       return FindVersionRecursive(starboard_dir, full_include_path)
 
-def Main():
-  print('\n***** Listing the api versions of all first party ports. *****\n')
 
-  port_dict = GeneratePlatformPathMap(paths.STARBOARD_ROOT)
+def Main():
+  """Prints the API versions of all known ports."""
+  print('\n***** Listing the API versions of all known ports. *****\n')
+
+  port_dict = GeneratePlatformPathMap()
 
   experimental_api_version = ExtractExperimentalApiVersion(
       os.path.join(paths.STARBOARD_ROOT, 'configuration.h'))
@@ -166,9 +175,10 @@ def Main():
   for platform_name, api_version in sorted(path_map.iteritems()):
     print(platform_name + ': ' + api_version)
 
-  sys.exit(0)
+  return 0
+
 
 if __name__ == '__main__':
   # All functionality stored in Main() to avoid py-lint from warning about
   # about shadowing global variables in local functions.
-  Main()
+  sys.exit(Main())
