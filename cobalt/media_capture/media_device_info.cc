@@ -14,13 +14,18 @@
 
 #include "cobalt/media_capture/media_device_info.h"
 
+#include <string>
+
 namespace cobalt {
 namespace media_capture {
 
 MediaDeviceInfo::MediaDeviceInfo(
     script::ScriptValueFactory* script_value_factory,
-    MediaDeviceKind kind)
-        : script_value_factory_(script_value_factory), kind_(kind) {
+    MediaDeviceKind kind,
+    const std::string& label)
+        : script_value_factory_(script_value_factory),
+          kind_(kind),
+          label_(label) {
 }
 
 }  // namespace media_capture

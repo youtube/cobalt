@@ -15,6 +15,8 @@
 #ifndef COBALT_MEDIA_CAPTURE_MEDIA_DEVICE_INFO_H_
 #define COBALT_MEDIA_CAPTURE_MEDIA_DEVICE_INFO_H_
 
+#include <string>
+
 #include "base/memory/ref_counted.h"
 #include "base/memory/scoped_ptr.h"
 #include "cobalt/media_capture/media_device_kind.h"
@@ -30,16 +32,18 @@ namespace media_capture {
 class MediaDeviceInfo : public script::Wrappable {
  public:
   MediaDeviceInfo(script::ScriptValueFactory* script_value_factory,
-                  MediaDeviceKind kind);
+                  MediaDeviceKind kind,
+                  const std::string& label);
 
   MediaDeviceKind kind() { return kind_; }
-  void set_kind(MediaDeviceKind k) { kind_ = k; }
+  const std::string label() const { return label_; }
 
   DEFINE_WRAPPABLE_TYPE(MediaDeviceInfo);
 
  private:
   script::ScriptValueFactory* script_value_factory_;
   MediaDeviceKind kind_;
+  std::string label_;
 
   DISALLOW_COPY_AND_ASSIGN(MediaDeviceInfo);
 };
