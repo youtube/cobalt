@@ -37,6 +37,31 @@
 #include "third_party/glm/glm/gtc/matrix_transform.hpp"
 #include "third_party/glm/glm/gtc/type_ptr.hpp"
 
+#ifdef ANGLE_ENABLE_D3D11
+// Normally, ANGLE defines this symbol internally using its gyp files.
+//
+// This code is temporary, so for now just enforce that we are truly building
+// Windows when this code path is taken.
+#if !defined(_WIN32) && !defined(_WIN64)
+#error Direct mirroring to the system window is only supported for Windows!
+#endif
+#define ANGLE_PLATFORM_WINDOWS 1
+
+#include <d3d11.h>
+#include <EGL/egl.h>
+#include <GLES3/gl3.h>
+
+#include "third_party/angle/src/libANGLE/Context.h"
+#include "third_party/angle/src/libANGLE/Display.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Blit11.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Context11.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/Renderer11.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/d3d11/SwapChain11.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/DisplayD3D.h"
+#include "third_party/angle/src/libANGLE/renderer/d3d/SurfaceD3D.h"
+#include "third_party/angle/src/libANGLE/Surface.h"
+#endif
+
 COMPILE_ASSERT(
     cobalt::render_tree::kMono == kCbLibVideoStereoModeMono &&
         cobalt::render_tree::kLeftRight ==
@@ -241,7 +266,7 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
 
   main_offscreen_render_target_ =
       graphics_context_->CreateOffscreenRenderTarget(
-        target_main_render_target_size_);
+          target_main_render_target_size_);
   main_texture_.reset(new backend::TextureEGL(
       graphics_context_,
       make_scoped_refptr(base::polymorphic_downcast<backend::RenderTargetEGL*>(
@@ -370,9 +395,58 @@ void ExternalRasterizer::Impl::Submit(
                                    map_to_mesh_search.replaced_tree);
   hardware_rasterizer_.Submit(scaled_main_node, main_offscreen_render_target_,
                               options_);
+
+  CbLibRenderContext host_render_context;
   // TODO: Allow clients to specify arbitrary subtrees to render into
   // different textures?
-  g_begin_render_frame_callback.Get().Run();
+  g_begin_render_frame_callback.Get().Run(&host_render_context);
+
+  // If there is any host-provided surface, mirror it directly into the
+  // system window with a blit.  The surface will be streched or shrunk as
+  // appropriate so that it fits the system window's backbuffer.
+  if (host_render_context.surface_to_mirror != 0) {
+#ifdef ANGLE_ENABLE_D3D11
+    EGLContext egl_context = eglGetCurrentContext();
+    EGLSurface egl_mirror_surface = reinterpret_cast<EGLSurface>(
+        host_render_context.surface_to_mirror);
+    EGLSurface egl_window_surface = render_target_egl->GetSurface();
+    ::gl::Context* angle_context =
+        reinterpret_cast<::gl::Context*>(egl_context);
+    ::egl::Surface* angle_mirror_surface = reinterpret_cast<::egl::Surface*>(
+        egl_mirror_surface);
+    ::egl::Surface* angle_window_surface =
+        reinterpret_cast<::egl::Surface*>(egl_window_surface);
+    ::rx::SurfaceD3D* d3d_mirror_surface =
+        ::rx::GetImplAs<rx::SurfaceD3D>(angle_mirror_surface);
+    ::rx::SurfaceD3D* d3d_window_surface =
+        ::rx::GetImplAs<rx::SurfaceD3D>(angle_window_surface);
+    ::rx::Context11* d3d11_context =
+        ::rx::GetImplAs<::rx::Context11>(angle_context);
+    ::rx::Renderer11* d3d11_renderer = d3d11_context->getRenderer();
+    ::rx::SwapChain11* d3d11_mirror_swapchain =
+        static_cast<::rx::SwapChain11*>(d3d_mirror_surface->getSwapChain());
+    ::rx::SwapChain11* d3d11_window_swapchain =
+        static_cast<::rx::SwapChain11*>(d3d_window_surface->getSwapChain());
+    float src_width_scale =
+        std::min(1.0f, std::max(host_render_context.width_to_mirror, 0.0f));
+
+    d3d11_renderer->getBlitter()->copyTexture(
+        d3d11_mirror_swapchain->getRenderTargetShaderResource(),
+        gl::Box(0, 0, 0, d3d11_mirror_swapchain->getWidth() * src_width_scale,
+                d3d11_mirror_swapchain->getHeight(), 1),
+        gl::Extents(d3d11_mirror_swapchain->getWidth(),
+                    d3d11_mirror_swapchain->getHeight(), 1),
+        d3d11_window_swapchain->getRenderTarget(),
+        gl::Box(0, 0, 0, d3d11_window_swapchain->getWidth(),
+                d3d11_window_swapchain->getHeight(), 1),
+        gl::Extents(d3d11_window_swapchain->getWidth(),
+                    d3d11_window_swapchain->getHeight(), 1),
+        nullptr, GL_RGBA_INTEGER, GL_LINEAR, false, false, false);
+#else
+    LOG(FATAL) << "Direct mirroring to the system window is only supported "
+               << "under DirectX.";
+#endif
+  }
   graphics_context_->SwapBuffers(render_target_egl);
   g_end_render_frame_callback.Get().Run();
 }
@@ -505,12 +579,11 @@ ExternalRasterizer::ExternalRasterizer(
     int scratch_surface_cache_size_in_bytes,
     int rasterizer_gpu_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
-    : impl_(new Impl(
-          graphics_context, skia_atlas_width, skia_atlas_height,
-          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          rasterizer_gpu_cache_size_in_bytes,
-          purge_skia_font_caches_on_destruction)) {
-}
+    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
+                     skia_cache_size_in_bytes,
+                     scratch_surface_cache_size_in_bytes,
+                     rasterizer_gpu_cache_size_in_bytes,
+                     purge_skia_font_caches_on_destruction)) {}
 
 ExternalRasterizer::~ExternalRasterizer() {}
 
@@ -525,9 +598,7 @@ render_tree::ResourceProvider* ExternalRasterizer::GetResourceProvider() {
   return impl_->GetResourceProvider();
 }
 
-void ExternalRasterizer::MakeCurrent() {
-  return impl_->MakeCurrent();
-}
+void ExternalRasterizer::MakeCurrent() { return impl_->MakeCurrent(); }
 
 }  // namespace lib
 }  // namespace rasterizer
