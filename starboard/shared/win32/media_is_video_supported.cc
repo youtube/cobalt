@@ -80,7 +80,13 @@ SB_EXPORT bool SbMediaIsVideoSupported(SbMediaVideoCodec video_codec,
                                        int64_t bitrate,
                                        int fps) {
   // Only certain codecs support 4K resolution.
-  const bool supports_4k = video_codec == kSbMediaVideoCodecVp9;
+  bool supports_4k = video_codec == kSbMediaVideoCodecVp9;
+  // Not all devices can support 4k H264; some (e.g. xb1) may crash in
+  // the decoder if provided too high of a resolution. Therefore
+  // platforms must explicitly opt-in to support 4k H264.
+#ifdef ENABLE_H264_4K_SUPPORT
+  supports_4k = supports_4k || video_codec == kSbMediaVideoCodecH264;
+#endif
   const int max_width = supports_4k ? 3840 : 1920;
   const int max_height = supports_4k ? 2160 : 1080;
   if (frame_width > max_width || frame_height > max_height) {

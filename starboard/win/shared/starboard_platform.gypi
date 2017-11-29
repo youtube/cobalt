@@ -400,6 +400,8 @@
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
+        # We assume most modern Windows PCs can handle 4k H264.
+        'ENABLE_H264_4k_SUPPORT'
       ],
       'dependencies': [
         'convert_i18n_data',
