@@ -44,6 +44,10 @@
     # requires a 'lib' starboard implementation for the corresponding platform.
     'sb_enable_lib%': '<(sb_enable_lib)',
 
+    # When this is set to true, the web bindings for the microphone
+    # are disabled
+    'sb_disable_microphone_idl%': 0,
+
     # Directory path to static contents.
     'sb_static_contents_output_base_dir%': '<(PRODUCT_DIR)/content',
 
