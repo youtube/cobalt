@@ -25,8 +25,6 @@
     # renderer.
     'scratch_surface_cache_size_in_bytes' : 0,
 
-    'cobalt_media_source_2016': 1,
-
     # This atlas size works better than the auto-mem setting.
     'skia_glyph_atlas_width%': '2048',
     'skia_glyph_atlas_height%': '2048',

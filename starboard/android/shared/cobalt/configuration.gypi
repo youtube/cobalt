@@ -33,7 +33,6 @@
     # system fonts when it can't find the font file in the cobalt content.
     'cobalt_font_package': 'android_system',
 
-    'cobalt_media_source_2016': 1,
     'cobalt_media_buffer_initial_capacity': 80 * 1024 * 1024,
 
     # On Android, we almost never want to actually terminate the process, so
