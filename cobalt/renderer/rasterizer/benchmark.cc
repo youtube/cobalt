@@ -92,15 +92,16 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   scoped_refptr<RenderTarget> test_surface;
   if (output_surface_type == kOutputSurfaceTypeDisplay) {
     test_system_window.reset(new cobalt::system_window::SystemWindow(
-        &event_dispatcher, cobalt::math::Size(kViewportWidth, kViewportHeight)));
+        &event_dispatcher,
+        cobalt::math::Size(kViewportWidth, kViewportHeight)));
     test_display = graphics_system->CreateDisplay(test_system_window.get());
     test_surface = test_display->GetRenderTarget();
   } else if (output_surface_type == kOutputSurfaceTypeOffscreen) {
     // Create our offscreen surface that will be the target of our test
     // rasterizations.
     const Size kTestOffscreenDimensions(1920, 1080);
-    test_surface =
-        graphics_context->CreateOffscreenRenderTarget(kTestOffscreenDimensions);
+    test_surface = graphics_context->CreateDownloadableOffscreenRenderTarget(
+        kTestOffscreenDimensions);
   } else {
     DLOG(FATAL) << "Unknown output surface type.";
   }
@@ -114,10 +115,10 @@ void RunRenderTreeSceneBenchmark(SceneCreateFunction scene_create_function,
   for (int i = 0; i < kRenderIterationCount; ++i) {
     AnimateNode* animate_node =
         base::polymorphic_downcast<AnimateNode*>(scene.get());
-    scoped_refptr<Node> animated =
-        animate_node->Apply(base::TimeDelta::FromSecondsD(
-                                i * kFixedTimeStepInSecondsPerFrame))
-            .animated;
+    scoped_refptr<Node> animated = animate_node
+                                       ->Apply(base::TimeDelta::FromSecondsD(
+                                           i * kFixedTimeStepInSecondsPerFrame))
+                                       .animated->source();
 
     // Submit the render tree to be rendered.
     rasterizer->Submit(animated, test_surface);
