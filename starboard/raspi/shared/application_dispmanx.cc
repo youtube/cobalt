@@ -107,6 +107,7 @@ ApplicationDispmanx::PollNextSystemEvent() {
 ApplicationDispmanx::WaitForSystemEventWithTimeout(SbTime duration) {
   SB_DCHECK(input_);
   Event* event = input_->WaitForSystemEventWithTimeout(duration);
+  return event;
 }
 
 void ApplicationDispmanx::WakeSystemEventWait() {
