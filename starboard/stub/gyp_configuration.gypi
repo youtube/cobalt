@@ -16,8 +16,6 @@
     'target_arch': 'x64',
     'target_os': 'linux',
 
-    # Use a stub rasterizer and graphical setup.
-    'rasterizer_type': 'stub',
 
     # No GL drivers available.
     'gl_type': 'none',
