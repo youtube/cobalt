@@ -509,20 +509,67 @@ TimeDelta SbPlayerPipeline::GetMediaTime() {
     return duration_;
   }
   base::TimeDelta media_time;
+#if SB_HAS(PLAYER_WITH_URL)
   int frame_width;
   int frame_height;
   player_->GetInfo(&statistics_.video_frames_decoded,
-                   &statistics_.video_frames_dropped, &media_time, &frame_width,
-                   &frame_height);
-#if SB_HAS(PLAYER_WITH_URL)
+                   &statistics_.video_frames_dropped, &media_time, NULL, NULL,
+                   &frame_width, &frame_height);
   if (frame_width != natural_size_.width() ||
       frame_height != natural_size_.height()) {
     natural_size_ = gfx::Size(frame_width, frame_height);
     content_size_change_cb_.Run();
   }
+#else  // SB_HAS(PLAYER_WITH_URL)
+  player_->GetInfo(&statistics_.video_frames_decoded,
+                   &statistics_.video_frames_dropped, &media_time);
 #endif  // SB_HAS(PLAYER_WITH_URL)
   return media_time;
 }
+
+#if SB_HAS(PLAYER_WITH_URL)
+Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
+  base::AutoLock auto_lock(lock_);
+
+  Ranges<TimeDelta> time_ranges;
+  if (!player_) {
+    return time_ranges;
+  }
+
+  base::TimeDelta media_time;
+  base::TimeDelta buffer_start_time;
+  base::TimeDelta buffer_length_time;
+  player_->GetInfo(&statistics_.video_frames_decoded,
+                   &statistics_.video_frames_dropped, &media_time,
+                   &buffer_start_time, &buffer_length_time, NULL, NULL);
+
+  if (buffer_length_time.InSeconds() == 0) {
+    buffered_time_ranges_ = time_ranges;
+    return time_ranges;
+  }
+
+  time_ranges.Add(buffer_start_time, buffer_length_time);
+
+  if (buffered_time_ranges_.size() > 0) {
+    base::TimeDelta old_buffer_start_time = buffered_time_ranges_.start(0);
+    base::TimeDelta old_buffer_length_time = buffered_time_ranges_.end(0);
+    int64 old_start_seconds = old_buffer_start_time.InSeconds();
+    int64 new_start_seconds = buffer_start_time.InSeconds();
+    int64 old_length_seconds = old_buffer_length_time.InSeconds();
+    int64 new_length_seconds = buffer_length_time.InSeconds();
+    if (old_start_seconds != new_start_seconds
+        || old_length_seconds != new_length_seconds) {
+      did_loading_progress_ = true;
+    }
+  } else {
+    did_loading_progress_ = true;
+  }
+
+  buffered_time_ranges_ = time_ranges;
+  return time_ranges;
+}
+
+#else  // SB_HAS(PLAYER_WITH_URL)
 
 Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
   base::AutoLock auto_lock(lock_);
@@ -544,6 +591,7 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
 
   return time_ranges;
 }
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 TimeDelta SbPlayerPipeline::GetMediaDuration() const {
   base::AutoLock auto_lock(lock_);

@@ -86,8 +86,13 @@ class StarboardPlayer {
   void SetVolume(float volume);
   void SetPlaybackRate(double playback_rate);
   void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
-               base::TimeDelta* media_time, int* frame_width,
+               base::TimeDelta* media_time);
+#if SB_HAS(PLAYER_WITH_URL)
+  void GetInfo(uint32* video_frames_decoded, uint32* video_frames_dropped,
+               base::TimeDelta* media_time, base::TimeDelta* buffer_start_time,
+               base::TimeDelta* buffer_length_time, int* frame_width,
                int* frame_height);
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 #if SB_HAS(PLAYER_WITH_URL)
   base::TimeDelta GetDuration();
