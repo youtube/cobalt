@@ -228,38 +228,37 @@ class WebModule : public LifecycleObserver {
   ~WebModule();
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-  // Call this to inject an on screen keyboard input event into the web module.
-  // The value for type represents beforeinput or input.
+  // Injects an on screen keyboard input event into the web module. The value
+  // for type represents beforeinput or input.
   void InjectOnScreenKeyboardInputEvent(base::Token type,
                                         const dom::InputEventInit& event);
-  // Call this to inject an on screen keyboard shown event into the web module.
-  void InjectOnScreenKeyboardShownEvent();
-  // Call this to inject an on screen keyboard hidden event into the web module.
-  void InjectOnScreenKeyboardHiddenEvent();
+  // Injects an on screen keyboard shown event into the web module.
+  void InjectOnScreenKeyboardShownEvent(int ticket);
+  // Injects an on screen keyboard hidden event into the web module.
+  void InjectOnScreenKeyboardHiddenEvent(int ticket);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
-  // Call this to inject a keyboard event into the web module. The value for
-  // type represents the event name, for example 'keydown' or 'keyup'.
+  // Injects a keyboard event into the web module. The value for type
+  // represents the event name, for example 'keydown' or 'keyup'.
   void InjectKeyboardEvent(base::Token type,
                            const dom::KeyboardEventInit& event);
 
-  // Call this to inject a pointer event into the web module. The value for type
-  // represents the event name, for example 'pointerdown', 'pointerup', or
-  // 'pointermove'.
+  // Injects a pointer event into the web module. The value for type represents
+  // the event name, for example 'pointerdown', 'pointerup', or 'pointermove'.
   void InjectPointerEvent(base::Token type, const dom::PointerEventInit& event);
 
-  // Call this to inject a wheel event into the web module. The value for type
-  // represents the event name, for example 'wheel'.
+  // Injects a wheel event into the web module. The value for type represents
+  // the event name, for example 'wheel'.
   void InjectWheelEvent(base::Token type, const dom::WheelEventInit& event);
 
-  // Call this to inject a beforeunload event into the web module. If
-  // this event is not handled by the web application,
-  // |on_before_unload_fired_but_not_handled_| will be called.
+  // Injects a beforeunload event into the web module. If this event is not
+  // handled by the web application, |on_before_unload_fired_but_not_handled_|
+  // will be called.
   void InjectBeforeUnloadEvent();
 
-  // Call this to execute Javascript code in this web module.  The calling
-  // thread will block until the JavaScript has executed and the output results
-  // are available.
+  // Executes Javascript code in this web module.  The calling thread will
+  // block until the JavaScript has executed and the output results are
+  // available.
   std::string ExecuteJavascript(const std::string& script_utf8,
                                 const base::SourceLocation& script_location,
                                 bool* out_succeeded);
