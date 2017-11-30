@@ -247,13 +247,13 @@ LRESULT ApplicationWin32::WindowProcess(HWND hWnd,
   return 0;
 }
 
-bool ApplicationWin32::ProcessNextSystemMessage() {
+void ApplicationWin32::ProcessNextSystemMessage() {
   MSG msg;
   BOOL peek_message_return = PeekMessage(&msg, NULL, 0, 0, PM_REMOVE);
-  if (peek_message_return == -1) {
-    SB_LOG(INFO) << "Error while getting messages";
-    return false;
+  if (peek_message_return == 0) {  // 0 indicates no messages available.
+    return;
   }
+
   if (!DialogHandleMessage(&msg)) {
     TranslateMessage(&msg);
     DispatchMessage(&msg);
@@ -262,10 +262,6 @@ bool ApplicationWin32::ProcessNextSystemMessage() {
     SB_LOG(INFO) << "Received Quit message; stopping application";
     SbSystemRequestStop(msg.wParam);
   }
-  if (peek_message_return == 0) {
-    return false;
-  }
-  return true;
 }
 
 Application::Event* ApplicationWin32::ProcessWinMouseEvent(SbWindow window,

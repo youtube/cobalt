@@ -89,7 +89,7 @@ class ApplicationWin32 : public starboard::QueueApplication {
   void Initialize() override {}
   void Teardown() override {}
 
-  bool ProcessNextSystemMessage();
+  void ProcessNextSystemMessage();
   SbTimeMonotonic GetNextTimedEventTargetTime() override {
     return SbTimeGetMonotonicNow();
   }
@@ -117,6 +117,9 @@ class ApplicationWin32 : public starboard::QueueApplication {
 
   Mutex stop_waiting_for_system_events_mutex_;
   bool stop_waiting_for_system_events_;
+
+  // The current depressed SbKeyModifiers - if there are any.
+  unsigned int current_key_modifiers_ = 0;
 };
 
 }  // namespace win32

@@ -67,6 +67,7 @@ SbKey VirtualKeyCodeToSbKey(WPARAM virtual_key_code) {
     case VK_SNAPSHOT: return kSbKeySnapshot;
     case VK_INSERT: return kSbKeyInsert;
     case VK_DELETE: return kSbKeyDelete;
+    case VK_OEM_PERIOD: return kSbKeyOemPeriod;
     case 0x30: return kSbKey0;
     case 0x31: return kSbKey1;
     case 0x32: return kSbKey2;
@@ -199,18 +200,28 @@ Application::Event* ApplicationWin32::ProcessWinKeyEvent(SbWindow window,
 
   data->type = up ? kSbInputEventTypeUnpress : kSbInputEventTypePress;
 
+  SbKeyModifiers current_modifier = kSbKeyModifiersNone;
   if (data->key == kSbKeyShift || data->key == kSbKeyRshift ||
       data->key == kSbKeyLshift) {
-    data->key_modifiers |= kSbKeyModifiersShift;
+    current_modifier = kSbKeyModifiersShift;
   } else if (data->key == kSbKeyMenu || data->key == kSbKeyRmenu ||
              data->key == kSbKeyLmenu) {
-    data->key_modifiers |= kSbKeyModifiersAlt;
+    current_modifier = kSbKeyModifiersAlt;
   } else if (data->key == kSbKeyControl || data->key == kSbKeyRcontrol ||
              data->key == kSbKeyLcontrol) {
-    data->key_modifiers |= kSbKeyModifiersCtrl;
+    current_modifier = kSbKeyModifiersCtrl;
   } else if (data->key == kSbKeyRwin || data->key == kSbKeyLwin) {
-    data->key_modifiers |= kSbKeyModifiersMeta;
+    current_modifier = kSbKeyModifiersMeta;
   }
+
+  // Either add or remove the current modifier key being pressed or released.
+  // This noops for kSbKeyModifiersNone.
+  if (up) {
+    current_key_modifiers_ &= ~current_modifier;
+  } else {
+    current_key_modifiers_ |= current_modifier;
+  }
+  data->key_modifiers = current_key_modifiers_;
 
   switch (data->key) {
     case kSbKeyLshift:
