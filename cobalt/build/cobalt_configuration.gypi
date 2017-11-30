@@ -34,6 +34,7 @@
     'variables': {
       'cobalt_webapi_extension_source_idl_files%': [],
       'cobalt_webapi_extension_generated_header_idl_files%': [],
+      'cobalt_media_source_2016%': 1,
     },
 
     # Whether Cobalt is being built.
@@ -175,14 +176,14 @@
     # own IDL files to describe that interface and all interfaces that it
     # references.  See cobalt/doc/webapi_extension.md for more information.
     'cobalt_webapi_extension_source_idl_files%': [
-      '<@(cobalt_webapi_extension_source_idl_files)'\
+      '<@(cobalt_webapi_extension_source_idl_files)',
     ],
     # Override this to have Cobalt build IDL files that result in generated
     # header files that may need to be included from other C++ source files.
     # This includes, for example, IDL enumerations.  See
     # cobalt/doc/webapi_extension.md for more information.
     'cobalt_webapi_extension_generated_header_idl_files%': [
-      '<@(cobalt_webapi_extension_generated_header_idl_files)'
+      '<@(cobalt_webapi_extension_generated_header_idl_files)',
     ],
 
     # This gyp target must implement the functions defined in
@@ -384,7 +385,7 @@
 
     # Use media source extension implementation that is conformed to the
     # Candidate Recommandation of July 5th 2016.
-    'cobalt_media_source_2016%': 1,
+    'cobalt_media_source_2016%': '<(cobalt_media_source_2016)',
 
     # Note that the following media buffer related variables are only used when
     # |cobalt_media_source_2016| is set to 1.
