@@ -730,17 +730,19 @@ void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-void BrowserModule::OnOnScreenKeyboardShown() {
+void BrowserModule::OnOnScreenKeyboardShown(
+    const base::OnScreenKeyboardShownEvent* event) {
   // Only inject shown events to the main WebModule.
   if (web_module_) {
-    web_module_->InjectOnScreenKeyboardShownEvent();
+    web_module_->InjectOnScreenKeyboardShownEvent(event->ticket());
   }
 }
 
-void BrowserModule::OnOnScreenKeyboardHidden() {
+void BrowserModule::OnOnScreenKeyboardHidden(
+    const base::OnScreenKeyboardHiddenEvent* event) {
   // Only inject hidden events to the main WebModule.
   if (web_module_) {
-    web_module_->InjectOnScreenKeyboardHiddenEvent();
+    web_module_->InjectOnScreenKeyboardHiddenEvent(event->ticket());
   }
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

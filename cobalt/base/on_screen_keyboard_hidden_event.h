@@ -22,9 +22,14 @@ namespace base {
 
 class OnScreenKeyboardHiddenEvent : public Event {
  public:
-  OnScreenKeyboardHiddenEvent() {}
+  explicit OnScreenKeyboardHiddenEvent(int ticket) : ticket_(ticket) {}
+
+  int ticket() const { return ticket_; }
 
   BASE_EVENT_SUBCLASS(OnScreenKeyboardHiddenEvent);
+
+ private:
+  int ticket_;
 };
 
 }  // namespace base

@@ -27,6 +27,8 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
+#include "cobalt/base/on_screen_keyboard_hidden_event.h"
+#include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
 #include "cobalt/browser/lifecycle_observer.h"
 #include "cobalt/browser/memory_settings/auto_mem.h"
@@ -168,8 +170,8 @@ class BrowserModule {
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-  void OnOnScreenKeyboardShown();
-  void OnOnScreenKeyboardHidden();
+  void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
+  void OnOnScreenKeyboardHidden(const base::OnScreenKeyboardHiddenEvent* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
  private:
