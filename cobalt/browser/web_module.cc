@@ -134,52 +134,51 @@ class WebModule::Impl {
 #endif  // ENABLE_DEBUG_CONSOLE
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-  // Called to inject an on screen keyboard input event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop.
+  // Injects an on screen keyboard input event into the web module. Event is
+  // directed at a specific element if the element is non-null. Otherwise, the
+  // currently focused element receives the event. If element is specified, we
+  // must be on the WebModule's message loop.
   void InjectOnScreenKeyboardInputEvent(scoped_refptr<dom::Element> element,
                                         base::Token type,
                                         const dom::InputEventInit& event);
-  // Called to inject an on screen keyboard input event into the web module.
-  // Event is directed at the on screen keyboard element.
-  void InjectOnScreenKeyboardShownEvent();
-  // Called to inject an on screen keyboard input event into the web module.
-  // Event is directed at the on screen keyboard element.
-  void InjectOnScreenKeyboardHiddenEvent();
+  // Injects an on screen keyboard input event into the web module. Event is
+  // directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardShownEvent(int ticket);
+  // Injects an on screen keyboard input event into the web module. Event is
+  // directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardHiddenEvent(int ticket);
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
-  // Called to inject a keyboard event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
+  // Injects a keyboard event into the web module. Event is directed at a
+  // specific element if the element is non-null. Otherwise, the currently
+  // focused element receives the event. If element is specified, we must be
+  // on the WebModule's message loop
   void InjectKeyboardEvent(scoped_refptr<dom::Element> element,
                            base::Token type,
                            const dom::KeyboardEventInit& event);
 
-  // Called to inject a pointer event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
+  // Injects a pointer event into the web module. Event is directed at a
+  // specific element if the element is non-null. Otherwise, the currently
+  // focused element receives the event. If element is specified, we must be
+  // on the WebModule's message loop
   void InjectPointerEvent(scoped_refptr<dom::Element> element, base::Token type,
                           const dom::PointerEventInit& event);
 
-  // Called to inject a wheel event into the web module.
-  // Event is directed at a specific element if the element is non-null.
-  // Otherwise, the currently focused element receives the event.
-  // If element is specified, we must be on the WebModule's message loop
+  // Injects a wheel event into the web module. Event is directed at a
+  // specific element if the element is non-null. Otherwise, the currently
+  // focused element receives the event. If element is specified, we must be
+  // on the WebModule's message loop
   void InjectWheelEvent(scoped_refptr<dom::Element> element, base::Token type,
                         const dom::WheelEventInit& event);
 
-  // Called to inject a beforeunload event into the web module. If
-  // this event is not handled by the web application,
-  // |on_before_unload_fired_but_not_handled_| will be called. The event
-  // is not directed at a specific element.
+  // Injects a beforeunload event into the web module. If this event is not
+  // handled by the web application, |on_before_unload_fired_but_not_handled_|
+  // will be called. The event is not directed at a specific element.
   void InjectBeforeUnloadEvent();
 
-  // Called to execute JavaScript in this WebModule. Sets the |result|
-  // output parameter and signals |got_result|.
+  // Executes JavaScript in this WebModule. Sets the |result| output parameter
+  // and signals |got_result|.
   void ExecuteJavascript(const std::string& script_utf8,
                          const base::SourceLocation& script_location,
                          base::WaitableEvent* got_result, std::string* result,
@@ -725,38 +724,22 @@ void WebModule::Impl::InjectOnScreenKeyboardInputEvent(
   InjectInputEvent(element, input_event);
 }
 
-void WebModule::Impl::InjectOnScreenKeyboardShownEvent() {
+void WebModule::Impl::InjectOnScreenKeyboardShownEvent(int ticket) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
 
-  scoped_refptr<dom::Event> event = new dom::Event(base::Tokens::show());
-
-  web_module_stat_tracker_->OnStartInjectEvent(event);
-
-  window_->on_screen_keyboard()->DispatchEvent(event);
-
-  web_module_stat_tracker_->OnEndInjectEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsRenderTreePending());
+  window_->on_screen_keyboard()->DispatchShowEvent(ticket);
 }
 
-void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent() {
+void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent(int ticket) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
   DCHECK(window_);
   DCHECK(window_->on_screen_keyboard());
 
-  scoped_refptr<dom::Event> event = new dom::Event(base::Tokens::hide());
-
-  web_module_stat_tracker_->OnStartInjectEvent(event);
-
-  window_->on_screen_keyboard()->DispatchEvent(event);
-
-  web_module_stat_tracker_->OnEndInjectEvent(
-      window_->HasPendingAnimationFrameCallbacks(),
-      layout_manager_->IsRenderTreePending());
+  window_->on_screen_keyboard()->DispatchHideEvent(ticket);
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -1235,24 +1218,26 @@ void WebModule::InjectOnScreenKeyboardInputEvent(
                             scoped_refptr<dom::Element>(), type, event));
 }
 
-void WebModule::InjectOnScreenKeyboardShownEvent() {
-  TRACE_EVENT0("cobalt::browser",
-               "WebModule::InjectOnScreenKeyboardShownEvent()");
+void WebModule::InjectOnScreenKeyboardShownEvent(int ticket) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardShownEvent()", "ticket",
+               ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardShownEvent,
-                            base::Unretained(impl_.get())));
+                            base::Unretained(impl_.get()), ticket));
 }
 
-void WebModule::InjectOnScreenKeyboardHiddenEvent() {
-  TRACE_EVENT0("cobalt::browser",
-               "WebModule::InjectOnScreenKeyboardHiddenEvent()");
+void WebModule::InjectOnScreenKeyboardHiddenEvent(int ticket) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardHiddenEvent()", "ticket",
+               ticket);
   DCHECK(message_loop());
   DCHECK(impl_);
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardHiddenEvent,
-                            base::Unretained(impl_.get())));
+                            base::Unretained(impl_.get()), ticket));
 }
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

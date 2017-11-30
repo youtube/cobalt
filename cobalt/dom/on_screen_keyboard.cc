@@ -16,43 +16,65 @@
 #include "base/callback.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/window.h"
+#include "starboard/event.h"
 #include "starboard/log.h"
 #include "starboard/window.h"
 
 namespace cobalt {
 namespace dom {
 OnScreenKeyboard::OnScreenKeyboard(
-    const Window::GetSbWindowCallback& get_sb_window_callback)
-    : get_sb_window_callback_(get_sb_window_callback) {}
+    const Window::GetSbWindowCallback& get_sb_window_callback,
+    script::ScriptValueFactory* script_value_factory)
+    : get_sb_window_callback_(get_sb_window_callback),
+      script_value_factory_(script_value_factory),
+      next_ticket_(0) {}
 
-void OnScreenKeyboard::Show() {
+scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Show() {
+  scoped_ptr<VoidPromiseValue> promise =
+      script_value_factory_->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference promise_reference(*promise);
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   CHECK(!get_sb_window_callback_.is_null());
   SbWindow sb_window = get_sb_window_callback_.Run();
 
   if (!sb_window) {
     LOG(ERROR) << "OnScreenKeyboard::Show invalid without SbWindow.";
-    return;
+    return scoped_ptr<VoidPromiseValue>(NULL);
   }
-  SbWindowShowOnScreenKeyboard(sb_window, data_.c_str());
-  // Trigger onshow.
-  DispatchEvent(new dom::Event(base::Tokens::show()));
+  int ticket = next_ticket_++;
+  bool is_emplaced =
+      ticket_to_show_promise_map_
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
+                               new VoidPromiseValue::StrongReference(*promise)))
+          .second;
+  DCHECK(is_emplaced);
+  SbWindowShowOnScreenKeyboard(sb_window, data_.c_str(), ticket);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+  return promise.Pass();
 }
 
-void OnScreenKeyboard::Hide() {
+scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Hide() {
+  scoped_ptr<VoidPromiseValue> promise =
+      script_value_factory_->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference promise_reference(*promise);
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   CHECK(!get_sb_window_callback_.is_null());
   SbWindow sb_window = get_sb_window_callback_.Run();
 
   if (!sb_window) {
     LOG(ERROR) << "OnScreenKeyboard::Hide invalid without SbWindow.";
-    return;
+    return scoped_ptr<VoidPromiseValue>(NULL);
   }
-  SbWindowHideOnScreenKeyboard(sb_window);
-  // Trigger onhide.
-  DispatchEvent(new dom::Event(base::Tokens::hide()));
+  int ticket = next_ticket_++;
+  bool is_emplaced =
+      ticket_to_hide_promise_map_
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
+                               new VoidPromiseValue::StrongReference(*promise)))
+          .second;
+  DCHECK(is_emplaced);
+  SbWindowHideOnScreenKeyboard(sb_window, ticket);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+  return promise.Pass();
 }
 
 const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onshow() const {
@@ -88,6 +110,30 @@ bool OnScreenKeyboard::shown() const {
 #else   // SB_HAS(ON_SCREEN_KEYBOARD)
   return false;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+}
+
+void OnScreenKeyboard::DispatchHideEvent(int ticket) {
+  if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
+    TicketToPromiseMap::const_iterator it =
+        ticket_to_hide_promise_map_.find(ticket);
+    DCHECK(it != ticket_to_hide_promise_map_.end())
+        << "No promise matching ticket for OnScreenKeyboardHidden event.";
+    it->second->value().Resolve();
+    ticket_to_hide_promise_map_.erase(it);
+  }
+  DispatchEvent(new dom::Event(base::Tokens::hide()));
+}
+
+void OnScreenKeyboard::DispatchShowEvent(int ticket) {
+  if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
+    TicketToPromiseMap::const_iterator it =
+        ticket_to_show_promise_map_.find(ticket);
+    DCHECK(it != ticket_to_show_promise_map_.end())
+        << "No promise matching ticket for OnScreenKeyboardShown event.";
+    it->second->value().Resolve();
+    ticket_to_show_promise_map_.erase(it);
+  }
+  DispatchEvent(new dom::Event(base::Tokens::show()));
 }
 
 }  // namespace dom
