@@ -363,6 +363,7 @@ OMX_ERRORTYPE OpenMaxComponent::OnEmptyBufferDone(
     OMX_BUFFERHEADERTYPE* buffer) {
   ScopedLock scoped_lock(mutex_);
   free_input_buffers_.push(buffer);
+  return OMX_ErrorNone;
 }
 
 void OpenMaxComponent::OnFillBufferDone(OMX_BUFFERHEADERTYPE* buffer) {
