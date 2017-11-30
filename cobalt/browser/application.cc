@@ -759,10 +759,13 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 #if SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
-      DispatchEventInternal(new base::OnScreenKeyboardShownEvent());
+      DCHECK(starboard_event->data);
+      DispatchEventInternal(new base::OnScreenKeyboardShownEvent(
+          *static_cast<int*>(starboard_event->data)));
       break;
     case kSbEventTypeOnScreenKeyboardHidden:
-      DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent());
+      DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent(
+          *static_cast<int*>(starboard_event->data)));
       break;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeNetworkConnect:
@@ -888,15 +891,17 @@ void Application::OnWindowSizeChangedEvent(const base::Event* event) {
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardShownEvent()");
-  UNREFERENCED_PARAMETER(event);
-  browser_module_->OnOnScreenKeyboardShown();
+  browser_module_->OnOnScreenKeyboardShown(
+      base::polymorphic_downcast<const base::OnScreenKeyboardShownEvent*>(
+          event));
 }
 
 void Application::OnOnScreenKeyboardHiddenEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser",
                "Application::OnOnScreenKeyboardHiddenEvent()");
-  UNREFERENCED_PARAMETER(event);
-  browser_module_->OnOnScreenKeyboardHidden();
+  browser_module_->OnOnScreenKeyboardHidden(
+      base::polymorphic_downcast<const base::OnScreenKeyboardHiddenEvent*>(
+          event));
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
