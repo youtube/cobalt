@@ -336,10 +336,13 @@ void StarboardPlayer::SetPlaybackRate(double playback_rate) {
   SbPlayerSetPlaybackRate(player_, playback_rate);
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
 void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
                               uint32* video_frames_dropped,
-                              base::TimeDelta* media_time, int* frame_width,
-                              int* frame_height) {
+                              base::TimeDelta* media_time,
+                              base::TimeDelta* buffer_start_time,
+                              base::TimeDelta* buffer_length_time,
+                              int* frame_width, int* frame_height) {
   DCHECK(video_frames_decoded || video_frames_dropped || media_time);
 
   base::AutoLock auto_lock(lock_);
@@ -369,11 +372,52 @@ void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
   if (media_time) {
     *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
   }
+  if (buffer_start_time) {
+    *buffer_start_time = SbMediaTimeToTimeDelta(info.buffer_start_pts);
+  }
+  if (buffer_length_time) {
+    *buffer_length_time = SbMediaTimeToTimeDelta(info.buffer_duration_pts);
+  }
   if (frame_width) {
     *frame_width = info.frame_width;
   }
   if (frame_height) {
     *frame_height = info.frame_height;
+  }
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
+
+void StarboardPlayer::GetInfo(uint32* video_frames_decoded,
+                              uint32* video_frames_dropped,
+                              base::TimeDelta* media_time) {
+  DCHECK(video_frames_decoded || video_frames_dropped || media_time);
+
+  base::AutoLock auto_lock(lock_);
+  if (state_ == kSuspended) {
+    if (video_frames_decoded) {
+      *video_frames_decoded = cached_video_frames_decoded_;
+    }
+    if (video_frames_dropped) {
+      *video_frames_dropped = cached_video_frames_dropped_;
+    }
+    if (media_time) {
+      *media_time = preroll_timestamp_;
+    }
+    return;
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
+
+  SbPlayerInfo info;
+  SbPlayerGetInfo(player_, &info);
+  if (video_frames_decoded) {
+    *video_frames_decoded = info.total_video_frames;
+  }
+  if (video_frames_dropped) {
+    *video_frames_dropped = info.dropped_video_frames;
+  }
+  if (media_time) {
+    *media_time = SbMediaTimeToTimeDelta(info.current_media_pts);
   }
 }
 
@@ -575,7 +619,7 @@ void StarboardPlayer::ClearDecoderBufferCache() {
 
   if (state_ != kResuming) {
     base::TimeDelta media_time;
-    GetInfo(NULL, NULL, &media_time, NULL, NULL);
+    GetInfo(NULL, NULL, &media_time);
     decoder_buffer_cache_.ClearSegmentsBeforeMediaTime(media_time);
   }
 
