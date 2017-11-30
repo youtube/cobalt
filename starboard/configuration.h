@@ -71,6 +71,9 @@
 #define SB_PLAYER_WITH_URL_API_VERSION 8
 #define SB_WINDOW_SIZE_CHANGED_API_VERSION 8
 #define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION 8
+// Adds string label to SbMicrophoneInfo.
+// This should indicate the friendly name of the microphone type.
+#define SB_MICROPHONE_LABEL_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
