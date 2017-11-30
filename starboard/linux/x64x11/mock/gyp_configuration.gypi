@@ -22,8 +22,6 @@
     # No GL drivers available.
     'gl_type': 'none',
 
-    'cobalt_media_source_2016': 1,
-
     'platform_libraries': [
       '-lpthread',
     ],
