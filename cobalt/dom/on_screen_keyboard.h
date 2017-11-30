@@ -15,12 +15,15 @@
 #ifndef COBALT_DOM_ON_SCREEN_KEYBOARD_H_
 #define COBALT_DOM_ON_SCREEN_KEYBOARD_H_
 
+#include <memory>
 #include <string>
+#include <unordered_map>
 
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/window.h"
+#include "cobalt/script/promise.h"
 #include "cobalt/script/wrappable.h"
 #include "starboard/window.h"
 
@@ -31,16 +34,22 @@ class Window;
 
 class OnScreenKeyboard : public EventTarget {
  public:
-  explicit OnScreenKeyboard(
-      const base::Callback<SbWindow()>& get_sb_window_callback);
+  typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
+
+  typedef std::unordered_map<int,
+                             std::unique_ptr<VoidPromiseValue::StrongReference>>
+      TicketToPromiseMap;
+
+  OnScreenKeyboard(const base::Callback<SbWindow()>& get_sb_window_callback,
+                   script::ScriptValueFactory* script_value_factory);
 
   // Shows the on screen keyboard by calling a Starboard function
   // and dispatches an onshow event.
-  void Show();
+  scoped_ptr<VoidPromiseValue> Show();
 
   // Hides the on screen keyboard by calling a Starboard function,
   // and dispatches an onhide event.
-  void Hide();
+  scoped_ptr<VoidPromiseValue> Hide();
 
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
@@ -59,11 +68,23 @@ class OnScreenKeyboard : public EventTarget {
 
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
 
+  // Called by the WebModule to dispatch DOM show and hide events.
+  void DispatchHideEvent(int ticket);
+  void DispatchShowEvent(int ticket);
+
  private:
   ~OnScreenKeyboard() override {}
+
+  TicketToPromiseMap ticket_to_hide_promise_map_;
+  TicketToPromiseMap ticket_to_show_promise_map_;
+
   const base::Callback<SbWindow()> get_sb_window_callback_;
 
+  script::ScriptValueFactory* const script_value_factory_;
+
   std::string data_;
+
+  int next_ticket_;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };

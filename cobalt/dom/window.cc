@@ -166,7 +166,8 @@ Window::Window(int width, int height, float device_pixel_ratio,
       window_close_callback_(window_close_callback),
       window_minimize_callback_(window_minimize_callback),
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_(new OnScreenKeyboard(get_sb_window_callback)),
+      on_screen_keyboard_(
+          new OnScreenKeyboard(get_sb_window_callback, script_value_factory)),
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       splash_screen_cache_callback_(splash_screen_cache_callback) {
 #if !SB_HAS(ON_SCREEN_KEYBOARD)
