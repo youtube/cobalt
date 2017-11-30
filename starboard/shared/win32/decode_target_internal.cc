@@ -126,8 +126,10 @@ SbDecodeTargetPrivate::SbDecodeTargetPrivate(
   info.height = video_area.bottom;
 
   d3d_texture = AllocateTexture(d3d_device, info.width, info.height);
-  UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
-      video_processor, video_sample, video_area);
+  if (video_sample) {
+    UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
+        video_processor, video_sample, video_area);
+  }
 
   SbDecodeTargetInfoPlane* planeY = &(info.planes[kSbDecodeTargetPlaneY]);
   SbDecodeTargetInfoPlane* planeUV = &(info.planes[kSbDecodeTargetPlaneUV]);
@@ -278,12 +280,20 @@ bool SbDecodeTargetPrivate::Update(
   }
 
   // The decode target info must be compatible.
-  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
-      info.is_opaque != true ||
-      info.width != video_area.right ||
-      info.height != video_area.bottom) {
+  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12) {
     return false;
   }
+
+  D3D11_TEXTURE2D_DESC texture_desc;
+  d3d_texture->GetDesc(&texture_desc);
+  if (static_cast<int>(texture_desc.Width) < video_area.right ||
+      static_cast<int>(texture_desc.Height) < video_area.bottom) {
+    return false;
+  }
+
+  info.is_opaque = true;
+  info.width = video_area.right;
+  info.height = video_area.bottom;
 
   SB_UNREFERENCED_PARAMETER(d3d_device);
   UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,

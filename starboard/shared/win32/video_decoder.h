@@ -50,7 +50,7 @@ class VideoDecoder
 
   // Implement HostedVideoDecoder interface.
   void SetHost(Host* host) override;
-  size_t GetPrerollFrameCount() const override { return 3; }
+  size_t GetPrerollFrameCount() const override;
   void Initialize(const Closure& error_cb) override;
   void WriteInputBuffer(const scoped_refptr<InputBuffer>& input_buffer)
       override;
@@ -82,6 +82,7 @@ class VideoDecoder
 
   void InitializeCodec();
   void ShutdownCodec();
+  static void AllocateDecodeTargets(void* context);
   static void ReleaseDecodeTargets(void* context);
 
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);

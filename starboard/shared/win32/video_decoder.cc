@@ -30,8 +30,9 @@ using Microsoft::WRL::ComPtr;
 
 // Limit the number of active output samples to control memory usage.
 // NOTE: Higher numbers may result in increased dropped frames when the video
-// resolution changes during playback.
-const int kMaxOutputSamples = 5;
+// resolution changes during playback (if the decoder is not forced to use
+// max resolution resources).
+const int kMaxOutputSamples = 10;
 
 // Throttle the number of queued inputs to control memory usage.
 const int kMaxInputSamples = 15;
@@ -40,6 +41,11 @@ const int kMaxInputSamples = 15;
 // to accommodate the depth of the presentation swap chain, otherwise the
 // video textures may be updated before or while they are actually rendered.
 const int kDecodeTargetCacheSize = 2;
+
+// Allocate decode targets at the maximum size to allow them to be reused for
+// all resolutions. This minimizes hitching during resolution changes.
+const int kMaxDecodeTargetWidth = 3840;
+const int kMaxDecodeTargetHeight = 2160;
 
 // This structure is used to facilitate creation of decode targets in the
 // appropriate graphics context.
@@ -50,13 +56,17 @@ struct CreateDecodeTargetContext {
 
 scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     const GUID& input_guid, const GUID& output_guid,
-    const SbWindowSize& window_size,
     const IMFDXGIDeviceManager* device_manager) {
   scoped_ptr<MediaTransform> transform(new MediaTransform(decoder_guid));
 
   transform->EnableInputThrottle(true);
   transform->SendMessage(MFT_MESSAGE_SET_D3D_MANAGER,
                          ULONG_PTR(device_manager));
+
+  // Tell the decoder to allocate resources for the maximum resolution in
+  // order to minimize hitching on resolution changes.
+  ComPtr<IMFAttributes> attributes = transform->GetAttributes();
+  CheckResult(attributes->SetUINT32(MF_MT_DECODER_USE_MAX_RESOLUTION, 1));
 
   ComPtr<IMFMediaType> input_type;
   CheckResult(MFCreateMediaType(&input_type));
@@ -69,7 +79,8 @@ scoped_ptr<MediaTransform> CreateVideoTransform(const GUID& decoder_guid,
     // mitigate a format change, but the decoder will adjust to the real
     // resolution regardless.
     CheckResult(MFSetAttributeSize(input_type.Get(), MF_MT_FRAME_SIZE,
-                                   window_size.width, window_size.height));
+                                   kMaxDecodeTargetWidth,
+                                   kMaxDecodeTargetHeight));
   }
   transform->SetInputType(input_type);
 
@@ -118,6 +129,10 @@ void VideoDecoder::SetHost(Host* host) {
   SB_DCHECK(host != nullptr);
   SB_DCHECK(host_ == nullptr);
   host_ = host;
+}
+
+size_t VideoDecoder::GetPrerollFrameCount() const {
+  return kMaxOutputSamples;
 }
 
 void VideoDecoder::Initialize(const Closure& error_cb) {
@@ -222,7 +237,7 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
     // Try reusing the previous decode target to avoid the performance hit of
     // creating a new texture.
-    SB_DCHECK(prev_decode_targets_.size() <= kDecodeTargetCacheSize);
+    SB_DCHECK(prev_decode_targets_.size() <= kDecodeTargetCacheSize + 1);
     if (prev_decode_targets_.size() >= kDecodeTargetCacheSize) {
       decode_target = prev_decode_targets_.front();
       prev_decode_targets_.pop_front();
@@ -248,8 +263,6 @@ SbDecodeTarget VideoDecoder::CreateDecodeTarget() {
 
 void VideoDecoder::InitializeCodec() {
   scoped_ptr<MediaTransform> media_transform;
-  SbWindowOptions window_options;
-  SbWindowSetDefaultOptions(&window_options);
 
   // If this is updated then media_is_video_supported.cc also needs to be
   // updated.
@@ -257,13 +270,13 @@ void VideoDecoder::InitializeCodec() {
     case kSbMediaVideoCodecH264: {
       media_transform = CreateVideoTransform(
           CLSID_MSH264DecoderMFT, MFVideoFormat_H264, MFVideoFormat_NV12,
-          window_options.size, device_manager_.Get());
+          device_manager_.Get());
       break;
     }
     case kSbMediaVideoCodecVp9: {
       media_transform = CreateVideoTransform(
           CLSID_MSVPxDecoder, MFVideoFormat_VP90, MFVideoFormat_NV12,
-          window_options.size, device_manager_.Get());
+          device_manager_.Get());
       break;
     }
     default: { SB_NOTREACHED(); }
@@ -297,12 +310,12 @@ void VideoDecoder::InitializeCodec() {
   content_desc.InputFrameFormat = D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE;
   content_desc.InputFrameRate.Numerator = 60;
   content_desc.InputFrameRate.Denominator = 1;
-  content_desc.InputWidth = window_options.size.width;
-  content_desc.InputHeight = window_options.size.height;
+  content_desc.InputWidth = kMaxDecodeTargetWidth;
+  content_desc.InputHeight = kMaxDecodeTargetHeight;
   content_desc.OutputFrameRate.Numerator = 60;
   content_desc.OutputFrameRate.Denominator = 1;
-  content_desc.OutputWidth = window_options.size.width;
-  content_desc.OutputHeight = window_options.size.height;
+  content_desc.OutputWidth = kMaxDecodeTargetWidth;
+  content_desc.OutputHeight = kMaxDecodeTargetHeight;
   content_desc.Usage = D3D11_VIDEO_USAGE_PLAYBACK_NORMAL;
   CheckResult(video_device_->CreateVideoProcessorEnumerator(
       &content_desc, video_enumerator_.GetAddressOf()));
@@ -313,6 +326,10 @@ void VideoDecoder::InitializeCodec() {
       D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
   video_context_->VideoProcessorSetStreamAutoProcessingMode(
       video_processor_.Get(), 0, false);
+
+  // Preallocate decode targets to minimize hitching at the start of playback.
+  graphics_context_provider_->gles_context_runner(graphics_context_provider_,
+      &VideoDecoder::AllocateDecodeTargets, this);
 }
 
 void VideoDecoder::ShutdownCodec() {
@@ -335,6 +352,30 @@ void VideoDecoder::ShutdownCodec() {
   decoder_.reset();
   video_processor_.Reset();
   video_enumerator_.Reset();
+}
+
+// static
+void VideoDecoder::AllocateDecodeTargets(void* context) {
+  VideoDecoder* this_ptr = static_cast<VideoDecoder*>(context);
+
+  RECT video_area;
+  video_area.left = 0;
+  video_area.top = 0;
+  video_area.right = kMaxDecodeTargetWidth;
+  video_area.bottom = kMaxDecodeTargetHeight;
+  ComPtr<IMFSample> video_sample;
+
+  // Allocate decode targets for the cache plus an additional one that will be
+  // used for the currently-displayed decode target.
+  ScopedLock lock(this_ptr->decode_target_lock_);
+  SB_DCHECK(this_ptr->prev_decode_targets_.empty());
+  SB_DCHECK(!SbDecodeTargetIsValid(this_ptr->current_decode_target_));
+  for (int count = 0; count < kDecodeTargetCacheSize + 1; ++count) {
+      this_ptr->prev_decode_targets_.emplace_back(new SbDecodeTargetPrivate(
+          this_ptr->d3d_device_, this_ptr->video_device_,
+          this_ptr->video_context_, this_ptr->video_enumerator_,
+          this_ptr->video_processor_, video_sample, video_area));
+  }
 }
 
 // static
