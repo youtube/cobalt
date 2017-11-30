@@ -90,12 +90,14 @@
     ],
     'compiler_flags_qa': [
       '-O2',
+      '-Wno-unused-but-set-variable',
     ],
     'compiler_flags_cc_qa': [
       '-fno-rtti',
     ],
     'compiler_flags_gold': [
       '-O2',
+      '-Wno-unused-but-set-variable',
     ],
     'compiler_flags_cc_gold': [
       '-fno-rtti',
@@ -152,11 +154,15 @@
           '-Wall',
           '-Wextra',
           '-Wunreachable-code',
+          # Raspi toolchain is based off an old version of gcc, which
+          # falsely flags some code.  That same code does not warn with gcc 6.3.
+          # This decision should be revisited after raspi toolchain is upgraded.
+          '-Wno-maybe-uninitialized',
+          # Turn warnings into errors.
+          '-Werror',
         ],
       },{
         'cflags': [
-          # Do not warn about unused function params.
-          '-Wno-unused-parameter',
           # Do not warn for implicit type conversions that may change a value.
           '-Wno-conversion',
         ],
