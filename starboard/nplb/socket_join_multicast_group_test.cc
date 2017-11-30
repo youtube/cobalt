@@ -79,7 +79,11 @@ TEST(SbSocketJoinMulticastGroupTest, SunnyDay) {
   }
 
   SbSocketAddress receive_address;
+  int loop_counts = 10000;
   while (true) {
+    // Breaks the case where the test will hang in a loop when
+    // SbSocketReceiveFrom() always returns kSbSocketPending.
+    ASSERT_GE(loop_counts--, 0) << "Multicast timed out.";
     int received = SbSocketReceiveFrom(
         receive_socket, buf, SB_ARRAY_SIZE_INT(buf), &receive_address);
     if (received < 0 &&
