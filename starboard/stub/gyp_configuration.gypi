@@ -22,8 +22,6 @@
     # No GL drivers available.
     'gl_type': 'none',
 
-    'cobalt_media_source_2016': 1,
-
     # Define platform specific compiler and linker flags.
     # Refer to base.gypi for a list of all available variables.
     'compiler_flags_host': [

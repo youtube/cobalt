@@ -23,8 +23,6 @@
     'gl_type': 'angle',
     'angle_platform_windows': 1,
 
-    'cobalt_media_source_2016': 1,
-
     # Frame presentation is blocked on vsync, so the render thread will also
     # block on vsync. However, use a non-zero minimum frame time to avoid
     # possible busy-loops on unrendered submissions.
