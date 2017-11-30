@@ -141,6 +141,16 @@ typedef struct SbPlayerInfo {
   // is played in a slower than normal speed.  Negative speeds are not
   // supported.
   double playback_rate;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // The position of the buffer head, as precisely as possible, in 90KHz ticks
+  // (PTS).
+  SbMediaTime buffer_start_pts;
+
+  // The known duration of the currently playing media buffer, in 90KHz ticks
+  // (PTS).
+  SbMediaTime buffer_duration_pts;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 } SbPlayerInfo;
 
 // An opaque handle to an implementation-private structure representing a
