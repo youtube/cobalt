@@ -14,6 +14,7 @@
 
 #include "starboard/microphone.h"
 
+#include "starboard/memory.h"
 #include "starboard/shared/starboard/microphone/microphone_internal.h"
 
 #if !SB_HAS(MICROPHONE)
@@ -22,6 +23,9 @@
 
 int SbMicrophoneGetAvailable(SbMicrophoneInfo* out_info_array,
                              int info_array_size) {
+  if (out_info_array && info_array_size > 0) {
+    SbMemorySet(out_info_array, 0, info_array_size);
+  }
   return SbMicrophonePrivate::GetAvailableMicrophones(out_info_array,
                                                       info_array_size);
 }
