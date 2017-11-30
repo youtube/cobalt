@@ -32,9 +32,6 @@
     # region. Disable this option since it costs GPU time.
     'render_dirty_region_only': 0,
 
-    # Use media source extension implementation that is conformed to the
-    # Candidate Recommandation of July 5th 2016.
-    'cobalt_media_source_2016': 1,
     'cobalt_media_buffer_storage_type': 'memory',
     'cobalt_media_buffer_initial_capacity': 26 * 1024 * 1024,
     'cobalt_media_buffer_allocation_unit': 0 * 1024 * 1024,
