@@ -18,6 +18,7 @@
 
 #include "starboard/memory.h"
 #include "starboard/mutex.h"
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
 
 using starboard::shared::win32::GetThreadSubsystemSingleton;
@@ -40,7 +41,7 @@ SbThreadLocalKey SbThreadCreateLocalKeyInternal(
   // but this is okay since the pointers will now be nullptrs, which is
   // a no-op. For non starboard threads, only the secondary destructor
   // will run.
-  DWORD index = FlsAlloc(destructor);
+  DWORD index = TlsInternalAlloc(destructor);
 
   if (index == TLS_OUT_OF_INDEXES) {
     return kSbThreadLocalKeyInvalid;

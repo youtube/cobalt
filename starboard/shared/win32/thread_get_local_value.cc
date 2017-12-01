@@ -16,12 +16,15 @@
 
 #include <windows.h>
 
+#include "starboard/shared/win32/thread_local_internal.h"
 #include "starboard/shared/win32/thread_private.h"
+
+using starboard::shared::win32::TlsInternalGetValue;
 
 void* SbThreadGetLocalValue(SbThreadLocalKey key) {
   if (!SbThreadIsValidLocalKey(key)) {
     return NULL;
   }
   DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
-  return FlsGetValue(tls_index);
+  return TlsInternalGetValue(tls_index);
 }

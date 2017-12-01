@@ -12,19 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "starboard/thread.h"
+#ifndef STARBOARD_SHARED_WIN32_THREAD_LOCAL_INTERNAL_H_
+#define STARBOARD_SHARED_WIN32_THREAD_LOCAL_INTERNAL_H_
 
 #include <windows.h>
 
-#include "starboard/shared/win32/thread_local_internal.h"
-#include "starboard/shared/win32/thread_private.h"
+#include "starboard/thread.h"
 
-using starboard::shared::win32::TlsInternalSetValue;
+namespace starboard {
+namespace shared {
+namespace win32 {
 
-bool SbThreadSetLocalValue(SbThreadLocalKey key, void* value) {
-  if (!SbThreadIsValidLocalKey(key)) {
-    return false;
-  }
-  DWORD tls_index = static_cast<SbThreadLocalKeyPrivate*>(key)->tls_index;
-  return TlsInternalSetValue(tls_index, value);
-}
+DWORD TlsInternalAlloc(SbThreadLocalDestructor destructor_fn);
+void TlsInternalFree(DWORD key);
+
+void* TlsInternalGetValue(DWORD key);
+bool TlsInternalSetValue(DWORD key, void* value);
+
+}  // namespace win32
+}  // namespace shared
+}  // namespace starboard
+
+#endif  // STARBOARD_SHARED_WIN32_THREAD_LOCAL_INTERNAL_H_

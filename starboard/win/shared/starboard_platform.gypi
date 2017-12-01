@@ -377,6 +377,8 @@
         '<(DEPTH)/starboard/shared/win32/thread_get_name.cc',
         '<(DEPTH)/starboard/shared/win32/thread_is_equal.cc',
         '<(DEPTH)/starboard/shared/win32/thread_join.cc',
+        '<(DEPTH)/starboard/shared/win32/thread_local_internal.cc',
+        '<(DEPTH)/starboard/shared/win32/thread_local_internal.h',
         '<(DEPTH)/starboard/shared/win32/thread_private.cc',
         '<(DEPTH)/starboard/shared/win32/thread_private.h',
         '<(DEPTH)/starboard/shared/win32/thread_set_local_value.cc',
