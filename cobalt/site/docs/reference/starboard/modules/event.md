@@ -88,6 +88,9 @@ must define the type of the value pointed to by that data argument, if any.
 *   `kSbEventTypeScheduled` - An event type reserved for scheduled callbacks. It will only be sent inresponse to an application call to SbEventSchedule(), and it will call thecallback directly, so SbEventHandle should never receive this eventdirectly. The data type is an internally-defined structure.
 *   `kSbEventTypeAccessiblitySettingsChanged` - The platform's accessibility settings have changed. The application shouldquery the accessibility settings using the appropriate APIs to get thenew settings.
 *   `kSbEventTypeLowMemory` - An optional event that platforms may send to indicate that the applicationmay soon be terminated (or crash) due to low memory availability. Theapplication may respond by reducing memory consumption by running a GarbageCollection, flushing caches, or something similar. There is no requirementto respond to or handle this event, it is only advisory.
+*   `kSbEventTypeWindowSizeChanged` - The size or position of a SbWindow has changed. The data isSbEventWindowSizeChangedData.
+*   `kSbEventTypeOnScreenKeyboardShown`
+*   `kSbEventTypeOnScreenKeyboardHidden`
 
 ## Structs
 
@@ -115,6 +118,20 @@ Event data for kSbEventTypeStart events.
     <td><code>int</code><br>        <code>argument_count</code></td>    <td>The command-line argument count (argc).</td>  </tr>
   <tr>
     <td><code>const</code><br>        <code>char* link</code></td>    <td>The startup link, if any.</td>  </tr>
+</table>
+
+### SbEventWindowSizeChangedData
+
+Event data for kSbEventTypeWindowSizeChanged events.
+
+**Members**
+
+<table class="responsive">
+  <tr><th colspan="2">Members</th></tr>
+  <tr>
+    <td><code>SbWindow</code><br>        <code>window</code></td>    <td></td>  </tr>
+  <tr>
+    <td><code>SbWindowSize</code><br>        <code>size</code></td>    <td></td>  </tr>
 </table>
 
 ## Functions

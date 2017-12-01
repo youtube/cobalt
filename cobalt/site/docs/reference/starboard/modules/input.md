@@ -23,6 +23,7 @@ device type produces correspond to `SbInputEventType` values.
 *   `kSbInputDeviceTypeSpeechCommand` - Input from a speech command analyzer, which is some hardware or softwarethat, given a set of known phrases, activates when one of the registeredphrases is heard.<br>Produces |Command| events.
 *   `kSbInputDeviceTypeTouchScreen` - Input from a single- or multi-touchscreen.<br>Produces |Move|, |Press|, and |Unpress| events.
 *   `kSbInputDeviceTypeTouchPad` - Input from a touchpad that is not masquerading as a mouse.<br>Produces |Move|, |Press|, and |Unpress| events.
+*   `kSbInputDeviceTypeOnScreenKeyboard` - Keyboard input from an on screen keyboard.<br>Produces |Input| events.
 
 ### SbInputEventType
 
@@ -38,6 +39,7 @@ The action that an input event represents.
 *   `kSbInputEventTypeUngrab` - Grab deactivation. This event type is deprecated.
 *   `kSbInputEventTypeUnpress` - Key or button deactivation. The counterpart to the |Press| event, thisevent is sent when the key or button being pressed is released.
 *   `kSbInputEventTypeWheel` - Wheel movement. Provides relative movements of the |Mouse| wheel.
+*   `kSbInputEventTypeInput` - https://w3c.github.io/uievents/#event-type-input
 
 ## Structs
 
@@ -95,6 +97,8 @@ events with device type mouse or touch screen.</td>  </tr>
 relative to the z axis. Positive values are for tilt to the right (x), and
 towards the user (y). Use (NaN, NaN) for devices that do not report tilt.
 This value is used for input events with device type mouse or touch screen.</td>  </tr>
+  <tr>
+    <td><code>const</code><br>        <code>char* input_text</code></td>    <td>The text to input for events of type <code>Input</code>.</td>  </tr>
 </table>
 
 ### SbInputVector

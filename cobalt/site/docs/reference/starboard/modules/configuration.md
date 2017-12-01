@@ -100,6 +100,8 @@ Whether the current platform has 64-bit atomic operations.
 
 Note that this macro's definition varies depending on the values of one or more other variables.
 
+<h3 id="sb_has_drm_key_statuses" class="small-h3">SB_HAS_DRM_KEY_STATUSES</h3>
+
 <h3 id="sb_has_gles2" class="small-h3">SB_HAS_GLES2</h3>
 
 Specifies whether this platform has a performant OpenGL ES 2 implementation,
@@ -116,6 +118,8 @@ Note that this macro's definition varies depending on the values of one or more 
 <h3 id="sb_has_quirk" class="small-h3">SB_HAS_QUIRK</h3>
 
 Determines at compile-time whether this platform has a quirk.
+
+<h3 id="sb_input_on_screen_keyboard_api_version" class="small-h3">SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION</h3>
 
 <h3 id="sb_int64_c" class="small-h3">SB_INT64_C</h3>
 
@@ -254,6 +258,8 @@ Note that this macro's definition varies depending on the values of one or more 
 
 Causes the annotated (at the end) function to generate a warning if the
 result is not accessed.
+
+<h3 id="sb_window_size_changed_api_version" class="small-h3">SB_WINDOW_SIZE_CHANGED_API_VERSION</h3>
 
 </div>
 
