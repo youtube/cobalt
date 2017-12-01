@@ -154,10 +154,6 @@ SbPlayerCreate(SbWindow window,
 ```
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "SbPlayerCreate requires SB_HAS(PLAYER)."
-#endif
-
 SbPlayer SbPlayerCreate(SbWindow /*window*/,
                         SbMediaVideoCodec /*video_codec*/,
                         SbMediaAudioCodec /*audio_codec*/,
@@ -298,10 +294,6 @@ SbPlayerCreateWithUrl(const char* url,
 
 ```
 #include "starboard/player.h"
-
-#if !SB_HAS(PLAYER)
-#error "SbPlayerCreateWithUrl requires SB_HAS(PLAYER)."
-#endif
 
 #if SB_HAS(PLAYER_WITH_URL)
 
@@ -445,10 +437,6 @@ SB_EXPORT SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer player);
 ```
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
-
 SbDecodeTarget SbPlayerGetCurrentFrame(SbPlayer /*player*/) {
   return kSbDecodeTargetInvalid;
 }
@@ -564,10 +552,6 @@ SB_EXPORT bool SbPlayerOutputModeSupported(SbPlayerOutputMode output_mode,
 
 ```
 #include "starboard/player.h"
-
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
 
 bool SbPlayerOutputModeSupported(SbPlayerOutputMode /*output_mode*/,
                                  SbMediaVideoCodec /*codec*/,
@@ -739,10 +723,6 @@ SB_EXPORT void SbPlayerSetBounds(SbPlayer player,
 ```
 #include "starboard/player.h"
 
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
-
 void SbPlayerSetBounds(SbPlayer /*player*/,
                        int /*z_index*/,
                        int /*x*/,
@@ -852,10 +832,6 @@ SB_EXPORT bool SbPlayerSetPlaybackRate(SbPlayer player, double playback_rate);
 
 ```
 #include "starboard/player.h"
-
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
 
 bool SbPlayerSetPlaybackRate(SbPlayer /*player*/, double /*playback_rate*/) {
   return false;
@@ -1021,10 +997,6 @@ SB_EXPORT void SbPlayerWriteSample(
 
 ```
 #include "starboard/player.h"
-
-#if !SB_HAS(PLAYER)
-#error "This file requires SB_HAS(PLAYER)."
-#endif
 
 void SbPlayerWriteSample(SbPlayer /*player*/,
                          SbMediaType /*sample_type*/,
