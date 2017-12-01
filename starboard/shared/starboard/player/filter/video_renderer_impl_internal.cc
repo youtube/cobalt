@@ -216,6 +216,13 @@ SbDecodeTarget VideoRendererImpl::GetCurrentDecodeTarget(
     bool audio_eos_reached) {
   {
     ScopedLock lock(mutex_);
+
+    // Wait until preroll is finished before displaying the first frame to
+    // avoid perceived stutter at the beginning of playback.
+    if (seeking_ && current_frame_ == nullptr) {
+      return kSbDecodeTargetInvalid;
+    }
+
     AdvanceCurrentFrame(media_time, audio_eos_reached);
   }
 
