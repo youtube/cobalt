@@ -254,6 +254,102 @@ bool SbWindowGetSize(SbWindow /*window*/, SbWindowSize* /*size*/) {
   </tr>
 </table>
 
+### SbWindowHideOnScreenKeyboard
+
+**Description**
+
+Hide the on screen keyboard. Fire kSbEventTypeWindowSizeChange if necessary.
+Calling <code>SbWindowHideOnScreenKeyboard()</code> when the keyboard is already hidden
+is permitted.
+
+**Declaration and definitions**
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbWindowHideOnScreenKeyboard-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbWindowHideOnScreenKeyboard-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbWindowHideOnScreenKeyboard-declaration">
+<pre>
+SB_EXPORT void SbWindowHideOnScreenKeyboard(SbWindow window);
+</pre>
+</div>
+  <div class="mdl-tabs__panel" id="SbWindowHideOnScreenKeyboard-stub">
+
+```
+#include "starboard/window.h"
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void SbWindowHideOnScreenKeyboard(SbWindow window) {
+  // Stub.
+  return;
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+```
+
+  </div>
+</div>
+
+**Parameters**
+
+
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbWindow</code><br>
+        <code>window</code></td>
+    <td> </td>
+  </tr>
+</table>
+
+### SbWindowIsOnScreenKeyboardShown
+
+**Description**
+
+Determine if the on screen keyboard is shown.
+
+**Declaration and definitions**
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbWindowIsOnScreenKeyboardShown-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbWindowIsOnScreenKeyboardShown-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbWindowIsOnScreenKeyboardShown-declaration">
+<pre>
+SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
+</pre>
+</div>
+  <div class="mdl-tabs__panel" id="SbWindowIsOnScreenKeyboardShown-stub">
+
+```
+#include "starboard/window.h"
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+bool SbWindowIsOnScreenKeyboardShown(SbWindow window) {
+  // Stub.
+  return false;
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+```
+
+  </div>
+</div>
+
+**Parameters**
+
+
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbWindow</code><br>
+        <code>window</code></td>
+    <td> </td>
+  </tr>
+</table>
+
 ### SbWindowIsValid
 
 **Description**
@@ -321,6 +417,63 @@ void SbWindowSetDefaultOptions(SbWindowOptions* /*options*/) {
     <td><code>SbWindowOptions*</code><br>        <code>options</code></td>
     <td>The option values to use as default values. This object must not
 be <code>NULL</code>.</td>
+  </tr>
+</table>
+
+### SbWindowShowOnScreenKeyboard
+
+**Description**
+
+Show the on screen keyboard and populate the input with text `input_text`.
+Fire kSbEventTypeWindowSizeChange if necessary. The passed in `input_text`
+will never be NULL, but may be an empty string. Calling
+SbWindowShowOnScreenKeyboard() when the keyboard is already shown is
+permitted, and the input will be replaced with `input_text`.
+
+**Declaration and definitions**
+
+<div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+  <div class="mdl-tabs__tab-bar">
+    <a href="#SbWindowShowOnScreenKeyboard-declaration" class="mdl-tabs__tab is-active">Declaration</a>
+    <a href="#SbWindowShowOnScreenKeyboard-stub" class="mdl-tabs__tab">stub</a>
+  </div>
+  <div class="mdl-tabs__panel is-active" id="SbWindowShowOnScreenKeyboard-declaration">
+<pre>
+SB_EXPORT void SbWindowShowOnScreenKeyboard(SbWindow window,
+                                            const char* input_text);
+</pre>
+</div>
+  <div class="mdl-tabs__panel" id="SbWindowShowOnScreenKeyboard-stub">
+
+```
+#include "starboard/window.h"
+
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+void SbWindowShowOnScreenKeyboard(SbWindow window, const char* input_text) {
+  // Stub.
+  return;
+}
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+```
+
+  </div>
+</div>
+
+**Parameters**
+
+
+
+<table class="responsive">
+  <tr><th colspan="2">Parameters</th></tr>
+  <tr>
+    <td><code>SbWindow</code><br>
+        <code>window</code></td>
+    <td> </td>
+  </tr>
+  <tr>
+    <td><code>const char*</code><br>
+        <code>input_text</code></td>
+    <td> </td>
   </tr>
 </table>
 
