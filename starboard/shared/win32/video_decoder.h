@@ -134,6 +134,10 @@ class VideoDecoder
   Mutex outputs_reset_lock_;
   std::list<Output> thread_outputs_;
 
+  // To workaround the startup hitch for VP9, exercise the decoder for a
+  // certain number of frames while prerolling the initial playback.
+  int priming_output_count_;
+
   Mutex decode_target_lock_;
   SbDecodeTarget current_decode_target_;
   std::list<SbDecodeTarget> prev_decode_targets_;

@@ -37,6 +37,10 @@ const int kMaxOutputSamples = 10;
 // Throttle the number of queued inputs to control memory usage.
 const int kMaxInputSamples = 15;
 
+// Prime the VP9 decoder for a certain number of output frames to reduce
+// hitching at the start of playback.
+const int kVp9PrimingFrameCount = 10;
+
 // Decode targets are cached for reuse. Ensure the cache size is large enough
 // to accommodate the depth of the presentation swap chain, otherwise the
 // video textures may be updated before or while they are actually rendered.
@@ -271,12 +275,14 @@ void VideoDecoder::InitializeCodec() {
       media_transform = CreateVideoTransform(
           CLSID_MSH264DecoderMFT, MFVideoFormat_H264, MFVideoFormat_NV12,
           device_manager_.Get());
+      priming_output_count_ = 0;
       break;
     }
     case kSbMediaVideoCodecVp9: {
       media_transform = CreateVideoTransform(
           CLSID_MSVPxDecoder, MFVideoFormat_VP90, MFVideoFormat_NV12,
           device_manager_.Get());
+      priming_output_count_ = kVp9PrimingFrameCount;
       break;
     }
     default: { SB_NOTREACHED(); }
@@ -489,6 +495,7 @@ void VideoDecoder::DeleteVideoFrame(void* context, void* native_texture) {
 }
 
 void VideoDecoder::DecoderThreadRun() {
+  std::list<std::unique_ptr<Event> > priming_events;
   std::unique_ptr<Event> event;
   bool is_end_of_stream = false;
 
@@ -513,6 +520,10 @@ void VideoDecoder::DecoderThreadRun() {
         case Event::kWriteInputBuffer:
           SB_DCHECK(event->input_buffer != nullptr);
           if (decoder_->TryWriteInputBuffer(event->input_buffer, 0)) {
+            if (priming_output_count_ > 0) {
+              // Save this event for the actual playback.
+              priming_events.emplace_back(event.release());
+            }
             // The event was successfully processed. Discard it.
             event.reset();
             wrote_input = true;
@@ -557,7 +568,24 @@ void VideoDecoder::DecoderThreadRun() {
         UpdateVideoArea(media_type);
       }
       if (sample) {
-        host_->OnDecoderStatusUpdate(status, CreateVideoFrame(sample));
+        if (priming_output_count_ > 0) {
+          // Ignore the output samples while priming the decoder.
+          if (--priming_output_count_ == 0) {
+            // Replay all the priming events once priming is finished.
+            if (event != nullptr) {
+              priming_events.emplace_back(event.release());
+            }
+            thread_lock_.Acquire();
+            while (!priming_events.empty()) {
+              thread_events_.emplace_front(priming_events.back().release());
+              priming_events.pop_back();
+            }
+            thread_lock_.Release();
+            decoder_->Reset();
+          }
+        } else {
+          host_->OnDecoderStatusUpdate(status, CreateVideoFrame(sample));
+        }
         read_output = true;
       } else if (is_end_of_stream) {
         host_->OnDecoderStatusUpdate(kBufferFull,
