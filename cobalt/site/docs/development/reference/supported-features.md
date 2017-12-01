@@ -165,4 +165,4 @@ title: "Cobalt Support Quick Reference"
 
 *   JPEG
 *   PNG
-*   WebP (non-animated)
+*   WebP (including animated)
