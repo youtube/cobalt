@@ -197,7 +197,9 @@ class ThreadLocalObject {
     Entry* entry = reinterpret_cast<Entry*>(ptr);
     ThreadLocalObject* tls = entry->owner_;
     Type* object = entry->ptr_;
-    tls->RemoveEntry(entry);
+    if (tls) {
+      tls->RemoveEntry(entry);
+    }
     delete object;
   }
 
