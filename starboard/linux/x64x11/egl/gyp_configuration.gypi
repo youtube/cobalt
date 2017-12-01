@@ -1,4 +1,4 @@
-# Copyright 2014 Google Inc. All Rights Reserved.
+# Copyright 2017 Google Inc. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,36 +13,34 @@
 # limitations under the License.
 
 {
-  'variables': {
-    'enable_map_to_mesh%': 1,
-
-    'cobalt_platform_dependencies': [
-      # GL Linux makes some GL calls within decode_target_internal.cc.
-      '<(DEPTH)/starboard/egl_and_gles/egl_and_gles.gyp:egl_and_gles',
-    ],
-  },
   'target_defaults': {
-    'default_configuration': 'linux-x64x11_debug',
+    'default_configuration': 'linux-x64x11-egl_debug',
     'configurations': {
-      'linux-x64x11_debug': {
+      'linux-x64x11-egl_debug': {
         'inherit_from': ['debug_base'],
       },
-      'linux-x64x11_devel': {
+      'linux-x64x11-egl_devel': {
         'inherit_from': ['devel_base'],
       },
-      'linux-x64x11_qa': {
+      'linux-x64x11-egl_qa': {
         'inherit_from': ['qa_base'],
       },
-      'linux-x64x11_gold': {
+      'linux-x64x11-egl_gold': {
         'inherit_from': ['gold_base'],
       },
     }, # end of configurations
   },
 
   'includes': [
-    'enable_glx_via_angle.gypi',
-    'libraries.gypi',
-    '../shared/compiler_flags.gypi',
-    '../shared/gyp_configuration.gypi',
+    '../gyp_configuration.gypi',
   ],
+
+  'variables': {
+    'gl_type': 'system_gles2',
+
+    'platform_libraries': [
+      '-lEGL',
+      '-lGLESv2',
+    ],
+  },
 }
