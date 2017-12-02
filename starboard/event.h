@@ -92,6 +92,10 @@
 extern "C" {
 #endif
 
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+const int kSbEventOnScreenKeyboardInvalidTicket = -1;
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+
 // An enumeration of all possible event types dispatched directly by the
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
@@ -220,7 +224,19 @@ typedef enum SbEventType {
   kSbEventTypeWindowSizeChanged,
 #endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
 #if SB_HAS(ON_SCREEN_KEYBOARD)
+  // The platform has shown the on screen keyboard. This event is triggered by
+  // the system or by the OnScreenKeyboard's show method in javascript. The
+  // event has int data representing the ticket for looking up a promise
+  // reference stored by the on screen keyboard. Javascript-triggered events
+  // have tickets passed in via SbWindowShowOnScreenKeyboard. System-triggered
+  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardShown,
+  // The platform has hidden the on screen keyboard. This event is triggered
+  // by the system or by the OnScreenKeyboard's hide method in javascript. The
+  // event has int data representing the ticket for looking up a promise
+  // reference stored by the on screen keyboard. Javascript-triggered events
+  // have tickets passed in via SbWindowHideOnScreenKeyboard. System-triggered
+  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardHidden,
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbEventType;

@@ -15,7 +15,7 @@
 #include "starboard/window.h"
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
-void SbWindowHideOnScreenKeyboard(SbWindow window) {
+void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket) {
   // Stub.
   return;
 }
