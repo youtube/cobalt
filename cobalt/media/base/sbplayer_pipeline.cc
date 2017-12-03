@@ -548,7 +548,7 @@ Ranges<TimeDelta> SbPlayerPipeline::GetBufferedTimeRanges() {
     return time_ranges;
   }
 
-  time_ranges.Add(buffer_start_time, buffer_length_time);
+  time_ranges.Add(buffer_start_time, buffer_start_time + buffer_length_time);
 
   if (buffered_time_ranges_.size() > 0) {
     base::TimeDelta old_buffer_start_time = buffered_time_ranges_.start(0);
