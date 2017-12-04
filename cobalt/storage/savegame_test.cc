@@ -44,13 +44,13 @@ TEST(Savegame, Basic) {
   for (int i = 0; i < 1024; ++i) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
-  EXPECT_EQ(true, savegame->Write(buf));
+  EXPECT_TRUE(savegame->Write(buf));
 
   Savegame::ByteVector buf2;
-  EXPECT_EQ(true, savegame->Read(&buf2, kMaxSaveGameSizeBytes));
+  EXPECT_TRUE(savegame->Read(&buf2, kMaxSaveGameSizeBytes));
   EXPECT_EQ(buf, buf2);
 
-  EXPECT_EQ(true, savegame->Delete());
+  EXPECT_TRUE(savegame->Delete());
 }
 
 TEST(Savegame, MaxReadExceeded) {
@@ -60,13 +60,13 @@ TEST(Savegame, MaxReadExceeded) {
   for (int i = 0; i < 1024; ++i) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
-  EXPECT_EQ(true, savegame->Write(buf));
+  EXPECT_TRUE(savegame->Write(buf));
 
   Savegame::ByteVector buf2;
-  EXPECT_EQ(false, savegame->Read(&buf2, 1023));
+  EXPECT_FALSE(savegame->Read(&buf2, 1023));
   EXPECT_EQ(0, buf2.size());
 
-  EXPECT_EQ(true, savegame->Delete());
+  EXPECT_TRUE(savegame->Delete());
 }
 
 TEST(Savegame, DoubleRead) {
@@ -77,13 +77,13 @@ TEST(Savegame, DoubleRead) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
 
-  EXPECT_EQ(true, savegame->Write(buf));
+  EXPECT_TRUE(savegame->Write(buf));
   Savegame::ByteVector buf2;
-  EXPECT_EQ(true, savegame->Read(&buf2, kMaxSaveGameSizeBytes));
+  EXPECT_TRUE(savegame->Read(&buf2, kMaxSaveGameSizeBytes));
   EXPECT_EQ(buf, buf2);
 
   Savegame::ByteVector buf3;
-  EXPECT_EQ(true, savegame->Read(&buf3, kMaxSaveGameSizeBytes));
+  EXPECT_TRUE(savegame->Read(&buf3, kMaxSaveGameSizeBytes));
   EXPECT_EQ(buf2, buf3);
 }
 
@@ -96,10 +96,10 @@ TEST(Savegame, ReadAfterDelete) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
 
-  EXPECT_EQ(true, savegame->Write(buf));
+  EXPECT_TRUE(savegame->Write(buf));
   Savegame::ByteVector buf2;
-  EXPECT_EQ(true, savegame->Delete());
-  EXPECT_EQ(false, savegame->Read(&buf2, kMaxSaveGameSizeBytes));
+  EXPECT_TRUE(savegame->Delete());
+  EXPECT_FALSE(savegame->Read(&buf2, kMaxSaveGameSizeBytes));
 }
 
 TEST(Savegame, DoubleDelete) {
@@ -110,9 +110,9 @@ TEST(Savegame, DoubleDelete) {
     buf.push_back(static_cast<uint8>(i % 256));
   }
 
-  EXPECT_EQ(true, savegame->Write(buf));
-  EXPECT_EQ(true, savegame->Delete());
-  EXPECT_EQ(false, savegame->Delete());
+  EXPECT_TRUE(savegame->Write(buf));
+  EXPECT_TRUE(savegame->Delete());
+  EXPECT_FALSE(savegame->Delete());
 }
 
 }  // namespace storage
