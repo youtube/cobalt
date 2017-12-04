@@ -23,13 +23,39 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
+// TODO: This lives here instead of conversion_helpers.h because right now
+// |PromiseResultUndefined| is specific to promises.  In the long run, we plan
+// on abstracting all JavaScript value types, and should just use however that
+// abstraction exposes "undefined" here instead.
+inline void ToJSValue(v8::Isolate* isolate,
+                      const PromiseResultUndefined& in_undefined,
+                      v8::Local<v8::Value>* out_value) {
+  *out_value = v8::Undefined(isolate);
+}
+
 // Shared functionality for NativePromise<T>. Does not implement the Resolve
 // function, since that needs to be specialized for Promise<T>.
 template <typename T>
-class NativePromiseBase : public Promise<T> {
+class NativePromise : public Promise<T> {
  public:
   // ScriptObject boilerplate.
   typedef Promise<T> BaseType;
+
+  // Handle special case T=void, by swapping the input parameter |T| for
+  // |PromiseResultUndefined|. Combined with how |Promise| handles this
+  // special case, we're left with something like:
+  //
+  //   NativePromise<T>    ->            Promise<T>
+  //                                         ^
+  //                                         | (T=PromiseResultUndefined)
+  //                                        /
+  //   NativePromise<void> -> Promise<void>
+  //
+  using ResolveType =
+      typename std::conditional<std::is_same<T, void>::value,
+                                PromiseResultUndefined, T>::type;
+
+  void Resolve(const ResolveType& value) const override { NOTIMPLEMENTED(); }
 
   void Reject() const override { NOTIMPLEMENTED(); }
   void Reject(SimpleExceptionType exception) const override {
@@ -40,31 +66,17 @@ class NativePromiseBase : public Promise<T> {
   }
 };
 
-// Implements the Resolve() function for T != void.
 template <typename T>
-class NativePromise : public NativePromiseBase<T> {
- public:
-  void Resolve(const T& value) const override { NOTIMPLEMENTED(); }
-};
-
-// Implements the Resolve() function for T == void.
-template <>
-class NativePromise<void> : public NativePromiseBase<void> {
- public:
-  void Resolve() const override { NOTIMPLEMENTED(); }
-};
-
-template <typename T>
-struct TypeTraits<NativePromise<T> > {
-  typedef V8cUserObjectHolder<NativePromise<T> > ConversionType;
-  typedef const ScriptValue<Promise<T> >* ReturnType;
+struct TypeTraits<NativePromise<T>> {
+  typedef V8cUserObjectHolder<NativePromise<T>> ConversionType;
+  typedef const ScriptValue<Promise<T>>* ReturnType;
 };
 
 // Promise<T> -> JSValue
 // Note that JSValue -> Promise<T> is not yet supported.
 template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
-                      const ScriptValue<Promise<T> >* promise_holder,
+                      const ScriptValue<Promise<T>>* promise_holder,
                       v8::Local<v8::Value>* out_value) {
   NOTIMPLEMENTED();
 }
@@ -74,7 +86,7 @@ inline void ToJSValue(v8::Isolate* isolate,
 // |promise_holder| is not const.
 template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
-                      ScriptValue<Promise<T> >* promise_holder,
+                      ScriptValue<Promise<T>>* promise_holder,
                       v8::Local<v8::Value>* out_value) {
   NOTIMPLEMENTED();
 }
@@ -84,7 +96,7 @@ inline void ToJSValue(v8::Isolate* isolate,
 // to a promise, typically when a promise is resolved or rejected synchronously.
 template <typename T>
 inline void ToJSValue(v8::Isolate* isolate,
-                      scoped_ptr<ScriptValue<Promise<T> > > promise_holder,
+                      scoped_ptr<ScriptValue<Promise<T>>> promise_holder,
                       v8::Local<v8::Value>* out_value) {
   NOTIMPLEMENTED();
 }
