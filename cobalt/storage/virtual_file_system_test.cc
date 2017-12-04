@@ -216,23 +216,21 @@ TEST_F(VirtualFileSystemTest, DeserializeTruncated) {
 
 TEST_F(VirtualFileSystemTest, DeserializeBadData) {
   scoped_array<uint8> buffer(new uint8[0]);
-  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), 0));
-  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), -1));
+  EXPECT_FALSE(vfs_.Deserialize(buffer.get(), 0));
+  EXPECT_FALSE(vfs_.Deserialize(buffer.get(), -1));
   buffer.reset(new uint8[1]);
-  EXPECT_EQ(false, vfs_.Deserialize(buffer.get(), 1));
+  EXPECT_FALSE(vfs_.Deserialize(buffer.get(), 1));
   buffer.reset(new uint8[sizeof(VirtualFileSystem::SerializedHeader)]);
   VirtualFileSystem::SerializedHeader header = {};
   header.version = -1;
   memcpy(buffer.get(), &header, sizeof(header));
-  EXPECT_EQ(false,
-            vfs_.Deserialize(buffer.get(),
-                             sizeof(VirtualFileSystem::SerializedHeader)));
+  EXPECT_FALSE(vfs_.Deserialize(buffer.get(),
+                                sizeof(VirtualFileSystem::SerializedHeader)));
   memcpy(&(header.version), "SAV0", sizeof(header.version));
   header.file_size = sizeof(VirtualFileSystem::SerializedHeader);
   memcpy(buffer.get(), &header, sizeof(header));
-  EXPECT_EQ(true,
-            vfs_.Deserialize(buffer.get(),
-                             sizeof(VirtualFileSystem::SerializedHeader)));
+  EXPECT_TRUE(vfs_.Deserialize(buffer.get(),
+                               sizeof(VirtualFileSystem::SerializedHeader)));
   ASSERT_EQ(0, vfs_.ListFiles().size());
 }
 
