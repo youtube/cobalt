@@ -236,9 +236,9 @@ void Timer::RunScheduledTask() {
     // Setup member variables and the next tasks before the current one runs as
     // we cannot access any member variables after calling task.Run().
     NewScheduledTaskInfo task_info = SetupNewScheduledTask(delay_);
-    base::Time task_start_time = base::Time::Now();
+    base::TimeTicks task_start_time = base::TimeTicks::Now();
     task.Run();
-    base::TimeDelta task_duration = base::Time::Now() - task_start_time;
+    base::TimeDelta task_duration = base::TimeTicks::Now() - task_start_time;
     if (task_duration >= delay_) {
       PostNewScheduledTask(task_info, base::TimeDelta::FromInternalValue(0));
     } else {
