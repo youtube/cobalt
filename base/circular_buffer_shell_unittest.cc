@@ -194,7 +194,7 @@ TEST(CircularBufferShellTest, WriteTooMuch) {
   {
     size_t bytes_written = kUnsetSize;
     bool result = circular_buffer->Write(kTestData, 25, &bytes_written);
-    EXPECT_EQ(false, result);
+    EXPECT_FALSE(result);
     EXPECT_EQ(kUnsetSize, bytes_written);
     EXPECT_EQ(0, circular_buffer->GetLength());
   }
