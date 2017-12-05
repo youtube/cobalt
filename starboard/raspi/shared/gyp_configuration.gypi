@@ -31,6 +31,8 @@
 
       # Force char to be signed.
       '-fsigned-char',
+      # Disable strict aliasing.
+      '-fno-strict-aliasing',
 
       # To support large files
       '-D_FILE_OFFSET_BITS=64',
