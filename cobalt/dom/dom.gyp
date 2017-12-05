@@ -39,6 +39,8 @@
         'blob_property_bag.h',
         'buffer_source.cc',
         'buffer_source.h',
+        'captions/system_caption_settings.cc',
+        'captions/system_caption_settings.h',
         'camera_3d.cc',
         'camera_3d.h',
         'cdata_section.cc',

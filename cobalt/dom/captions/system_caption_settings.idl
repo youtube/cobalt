@@ -1,0 +1,103 @@
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Custom, not a standard.
+
+// This is an API for accessing system-level closed caption settings and
+// exposing them to HTML5 apps. It supports detecting if captions are enabled at
+// a system level, and retreiving values of various captioning style
+// properties assigned by the system.
+
+// For each captioning style property that this API supports, there are two
+// attributes. The first accesses the system-level setting for a property, and
+// the second determines the state of that property. For possible states, see
+// ./caption_state.idl. To use a particular property, you should check its
+// state first to ensure that the property is properly supported.
+// For example, if you want to get your system's font size, you would first
+// check the value of the "fontSizeState" attribute. If it contains
+// "unsupported", then the system does not support font size settings, so use
+// your application's font size settings instead. If it contains "unset", then
+// the user has not set the property in their system, so you should also use
+// your application settings instead. If it contains another value, then you
+// can safely access the corresponding "fontSize" attribute. If you attempt
+// to access a property that is unsupported or unset, it will return null.
+
+// One property which behaves a bit differently is the one that determines
+// whether captions are enabled or disabled at a system level. It is important
+// to note that this property can both be read from and written to, and if using
+// either of these behaviors, you should use the corresponding check to ensure
+// that it is supported.  If you attempt to perform an operation on this
+// property that is unsupported, then it will return false, rather than null.
+
+[Constructor]
+interface SystemCaptionSettings : EventTarget {
+
+  // TODO: Make the functions for style properties return nullable enum types
+  // instead of nullable DOMStrings.
+  // It seems that Cobalt's bindings generation code does not support
+  // nullable enums in IDL. To handle this, the attributes for style properties
+  // return nullable DOMStrings instead.  The underlying Cobalt implementation
+  // ensures that a string corresponding to the proper enum value is returned
+  // by each attribute.
+
+  readonly attribute DOMString? backgroundColor;
+  readonly attribute CaptionState backgroundColorState;
+
+  readonly attribute DOMString? backgroundOpacity;
+  readonly attribute CaptionState backgroundOpacityState;
+
+  readonly attribute DOMString? characterEdgeStyle;
+  readonly attribute CaptionState characterEdgeStyleState;
+
+  readonly attribute DOMString? fontColor;
+  readonly attribute CaptionState fontColorState;
+
+  readonly attribute DOMString? fontFamily;
+  readonly attribute CaptionState fontFamilyState;
+
+  readonly attribute DOMString? fontOpacity;
+  readonly attribute CaptionState fontOpacityState;
+
+  readonly attribute DOMString? fontSize;
+  readonly attribute CaptionState fontSizeState;
+
+  readonly attribute DOMString? windowColor;
+  readonly attribute CaptionState windowColorState;
+
+  readonly attribute DOMString? windowOpacity;
+  readonly attribute CaptionState windowOpacityState;
+
+  // "enabled" means that the user has chosen to enable closed captions
+  // on the system.
+  attribute boolean isEnabled;
+
+  // There are separate checks for reading and writing to the enabled attribute,
+  // as some systems allow the value to be queried but not written to. Setting
+  // the enabled attribute will change the system-wide enabled setting.
+  // Attemping to read isEnabled when supportsIsEnabled is false will
+  // always return false. Attemping to set isEnabled when supportsSetEnabled is
+  // false will fail silently.
+  readonly attribute boolean supportsIsEnabled;
+  readonly attribute boolean supportsSetEnabled;
+
+  // Some platforms may specify that when setting a property, it should override
+  // data from video streams and application settings (unless the application
+  // has its own overrides). Depending on whether this attribute contains true
+  // or false, the CaptionState return value should be interpreted differently.
+  // Refer to the documentation in ./caption_state.idl for details.
+  readonly attribute boolean supportsOverride;
+
+  attribute EventHandler onchanged;
+
+};
