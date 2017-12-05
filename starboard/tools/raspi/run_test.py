@@ -132,7 +132,13 @@ def _RunTest(test_path, raspi_ip, flags):
     process.expect(r'\S+ password:', timeout=_PEXPECT_EXPECT_TIMEOUT)
     process.sendline(_RASPI_PASSWORD)
 
-    test_command = raspi_test_path + ' ' + flags
+    # Escape command line metacharacters in the flags
+    meta_chars = '()[]{}%!^"<>&|'
+    meta_re = re.compile('(' + '|'.join(
+        re.escape(char) for char in list(meta_chars)) + ')')
+    escaped_flags = re.subn(meta_re, r'\\\1', flags)[0]
+
+    test_command = raspi_test_path + ' ' + escaped_flags
     test_time_tag = 'TEST-{time}'.format(time=time.time())
     test_success_tag = 'succeeded'
     test_failure_tag = 'failed'
