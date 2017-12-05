@@ -7,16 +7,59 @@
 
 #include "GrAtlasGlyphCache.h"
 #include "GrContext.h"
+#include "GrDrawOpAtlas.h"
 #include "GrGpu.h"
 #include "GrRectanizer.h"
 #include "GrSurfacePriv.h"
 #include "SkAutoMalloc.h"
+#include "SkMathPriv.h"
 #include "SkString.h"
 
 #include "SkDistanceFieldGen.h"
 #include "GrDistanceFieldGenFromVector.h"
 
+namespace {
+
+#if defined(COBALT)
+const int kMinimumRequiredTextureDimension = 256;
+
+// Calculate the maximum width and height of a texture a memory limit of |max_texture_bytes|,
+// assuming 1 byte per pixel. The function always calculates texture dimensions that are power of
+// two (and can be non-square).
+// Sample inputs, and outputs:
+//   -1 MB, 0x0
+//   0 MB, 0x0
+//   1 MB, 1024x1024
+//   3 MB, 1024x2048
+//   4 MB, 2048x2048
+//   8 MB, 2048x4096
+void CalculateAtlasDimensions(int max_texture_bytes, int* width, int* height) {
+    SkASSERT(width);
+    SkASSERT(height);
+    SkASSERT(max_texture_bytes > 0);
+    if (max_texture_bytes <= 1) {
+        *width = 1;
+        *height = 1;
+        return;
+    }
+
+    int log_max_texture_bytes = SkPrevLog2(max_texture_bytes);
+    int log_width = log_max_texture_bytes / 2;
+    int log_height = log_max_texture_bytes - log_width;
+    *width = 1 << log_width;
+    *height = 1 << log_height;
+}
+#endif
+
+}  // namespace
+
 bool GrAtlasGlyphCache::initAtlas(GrMaskFormat format) {
+#if defined(COBALT)
+    // This SkASSERT is here to help assure us that we are not creating a texture
+    // atlas with format of A565.  This is because this format is not used
+    // by Cobalt today.
+    SkASSERT(format != kA565_GrMaskFormat);
+#endif
     int index = MaskFormatToAtlasIndex(format);
     if (!fAtlases[index]) {
         GrPixelConfig config = MaskFormatToPixelConfig(format, *fContext->caps());
@@ -40,17 +83,78 @@ GrAtlasGlyphCache::GrAtlasGlyphCache(GrContext* context, float maxTextureBytes)
 #if defined(COBALT)
     // On Cobalt we would like to avoid re-rasterizing glyphs as much as
     // possible, so increase the default atlas size.
-    int log2MaxDim = 11;
-    int log2MinDim = 11;
-    int maxDim = 1 << log2MaxDim;
-    int minDim = 1 << log2MinDim;
+
+    int maxTextureBytesInt = SkFloatToIntFloor(maxTextureBytes);
+    int atlas_texture_width = 1;
+    int atlas_texture_height = 1;
+
+    // Convert the maximum texture memory specified in bytes to a maximum texture size assuming 1
+    // byte per pixel.  Returned dimensions are now power of two.
+    CalculateAtlasDimensions(maxTextureBytesInt, &atlas_texture_width, &atlas_texture_height);
+
+    int max_texture_size_for_device = fContext->caps()->maxTextureSize();
+
+    if (max_texture_size_for_device >= 0) {
+        // Check to make sure that these caps are something sane.
+        SkASSERT(max_texture_size_for_device >= kMinimumRequiredTextureDimension);
+        int max_texture_size_pow_of_2 = SkPrevPow2(max_texture_size_for_device);
+        atlas_texture_width = SkMin32(max_texture_size_pow_of_2, atlas_texture_width);
+        atlas_texture_height = SkMin32(max_texture_size_pow_of_2, atlas_texture_height);
+    }
+    int log2_texture_width = SkPrevLog2(atlas_texture_width);
+    int log2_texture_height = SkPrevLog2(atlas_texture_height);
 
     // On Cobalt, not being able to fit glyphs into the atlas is a big penalty,
-    // since its software rendering is not optimized.  Increase the plot size
-    // to allow it to accommodate larger glyphs and avoid this situation as
-    // much as possible.
-    int maxPlot = 512;
-    int minPlot = 512;
+    // since its software rendering is not optimized.  Setting the plot size to
+    // 512 allows it to accommodate large glyphs.  This value was chosen emprically.
+
+    int plot_dimensions = 512;
+    int plot_area = plot_dimensions * plot_dimensions;
+    int atlas_texture_area = atlas_texture_width * atlas_texture_height;
+    int num_plots = atlas_texture_area / plot_area;
+
+    // Increase plot dimensions by 2 in each dimension until the number of plots
+    // is under |GrDrawOpAtlas::BulkUseTokenUpdater::kMaxPlots|.
+    while (num_plots > GrDrawOpAtlas::BulkUseTokenUpdater::kMaxPlots) {
+        plot_dimensions *= 2;
+        plot_area = plot_dimensions * plot_dimensions;
+        num_plots = atlas_texture_area / plot_area;
+    }
+
+    SkASSERT_RELEASE(plot_dimensions <= atlas_texture_width);
+    SkASSERT_RELEASE(plot_dimensions <= atlas_texture_height);
+
+    // Setup default atlas configs. The A8 atlas uses maxDim for both width and height, as the A8
+    // format is already very compact.
+    fAtlasConfigs[kA8_GrMaskFormat].fWidth = atlas_texture_width;
+    fAtlasConfigs[kA8_GrMaskFormat].fHeight = atlas_texture_height;
+    fAtlasConfigs[kA8_GrMaskFormat].fLog2Width = log2_texture_width;
+    fAtlasConfigs[kA8_GrMaskFormat].fLog2Height = log2_texture_height;
+    fAtlasConfigs[kA8_GrMaskFormat].fPlotWidth = plot_dimensions;
+    fAtlasConfigs[kA8_GrMaskFormat].fPlotHeight = plot_dimensions;
+
+    // These are pretty small dimensions chosen so that the ARGB atlas only
+    // takes up 256x256x4 = 256K of texture memory.
+    const int small_dims = 256;
+    const int log2_small_dims = SkPrevLog2(small_dims);
+
+    // A565 and ARGB use 256x256.
+    // A565 doesn't get used for our purposes, but it is here, so that
+    // existing code can function.
+    fAtlasConfigs[kA565_GrMaskFormat].fWidth = small_dims;
+    fAtlasConfigs[kA565_GrMaskFormat].fHeight = small_dims;
+    fAtlasConfigs[kA565_GrMaskFormat].fLog2Width = log2_small_dims;
+    fAtlasConfigs[kA565_GrMaskFormat].fLog2Height = log2_small_dims;
+    fAtlasConfigs[kA565_GrMaskFormat].fPlotWidth = small_dims;
+    fAtlasConfigs[kA565_GrMaskFormat].fPlotHeight = small_dims;
+
+    // These are mainly used for color emojis, etc.
+    fAtlasConfigs[kARGB_GrMaskFormat].fWidth = small_dims;
+    fAtlasConfigs[kARGB_GrMaskFormat].fHeight = small_dims;
+    fAtlasConfigs[kARGB_GrMaskFormat].fLog2Width = log2_small_dims;
+    fAtlasConfigs[kARGB_GrMaskFormat].fLog2Height = log2_small_dims;
+    fAtlasConfigs[kARGB_GrMaskFormat].fPlotWidth = small_dims;
+    fAtlasConfigs[kARGB_GrMaskFormat].fPlotHeight = small_dims;
 #else
     // Calculate RGBA size. Must be between 1024 x 512 and MaxTextureSize x MaxTextureSize / 2
     int log2MaxTextureSize = log2(context->caps()->maxTextureSize());
@@ -68,7 +172,6 @@ GrAtlasGlyphCache::GrAtlasGlyphCache(GrContext* context, float maxTextureBytes)
     // Plots are either 256 or 512.
     int maxPlot = SkTMin(512, SkTMax(256, 1 << (log2MaxDim - 2)));
     int minPlot = SkTMin(512, SkTMax(256, 1 << (log2MaxDim - 3)));
-#endif
 
     // Setup default atlas configs. The A8 atlas uses maxDim for both width and height, as the A8
     // format is already very compact.
@@ -93,6 +196,7 @@ GrAtlasGlyphCache::GrAtlasGlyphCache(GrContext* context, float maxTextureBytes)
     fAtlasConfigs[kARGB_GrMaskFormat].fLog2Height = log2MaxDim;
     fAtlasConfigs[kARGB_GrMaskFormat].fPlotWidth = minPlot;
     fAtlasConfigs[kARGB_GrMaskFormat].fPlotHeight = minPlot;
+#endif
 }
 
 GrAtlasGlyphCache::~GrAtlasGlyphCache() {
