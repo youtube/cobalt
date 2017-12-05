@@ -437,6 +437,7 @@ base::TimeDelta StarboardPlayer::GetDuration() {
 }
 
 void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
+  drm_system_ = drm_system;
   SbPlayerSetDrmSystem(player_, drm_system);
 }
 #endif  // SB_HAS(PLAYER_WITH_URL)
@@ -487,6 +488,9 @@ void StarboardPlayer::Resume() {
 
 #if SB_HAS(PLAYER_WITH_URL)
   CreatePlayerWithUrl(url_);
+  if (SbDrmSystemIsValid(drm_system_)) {
+    SbPlayerSetDrmSystem(player_, drm_system_);
+  }
 #else   // SB_HAS(PLAYER_WITH_URL)
   CreatePlayer();
 #endif  // SB_HAS(PLAYER_WITH_URL)

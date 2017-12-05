@@ -184,7 +184,7 @@ class StarboardPlayer {
   AudioDecoderConfig audio_config_;
   VideoDecoderConfig video_config_;
   const SbWindow window_;
-  const SbDrmSystem drm_system_;
+  SbDrmSystem drm_system_;
   Host* const host_;
   // Consider merge |SbPlayerSetBoundsHelper| into CallbackHelper.
   SbPlayerSetBoundsHelper* const set_bounds_helper_;
