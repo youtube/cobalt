@@ -92,8 +92,6 @@ HANDLE OpenFileOrDirectory(const char* path,
                            bool* out_created,
                            SbFileError* out_error);
 
-bool DirectoryExists(const std::wstring& dir_path);
-
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard

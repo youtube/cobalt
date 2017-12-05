@@ -25,10 +25,14 @@
 #include "starboard/directory.h"
 #include "starboard/log.h"
 #include "starboard/shared/win32/directory_internal.h"
+#include "starboard/shared/win32/file_internal.h"
 #include "starboard/shared/win32/wchar_utils.h"
 #include "starboard/string.h"
 
 namespace {
+
+using starboard::shared::win32::CreateDirectoryHiearchy;
+using starboard::shared::win32::NormalizeWin32Path;
 
 // Places up to |path_size| - 1 characters of the path to the current
 // executable in |out_path|, ensuring it is NULL-terminated. Returns success
@@ -90,6 +94,10 @@ bool GetRelativeDirectory(const char* relative_path,
   }
   if (SbStringConcat(file_path, relative_path, SB_FILE_MAX_PATH) >=
       path_size) {
+    return false;
+  }
+
+  if (!CreateDirectoryHiearchy(NormalizeWin32Path(file_path))) {
     return false;
   }
   return SbStringCopy(out_path, file_path, path_size);

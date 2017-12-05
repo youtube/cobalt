@@ -201,19 +201,6 @@ HANDLE OpenFileOrDirectory(const char* path,
   return file_handle;
 }
 
-bool DirectoryExists(const std::wstring& dir_path) {
-  if (dir_path.empty()) {
-    return false;
-  }
-  std::wstring norm_dir_path = NormalizeWin32Path(dir_path);
-  WIN32_FILE_ATTRIBUTE_DATA attribute_data = {0};
-  if (!GetFileAttributesExW(norm_dir_path.c_str(), GetFileExInfoStandard,
-                            &attribute_data)) {
-    return false;
-  }
-  return (attribute_data.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY);
-}
-
 }  // namespace win32
 }  // namespace shared
 }  // namespace starboard

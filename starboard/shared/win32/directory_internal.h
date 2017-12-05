@@ -20,6 +20,7 @@
 #include <algorithm>
 #include <deque>
 #include <string>
+#include <vector>
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -55,40 +56,22 @@ namespace starboard {
 namespace shared {
 namespace win32 {
 
-inline bool HasValidHandle(SbDirectory directory) {
-  if (!SbDirectoryIsValid(directory)) {
-    return false;
-  }
-
-  return directory->HasValidHandle();
-}
+bool HasValidHandle(SbDirectory directory);
 
 // This function strips trailing file separators from a directory name.
 // For example if the directory name was "C:\\Temp\\\\\\", it would
 // strip them, so that the directory name is now to be "C:\\temp".
-inline void TrimExtraFileSeparators(std::wstring* dirname_pointer) {
-  SB_DCHECK(dirname_pointer);
-  std::wstring& dirname = *dirname_pointer;
-  auto new_end =
-      std::find_if_not(dirname.rbegin(), dirname.rend(), [](wchar_t c) {
-        return c == SB_FILE_SEP_CHAR || c == SB_FILE_ALT_SEP_CHAR;
-      });
-  dirname.erase(new_end.base(), dirname.end());
-}
+void TrimExtraFileSeparators(std::wstring* dirname_pointer);
 
-inline bool IsAbsolutePath(const std::wstring& path) {
-  wchar_t full_path[SB_FILE_MAX_PATH];
-  DWORD full_path_size =
-      GetFullPathNameW(path.c_str(), SB_ARRAY_SIZE(full_path), full_path, NULL);
-  if (full_path_size == 0) {
-    return false;
-  }
+bool IsAbsolutePath(const std::wstring& path);
 
-  int path_size = static_cast<int>(path.size());
-  return CompareStringEx(LOCALE_NAME_USER_DEFAULT, NORM_IGNORECASE,
-                         path.c_str(), path_size, full_path, full_path_size,
-                         NULL, NULL, 0) == CSTR_EQUAL;
-}
+bool DirectoryExists(const std::wstring& dir_path);
+
+// Directory hierarchy is created from tip down to root. This is necessary
+// because UWP has issues with bottom up directory creation due to permissions.
+bool CreateDirectoryHiearchy(const std::wstring& wfull_path);
+
+bool DirectoryExistsOrCreated(const std::wstring& wpath);
 
 }  // namespace win32
 }  // namespace shared

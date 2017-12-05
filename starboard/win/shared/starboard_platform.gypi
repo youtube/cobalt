@@ -280,6 +280,7 @@
         '<(DEPTH)/starboard/shared/win32/directory_close.cc',
         '<(DEPTH)/starboard/shared/win32/directory_create.cc',
         '<(DEPTH)/starboard/shared/win32/directory_get_next.cc',
+        '<(DEPTH)/starboard/shared/win32/directory_internal.cc',
         '<(DEPTH)/starboard/shared/win32/directory_internal.h',
         '<(DEPTH)/starboard/shared/win32/directory_open.cc',
         '<(DEPTH)/starboard/shared/win32/error_utils.cc',
