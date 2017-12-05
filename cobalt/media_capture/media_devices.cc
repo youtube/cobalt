@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cobalt/media_capture/media_device_info.h"
+#include "cobalt/speech/microphone.h"
 #include "cobalt/speech/microphone_starboard.h"
 #include "starboard/string.h"
 
