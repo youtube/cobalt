@@ -84,7 +84,7 @@ class TvTestCase(unittest.TestCase):
     if not _is_initialized:
       # Initialize the tests.
       constants = query_param_constants
-      if not constants.INIT_QUERY_PARAMS_URL.startswith(self.get_default_url()):
+      if not self.get_default_url().startswith(constants.INIT_QUERY_PARAMS_URL):
         constants = default_query_param_constants
       query_params = constants.INIT_QUERY_PARAMS
       triggers_reload = constants.INIT_QUERY_PARAMS_TRIGGER_RELOAD
