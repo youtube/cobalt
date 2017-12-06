@@ -45,6 +45,10 @@ class NotPseudoClass : public PseudoClass {
     return true;
   }
 
+  CompoundSelector* GetContainedCompoundSelector() const override {
+    return selector();
+  }
+
   void IndexSelectorTreeNode(SelectorTree::Node* parent_node,
                              SelectorTree::Node* child_node,
                              CombinatorType combinator) override;
@@ -53,7 +57,7 @@ class NotPseudoClass : public PseudoClass {
   NotPseudoClass* AsNotPseudoClass() override { return this; }
 
   // The compound selector within the pseudo class.
-  CompoundSelector* selector();
+  CompoundSelector* selector() const;
   void set_selector(scoped_ptr<CompoundSelector> compound_selector);
 
  private:
