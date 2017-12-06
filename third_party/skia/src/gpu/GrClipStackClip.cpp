@@ -188,6 +188,16 @@ static bool get_analytic_clip_processor(const ElementList& elements,
                 // Fallthrough, handled same as intersect.
             case kIntersect_SkClipOp:
                 invert = false;
+#if defined(COBALT)
+                if (iter.get()->getType() == SkClipStack::Element::kRect_Type &&
+                    !iter.get()->isAA()) {
+                    // If we are an un-antialiased rect, just let the scissor
+                    // rectangle take care of clipping for us instead of adding
+                    // an extra shader stage, increasing the number of shaders
+                    // that must be supported.
+                    skip = true;
+                } else
+#endif
                 if (iter.get()->contains(drawDevBounds)) {
                     skip = true;
                 }
