@@ -366,6 +366,7 @@ void MozjsGlobalEnvironment::SetReportErrorCallback(
 void MozjsGlobalEnvironment::Bind(const std::string& identifier,
                                   const scoped_refptr<Wrappable>& impl) {
   TRACK_MEMORY_SCOPE("Javascript");
+  DCHECK(impl);
   JSAutoRequest auto_request(context_);
   JSAutoCompartment auto_compartment(context_, global_object_proxy_);
 

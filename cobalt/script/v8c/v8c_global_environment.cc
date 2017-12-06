@@ -207,7 +207,7 @@ void V8cGlobalEnvironment::SetReportErrorCallback(
 void V8cGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
   TRACK_MEMORY_SCOPE("Javascript");
-
+  DCHECK(impl);
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
   v8::Local<v8::Context> context = context_.Get(isolate_);
