@@ -28,12 +28,44 @@ bool SimpleSelectorsLessThan(const SimpleSelector* lhs,
   if (lhs->type() < rhs->type()) {
     return true;
   }
-  if (lhs->type() > rhs->type()) {
+  if (rhs->type() < lhs->type()) {
+    return false;
+  }
+  if (lhs->prefix() < rhs->prefix()) {
+    return true;
+  }
+  if (rhs->prefix() < lhs->prefix()) {
+    return false;
+  }
+  if (lhs->text() < rhs->text()) {
+    return true;
+  }
+  if (rhs->text() < lhs->text()) {
     return false;
   }
 
-  return (lhs->prefix() < rhs->prefix()) ||
-         (lhs->prefix() == rhs->prefix() && lhs->text() < rhs->text());
+  // Pseudo class selectors may contain compound selectors, which also need to
+  // be compared.
+  if (lhs->type() == kPseudoClass) {
+    CompoundSelector* lhs_compound_selector =
+        lhs->GetContainedCompoundSelector();
+    CompoundSelector* rhs_compound_selector =
+        rhs->GetContainedCompoundSelector();
+    if (lhs_compound_selector && rhs_compound_selector) {
+      if (*lhs_compound_selector < *rhs_compound_selector) {
+        return true;
+      }
+      if (*rhs_compound_selector < *lhs_compound_selector) {
+        return false;
+      }
+    } else if (rhs_compound_selector) {
+      return true;
+    } else if (lhs_compound_selector) {
+      return false;
+    }
+  }
+
+  return false;
 }
 
 }  // namespace
@@ -44,6 +76,28 @@ CompoundSelector::CompoundSelector()
       requires_rule_matching_verification_visit_(false) {}
 
 CompoundSelector::~CompoundSelector() {}
+
+bool CompoundSelector::operator<(const CompoundSelector& that) const {
+  if (simple_selectors_.size() < that.simple_selectors_.size()) {
+    return true;
+  }
+  if (that.simple_selectors_.size() < simple_selectors_.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < simple_selectors_.size(); ++i) {
+    if (SimpleSelectorsLessThan(simple_selectors_[i],
+                                that.simple_selectors_[i])) {
+      return true;
+    }
+    if (SimpleSelectorsLessThan(that.simple_selectors_[i],
+                                simple_selectors_[i])) {
+      return false;
+    }
+  }
+
+  return false;
+}
 
 void CompoundSelector::Accept(SelectorVisitor* visitor) {
   visitor->VisitCompoundSelector(this);
