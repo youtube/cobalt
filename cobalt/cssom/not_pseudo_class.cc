@@ -30,7 +30,7 @@ void NotPseudoClass::IndexSelectorTreeNode(SelectorTree::Node* parent_node,
   parent_node->AppendPseudoClassNode(kNotPseudoClass, combinator, child_node);
 }
 
-CompoundSelector* NotPseudoClass::selector() {
+CompoundSelector* NotPseudoClass::selector() const {
   return compound_selector_.get();
 }
 
