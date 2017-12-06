@@ -79,8 +79,10 @@ TEST(StdAllocator, vector) {
 TEST(StdAllocator, map) {
   CountingAllocator::Reset();
 
+  typedef typename std::map<int, int>::value_type value_type;
+
   typedef std::map<int, int, std::less<int>,
-                   StdAllocator<int, CountingAllocator> > IntMap;
+                  StdAllocator<value_type, CountingAllocator> > IntMap;
 
   EXPECT_EQ(0, CountingAllocator::num_allocs);
   EXPECT_EQ(0, CountingAllocator::num_bytes);
@@ -174,7 +176,8 @@ TEST(StdDynamicAllocator, vector) {
 
 // Test the expectation that vector will go through the supplied allocator.
 TEST(StdDynamicAllocator, map) {
-  typedef StdDynamicAllocator<int> IntAllocator;
+  typedef typename std::map<int, int>::value_type value_type;
+  typedef StdDynamicAllocator<value_type> IntAllocator;
   typedef std::map<int, int, std::less<int>, IntAllocator> IntMap;
 
   CountingDynamicAllocator counting_allocator;
@@ -242,7 +245,8 @@ TEST(StdDynamicAllocator, vector_copy) {
 
 // Test the expectation that vector will go through the supplied allocator.
 TEST(StdDynamicAllocator, map_copy) {
-  typedef StdDynamicAllocator<int> IntAllocator;
+  typedef typename std::map<int, int>::value_type value_type;
+  typedef StdDynamicAllocator<value_type> IntAllocator;
   typedef std::map<int, int, std::less<int>, IntAllocator> IntMap;
 
   CountingDynamicAllocator counting_allocator;
