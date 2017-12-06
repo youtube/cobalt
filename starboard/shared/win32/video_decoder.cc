@@ -332,10 +332,6 @@ void VideoDecoder::InitializeCodec() {
       D3D11_VIDEO_FRAME_FORMAT_PROGRESSIVE);
   video_context_->VideoProcessorSetStreamAutoProcessingMode(
       video_processor_.Get(), 0, false);
-
-  // Preallocate decode targets to minimize hitching at the start of playback.
-  graphics_context_provider_->gles_context_runner(graphics_context_provider_,
-      &VideoDecoder::AllocateDecodeTargets, this);
 }
 
 void VideoDecoder::ShutdownCodec() {
@@ -358,30 +354,6 @@ void VideoDecoder::ShutdownCodec() {
   decoder_.reset();
   video_processor_.Reset();
   video_enumerator_.Reset();
-}
-
-// static
-void VideoDecoder::AllocateDecodeTargets(void* context) {
-  VideoDecoder* this_ptr = static_cast<VideoDecoder*>(context);
-
-  RECT video_area;
-  video_area.left = 0;
-  video_area.top = 0;
-  video_area.right = kMaxDecodeTargetWidth;
-  video_area.bottom = kMaxDecodeTargetHeight;
-  ComPtr<IMFSample> video_sample;
-
-  // Allocate decode targets for the cache plus an additional one that will be
-  // used for the currently-displayed decode target.
-  ScopedLock lock(this_ptr->decode_target_lock_);
-  SB_DCHECK(this_ptr->prev_decode_targets_.empty());
-  SB_DCHECK(!SbDecodeTargetIsValid(this_ptr->current_decode_target_));
-  for (int count = 0; count < kDecodeTargetCacheSize + 1; ++count) {
-      this_ptr->prev_decode_targets_.emplace_back(new SbDecodeTargetPrivate(
-          this_ptr->d3d_device_, this_ptr->video_device_,
-          this_ptr->video_context_, this_ptr->video_enumerator_,
-          this_ptr->video_processor_, video_sample, video_area));
-  }
 }
 
 // static

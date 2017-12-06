@@ -82,7 +82,6 @@ class VideoDecoder
 
   void InitializeCodec();
   void ShutdownCodec();
-  static void AllocateDecodeTargets(void* context);
   static void ReleaseDecodeTargets(void* context);
 
   void UpdateVideoArea(const ComPtr<IMFMediaType>& media);

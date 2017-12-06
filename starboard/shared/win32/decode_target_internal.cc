@@ -279,21 +279,15 @@ bool SbDecodeTargetPrivate::Update(
     return false;
   }
 
-  // The decode target info must be compatible.
-  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12) {
+  // The decode target info must be compatible. The resolution should match
+  // exactly, otherwise the shader may sample invalid texels along the
+  // texture border.
+  if (info.format != kSbDecodeTargetFormat2PlaneYUVNV12 ||
+      info.is_opaque != true ||
+      info.width != video_area.right ||
+      info.height != video_area.bottom) {
     return false;
   }
-
-  D3D11_TEXTURE2D_DESC texture_desc;
-  d3d_texture->GetDesc(&texture_desc);
-  if (static_cast<int>(texture_desc.Width) < video_area.right ||
-      static_cast<int>(texture_desc.Height) < video_area.bottom) {
-    return false;
-  }
-
-  info.is_opaque = true;
-  info.width = video_area.right;
-  info.height = video_area.bottom;
 
   SB_UNREFERENCED_PARAMETER(d3d_device);
   UpdateTexture(d3d_texture, video_device, video_context, video_enumerator,
