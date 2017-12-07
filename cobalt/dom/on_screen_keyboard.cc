@@ -23,12 +23,11 @@ namespace cobalt {
 namespace dom {
 OnScreenKeyboard::OnScreenKeyboard(
     const Window::GetSbWindowCallback& get_sb_window_callback)
-    : get_sb_window_callback_(get_sb_window_callback) {
-  CHECK(!get_sb_window_callback_.is_null());
-}
+    : get_sb_window_callback_(get_sb_window_callback) {}
 
 void OnScreenKeyboard::Show() {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
   SbWindow sb_window = get_sb_window_callback_.Run();
 
   if (!sb_window) {
@@ -43,6 +42,7 @@ void OnScreenKeyboard::Show() {
 
 void OnScreenKeyboard::Hide() {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
   SbWindow sb_window = get_sb_window_callback_.Run();
 
   if (!sb_window) {
@@ -82,6 +82,7 @@ void OnScreenKeyboard::set_oninput(
 
 bool OnScreenKeyboard::shown() const {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
   SbWindow sb_window = get_sb_window_callback_.Run();
   return SbWindowIsOnScreenKeyboardShown(sb_window);
 #else   // SB_HAS(ON_SCREEN_KEYBOARD)
