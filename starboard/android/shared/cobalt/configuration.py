@@ -56,11 +56,6 @@ class CobaltAndroidConfiguration(cobalt_configuration.CobaltConfiguration):
       # failures are found on other platform, create a PlatformConfig class in
       # its gyp_configuration.py file and override this method.
 
-      # Fails with SpiderMonkey.
-      test_filter.TestFilter(
-          'bindings_test', ('GlobalInterfaceBindingsTest.'
-                            'PropertiesAndOperationsAreOwnProperties')),
-
       # Delete when Webdriver Benchmarks for Android are enabled.
       test_filter.TestFilter('webdriver_test', test_filter.FILTER_ALL),
 
