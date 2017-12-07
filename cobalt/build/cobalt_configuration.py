@@ -62,6 +62,7 @@ class CobaltConfiguration(application_configuration.ApplicationConfiguration):
 
   def GetTestTargets(self):
     return [
+        'accessibility_test',
         'audio_test',
         'base_test',
         'base_unittests',
