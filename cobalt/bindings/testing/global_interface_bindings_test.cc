@@ -74,7 +74,7 @@ TEST_F(GlobalInterfaceBindingsTest, GlobalInterfaceConstructorIsSet) {
 //   2. Interface members from the interface (or consequential interfaces) will
 //      correspond to properties on the object itself rather than on interface
 //      prototype objects.
-TEST_F(GlobalInterfaceBindingsTest, PropertiesAndOperationsAreOwnProperties) {
+TEST_F(GlobalInterfaceBindingsTest, DISABLED_PropertiesAndOperationsAreOwnProperties) {
   std::string result;
   EXPECT_TRUE(
       EvaluateScript("this.hasOwnProperty(\"windowProperty\");", &result));
