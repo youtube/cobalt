@@ -433,6 +433,11 @@ void StorageManager::FinishIO() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(!sql_message_loop_->BelongsToCurrentThread());
 
+  // Make sure that the on change timers fire if they're running.
+  sql_message_loop_->PostTask(
+      FROM_HERE, base::Bind(&StorageManager::FireRunningOnChangeTimers,
+                            base::Unretained(this)));
+
   // The SQL thread may be communicating with the savegame I/O thread still,
   // flushing all pending updates.  This process can require back and forth
   // communication.  This method exists to wait for that communication to
@@ -449,6 +454,16 @@ void StorageManager::FinishIO() {
   // Now wait for all pending flushes to wrap themselves up.  This may involve
   // the savegame I/O thread and the SQL thread posting tasks to each other.
   no_flushes_pending_.Wait();
+}
+
+void StorageManager::FireRunningOnChangeTimers() {
+  TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  DCHECK(sql_message_loop_->BelongsToCurrentThread());
+
+  if (flush_on_last_change_timer_->IsRunning() ||
+      flush_on_change_max_delay_timer_->IsRunning()) {
+    OnFlushOnChangeTimerFired();
+  }
 }
 
 void StorageManager::OnDestroy() {
