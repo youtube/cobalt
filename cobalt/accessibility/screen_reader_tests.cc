@@ -147,7 +147,10 @@ TEST_P(TextAlternativeTest, TextAlternativeTest) {
   EXPECT_EQ(GetParam().expected_result, ComputeTextAlternative(element));
 }
 
-TEST_P(LiveRegionMutationTest, LiveRegionMutationTest) {
+// This test broke  because LiveRegionMutationTest::CreateWindowAttribute()
+// returns a NULL script::Wrappable, which the javascript engine will attempt
+// to dereference.
+TEST_P(LiveRegionMutationTest, DISABLED_LiveRegionMutationTest) {
   GURL url(std::string("file:///cobalt/accessibility/testdata/live_region/" +
                        GetParam().html_file_name));
   const math::Size kDefaultViewportSize(1280, 720);
