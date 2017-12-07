@@ -47,10 +47,6 @@ class CobaltRaspiConfiguration(cobalt_configuration.CobaltConfiguration):
   def GetTestFilters(self):
     filters = super(CobaltRaspiConfiguration, self).GetTestFilters()
     filters.extend([
-        # Fails with SpiderMonkey.
-        test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
         test_filter.TestFilter(
             'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
 
