@@ -48,9 +48,6 @@ class CobaltLinuxConfiguration(cobalt_configuration.CobaltConfiguration):
     filters = super(CobaltLinuxConfiguration, self).GetTestFilters()
     filters.extend([
         test_filter.TestFilter(
-            'bindings_test', ('GlobalInterfaceBindingsTest.'
-                              'PropertiesAndOperationsAreOwnProperties')),
-        test_filter.TestFilter(
             'net_unittests', 'HostResolverImplDnsTest.DnsTaskUnspec'),
         test_filter.TestFilter(
             'web_platform_tests', 'xhr/WebPlatformTest.Run/130', 'debug'),
