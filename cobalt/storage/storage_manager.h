@@ -137,6 +137,9 @@ class StorageManager {
   // outside the SQL message loop (such as from StorageManager's destructor).
   void FinishIO();
 
+  // This function will immediately the on change timers if they are running.
+  void FireRunningOnChangeTimers();
+
   // Called by the destructor, to ensure we destroy certain objects on the
   // sql thread.
   void OnDestroy();
