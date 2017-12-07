@@ -812,11 +812,10 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
 
   if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
     debug_console_layer_->Submit(base::nullopt);
-    return;
+  } else {
+    debug_console_layer_->Submit(renderer::Submission(
+        layout_results.render_tree, layout_results.layout_time));
   }
-
-  debug_console_layer_->Submit(renderer::Submission(
-      layout_results.render_tree, layout_results.layout_time));
 
   SubmitCurrentRenderTreeToRenderer();
 }
