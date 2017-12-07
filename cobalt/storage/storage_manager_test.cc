@@ -146,6 +146,11 @@ class StorageManagerTest : public ::testing::Test {
         new StorageManagerType(upgrade_handler.Pass(), options));
   }
 
+  template <typename StorageManagerType>
+  void FinishIO() {
+    storage_manager_->FinishIO();
+  }
+
   MessageLoop message_loop_;
   scoped_ptr<StorageManager> storage_manager_;
 };
@@ -200,7 +205,6 @@ TEST_F(StorageManagerTest, FlushNowWithFlushOnChange) {
       *dynamic_cast<MockStorageManager*>(storage_manager_.get());
 
   // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
-  // We will wait for this in TimedWait().
   ON_CALL(storage_manager, QueueFlush(_))
       .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
   EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
@@ -254,7 +258,6 @@ TEST_F(StorageManagerTest, FlushOnChangeMaxDelay) {
       *dynamic_cast<MockStorageManager*>(storage_manager_.get());
 
   // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
-  // We will wait for this in TimedWait().
   ON_CALL(storage_manager, QueueFlush(_))
       .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
   EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
@@ -263,6 +266,29 @@ TEST_F(StorageManagerTest, FlushOnChangeMaxDelay) {
     base::PlatformThread::Sleep(base::TimeDelta::FromMilliseconds(100));
     storage_manager_->FlushOnChange();
   }
+
+  EXPECT_TRUE(waiter.IsSignaled());
+}
+
+TEST_F(StorageManagerTest, FlushOnShutdown) {
+  // Test that pending flushes are completed on shutdown.
+  Init<MockStorageManager>();
+
+  storage_manager_->GetSqlContext(base::Bind(&FlushCallback));
+  message_loop_.RunUntilIdle();
+
+  FlushWaiter waiter;
+  MockStorageManager& storage_manager =
+      *dynamic_cast<MockStorageManager*>(storage_manager_.get());
+
+  // When QueueFlush() is called, have it also call FlushWaiter::OnFlushDone().
+  ON_CALL(storage_manager, QueueFlush(_))
+      .WillByDefault(InvokeWithoutArgs(&waiter, &FlushWaiter::OnFlushDone));
+  EXPECT_CALL(storage_manager, QueueFlush(_)).Times(1);
+
+  storage_manager_->FlushOnChange();
+  FinishIO<StorageManager>();
+  storage_manager_.reset();
 
   EXPECT_TRUE(waiter.IsSignaled());
 }
