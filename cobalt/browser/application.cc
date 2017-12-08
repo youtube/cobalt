@@ -407,6 +407,7 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
     : message_loop_(MessageLoop::current()),
       quit_closure_(quit_closure),
       stats_update_timer_(true, true) {
+  DCHECK(!quit_closure_.is_null());
   // Check to see if a timed_trace has been set, indicating that we should
   // begin a timed trace upon startup.
   base::TimeDelta trace_duration = GetTimedTraceDuration();
@@ -723,11 +724,7 @@ void Application::Quit() {
     return;
   }
 
-  DCHECK(!quit_closure_.is_null());
-  if (!quit_closure_.is_null()) {
-    quit_closure_.Run();
-  }
-
+  quit_closure_.Run();
   app_status_ = kQuitAppStatus;
 }
 
