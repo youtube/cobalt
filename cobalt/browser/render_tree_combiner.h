@@ -51,6 +51,8 @@ class RenderTreeCombiner {
     void Submit(
         const base::optional<renderer::Submission>& render_tree_submission);
 
+    bool HasRenderTree() { return !!render_tree_; }
+
    private:
     friend class RenderTreeCombiner;
 

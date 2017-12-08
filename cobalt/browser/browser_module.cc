@@ -811,6 +811,11 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
   }
 
   if (debug_console_->GetMode() == debug::DebugHub::kDebugConsoleOff) {
+    // If the layer already has no render tree then simply return. In that case
+    // nothing is changing.
+    if (!debug_console_layer_->HasRenderTree()) {
+      return;
+    }
     debug_console_layer_->Submit(base::nullopt);
   } else {
     debug_console_layer_->Submit(renderer::Submission(
