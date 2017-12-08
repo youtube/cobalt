@@ -58,7 +58,7 @@ class Application {
   // The message loop that will handle UI events.
   MessageLoop* message_loop_;
 
-  base::Closure quit_closure_;
+  const base::Closure quit_closure_;
 
  protected:
   // Called to handle a network event.
