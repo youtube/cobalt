@@ -52,6 +52,12 @@ GraphicsState::GraphicsState()
       vertex_index_reserved_(0),
       vertex_index_allocated_(0),
       vertex_buffers_updated_(false) {
+  // https://www.khronos.org/registry/OpenGL-Refpages/es2.0/xhtml/glGet.xml
+  // GL_MAX_VERTEX_ATTRIBS should return at least 8. So default to that in
+  // case the glGetIntergerv call fails.
+  max_vertex_attribs_ = 8;
+  GL_CALL(glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &max_vertex_attribs_));
+
   GL_CALL(glGenBuffers(kNumFramesBuffered, vertex_data_buffer_handle_));
   GL_CALL(glGenBuffers(kNumFramesBuffered, vertex_index_buffer_handle_));
   memset(clip_adjustment_, 0, sizeof(clip_adjustment_));
@@ -409,9 +415,13 @@ void GraphicsState::Reset() {
   texture_unit_ = 0;
   memset(&texunit_target_, 0, sizeof(texunit_target_));
   memset(&texunit_texture_, 0, sizeof(texunit_texture_));
+  clip_adjustment_dirty_ = true;
+
   enabled_vertex_attrib_array_mask_ = 0;
   disable_vertex_attrib_array_mask_ = 0;
-  clip_adjustment_dirty_ = true;
+  for (int index = 0; index < max_vertex_attribs_; ++index) {
+    GL_CALL(glDisableVertexAttribArray(index));
+  }
 
   if (vertex_buffers_updated_) {
     if (vertex_data_allocated_ > 0) {
