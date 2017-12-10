@@ -13,7 +13,9 @@
 // limitations under the License.
 
 #include "cobalt/dom/on_screen_keyboard.h"
+
 #include "base/callback.h"
+#include "base/compiler_specific.h"
 #include "cobalt/dom/event_target.h"
 #include "cobalt/dom/window.h"
 #include "starboard/event.h"
@@ -113,6 +115,7 @@ bool OnScreenKeyboard::shown() const {
 }
 
 void OnScreenKeyboard::DispatchHideEvent(int ticket) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
   if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_hide_promise_map_.find(ticket);
@@ -122,9 +125,13 @@ void OnScreenKeyboard::DispatchHideEvent(int ticket) {
     ticket_to_hide_promise_map_.erase(it);
   }
   DispatchEvent(new dom::Event(base::Tokens::hide()));
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 }
 
 void OnScreenKeyboard::DispatchShowEvent(int ticket) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
   if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_show_promise_map_.find(ticket);
@@ -134,6 +141,9 @@ void OnScreenKeyboard::DispatchShowEvent(int ticket) {
     ticket_to_show_promise_map_.erase(it);
   }
   DispatchEvent(new dom::Event(base::Tokens::show()));
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 }
 
 }  // namespace dom
