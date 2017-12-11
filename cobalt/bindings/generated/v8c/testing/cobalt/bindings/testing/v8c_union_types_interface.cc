@@ -66,6 +66,7 @@ using cobalt::script::v8c::FromJSValue;
 using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
 using cobalt::script::v8c::kConversionFlagNullable;
+using cobalt::script::v8c::kConversionFlagObjectOnly;
 using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
