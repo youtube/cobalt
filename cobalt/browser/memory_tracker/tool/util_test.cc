@@ -19,6 +19,8 @@
 #include <vector>
 
 #include "base/bind.h"
+#include "nb/bit_cast.h"
+#include "starboard/types.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,6 +28,13 @@ namespace cobalt {
 namespace browser {
 namespace memory_tracker {
 namespace {
+
+const char* ToAddress(uintptr_t val) {
+  return nb::bit_cast<const char*>(val);
+}
+
+// 4k page size.
+static const uintptr_t kPageSize = 4096;
 
 class FakeTimeSource {
  public:
@@ -148,6 +157,76 @@ TEST(UtilTest, TimerUse) {
   time_source.set_static_time(initial_time + base::TimeDelta::FromSeconds(60));
   EXPECT_TRUE(test_timer.UpdateAndIsExpired());
   EXPECT_FALSE(test_timer.UpdateAndIsExpired());
+}
+
+TEST(Segment, SplitAcrossPageBoundaries_Simple) {
+  std::string name("AllocName");
+  const char* start_addr = ToAddress(0);
+  const char* end_addr = ToAddress(1);
+
+  Segment memory_segment(&name, start_addr, end_addr);
+
+  std::vector<Segment> segments;
+  memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
+  ASSERT_EQ(1, segments.size());
+
+  ASSERT_EQ(memory_segment, segments[0]);
+}
+
+TEST(Segment, SplitAcrossPageBoundaries_WholePage) {
+  std::string name("AllocName");
+  const char* start_addr = ToAddress(0);
+  const char* end_addr = ToAddress(kPageSize);
+
+  Segment memory_segment(&name, start_addr, end_addr);
+
+  std::vector<Segment> segments;
+  memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
+  ASSERT_EQ(1, segments.size());
+
+  ASSERT_EQ(memory_segment, segments[0]);
+}
+
+TEST(Segment, SplitAcrossPageBoundaries_Across) {
+  std::string name("AllocName");
+  const char* start_addr = ToAddress(kPageSize / 2);
+  const char* mid_addr = ToAddress(kPageSize);
+  const char* end_addr = ToAddress(kPageSize + kPageSize / 2);
+
+  Segment memory_segment(&name, start_addr, end_addr);
+
+  std::vector<Segment> segments;
+  memory_segment.SplitAcrossPageBoundaries(kPageSize, &segments);
+
+  ASSERT_EQ(2, segments.size());
+
+  Segment s1(&name, start_addr, mid_addr);
+  Segment s2(&name, mid_addr, end_addr);
+
+  ASSERT_EQ(s1, segments[0]);
+  ASSERT_EQ(s2, segments[1]);
+}
+
+TEST(Segment, SplitAcrossPageBoundaries_Many) {
+  std::string name("AllocName");
+  const char* start_addr = ToAddress(kPageSize / 2);
+  const char* mid_0_addr = ToAddress(kPageSize);
+  const char* mid_1_addr = ToAddress(kPageSize * 2);
+  const char* end_addr = ToAddress(2 * kPageSize + kPageSize / 2);
+
+  Segment memory_segment(&name, start_addr, end_addr);
+
+  std::vector<Segment> segments;
+  memory_segment.SplitAcrossPageBoundaries(4096, &segments);
+  ASSERT_EQ(3, segments.size());
+
+  Segment s1(&name, start_addr, mid_0_addr);
+  Segment s2(&name, mid_0_addr, mid_1_addr);
+  Segment s3(&name, mid_1_addr, end_addr);
+
+  ASSERT_EQ(s1, segments[0]);
+  ASSERT_EQ(s2, segments[1]);
+  ASSERT_EQ(s3, segments[2]);
 }
 
 }  // namespace memory_tracker
