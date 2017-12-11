@@ -142,7 +142,6 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
       ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
       connection_(new sql::Connection()),
       loaded_database_version_(0),
-      initialized_(false),
       flush_processing_(false),
       flush_pending_(false),
       no_flushes_pending_(true /* manual reset */,
@@ -157,6 +156,12 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
   flush_on_last_change_timer_.reset(new base::OneShotTimer<StorageManager>());
   flush_on_change_max_delay_timer_.reset(
       new base::OneShotTimer<StorageManager>());
+
+  // Guarantee that initialization, including any upgrading, is complete before
+  // returning from the constructor.
+  sql_message_loop_->PostTask(FROM_HERE, base::Bind(&StorageManager::FinishInit,
+                                                    base::Unretained(this)));
+  FinishIO();
 }
 
 StorageManager::~StorageManager() {
@@ -255,16 +260,12 @@ void StorageManager::UpdateSchemaVersion(const char* table_name, int version) {
 
 sql::Connection* StorageManager::sql_connection() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  FinishInit();
   return connection_.get();
 }
 
 void StorageManager::FinishInit() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
-  if (initialized_) {
-    return;
-  }
 
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
@@ -330,8 +331,6 @@ void StorageManager::FinishInit() {
   loaded_database_version_ = SqlQueryUserVersion(connection_.get());
   SqlCreateSchemaTable(connection_.get());
   SqlUpdateDatabaseUserVersion(connection_.get());
-
-  initialized_ = true;
 }
 
 void StorageManager::StopFlushOnChangeTimers() {
@@ -406,7 +405,6 @@ void StorageManager::QueueFlush(const base::Closure& callback) {
 void StorageManager::FlushInternal() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
-  FinishInit();
 
   flush_processing_ = true;
   no_flushes_pending_.Reset();
