@@ -22,6 +22,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/string_number_conversions.h"
 #include "cobalt/browser/memory_tracker/tool/compressed_time_series_tool.h"
+#include "cobalt/browser/memory_tracker/tool/internal_fragmentation_tool.h"
 #include "cobalt/browser/memory_tracker/tool/leak_finder_tool.h"
 #include "cobalt/browser/memory_tracker/tool/log_writer_tool.h"
 #include "cobalt/browser/memory_tracker/tool/malloc_logger_tool.h"
@@ -31,7 +32,6 @@
 #include "cobalt/browser/memory_tracker/tool/print_tool.h"
 #include "cobalt/browser/memory_tracker/tool/tool_impl.h"
 #include "cobalt/browser/memory_tracker/tool/tool_thread.h"
-
 #include "nb/analytics/memory_tracker_helpers.h"
 #include "starboard/double.h"
 #include "starboard/log.h"
@@ -66,6 +66,7 @@ enum SwitchEnum {
   kAllocationLogger,
   kLeakTracer,
   kJavascriptLeakTracer,
+  kInternalFragmentationTracer,
   kMallocStats,
   kMallocLogger,
 };
@@ -210,6 +211,11 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       "  format.\n",
       kJavascriptLeakTracer);
 
+  SwitchVal internal_fragmentation_tracer_tool(
+      "internal_fragmentation_tracer",
+      "  Traces internal fragmentation and stores it in CSV format.\n",
+      kInternalFragmentationTracer);
+
   SwitchVal malloc_stats_tool(
       "malloc_stats",
       "  Queries the allocation system for memory usage. This is the most\n"
@@ -236,6 +242,8 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
   switch_map[ParseToolName(leak_tracing_tool.tool_name)] = leak_tracing_tool;
   switch_map[ParseToolName(js_leak_tracing_tool.tool_name)] =
       js_leak_tracing_tool;
+  switch_map[ParseToolName(internal_fragmentation_tracer_tool.tool_name)] =
+      internal_fragmentation_tracer_tool;
   switch_map[ParseToolName(malloc_logger_tool.tool_name)] =
       malloc_logger_tool;
 
@@ -392,6 +400,12 @@ scoped_ptr<Tool> CreateMemoryTrackerTool(const std::string& command_arg) {
       memory_tracker->InstallGlobalTrackingHooks();
       memory_tracker->SetMemoryTrackerDebugCallback(leak_finder.get());
       tool_ptr.reset(leak_finder.release());
+      break;
+    }
+    case kInternalFragmentationTracer: {
+      memory_tracker = MemoryTracker::Get();
+      memory_tracker->InstallGlobalTrackingHooks();
+      tool_ptr.reset(new InternalFragmentationTool());
       break;
     }
     case kMallocStats: {

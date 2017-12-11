@@ -162,6 +162,38 @@ bool GetLinearFit(PairIterator begin_it, PairIterator end_it, double* out_slope,
   return true;
 }
 
+// Segment represents a named memory segment of allocated memory.
+// The name is optional and can be null.
+class Segment {
+ public:
+  // Equal name string values must have equal pointers.
+  Segment(const std::string* name,
+          const char* start_address, const char* end_address);
+
+  // Using the page_size, split this Segment into one Segment
+  // per page. Each of the sub_segments will copy the name
+  // pointer from this.
+  void SplitAcrossPageBoundaries(
+      size_t page_size,
+      std::vector<Segment>* sub_segments) const;
+
+  bool Intersects(const Segment& other) const;
+
+  bool operator<(const Segment& other) const;
+  bool operator==(const Segment& other) const;
+
+  size_t size() const;
+  const std::string* name() const { return name_; }
+
+  const char* begin() const { return begin_; }
+  const char* end() const { return end_; }
+
+ private:
+  const std::string* name_;
+  const char* begin_;
+  const char* end_;
+};
+
 // Returns a substring with the directory path removed from the filename.
 // Example:
 //   F::BaseNameFast("directory/filename.cc") => "filename.cc"
