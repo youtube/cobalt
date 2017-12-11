@@ -159,7 +159,7 @@ void WaitableEvent::Wait() {
 
 bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
   base::ThreadRestrictions::AssertWaitAllowed();
-  const Time end_time(Time::Now() + max_time);
+  const TimeTicks end_time(TimeTicks::Now() + max_time);
   const bool finite_time = max_time.ToInternalValue() >= 0;
 
   kernel_->lock_.Acquire();
@@ -184,7 +184,7 @@ bool WaitableEvent::TimedWait(const TimeDelta& max_time) {
   // again before unlocking it.
 
   for (;;) {
-    const Time current_time(Time::Now());
+    const TimeTicks current_time(TimeTicks::Now());
 
     if (sw.fired() || (finite_time && current_time >= end_time)) {
       const bool return_value = sw.fired();
