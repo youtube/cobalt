@@ -387,10 +387,13 @@ void SetupGLStateForImageRender(Image* image,
   }
 }
 
-void SetupGLTextureParameters(const egl::TexturedMeshRenderer::Image& image,
+bool SetupGLTextureParameters(const egl::TexturedMeshRenderer::Image& image,
                               uint32 texture_wrap_s, uint32 texture_wrap_t) {
   for (int i = 0; i < image.num_textures(); ++i) {
     const backend::TextureEGL* texture = image.textures[i].texture;
+    if (!texture) {
+      return false;
+    }
     GL_CALL(glBindTexture(texture->GetTarget(), texture->gl_handle()));
     GL_CALL(glTexParameteri(texture->GetTarget(), GL_TEXTURE_MAG_FILTER,
                             GL_LINEAR));
@@ -402,6 +405,7 @@ void SetupGLTextureParameters(const egl::TexturedMeshRenderer::Image& image,
                             texture_wrap_t));
     GL_CALL(glBindTexture(texture->GetTarget(), 0));
   }
+  return true;
 }
 
 FaceOrientation GetFaceOrientationFromModelViewProjectionMatrix(
@@ -461,12 +465,12 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   egl::TexturedMeshRenderer::Image textured_mesh_renderer_image =
       SkiaImageToTexturedMeshRendererImage(image, render_tree::kMono);
 
-  SetupGLTextureParameters(textured_mesh_renderer_image,
-                           GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  // Invoke our TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderQuad(
-      textured_mesh_renderer_image, model_view_projection_matrix);
+  if (SetupGLTextureParameters(textured_mesh_renderer_image,
+                               GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)) {
+    // Invoke our TexturedMeshRenderer to actually perform the draw call.
+    textured_mesh_renderer_->RenderQuad(
+        textured_mesh_renderer_image, model_view_projection_matrix);
+  }
 
   // Let Skia know that we've modified GL state.
   uint32_t untouched_states =
@@ -520,15 +524,15 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
   egl::TexturedMeshRenderer::Image textured_mesh_renderer_image =
       SkiaImageToTexturedMeshRendererImage(image, mesh_filter.stereo_mode());
 
-  SetupGLTextureParameters(textured_mesh_renderer_image,
-                           GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE);
-
-  // Invoke out TexturedMeshRenderer to actually perform the draw call.
-  textured_mesh_renderer_->RenderVBO(
-      mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
-      mono_vbo->GetDrawMode(),
-      textured_mesh_renderer_image,
-      model_view_projection_matrix);
+  if (SetupGLTextureParameters(textured_mesh_renderer_image,
+                               GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE)) {
+    // Invoke out TexturedMeshRenderer to actually perform the draw call.
+    textured_mesh_renderer_->RenderVBO(
+        mono_vbo->GetHandle(), mono_vbo->GetVertexCount(),
+        mono_vbo->GetDrawMode(),
+        textured_mesh_renderer_image,
+        model_view_projection_matrix);
+  }
 
   // Let Skia know that we've modified GL state.
   gr_context_->resetContext();
