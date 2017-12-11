@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "base/time.h"
+#include "nb/bit_cast.h"
 #include "starboard/string.h"
 
 namespace cobalt {
@@ -130,6 +131,75 @@ void Timer::ScaleTriggerTime(double scale) {
   int64_t new_dt =
       static_cast<int64_t>(static_cast<double>(old_dt) * scale);
   time_before_expiration_ = base::TimeDelta::FromMicroseconds(new_dt);
+}
+
+Segment::Segment(const std::string* name,
+                 const char* start_address,
+                 const char* end_address)
+    : name_(name), begin_(start_address), end_(end_address) {
+}
+
+void Segment::SplitAcrossPageBoundaries(size_t page_size,
+                                        std::vector<Segment>* segments) const {
+  if (size() == 0) {
+    segments->push_back(*this);
+    return;
+  }
+
+  uintptr_t page_start =
+      nb::bit_cast<uintptr_t>(begin_) / page_size;
+  uintptr_t page_end =
+      nb::bit_cast<uintptr_t>(end_ - 1) / page_size;
+
+  if (page_start == page_end) {
+    segments->push_back(*this);
+    return;
+  }
+
+  for (uintptr_t p = page_start; p <= page_end; ++p) {
+    uintptr_t start_addr;
+    if (p == page_start) {
+      start_addr = nb::bit_cast<uintptr_t>(begin_);
+    } else {
+      start_addr = p * page_size;
+    }
+
+    uintptr_t end_addr;
+    if (p == page_end) {
+      end_addr = nb::bit_cast<uintptr_t>(end_);
+    } else {
+      end_addr = (p+1) * page_size;
+    }
+
+    const char* start = nb::bit_cast<const char*>(start_addr);
+    const char* end = nb::bit_cast<const char*>(end_addr);
+    segments->push_back(Segment(name_, start, end));
+  }
+}
+
+bool Segment::Intersects(const Segment& other) const {
+  size_t total_span = std::distance(
+      std::min(begin_, other.begin()),
+      std::max(end_, other.end()));
+
+  bool intersects = (size() + other.size()) > total_span;
+  return intersects;
+}
+
+bool Segment::operator<(const Segment& other) const {
+  return begin_ < other.begin();
+}
+
+bool Segment::operator==(const Segment& other) const {
+  if (begin_ == other.begin() && end_ == other.end()) {
+    DCHECK(name_ == other.name_);
+    return true;
+  }
+  return false;
+}
+
+size_t Segment::size() const {
+  return std::distance(begin_, end_);
 }
 
 const char* BaseNameFast(const char* file_name) {
