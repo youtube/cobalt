@@ -57,6 +57,7 @@ class TextureEGL {
              const scoped_refptr<RenderTargetEGL>& render_target);
   virtual ~TextureEGL();
 
+  bool IsValid() const { return gl_handle_ != 0; }
   const math::Size& GetSize() const { return size_; }
   GLenum GetFormat() const { return format_; }
   GLenum GetTarget() const { return target_; }
