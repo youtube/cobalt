@@ -210,6 +210,13 @@ class HardwareFrontendImage::HardwareBackendImage {
     DCHECK(thread_checker_.CalledOnValidThread());
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
+    if (!texture_->IsValid()) {
+      // The system likely did not have enough GPU memory for the texture.
+      LOG(ERROR) << "Invalid texture passed to HardwareBackendImage";
+      texture_.reset();
+      return;
+    }
+
     if (texture_->GetTarget() == GL_TEXTURE_2D) {
       gr_texture_.reset(
           WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));

@@ -391,6 +391,10 @@ void RenderTreeNodeVisitor::Visit(render_tree::ImageNode* image_node) {
       return;
     }
 
+    if (!hardware_image->GetTextureEGL()) {
+      return;
+    }
+
     if (draw_state_.rounded_scissor_corners) {
       // Transparency is used to anti-alias the rounded rect.
       is_opaque = false;
