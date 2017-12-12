@@ -15,6 +15,7 @@
 #ifndef STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 #define STARBOARD_SHARED_STARBOARD_PLAYER_INPUT_BUFFER_INTERNAL_H_
 
+#include <string>
 #include <vector>
 
 #include "starboard/common/ref_counted.h"
@@ -63,6 +64,8 @@ class InputBuffer : public RefCountedThreadSafe<InputBuffer> {
     return has_drm_info_ ? &drm_info_ : NULL;
   }
   void SetDecryptedContent(const void* buffer, int size);
+
+  std::string ToString() const;
 
  private:
   void TryToAssignVideoSampleInfo(
