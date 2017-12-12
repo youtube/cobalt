@@ -14,7 +14,9 @@
 
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 
+#include <cctype>
 #include <numeric>
+#include <sstream>
 
 #include "starboard/log.h"
 #include "starboard/memory.h"
@@ -23,6 +25,67 @@ namespace starboard {
 namespace shared {
 namespace starboard {
 namespace player {
+
+namespace {
+
+std::string GetHexRepresentation(const uint8_t* data, int size) {
+  const char kBinToHex[] = "0123456789abcdef";
+
+  std::string result;
+
+  for (int i = 0; i < size; ++i) {
+    result += kBinToHex[data[i] / 16];
+    result += kBinToHex[data[i] % 16];
+    if (i != size - 1) {
+      result += ' ';
+    }
+  }
+
+  return result;
+}
+
+std::string GetStringRepresentation(const uint8_t* data, int size) {
+  std::string result;
+
+  for (int i = 0; i < size; ++i) {
+    if (std::isspace(data[i])) {
+      result += ' ';
+    } else if (std::isprint(data[i])) {
+      result += data[i];
+    } else {
+      result += '?';
+    }
+  }
+
+  return result;
+}
+
+std::string GetMixedRepresentation(const uint8_t* data,
+                                   int size,
+                                   int bytes_per_line) {
+  std::string result;
+
+  for (int i = 0; i < size; i += bytes_per_line) {
+    if (i + bytes_per_line <= size) {
+      result += GetHexRepresentation(data + i, bytes_per_line);
+      result += " | ";
+      result += GetStringRepresentation(data + i, bytes_per_line);
+      result += '\n';
+    } else {
+      int bytes_left = size - i;
+      result += GetHexRepresentation(data + i, bytes_left);
+      result += std::string((bytes_per_line - bytes_left) * 3, ' ');
+      result += " | ";
+      result += GetStringRepresentation(data + i, bytes_left);
+      result += std::string(bytes_per_line - bytes_left, ' ');
+      result += '\n';
+    }
+  }
+
+  return result;
+}
+
+}  // namespace
 
 InputBuffer::InputBuffer(SbMediaType sample_type,
                          SbPlayerDeallocateSampleFunc deallocate_sample_func,
@@ -106,6 +169,27 @@ void InputBuffer::SetDecryptedContent(const void* buffer, int size) {
   }
   size_ = size;
   has_drm_info_ = false;
+}
+
+std::string InputBuffer::ToString() const {
+  std::stringstream ss;
+  ss << "========== " << (has_drm_info_ ? "encrypted " : "clear ")
+     << (sample_type_ == kSbMediaTypeAudio ? "audio" : "video")
+     << " sample @ pts: " << pts_ << " in " << size_ << " bytes ==========\n";
+  if (has_video_sample_info_) {
+    ss << video_sample_info_.frame_width << " x "
+       << video_sample_info_.frame_height << '\n';
+  }
+  if (has_drm_info_) {
+    ss << "iv: "
+       << GetHexRepresentation(drm_info_.initialization_vector,
+                               drm_info_.initialization_vector_size)
+       << "\nkey_id: "
+       << GetHexRepresentation(drm_info_.identifier, drm_info_.identifier_size)
+       << '\n';
+  }
+  ss << GetMixedRepresentation(data_, size_, 16) << '\n';
+  return ss.str();
 }
 
 void InputBuffer::TryToAssignVideoSampleInfo(
