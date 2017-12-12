@@ -15,11 +15,17 @@
 #include "starboard/speech_synthesis.h"
 
 #include "starboard/android/shared/jni_env_ext.h"
+#include "starboard/android/shared/jni_utils.h"
 
 using starboard::android::shared::JniEnvExt;
+using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbSpeechSynthesisCancel() {
   JniEnvExt* env = JniEnvExt::Get();
 
-  env->CallActivityVoidMethodOrAbort("speechSynthesisCancel", "()V");
+  ScopedLocalJavaRef<jobject> j_tts_helper(
+      env->CallActivityObjectMethodOrAbort(
+          "getTextToSpeechHelper",
+          "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
+  env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
 }
