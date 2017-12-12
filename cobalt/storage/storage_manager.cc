@@ -142,6 +142,7 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
       ALLOW_THIS_IN_INITIALIZER_LIST(sql_context_(new SqlContext(this))),
       connection_(new sql::Connection()),
       loaded_database_version_(0),
+      initialized_(false),
       flush_processing_(false),
       flush_pending_(false),
       no_flushes_pending_(true /* manual reset */,
@@ -156,12 +157,6 @@ StorageManager::StorageManager(scoped_ptr<UpgradeHandler> upgrade_handler,
   flush_on_last_change_timer_.reset(new base::OneShotTimer<StorageManager>());
   flush_on_change_max_delay_timer_.reset(
       new base::OneShotTimer<StorageManager>());
-
-  // Guarantee that initialization, including any upgrading, is complete before
-  // returning from the constructor.
-  sql_message_loop_->PostTask(FROM_HERE, base::Bind(&StorageManager::FinishInit,
-                                                    base::Unretained(this)));
-  FinishIO();
 }
 
 StorageManager::~StorageManager() {
@@ -182,8 +177,14 @@ StorageManager::~StorageManager() {
 
 void StorageManager::GetSqlContext(const SqlCallback& callback) {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
-  sql_message_loop_->PostTask(FROM_HERE,
-                              base::Bind(callback, sql_context_.get()));
+  if (MessageLoop::current()->message_loop_proxy() != sql_message_loop_) {
+    sql_message_loop_->PostTask(FROM_HERE,
+                                base::Bind(&StorageManager::GetSqlContext,
+                                           base::Unretained(this), callback));
+    return;
+  }
+
+  callback.Run(sql_context_.get());
 }
 
 void StorageManager::FlushOnChange() {
@@ -260,12 +261,18 @@ void StorageManager::UpdateSchemaVersion(const char* table_name, int version) {
 
 sql::Connection* StorageManager::sql_connection() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
+  FinishInit();
   return connection_.get();
 }
 
 void StorageManager::FinishInit() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
+  if (initialized_) {
+    return;
+  }
+
+  initialized_ = true;
 
   vfs_.reset(new VirtualFileSystem());
   sql_vfs_.reset(new SqlVfs("cobalt_vfs", vfs_.get()));
@@ -279,13 +286,14 @@ void StorageManager::FinishInit() {
   DCHECK(loaded_raw_bytes);
   Savegame::ByteVector& raw_bytes = *loaded_raw_bytes;
   VirtualFileSystem::SerializedHeader header = {};
+  bool has_upgrade_data = false;
 
   if (raw_bytes.size() > 0) {
     const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
     int buffer_size = static_cast<int>(raw_bytes.size());
     // Is this upgrade data?
     if (upgrade::UpgradeReader::IsUpgradeData(buffer, buffer_size)) {
-      upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
+      has_upgrade_data = true;
     } else {
       if (raw_bytes.size() >= sizeof(VirtualFileSystem::SerializedHeader)) {
         memcpy(&header, &raw_bytes[0],
@@ -331,6 +339,12 @@ void StorageManager::FinishInit() {
   loaded_database_version_ = SqlQueryUserVersion(connection_.get());
   SqlCreateSchemaTable(connection_.get());
   SqlUpdateDatabaseUserVersion(connection_.get());
+
+  if (has_upgrade_data) {
+    const char* buffer = reinterpret_cast<char*>(&raw_bytes[0]);
+    int buffer_size = static_cast<int>(raw_bytes.size());
+    upgrade_handler_->OnUpgrade(this, buffer, buffer_size);
+  }
 }
 
 void StorageManager::StopFlushOnChangeTimers() {
@@ -405,6 +419,7 @@ void StorageManager::QueueFlush(const base::Closure& callback) {
 void StorageManager::FlushInternal() {
   TRACE_EVENT0("cobalt::storage", __FUNCTION__);
   DCHECK(sql_message_loop_->BelongsToCurrentThread());
+  FinishInit();
 
   flush_processing_ = true;
   no_flushes_pending_.Reset();
