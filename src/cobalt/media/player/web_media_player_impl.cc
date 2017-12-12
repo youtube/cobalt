@@ -161,7 +161,6 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
   }
 
   Destroy();
-  progressive_demuxer_.reset();
   chunk_demuxer_.reset();
 
   media_log_->AddEvent(
@@ -173,6 +172,10 @@ WebMediaPlayerImpl::~WebMediaPlayerImpl() {
     main_loop_->RemoveDestructionObserver(this);
   }
   pipeline_thread_.Stop();
+
+  // Due to the blocking thread's result message,
+  // progressive_demuxer must be reset after pipeline thread's stopping.
+  progressive_demuxer_.reset();
 }
 
 namespace {
