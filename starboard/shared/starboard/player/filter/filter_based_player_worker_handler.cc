@@ -14,6 +14,7 @@
 
 #include "starboard/shared/starboard/player/filter/filter_based_player_worker_handler.h"
 
+#include "starboard/audio_sink.h"
 #include "starboard/log.h"
 #include "starboard/memory.h"
 #include "starboard/shared/starboard/drm/drm_system_internal.h"
@@ -103,26 +104,33 @@ bool FilterBasedPlayerWorkerHandler::Init(
   get_player_state_cb_ = get_player_state_cb;
   update_player_state_cb_ = update_player_state_cb;
 
-  AudioParameters audio_parameters = {audio_codec_, audio_header_, drm_system_,
-                                      job_queue_};
-  VideoParameters video_parameters = {
+  // TODO: This is not ideal as we should really handle the creation failure of
+  // audio sink inside the audio renderer to give the renderer a chance to
+  // resample the decoded audio.
+  const int audio_channels = audio_header_.number_of_channels;
+  if (audio_channels > SbAudioSinkGetMaxChannels()) {
+    return false;
+  }
+
+  PlayerComponents::AudioParameters audio_parameters = {
+      audio_codec_, audio_header_, drm_system_, job_queue_};
+  PlayerComponents::VideoParameters video_parameters = {
       player_,    video_codec_, drm_system_,
       job_queue_, output_mode_, decode_target_graphics_context_provider_};
 
-  scoped_ptr<PlayerComponents> media_components =
-      PlayerComponents::Create(audio_parameters, video_parameters);
-  if (!media_components) {
-    return false;
-  }
-  SB_DCHECK(media_components->is_valid());
+  scoped_ptr<PlayerComponents> player_components = PlayerComponents::Create();
+  SB_DCHECK(player_components);
 
   ::starboard::ScopedLock lock(video_renderer_existence_mutex_);
-  media_components->GetRenderers(&audio_renderer_, &video_renderer_);
 
+  audio_renderer_ = player_components->CreateAudioRenderer(audio_parameters);
   audio_renderer_->SetPlaybackRate(playback_rate_);
   audio_renderer_->SetVolume(volume_);
   audio_renderer_->Initialize(
       std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
+
+  video_renderer_ = player_components->CreateVideoRenderer(
+      video_parameters, audio_renderer_.get());
   video_renderer_->Initialize(
       std::bind(&FilterBasedPlayerWorkerHandler::OnError, this));
 
