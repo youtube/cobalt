@@ -106,11 +106,11 @@ class TestLineReader(object):
     self.stop_event.set()
 
   def Join(self):
+    """Ensures that all test output from the test launcher has been read."""
     self.reader_thread.join()
-    self.read_pipe.close()
 
   def GetLines(self):
-    """Stops file reading, then returns stored output as a list of lines."""
+    """Returns stored output as a list of lines."""
     return self.output_lines.getvalue().split("\n")
 
 
@@ -121,11 +121,8 @@ class TestLauncher(object):
   communicate, and for the main thread to shut them down.
   """
 
-  # The write end of the pipe is provided here because if the launcher
-  # errors out and fails to close it, it needs to be closed anyway.
-  def __init__(self, launcher, write_pipe):
+  def __init__(self, launcher):
     self.launcher = launcher
-    self.write_pipe = write_pipe
     self.runner_thread = threading.Thread(target=self._Run)
 
     self.return_code_lock = threading.Lock()
@@ -142,12 +139,6 @@ class TestLauncher(object):
       sys.stderr.write("Error while killing {}:\n".format(
           self.launcher.target_name))
       traceback.print_exc(file=sys.stderr)
-      # If the launcher cannot be killed, close the write end of the
-      # pipe anyway; This may cause the launcher to error out/not clean up,
-      # but its better than causing the reader thread to hang because the
-      # pipe stays open.
-      if not self.write_pipe.closed:
-        self.write_pipe.close()
 
   def Join(self):
     self.runner_thread.join()
@@ -324,7 +315,7 @@ class TestRunner(object):
         env_variables=env)
 
     test_reader = TestLineReader(read_pipe)
-    test_launcher = TestLauncher(launcher, write_pipe)
+    test_launcher = TestLauncher(launcher)
 
     self.threads.append(test_launcher)
     self.threads.append(test_reader)
@@ -336,7 +327,12 @@ class TestRunner(object):
 
     # If there are actives threads during a ctrl+c exit, they will join here.
     test_launcher.Join()
+    write_pipe.close()
+
+    # Do not join the reader thread until the launcher has finished and the
+    # write pipe has been closed, otherwise the thread could hang.
     test_reader.Join()
+    read_pipe.close()
 
     output = test_reader.GetLines()
 
