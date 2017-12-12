@@ -584,7 +584,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
       self._CallAdb('forward', '--remove-all')
       am_monitor.Shutdown()
       exit_watcher.Shutdown()
-      self._CloseOutputFile()
       self.killed.set()
       run_timer.Stop()
 
