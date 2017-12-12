@@ -101,14 +101,18 @@ class StorageManager {
 
   UpgradeHandler* upgrade_handler() const { return upgrade_handler_.get(); }
 
+ protected:
+  // Queues a flush to be executed as soon as possible.  As soon as possible
+  // will be as soon as any existing flush completes, or right away if no
+  // existing flush is happening.  Note that it is protected and virtual for
+  // white box testing purposes.
+  virtual void QueueFlush(const base::Closure& callback);
+
  private:
   // SqlContext needs access to our internal APIs.
   friend class SqlContext;
   // Give StorageManagerTest access, so we can more easily test some internals.
   friend class StorageManagerTest;
-
-  // Queues a flush to be executed as soon as possible.
-  void QueueFlush(const base::Closure& callback);
 
   // Flushes all queued flushes to the savegame thread.
   void FlushInternal();
@@ -187,6 +191,8 @@ class StorageManager {
 
   // See comments for for kDatabaseUserVersion.
   int loaded_database_version_;
+  // false until the SQL database is fully configured.
+  bool initialized_;
 
   // True if a flush is currently being processed on the storage message loop.
   // In this case, we should not issue more flushes, but instead set
