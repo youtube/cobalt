@@ -55,7 +55,6 @@ class Launcher(abstract_launcher.AbstractLauncher):
         stderr=self.output_file,
         env=self.full_env,
         close_fds=True)
-    self._CloseOutputFile()
     self.pid = self.proc.pid
     self.proc.wait()
     return self.proc.returncode
