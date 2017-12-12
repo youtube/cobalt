@@ -194,26 +194,39 @@ bool VideoDecoder::OutputModeSupported(SbPlayerOutputMode output_mode,
   return output_mode == kSbPlayerOutputModePunchOut;
 }
 
+class PlayerComponentsImpl : public PlayerComponents {
+  void CreateAudioComponents(
+      const AudioParameters& audio_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
+
+    audio_decoder->reset(new StubAudioDecoder(audio_parameters.audio_header));
+    audio_renderer_sink->reset(new AudioRendererSinkImpl);
+  }
+
+  void CreateVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+    SB_DCHECK(video_renderer_sink);
+
+    video_decoder->reset(new StubVideoDecoder);
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    *video_renderer_sink = new PunchoutVideoRendererSink(
+        video_parameters.player, kVideoSinkRenderInterval);
+  }
+};
+
 // static
-scoped_ptr<PlayerComponents> PlayerComponents::Create(
-    const AudioParameters& audio_parameters,
-    const VideoParameters& video_parameters) {
-  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
-
-  scoped_ptr<AudioDecoder> audio_decoder(
-      new StubAudioDecoder(audio_parameters.audio_header));
-  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
-      audio_decoder.Pass(),
-      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header));
-  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
-      make_scoped_ptr<VideoDecoder>(new StubVideoDecoder), audio_renderer.get(),
-      make_scoped_ptr<VideoRenderAlgorithm>(new VideoRenderAlgorithmImpl),
-      new PunchoutVideoRendererSink(video_parameters.player,
-                                    kVideoSinkRenderInterval)));
-
-  return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
+scoped_ptr<PlayerComponents> PlayerComponents::Create() {
+  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
 }  // namespace filter
