@@ -53,8 +53,6 @@ SbSystemPlatformError SbSystemRaisePlatformError(
     case kSbSystemPlatformErrorTypeConnectionError:
       jni_error_type = kJniErrorTypeConnectionError;
       break;
-    case kSbSystemPlatformErrorTypeUserSignedOut:
-    case kSbSystemPlatformErrorTypeUserAgeRestricted:
     default:
       SB_NOTREACHED();
       return kSbSystemPlatformErrorInvalid;
