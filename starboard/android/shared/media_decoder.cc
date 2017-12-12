@@ -88,8 +88,9 @@ MediaDecoder::MediaDecoder(Host* host,
   if (audio_header.audio_specific_config_size > 0) {
     // |audio_header.audio_specific_config| is guaranteed to be outlived the
     // decoder as it is stored in |FilterBasedPlayerWorkerHandler|.
-    event_queue_.PushBack(Event(audio_header.audio_specific_config,
-                                audio_header.audio_specific_config_size));
+    event_queue_.PushBack(Event(
+        static_cast<const int8_t*>(audio_header.audio_specific_config),
+        audio_header.audio_specific_config_size));
   }
 }
 
