@@ -14,13 +14,17 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/raspi/shared/open_max/video_decoder.h"
 #include "starboard/raspi/shared/video_renderer_sink_impl.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 
 namespace starboard {
 namespace shared {
@@ -28,37 +32,54 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// static
-scoped_ptr<PlayerComponents> PlayerComponents::Create(
-    const AudioParameters& audio_parameters,
-    const VideoParameters& video_parameters) {
-  using AudioDecoderImpl = ::starboard::shared::ffmpeg::AudioDecoder;
-  using VideoDecoderImpl = ::starboard::raspi::shared::open_max::VideoDecoder;
-  using ::starboard::raspi::shared::VideoRendererSinkImpl;
+namespace {
 
-  AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
-      audio_parameters.audio_codec, audio_parameters.audio_header);
-  if (!audio_decoder->is_valid()) {
-    delete audio_decoder;
-    return scoped_ptr<PlayerComponents>(NULL);
+class PlayerComponentsImpl : public PlayerComponents {
+  void CreateAudioComponents(
+      const AudioParameters& audio_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+    using AudioDecoderImpl = ::starboard::shared::ffmpeg::AudioDecoder;
+
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
+
+    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(new AudioDecoderImpl(
+        audio_parameters.audio_codec, audio_parameters.audio_header));
+    if (audio_decoder_impl->is_valid()) {
+      audio_decoder->reset(audio_decoder_impl.release());
+    } else {
+      audio_decoder->reset();
+    }
+
+    audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 
-  scoped_ptr<VideoDecoder> video_decoder(new VideoDecoderImpl(
-      video_parameters.video_codec, video_parameters.job_queue));
+  void CreateVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+    using VideoDecoderImpl = ::starboard::raspi::shared::open_max::VideoDecoder;
+    using ::starboard::raspi::shared::VideoRendererSinkImpl;
 
-  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
-      make_scoped_ptr<AudioDecoder>(audio_decoder),
-      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header));
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+    SB_DCHECK(video_renderer_sink);
 
-  scoped_ptr<VideoRenderAlgorithm> algorithm(new VideoRenderAlgorithmImpl);
-  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
-      video_decoder.Pass(), audio_renderer.get(), algorithm.Pass(),
-      new VideoRendererSinkImpl(video_parameters.player,
-                                video_parameters.job_queue)));
+    video_decoder->reset(new VideoDecoderImpl(video_parameters.video_codec,
+                                              video_parameters.job_queue));
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    *video_renderer_sink = new VideoRendererSinkImpl(
+        video_parameters.player, video_parameters.job_queue);
+  }
+};
 
-  return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
+}  // namespace
+
+// static
+scoped_ptr<PlayerComponents> PlayerComponents::Create() {
+  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
 }  // namespace filter

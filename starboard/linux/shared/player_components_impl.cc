@@ -14,15 +14,20 @@
 
 #include "starboard/shared/starboard/player/filter/player_components.h"
 
-#include "starboard/audio_sink.h"
+#include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
+#include "starboard/media.h"
 #include "starboard/shared/ffmpeg/ffmpeg_audio_decoder.h"
 #include "starboard/shared/ffmpeg/ffmpeg_video_decoder.h"
 #include "starboard/shared/libvpx/vpx_video_decoder.h"
-#include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/audio_renderer_sink.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_sink_impl.h"
 #include "starboard/shared/starboard/player/filter/punchout_video_renderer_sink.h"
+#include "starboard/shared/starboard/player/filter/video_decoder_internal.h"
+#include "starboard/shared/starboard/player/filter/video_render_algorithm.h"
 #include "starboard/shared/starboard/player/filter/video_render_algorithm_impl.h"
-#include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/video_renderer_sink.h"
 #include "starboard/time.h"
 
 namespace starboard {
@@ -31,60 +36,69 @@ namespace starboard {
 namespace player {
 namespace filter {
 
-// static
-scoped_ptr<PlayerComponents> PlayerComponents::Create(
-    const AudioParameters& audio_parameters,
-    const VideoParameters& video_parameters) {
-  typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
-  typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
-  typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
+namespace {
 
-  const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+class PlayerComponentsImpl : public PlayerComponents {
+  void CreateAudioComponents(
+      const AudioParameters& audio_parameters,
+      scoped_ptr<AudioDecoder>* audio_decoder,
+      scoped_ptr<AudioRendererSink>* audio_renderer_sink) override {
+    typedef ::starboard::shared::ffmpeg::AudioDecoder AudioDecoderImpl;
 
-  // TODO: This is not ideal as we should really handle the creation failure of
-  // audio sink inside the audio renderer to give the renderer a chance to
-  // resample the decoded audio.
-  const int audio_channels = audio_parameters.audio_header.number_of_channels;
-  if (audio_channels > SbAudioSinkGetMaxChannels()) {
-    return scoped_ptr<PlayerComponents>(NULL);
-  }
+    SB_DCHECK(audio_decoder);
+    SB_DCHECK(audio_renderer_sink);
 
-  AudioDecoderImpl* audio_decoder = new AudioDecoderImpl(
-      audio_parameters.audio_codec, audio_parameters.audio_header);
-  if (!audio_decoder->is_valid()) {
-    delete audio_decoder;
-    return scoped_ptr<PlayerComponents>(NULL);
-  }
-
-  scoped_ptr<VideoDecoder> video_decoder;
-  if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
-    VpxVideoDecoderImpl* vpx_video_decoder = new VpxVideoDecoderImpl(
-        video_parameters.video_codec, video_parameters.output_mode,
-        video_parameters.decode_target_graphics_context_provider);
-    video_decoder.reset(vpx_video_decoder);
-  } else {
-    FfmpegVideoDecoderImpl* ffmpeg_video_decoder = new FfmpegVideoDecoderImpl(
-        video_parameters.video_codec, video_parameters.output_mode,
-        video_parameters.decode_target_graphics_context_provider);
-    if (!ffmpeg_video_decoder->is_valid()) {
-      delete ffmpeg_video_decoder;
-      return scoped_ptr<PlayerComponents>(NULL);
+    scoped_ptr<AudioDecoderImpl> audio_decoder_impl(new AudioDecoderImpl(
+        audio_parameters.audio_codec, audio_parameters.audio_header));
+    if (audio_decoder_impl->is_valid()) {
+      audio_decoder->reset(audio_decoder_impl.release());
+    } else {
+      audio_decoder->reset();
     }
-    video_decoder.reset(ffmpeg_video_decoder);
+    audio_renderer_sink->reset(new AudioRendererSinkImpl);
   }
 
-  scoped_ptr<AudioRenderer> audio_renderer(new AudioRenderer(
-      make_scoped_ptr<AudioDecoder>(audio_decoder),
-      make_scoped_ptr<AudioRendererSink>(new AudioRendererSinkImpl),
-      audio_parameters.audio_header));
-  scoped_ptr<VideoRenderer> video_renderer(new VideoRenderer(
-      video_decoder.Pass(), audio_renderer.get(),
-      make_scoped_ptr<VideoRenderAlgorithm>(new VideoRenderAlgorithmImpl),
-      new PunchoutVideoRendererSink(video_parameters.player,
-                                    kVideoSinkRenderInterval)));
+  void CreateVideoComponents(
+      const VideoParameters& video_parameters,
+      scoped_ptr<VideoDecoder>* video_decoder,
+      scoped_ptr<VideoRenderAlgorithm>* video_render_algorithm,
+      scoped_refptr<VideoRendererSink>* video_renderer_sink) override {
+    typedef ::starboard::shared::ffmpeg::VideoDecoder FfmpegVideoDecoderImpl;
+    typedef ::starboard::shared::vpx::VideoDecoder VpxVideoDecoderImpl;
 
-  return scoped_ptr<PlayerComponents>(
-      new PlayerComponents(audio_renderer.Pass(), video_renderer.Pass()));
+    const SbTime kVideoSinkRenderInterval = 10 * kSbTimeMillisecond;
+
+    SB_DCHECK(video_decoder);
+    SB_DCHECK(video_render_algorithm);
+    SB_DCHECK(video_renderer_sink);
+
+    video_decoder->reset();
+
+    if (video_parameters.video_codec == kSbMediaVideoCodecVp9) {
+      video_decoder->reset(new VpxVideoDecoderImpl(
+          video_parameters.video_codec, video_parameters.output_mode,
+          video_parameters.decode_target_graphics_context_provider));
+    } else {
+      scoped_ptr<FfmpegVideoDecoderImpl> ffmpeg_video_decoder(
+          new FfmpegVideoDecoderImpl(
+              video_parameters.video_codec, video_parameters.output_mode,
+              video_parameters.decode_target_graphics_context_provider));
+      if (ffmpeg_video_decoder->is_valid()) {
+        video_decoder->reset(ffmpeg_video_decoder.release());
+      }
+    }
+
+    video_render_algorithm->reset(new VideoRenderAlgorithmImpl);
+    *video_renderer_sink = new PunchoutVideoRendererSink(
+        video_parameters.player, kVideoSinkRenderInterval);
+  }
+};
+
+}  // namespace
+
+// static
+scoped_ptr<PlayerComponents> PlayerComponents::Create() {
+  return make_scoped_ptr<PlayerComponents>(new PlayerComponentsImpl);
 }
 
 }  // namespace filter

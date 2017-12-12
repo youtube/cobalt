@@ -48,8 +48,6 @@ using Status =
     ::starboard::shared::starboard::player::filter::VideoDecoder::Status;
 using VideoFrame = ::starboard::shared::starboard::player::filter::VideoFrame;
 using VideoFramePtr = ::starboard::scoped_refptr<VideoFrame>;
-using VideoParameters =
-    ::starboard::shared::starboard::player::filter::VideoParameters;
 using Microsoft::WRL::ComPtr;
 
 // Converts 90khz to 10Mhz (100ns time).
