@@ -52,6 +52,7 @@
       'type': '<(gtest_target_type)',
       'sources': [
         'savegame_test.cc',
+        'storage_manager_test.cc',
         'upgrade/storage_upgrade_test.cc',
         'virtual_file_system_test.cc',
       ],
