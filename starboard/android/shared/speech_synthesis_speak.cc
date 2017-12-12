@@ -22,8 +22,12 @@ using starboard::android::shared::ScopedLocalJavaRef;
 
 void SbSpeechSynthesisSpeak(const char* text) {
   JniEnvExt* env = JniEnvExt::Get();
+  ScopedLocalJavaRef<jobject> j_tts_helper(
+      env->CallActivityObjectMethodOrAbort(
+          "getTextToSpeechHelper",
+          "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
   ScopedLocalJavaRef<jstring> j_text_string(
       env->NewStringStandardUTFOrAbort(text));
-  env->CallActivityVoidMethodOrAbort(
-      "speechSynthesisSpeak", "(Ljava/lang/String;)V", j_text_string.Get());
+  env->CallVoidMethodOrAbort(j_tts_helper.Get(),
+      "speak", "(Ljava/lang/String;)V", j_text_string.Get());
 }
