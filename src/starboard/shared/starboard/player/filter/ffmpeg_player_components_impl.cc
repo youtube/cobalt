@@ -52,6 +52,7 @@ scoped_ptr<PlayerComponents> PlayerComponents::Create(
       video_parameters.video_codec, video_parameters.output_mode,
       video_parameters.decode_target_graphics_context_provider);
   if (!video_decoder->is_valid()) {
+    delete audio_decoder;
     delete video_decoder;
     return scoped_ptr<PlayerComponents>(NULL);
   }
