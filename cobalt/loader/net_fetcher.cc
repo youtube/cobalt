@@ -187,7 +187,10 @@ void NetFetcher::OnURLFetchComplete(const net::URLFetcher* source) {
     if (response_code >= 500 ||
         status.error() == net::ERR_TEMPORARILY_THROTTLED ||
         status.error() == net::ERR_NETWORK_CHANGED ||
-        status.error() == net::ERR_NAME_RESOLUTION_FAILED) {
+        status.error() == net::ERR_NAME_RESOLUTION_FAILED ||
+        status.error() == net::ERR_CONNECTION_RESET ||
+        status.error() == net::ERR_CONNECTION_CLOSED ||
+        status.error() == net::ERR_CONNECTION_ABORTED) {
       SetFailedFromTransientError();
     }
 
