@@ -46,6 +46,12 @@ SbSocketError TranslateSocketErrno(int error) {
     case EWOULDBLOCK:
 #endif
       return kSbSocketPending;
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT)
+    case ECONNRESET:
+    case ENETRESET:
+    case EPIPE:
+      return kSbSocketErrorConnectionReset;
+#endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT)
   }
 
   // Here's where we would be more nuanced if we need to be.
