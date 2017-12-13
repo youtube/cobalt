@@ -231,14 +231,15 @@ void AlsaCloseDevice(void* playback_handle) {
   }
 }
 
-void AlsaDrain(void* playback_handle) {
+bool AlsaDrain(void* playback_handle) {
   if (playback_handle) {
     snd_pcm_t* handle = reinterpret_cast<snd_pcm_t*>(playback_handle);
 
     int error;
     error = snd_pcm_drain(handle);
-    SB_DCHECK(error >= 0);
+    ALSA_CHECK(error, snd_pcm_drain, false);
   }
+  return true;
 }
 
 }  // namespace alsa
