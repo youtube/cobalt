@@ -46,7 +46,16 @@ SbSocketError TranslateSocketErrno(int error) {
     case EWOULDBLOCK:
 #endif
       return kSbSocketPending;
+#if SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    case ECONNRESET:
+    case ENETRESET:
+    case EPIPE:
+      return kSbSocketErrorConnectionReset;
+#endif  // #if SB_API_VERSION >=
+        // SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
   }
+
+  SB_LOG(ERROR) << "ERROR: " << error;
 
   // Here's where we would be more nuanced if we need to be.
   return kSbSocketErrorFailed;

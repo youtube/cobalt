@@ -31,18 +31,18 @@ class SbSocketConnectTest
 
 TEST_P(SbSocketConnectTest, RainyDayNullSocket) {
   SbSocketAddress address = GetUnspecifiedAddress(GetAddressType(), 2048);
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(kSbSocketInvalid, &address));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketConnect(kSbSocketInvalid, &address));
 }
 
 TEST_P(SbSocketConnectTest, RainyDayNullAddress) {
   SbSocket socket = SbSocketCreate(GetAddressType(), kSbSocketProtocolTcp);
   ASSERT_TRUE(SbSocketIsValid(socket));
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(socket, NULL));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketConnect(socket, NULL));
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
 
 TEST_F(SbSocketConnectTest, RainyDayNullNull) {
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketConnect(kSbSocketInvalid, NULL));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketConnect(kSbSocketInvalid, NULL));
 }
 
 #if SB_HAS(IPV6)
