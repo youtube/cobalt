@@ -84,6 +84,9 @@
 #define SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION \
   SB_EXPERIMENTAL_API_VERSION
 
+// Minimum API version for supporting system-level closed caption settings.
+#define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
@@ -571,6 +574,11 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #if SB_HAS(ON_SCREEN_KEYBOARD) && \
     (SB_API_VERSION < SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
+#endif
+
+#if SB_HAS(CAPTIONS) && \
+    (SB_API_VERSION < SB_ACCESSIBILITY_CAPTIONS_API_VERSION)
+#error "SB_HAS_CAPTIONS not supported in this API version."
 #endif
 
 // --- Derived Configuration -------------------------------------------------
