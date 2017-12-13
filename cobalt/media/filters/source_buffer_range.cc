@@ -98,7 +98,6 @@ void SourceBufferRange::AdjustEstimatedDurationForNewAppend(
 }
 
 void SourceBufferRange::Seek(DecodeTimestamp timestamp) {
-  DCHECK(CanSeekTo(timestamp));
   DCHECK(!keyframe_map_.empty());
 
   KeyframeMap::iterator result = GetFirstKeyframeAtOrBefore(timestamp);
