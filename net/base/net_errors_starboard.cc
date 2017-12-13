@@ -46,6 +46,10 @@ Error MapSocketError(SbSocketError error) {
       return OK;
     case kSbSocketPending:
       return ERR_IO_PENDING;
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT)
+    case kSbSocketErrorConnectionReset:
+      return ERR_CONNECTION_RESET;
+#endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT)
     case kSbSocketErrorFailed:
       return ERR_FAILED;
     default:
