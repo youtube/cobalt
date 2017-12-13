@@ -34,9 +34,23 @@ SbSocketError TranslateSocketErrorStatus(int error) {
   switch (error) {
     case 0:
       return kSbSocketOk;
+
+    // Microsoft Winsock error codes:
+    //   https://msdn.microsoft.com/en-us/library/windows/desktop/ms740668(v=vs.85).aspx
     case WSAEINPROGRESS:
     case WSAEWOULDBLOCK:
       return kSbSocketPending;
+#if SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    case WSAECONNRESET:
+    case WSAENETRESET:
+      return kSbSocketErrorConnectionReset;
+
+    // Microsoft System Error codes:
+    //   https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382(v=vs.85).aspx
+    case ERROR_BROKEN_PIPE:
+      return kSbSocketErrorConnectionReset;
+#endif  // #if SB_API_VERSION >=
+        // SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
   }
 
   // Here's where we would be more nuanced if we need to be.

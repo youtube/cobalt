@@ -54,7 +54,7 @@ TEST_P(SbSocketAcceptTest, RainyDayNotBound) {
 
   // Accept should result in an error.
   EXPECT_EQ(kSbSocketInvalid, SbSocketAccept(server_socket));
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketGetLastError(server_socket));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(server_socket));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }
@@ -67,7 +67,7 @@ TEST_P(SbSocketAcceptTest, RainyDayNotListening) {
 
   // Accept should result in an error.
   EXPECT_EQ(kSbSocketInvalid, SbSocketAccept(server_socket));
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketGetLastError(server_socket));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(server_socket));
 
   EXPECT_TRUE(SbSocketDestroy(server_socket));
 }

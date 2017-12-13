@@ -30,7 +30,7 @@ class SbSocketListenTest
 };
 
 TEST_F(SbSocketListenTest, RainyDayInvalid) {
-  EXPECT_EQ(kSbSocketErrorFailed, SbSocketListen(kSbSocketInvalid));
+  EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketListen(kSbSocketInvalid));
 }
 
 TEST_P(SbSocketListenTest, SunnyDayUnbound) {

@@ -71,9 +71,18 @@
 #define SB_PLAYER_WITH_URL_API_VERSION 8
 #define SB_WINDOW_SIZE_CHANGED_API_VERSION 8
 #define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION 8
+
 // Adds string label to SbMicrophoneInfo.
 // This should indicate the friendly name of the microphone type.
 #define SB_MICROPHONE_LABEL_API_VERSION SB_EXPERIMENTAL_API_VERSION
+
+// Introduce additional SbSocketError enum values.
+// Instead of the single generic kSbSocketErrorFailed to indicate socket errors,
+// the enum kSbSocketErrorConnectionReset has been introduced corresponding to
+// various dropped TCP connection errors.  This is particularly useful in
+// identifying socket errors that can be retried.
+#define SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION \
+  SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 
