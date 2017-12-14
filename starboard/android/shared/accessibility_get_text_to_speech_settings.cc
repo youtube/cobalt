@@ -33,7 +33,7 @@ bool SbAccessibilityGetTextToSpeechSettings(
 
   out_setting->has_text_to_speech_setting = true;
   ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallActivityObjectMethodOrAbort(
+      env->CallStarboardObjectMethodOrAbort(
           "getTextToSpeechHelper",
           "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
   out_setting->is_text_to_speech_enabled =

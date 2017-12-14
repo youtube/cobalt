@@ -34,7 +34,7 @@ bool SbMediaGetAudioConfiguration(
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallActivityObjectMethodOrAbort(
+      env->CallStarboardObjectMethodOrAbort(
           "getAudioOutputManager", "()Lfoo/cobalt/media/AudioOutputManager;"));
   int channels = static_cast<int>(env->CallIntMethodOrAbort(
       j_audio_output_manager.Get(), "getMaxChannels", "()I"));
