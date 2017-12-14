@@ -131,7 +131,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
     case kSbSystemPropertyUserAgentAuxField: {
       JniEnvExt* env = JniEnvExt::Get();
       ScopedLocalJavaRef<jstring> aux_string(
-          env->CallActivityObjectMethodOrAbort(
+          env->CallStarboardObjectMethodOrAbort(
               "getUserAgentAuxField", "()Ljava/lang/String;"));
 
       std::string utf_str = env->GetStringStandardUTFOrAbort(aux_string.Get());

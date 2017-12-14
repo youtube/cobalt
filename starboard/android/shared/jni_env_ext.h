@@ -38,7 +38,7 @@ namespace shared {
 //
 // There are convenience methods to lookup and call Java methods on object
 // instances in a single step, with even simpler methods to call Java methods on
-// the Activity (the CobaltActivity).
+// the StarboardBridge.
 struct JniEnvExt : public JNIEnv {
   // One-time initialization to be called before starting the application.
   static void Initialize(ANativeActivity* native_activity);
@@ -49,8 +49,8 @@ struct JniEnvExt : public JNIEnv {
   // Returns the thread-specific instance of JniEnvExt.
   static JniEnvExt* Get();
 
-  // Returns the CobaltActivity object.
-  jobject GetActivityObject();
+  // Returns the StarboardBridge object.
+  jobject GetStarboardBridge();
 
   // Lookup the class of an object and find a field in it.
   jfieldID GetStaticFieldIDOrAbort(jclass clazz,
@@ -94,7 +94,7 @@ struct JniEnvExt : public JNIEnv {
     return result;
   }
 
-  // Find a class by name using the Activity's class loader. This can load
+  // Find a class by name using the application's class loader. This can load
   // both system classes and application classes, even when not in a JNI
   // stack frame (e.g. in a native thread that was attached the the JVM).
   // https://developer.android.com/training/articles/perf-jni.html#faq_FindClass
@@ -154,7 +154,7 @@ struct JniEnvExt : public JNIEnv {
 
 // Convienience methods to lookup and call a method all at once:
 // Call[Type]Method() overloaded to take a jobject of an instance.
-// CallActivity[Type]Method() to call methods on the CobaltActivity.
+// CallStarboard[Type]Method() to call methods on the StarboardBridge.
 #define X(_jtype, _jname)                                                      \
   _jtype Call##_jname##Method(jobject obj, const char* name, const char* sig,  \
                               ...) {                                           \
@@ -176,22 +176,22 @@ struct JniEnvExt : public JNIEnv {
     return result;                                                             \
   }                                                                            \
                                                                                \
-  _jtype CallActivity##_jname##Method(const char* name, const char* sig,       \
+  _jtype CallStarboard##_jname##Method(const char* name, const char* sig,      \
                                       ...) {                                   \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    jobject obj = GetActivityObject();                                         \
+    jobject obj = GetStarboardBridge();                                        \
     _jtype result = Call##_jname##MethodV(                                     \
         obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
     va_end(argp);                                                              \
     return result;                                                             \
   }                                                                            \
                                                                                \
-  _jtype CallActivity##_jname##MethodOrAbort(const char* name,                 \
+  _jtype CallStarboard##_jname##MethodOrAbort(const char* name,                \
                                              const char* sig, ...) {           \
     va_list argp;                                                              \
     va_start(argp, sig);                                                       \
-    jobject obj = GetActivityObject();                                         \
+    jobject obj = GetStarboardBridge();                                        \
     _jtype result = Call##_jname##MethodVOrAbort(                              \
         obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);                  \
     va_end(argp);                                                              \
@@ -270,18 +270,18 @@ struct JniEnvExt : public JNIEnv {
     AbortOnException();
   }
 
-  void CallActivityVoidMethod(const char* name, const char* sig, ...) {
+  void CallStarboardVoidMethod(const char* name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    jobject obj = GetActivityObject();
+    jobject obj = GetStarboardBridge();
     CallVoidMethodV(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
   }
 
-  void CallActivityVoidMethodOrAbort(const char* name, const char* sig, ...) {
+  void CallStarboardVoidMethodOrAbort(const char* name, const char* sig, ...) {
     va_list argp;
     va_start(argp, sig);
-    jobject obj = GetActivityObject();
+    jobject obj = GetStarboardBridge();
     CallVoidMethodVOrAbort(obj, GetObjectMethodIDOrAbort(obj, name, sig), argp);
     va_end(argp);
   }

@@ -318,7 +318,7 @@ bool ApplicationAndroid::OnSearchRequested() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_CobaltActivity_nativeReleaseBuild() {
+jboolean Java_foo_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
 #if defined(COBALT_BUILD_TYPE_GOLD)
   return true;
 #else
@@ -327,7 +327,7 @@ jboolean Java_foo_cobalt_coat_CobaltActivity_nativeReleaseBuild() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_CobaltActivity_nativeOnSearchRequested() {
+jboolean Java_foo_cobalt_coat_StarboardBridge_nativeOnSearchRequested() {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
 
@@ -341,7 +341,7 @@ void ApplicationAndroid::HandleDeepLink(const char* link_url) {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-void Java_foo_cobalt_coat_CobaltActivity_nativeHandleDeepLink(
+void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
     JniEnvExt* env, jobject unused_this, jstring j_url) {
   if (j_url) {
     std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
@@ -353,7 +353,7 @@ static std::string GetStartIntentUrl() {
   JniEnvExt* env = JniEnvExt::Get();
   std::string start_url;
 
-  ScopedLocalJavaRef<jstring> j_url(env->CallActivityObjectMethodOrAbort(
+  ScopedLocalJavaRef<jstring> j_url(env->CallStarboardObjectMethodOrAbort(
       "getStartIntentUrl", "()Ljava/lang/String;"));
   if (j_url) {
     start_url = env->GetStringStandardUTFOrAbort(j_url.Get());
@@ -367,7 +367,8 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   JniEnvExt* env = JniEnvExt::Get();
 
   ScopedLocalJavaRef<jobjectArray> args_array(
-      env->CallActivityObjectMethodOrAbort("getArgs", "()[Ljava/lang/String;"));
+      env->CallStarboardObjectMethodOrAbort("getArgs",
+                                            "()[Ljava/lang/String;"));
   jint argc = env->GetArrayLength(args_array.Get());
 
   for (jint i = 0; i < argc; i++) {
