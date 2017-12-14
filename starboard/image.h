@@ -23,7 +23,7 @@
 // All functions in this module are safe to call from any thread at any point
 // in time.
 //
-// #### SbImageIsDecodeSupported and SbImageDecode Example
+// # SbImageIsDecodeSupported and SbImageDecode Example
 //
 // Let's assume that we're on a Blitter platform.
 //

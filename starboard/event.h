@@ -16,45 +16,46 @@
 //
 // Defines the event system that wraps the Starboard main loop and entry point.
 //
-// ## The Starboard Application life cycle
+// # The Starboard Application Lifecycle
 //
-// |     ---------- *
-// |    |           |
-// |    |        Preload
-// |    |           |
-// |    |           V
-// |  Start   [ PRELOADING ] ------------
-// |    |           |                    |
-// |    |         Start                  |
-// |    |           |                    |
-// |    |           V                    |
-// |     ----> [ STARTED ] <----         |
-// |                |           |        |
-// |              Pause       Unpause    |
-// |                |           |     Suspend
-// |                V           |        |
-// |     -----> [ PAUSED ] -----         |
-// |    |           |                    |
-// | Resume      Suspend                 |
-// |    |           |                    |
-// |    |           V                    |
-// |     ---- [ SUSPENDED ] <------------
-// |                |
-// |               Stop
-// |                |
-// |                V
-// |           [ STOPPED ]
+//         ---------- *
+//        |           |
+//        |        Preload
+//        |           |
+//        |           V
+//      Start   [ PRELOADING ] ------------
+//        |           |                    |
+//        |         Start                  |
+//        |           |                    |
+//        |           V                    |
+//         ----> [ STARTED ] <----         |
+//                    |           |        |
+//                  Pause       Unpause    |
+//                    |           |     Suspend
+//                    V           |        |
+//         -----> [ PAUSED ] -----         |
+//        |           |                    |
+//     Resume      Suspend                 |
+//        |           |                    |
+//        |           V                    |
+//         ---- [ SUSPENDED ] <------------
+//                    |
+//                   Stop
+//                    |
+//                    V
+//               [ STOPPED ]
 //
 // The first event that a Starboard application receives is either |Start|
-// (kSbEventTypeStart) or |Preload| (kSbEventTypePreload). |Start| puts the
+// (|kSbEventTypeStart|) or |Preload| (|kSbEventTypePreload|). |Start| puts the
 // application in the |STARTED| state, whereas |Preload| puts the application in
 // the |PRELOADING| state.
 //
 // |PRELOADING| can only happen as the first application state. In this state,
 // the application should start and run as normal, but will not receive any
 // input, and should not try to initialize graphics resources (via GL or
-// SbBlitter). In |PRELOADING|, the application can receive |Start| or |Suspend|
-// events. |Start| will receive the same data that was passed into |Preload|.
+// |SbBlitter|). In |PRELOADING|, the application can receive |Start| or
+// |Suspend| events. |Start| will receive the same data that was passed into
+// |Preload|.
 //
 // In the |STARTED| state, the application is in the foreground and can expect
 // to do all of the normal things it might want to do. Once in the |STARTED|

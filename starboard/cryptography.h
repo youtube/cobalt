@@ -39,9 +39,13 @@
 //            priority.
 //
 // Further reading on block cipher modes:
+//
 // https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation
+//
 // https://crbug.com/442572
+//
 // https://crypto.stackexchange.com/questions/10775/practical-disadvantages-of-gcm-mode-encryption
+//
 
 #ifndef STARBOARD_CRYPTOGRAPHY_H_
 #define STARBOARD_CRYPTOGRAPHY_H_

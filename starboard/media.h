@@ -470,6 +470,7 @@ typedef struct SbMediaAudioHeader {
 } SbMediaAudioHeader;
 
 // --- Constants -------------------------------------------------------------
+
 // One second in SbMediaTime (90KHz ticks).
 #define kSbMediaTimeSecond ((SbMediaTime)(90000))
 
