@@ -152,10 +152,6 @@ class TestLauncher(object):
       sys.stderr.write("Error while running {}:\n".format(
           self.launcher.target_name))
       traceback.print_exc(file=sys.stderr)
-      # Close the write end of the pipe if the launcher errored out
-      # before closing it.
-      if not self.write_pipe.closed:
-        self.write_pipe.close()
 
     self.return_code_lock.acquire()
     self.return_code = return_code
