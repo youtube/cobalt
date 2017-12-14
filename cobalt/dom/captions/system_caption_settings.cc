@@ -11,7 +11,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-//
 
 #include <string>
 
@@ -27,89 +26,516 @@
 #include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/event_target.h"
 
+#include "starboard/accessibility.h"
+#include "starboard/memory.h"
+
 namespace cobalt {
 namespace dom {
 namespace captions {
 
+#if SB_HAS(CAPTIONS)
+namespace {
+
+CaptionColor ToCobaltCaptionColor(SbAccessibilityCaptionColor color) {
+  switch (color) {
+    case kSbAccessibilityCaptionColorBlue:
+      return CaptionColor::kCaptionColorBlue;
+    case kSbAccessibilityCaptionColorBlack:
+      return CaptionColor::kCaptionColorBlack;
+    case kSbAccessibilityCaptionColorCyan:
+      return CaptionColor::kCaptionColorCyan;
+    case kSbAccessibilityCaptionColorGreen:
+      return CaptionColor::kCaptionColorGreen;
+    case kSbAccessibilityCaptionColorMagenta:
+      return CaptionColor::kCaptionColorMagenta;
+    case kSbAccessibilityCaptionColorRed:
+      return CaptionColor::kCaptionColorRed;
+    case kSbAccessibilityCaptionColorWhite:
+      return CaptionColor::kCaptionColorWhite;
+    case kSbAccessibilityCaptionColorYellow:
+      return CaptionColor::kCaptionColorYellow;
+    default:
+      NOTREACHED() << "Invalid color conversion";
+      return CaptionColor::kCaptionColorWhite;
+  }
+}
+
+CaptionCharacterEdgeStyle ToCobaltCaptionCharacterEdgeStyle(
+  SbAccessibilityCaptionCharacterEdgeStyle style) {
+  switch (style) {
+    case kSbAccessibilityCaptionCharacterEdgeStyleNone:
+      return CaptionCharacterEdgeStyle::
+              kCaptionCharacterEdgeStyleNone;
+    case kSbAccessibilityCaptionCharacterEdgeStyleRaised:
+      return CaptionCharacterEdgeStyle::
+              kCaptionCharacterEdgeStyleRaised;
+    case kSbAccessibilityCaptionCharacterEdgeStyleDepressed:
+      return CaptionCharacterEdgeStyle::
+              kCaptionCharacterEdgeStyleDepressed;
+    case kSbAccessibilityCaptionCharacterEdgeStyleUniform:
+      return CaptionCharacterEdgeStyle::
+              kCaptionCharacterEdgeStyleUniform;
+    case kSbAccessibilityCaptionCharacterEdgeStyleDropShadow:
+      return CaptionCharacterEdgeStyle::
+              kCaptionCharacterEdgeStyleDropShadow;
+    default:
+      NOTREACHED() << "Invalid character edge style conversion";
+      return CaptionCharacterEdgeStyle::kCaptionCharacterEdgeStyleNone;
+  }
+}
+
+CaptionFontFamily ToCobaltCaptionFontFamily(
+    SbAccessibilityCaptionFontFamily font_family) {
+  switch (font_family) {
+    case kSbAccessibilityCaptionFontFamilyCasual:
+      return CaptionFontFamily::kCaptionFontFamilyCasual;
+    case kSbAccessibilityCaptionFontFamilyCursive:
+      return CaptionFontFamily::kCaptionFontFamilyCursive;
+    case kSbAccessibilityCaptionFontFamilyMonospaceSansSerif:
+      return CaptionFontFamily::kCaptionFontFamilyMonospaceSansSerif;
+    case kSbAccessibilityCaptionFontFamilyMonospaceSerif:
+      return CaptionFontFamily::kCaptionFontFamilyMonospaceSerif;
+    case kSbAccessibilityCaptionFontFamilyProportionalSansSerif:
+      return CaptionFontFamily::kCaptionFontFamilyProportionalSerif;
+    case kSbAccessibilityCaptionFontFamilyProportionalSerif:
+      return CaptionFontFamily::kCaptionFontFamilyProportionalSansSerif;
+    case kSbAccessibilityCaptionFontFamilySmallCapitals:
+      return CaptionFontFamily::kCaptionFontFamilySmallCapitals;
+    default:
+      NOTREACHED() << "Invalid font family conversion";
+      return CaptionFontFamily::kCaptionFontFamilyCasual;
+  }
+}
+
+CaptionFontSizePercentage ToCobaltCaptionFontSizePercentage(
+    int font_size) {
+  switch (font_size) {
+    case kSbAccessibilityCaptionFontSizePercentage25:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage25;
+    case kSbAccessibilityCaptionFontSizePercentage50:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage50;
+    case kSbAccessibilityCaptionFontSizePercentage75:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage75;
+    case kSbAccessibilityCaptionFontSizePercentage100:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage100;
+    case kSbAccessibilityCaptionFontSizePercentage125:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage125;
+    case kSbAccessibilityCaptionFontSizePercentage150:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage150;
+    case kSbAccessibilityCaptionFontSizePercentage175:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage175;
+    case kSbAccessibilityCaptionFontSizePercentage200:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage200;
+    case kSbAccessibilityCaptionFontSizePercentage225:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage225;
+    case kSbAccessibilityCaptionFontSizePercentage250:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage250;
+    case kSbAccessibilityCaptionFontSizePercentage275:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage275;
+    case kSbAccessibilityCaptionFontSizePercentage300:
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage300;
+    default:
+      NOTREACHED() << "Invalid font size percentage conversion";
+      return CaptionFontSizePercentage::kCaptionFontSizePercentage100;
+  }
+}
+
+CaptionOpacityPercentage ToCobaltCaptionOpacityPercentage(
+  SbAccessibilityCaptionOpacityPercentage opacity) {
+  switch (opacity) {
+    case kSbAccessibilityCaptionOpacityPercentage0:
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage0;
+    case kSbAccessibilityCaptionOpacityPercentage25:
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage25;
+    case kSbAccessibilityCaptionOpacityPercentage50:
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage50;
+    case kSbAccessibilityCaptionOpacityPercentage75:
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage75;
+    case kSbAccessibilityCaptionOpacityPercentage100:
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage100;
+    default:
+      NOTREACHED() << "Invalid opacity conversion";
+      return CaptionOpacityPercentage::kCaptionOpacityPercentage100;
+  }
+}
+
+CaptionState ToCobaltCaptionState(SbAccessibilityCaptionState state) {
+  switch (state) {
+    case kSbAccessibilityCaptionStateUnsupported:
+      return CaptionState::kCaptionStateUnsupported;
+    case kSbAccessibilityCaptionStateUnset:
+      return CaptionState::kCaptionStateUnset;
+    case kSbAccessibilityCaptionStateSet:
+      return CaptionState::kCaptionStateSet;
+    case kSbAccessibilityCaptionStateOverride:
+      return CaptionState::kCaptionStateOverride;
+    default:
+      NOTREACHED() << "Invalid caption state conversion";
+      return CaptionState::kCaptionStateUnsupported;
+  }
+}
+
+}  // namespace
+
+#endif  // SB_HAS(CAPTIONS)
+
 SystemCaptionSettings::SystemCaptionSettings() {}
 
 base::optional<std::string> SystemCaptionSettings::background_color() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* color = SystemCaptionSettings::CaptionColorToString(
+      ToCobaltCaptionColor(caption_settings.background_color));
+  if (color == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(color);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::background_color_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.background_color_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string>
 SystemCaptionSettings::background_opacity() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* opacity =
+    SystemCaptionSettings::CaptionOpacityPercentageToString(
+        ToCobaltCaptionOpacityPercentage(caption_settings.background_opacity));
+  if (opacity == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(opacity);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::background_opacity_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.background_opacity_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string>
 SystemCaptionSettings::character_edge_style() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* character_edge_style =
+    SystemCaptionSettings::CaptionCharacterEdgeStyleToString(
+        ToCobaltCaptionCharacterEdgeStyle(
+            caption_settings.character_edge_style));
+  if (character_edge_style == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(character_edge_style);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::character_edge_style_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(
+        caption_settings.character_edge_style_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string> SystemCaptionSettings::font_color() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* color = SystemCaptionSettings::CaptionColorToString(
+      ToCobaltCaptionColor(caption_settings.font_color));
+  if (color == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(color);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_color_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.font_color_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string> SystemCaptionSettings::font_family() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* font_family =
+    SystemCaptionSettings::CaptionFontFamilyToString(
+        ToCobaltCaptionFontFamily(caption_settings.font_family));
+  if (font_family == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(font_family);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_family_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.font_family_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string> SystemCaptionSettings::font_opacity() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* opacity =
+    SystemCaptionSettings::CaptionOpacityPercentageToString(
+        ToCobaltCaptionOpacityPercentage(caption_settings.font_opacity));
+  if (opacity == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(opacity);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_opacity_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.font_opacity_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string> SystemCaptionSettings::font_size() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* font_size =
+    SystemCaptionSettings::CaptionFontSizePercentageToString(
+        ToCobaltCaptionFontSizePercentage(caption_settings.font_size));
+  if (font_size == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(font_size);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::font_size_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.font_size_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string> SystemCaptionSettings::window_color() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* color = SystemCaptionSettings::CaptionColorToString(
+      ToCobaltCaptionColor(caption_settings.window_color));
+  if (color == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(color);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::window_color_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.window_color_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 base::optional<std::string>
 SystemCaptionSettings::window_opacity() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  if (!success) {
+    return base::nullopt;
+  }
+
+  const char* opacity =
+    SystemCaptionSettings::CaptionOpacityPercentageToString(
+        ToCobaltCaptionOpacityPercentage(caption_settings.window_opacity));
+  if (opacity == nullptr) {
+    return base::nullopt;
+  } else {
+    return std::string(opacity);
+  }
+#else
   return base::nullopt;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 CaptionState SystemCaptionSettings::window_opacity_state() {
-  return CaptionState::kCaptionStateUnset;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+  if (success) {
+    return ToCobaltCaptionState(caption_settings.window_opacity_state);
+  } else {
+    return CaptionState::kCaptionStateUnsupported;
+  }
+#else
+  return CaptionState::kCaptionStateUnsupported;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::is_enabled() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  return (success) ? caption_settings.is_enabled : false;
+
+#else
   return false;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 void SystemCaptionSettings::set_is_enabled(bool active) {
@@ -117,15 +543,42 @@ void SystemCaptionSettings::set_is_enabled(bool active) {
 }
 
 bool SystemCaptionSettings::supports_is_enabled() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  return (success) ? caption_settings.supports_is_enabled : false;
+
+#else
   return false;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::supports_set_enabled() {
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  return (success) ? caption_settings.supports_set_enabled : false;
+
+#else
   return false;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 bool SystemCaptionSettings::supports_override() {
-  return true;
+#if SB_HAS(CAPTIONS)
+  SbAccessibilityCaptionSettings caption_settings;
+  SbMemorySet(&caption_settings, 0, sizeof(caption_settings));
+  bool success = SbAccessibilityGetCaptionSettings(&caption_settings);
+
+  return (success) ? caption_settings.supports_override : false;
+
+#else
+  return false;
+#endif  // SB_HAS(CAPTIONS)
 }
 
 const EventTarget::EventListenerScriptValue*

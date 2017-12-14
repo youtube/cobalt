@@ -15,6 +15,7 @@
 #include "cobalt/dom/navigator.h"
 
 #include "base/optional.h"
+#include "cobalt/dom/captions/system_caption_settings.h"
 #include "cobalt/dom/dom_exception.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_key_system_access.h"
@@ -38,6 +39,7 @@ Navigator::Navigator(const std::string& user_agent, const std::string& language,
       plugins_(new PluginArray()),
       media_session_(media_session),
       media_devices_(new media_capture::MediaDevices(script_value_factory)),
+      system_caption_settings_(new captions::SystemCaptionSettings()),
       script_value_factory_(script_value_factory) {}
 
 const std::string& Navigator::language() const { return language_; }
@@ -253,11 +255,17 @@ Navigator::RequestMediaKeySystemAccess(
 
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
+const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
+    Navigator::system_caption_settings() const {
+  return system_caption_settings_;
+}
+
 void Navigator::TraceMembers(script::Tracer* tracer) {
   tracer->Trace(mime_types_);
   tracer->Trace(plugins_);
   tracer->Trace(media_session_);
   tracer->Trace(media_devices_);
+  tracer->Trace(system_caption_settings_);
 }
 
 }  // namespace dom

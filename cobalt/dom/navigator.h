@@ -18,6 +18,7 @@
 #include <string>
 
 #include "base/memory/ref_counted.h"
+#include "cobalt/dom/captions/system_caption_settings.h"
 #if defined(COBALT_MEDIA_SOURCE_2016)
 #include "cobalt/dom/eme/media_key_system_configuration.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -73,6 +74,9 @@ class Navigator : public script::Wrappable {
           supported_configurations);
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
+  const scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>&
+    system_caption_settings() const;
+
   DEFINE_WRAPPABLE_TYPE(Navigator);
   void TraceMembers(script::Tracer* tracer) override;
 
@@ -85,6 +89,8 @@ class Navigator : public script::Wrappable {
   scoped_refptr<PluginArray> plugins_;
   scoped_refptr<cobalt::media_session::MediaSession> media_session_;
   scoped_refptr<cobalt::media_capture::MediaDevices> media_devices_;
+  scoped_refptr<cobalt::dom::captions::SystemCaptionSettings>
+    system_caption_settings_;
   script::ScriptValueFactory* script_value_factory_;
 
   DISALLOW_COPY_AND_ASSIGN(Navigator);
