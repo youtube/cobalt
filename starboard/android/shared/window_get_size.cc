@@ -34,7 +34,7 @@ bool SbWindowGetSize(SbWindow window, SbWindowSize* size) {
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> display_size(
-      env->CallActivityObjectMethodOrAbort("getDisplaySize",
+      env->CallStarboardObjectMethodOrAbort("getDisplaySize",
                                            "()Landroid/util/Size;"));
   int display_width =
       env->CallIntMethodOrAbort(display_size.Get(), "getWidth", "()I");

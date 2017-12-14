@@ -62,7 +62,7 @@ SbSystemPlatformError SbSystemRaisePlatformError(
       new SbSystemPlatformErrorPrivate(type, callback, user_data);
 
   JniEnvExt* env = JniEnvExt::Get();
-  jobject error_obj = env->CallActivityObjectMethodOrAbort(
+  jobject error_obj = env->CallStarboardObjectMethodOrAbort(
       "raisePlatformError", "(IJ)Lfoo/cobalt/coat/PlatformError;",
       jni_error_type, reinterpret_cast<jlong>(error_handle));
   error_handle->error_obj = env->NewGlobalRef(error_obj);

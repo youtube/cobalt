@@ -76,7 +76,7 @@ SbSpeechRecognizerImpl::SbSpeechRecognizerImpl(
     const SbSpeechRecognizerHandler* handler)
     : handler_(*handler), is_started_(false) {
   JniEnvExt* env = JniEnvExt::Get();
-  jobject local_ref = env->CallActivityObjectMethodOrAbort(
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getVoiceRecognizer", "()Lfoo/cobalt/coat/VoiceRecognizer;");
   j_voice_recognizer_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }

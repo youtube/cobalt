@@ -264,7 +264,7 @@ class AndroidMediaSessionClient : public MediaSessionClient {
       }
     }
 
-    env->CallActivityVoidMethodOrAbort(
+    env->CallStarboardVoidMethodOrAbort(
         "updateMediaSession",
         "(IJLjava/lang/String;Ljava/lang/String;Ljava/lang/String;"
             "[Lfoo/cobalt/media/MediaImage;)V",

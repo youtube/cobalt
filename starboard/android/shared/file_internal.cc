@@ -54,14 +54,14 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
 
   SB_DCHECK(g_app_files_dir == NULL);
   ScopedLocalJavaRef<jstring> j_string(
-      env->CallActivityObjectMethodOrAbort("getFilesAbsolutePath",
+      env->CallStarboardObjectMethodOrAbort("getFilesAbsolutePath",
                                            "()Ljava/lang/String;"));
   g_app_files_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Files dir: " << g_app_files_dir;
 
   SB_DCHECK(g_app_cache_dir == NULL);
   j_string.Reset(
-      env->CallActivityObjectMethodOrAbort("getCacheAbsolutePath",
+      env->CallStarboardObjectMethodOrAbort("getCacheAbsolutePath",
                                            "()Ljava/lang/String;"));
   g_app_cache_dir = DuplicateJavaString(env, j_string.Get());
   SB_DLOG(INFO) << "Cache dir: " << g_app_cache_dir;

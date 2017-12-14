@@ -24,7 +24,7 @@ void SbSpeechSynthesisCancel() {
   JniEnvExt* env = JniEnvExt::Get();
 
   ScopedLocalJavaRef<jobject> j_tts_helper(
-      env->CallActivityObjectMethodOrAbort(
+      env->CallStarboardObjectMethodOrAbort(
           "getTextToSpeechHelper",
           "()Lfoo/cobalt/coat/CobaltTextToSpeechHelper;"));
   env->CallVoidMethodOrAbort(j_tts_helper.Get(), "cancel", "()V");
