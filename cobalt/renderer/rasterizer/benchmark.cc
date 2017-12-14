@@ -192,12 +192,23 @@ void RunCreateImageViaResourceProviderBenchmark(AlphaFormat alpha_format) {
 
   const int kIterationCount = 20;
   const Size kImageSize(400, 400);
+  cobalt::render_tree::PixelFormat pixel_format =
+      cobalt::render_tree::kPixelFormatRGBA8;
+  if (!resource_provider->PixelFormatSupported(pixel_format)) {
+    pixel_format = cobalt::render_tree::kPixelFormatBGRA8;
+    if (!resource_provider->PixelFormatSupported(pixel_format)) {
+      LOG(ERROR) << "Could not find a supported pixel format on this platform, "
+                    "returning early from benchmark.";
+      return;
+    }
+  }
+
   for (int i = 0; i < kIterationCount; ++i) {
     // Repeatedly allocate memory for an image, write to that memory, and then
     // submit the image data back to the ResourceProvider to have it create
     // an image out of it.
     scoped_ptr<ImageData> image_data = resource_provider->AllocateImageData(
-        kImageSize, cobalt::render_tree::kPixelFormatRGBA8, alpha_format);
+        kImageSize, pixel_format, alpha_format);
 
     SynthesizeImageData(image_data.get());
 
