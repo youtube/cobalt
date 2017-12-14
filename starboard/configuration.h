@@ -600,7 +600,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 
 // Specifies whether this platform has a performant OpenGL ES 2 implementation,
 // which allows client applications to use GL rendering paths.  Derived from
-// the gyp variable 'gl_type' which indicates what kind of GL implementation
+// the gyp variable `gl_type` which indicates what kind of GL implementation
 // is available.
 #if !defined(SB_HAS_GLES2)
 #define SB_HAS_GLES2 !SB_GYP_GL_TYPE_IS_NONE
