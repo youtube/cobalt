@@ -275,6 +275,7 @@
         '../cssom/link_style.idl',
 
         '../dom/buffer_source.idl',
+        '../dom/captions/navigator_system_caption_settings.idl',
         '../dom/document__web_animations_api.idl',
         '../dom/document_cobalt.idl',
         '../dom/document_cssom.idl',
