@@ -153,7 +153,7 @@ AudioTrackAudioSink::AudioTrackAudioSink(
 
   JniEnvExt* env = JniEnvExt::Get();
   ScopedLocalJavaRef<jobject> j_audio_output_manager(
-      env->CallActivityObjectMethodOrAbort(
+      env->CallStarboardObjectMethodOrAbort(
           "getAudioOutputManager", "()Lfoo/cobalt/media/AudioOutputManager;"));
   jobject j_audio_track_bridge = env->CallObjectMethodOrAbort(
       j_audio_output_manager.Get(), "createAudioTrackBridge",
@@ -187,7 +187,7 @@ AudioTrackAudioSink::~AudioTrackAudioSink() {
   JniEnvExt* env = JniEnvExt::Get();
   if (j_audio_track_bridge_) {
     ScopedLocalJavaRef<jobject> j_audio_output_manager(
-        env->CallActivityObjectMethodOrAbort(
+        env->CallStarboardObjectMethodOrAbort(
             "getAudioOutputManager",
             "()Lfoo/cobalt/media/AudioOutputManager;"));
     env->CallVoidMethodOrAbort(

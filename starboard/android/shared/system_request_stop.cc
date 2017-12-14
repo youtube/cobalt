@@ -71,5 +71,5 @@ void SbSystemRequestStop(int error_level) {
   CloseLogFile();
 
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallActivityVoidMethodOrAbort("requestStop", "()V");
+  env->CallStarboardVoidMethodOrAbort("requestStop", "()V");
 }

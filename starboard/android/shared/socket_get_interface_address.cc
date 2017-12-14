@@ -47,7 +47,7 @@ bool SbSocketGetInterfaceAddress(const SbSocketAddress* const /*destination*/,
 
   JniEnvExt* env = JniEnvExt::Get();
 
-  jbyteArray s = (jbyteArray)env->CallActivityObjectMethodOrAbort(
+  jbyteArray s = (jbyteArray)env->CallStarboardObjectMethodOrAbort(
       "getLocalInterfaceAddress", "()[B");
   if (s == NULL) {
     return false;
