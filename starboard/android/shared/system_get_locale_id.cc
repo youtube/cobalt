@@ -35,7 +35,7 @@ class LocaleInfo {
   LocaleInfo() {
     JniEnvExt* env = JniEnvExt::Get();
 
-    ScopedLocalJavaRef<jstring> result(env->CallActivityObjectMethodOrAbort(
+    ScopedLocalJavaRef<jstring> result(env->CallStarboardObjectMethodOrAbort(
         "systemGetLocaleId", "()Ljava/lang/String;"));
     locale_id = env->GetStringStandardUTFOrAbort(result.Get());
   }

@@ -20,5 +20,5 @@ using starboard::android::shared::JniEnvExt;
 
 void SbSystemRequestSuspend() {
   JniEnvExt* env = JniEnvExt::Get();
-  env->CallActivityVoidMethodOrAbort("requestSuspend", "()V");
+  env->CallStarboardVoidMethodOrAbort("requestSuspend", "()V");
 }

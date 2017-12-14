@@ -30,7 +30,7 @@ bool SbAccessibilityGetDisplaySettings(
   JniEnvExt* env = JniEnvExt::Get();
   out_setting->has_high_contrast_text_setting = true;
   out_setting->is_high_contrast_text_enabled =
-      env->CallActivityBooleanMethodOrAbort(
+      env->CallStarboardBooleanMethodOrAbort(
           "isAccessibilityHighContrastTextEnabled", "()Z");
 
   return true;

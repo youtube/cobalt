@@ -31,7 +31,7 @@ namespace cobalt {
 
 AndroidUserAuthorizer::AndroidUserAuthorizer() : shutdown_(false) {
   JniEnvExt* env = JniEnvExt::Get();
-  jobject local_ref = env->CallActivityObjectMethodOrAbort(
+  jobject local_ref = env->CallStarboardObjectMethodOrAbort(
       "getUserAuthorizer", "()Lfoo/cobalt/account/UserAuthorizer;");
   j_user_authorizer_ = env->ConvertLocalRefToGlobalRef(local_ref);
 }
