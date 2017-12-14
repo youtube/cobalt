@@ -37,8 +37,9 @@
 // whether captions are enabled or disabled at a system level. It is important
 // to note that this property can both be read from and written to, and if using
 // either of these behaviors, you should use the corresponding check to ensure
-// that it is supported.  If you attempt to perform an operation on this
-// property that is unsupported, then it will return false, rather than null.
+// that it is supported.  If you try to read from the property and doing so is
+// not supported, it will return false. If you try to write to it and doing so
+// is not supported, the value will silently not change.
 
 [Constructor]
 interface SystemCaptionSettings : EventTarget {
