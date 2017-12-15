@@ -29,21 +29,29 @@ namespace v8c {
 // at any time.
 struct V8cWrapperHandle : public Wrappable::WeakWrapperHandle {
  public:
+  static v8::MaybeLocal<v8::Object> MaybeGetObject(
+      v8::Isolate* isolate, const Wrappable::WeakWrapperHandle* handle) {
+    WrapperPrivate* weak_wrapper_private =
+        MaybeGetWrapperPrivate(isolate, handle);
+    if (!weak_wrapper_private) {
+      return {};
+    }
+    return weak_wrapper_private->wrapper();
+  }
+
+  static WrapperPrivate* MaybeGetWrapperPrivate(
+      v8::Isolate* isolate, const Wrappable::WeakWrapperHandle* handle) {
+    if (!handle) {
+      return nullptr;
+    }
+    const V8cWrapperHandle* v8c_handle =
+        base::polymorphic_downcast<const V8cWrapperHandle*>(handle);
+    return v8c_handle->weak_wrapper_private_;
+  }
+
   explicit V8cWrapperHandle(WrapperPrivate* wrapper_private) {
     DCHECK(wrapper_private);
     weak_wrapper_private_ = wrapper_private->AsWeakPtr();
-  }
-
-  static v8::MaybeLocal<v8::Object> GetObject(
-      v8::Isolate* isolate, const Wrappable::WeakWrapperHandle* handle) {
-    if (handle) {
-      const V8cWrapperHandle* v8c_handle =
-          base::polymorphic_downcast<const V8cWrapperHandle*>(handle);
-      if (v8c_handle->weak_wrapper_private_) {
-        return v8c_handle->weak_wrapper_private_->wrapper();
-      }
-    }
-    return {};
   }
 
   base::WeakPtr<WrapperPrivate> weak_wrapper_private_;
