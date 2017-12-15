@@ -73,6 +73,7 @@ class LayoutManager {
 
   void Suspend();
   void Resume();
+  void Purge();
 
   bool IsRenderTreePending() const;
 
