@@ -28,6 +28,8 @@ namespace cobalt {
 namespace script {
 namespace v8c {
 
+v8::Platform* GetPlatform();
+
 class V8cEngine : public JavaScriptEngine {
  public:
   explicit V8cEngine(const Options& options);
@@ -42,6 +44,8 @@ class V8cEngine : public JavaScriptEngine {
   v8::Isolate* isolate() const { return isolate_; }
 
  private:
+  static const int kIsolateDataIndex = 0;
+
   base::ThreadChecker thread_checker_;
 
   // An isolated instance of the V8 engine.

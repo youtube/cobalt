@@ -145,7 +145,7 @@ class V8cGlobalEnvironment : public GlobalEnvironment,
 
   // Where we store ourselves as embedder private data in our corresponding
   // |v8::Isolate|.
-  static const int kIsolateDataIndex = 0;
+  static const int kIsolateDataIndex = 1;
 
   base::ThreadChecker thread_checker_;
   v8::Isolate* isolate_;

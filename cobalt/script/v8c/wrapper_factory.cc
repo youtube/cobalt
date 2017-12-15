@@ -41,17 +41,22 @@ void WrapperFactory::RegisterWrappableType(
 v8::Local<v8::Object> WrapperFactory::GetWrapper(
     const scoped_refptr<Wrappable>& wrappable) {
   v8::Local<v8::Object> wrapper;
-  v8::MaybeLocal<v8::Object> maybe_wrapper =
-      V8cWrapperHandle::GetObject(isolate_, GetCachedWrapper(wrappable.get()));
+  v8::MaybeLocal<v8::Object> maybe_wrapper = V8cWrapperHandle::MaybeGetObject(
+      isolate_, GetCachedWrapper(wrappable.get()));
   if (!maybe_wrapper.ToLocal(&wrapper)) {
     scoped_ptr<Wrappable::WeakWrapperHandle> object_handle =
         CreateWrapper(wrappable);
     SetCachedWrapper(wrappable.get(), object_handle.Pass());
-    wrapper =
-        V8cWrapperHandle::GetObject(isolate_, GetCachedWrapper(wrappable.get()))
-            .ToLocalChecked();
+    wrapper = V8cWrapperHandle::MaybeGetObject(
+                  isolate_, GetCachedWrapper(wrappable.get()))
+                  .ToLocalChecked();
   }
   return wrapper;
+}
+
+WrapperPrivate* WrapperFactory::MaybeGetWrapperPrivate(Wrappable* wrappable) {
+  return V8cWrapperHandle::MaybeGetWrapperPrivate(isolate_,
+                                                  GetCachedWrapper(wrappable));
 }
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
@@ -76,13 +81,6 @@ bool WrapperFactory::DoesObjectImplementInterface(v8::Local<v8::Object> object,
   // If the object doesn't have a wrapper private which means it is not a
   // platform object, so the object doesn't implement the interface.
   if (!WrapperPrivate::HasWrapperPrivate(object)) {
-    return false;
-  }
-
-  // TODO: The existence of the internal field slot should imply that it has
-  // wrapper private data that we put there, look into why this is happening.
-  if (!object->GetInternalField(0)->IsExternal()) {
-    NOTIMPLEMENTED();
     return false;
   }
 
