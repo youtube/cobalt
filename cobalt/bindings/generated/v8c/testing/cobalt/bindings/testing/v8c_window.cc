@@ -133,12 +133,14 @@
 #include "cobalt/script/v8c/callback_function_conversion.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/helpers.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
+#include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
 #include "v8/include/v8.h"
@@ -266,7 +268,6 @@ using cobalt::script::Wrappable;
 using cobalt::script::v8c::EntryScope;
 using cobalt::script::v8c::EscapableEntryScope;
 using cobalt::script::v8c::FromJSValue;
-using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
 using cobalt::script::v8c::kConversionFlagNullable;
 using cobalt::script::v8c::kConversionFlagObjectOnly;
@@ -274,18 +275,14 @@ using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::NewInternalString;
 using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::TypeTraits;
 using cobalt::script::v8c::V8cExceptionState;
 using cobalt::script::v8c::V8cGlobalEnvironment;
+using cobalt::script::v8c::V8cPropertyEnumerator;
 using cobalt::script::v8c::WrapperFactory;
 using cobalt::script::v8c::WrapperPrivate;
-
-v8::Local<v8::Object> DummyFunctor(v8::Isolate*, const scoped_refptr<Wrappable>&) {
-  NOTIMPLEMENTED();
-  return {};
-}
-
 }  // namespace
 
 namespace cobalt {
@@ -294,6 +291,14 @@ namespace testing {
 
 
 namespace {
+
+const int kInterfaceUniqueId = 53;
+
+
+
+
+
+
 
 
 
@@ -371,6 +376,7 @@ void windowPropertyAttributeSetter(
   return;
 }
 
+
 void windowAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -406,6 +412,7 @@ void windowAttributeGetter(
     info.GetReturnValue().Set(result_value);
   }
 }
+
 
 
 void onEventAttributeGetter(
@@ -636,118 +643,322 @@ void windowOperationMethod(const v8::FunctionCallbackInfo<v8::Value>& info) {
 }
 
 
-void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* interface_data) {
-  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(isolate);
-  function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "Window",
-        v8::NewStringType::kInternalized).ToLocalChecked());
+
+void InitializeTemplate(v8::Isolate* isolate) {
+  // https://heycam.github.io/webidl/#interface-object
+  // 3.6.1. Interface object
+  //
+  // The interface object for a given interface is a built-in function object.
+  // It has properties that correspond to the constants and static operations
+  // defined on that interface, as described in sections 3.6.6 Constants and
+  // 3.6.8 Operations.
+  //
+  // If the interface is declared with a [Constructor] extended attribute,
+  // then the interface object can be called as a constructor to create an
+  // object that implements that interface. Calling that interface as a
+  // function will throw an exception.
+  //
+  // Interface objects whose interfaces are not declared with a [Constructor]
+  // extended attribute will throw when called, both as a function and as a
+  // constructor.
+  //
+  // An interface object for a non-callback interface has an associated object
+  // called the interface prototype object. This object has properties that
+  // correspond to the regular attributes and regular operations defined on
+  // the interface, and is described in more detail in 3.6.3 Interface
+  // prototype object.
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(
+          isolate,
+          nullptr,
+          v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(),
+          0);
+  function_template->SetClassName(NewInternalString(isolate, "Window"));
+  function_template->ReadOnlyPrototype();
+
+  v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(WrapperPrivate::kInternalFieldCount);
 
-  v8::Local<v8::FunctionTemplate> parent_template = V8cGlobalInterfaceParent::CreateTemplate(isolate);
-  function_template->Inherit(parent_template);
-
-  v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
-
-
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "windowProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    windowPropertyAttributeGetter
-    ,windowPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "window",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    windowAttributeGetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "onEvent",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    onEventAttributeGetter
-    ,onEventAttributeSetter
-  );
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  global_environment->AddInterfaceData(kInterfaceUniqueId, function_template);
 
   {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, getStackTraceMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "getStackTrace",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
+    // An interface can be defined to inherit from another interface. If the
+    // identifier of the interface is followed by a U+003A COLON (":") character
+    // and an identifier, then that identifier identifies the inherited
+    // interface. An object that implements an interface that inherits from
+    // another also implements that inherited interface. The object therefore
+    // will also have members that correspond to the interface members from the
+    // inherited interface.
+    v8::Local<v8::FunctionTemplate> parent_template = V8cGlobalInterfaceParent::GetTemplate(isolate);
+    function_template->Inherit(parent_template);
   }
 
+  // https://heycam.github.io/webidl/#es-constants
+  // 3.6.6. Constants
+  //
+  // For each exposed constant defined on an interface A, there must be a
+  // corresponding property. The property has the following characteristics:
+
+  // https://heycam.github.io/webidl/#es-attributes
+  // 3.6.7. Attributes
+  //
+  // For each exposed attribute of the interface there must exist a
+  // corresponding property. The characteristics of this property are as
+  // follows:
   {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, setTimeoutMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "setTimeout",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "windowProperty");
 
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, if the attribute is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    instance_template->SetAccessor(
+        name,
+        windowPropertyAttributeGetter,
+        windowPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+
+  }
   {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, windowOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "windowOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "window");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, if the attribute is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    instance_template->SetAccessor(
+        name,
+        windowAttributeGetter,
+        0,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "onEvent");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, if the attribute is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    instance_template->SetAccessor(
+        name,
+        onEventAttributeGetter,
+        onEventAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+
   }
 
+  // https://heycam.github.io/webidl/#es-operations
+  // 3.6.8. Operations
+  //
+  // For each unique identifier of an exposed operation defined on the
+  // interface, there must exist a corresponding property, unless the effective
+  // overload set for that identifier and operation and with an argument count
+  // of 0 has no entries.
+  //
+  // The characteristics of this property are as follows:
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "getStackTrace");
 
-  interface_data->function_template.Set(isolate, function_template);
-}
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
 
-inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
-  const int kInterfaceUniqueId = 53;
-  // By convention, the |V8cGlobalEnvironment| that we are associated with
-  // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
-  // for it to be there in the first place, and could not have conflicted with
-  // any other interface.
-  return global_environment->GetInterfaceData(kInterfaceUniqueId);
+    // The location of the property is determined as follows:
+    // Otherwise, if the operation is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, getStackTraceMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    instance_template->Set(
+        NewInternalString(isolate, "getStackTrace"),
+        method_template);
+
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "setTimeout");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, if the operation is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, setTimeoutMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    instance_template->Set(
+        NewInternalString(isolate, "setTimeout"),
+        method_template);
+
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "windowOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, if the operation is unforgeable on the interface or if the
+    // interface was declared with the [Global] extended attribute, then the
+    // property exists on every object that implements the interface.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, windowOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    instance_template->Set(
+        NewInternalString(isolate, "windowOperation"),
+        method_template);
+
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+
+  // https://heycam.github.io/webidl/#es-stringifier
+  // 3.6.8.2. Stringifiers
+  prototype_template->Set(
+      v8::Symbol::GetToStringTag(isolate),
+      NewInternalString(isolate, "Window"),
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
+
+
+
 }
 
 }  // namespace
 
-v8::Local<v8::Object> V8cWindow::CreateWrapper(v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
-  EscapableEntryScope entry_scope(isolate);
-  v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  InterfaceData* interface_data = GetInterfaceData(global_environment);
-  if (interface_data->function_template.IsEmpty()) {
-    InitializeTemplateAndInterfaceObject(isolate, interface_data);
-  }
-  DCHECK(!interface_data->function_template.IsEmpty());
-
-  v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
-  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
-  v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
-  DCHECK(object->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
-
-  // This |WrapperPrivate|'s lifetime will be managed by V8.
-  new WrapperPrivate(isolate, wrappable, object);
-  return entry_scope.Escape(object);
+// The global interface is special.  Just give them the global object proxy.
+v8::Local<v8::Object> V8cWindow::CreateWrapper(
+    v8::Isolate* isolate, const scoped_refptr<Wrappable>&) {
+  return isolate->GetCurrentContext()->Global();
 }
 
-v8::Local<v8::FunctionTemplate> V8cWindow::CreateTemplate(v8::Isolate* isolate) {
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  InterfaceData* interface_data = GetInterfaceData(global_environment);
-  if (interface_data->function_template.IsEmpty()) {
-    InitializeTemplateAndInterfaceObject(isolate, interface_data);
-  }
 
-  return interface_data->function_template.Get(isolate);
+v8::Local<v8::FunctionTemplate> V8cWindow::GetTemplate(v8::Isolate* isolate) {
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  if (!global_environment->HasInterfaceData(kInterfaceUniqueId)) {
+    InitializeTemplate(isolate);
+  }
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 
@@ -764,260 +975,11 @@ template <typename GlobalInterface>
 void V8cGlobalEnvironment::CreateGlobalObject(
     const scoped_refptr<GlobalInterface>& global_interface,
     EnvironmentSettings* environment_settings) {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::CreateGlobalObject()");
   // Intentionally not an |EntryScope|, since the context doesn't exist yet.
   v8::Isolate::Scope isolate_scope(isolate_);
   v8::HandleScope handle_scope(isolate_);
-  v8::Local<v8::ObjectTemplate> global_object_template = V8cWindow::CreateTemplate(isolate_)->InstanceTemplate();
-
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "AnonymousIndexedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cAnonymousIndexedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "AnonymousNamedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cAnonymousNamedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "AnonymousNamedIndexedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cAnonymousNamedIndexedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ArbitraryInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cArbitraryInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "BaseInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cBaseInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "BooleanTypeTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cBooleanTypeTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "CallbackFunctionInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cCallbackFunctionInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "CallbackInterfaceInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cCallbackInterfaceInterface::CreateTemplate(isolate_));
-#if defined(ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ConditionalInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cConditionalInterface::CreateTemplate(isolate_));
-#endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ConstantsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cConstantsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ConstructorInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cConstructorInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ConstructorWithArgumentsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cConstructorWithArgumentsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "DOMStringTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cDOMStringTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "DerivedGetterSetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cDerivedGetterSetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "DerivedInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cDerivedInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "DictionaryInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cDictionaryInterface::CreateTemplate(isolate_));
-#if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "DisabledInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cDisabledInterface::CreateTemplate(isolate_));
-#endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "EnumerationInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cEnumerationInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ExceptionObjectInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cExceptionObjectInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ExceptionsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cExceptionsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ExtendedIDLAttributesInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cExtendedIDLAttributesInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "GarbageCollectionTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cGarbageCollectionTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "GlobalInterfaceParent",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cGlobalInterfaceParent::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ImplementedInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cImplementedInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "IndexedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cIndexedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "InterfaceWithAny",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cInterfaceWithAny::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "InterfaceWithAnyDictionary",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cInterfaceWithAnyDictionary::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "InterfaceWithDate",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cInterfaceWithDate::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "InterfaceWithUnsupportedProperties",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cInterfaceWithUnsupportedProperties::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NamedConstructorInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNamedConstructorInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NamedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNamedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NamedIndexedGetterInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNamedIndexedGetterInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NestedPutForwardsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNestedPutForwardsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NoConstructorInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNoConstructorInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NoInterfaceObjectInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNoInterfaceObjectInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NullableTypesTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNullableTypesTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "NumericTypesTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cNumericTypesTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "ObjectTypeBindingsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cObjectTypeBindingsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "OperationsTestInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cOperationsTestInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "PromiseInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cPromiseInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "PutForwardsInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cPutForwardsInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "SequenceUser",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cSequenceUser::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "StaticPropertiesInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cStaticPropertiesInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "StringifierAnonymousOperationInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cStringifierAnonymousOperationInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "StringifierAttributeInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cStringifierAttributeInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "StringifierOperationInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cStringifierOperationInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "TargetInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cTargetInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "UnionTypesInterface",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cUnionTypesInterface::CreateTemplate(isolate_));
-  global_object_template->Set(
-      v8::String::NewFromUtf8(
-          isolate_, "Window",
-          v8::NewStringType::kInternalized).ToLocalChecked(),
-      V8cWindow::CreateTemplate(isolate_));
+  v8::Local<v8::ObjectTemplate> global_object_template = V8cWindow::GetTemplate(isolate_)->InstanceTemplate();
 
   v8::Local<v8::Context> context =
       v8::Context::New(isolate_, nullptr, global_object_template);
@@ -1029,207 +991,212 @@ void V8cGlobalEnvironment::CreateGlobalObject(
   environment_settings_ = environment_settings;
   EvaluateAutomatics();
 
+  v8::Local<v8::Object> global_object = context->Global();
+  new WrapperPrivate(isolate_, global_interface, global_object);
+
+  auto actual_global_object = global_object->GetPrototype()->ToObject();
+  new WrapperPrivate(isolate_, global_interface, actual_global_object);
+
   wrapper_factory_->RegisterWrappableType(
       AnonymousIndexedGetterInterface::AnonymousIndexedGetterInterfaceWrappableType(),
       base::Bind(V8cAnonymousIndexedGetterInterface::CreateWrapper),
-      base::Bind(V8cAnonymousIndexedGetterInterface::CreateTemplate));
+      base::Bind(V8cAnonymousIndexedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       AnonymousNamedGetterInterface::AnonymousNamedGetterInterfaceWrappableType(),
       base::Bind(V8cAnonymousNamedGetterInterface::CreateWrapper),
-      base::Bind(V8cAnonymousNamedGetterInterface::CreateTemplate));
+      base::Bind(V8cAnonymousNamedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       AnonymousNamedIndexedGetterInterface::AnonymousNamedIndexedGetterInterfaceWrappableType(),
       base::Bind(V8cAnonymousNamedIndexedGetterInterface::CreateWrapper),
-      base::Bind(V8cAnonymousNamedIndexedGetterInterface::CreateTemplate));
+      base::Bind(V8cAnonymousNamedIndexedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ArbitraryInterface::ArbitraryInterfaceWrappableType(),
       base::Bind(V8cArbitraryInterface::CreateWrapper),
-      base::Bind(V8cArbitraryInterface::CreateTemplate));
+      base::Bind(V8cArbitraryInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       BaseInterface::BaseInterfaceWrappableType(),
       base::Bind(V8cBaseInterface::CreateWrapper),
-      base::Bind(V8cBaseInterface::CreateTemplate));
+      base::Bind(V8cBaseInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       BooleanTypeTestInterface::BooleanTypeTestInterfaceWrappableType(),
       base::Bind(V8cBooleanTypeTestInterface::CreateWrapper),
-      base::Bind(V8cBooleanTypeTestInterface::CreateTemplate));
+      base::Bind(V8cBooleanTypeTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       CallbackFunctionInterface::CallbackFunctionInterfaceWrappableType(),
       base::Bind(V8cCallbackFunctionInterface::CreateWrapper),
-      base::Bind(V8cCallbackFunctionInterface::CreateTemplate));
+      base::Bind(V8cCallbackFunctionInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       CallbackInterfaceInterface::CallbackInterfaceInterfaceWrappableType(),
       base::Bind(V8cCallbackInterfaceInterface::CreateWrapper),
-      base::Bind(V8cCallbackInterfaceInterface::CreateTemplate));
+      base::Bind(V8cCallbackInterfaceInterface::GetTemplate));
 #if defined(ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory_->RegisterWrappableType(
       ConditionalInterface::ConditionalInterfaceWrappableType(),
       base::Bind(V8cConditionalInterface::CreateWrapper),
-      base::Bind(V8cConditionalInterface::CreateTemplate));
+      base::Bind(V8cConditionalInterface::GetTemplate));
 #endif  // defined(ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory_->RegisterWrappableType(
       ConstantsInterface::ConstantsInterfaceWrappableType(),
       base::Bind(V8cConstantsInterface::CreateWrapper),
-      base::Bind(V8cConstantsInterface::CreateTemplate));
+      base::Bind(V8cConstantsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ConstructorInterface::ConstructorInterfaceWrappableType(),
       base::Bind(V8cConstructorInterface::CreateWrapper),
-      base::Bind(V8cConstructorInterface::CreateTemplate));
+      base::Bind(V8cConstructorInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ConstructorWithArgumentsInterface::ConstructorWithArgumentsInterfaceWrappableType(),
       base::Bind(V8cConstructorWithArgumentsInterface::CreateWrapper),
-      base::Bind(V8cConstructorWithArgumentsInterface::CreateTemplate));
+      base::Bind(V8cConstructorWithArgumentsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       DOMStringTestInterface::DOMStringTestInterfaceWrappableType(),
       base::Bind(V8cDOMStringTestInterface::CreateWrapper),
-      base::Bind(V8cDOMStringTestInterface::CreateTemplate));
+      base::Bind(V8cDOMStringTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       DerivedGetterSetterInterface::DerivedGetterSetterInterfaceWrappableType(),
       base::Bind(V8cDerivedGetterSetterInterface::CreateWrapper),
-      base::Bind(V8cDerivedGetterSetterInterface::CreateTemplate));
+      base::Bind(V8cDerivedGetterSetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       DerivedInterface::DerivedInterfaceWrappableType(),
       base::Bind(V8cDerivedInterface::CreateWrapper),
-      base::Bind(V8cDerivedInterface::CreateTemplate));
+      base::Bind(V8cDerivedInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       DictionaryInterface::DictionaryInterfaceWrappableType(),
       base::Bind(V8cDictionaryInterface::CreateWrapper),
-      base::Bind(V8cDictionaryInterface::CreateTemplate));
+      base::Bind(V8cDictionaryInterface::GetTemplate));
 #if defined(NO_ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory_->RegisterWrappableType(
       DisabledInterface::DisabledInterfaceWrappableType(),
       base::Bind(V8cDisabledInterface::CreateWrapper),
-      base::Bind(V8cDisabledInterface::CreateTemplate));
+      base::Bind(V8cDisabledInterface::GetTemplate));
 #endif  // defined(NO_ENABLE_CONDITIONAL_INTERFACE)
   wrapper_factory_->RegisterWrappableType(
       EnumerationInterface::EnumerationInterfaceWrappableType(),
       base::Bind(V8cEnumerationInterface::CreateWrapper),
-      base::Bind(V8cEnumerationInterface::CreateTemplate));
+      base::Bind(V8cEnumerationInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ExceptionObjectInterface::ExceptionObjectInterfaceWrappableType(),
       base::Bind(V8cExceptionObjectInterface::CreateWrapper),
-      base::Bind(V8cExceptionObjectInterface::CreateTemplate));
+      base::Bind(V8cExceptionObjectInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ExceptionsInterface::ExceptionsInterfaceWrappableType(),
       base::Bind(V8cExceptionsInterface::CreateWrapper),
-      base::Bind(V8cExceptionsInterface::CreateTemplate));
+      base::Bind(V8cExceptionsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ExtendedIDLAttributesInterface::ExtendedIDLAttributesInterfaceWrappableType(),
       base::Bind(V8cExtendedIDLAttributesInterface::CreateWrapper),
-      base::Bind(V8cExtendedIDLAttributesInterface::CreateTemplate));
+      base::Bind(V8cExtendedIDLAttributesInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       GarbageCollectionTestInterface::GarbageCollectionTestInterfaceWrappableType(),
       base::Bind(V8cGarbageCollectionTestInterface::CreateWrapper),
-      base::Bind(V8cGarbageCollectionTestInterface::CreateTemplate));
+      base::Bind(V8cGarbageCollectionTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       GlobalInterfaceParent::GlobalInterfaceParentWrappableType(),
       base::Bind(V8cGlobalInterfaceParent::CreateWrapper),
-      base::Bind(V8cGlobalInterfaceParent::CreateTemplate));
+      base::Bind(V8cGlobalInterfaceParent::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ImplementedInterface::ImplementedInterfaceWrappableType(),
       base::Bind(V8cImplementedInterface::CreateWrapper),
-      base::Bind(V8cImplementedInterface::CreateTemplate));
+      base::Bind(V8cImplementedInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       IndexedGetterInterface::IndexedGetterInterfaceWrappableType(),
       base::Bind(V8cIndexedGetterInterface::CreateWrapper),
-      base::Bind(V8cIndexedGetterInterface::CreateTemplate));
+      base::Bind(V8cIndexedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithAny::InterfaceWithAnyWrappableType(),
       base::Bind(V8cInterfaceWithAny::CreateWrapper),
-      base::Bind(V8cInterfaceWithAny::CreateTemplate));
+      base::Bind(V8cInterfaceWithAny::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithAnyDictionary::InterfaceWithAnyDictionaryWrappableType(),
       base::Bind(V8cInterfaceWithAnyDictionary::CreateWrapper),
-      base::Bind(V8cInterfaceWithAnyDictionary::CreateTemplate));
+      base::Bind(V8cInterfaceWithAnyDictionary::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithDate::InterfaceWithDateWrappableType(),
       base::Bind(V8cInterfaceWithDate::CreateWrapper),
-      base::Bind(V8cInterfaceWithDate::CreateTemplate));
+      base::Bind(V8cInterfaceWithDate::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
       base::Bind(V8cInterfaceWithUnsupportedProperties::CreateWrapper),
-      base::Bind(V8cInterfaceWithUnsupportedProperties::CreateTemplate));
+      base::Bind(V8cInterfaceWithUnsupportedProperties::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NamedConstructorInterface::NamedConstructorInterfaceWrappableType(),
       base::Bind(V8cNamedConstructorInterface::CreateWrapper),
-      base::Bind(V8cNamedConstructorInterface::CreateTemplate));
+      base::Bind(V8cNamedConstructorInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NamedGetterInterface::NamedGetterInterfaceWrappableType(),
       base::Bind(V8cNamedGetterInterface::CreateWrapper),
-      base::Bind(V8cNamedGetterInterface::CreateTemplate));
+      base::Bind(V8cNamedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NamedIndexedGetterInterface::NamedIndexedGetterInterfaceWrappableType(),
       base::Bind(V8cNamedIndexedGetterInterface::CreateWrapper),
-      base::Bind(V8cNamedIndexedGetterInterface::CreateTemplate));
+      base::Bind(V8cNamedIndexedGetterInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NestedPutForwardsInterface::NestedPutForwardsInterfaceWrappableType(),
       base::Bind(V8cNestedPutForwardsInterface::CreateWrapper),
-      base::Bind(V8cNestedPutForwardsInterface::CreateTemplate));
+      base::Bind(V8cNestedPutForwardsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NoConstructorInterface::NoConstructorInterfaceWrappableType(),
       base::Bind(V8cNoConstructorInterface::CreateWrapper),
-      base::Bind(V8cNoConstructorInterface::CreateTemplate));
+      base::Bind(V8cNoConstructorInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NoInterfaceObjectInterface::NoInterfaceObjectInterfaceWrappableType(),
       base::Bind(V8cNoInterfaceObjectInterface::CreateWrapper),
-      base::Bind(V8cNoInterfaceObjectInterface::CreateTemplate));
+      base::Bind(V8cNoInterfaceObjectInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NullableTypesTestInterface::NullableTypesTestInterfaceWrappableType(),
       base::Bind(V8cNullableTypesTestInterface::CreateWrapper),
-      base::Bind(V8cNullableTypesTestInterface::CreateTemplate));
+      base::Bind(V8cNullableTypesTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       NumericTypesTestInterface::NumericTypesTestInterfaceWrappableType(),
       base::Bind(V8cNumericTypesTestInterface::CreateWrapper),
-      base::Bind(V8cNumericTypesTestInterface::CreateTemplate));
+      base::Bind(V8cNumericTypesTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       ObjectTypeBindingsInterface::ObjectTypeBindingsInterfaceWrappableType(),
       base::Bind(V8cObjectTypeBindingsInterface::CreateWrapper),
-      base::Bind(V8cObjectTypeBindingsInterface::CreateTemplate));
+      base::Bind(V8cObjectTypeBindingsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       OperationsTestInterface::OperationsTestInterfaceWrappableType(),
       base::Bind(V8cOperationsTestInterface::CreateWrapper),
-      base::Bind(V8cOperationsTestInterface::CreateTemplate));
+      base::Bind(V8cOperationsTestInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       PromiseInterface::PromiseInterfaceWrappableType(),
       base::Bind(V8cPromiseInterface::CreateWrapper),
-      base::Bind(V8cPromiseInterface::CreateTemplate));
+      base::Bind(V8cPromiseInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       PutForwardsInterface::PutForwardsInterfaceWrappableType(),
       base::Bind(V8cPutForwardsInterface::CreateWrapper),
-      base::Bind(V8cPutForwardsInterface::CreateTemplate));
+      base::Bind(V8cPutForwardsInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       SequenceUser::SequenceUserWrappableType(),
       base::Bind(V8cSequenceUser::CreateWrapper),
-      base::Bind(V8cSequenceUser::CreateTemplate));
+      base::Bind(V8cSequenceUser::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       StaticPropertiesInterface::StaticPropertiesInterfaceWrappableType(),
       base::Bind(V8cStaticPropertiesInterface::CreateWrapper),
-      base::Bind(V8cStaticPropertiesInterface::CreateTemplate));
+      base::Bind(V8cStaticPropertiesInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       StringifierAnonymousOperationInterface::StringifierAnonymousOperationInterfaceWrappableType(),
       base::Bind(V8cStringifierAnonymousOperationInterface::CreateWrapper),
-      base::Bind(V8cStringifierAnonymousOperationInterface::CreateTemplate));
+      base::Bind(V8cStringifierAnonymousOperationInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       StringifierAttributeInterface::StringifierAttributeInterfaceWrappableType(),
       base::Bind(V8cStringifierAttributeInterface::CreateWrapper),
-      base::Bind(V8cStringifierAttributeInterface::CreateTemplate));
+      base::Bind(V8cStringifierAttributeInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       StringifierOperationInterface::StringifierOperationInterfaceWrappableType(),
       base::Bind(V8cStringifierOperationInterface::CreateWrapper),
-      base::Bind(V8cStringifierOperationInterface::CreateTemplate));
+      base::Bind(V8cStringifierOperationInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       TargetInterface::TargetInterfaceWrappableType(),
       base::Bind(V8cTargetInterface::CreateWrapper),
-      base::Bind(V8cTargetInterface::CreateTemplate));
+      base::Bind(V8cTargetInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       UnionTypesInterface::UnionTypesInterfaceWrappableType(),
       base::Bind(V8cUnionTypesInterface::CreateWrapper),
-      base::Bind(V8cUnionTypesInterface::CreateTemplate));
+      base::Bind(V8cUnionTypesInterface::GetTemplate));
   wrapper_factory_->RegisterWrappableType(
       Window::WindowWrappableType(),
-      base::Bind(DummyFunctor),
-      base::Bind(V8cWindow::CreateTemplate));
-
+      base::Bind(V8cWindow::CreateWrapper),
+      base::Bind(V8cWindow::GetTemplate));
 }
 
 }  // namespace v8c
