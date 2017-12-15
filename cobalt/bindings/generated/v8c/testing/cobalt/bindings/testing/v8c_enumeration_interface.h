@@ -39,8 +39,7 @@ namespace testing {
 class V8cEnumerationInterface {
  public:
   static v8::Local<v8::Object> CreateWrapper(v8::Isolate* isolate, const scoped_refptr<script::Wrappable>& wrappable);
-  static v8::Local<v8::FunctionTemplate> CreateTemplate(v8::Isolate* isolate);
-  static v8::Local<v8::Object> GetInterfaceObject(v8::Isolate* isolate, v8::Local<v8::Object> global_object);
+  static v8::Local<v8::FunctionTemplate> GetTemplate(v8::Isolate* isolate);
 };
 
 }  // namespace testing

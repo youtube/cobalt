@@ -25,6 +25,7 @@
 #include "v8c_gen_type_conversion.h"
 #include "base/logging.h"
 #include "cobalt/script/exception_state.h"
+#include "cobalt/script/v8c/helpers.h"
 #include "v8/include/v8.h"
 
 using cobalt::bindings::testing::TestEnum;
@@ -82,37 +83,37 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   bool match = false;
 // 3. Return the enumeration value of type E that is equal to S.
  if (
-      v8::String::NewFromUtf8(isolate, "alpha", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "alpha")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumAlpha;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "beta", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "beta")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumBeta;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "gamma", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "gamma")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumGamma;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "enum-with-dashes", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "enum-with-dashes")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumEnumWithDashes;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "enum with spaces", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "enum with spaces")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumEnumWithSpaces;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "terrible----enum", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "terrible----enum")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumTerribleEnum;
   }
  else  if (
-      v8::String::NewFromUtf8(isolate, "this is a terrible @#$%#$% enum", v8::NewStringType::kInternalized).ToLocalChecked()->Equals(value))
+      NewInternalString(isolate, "this is a terrible @#$%#$% enum")->Equals(value))
   {
     *out_enum = cobalt::bindings::testing::kTestEnumThisIsATerribleEnum;
   }
