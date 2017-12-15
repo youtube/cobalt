@@ -195,6 +195,9 @@ TEST_F(StressTest, TooManyTextures) {
     // the next image is allocated.
     scoped_ptr<ImageData> image_data = GetResourceProvider()->AllocateImageData(
         kTextureSize, pixel_format, render_tree::kAlphaFormatOpaque);
+    if (!image_data) {
+      break;
+    }
     images.emplace_back(GetResourceProvider()->CreateImage(
         image_data.Pass()));
     TestTree(kFramebufferSize, new ImageNode(images.back()));
