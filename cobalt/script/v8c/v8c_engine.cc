@@ -61,6 +61,8 @@ void InitializeAndRegisterShutDownOnce() {
 
 }  // namespace
 
+v8::Platform* GetPlatform() { return g_platform; }
+
 V8cEngine::V8cEngine(const Options& options)
     : accumulated_extra_memory_cost_(0), options_(options) {
   TRACE_EVENT0("cobalt::script", "V8cEngine::V8cEngine()");
@@ -73,16 +75,23 @@ V8cEngine::V8cEngine(const Options& options)
 
   isolate_ = v8::Isolate::New(params);
   CHECK(isolate_);
+  // There are 2 total isolate data slots, one for the sole |V8cEngine| (us),
+  // and one for the |V8cGlobalEnvironment|.
+  const int kTotalIsolateDataSlots = 2;
+  DCHECK_GE(v8::Isolate::GetNumberOfDataSlots(), kTotalIsolateDataSlots);
+  isolate_->SetData(kIsolateDataIndex, this);
 
-  v8c_heap_tracer_.reset(new V8cHeapTracer());
+  v8c_heap_tracer_.reset(new V8cHeapTracer(isolate_));
   isolate_->SetEmbedderHeapTracer(v8c_heap_tracer_.get());
-
-  DCHECK_GE(v8::Isolate::GetNumberOfDataSlots(), 1);
 }
 
 V8cEngine::~V8cEngine() {
   TRACE_EVENT0("cobalt::script", "V8cEngine::~V8cEngine");
   DCHECK(thread_checker_.CalledOnValidThread());
+
+  // This next GC is to GC everything (mostly for ASan), so we actually don't
+  // want our wrappers and wrappables to stay alive.
+  isolate_->SetEmbedderHeapTracer(nullptr);
 
   // Send a low memory notification to V8 in order to force a garbage
   // collection before shut down.  This is required to run weak callbacks that

@@ -170,7 +170,7 @@ void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* i
     v8::String::NewFromUtf8(isolate, "ExceptionObjectInterface",
         v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
-  instance_template->SetInternalFieldCount(1);
+  instance_template->SetInternalFieldCount(WrapperPrivate::kInternalFieldCount);
 
   NOTIMPLEMENTED();
 
@@ -217,9 +217,9 @@ v8::Local<v8::Object> V8cExceptionObjectInterface::CreateWrapper(v8::Isolate* is
   DCHECK(!interface_data->function_template.IsEmpty());
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
-  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
+  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
-  DCHECK(object->InternalFieldCount() == 1);
+  DCHECK(object->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
 
   // This |WrapperPrivate|'s lifetime will be managed by V8.
   new WrapperPrivate(isolate, wrappable, object);

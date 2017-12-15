@@ -24,6 +24,7 @@ namespace script {
 namespace v8c {
 
 class V8cGlobalEnvironment;
+class WrapperPrivate;
 
 // Holds a mapping between Wrappable types and base::Callbacks that create new
 // Wrapper objects corresponding to the Wrappable type.
@@ -45,6 +46,10 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
                              const PrototypeClassFunction& class_function);
 
   v8::Local<v8::Object> GetWrapper(const scoped_refptr<Wrappable>& wrappable);
+
+  // Attempt to get the |WrapperPrivate| associated with |wrappable|.  Returns
+  // |nullptr| if no |WrapperPrivate| was found.
+  WrapperPrivate* MaybeGetWrapperPrivate(Wrappable* wrappable);
 
   bool DoesObjectImplementInterface(v8::Local<v8::Object> object,
                                     base::TypeId id) const;

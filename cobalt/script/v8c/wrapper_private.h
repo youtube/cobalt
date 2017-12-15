@@ -41,9 +41,8 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   // should never be called on objects that don't have private data.
   static WrapperPrivate* GetFromWrapperObject(v8::Local<v8::Object> object) {
     DCHECK(object->InternalFieldCount() == kInternalFieldCount);
-    v8::Local<v8::External> external = v8::Local<v8::External>::Cast(
-        object->GetInternalField(kInternalFieldIndex));
-    return static_cast<WrapperPrivate*>(external->Value());
+    return static_cast<WrapperPrivate*>(
+        object->GetAlignedPointerFromInternalField(kInternalFieldDataIndex));
   }
 
   // Check whether |object| has private wrapper data.
@@ -51,29 +50,49 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     return object->InternalFieldCount() == kInternalFieldCount;
   }
 
+  static const int kInternalFieldCount = 2;
+
   WrapperPrivate() = delete;
   WrapperPrivate(v8::Isolate* isolate,
                  const scoped_refptr<Wrappable>& wrappable,
                  v8::Local<v8::Object> wrapper)
       : isolate_(isolate), wrappable_(wrappable), wrapper_(isolate, wrapper) {
-    wrapper->SetInternalField(kInternalFieldIndex,
-                              v8::External::New(isolate, this));
+    wrapper->SetAlignedPointerInInternalField(kInternalFieldDataIndex, this);
+    wrapper->SetAlignedPointerInInternalField(kInternalFieldDummyIndex,
+                                              nullptr);
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
   }
+
+  // Mark |wrapper_| as reachable from other |Traceable|s.  This will be
+  // called by |V8cHeapTracer| during tracing.
+  void Mark() { wrapper_.RegisterExternalReference(isolate_); }
 
   template <typename T>
   scoped_refptr<T> wrappable() const {
     return base::polymorphic_downcast<T*>(wrappable_.get());
   }
 
+  Wrappable* raw_wrappable() const { return wrappable_.get(); }
+
   v8::Local<v8::Object> wrapper() const { return wrapper_.Get(isolate_); }
 
  private:
   // For the time being, we only use a single internal field, which stores a
   // pointer back to us (us being the |WrapperPrivate|).
-  static const int kInternalFieldIndex = 0;
-  static const int kInternalFieldCount = 1;
+  static const int kInternalFieldDataIndex = 0;
+  // Blink uses two fields, so V8 won't believe we're a potential wrapper
+  // unless we have two fields.
+  //      .-""""""-.
+  //    .'          '.
+  //   /   O      O   \
+  //  :                :
+  //  |                |
+  //  :    .------.    :
+  //   \  '        '  /
+  //    '.          .'
+  //      '-......-'
+  static const int kInternalFieldDummyIndex = 1;
 
   v8::Isolate* isolate_;
   scoped_refptr<Wrappable> wrappable_;

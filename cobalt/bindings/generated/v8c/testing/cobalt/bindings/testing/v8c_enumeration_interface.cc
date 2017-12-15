@@ -101,8 +101,10 @@ void Constructor(const v8::FunctionCallbackInfo<v8::Value>& info) {
 
   scoped_refptr<EnumerationInterface> new_object =
       new EnumerationInterface();
-  NOTIMPLEMENTED();
-  info.This()->SetInternalField(0, v8::External::New(isolate, nullptr));
+  v8::Local<v8::Value> result_value;
+  ToJSValue(isolate, new_object, &result_value);
+  DCHECK(result_value->IsObject());
+  info.GetReturnValue().Set(result_value);
 }
 
 
@@ -232,7 +234,7 @@ void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* i
     v8::String::NewFromUtf8(isolate, "EnumerationInterface",
         v8::NewStringType::kInternalized).ToLocalChecked());
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
-  instance_template->SetInternalFieldCount(1);
+  instance_template->SetInternalFieldCount(WrapperPrivate::kInternalFieldCount);
 
 
   v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
@@ -284,9 +286,9 @@ v8::Local<v8::Object> V8cEnumerationInterface::CreateWrapper(v8::Isolate* isolat
   DCHECK(!interface_data->function_template.IsEmpty());
 
   v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
-  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == 1);
+  DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
-  DCHECK(object->InternalFieldCount() == 1);
+  DCHECK(object->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
 
   // This |WrapperPrivate|'s lifetime will be managed by V8.
   new WrapperPrivate(isolate, wrappable, object);

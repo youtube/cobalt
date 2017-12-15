@@ -15,37 +15,51 @@
 #ifndef COBALT_SCRIPT_V8C_V8C_HEAP_TRACER_H_
 #define COBALT_SCRIPT_V8C_V8C_HEAP_TRACER_H_
 
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "cobalt/script/wrappable.h"
 #include "v8/include/v8.h"
+#include "v8/include/v8-platform.h"
 
 namespace cobalt {
 namespace script {
 namespace v8c {
 
-class V8cHeapTracer : public v8::EmbedderHeapTracer {
+// We need to re-forward declare this because |V8cEngine| needs us to be
+// defined to have us as a member inside of a |scoped_ptr|.
+v8::Platform* GetPlatform();
+
+class V8cHeapTracer final : public v8::EmbedderHeapTracer,
+                            public ::cobalt::script::Tracer {
  public:
+  explicit V8cHeapTracer(v8::Isolate* isolate) : isolate_(isolate) {}
+
   void RegisterV8References(
-      const std::vector<std::pair<void*, void*>>& embedder_fields) override {
-    NOTIMPLEMENTED();
-  }
-
-  void TracePrologue() override { NOTIMPLEMENTED(); }
-
+      const std::vector<std::pair<void*, void*>>& embedder_fields) override;
+  void TracePrologue() override {}
   bool AdvanceTracing(double deadline_in_ms,
-                      AdvanceTracingActions actions) override {
-    NOTIMPLEMENTED();
-    return false;
+                      AdvanceTracingActions actions) override;
+  void TraceEpilogue() override {
+    DCHECK(frontier_.empty());
+    visited_.clear();
   }
+  void EnterFinalPause() override {}
+  void AbortTracing() override {
+    LOG(WARNING) << "Tracing aborted.";
+    frontier_.clear();
+    visited_.clear();
+  }
+  size_t NumberOfWrappersToTrace() override { return frontier_.size(); }
 
-  void TraceEpilogue() override { NOTIMPLEMENTED(); }
-  void EnterFinalPause() override { NOTIMPLEMENTED(); }
-  void AbortTracing() override { NOTIMPLEMENTED(); }
-  size_t NumberOfWrappersToTrace() override {
-    NOTIMPLEMENTED();
-    return 0;
-  }
+  void Trace(Traceable* traceable) override;
+
+ private:
+  v8::Isolate* const isolate_;
+  v8::Platform* platform_ = GetPlatform();
+  std::vector<Traceable*> frontier_;
+  std::unordered_set<Traceable*> visited_;
 };
 
 }  // namespace v8c
