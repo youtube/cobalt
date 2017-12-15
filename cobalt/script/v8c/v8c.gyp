@@ -41,6 +41,7 @@
         'v8c_exception_state.h',
         'v8c_global_environment.cc',
         'v8c_global_environment.h',
+        'v8c_heap_tracer.cc',
         'v8c_heap_tracer.h',
         'v8c_property_enumerator.h',
         'v8c_script_value_factory.cc',
