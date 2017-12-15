@@ -57,7 +57,7 @@ class FontListFont {
   void set_state(State state) { state_ = state; }
 
   const scoped_refptr<render_tree::Font>& font() const { return font_; }
-  void set_font(const scoped_refptr<render_tree::Font> font) { font_ = font; }
+  void set_font(const scoped_refptr<render_tree::Font>& font) { font_ = font; }
 
  private:
   std::string family_name_;
@@ -116,7 +116,8 @@ class FontList : public render_tree::FontProvider,
 
   FontList(FontCache* font_cache, const FontListKey& font_list_key);
 
-  bool IsVisible() const;
+  // Resets the font list back to its initial state.
+  void Reset();
 
   // Reset loading fonts sets all font list fonts with a state of
   // |kLoadingState| back to |kUnrequestedState|, which will cause them to be
@@ -125,6 +126,8 @@ class FontList : public render_tree::FontProvider,
   // first loaded font, then the primary font and its associated values are
   // reset, as they may change if the loading font is now available.
   void ResetLoadingFonts();
+
+  bool IsVisible() const;
 
   // Given a string of text, returns the glyph buffer needed to render it. In
   // the case where |maybe_bounds| is non-NULL, it will also be populated with
