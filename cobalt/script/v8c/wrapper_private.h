@@ -33,7 +33,6 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
   // The callback that V8 will run when the |v8::Object| that we live inside
   // of dies.
   static void Callback(const v8::WeakCallbackInfo<WrapperPrivate>& data) {
-    data.GetParameter()->wrapper_.Reset();
     delete data.GetParameter();
   }
 
@@ -50,6 +49,9 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
     return object->InternalFieldCount() == kInternalFieldCount;
   }
 
+  // The total amount of internal fields in |wrapper_| we use.  See
+  // |kInternalFieldDataIndex| and |kInternalFieldDummyIndex| below for
+  // further information.
   static const int kInternalFieldCount = 2;
 
   WrapperPrivate() = delete;
@@ -62,6 +64,11 @@ struct WrapperPrivate : public base::SupportsWeakPtr<WrapperPrivate> {
                                               nullptr);
     wrapper_.SetWeak(this, &WrapperPrivate::Callback,
                      v8::WeakCallbackType::kParameter);
+  }
+  ~WrapperPrivate() {
+    DCHECK(wrapper_.IsNearDeath());
+    wrapper_.ClearWeak();
+    wrapper_.Reset();
   }
 
   // Mark |wrapper_| as reachable from other |Traceable|s.  This will be

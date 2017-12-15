@@ -57,7 +57,7 @@ class V8cHeapTracer final : public v8::EmbedderHeapTracer,
 
  private:
   v8::Isolate* const isolate_;
-  v8::Platform* platform_ = GetPlatform();
+  v8::Platform* const platform_ = GetPlatform();
   std::vector<Traceable*> frontier_;
   std::unordered_set<Traceable*> visited_;
 };

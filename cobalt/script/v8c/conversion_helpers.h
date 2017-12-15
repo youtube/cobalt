@@ -496,7 +496,7 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
   V8cGlobalEnvironment* global_environment =
       V8cGlobalEnvironment::GetFromIsolate(isolate);
   WrapperFactory* wrapper_factory = global_environment->wrapper_factory();
-  v8::Local<v8::Object> object = v8::Local<v8::Object>::Cast(value);
+  v8::Local<v8::Object> object = value.As<v8::Object>();
 
   // Note that |DoesObjectImplementInterface| handles the case in which
   // |object| has no |WrapperPrivate|.

@@ -26,9 +26,9 @@ namespace v8c {
 // Helper class to get the actual callable object from a v8::Object
 // implementing a callback interface.
 // Returns true if a callable was found, and false if not.
-v8::MaybeLocal<v8::Object> GetCallableForCallbackInterface(
+v8::MaybeLocal<v8::Function> GetCallableForCallbackInterface(
     v8::Isolate* isolate, v8::Local<v8::Object> implementing_object,
-    const char* property_name);
+    v8::Local<v8::String> key);
 
 }  // namespace v8c
 }  // namespace script
