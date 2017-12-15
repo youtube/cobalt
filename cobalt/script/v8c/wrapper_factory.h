@@ -35,15 +35,15 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
                                                const scoped_refptr<Wrappable>&)>
       CreateWrapperFunction;
 
-  // Callback to get v8::FunctionTemplate of prototype.
+  // Callback to get v8::FunctionTemplate of an interface.
   typedef base::Callback<v8::Local<v8::FunctionTemplate>(v8::Isolate*)>
-      PrototypeClassFunction;
+      GetFunctionTemplate;
 
   explicit WrapperFactory(v8::Isolate* isolate) : isolate_(isolate) {}
 
   void RegisterWrappableType(base::TypeId wrappable_type,
                              const CreateWrapperFunction& create_function,
-                             const PrototypeClassFunction& class_function);
+                             const GetFunctionTemplate& class_function);
 
   v8::Local<v8::Object> GetWrapper(const scoped_refptr<Wrappable>& wrappable);
 
@@ -57,10 +57,11 @@ class WrapperFactory : public Wrappable::CachedWrapperAccessor {
  private:
   struct WrappableTypeFunctions {
     CreateWrapperFunction create_wrapper;
-    PrototypeClassFunction prototype_class;
+    GetFunctionTemplate get_function_template;
     WrappableTypeFunctions(const CreateWrapperFunction& create_wrapper,
-                           const PrototypeClassFunction& prototype_class)
-        : create_wrapper(create_wrapper), prototype_class(prototype_class) {}
+                           const GetFunctionTemplate& get_function_template)
+        : create_wrapper(create_wrapper),
+          get_function_template(get_function_template) {}
   };
 
   scoped_ptr<Wrappable::WeakWrapperHandle> CreateWrapper(

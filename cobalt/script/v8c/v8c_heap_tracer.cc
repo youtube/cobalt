@@ -28,9 +28,11 @@ void V8cHeapTracer::RegisterV8References(
     WrapperPrivate* wrapper_private =
         static_cast<WrapperPrivate*>(embedder_field.first);
     wrapper_private->Mark();
+
     Wrappable* wrappable = wrapper_private->raw_wrappable();
-    frontier_.push_back(wrappable);
-    visited_.insert(wrappable);
+    if (visited_.insert(wrappable).second) {
+      frontier_.push_back(wrappable);
+    }
 
     // We expect this field to always be null, since we only have it as a
     // workaround for V8.  See "wrapper_private.h" for details.

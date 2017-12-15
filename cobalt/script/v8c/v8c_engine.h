@@ -32,6 +32,12 @@ v8::Platform* GetPlatform();
 
 class V8cEngine : public JavaScriptEngine {
  public:
+  // Helper function to allow others to retrieve us (a |V8cEngine|) from our
+  // |v8::Isolate|.
+  static V8cEngine* GetFromIsolate(v8::Isolate* isolate) {
+    return static_cast<V8cEngine*>(isolate->GetData(kIsolateDataIndex));
+  }
+
   explicit V8cEngine(const Options& options);
   ~V8cEngine() override;
 
@@ -42,8 +48,11 @@ class V8cEngine : public JavaScriptEngine {
   void SetGcThreshold(int64_t bytes) override;
 
   v8::Isolate* isolate() const { return isolate_; }
+  V8cHeapTracer* heap_tracer() const { return v8c_heap_tracer_.get(); }
 
  private:
+  // Where we store ourselves as embedder private data in our corresponding
+  // |v8::Isolate|.
   static const int kIsolateDataIndex = 0;
 
   base::ThreadChecker thread_checker_;
