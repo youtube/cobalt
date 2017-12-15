@@ -33,12 +33,14 @@
 #include "cobalt/script/v8c/callback_function_conversion.h"
 #include "cobalt/script/v8c/conversion_helpers.h"
 #include "cobalt/script/v8c/entry_scope.h"
+#include "cobalt/script/v8c/helpers.h"
 #include "cobalt/script/v8c/native_promise.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/v8c_callback_function.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
 #include "cobalt/script/v8c/v8c_exception_state.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
+#include "cobalt/script/v8c/v8c_property_enumerator.h"
 #include "cobalt/script/v8c/v8c_value_handle.h"
 #include "cobalt/script/v8c/wrapper_private.h"
 #include "v8/include/v8.h"
@@ -58,7 +60,6 @@ using cobalt::script::Wrappable;
 using cobalt::script::v8c::EntryScope;
 using cobalt::script::v8c::EscapableEntryScope;
 using cobalt::script::v8c::FromJSValue;
-using cobalt::script::v8c::InterfaceData;
 using cobalt::script::v8c::kConversionFlagClamped;
 using cobalt::script::v8c::kConversionFlagNullable;
 using cobalt::script::v8c::kConversionFlagObjectOnly;
@@ -66,18 +67,14 @@ using cobalt::script::v8c::kConversionFlagRestricted;
 using cobalt::script::v8c::kConversionFlagTreatNullAsEmptyString;
 using cobalt::script::v8c::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::v8c::kNoConversionFlags;
+using cobalt::script::v8c::NewInternalString;
 using cobalt::script::v8c::ToJSValue;
 using cobalt::script::v8c::TypeTraits;
 using cobalt::script::v8c::V8cExceptionState;
 using cobalt::script::v8c::V8cGlobalEnvironment;
+using cobalt::script::v8c::V8cPropertyEnumerator;
 using cobalt::script::v8c::WrapperFactory;
 using cobalt::script::v8c::WrapperPrivate;
-
-v8::Local<v8::Object> DummyFunctor(v8::Isolate*, const scoped_refptr<Wrappable>&) {
-  NOTIMPLEMENTED();
-  return {};
-}
-
 }  // namespace
 
 namespace cobalt {
@@ -86,6 +83,14 @@ namespace testing {
 
 
 namespace {
+
+const int kInterfaceUniqueId = 38;
+
+
+
+
+
+
 
 
 
@@ -163,6 +168,7 @@ void bytePropertyAttributeSetter(
   return;
 }
 
+
 void byteClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -236,6 +242,7 @@ void byteClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void octetPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -311,6 +318,7 @@ void octetPropertyAttributeSetter(
   return;
 }
 
+
 void octetClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -384,6 +392,7 @@ void octetClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void shortPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -459,6 +468,7 @@ void shortPropertyAttributeSetter(
   return;
 }
 
+
 void shortClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -532,6 +542,7 @@ void shortClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void unsignedShortPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -607,6 +618,7 @@ void unsignedShortPropertyAttributeSetter(
   return;
 }
 
+
 void unsignedShortClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -680,6 +692,7 @@ void unsignedShortClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void longPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -755,6 +768,7 @@ void longPropertyAttributeSetter(
   return;
 }
 
+
 void longClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -828,6 +842,7 @@ void longClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void unsignedLongPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -903,6 +918,7 @@ void unsignedLongPropertyAttributeSetter(
   return;
 }
 
+
 void unsignedLongClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -976,6 +992,7 @@ void unsignedLongClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void longLongPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1051,6 +1068,7 @@ void longLongPropertyAttributeSetter(
   return;
 }
 
+
 void longLongClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -1124,6 +1142,7 @@ void longLongClampPropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void unsignedLongLongPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -1199,6 +1218,7 @@ void unsignedLongLongPropertyAttributeSetter(
   return;
 }
 
+
 void unsignedLongLongClampPropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -1273,6 +1293,7 @@ void unsignedLongLongClampPropertyAttributeSetter(
   return;
 }
 
+
 void doublePropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
@@ -1346,6 +1367,7 @@ void doublePropertyAttributeSetter(
   result_value = v8::Undefined(isolate);
   return;
 }
+
 
 void unrestrictedDoublePropertyAttributeGetter(
     v8::Local<v8::String> property, const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -2242,392 +2264,1368 @@ void unsignedShortReturnOperationMethod(const v8::FunctionCallbackInfo<v8::Value
 }
 
 
-void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* interface_data) {
-  v8::Local<v8::FunctionTemplate> function_template = v8::FunctionTemplate::New(isolate);
-  function_template->SetClassName(
-    v8::String::NewFromUtf8(isolate, "NumericTypesTestInterface",
-        v8::NewStringType::kInternalized).ToLocalChecked());
+
+void InitializeTemplate(v8::Isolate* isolate) {
+  // https://heycam.github.io/webidl/#interface-object
+  // 3.6.1. Interface object
+  //
+  // The interface object for a given interface is a built-in function object.
+  // It has properties that correspond to the constants and static operations
+  // defined on that interface, as described in sections 3.6.6 Constants and
+  // 3.6.8 Operations.
+  //
+  // If the interface is declared with a [Constructor] extended attribute,
+  // then the interface object can be called as a constructor to create an
+  // object that implements that interface. Calling that interface as a
+  // function will throw an exception.
+  //
+  // Interface objects whose interfaces are not declared with a [Constructor]
+  // extended attribute will throw when called, both as a function and as a
+  // constructor.
+  //
+  // An interface object for a non-callback interface has an associated object
+  // called the interface prototype object. This object has properties that
+  // correspond to the regular attributes and regular operations defined on
+  // the interface, and is described in more detail in 3.6.3 Interface
+  // prototype object.
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(
+          isolate,
+          nullptr,
+          v8::Local<v8::Value>(),
+          v8::Local<v8::Signature>(),
+          0);
+  function_template->SetClassName(NewInternalString(isolate, "NumericTypesTestInterface"));
+  function_template->ReadOnlyPrototype();
+
+  v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
   v8::Local<v8::ObjectTemplate> instance_template = function_template->InstanceTemplate();
   instance_template->SetInternalFieldCount(WrapperPrivate::kInternalFieldCount);
 
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  global_environment->AddInterfaceData(kInterfaceUniqueId, function_template);
 
-  v8::Local<v8::ObjectTemplate> prototype_template = function_template->PrototypeTemplate();
 
+  // https://heycam.github.io/webidl/#es-constants
+  // 3.6.6. Constants
+  //
+  // For each exposed constant defined on an interface A, there must be a
+  // corresponding property. The property has the following characteristics:
 
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "byteProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    bytePropertyAttributeGetter
-    ,bytePropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "byteClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    byteClampPropertyAttributeGetter
-    ,byteClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "octetProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    octetPropertyAttributeGetter
-    ,octetPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "octetClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    octetClampPropertyAttributeGetter
-    ,octetClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "shortProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    shortPropertyAttributeGetter
-    ,shortPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "shortClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    shortClampPropertyAttributeGetter
-    ,shortClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedShortProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedShortPropertyAttributeGetter
-    ,unsignedShortPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedShortClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedShortClampPropertyAttributeGetter
-    ,unsignedShortClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "longProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    longPropertyAttributeGetter
-    ,longPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "longClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    longClampPropertyAttributeGetter
-    ,longClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedLongProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedLongPropertyAttributeGetter
-    ,unsignedLongPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedLongClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedLongClampPropertyAttributeGetter
-    ,unsignedLongClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "longLongProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    longLongPropertyAttributeGetter
-    ,longLongPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "longLongClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    longLongClampPropertyAttributeGetter
-    ,longLongClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedLongLongProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedLongLongPropertyAttributeGetter
-    ,unsignedLongLongPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unsignedLongLongClampProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unsignedLongLongClampPropertyAttributeGetter
-    ,unsignedLongLongClampPropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "doubleProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    doublePropertyAttributeGetter
-    ,doublePropertyAttributeSetter
-  );
-  instance_template->SetAccessor(
-    v8::String::NewFromUtf8(isolate, "unrestrictedDoubleProperty",
-                              v8::NewStringType::kInternalized)
-          .ToLocalChecked(),
-    unrestrictedDoublePropertyAttributeGetter
-    ,unrestrictedDoublePropertyAttributeSetter
-  );
-
+  // https://heycam.github.io/webidl/#es-attributes
+  // 3.6.7. Attributes
+  //
+  // For each exposed attribute of the interface there must exist a
+  // corresponding property. The characteristics of this property are as
+  // follows:
   {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, byteArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "byteArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "byteProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        bytePropertyAttributeGetter,
+        bytePropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "byteClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        byteClampPropertyAttributeGetter,
+        byteClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "octetProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        octetPropertyAttributeGetter,
+        octetPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "octetClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        octetClampPropertyAttributeGetter,
+        octetClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "shortProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        shortPropertyAttributeGetter,
+        shortPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "shortClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        shortClampPropertyAttributeGetter,
+        shortClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedShortProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedShortPropertyAttributeGetter,
+        unsignedShortPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedShortClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedShortClampPropertyAttributeGetter,
+        unsignedShortClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        longPropertyAttributeGetter,
+        longPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        longClampPropertyAttributeGetter,
+        longClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedLongPropertyAttributeGetter,
+        unsignedLongPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedLongClampPropertyAttributeGetter,
+        unsignedLongClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longLongProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        longLongPropertyAttributeGetter,
+        longLongPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longLongClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        longLongClampPropertyAttributeGetter,
+        longLongClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongLongProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedLongLongPropertyAttributeGetter,
+        unsignedLongLongPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongLongClampProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unsignedLongLongClampPropertyAttributeGetter,
+        unsignedLongLongClampPropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "doubleProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        doublePropertyAttributeGetter,
+        doublePropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
+  }
+  {
+    // The name of the property is the identifier of the attribute.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unrestrictedDoubleProperty");
+
+    // The property has attributes { [[Get]]: G, [[Set]]: S, [[Enumerable]]:
+    // true, [[Configurable]]: configurable }, where: configurable is false if
+    // the attribute was declared with the [Unforgeable] extended attribute and
+    // true otherwise;
+    bool configurable = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        configurable ? v8::None : v8::DontDelete);
+
+    // G is the attribute getter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property;
+    // and
+    //
+    // S is the attribute setter created given the attribute, the interface, and
+    // the relevant Realm of the object that is the location of the property.
+
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    prototype_template->SetAccessor(
+        name,
+        unrestrictedDoublePropertyAttributeGetter,
+        unrestrictedDoublePropertyAttributeSetter,
+        v8::Local<v8::Value>(),
+        v8::DEFAULT,
+        attributes);
+
   }
 
+  // https://heycam.github.io/webidl/#es-operations
+  // 3.6.8. Operations
+  //
+  // For each unique identifier of an exposed operation defined on the
+  // interface, there must exist a corresponding property, unless the effective
+  // overload set for that identifier and operation and with an argument count
+  // of 0 has no entries.
+  //
+  // The characteristics of this property are as follows:
   {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, byteReturnOperationMethod);
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "byteArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, byteArgumentOperationMethod);
     method_template->RemovePrototype();
+    method_template->SetLength(1);
     prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "byteReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
+        NewInternalString(isolate, "byteArgumentOperation"),
         method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "byteReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, byteReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "byteReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "doubleArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, doubleArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "doubleArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "doubleReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, doubleReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "doubleReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, longArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "longArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longLongArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, longLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "longLongArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longLongReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, longLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "longLongReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "longReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, longReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "longReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "octetArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, octetArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "octetArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "octetReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, octetReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "octetReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "shortArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, shortArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "shortArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "shortReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, shortReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "shortReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unrestrictedDoubleArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unrestrictedDoubleArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "unrestrictedDoubleArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unrestrictedDoubleReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unrestrictedDoubleReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "unrestrictedDoubleReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedLongArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongLongArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedLongLongArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongLongReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedLongLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedLongLongReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedLongReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedLongReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedLongReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedShortArgumentOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedShortArgumentOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(1);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedShortArgumentOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
+  }
+  {
+    // The name of the property is the identifier.
+    v8::Local<v8::String> name = NewInternalString(
+        isolate,
+        "unsignedShortReturnOperation");
+
+    // The property has attributes { [[Writable]]: B, [[Enumerable]]: true,
+    // [[Configurable]]: B }, where B is false if the operation is unforgeable
+    // on the interface, and true otherwise.
+    bool B = true;
+    v8::PropertyAttribute attributes = static_cast<v8::PropertyAttribute>(
+        B ? v8::None : (v8::ReadOnly | v8::DontDelete));
+
+    // The location of the property is determined as follows:
+    // Otherwise, the property exists solely on the interface's interface
+    // prototype object.
+    v8::Local<v8::FunctionTemplate> method_template =
+        v8::FunctionTemplate::New(isolate, unsignedShortReturnOperationMethod);
+    method_template->RemovePrototype();
+    method_template->SetLength(0);
+    prototype_template->Set(
+        NewInternalString(isolate, "unsignedShortReturnOperation"),
+        method_template);
+
+    // The value of the property is the result of creating an operation function
+    // given the operation, the interface, and the relevant Realm of the object
+    // that is the location of the property.
+
+    // Note: that is, even if an includes statement was used to make an
+    // operation available on the interface, we pass in the interface which
+    // includes the interface mixin, and not the interface mixin on which the
+    // operation was originally declared.
   }
 
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, doubleArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "doubleArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, doubleReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "doubleReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "longArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longLongArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "longLongArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longLongReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "longLongReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, longReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "longReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, octetArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "octetArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, octetReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "octetReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, shortArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "shortArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, shortReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "shortReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unrestrictedDoubleArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unrestrictedDoubleArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unrestrictedDoubleReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unrestrictedDoubleReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedLongArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongLongArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedLongLongArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongLongReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedLongLongReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedLongReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedLongReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedShortArgumentOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedShortArgumentOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
-
-  {
-    v8::Local<v8::FunctionTemplate> method_template = v8::FunctionTemplate::New(isolate, unsignedShortReturnOperationMethod);
-    method_template->RemovePrototype();
-    prototype_template->Set(
-        v8::String::NewFromUtf8(
-            isolate,
-            "unsignedShortReturnOperation",
-            v8::NewStringType::kInternalized).ToLocalChecked(),
-        method_template);
-  }
+  // https://heycam.github.io/webidl/#es-stringifier
+  // 3.6.8.2. Stringifiers
+  prototype_template->Set(
+      v8::Symbol::GetToStringTag(isolate),
+      NewInternalString(isolate, "NumericTypesTestInterface"),
+      static_cast<v8::PropertyAttribute>(v8::ReadOnly | v8::DontEnum));
 
 
-  interface_data->function_template.Set(isolate, function_template);
-}
 
-inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
-  const int kInterfaceUniqueId = 38;
-  // By convention, the |V8cGlobalEnvironment| that we are associated with
-  // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
-  // for it to be there in the first place, and could not have conflicted with
-  // any other interface.
-  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 }  // namespace
 
-v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
+
+v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(
+    v8::Isolate* isolate, const scoped_refptr<Wrappable>& wrappable) {
   EscapableEntryScope entry_scope(isolate);
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
 
   V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  InterfaceData* interface_data = GetInterfaceData(global_environment);
-  if (interface_data->function_template.IsEmpty()) {
-    InitializeTemplateAndInterfaceObject(isolate, interface_data);
+  if (!global_environment->HasInterfaceData(kInterfaceUniqueId)) {
+    InitializeTemplate(isolate);
   }
-  DCHECK(!interface_data->function_template.IsEmpty());
+  v8::Local<v8::FunctionTemplate> function_template = global_environment->GetInterfaceData(kInterfaceUniqueId);
 
-  v8::Local<v8::FunctionTemplate> function_template = interface_data->function_template.Get(isolate);
   DCHECK(function_template->InstanceTemplate()->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
   v8::Local<v8::Object> object = function_template->InstanceTemplate()->NewInstance(context).ToLocalChecked();
   DCHECK(object->InternalFieldCount() == WrapperPrivate::kInternalFieldCount);
@@ -2637,14 +3635,13 @@ v8::Local<v8::Object> V8cNumericTypesTestInterface::CreateWrapper(v8::Isolate* i
   return entry_scope.Escape(object);
 }
 
-v8::Local<v8::FunctionTemplate> V8cNumericTypesTestInterface::CreateTemplate(v8::Isolate* isolate) {
-  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
-  InterfaceData* interface_data = GetInterfaceData(global_environment);
-  if (interface_data->function_template.IsEmpty()) {
-    InitializeTemplateAndInterfaceObject(isolate, interface_data);
-  }
 
-  return interface_data->function_template.Get(isolate);
+v8::Local<v8::FunctionTemplate> V8cNumericTypesTestInterface::GetTemplate(v8::Isolate* isolate) {
+  V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
+  if (!global_environment->HasInterfaceData(kInterfaceUniqueId)) {
+    InitializeTemplate(isolate);
+  }
+  return global_environment->GetInterfaceData(kInterfaceUniqueId);
 }
 
 

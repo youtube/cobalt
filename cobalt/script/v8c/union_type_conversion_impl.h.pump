@@ -110,8 +110,7 @@ $for TYPE [[
     // case. Just choose the first interface in the flattened members that
     // matches.
 
-    v8::Local<v8::Context> context = isolate->GetCurrentContext();
-    v8::Local<v8::Object> object = value->ToObject(context).ToLocalChecked();
+    v8::Local<v8::Object> object = value.As<v8::Object>();
 
     V8cGlobalEnvironment* global_environment = V8cGlobalEnvironment::GetFromIsolate(isolate);
     const WrapperFactory* wrapper_factory = global_environment->wrapper_factory();

@@ -29,12 +29,11 @@ namespace v8c {
 
 void WrapperFactory::RegisterWrappableType(
     base::TypeId wrappable_type, const CreateWrapperFunction& create_function,
-    const PrototypeClassFunction& class_function) {
-  std::pair<WrappableTypeFunctionsHashMap::iterator, bool> pib =
-      wrappable_type_functions_.insert(std::make_pair(
-          wrappable_type,
-          WrappableTypeFunctions(create_function, class_function)));
-  DCHECK(pib.second)
+    const GetFunctionTemplate& get_function_template) {
+  auto insert_pair = wrappable_type_functions_.insert(std::make_pair(
+      wrappable_type,
+      WrappableTypeFunctions(create_function, get_function_template)));
+  DCHECK(insert_pair.second)
       << "RegisterWrappableType registered for type more than once.";
 }
 
@@ -61,8 +60,7 @@ WrapperPrivate* WrapperFactory::MaybeGetWrapperPrivate(Wrappable* wrappable) {
 
 scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
     const scoped_refptr<Wrappable>& wrappable) const {
-  WrappableTypeFunctionsHashMap::const_iterator it =
-      wrappable_type_functions_.find(wrappable->GetWrappableType());
+  auto it = wrappable_type_functions_.find(wrappable->GetWrappableType());
   if (it == wrappable_type_functions_.end()) {
     NOTREACHED();
     return scoped_ptr<Wrappable::WeakWrapperHandle>();
@@ -78,7 +76,7 @@ scoped_ptr<Wrappable::WeakWrapperHandle> WrapperFactory::CreateWrapper(
 
 bool WrapperFactory::DoesObjectImplementInterface(v8::Local<v8::Object> object,
                                                   base::TypeId type_id) const {
-  // If the object doesn't have a wrapper private which means it is not a
+  // If the object doesn't have a wrapper private, then that means it is not a
   // platform object, so the object doesn't implement the interface.
   if (!WrapperPrivate::HasWrapperPrivate(object)) {
     return false;
@@ -88,7 +86,7 @@ bool WrapperFactory::DoesObjectImplementInterface(v8::Local<v8::Object> object,
   DCHECK(it != wrappable_type_functions_.end());
 
   v8::Local<v8::FunctionTemplate> function_template =
-      it->second.prototype_class.Run(isolate_);
+      it->second.get_function_template.Run(isolate_);
   return function_template->HasInstance(object);
 }
 

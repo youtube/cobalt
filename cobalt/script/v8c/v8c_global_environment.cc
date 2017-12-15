@@ -17,6 +17,7 @@
 #include <algorithm>
 #include <utility>
 
+#include "base/debug/trace_event.h"
 #include "base/lazy_instance.h"
 #include "base/stringprintf.h"
 #include "cobalt/base/polymorphic_downcast.h"
@@ -61,6 +62,8 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
       eval_enabled_(false),
       isolate_(isolate) {
   TRACK_MEMORY_SCOPE("Javascript");
+  TRACE_EVENT0("cobalt::script",
+               "V8cGlobalEnvironment::V8cGlobalEnvironment()");
   wrapper_factory_.reset(new WrapperFactory(isolate));
   isolate_->SetData(kIsolateDataIndex, this);
   DCHECK(isolate_->GetData(kIsolateDataIndex) == this);
@@ -70,6 +73,8 @@ V8cGlobalEnvironment::V8cGlobalEnvironment(v8::Isolate* isolate)
 }
 
 V8cGlobalEnvironment::~V8cGlobalEnvironment() {
+  TRACE_EVENT0("cobalt::script",
+               "V8cGlobalEnvironment::~V8cGlobalEnvironment()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
   // TODO: Change type of this member to scoped_ptr
@@ -83,6 +88,7 @@ V8cGlobalEnvironment::~V8cGlobalEnvironment() {
 }
 
 void V8cGlobalEnvironment::CreateGlobalObject() {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::CreateGlobalObject()");
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(thread_checker_.CalledOnValidThread());
 
@@ -100,6 +106,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<SourceCode>& source_code, bool mute_errors,
     std::string* out_result_utf8) {
   TRACK_MEMORY_SCOPE("Javascript");
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
   EntryScope entry_scope(isolate_);
@@ -153,6 +160,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
     const scoped_refptr<Wrappable>& owning_object, bool mute_errors,
     base::optional<ValueHandleHolder::Reference>* out_value_handle) {
   TRACK_MEMORY_SCOPE("Javascript");
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateScript()");
   DCHECK(thread_checker_.CalledOnValidThread());
 
   EntryScope entry_scope(isolate_);
@@ -197,6 +205,7 @@ bool V8cGlobalEnvironment::EvaluateScript(
 }
 
 std::vector<StackFrame> V8cGlobalEnvironment::GetStackTrace(int max_frames) {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::GetStackTrace()");
   DCHECK(thread_checker_.CalledOnValidThread());
   v8::HandleScope handle_scope(isolate_);
   std::vector<StackFrame> result;
@@ -277,6 +286,7 @@ void V8cGlobalEnvironment::SetReportErrorCallback(
 
 void V8cGlobalEnvironment::Bind(const std::string& identifier,
                                 const scoped_refptr<Wrappable>& impl) {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::Bind()");
   TRACK_MEMORY_SCOPE("Javascript");
   DCHECK(impl);
 
@@ -301,9 +311,34 @@ ScriptValueFactory* V8cGlobalEnvironment::script_value_factory() {
 }
 
 void V8cGlobalEnvironment::EvaluateAutomatics() {
+  TRACE_EVENT0("cobalt::script", "V8cGlobalEnvironment::EvaluateAutomatics()");
   // TODO: Maybe add fetch and stream polyfills.  Investigate what V8 has to
   // natively offer first.
   NOTIMPLEMENTED();
+}
+
+bool V8cGlobalEnvironment::HasInterfaceData(int key) const {
+  DCHECK_GE(key, 0);
+  if (key >= cached_interface_data_.size()) {
+    return false;
+  }
+  return !cached_interface_data_[key].IsEmpty();
+}
+
+v8::Local<v8::FunctionTemplate> V8cGlobalEnvironment::GetInterfaceData(
+    int key) const {
+  DCHECK(HasInterfaceData(key));
+  return cached_interface_data_[key].Get(isolate_);
+}
+
+void V8cGlobalEnvironment::AddInterfaceData(
+    int key, v8::Local<v8::FunctionTemplate> function_template) {
+  DCHECK(!HasInterfaceData(key));
+  if (key >= cached_interface_data_.size()) {
+    cached_interface_data_.resize(key + 1);
+  }
+  DCHECK(!HasInterfaceData(key));
+  cached_interface_data_[key].Set(isolate_, function_template);
 }
 
 }  // namespace v8c
