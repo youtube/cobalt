@@ -1040,6 +1040,8 @@ void WebModule::Impl::ReduceMemory() {
     return;
   }
 
+  layout_manager_->Purge();
+
   // Retain the remote typeface cache when reducing memory.
   PurgeResourceCaches(true /*should_retain_remote_typeface_cache*/);
   window_->document()->PurgeCachedResources();
