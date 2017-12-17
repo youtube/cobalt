@@ -47,9 +47,9 @@ void JniEnvExt::Initialize(ANativeActivity* native_activity) {
 
   JniEnvExt* env = JniEnvExt::Get();
   jobject loader =
-      env->CallObjectMethod(env->GetObjectClass(native_activity->clazz),
-                            "getClassLoader", "()Ljava/lang/ClassLoader;");
-  env->AbortOnException();
+      env->CallObjectMethodOrAbort(env->GetObjectClass(native_activity->clazz),
+                                   "getClassLoader",
+                                   "()Ljava/lang/ClassLoader;");
   g_application_class_loader = env->ConvertLocalRefToGlobalRef(loader);
 
   jfieldID bridge_field = env->GetFieldID(
@@ -91,9 +91,8 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
   jstring jname = NewStringStandardUTFOrAbort(dot_name.c_str());
   jobject clazz_obj =
-      CallObjectMethod(g_application_class_loader, "loadClass",
-                       "(Ljava/lang/String;)Ljava/lang/Class;", jname);
-  AbortOnException();
+      CallObjectMethodOrAbort(g_application_class_loader, "loadClass",
+                              "(Ljava/lang/String;)Ljava/lang/Class;", jname);
   DeleteLocalRef(jname);
   return static_cast<jclass>(clazz_obj);
 }
