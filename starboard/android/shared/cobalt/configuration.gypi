@@ -52,6 +52,17 @@
     'cobalt_platform_dependencies': [
       '<(DEPTH)/starboard/android/shared/cobalt/cobalt_platform.gyp:cobalt_platform',
     ],
+
+    # Platform-specific interfaces to inject into Cobalt's JavaScript 'window'
+    # global object.
+    'cobalt_webapi_extension_source_idl_files': [
+      'android.idl',
+      'feedback_service.idl',
+    ],
+
+    # Platform-specific IDL interface implementations.
+    'cobalt_webapi_extension_gyp_target':
+    '<(DEPTH)/starboard/android/shared/cobalt/android_webapi_extension.gyp:android_webapi_extension',
   },
 
   'target_defaults': {
