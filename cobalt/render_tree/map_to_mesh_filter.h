@@ -29,16 +29,29 @@ namespace render_tree {
 
 enum StereoMode {
   kMono = 0,
-  // Stereoscopic modes where each half of the video represents the view of
+  // Stereoscopic modes where each half of the content represents the view of
   // one eye, and where the texture coordinates of the meshes need to be
   // scaled and offset to the appropriate half. The same mesh may be used for
   // both eyes, or there may be one for each eye.
   kLeftRight = 1,
   kTopBottom = 2,
   // Like kLeftRight, but where the texture coordinates already refer to the
-  // corresponding half of the video and need no adjustment. This can only
+  // corresponding half of the content and need no adjustment. This can only
   // happen when there are distinct meshes for each eye.
   kLeftRightUnadjustedTextureCoords = 3
+};
+
+// The shape of the mesh that this filter applies.
+enum MeshType {
+  // Rectangular content: some rasterizers render rectangular video separately
+  // from the rest of the document (for example, for stereo content). Does not
+  // specify a custom mesh, since a rectangle with the content's aspect ratio
+  // can be assumed (accounting for whether it needs to be halved in one
+  // dimension for stereo). Not enabled on all rasterizers/platforms.
+  kRectangular = 0,
+  // Mesh that is centered around the camera; examples include 360 and 180
+  // content. Needs to be specified, since the shape is arbitrary.
+  kCustomMesh = 1
 };
 
 // A MapToMeshFilter can be used to map source content onto a 3D mesh, within a
@@ -104,7 +117,7 @@ class MapToMeshFilter {
   };
 
   MapToMeshFilter(StereoMode stereo_mode, const Builder& builder)
-      : stereo_mode_(stereo_mode), data_(builder) {
+      : stereo_mode_(stereo_mode), mesh_type_(kCustomMesh), data_(builder) {
     DCHECK(left_eye_mesh());
     if (stereo_mode == kLeftRightUnadjustedTextureCoords) {
       // This stereo mode implies there are two meshes.
@@ -114,8 +127,9 @@ class MapToMeshFilter {
 
   // A filter without a an explicit mesh, to represent mesh-mapped content whose
   // mesh will be supplied externally.
-  explicit MapToMeshFilter(StereoMode stereo_mode)
-      : stereo_mode_(stereo_mode), data_() {
+  MapToMeshFilter(StereoMode stereo_mode, MeshType mesh_type)
+      : stereo_mode_(stereo_mode), mesh_type_(mesh_type), data_() {
+    DCHECK(mesh_type != kCustomMesh);
     DCHECK(stereo_mode != kLeftRightUnadjustedTextureCoords);
   }
 
@@ -124,6 +138,8 @@ class MapToMeshFilter {
   }
 
   StereoMode stereo_mode() const { return stereo_mode_; }
+
+  MeshType mesh_type() const { return mesh_type_; }
 
   // The omission of the |resolution| parameter will yield the default
   // meshes in each of the following functions (by failing to match the
@@ -146,6 +162,7 @@ class MapToMeshFilter {
  private:
   static math::Size InvalidSize() { return math::Size(-1, -1); }
   StereoMode stereo_mode_;
+  MeshType mesh_type_;
   Builder data_;
 };
 
