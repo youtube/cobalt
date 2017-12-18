@@ -85,6 +85,7 @@ const char kPreKeywordName[] = "pre";
 const char kPreLineKeywordName[] = "pre-line";
 const char kPreWrapKeywordName[] = "pre-wrap";
 const char kPurpleKeywordName[] = "purple";
+const char kRectangularKeywordName[] = "rectangular";
 const char kRedKeywordName[] = "red";
 const char kRelativeKeywordName[] = "relative";
 const char kRepeatKeywordName[] = "repeat";

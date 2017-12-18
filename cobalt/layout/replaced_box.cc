@@ -309,7 +309,8 @@ void ReplacedBox::RenderAndAnimateContent(
       cssom::MapToMeshFunction::ExtractFromFilterList(
           computed_style()->filter());
 
-  if (mtm_filter_function) {
+  if (mtm_filter_function && mtm_filter_function->mesh_spec().mesh_type() !=
+                                 cssom::MapToMeshFunction::kRectangular) {
     DCHECK(!*is_video_punched_out_)
         << "We currently do not support punched out video with map-to-mesh "
            "filters.";
@@ -323,11 +324,18 @@ void ReplacedBox::RenderAndAnimateContent(
       animate_node_builder.Add(
           image_node, base::Bind(&AnimateVideoImage, replace_image_cb_));
 
+      render_tree::StereoMode stereo_mode = render_tree::kMono;
+
+      if (mtm_filter_function) {
+        // For rectangular stereo.
+        stereo_mode = ReadStereoMode(mtm_filter_function->stereo_mode());
+      }
+
       // Attach an empty map to mesh filter node to signal the need for an
       // external mesh.
-      border_node_builder->AddChild(
-          new FilterNode(MapToMeshFilter(render_tree::kMono),
-                         new AnimateNode(animate_node_builder, image_node)));
+      border_node_builder->AddChild(new FilterNode(
+          MapToMeshFilter(stereo_mode, render_tree::kRectangular),
+          new AnimateNode(animate_node_builder, image_node)));
       return;
     }
 #endif
@@ -596,6 +604,7 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
   render_tree::StereoMode stereo_mode =
       ReadStereoMode(stereo_mode_keyword_value);
 
+  scoped_refptr<render_tree::Node> filter_node;
   // Fetch either the embedded equirectangular mesh or a custom one depending
   // on the spec.
   MapToMeshFilter::Builder builder;
@@ -670,10 +679,10 @@ void ReplacedBox::RenderAndAnimateContentWithMapToMesh(
             loader::mesh::MeshProjection::kLeftEyeOrMonoCollection),
         mesh_projection->GetMesh(
             loader::mesh::MeshProjection::kRightEyeCollection));
-  }
 
-  scoped_refptr<render_tree::Node> filter_node =
-      new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
+    filter_node =
+        new FilterNode(MapToMeshFilter(stereo_mode, builder), animate_node);
+  }
 
 #if !SB_HAS(VIRTUAL_REALITY)
   // Attach a 3D camera to the map-to-mesh node, so the rendering of its
