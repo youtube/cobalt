@@ -27,6 +27,8 @@ class Parser : public cssom::CSSParser {
  public:
   enum SupportsMapToMeshFlag {
     kSupportsMapToMesh,
+    // Additionally supports map-to-mesh on rectangular video.
+    kSupportsMapToMeshRectangular,
     kDoesNotSupportMapToMesh,
   };
 

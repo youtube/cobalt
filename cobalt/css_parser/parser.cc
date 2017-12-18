@@ -176,6 +176,9 @@ class ParserImpl {
   }
 
   bool supports_map_to_mesh() const { return supports_map_to_mesh_; }
+  bool supports_map_to_mesh_rectangular() const {
+    return supports_map_to_mesh_rectangular_;
+  }
 
  private:
   bool Parse();
@@ -218,6 +221,9 @@ class ParserImpl {
 
   // Whether or not we support parsing "filter: map-to-mesh(...)".
   bool supports_map_to_mesh_;
+  // Whether or not we also support parsing
+  // "filter: map-to-mesh(rectangular, ...)".
+  bool supports_map_to_mesh_rectangular_;
 
   static void IncludeInputWithMessage(const std::string& input,
                                       const Parser::OnMessageCallback& callback,
@@ -257,8 +263,10 @@ ParserImpl::ParserImpl(const std::string& input,
       css_parser_(css_parser),
       scanner_(input_.c_str(), &string_pool_),
       into_declaration_data_(NULL),
-      supports_map_to_mesh_(supports_map_to_mesh ==
-                            Parser::kSupportsMapToMesh) {}
+      supports_map_to_mesh_(supports_map_to_mesh !=
+                            Parser::kDoesNotSupportMapToMesh),
+      supports_map_to_mesh_rectangular_(
+          supports_map_to_mesh == Parser::kSupportsMapToMeshRectangular) {}
 
 scoped_refptr<cssom::CSSStyleSheet> ParserImpl::ParseStyleSheet() {
   TRACK_MEMORY_SCOPE("CSS");

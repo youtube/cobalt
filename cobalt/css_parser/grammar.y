@@ -242,6 +242,7 @@
 %token kPreLineToken                    // pre-line
 %token kPreWrapToken                    // pre-wrap
 %token kPurpleToken                     // purple
+%token kRectangularToken                // rectangular
 %token kRedToken                        // red
 %token kRepeatToken                     // repeat
 %token kRepeatXToken                    // repeat-x
@@ -6788,6 +6789,21 @@ cobalt_mtm_filter_function:
           $6,
           *transform,
           stereo_mode);
+    }
+  }
+  // map-to-mesh filter with the rectangular built-in mesh. Does not take FOV
+  // or transforms.
+  |  cobalt_mtm_function_name maybe_whitespace kRectangularToken comma
+        kNoneToken comma kNoneToken maybe_cobalt_mtm_stereo_mode
+        ')' maybe_whitespace {
+    scoped_refptr<cssom::KeywordValue> stereo_mode =
+        MakeScopedRefPtrAndRelease($8);
+
+    if (!parser_impl->supports_map_to_mesh_rectangular()) {
+      YYERROR;
+    } else {
+      $$ = new cssom::MapToMeshFunction(cssom::MapToMeshFunction::kRectangular,
+                                        stereo_mode);
     }
   }
   ;
