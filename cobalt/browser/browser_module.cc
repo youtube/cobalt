@@ -333,8 +333,8 @@ BrowserModule::BrowserModule(const GURL& url,
         base::Bind(&CreateExtensionInterface);
   }
 
-#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   CommandLine* command_line = CommandLine::ForCurrentProcess();
+#if defined(ENABLE_DEBUG_CONSOLE) && defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
   if (command_line->HasSwitch(switches::kInputFuzzer)) {
     OnFuzzerToggle(std::string());
   }
@@ -366,6 +366,10 @@ BrowserModule::BrowserModule(const GURL& url,
       options_.web_module_options.javascript_engine_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+
+  if (command_line->HasSwitch(switches::kEnableMapToMeshRectanglar)) {
+    options_.web_module_options.enable_map_to_mesh_rectangular = true;
+  }
 
   fallback_splash_screen_url_ = options.fallback_splash_screen_url;
   // Synchronously construct our WebModule object.

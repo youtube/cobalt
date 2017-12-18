@@ -29,6 +29,8 @@ std::string MapToMeshFunction::ToString() const {
 
   if (mesh_spec().mesh_type() == kEquirectangular) {
     result.append("equirectangular");
+  } else if (mesh_spec().mesh_type() == kRectangular) {
+    result.append("rectangular");
   } else if (mesh_spec().mesh_type() == kUrls) {
     result.append(mesh_spec().mesh_url()->ToString());
 
@@ -44,20 +46,26 @@ std::string MapToMeshFunction::ToString() const {
     }
   }
 
-  result.append(base::StringPrintf(", %.7grad", horizontal_fov_in_radians()));
-  result.append(base::StringPrintf(" %.7grad, ", vertical_fov_in_radians()));
+  if (mesh_spec().mesh_type() == kRectangular) {
+    // Rectangular filters carry neither FOV nor transforms.
+    result.append(", none, none, ");
+  } else {
+    result.append(base::StringPrintf(", %.7grad", horizontal_fov_in_radians()));
+    result.append(base::StringPrintf(" %.7grad, ", vertical_fov_in_radians()));
 
-  result.append("matrix3d(");
-  for (int col = 0; col <= 3; ++col) {
-    for (int row = 0; row <= 3; ++row) {
-      if (col > 0 || row > 0) {
-        result.append(", ");
+    result.append("matrix3d(");
+    for (int col = 0; col <= 3; ++col) {
+      for (int row = 0; row <= 3; ++row) {
+        if (col > 0 || row > 0) {
+          result.append(", ");
+        }
+        result.append(base::StringPrintf("%.7g", transform()[col][row]));
       }
-      result.append(base::StringPrintf("%.7g", transform()[col][row]));
     }
+
+    result.append("), ");
   }
 
-  result.append("), ");
   result.append(stereo_mode()->ToString());
   result.append(")");
 

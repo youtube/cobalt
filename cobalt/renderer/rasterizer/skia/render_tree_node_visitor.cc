@@ -388,6 +388,7 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     if (!source) {
       return;
     }
+
     // WIP TODO: pass in the mesh in the filter here.
     if (TryRenderMapToRect(source, *filter_node->data().map_to_mesh_filter,
                            render_image_with_mesh_function_, &draw_state_)) {

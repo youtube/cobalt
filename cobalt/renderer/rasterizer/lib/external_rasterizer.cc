@@ -321,11 +321,14 @@ void ExternalRasterizer::Impl::Submit(
         map_to_mesh_search.found_node->data().map_to_mesh_filter;
 
     CbLibVideoProjectionType new_projection_type;
-    if (!filter->left_eye_mesh()) {
-      // Video is rectangular. Mesh is provided externally (by host).
-      new_projection_type = kCbLibVideoProjectionTypeRectangular;
-    } else {
-      new_projection_type = kCbLibVideoProjectionTypeMesh;
+    switch (filter->mesh_type()) {
+      case render_tree::kRectangular:
+        // Video is rectangular. Mesh is provided externally (by host).
+        new_projection_type = kCbLibVideoProjectionTypeRectangular;
+        break;
+      case render_tree::kCustomMesh:
+        new_projection_type = kCbLibVideoProjectionTypeMesh;
+        break;
     }
 
     if (video_projection_type_ != new_projection_type ||
