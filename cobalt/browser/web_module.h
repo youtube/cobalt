@@ -137,6 +137,9 @@ class WebModule : public LifecycleObserver {
     // Mesh cache capacity in bytes.
     int mesh_cache_capacity;
 
+    // Whether map-to-mesh for rectangular videos is enabled.
+    bool enable_map_to_mesh_rectangular;
+
     // Content Security Policy enforcement mode for this web module.
     dom::CspEnforcementType csp_enforcement_mode;
 

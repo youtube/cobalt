@@ -475,7 +475,9 @@ WebModule::Impl::Impl(const ConstructionData& data)
   // testing whether it parses or not via the CSS.supports() Web API.
   css_parser::Parser::SupportsMapToMeshFlag supports_map_to_mesh =
 #if defined(ENABLE_MAP_TO_MESH)
-      css_parser::Parser::kSupportsMapToMesh;
+      data.options.enable_map_to_mesh_rectangular
+          ? css_parser::Parser::kSupportsMapToMeshRectangular
+          : css_parser::Parser::kSupportsMapToMesh;
 #else
       css_parser::Parser::kDoesNotSupportMapToMesh;
 #endif
@@ -1204,6 +1206,7 @@ WebModule::Options::Options()
       image_cache_capacity(32 * 1024 * 1024),
       remote_typeface_cache_capacity(4 * 1024 * 1024),
       mesh_cache_capacity(COBALT_MESH_CACHE_SIZE_IN_BYTES),
+      enable_map_to_mesh_rectangular(false),
       csp_enforcement_mode(dom::kCspEnforcementEnable),
       csp_insecure_allowed_token(0),
       track_event_stats(false),

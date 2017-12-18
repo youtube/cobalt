@@ -473,6 +473,11 @@ void HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL(
     const render_tree::ImageNode* image_node,
     const render_tree::MapToMeshFilter& mesh_filter,
     RenderTreeNodeVisitorDrawState* draw_state) {
+  if (mesh_filter.mesh_type() == render_tree::kRectangular) {
+    NOTREACHED() << "This rasterizer does not support rectangular meshes on "
+                    "the map-to-mesh filter.";
+    return;
+  }
   Image* image =
       base::polymorphic_downcast<Image*>(image_node->data().source.get());
   if (!image) {
