@@ -48,6 +48,7 @@ typedef media::ChunkDemuxer ChunkDemuxer;
 typedef media::WebMediaPlayer WebMediaPlayer;
 typedef media::WebMediaPlayerClient WebMediaPlayerClient;
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
+typedef ::media::ChunkDemuxer ChunkDemuxer;
 typedef ::media::WebMediaPlayer WebMediaPlayer;
 typedef ::media::WebMediaPlayerClient WebMediaPlayerClient;
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
@@ -242,11 +243,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   void PlaybackStateChanged() override;
   void SawUnsupportedTracks() override;
   float Volume() const override;
-#if defined(COBALT_MEDIA_SOURCE_2016)
   void SourceOpened(ChunkDemuxer* chunk_demuxer) override;
-#else   // defined(COBALT_MEDIA_SOURCE_2016)
-  void SourceOpened() override;
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   std::string SourceURL() const override;
   bool PreferDecodeToTexture() override;
 #if defined(COBALT_MEDIA_SOURCE_2016)

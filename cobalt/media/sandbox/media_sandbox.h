@@ -23,6 +23,7 @@
 #include "cobalt/loader/fetcher_factory.h"
 #include "cobalt/media/media_module.h"
 #include "cobalt/render_tree/image.h"
+#include "cobalt/render_tree/resource_provider.h"
 
 namespace cobalt {
 namespace media {
@@ -42,6 +43,7 @@ class MediaSandbox {
   void RegisterFrameCB(const FrameCB& frame_cb);
   MediaModule* GetMediaModule();
   loader::FetcherFactory* GetFetcherFactory();
+  render_tree::ResourceProvider* resource_provider();
 
  private:
   class Impl;
