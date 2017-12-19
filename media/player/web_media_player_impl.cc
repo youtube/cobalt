@@ -957,7 +957,8 @@ void WebMediaPlayerImpl::OnPipelineBufferingState(
 void WebMediaPlayerImpl::OnDemuxerOpened() {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  GetClient()->SourceOpened();
+  DCHECK(chunk_demuxer_);
+  GetClient()->SourceOpened(chunk_demuxer_);
 }
 
 void WebMediaPlayerImpl::OnKeyAdded(const std::string& key_system,

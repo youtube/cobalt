@@ -21,6 +21,7 @@
 #include "media/base/ranges.h"
 #include "media/base/shell_video_frame_provider.h"
 #include "media/base/video_frame.h"
+#include "media/filters/chunk_demuxer.h"
 #include "media/player/buffered_data_source.h"
 #include "ui/gfx/rect.h"
 #include "ui/gfx/size.h"
@@ -238,7 +239,7 @@ class WebMediaPlayerClient {
   virtual void SetOpaque(bool /* opaque */) {}
   virtual void SawUnsupportedTracks() = 0;
   virtual float Volume() const = 0;
-  virtual void SourceOpened() = 0;
+  virtual void SourceOpened(ChunkDemuxer* chunk_demuxer) = 0;
   virtual std::string SourceURL() const = 0;
   // Clients should implement this in order to indicate a preference for whether
   // a video should be decoded to a texture or through a punch out system.  If
