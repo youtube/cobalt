@@ -43,6 +43,10 @@ class ReuseAllocatorBase : public Allocator {
   std::size_t GetCapacity() const override { return capacity_; }
   std::size_t GetAllocated() const override { return total_allocated_; }
 
+  bool CapacityExceeded() const {
+    return max_capacity_ && (capacity_ > max_capacity_);
+  }
+
   void PrintAllocations() const override;
 
   bool TryFree(void* memory);
@@ -59,6 +63,11 @@ class ReuseAllocatorBase : public Allocator {
   void* AllocateBestBlock(std::size_t alignment,
                           intptr_t context,
                           std::size_t* size_hint);
+
+  std::size_t max_capacity() const { return max_capacity_; }
+  void set_max_capacity(std::size_t max_capacity) {
+    max_capacity_ = max_capacity;
+  }
 
  protected:
   class MemoryBlock {
@@ -106,7 +115,8 @@ class ReuseAllocatorBase : public Allocator {
 
   ReuseAllocatorBase(Allocator* fallback_allocator,
                      std::size_t initial_capacity,
-                     std::size_t allocation_increment);
+                     std::size_t allocation_increment,
+                     std::size_t max_capacity = 0);
   ~ReuseAllocatorBase() override;
 
   // The inherited class should implement this function to inform the base
@@ -153,6 +163,10 @@ class ReuseAllocatorBase : public Allocator {
   // memory to allocate.
   Allocator* fallback_allocator_;
   std::size_t allocation_increment_;
+
+  // If non-zero, this is an upper bound on how large we will let the capacity
+  // expand.
+  std::size_t max_capacity_;
 
   // A list of allocations made from the fallback allocator.  We keep track of
   // this so that we can free them all upon our destruction.
