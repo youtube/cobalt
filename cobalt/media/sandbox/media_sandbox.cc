@@ -24,7 +24,6 @@
 #include "cobalt/network/network_module.h"
 #include "cobalt/render_tree/animations/animate_node.h"
 #include "cobalt/render_tree/image_node.h"
-#include "cobalt/render_tree/resource_provider.h"
 #include "cobalt/renderer/pipeline.h"
 #include "cobalt/renderer/renderer_module.h"
 #include "cobalt/renderer/submission.h"
@@ -48,6 +47,9 @@ class MediaSandbox::Impl {
   void RegisterFrameCB(const MediaSandbox::FrameCB& frame_cb);
   MediaModule* GetMediaModule() { return media_module_.get(); }
   loader::FetcherFactory* GetFetcherFactory() { return fetcher_factory_.get(); }
+  render_tree::ResourceProvider* GetResourceProvider() {
+    return renderer_module_->pipeline()->GetResourceProvider();
+  }
 
  private:
   void SetupAndSubmitScene();
@@ -98,8 +100,7 @@ MediaSandbox::Impl::Impl(int argc, char** argv,
 #endif  // defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
 
   media_module_ = MediaModule::Create(
-      system_window_.get(), renderer_module_->pipeline()->GetResourceProvider(),
-      media_module_options);
+      system_window_.get(), GetResourceProvider(), media_module_options);
   SetupAndSubmitScene();
 }
 
@@ -155,6 +156,11 @@ MediaModule* MediaSandbox::GetMediaModule() {
 loader::FetcherFactory* MediaSandbox::GetFetcherFactory() {
   DCHECK(impl_);
   return impl_->GetFetcherFactory();
+}
+
+render_tree::ResourceProvider* MediaSandbox::resource_provider() {
+  DCHECK(impl_);
+  return impl_->GetResourceProvider();
 }
 
 }  // namespace sandbox

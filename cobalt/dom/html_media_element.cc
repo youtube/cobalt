@@ -1721,21 +1721,18 @@ void HTMLMediaElement::SawUnsupportedTracks() { NOTIMPLEMENTED(); }
 
 float HTMLMediaElement::Volume() const { return volume(NULL); }
 
-#if defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::SourceOpened(media::ChunkDemuxer* chunk_demuxer) {
+void HTMLMediaElement::SourceOpened(ChunkDemuxer* chunk_demuxer) {
   TRACE_EVENT0("cobalt::dom", "HTMLMediaElement::SourceOpened()");
+  DCHECK(chunk_demuxer);
   BeginProcessingMediaPlayerCallback();
+#if defined(COBALT_MEDIA_SOURCE_2016)
   DCHECK(media_source_);
   media_source_->SetChunkDemuxerAndOpen(chunk_demuxer);
-  EndProcessingMediaPlayerCallback();
-}
 #else   // defined(COBALT_MEDIA_SOURCE_2016)
-void HTMLMediaElement::SourceOpened() {
-  BeginProcessingMediaPlayerCallback();
   SetSourceState(kMediaSourceReadyStateOpen);
+#endif  // defined(COBALT_MEDIA_SOURCE_2016)
   EndProcessingMediaPlayerCallback();
 }
-#endif  // defined(COBALT_MEDIA_SOURCE_2016)
 
 std::string HTMLMediaElement::SourceURL() const {
   return media_source_url_.spec();
