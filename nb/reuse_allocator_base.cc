@@ -126,6 +126,9 @@ void* ReuseAllocatorBase::Allocate(std::size_t size, std::size_t alignment) {
                     &allocate_from_front);
 
   if (free_block_iter == free_blocks_.end()) {
+    if (CapacityExceeded()) {
+      return NULL;
+    }
     free_block_iter = ExpandToFit(size, alignment);
     if (free_block_iter == free_blocks_.end()) {
       return NULL;
@@ -248,6 +251,9 @@ void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
                         free_blocks_.end(), &allocate_from_front);
 
   if (free_block_iter == free_blocks_.end()) {
+    if (CapacityExceeded()) {
+      return NULL;
+    }
     free_block_iter = ExpandToFit(*size_hint, alignment);
     if (free_block_iter == free_blocks_.end()) {
       return NULL;
@@ -289,9 +295,11 @@ void* ReuseAllocatorBase::AllocateBestBlock(std::size_t alignment,
 
 ReuseAllocatorBase::ReuseAllocatorBase(Allocator* fallback_allocator,
                                        std::size_t initial_capacity,
-                                       std::size_t allocation_increment)
+                                       std::size_t allocation_increment,
+                                       std::size_t max_capacity)
     : fallback_allocator_(fallback_allocator),
       allocation_increment_(allocation_increment),
+      max_capacity_(max_capacity),
       capacity_(0),
       total_allocated_(0) {
   if (initial_capacity > 0) {
