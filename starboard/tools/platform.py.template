@@ -1,0 +1,82 @@
+#
+# Copyright 2017 Google Inc. All Rights Reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+"""Functionality to enumerate and represent starboard ports."""
+
+import os
+
+from starboard.tools import environment
+
+# The name->platform path mapping.
+_PATH_MAP = {{platforms_map}}
+
+
+# Cache of the name->PlatformInfo mapping.
+_INFO_MAP = None
+
+
+def _ConstructInfoMap():
+  """Constructs mapping of platform names to PlatformInfo objects.
+
+  Returns:
+    A Mapping of name->PlatformInfo.
+  """
+  result = {}
+  for name, path in _PATH_MAP.iteritems():
+    result[name] = PlatformInfo(name, path)
+  return result
+
+
+def _GetInfoMap():
+  """Gets mapping of platform names to PlatformInfo objects."""
+  global _INFO_MAP
+  if not _INFO_MAP:
+    _INFO_MAP = _ConstructInfoMap()
+  return _INFO_MAP
+
+
+# Cache of the sorted list of all platform names.
+_ALL = None
+
+
+def GetAll():
+  """Gets a sorted list of all valid Starboard platform names."""
+  global _ALL
+  if not _ALL:
+    _ALL = sorted(_GetInfoMap().keys())
+  return _ALL
+
+
+def Get(platform_name):
+  """Gets the PlatformInfo for the given platform name, or None."""
+  return _GetInfoMap().get(platform_name)
+
+
+def GetAllInfos():
+  """Gets a sorted sequence of PlatformInfo objects for all valid platforms."""
+  return (Get(p) for p in GetAll())
+
+
+def IsValid(platform_name):
+  """Determines whether the given platform name is valid."""
+  return platform_name in _GetInfoMap()
+
+
+class PlatformInfo(object):
+  """Information about a specific Starboard platform."""
+
+  def __init__(self, name, path):
+    self.name = name
+    self.path = path
