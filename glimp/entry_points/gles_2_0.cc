@@ -106,7 +106,12 @@ void GL_APIENTRY glBlendColor(GLfloat red,
 }
 
 void GL_APIENTRY glBlendEquation(GLenum mode) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->BlendEquation(mode);
 }
 
 void GL_APIENTRY glBlendEquationSeparate(GLenum modeRGB, GLenum modeAlpha) {
@@ -466,8 +471,13 @@ void GL_APIENTRY glFramebufferTexture2D(GLenum target,
                                        level);
 }
 
-void GL_APIENTRY glFrontFace(GLenum mode) {
-  SB_NOTIMPLEMENTED();
+void GL_APIENTRY glFrontFace(GLenum face) {
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  return context->FrontFace(face);
 }
 
 void GL_APIENTRY glGenBuffers(GLsizei n, GLuint* buffers) {
@@ -746,7 +756,12 @@ GLboolean GL_APIENTRY glIsTexture(GLuint texture) {
 }
 
 void GL_APIENTRY glLineWidth(GLfloat width) {
-  SB_NOTIMPLEMENTED();
+  gles::Context* context = GetCurrentContext();
+  if (!context) {
+    return;
+  }
+
+  context->LineWidth(width);
 }
 
 void GL_APIENTRY glLinkProgram(GLuint program) {
