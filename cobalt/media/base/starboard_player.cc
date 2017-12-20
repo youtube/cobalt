@@ -193,19 +193,24 @@ void StarboardPlayer::GetVideoResolution(int* frame_width, int* frame_height) {
 void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
                                   const scoped_refptr<DecoderBuffer>& buffer) {
   DCHECK(message_loop_->BelongsToCurrentThread());
+  DCHECK(buffer);
 
-  // When |state_| is kPlaying, cache all buffer appended.  When |state_| is
-  // kSuspended, there may still be left-over buffers appended from the pipeline
-  // so they also should be cached.
-  // When |state_| is resuming, all buffers come from the cache and shouldn't be
-  // cached.
-  if (state_ != kResuming) {
-    decoder_buffer_cache_.AddBuffer(type, buffer);
-  }
+  decoder_buffer_cache_.AddBuffer(type, buffer);
 
-  if (state_ == kSuspended) {
-    return;
+  if (state_ != kSuspended) {
+    WriteNextBufferFromCache(type);
   }
+}
+
+// TODO: Move this after CreatePlayer() in a follow up CL.  To keep the function
+//       here makes code review easier.
+void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
+  DCHECK(state_ != kSuspended);
+
+  const scoped_refptr<DecoderBuffer>& buffer =
+      decoder_buffer_cache_.GetBuffer(type);
+  DCHECK(buffer);
+  decoder_buffer_cache_.AdvanceToNextBuffer(type);
 
   DCHECK(SbPlayerIsValid(player_));
 
@@ -661,8 +666,7 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
   if (state_ == kResuming) {
     DemuxerStream::Type stream_type = SbMediaTypeToDemuxerStreamType(type);
     if (decoder_buffer_cache_.GetBuffer(stream_type)) {
-      WriteBuffer(stream_type, decoder_buffer_cache_.GetBuffer(stream_type));
-      decoder_buffer_cache_.AdvanceToNextBuffer(stream_type);
+      WriteNextBufferFromCache(stream_type);
       return;
     }
     if (!decoder_buffer_cache_.GetBuffer(DemuxerStream::AUDIO) &&
