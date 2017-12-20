@@ -433,4 +433,10 @@
 #error "Android builds need a GCC-like compiler (for the moment)."
 #endif
 
+// ---- Closed Captions Configuration ----------------------------------------
+
+// Specifies whether this platform supports retrieving system-level closed
+// caption settings
+#define SB_HAS_CAPTIONS 1
+
 #endif  // STARBOARD_ANDROID_SHARED_CONFIGURATION_PUBLIC_H_
