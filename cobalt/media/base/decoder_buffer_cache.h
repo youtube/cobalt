@@ -49,7 +49,7 @@ class DecoderBufferCache {
   typedef std::deque<scoped_refptr<DecoderBuffer> > Buffers;
   typedef std::deque<base::TimeDelta> KeyFrameTimestamps;
 
-  static void ClearSegmentsBeforeMediaTime(
+  static size_t ClearSegmentsBeforeMediaTime(
       base::TimeDelta media_time, Buffers* buffers,
       KeyFrameTimestamps* key_frame_timestamps);
 
