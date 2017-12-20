@@ -74,5 +74,12 @@ SbSocket SbSocketCreate(SbSocketAddressType address_type,
     return kSbSocketInvalid;
   }
 
+#if !defined(MSG_NOSIGNAL) && defined(SO_NOSIGPIPE)
+  // Use SO_NOSIGPIPE to mute SIGPIPE on darwin systems.
+  int optval_set=1;
+  setsockopt(socket_fd, SOL_SOCKET, SO_NOSIGPIPE, (void*)&optval_set,
+    sizeof(int));
+#endif
+
   return new SbSocketPrivate(address_type, protocol, socket_fd);
 }
