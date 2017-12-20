@@ -146,6 +146,8 @@ class StarboardPlayer {
   void CreatePlayerWithUrl(const std::string& url);
 #else   // SB_HAS(PLAYER_WITH_URL)
   void CreatePlayer();
+
+  void WriteNextBufferFromCache(DemuxerStream::Type type);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 
   void ClearDecoderBufferCache();
