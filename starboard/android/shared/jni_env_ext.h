@@ -61,6 +61,17 @@ struct JniEnvExt : public JNIEnv {
     return field;
   }
 
+  jfieldID GetFieldIDOrAbort(jobject obj,
+                             const char* name,
+                             const char* sig) {
+    jclass clazz = GetObjectClass(obj);
+    AbortOnException();
+    jfieldID field = GetFieldID(clazz, name, sig);
+    AbortOnException();
+    DeleteLocalRef(clazz);
+    return field;
+  }
+
   jint GetEnumValueOrAbort(jclass clazz, const char* name) {
     jfieldID field = GetStaticFieldIDOrAbort(clazz, name, "I");
     jint enum_value = GetStaticIntField(clazz, field);
@@ -152,10 +163,18 @@ struct JniEnvExt : public JNIEnv {
     return result;
   }
 
-// Convenience methods to lookup and call a method all at once:
+// Convenience methods to lookup and read a field or call a method all at once:
+// Get[Type]FieldOrAbort() takes a jobject of an instance.
 // Call[Type]MethodOrAbort() takes a jobject of an instance.
 // CallStarboard[Type]MethodOrAbort() to call methods on the StarboardBridge.
 #define X(_jtype, _jname)                                                      \
+  _jtype Get##_jname##FieldOrAbort(jobject obj, const char* name,              \
+                                   const char* sig) {                          \
+    _jtype result = Get##_jname##Field(obj, GetFieldIDOrAbort(obj, name, sig));\
+    AbortOnException();                                                        \
+    return result;                                                             \
+  }                                                                            \
+                                                                               \
   _jtype Call##_jname##MethodOrAbort(jobject obj, const char* name,            \
                                      const char* sig, ...) {                   \
     va_list argp;                                                              \

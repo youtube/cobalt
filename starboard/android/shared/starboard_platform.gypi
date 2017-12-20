@@ -40,8 +40,10 @@
       'target_name': 'starboard_platform',
       'type': 'static_library',
       'sources': [
+        'accessibility_get_caption_settings.cc',
         'accessibility_get_display_settings.cc',
         'accessibility_get_text_to_speech_settings.cc',
+        'accessibility_set_captions_enabled.cc',
         'application_android.cc',
         'application_android.h',
         'atomic_public.h',
