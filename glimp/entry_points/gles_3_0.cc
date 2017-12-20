@@ -29,7 +29,7 @@ gles::Context* GetCurrentContext() {
   }
   return context;
 }
-}
+}  // namespace
 
 extern "C" {
 
