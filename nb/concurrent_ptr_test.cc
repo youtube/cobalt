@@ -22,7 +22,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 
 // Number of threads for the thread test.
-#define NUM_THREADS 64
+#define NUM_THREADS 8
 
 namespace nb {
 
