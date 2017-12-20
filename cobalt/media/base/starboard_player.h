@@ -111,6 +111,9 @@ class StarboardPlayer {
       DecodingBuffers;
 
   void CreatePlayer();
+
+  void WriteNextBufferFromCache(DemuxerStream::Type type);
+
   void ClearDecoderBufferCache();
 
   void OnDecoderStatus(SbPlayer player, SbMediaType type,
