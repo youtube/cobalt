@@ -55,8 +55,12 @@ def GetRevinfo():
       url = url.strip()
       revinfo[repo] = url
     return revinfo
-  except subprocess.CalledProcessError as e:
+  except (subprocess.CalledProcessError, ValueError) as e:
     logging.warning('Failed to get revision information: %s', e)
+    try:
+      logging.warning('Command output was: %s', line)
+    except NameError:
+      pass
     return {}
 
 
