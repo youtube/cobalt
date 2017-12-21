@@ -89,7 +89,8 @@ jclass JniEnvExt::FindClassExtOrAbort(const char* name) {
   // for ClassLoader.loadClass().
   ::std::string dot_name = name;
   ::std::replace(dot_name.begin(), dot_name.end(), '/', '.');
-  jstring jname = NewStringStandardUTFOrAbort(dot_name.c_str());
+  jstring jname = NewStringUTF(dot_name.c_str());
+  AbortOnException();
   jobject clazz_obj =
       CallObjectMethodOrAbort(g_application_class_loader, "loadClass",
                               "(Ljava/lang/String;)Ljava/lang/Class;", jname);

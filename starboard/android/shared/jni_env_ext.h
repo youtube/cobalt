@@ -19,9 +19,9 @@
 #include <jni.h>
 
 #include <cstdarg>
+#include <cstring>
 #include <string>
 
-#include "base/utf_string_conversions.h"
 #include "starboard/log.h"
 
 namespace starboard {
@@ -135,9 +135,15 @@ struct JniEnvExt : public JNIEnv {
   // standard UTF-8 encoding. This differs from JNIEnv::NewStringUTF() which
   // takes JNI modified UTF-8.
   jstring NewStringStandardUTFOrAbort(const char* bytes) {
-    string16 utf16 = UTF8ToUTF16(std::string(bytes));
-    jstring result = NewString(utf16.data(), utf16.length());
+    const jstring charset = NewStringUTF("UTF-8");
     AbortOnException();
+    const jbyteArray byte_array = NewByteArrayFromRaw(
+        reinterpret_cast<const jbyte*>(bytes), strlen(bytes));
+    AbortOnException();
+    jstring result = static_cast<jstring>(NewObjectOrAbort(
+        "java/lang/String", "([BLjava/lang/String;)V", byte_array, charset));
+    DeleteLocalRef(byte_array);
+    DeleteLocalRef(charset);
     return result;
   }
 
@@ -146,20 +152,22 @@ struct JniEnvExt : public JNIEnv {
   // Also, the buffer of the returned bytes is managed by the std::string object
   // so it is not necessary to release it with JNIEnv::ReleaseStringUTFChars().
   std::string GetStringStandardUTFOrAbort(jstring str) {
-    std::string result;
     if (str == NULL) {
-      return result;
+      return std::string();
     }
-    const jsize length = GetStringLength(str);
+    const jstring charset = NewStringUTF("UTF-8");
     AbortOnException();
-    if (length == 0) {
-      return result;
-    }
-    const jchar* chars = GetStringChars(str, NULL);
-    SB_DCHECK(chars);
-    UTF16ToUTF8(static_cast<const char16*>(chars), length, &result);
-    ReleaseStringChars(str, chars);
+    const jbyteArray byte_array = static_cast<jbyteArray>(
+        CallObjectMethodOrAbort(str, "getBytes", "(Ljava/lang/String;)[B",
+                                charset));
+    jbyte* bytes = GetByteArrayElements(byte_array, NULL);
     AbortOnException();
+    jsize array_length = GetArrayLength(byte_array);
+    std::string result(reinterpret_cast<const char*>(bytes), array_length);
+    ReleaseByteArrayElements(byte_array, bytes, JNI_ABORT);
+    AbortOnException();
+    DeleteLocalRef(byte_array);
+    DeleteLocalRef(charset);
     return result;
   }
 
