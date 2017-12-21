@@ -24,7 +24,8 @@ namespace cobalt {
 namespace renderer {
 
 RendererModule::Options::Options()
-    : purge_skia_font_caches_on_destruction(true),
+    : disable_rasterizer_caching(false),
+      purge_skia_font_caches_on_destruction(true),
       enable_fps_stdout(false),
       enable_fps_overlay(false) {
   // These default values may ultimately be overridden by AutoMem.

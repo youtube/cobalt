@@ -38,7 +38,8 @@ class ExternalRasterizer : public Rasterizer {
                      int skia_cache_size_in_bytes,
                      int scratch_surface_cache_size_in_bytes,
                      int rasterizer_gpu_cache_size_in_bytes,
-                     bool purge_skia_font_caches_on_destruction);
+                     bool purge_skia_font_caches_on_destruction,
+                     bool disable_rasterizer_caching);
   virtual ~ExternalRasterizer();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,

@@ -364,6 +364,12 @@ void ApplyCommandLineSettingsToRendererOptions(
                           &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
+#if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
+  auto command_line = CommandLine::ForCurrentProcess();
+  if (command_line->HasSwitch(browser::switches::kDisableRasterizerCaching)) {
+    options->disable_rasterizer_caching = true;
+  }
+#endif  // ENABLE_DEBUG_COMMAND_LINE_SWITCHES
 }
 
 struct NonTrivialStaticFields {

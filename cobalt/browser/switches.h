@@ -28,6 +28,7 @@ extern const char kDebugConsoleMode[];
 extern const char kDebugConsoleModeHelp[];
 extern const char kDisableImageAnimations[];
 extern const char kDisableImageAnimationsHelp[];
+extern const char kDisableRasterizerCaching[];
 extern const char kDisableSplashScreenOnReloads[];
 extern const char kDisableSplashScreenOnReloadsHelp[];
 extern const char kDisableWebDriver[];
