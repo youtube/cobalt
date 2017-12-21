@@ -98,7 +98,7 @@ class MediaDecoder {
     explicit Event(Type type = kInvalid) : type(type) {
       SB_DCHECK(type != kWriteInputBuffer && type != kWriteCodecConfig);
     }
-    Event(const int8_t* codec_config, int16 codec_config_size)
+    Event(const int8_t* codec_config, int16_t codec_config_size)
         : type(kWriteCodecConfig),
           codec_config(codec_config),
           codec_config_size(codec_config_size) {}
@@ -108,7 +108,7 @@ class MediaDecoder {
     Type type;
     scoped_refptr<InputBuffer> input_buffer;
     const int8_t* codec_config;
-    int16 codec_config_size;
+    int16_t codec_config_size;
   };
 
   struct QueueInputBufferTask {
