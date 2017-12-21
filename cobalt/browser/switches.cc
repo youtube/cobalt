@@ -35,6 +35,11 @@ const char kDisableImageAnimations[] = "disable_image_animations";
 const char kDisableImageAnimationsHelp[] =
     "Enables/disables animations on animated images (e.g. animated WebP).";
 
+const char kDisableRasterizerCaching[] = "disable_rasterizer_caching";
+const char kDisableRasterizerCachingHelp[] =
+    "Disables caching of rasterized render tree nodes; caching improves "
+    "performance but may result in sub-pixel differences.";
+
 const char kDisableSplashScreenOnReloads[] = "disable_splash_screen_on_reloads";
 const char kDisableSplashScreenOnReloadsHelp[] =
     "Disables the splash screen on reloads; instead it will only appear on the "
@@ -305,6 +310,7 @@ std::string HelpMessage() {
     {kAudioDecoderStub, kAudioDecoderStubHelp},
         {kDebugConsoleMode, kDebugConsoleModeHelp},
         {kDisableImageAnimations, kDisableImageAnimationsHelp},
+        {kDisableRasterizerCaching, kDisableRasterizerCachingHelp},
         {kDisableSplashScreenOnReloads, kDisableSplashScreenOnReloadsHelp},
         {kDisableWebDriver, kDisableWebDriverHelp},
         {kDisableWebmVp9, kDisableWebmVp9Help},

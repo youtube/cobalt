@@ -52,7 +52,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
           options.offscreen_target_cache_size_in_bytes,
-          options.purge_skia_font_caches_on_destruction));
+          options.purge_skia_font_caches_on_destruction,
+          options.disable_rasterizer_caching));
 #else
   // This rasterizer uses surface_cache_size_in_bytes instead of
   // offscreen_target_cache_size_in_bytes.

@@ -80,6 +80,14 @@ class RendererModule {
     // atlases about a quarter of the frame size.
     int offscreen_target_cache_size_in_bytes;
 
+    // By default, some rasterizers may cache the output of certain render
+    // tree nodes to improve render performance. However, this may result in
+    // pixel differences if the cached output is rendered to the screen using
+    // a sub-pixel offset that is different from when the cache was created.
+    // This caching mechanism should only be disabled for testing purposes
+    // (e.g. screenshot diff tools).
+    bool disable_rasterizer_caching;
+
     // If this flag is set to true, the pipeline will not re-submit a render
     // tree if it has not changed from the previous submission.  This can save
     // CPU time so long as there's no problem with the fact that the display
