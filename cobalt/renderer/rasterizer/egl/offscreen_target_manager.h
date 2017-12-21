@@ -51,8 +51,9 @@ class OffscreenTargetManager {
   // Offscreen targets are cached with additional ErrorData. When searching for
   // a match, the caller specifies an error function which is used to verify
   // that a particular cache entry is suitable for use. A cache entry is
-  // suitable if CacheErrorFunction(ErrorData) < 1. If multiple entries meet
-  // this criteria, then the entry with the lowest error is chosen.
+  // suitable if CacheErrorFunction(ErrorData) < |cache_error_threshold_|. If
+  // multiple entries meet this criteria, then the entry with the lowest error
+  // is chosen.
   typedef math::RectF ErrorData;
   typedef base::Callback<float(const ErrorData&)> CacheErrorFunction;
   typedef float ErrorData1D;
@@ -69,6 +70,11 @@ class OffscreenTargetManager {
 
   // Flush all render targets that have been used thus far.
   void Flush();
+
+  // Specify the acceptable limit for the return value of the cache error
+  // function. A cached target can be a match only if the error value is less
+  // than the specified threshold. The default threshold is 1.
+  void SetCacheErrorThreshold(float threshold);
 
   // Return whether a cached version of the requested render target is
   // available. If a cache does exist, then the output parameters are set,
@@ -121,6 +127,10 @@ class OffscreenTargetManager {
 
   // Maximum number of bytes that can be used for offscreen atlases.
   size_t memory_limit_;
+
+  // A cached target can be a match only if the cache error function returns
+  // a value less than the cache error threshold.
+  float cache_error_threshold_;
 };
 
 }  // namespace egl

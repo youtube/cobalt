@@ -182,7 +182,8 @@ class ExternalRasterizer::Impl {
   Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
        int skia_atlas_height, int skia_cache_size_in_bytes,
        int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
-       bool purge_skia_font_caches_on_destruction);
+       bool purge_skia_font_caches_on_destruction,
+       bool disable_rasterizer_caching);
   ~Impl();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
@@ -244,7 +245,8 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
                                int rasterizer_gpu_cache_size_in_bytes,
-                               bool purge_skia_font_caches_on_destruction)
+                               bool purge_skia_font_caches_on_destruction,
+                               bool disable_rasterizer_caching)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
               graphics_context)),
@@ -252,7 +254,11 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                            skia_atlas_height, skia_cache_size_in_bytes,
                            scratch_surface_cache_size_in_bytes,
                            rasterizer_gpu_cache_size_in_bytes,
-                           purge_skia_font_caches_on_destruction),
+                           purge_skia_font_caches_on_destruction
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+                           , disable_rasterizer_caching
+#endif
+                           ),
       video_projection_type_(kCbLibVideoProjectionTypeNone),
       video_stereo_mode_(render_tree::StereoMode::kMono),
       video_texture_rgb_(0),
@@ -578,12 +584,14 @@ ExternalRasterizer::ExternalRasterizer(
     int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes,
     int rasterizer_gpu_cache_size_in_bytes,
-    bool purge_skia_font_caches_on_destruction)
+    bool purge_skia_font_caches_on_destruction,
+    bool disable_rasterizer_caching)
     : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
                      skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
                      rasterizer_gpu_cache_size_in_bytes,
-                     purge_skia_font_caches_on_destruction)) {}
+                     purge_skia_font_caches_on_destruction,
+                     disable_rasterizer_caching)) {}
 
 ExternalRasterizer::~ExternalRasterizer() {}
 
