@@ -24,6 +24,7 @@
         '<(DEPTH)/starboard/common/test_main.cc',
         '<@(filter_tests_sources)',
         '<@(media_tests_sources)',
+        'jni_env_ext_test.cc',
       ],
       'defines': [
         # This allows the tests to include internal only header files.
