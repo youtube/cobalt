@@ -25,6 +25,7 @@
 #include "cobalt/browser/memory_settings/test_common.h"
 #include "cobalt/browser/switches.h"
 #include "cobalt/math/size.h"
+#include "starboard/system.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 namespace cobalt {
@@ -441,7 +442,8 @@ TEST(AutoMem, NoDefaultGpuMemory) {
   AutoMem auto_mem(kResolution1080p, command_line_settings,
                    build_settings);
 
-  EXPECT_FALSE(auto_mem.max_gpu_bytes()->valid());
+  EXPECT_EQ(SbSystemHasCapability(kSbSystemCapabilityCanQueryGPUMemoryStats),
+            auto_mem.max_gpu_bytes()->valid());
 }
 
 }  // namespace memory_settings
