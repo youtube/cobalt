@@ -46,12 +46,16 @@ class HardwareRasterizer : public Rasterizer {
   // how much GPU memory is used to save the results of render tree nodes to
   // improve performance. This should be non-zero, otherwise performance
   // degrades drastically.
+  // |disable_rasterizer_caching| disables caching of render tree node outputs.
+  // This significantly degrades performance but provides sub-pixel correctness.
+  // This should only be done for testing purposes.
   explicit HardwareRasterizer(backend::GraphicsContext* graphics_context,
                               int skia_atlas_width, int skia_atlas_height,
                               int skia_cache_size_in_bytes,
                               int scratch_surface_cache_size_in_bytes,
                               int offscreen_target_cache_size_in_bytes,
-                              bool purge_skia_font_caches_on_destruction);
+                              bool purge_skia_font_caches_on_destruction,
+                              bool disable_rasterizer_caching);
   virtual ~HardwareRasterizer();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
