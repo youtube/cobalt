@@ -101,6 +101,38 @@ TEST(SbSystemGetPropertyTest, FailsGracefullyBogusId) {
   BasicTest(static_cast<SbSystemPropertyId>(99999), true, false, __LINE__);
 }
 
+TEST(SbSystemGetPropertyTest, SpeechApiKeyNotLeaked) {
+  static const size_t kSize = 512;
+  char speech_api_key[kSize] = {0};
+  bool has_speech_key =
+      SbSystemGetProperty(kSbSystemPropertySpeechApiKey, speech_api_key, kSize);
+
+  if (!has_speech_key) {
+    EXPECT_EQ(0, SbStringGetLength(speech_api_key));
+    return;
+  }
+
+  SbSystemPropertyId enum_values[] = {
+    kSbSystemPropertyChipsetModelNumber,
+    kSbSystemPropertyFirmwareVersion,
+    kSbSystemPropertyFriendlyName,
+    kSbSystemPropertyManufacturerName,
+    kSbSystemPropertyModelName,
+    kSbSystemPropertyModelYear,
+    kSbSystemPropertyNetworkOperatorName,
+    kSbSystemPropertyPlatformName,
+    kSbSystemPropertyPlatformUuid,
+  };
+
+  for (SbSystemPropertyId val : enum_values) {
+    char value[kSize] = {0};
+
+    if (SbSystemGetProperty(val, value, kSize)) {
+      ASSERT_FALSE(SbStringFindString(value, speech_api_key));
+    }
+  }
+}
+
 }  // namespace
 }  // namespace nplb
 }  // namespace starboard
