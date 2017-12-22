@@ -202,65 +202,6 @@ void StarboardPlayer::WriteBuffer(DemuxerStream::Type type,
   }
 }
 
-// TODO: Move this after CreatePlayer() in a follow up CL.  To keep the function
-//       here makes code review easier.
-void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
-  DCHECK(state_ != kSuspended);
-
-  const scoped_refptr<DecoderBuffer>& buffer =
-      decoder_buffer_cache_.GetBuffer(type);
-  DCHECK(buffer);
-  decoder_buffer_cache_.AdvanceToNextBuffer(type);
-
-  DCHECK(SbPlayerIsValid(player_));
-
-  if (buffer->end_of_stream()) {
-    SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
-    return;
-  }
-
-  const auto& allocations = buffer->allocations();
-  DCHECK_GT(allocations.number_of_buffers(), 0);
-
-  DecodingBuffers::iterator iter =
-      decoding_buffers_.find(allocations.buffers()[0]);
-  if (iter == decoding_buffers_.end()) {
-    decoding_buffers_[allocations.buffers()[0]] = std::make_pair(buffer, 1);
-  } else {
-    ++iter->second.second;
-  }
-
-  SbDrmSampleInfo drm_info;
-  SbDrmSubSampleMapping subsample_mapping;
-  bool is_encrypted = buffer->decrypt_config();
-  SbMediaVideoSampleInfo video_info;
-
-  drm_info.subsample_count = 0;
-  video_info.is_key_frame = buffer->is_key_frame();
-  video_info.frame_width = frame_width_;
-  video_info.frame_height = frame_height_;
-
-  SbMediaColorMetadata sb_media_color_metadata =
-      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
-  video_info.color_metadata = &sb_media_color_metadata;
-
-  if (is_encrypted) {
-    FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
-  }
-
-  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
-#if SB_API_VERSION >= 6
-                      allocations.buffers(), allocations.buffer_sizes(),
-#else   // SB_API_VERSION >= 6
-                      const_cast<const void**>(allocations.buffers()),
-                      const_cast<int*>(allocations.buffer_sizes()),
-#endif  // SB_API_VERSION >= 6
-                      allocations.number_of_buffers(),
-                      TimeDeltaToSbMediaTime(buffer->timestamp()),
-                      type == DemuxerStream::VIDEO ? &video_info : NULL,
-                      drm_info.subsample_count > 0 ? &drm_info : NULL);
-}
-
 #endif  // !SB_HAS(PLAYER_WITH_URL)
 
 void StarboardPlayer::SetBounds(int z_index, const gfx::Rect& rect) {
@@ -611,6 +552,63 @@ void StarboardPlayer::CreatePlayer() {
     pending_set_bounds_z_index_ = base::nullopt_t();
     pending_set_bounds_rect_ = base::nullopt_t();
   }
+}
+
+void StarboardPlayer::WriteNextBufferFromCache(DemuxerStream::Type type) {
+  DCHECK(state_ != kSuspended);
+
+  const scoped_refptr<DecoderBuffer>& buffer =
+      decoder_buffer_cache_.GetBuffer(type);
+  DCHECK(buffer);
+  decoder_buffer_cache_.AdvanceToNextBuffer(type);
+
+  DCHECK(SbPlayerIsValid(player_));
+
+  if (buffer->end_of_stream()) {
+    SbPlayerWriteEndOfStream(player_, DemuxerStreamTypeToSbMediaType(type));
+    return;
+  }
+
+  const auto& allocations = buffer->allocations();
+  DCHECK_GT(allocations.number_of_buffers(), 0);
+
+  DecodingBuffers::iterator iter =
+      decoding_buffers_.find(allocations.buffers()[0]);
+  if (iter == decoding_buffers_.end()) {
+    decoding_buffers_[allocations.buffers()[0]] = std::make_pair(buffer, 1);
+  } else {
+    ++iter->second.second;
+  }
+
+  SbDrmSampleInfo drm_info;
+  SbDrmSubSampleMapping subsample_mapping;
+  bool is_encrypted = buffer->decrypt_config();
+  SbMediaVideoSampleInfo video_info;
+
+  drm_info.subsample_count = 0;
+  video_info.is_key_frame = buffer->is_key_frame();
+  video_info.frame_width = frame_width_;
+  video_info.frame_height = frame_height_;
+
+  SbMediaColorMetadata sb_media_color_metadata =
+      MediaToSbMediaColorMetadata(video_config_.webm_color_metadata());
+  video_info.color_metadata = &sb_media_color_metadata;
+
+  if (is_encrypted) {
+    FillDrmSampleInfo(buffer, &drm_info, &subsample_mapping);
+  }
+
+  SbPlayerWriteSample(player_, DemuxerStreamTypeToSbMediaType(type),
+#if SB_API_VERSION >= 6
+                      allocations.buffers(), allocations.buffer_sizes(),
+#else   // SB_API_VERSION >= 6
+                      const_cast<const void**>(allocations.buffers()),
+                      const_cast<int*>(allocations.buffer_sizes()),
+#endif  // SB_API_VERSION >= 6
+                      allocations.number_of_buffers(),
+                      TimeDeltaToSbMediaTime(buffer->timestamp()),
+                      type == DemuxerStream::VIDEO ? &video_info : NULL,
+                      drm_info.subsample_count > 0 ? &drm_info : NULL);
 }
 
 #endif  // SB_HAS(PLAYER_WITH_URL)
