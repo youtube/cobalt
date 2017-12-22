@@ -15,6 +15,8 @@
 #ifndef COBALT_RENDERER_SUBMISSION_H_
 #define COBALT_RENDERER_SUBMISSION_H_
 
+#include <vector>
+
 #include "base/callback.h"
 #include "base/debug/trace_event.h"
 #include "base/memory/ref_counted.h"
@@ -57,9 +59,9 @@ struct Submission {
   // thread.
   base::TimeDelta time_offset;
 
-  // If non-null, |on_rasterized_callback| will be called every time this
-  // submission is rasterized.
-  base::Closure on_rasterized_callback;
+  // All callbacks within the vector will be called every time this submission
+  // is rasterized.
+  std::vector<base::Closure> on_rasterized_callbacks;
 
   // Information about the specific timeline that this submission is intended
   // to run on.  The most important part of TimelineInfo is TimelineInfo::id,

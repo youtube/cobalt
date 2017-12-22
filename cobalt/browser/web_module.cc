@@ -259,6 +259,15 @@ class WebModule::Impl {
   // specified in the constructor, |render_tree_produced_callback_|.
   void OnRenderTreeProduced(const LayoutResults& layout_results);
 
+  // Called by the Renderer on the Renderer thread when it rasterizes a render
+  // tree with this callback attached.
+  void OnRenderTreeRasterized(
+      scoped_refptr<base::MessageLoopProxy> web_module_message_loop);
+
+  // WebModule thread handling of the OnRenderTreeRasterized() callback. It
+  // includes the time that the rasterization callback was initially received.
+  void ProcessOnRenderTreeRasterized(const base::TimeTicks& on_rasterize_time);
+
   void OnCspPolicyChanged();
 
   scoped_refptr<script::GlobalEnvironment> global_environment() {
@@ -807,14 +816,39 @@ void WebModule::Impl::OnRenderTreeProduced(
     const LayoutResults& layout_results) {
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
+
+  LayoutResults layout_results_with_callback(layout_results.render_tree,
+                                             layout_results.layout_time);
+
   // Notify the stat tracker that a render tree has been produced.
   web_module_stat_tracker_->OnRenderTreeProduced();
 
+  // If the stat tracker is expecting to be notified of the rasterization time
+  // of the next render tree, then set a callback for this layout.
+  if (web_module_stat_tracker_->IsRenderTreeRasterizationPending()) {
+    layout_results_with_callback.on_rasterized_callback =
+        base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
+                   base::Unretained(this), base::MessageLoopProxy::current());
+  }
+
 #if defined(ENABLE_DEBUG_CONSOLE)
-  debug_overlay_->OnRenderTreeProduced(layout_results);
+  debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
 #else  // ENABLE_DEBUG_CONSOLE
-  render_tree_produced_callback_.Run(layout_results);
+  render_tree_produced_callback_.Run(layout_results_with_callback);
 #endif  // ENABLE_DEBUG_CONSOLE
+}
+
+void WebModule::Impl::OnRenderTreeRasterized(
+    scoped_refptr<base::MessageLoopProxy> web_module_message_loop) {
+  web_module_message_loop->PostTask(
+      FROM_HERE, base::Bind(&WebModule::Impl::ProcessOnRenderTreeRasterized,
+                            base::Unretained(this), base::TimeTicks::Now()));
+}
+
+void WebModule::Impl::ProcessOnRenderTreeRasterized(
+    const base::TimeTicks& on_rasterize_time) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  web_module_stat_tracker_->OnRenderTreeRasterized(on_rasterize_time);
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
@@ -1095,6 +1129,25 @@ void WebModule::Impl::DisableCallbacksInResourceCaches() {
   image_cache_->DisableCallbacks();
   remote_typeface_cache_->DisableCallbacks();
   mesh_cache_->DisableCallbacks();
+}
+
+void WebModule::Impl::HandlePointerEvents() {
+  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::HandlePointerEvents");
+  const scoped_refptr<dom::Document>& document = window_->document();
+  scoped_refptr<dom::Event> event;
+  do {
+    event = document->pointer_state()->GetNextQueuedPointerEvent();
+    if (event) {
+      SB_DCHECK(
+          window_ ==
+          base::polymorphic_downcast<const dom::UIEvent* const>(event.get())
+              ->view());
+      if (!topmost_event_target_) {
+        topmost_event_target_.reset(new layout::TopmostEventTarget());
+      }
+      topmost_event_target_->MaybeSendPointerEvents(event);
+    }
+  } while (event && !layout_manager_->IsRenderTreePending());
 }
 
 WebModule::DestructionObserver::DestructionObserver(WebModule* web_module)
@@ -1487,25 +1540,6 @@ void WebModule::ReduceMemory() {
   message_loop()->PostBlockingTask(FROM_HERE,
                                    base::Bind(&WebModule::Impl::ReduceMemory,
                                               base::Unretained(impl_.get())));
-}
-
-void WebModule::Impl::HandlePointerEvents() {
-  TRACE_EVENT0("cobalt::browser", "WebModule::Impl::HandlePointerEvents");
-  const scoped_refptr<dom::Document>& document = window_->document();
-  scoped_refptr<dom::Event> event;
-  do {
-    event = document->pointer_state()->GetNextQueuedPointerEvent();
-    if (event) {
-      SB_DCHECK(
-          window_ ==
-          base::polymorphic_downcast<const dom::UIEvent* const>(event.get())
-              ->view());
-      if (!topmost_event_target_) {
-        topmost_event_target_.reset(new layout::TopmostEventTarget());
-      }
-      topmost_event_target_->MaybeSendPointerEvents(event);
-    }
-  } while (event && !layout_manager_->IsRenderTreePending());
 }
 
 }  // namespace browser

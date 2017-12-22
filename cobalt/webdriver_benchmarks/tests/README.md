@@ -147,8 +147,9 @@ Some particularly interesting timing-related benchmark results are:
 
 #### Browse-to-Watch
  - `wbBrowseToWatchDurVideoStartDelayUs*`: Measures the browse-to-watch time.
- - `wbBrowseToWatchDurTotalUs*`: Measures the latency from the start of the
-   event until the screen turning black prior to the video starting.
+ - `wbBrowseToWatchDurInitialRenderTreeDelayUs*`: Measures the latency from the
+   start of the event until the screen turning black prior to the video
+   starting.
  - `wbBrowseToWatchDurSpinnerStartDelayUs*`: Measures the latency from the start
    of the event until the spinner appears on the screen (is 0 if the spinner
    never appears).
@@ -293,7 +294,7 @@ printf "\n" >> filtered_results.txt
 printf "\nBROWSE TO WATCH\n" >> filtered_results.txt
 grep -o "wbBrowseToWatchDurVideoStartDelay.*$" results.txt >> filtered_results.txt
 printf "\n" >> filtered_results.txt
-grep -o "wbBrowseToWatchDurTotalUs.*$" results.txt >> filtered_results.txt
+grep -o "wbBrowseToWatchDurInitialRenderTreeDelayUs.*$" results.txt >> filtered_results.txt
 printf "\n" >> filtered_results.txt
 grep -o "wbBrowseToWatchDurSpinnerStartDelayUs.*$" results.txt >> filtered_results.txt
 printf "\n" >> filtered_results.txt

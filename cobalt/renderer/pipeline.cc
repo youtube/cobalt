@@ -483,8 +483,9 @@ bool Pipeline::RasterizeSubmissionToRenderTarget(
   rasterizer_options.dirty = redraw_area;
   rasterizer_->Submit(submit_tree, render_target, rasterizer_options);
 
-  if (!submission.on_rasterized_callback.is_null()) {
-    submission.on_rasterized_callback.Run();
+  // Run all of this submission's callbacks.
+  for (const auto& callback : submission.on_rasterized_callbacks) {
+    callback.Run();
   }
 
   last_render_time_ = submission.time_offset;
@@ -521,7 +522,7 @@ void Pipeline::ShutdownSubmissionQueue() {
   post_fence_submission_ = base::nullopt;
   post_fence_receipt_time_ = base::nullopt;
 
-  // Stop and shutdown the raterizer timer.  If we won't have a submission
+  // Stop and shutdown the rasterizer timer.  If we won't have a submission
   // queue anymore, we won't be able to rasterize anymore.
   rasterize_timer_ = base::nullopt;
 
