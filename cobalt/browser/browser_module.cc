@@ -203,6 +203,17 @@ renderer::RendererModule::Options RendererModuleWithCameraOptions(
   return options;  // Copy.
 }
 
+renderer::Submission CreateSubmissionFromLayoutResults(
+    const browser::WebModule::LayoutResults& layout_results) {
+  renderer::Submission renderer_submission(layout_results.render_tree,
+                                           layout_results.layout_time);
+  if (!layout_results.on_rasterized_callback.is_null()) {
+    renderer_submission.on_rasterized_callbacks.push_back(
+        layout_results.on_rasterized_callback);
+  }
+  return renderer_submission;
+}
+
 }  // namespace
 
 BrowserModule::BrowserModule(const GURL& url,
@@ -618,16 +629,18 @@ void BrowserModule::OnRenderTreeProduced(
     return;
   }
 
-  renderer::Submission renderer_submission(layout_results.render_tree,
-                                           layout_results.layout_time);
+  renderer::Submission renderer_submission(
+      CreateSubmissionFromLayoutResults(layout_results));
+
   // Set the timeline id for the main web module.  The main web module is
   // assumed to be an interactive experience for which the default timeline
   // configuration is already designed for, so we don't configure anything
   // explicitly.
   renderer_submission.timeline_info.id = current_main_web_module_timeline_id_;
 
-  renderer_submission.on_rasterized_callback = base::Bind(
-      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
+  renderer_submission.on_rasterized_callbacks.push_back(base::Bind(
+      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this)));
+
   if (!splash_screen_) {
     render_tree_combiner_.SetTimelineLayer(main_web_module_layer_.get());
   }
@@ -653,8 +666,9 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
     return;
   }
 
-  renderer::Submission renderer_submission(layout_results.render_tree,
-                                           layout_results.layout_time);
+  renderer::Submission renderer_submission(
+      CreateSubmissionFromLayoutResults(layout_results));
+
   // We customize some of the renderer pipeline timeline behavior to cater for
   // non-interactive splash screen playback.
   renderer_submission.timeline_info.id = current_splash_screen_timeline_id_;
@@ -673,8 +687,9 @@ void BrowserModule::OnSplashScreenRenderTreeProduced(
   renderer_submission.timeline_info.max_submission_queue_size =
       std::max(8, renderer_submission.timeline_info.max_submission_queue_size);
 
-  renderer_submission.on_rasterized_callback = base::Bind(
-      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this));
+  renderer_submission.on_rasterized_callbacks.push_back(base::Bind(
+      &BrowserModule::OnRendererSubmissionRasterized, base::Unretained(this)));
+
   render_tree_combiner_.SetTimelineLayer(splash_screen_layer_.get());
   splash_screen_layer_->Submit(renderer_submission);
 
@@ -820,8 +835,8 @@ void BrowserModule::OnDebugConsoleRenderTreeProduced(
     }
     debug_console_layer_->Submit(base::nullopt);
   } else {
-    debug_console_layer_->Submit(renderer::Submission(
-        layout_results.render_tree, layout_results.layout_time));
+    debug_console_layer_->Submit(
+        CreateSubmissionFromLayoutResults(layout_results));
   }
 
   SubmitCurrentRenderTreeToRenderer();

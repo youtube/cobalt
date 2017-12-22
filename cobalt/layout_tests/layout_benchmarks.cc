@@ -66,8 +66,8 @@ class RendererBenchmarkRunner {
 
     renderer::Submission submission_with_callback(layout_results.render_tree,
                                                   layout_results.layout_time);
-    submission_with_callback.on_rasterized_callback = base::Bind(
-        &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this));
+    submission_with_callback.on_rasterized_callbacks.emplace_back(base::Bind(
+        &RendererBenchmarkRunner::OnSubmitComplete, base::Unretained(this)));
 
     renderer_module_->pipeline()->Submit(submission_with_callback);
 
