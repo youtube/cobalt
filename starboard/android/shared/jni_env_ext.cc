@@ -46,17 +46,15 @@ void JniEnvExt::Initialize(ANativeActivity* native_activity) {
   g_native_activity = native_activity;
 
   JniEnvExt* env = JniEnvExt::Get();
-  jobject loader =
-      env->CallObjectMethodOrAbort(env->GetObjectClass(native_activity->clazz),
-                                   "getClassLoader",
-                                   "()Ljava/lang/ClassLoader;");
+  jclass clazz = env->GetObjectClass(native_activity->clazz);
+  jobject loader = env->CallObjectMethodOrAbort(
+      clazz, "getClassLoader", "()Ljava/lang/ClassLoader;");
   g_application_class_loader = env->ConvertLocalRefToGlobalRef(loader);
+  env->DeleteLocalRef(clazz);
 
-  jfieldID bridge_field = env->GetFieldID(
-      env->GetObjectClass(native_activity->clazz),
-      "starboardBridge", "Lfoo/cobalt/coat/StarboardBridge;");
   g_starboard_bridge = env->ConvertLocalRefToGlobalRef(
-      env->GetObjectField(native_activity->clazz, bridge_field));
+      env->CallObjectMethodOrAbort(native_activity->clazz, "getStarboardBridge",
+                                   "()Lfoo/cobalt/coat/StarboardBridge;"));
 }
 
 // static
