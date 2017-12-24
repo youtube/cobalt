@@ -349,12 +349,12 @@ void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
   }
 }
 
-static std::string GetStartIntentUrl() {
+static std::string GetStartDeepLink() {
   JniEnvExt* env = JniEnvExt::Get();
   std::string start_url;
 
   ScopedLocalJavaRef<jstring> j_url(env->CallStarboardObjectMethodOrAbort(
-      "getStartIntentUrl", "()Ljava/lang/String;"));
+      "getStartDeepLink", "()Ljava/lang/String;"));
   if (j_url) {
     start_url = env->GetStringStandardUTFOrAbort(j_url.Get());
   }
@@ -369,7 +369,7 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
   ScopedLocalJavaRef<jobjectArray> args_array(
       env->CallStarboardObjectMethodOrAbort("getArgs",
                                             "()[Ljava/lang/String;"));
-  jint argc = env->GetArrayLength(args_array.Get());
+  jint argc = !args_array ? 0 : env->GetArrayLength(args_array.Get());
 
   for (jint i = 0; i < argc; i++) {
     ScopedLocalJavaRef<jstring> element(
@@ -401,7 +401,7 @@ extern "C" void android_main(struct android_app* state) {
     OpenLogFile(switch_val.c_str());
   }
 
-  std::string start_url(GetStartIntentUrl());
+  std::string start_url(GetStartDeepLink());
   if (!start_url.empty()) {
     application.SetStartLink(start_url.c_str());
   }
