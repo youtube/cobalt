@@ -41,7 +41,7 @@ namespace shared {
 // the StarboardBridge.
 struct JniEnvExt : public JNIEnv {
   // One-time initialization to be called before starting the application.
-  static void Initialize(ANativeActivity* native_activity);
+  static void Initialize(JniEnvExt* jni_env, jobject starboard_bridge);
 
   // Called right before each native thread is about to be shutdown.
   static void OnThreadShutdown();
