@@ -44,7 +44,6 @@ class ApplicationAndroid
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
-  ANativeActivity* GetActivity();
   void SetExitOnActivityDestroy(int error_level);
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);

@@ -133,7 +133,7 @@ ApplicationAndroid::~ApplicationAndroid() {
 void ApplicationAndroid::Initialize() {
   // Called once here to help SbTimeZoneGet*Name()
   tzset();
-  SbFileAndroidInitialize(android_state_->activity);
+  SbFileAndroidInitialize();
   SbAudioSinkPrivate::Initialize();
 }
 
@@ -295,10 +295,6 @@ bool ApplicationAndroid::OnAndroidInput(AInputEvent* androidEvent) {
   }
 
   return handled;
-}
-
-ANativeActivity* ApplicationAndroid::GetActivity() {
-  return android_state_->activity;
 }
 
 void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
