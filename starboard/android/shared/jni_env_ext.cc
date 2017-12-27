@@ -25,7 +25,7 @@
 namespace {
 
 SbThreadLocalKey g_tls_key = kSbThreadLocalKeyInvalid;
-ANativeActivity* g_native_activity = NULL;
+JavaVM* g_vm = NULL;
 jobject g_application_class_loader = NULL;
 jobject g_starboard_bridge = NULL;
 
@@ -41,20 +41,21 @@ namespace android {
 namespace shared {
 
 // static
-void JniEnvExt::Initialize(ANativeActivity* native_activity) {
+void JniEnvExt::Initialize(JniEnvExt* env, jobject starboard_bridge) {
+  SB_DCHECK(g_tls_key == kSbThreadLocalKeyInvalid);
   g_tls_key = SbThreadCreateLocalKey(Destroy);
-  g_native_activity = native_activity;
 
-  JniEnvExt* env = JniEnvExt::Get();
-  jclass clazz = env->GetObjectClass(native_activity->clazz);
-  jobject loader = env->CallObjectMethodOrAbort(
-      clazz, "getClassLoader", "()Ljava/lang/ClassLoader;");
-  g_application_class_loader = env->ConvertLocalRefToGlobalRef(loader);
-  env->DeleteLocalRef(clazz);
+  SB_DCHECK(g_vm == NULL);
+  env->GetJavaVM(&g_vm);
 
-  g_starboard_bridge = env->ConvertLocalRefToGlobalRef(
-      env->CallObjectMethodOrAbort(native_activity->clazz, "getStarboardBridge",
-                                   "()Lfoo/cobalt/coat/StarboardBridge;"));
+  SB_DCHECK(g_application_class_loader == NULL);
+  g_application_class_loader = env->ConvertLocalRefToGlobalRef(
+      env->CallObjectMethodOrAbort(env->GetObjectClass(starboard_bridge),
+                                   "getClassLoader",
+                                   "()Ljava/lang/ClassLoader;"));
+
+  SB_DCHECK(g_starboard_bridge == NULL);
+  g_starboard_bridge = env->NewGlobalRef(starboard_bridge);
 }
 
 // static
@@ -63,7 +64,7 @@ void JniEnvExt::OnThreadShutdown() {
   // previously called AttachCurrentThread() on it.
   //   http://docs.oracle.com/javase/7/docs/technotes/guides/jni/spec/invocation.html
   if (SbThreadGetLocalValue(g_tls_key)) {
-    g_native_activity->vm->DetachCurrentThread();
+    g_vm->DetachCurrentThread();
     SbThreadSetLocalValue(g_tls_key, NULL);
   }
 }
@@ -71,7 +72,7 @@ void JniEnvExt::OnThreadShutdown() {
 JniEnvExt* JniEnvExt::Get() {
   JNIEnv* env;
   // Always attach in case someone detached. This is a no-op if still attached.
-  g_native_activity->vm->AttachCurrentThread(&env, NULL);
+  g_vm->AttachCurrentThread(&env, NULL);
   // We don't actually use the value, but any non-NULL means we have to detach.
   SbThreadSetLocalValue(g_tls_key, env);
   // The downcast is safe since we only add methods, not fields.
