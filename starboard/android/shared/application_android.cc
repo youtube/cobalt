@@ -314,15 +314,6 @@ bool ApplicationAndroid::OnSearchRequested() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
-#if defined(COBALT_BUILD_TYPE_GOLD)
-  return true;
-#else
-  return false;
-#endif
-}
-
-extern "C" SB_EXPORT_PLATFORM
 jboolean Java_foo_cobalt_coat_StarboardBridge_nativeOnSearchRequested() {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
@@ -343,6 +334,14 @@ void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
     std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
     ApplicationAndroid::Get()->HandleDeepLink(utf_str.c_str());
   }
+}
+
+/******************************************************************************/
+
+extern "C" SB_EXPORT_PLATFORM
+void Java_foo_cobalt_coat_StarboardBridge_nativeInitialize(
+    JniEnvExt* env, jobject starboard_bridge) {
+  JniEnvExt::Initialize(env, starboard_bridge);
 }
 
 static std::string GetStartDeepLink() {
@@ -381,8 +380,6 @@ static void GetArgs(struct android_app* state, std::vector<char*>* out_args) {
  * loop in ApplicationAndroid.
  */
 extern "C" void android_main(struct android_app* state) {
-  JniEnvExt::Initialize(state->activity);
-
   std::string thread_name = "starboard_main";
   pthread_setname_np(pthread_self(), thread_name.c_str());
 
@@ -459,6 +456,15 @@ Java_foo_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
                                                      jobject unused_clazz,
                                                      jint key) {
   ApplicationAndroid::Get()->TriggerKeyboardInject(static_cast<SbKey>(key));
+}
+
+extern "C" SB_EXPORT_PLATFORM
+jboolean Java_foo_cobalt_coat_StarboardBridge_nativeReleaseBuild() {
+#if defined(COBALT_BUILD_TYPE_GOLD)
+  return true;
+#else
+  return false;
+#endif
 }
 
 }  // namespace shared
