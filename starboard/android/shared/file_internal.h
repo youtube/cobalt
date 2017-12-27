@@ -18,7 +18,6 @@
 #include <errno.h>
 
 #include <android/asset_manager.h>
-#include <android/native_activity.h>
 
 #include "starboard/file.h"
 #include "starboard/shared/internal_only.h"
@@ -43,7 +42,7 @@ extern const char* g_app_assets_dir;
 extern const char* g_app_files_dir;
 extern const char* g_app_cache_dir;
 
-void SbFileAndroidInitialize(ANativeActivity* activity);
+void SbFileAndroidInitialize();
 void SbFileAndroidTeardown();
 
 bool IsAndroidAssetPath(const char* path);

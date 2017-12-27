@@ -14,6 +14,8 @@
 
 #include "starboard/android/shared/file_internal.h"
 
+#include <android/asset_manager.h>
+#include <android/asset_manager_jni.h>
 #include <android/log.h>
 #include <jni.h>
 #include <string>
@@ -33,6 +35,7 @@ const char* g_app_files_dir = NULL;
 const char* g_app_cache_dir = NULL;
 
 namespace {
+jobject g_java_asset_manager;
 AAssetManager* g_asset_manager;
 
 // Copies the characters from a jstring and returns a newly allocated buffer
@@ -46,11 +49,18 @@ const char* DuplicateJavaString(JniEnvExt* env, jstring j_string) {
 
 }  // namespace
 
-void SbFileAndroidInitialize(ANativeActivity* activity) {
-  SB_DCHECK(g_asset_manager == NULL);
-  g_asset_manager = activity->assetManager;
-
+void SbFileAndroidInitialize() {
   JniEnvExt* env = JniEnvExt::Get();
+
+  SB_DCHECK(g_java_asset_manager == NULL);
+  SB_DCHECK(g_asset_manager == NULL);
+  ScopedLocalJavaRef<jstring> j_app(
+      env->CallStarboardObjectMethodOrAbort(
+          "getApplicationContext", "()Landroid/content/Context;"));
+  g_java_asset_manager = env->ConvertLocalRefToGlobalRef(
+      env->CallObjectMethodOrAbort(j_app.Get(),
+          "getAssets", "()Landroid/content/res/AssetManager;"));
+  g_asset_manager = AAssetManager_fromJava(env, g_java_asset_manager);
 
   SB_DCHECK(g_app_files_dir == NULL);
   ScopedLocalJavaRef<jstring> j_string(
@@ -68,7 +78,13 @@ void SbFileAndroidInitialize(ANativeActivity* activity) {
 }
 
 void SbFileAndroidTeardown() {
-  g_asset_manager = NULL;
+  JniEnvExt* env = JniEnvExt::Get();
+
+  if (g_java_asset_manager) {
+    env->DeleteGlobalRef(g_java_asset_manager);
+    g_java_asset_manager = NULL;
+    g_asset_manager = NULL;
+  }
 
   if (g_app_files_dir) {
     SbMemoryDeallocate(const_cast<char*>(g_app_files_dir));
