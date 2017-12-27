@@ -139,7 +139,7 @@ class Application {
 
     player_ = player_helper_.player();
 
-    AddSourceBuffers(IsWebM(video_path));
+    AddSourceBuffers(IsWebM(audio_path), IsWebM(video_path));
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
     chunk_demuxer_->SetTracksWatcher(kAudioId,
@@ -195,20 +195,27 @@ class Application {
     chunk_demuxer_ = chunk_demuxer;
   }
 
-  void AddSourceBuffers(bool is_webm) {
+  void AddSourceBuffers(bool is_audio_webm, bool is_video_webm) {
     const char kAACMime[] = "audio/mp4";
     const char kAACCodecs[] = "mp4a.40.2";
     const char kAVCMime[] = "video/mp4";
     const char kAVCCodecs[] = "avc1.640028";
-    const char kWebMMime[] = "video/webm";
+
+    const char kOpusMime[] = "audio/webm";
+    const char kOpusCodecs[] = "opus";
+    const char kVp9Mime[] = "video/webm";
     const char kVp9Codecs[] = "vp9";
 
-    auto audio_codecs = MakeCodecParameter(kAACCodecs);
-    auto status = chunk_demuxer_->AddId(kAudioId, kAACMime, audio_codecs);
+    auto audio_codecs =
+        MakeCodecParameter(is_audio_webm ? kOpusCodecs : kAACCodecs);
+    auto status = chunk_demuxer_->AddId(
+        kAudioId, is_audio_webm ? kOpusMime : kAACMime, audio_codecs);
     CHECK_EQ(status, ChunkDemuxer::kOk);
-    auto video_codecs = MakeCodecParameter(is_webm ? kVp9Codecs : kAVCCodecs);
-    status = chunk_demuxer_->AddId(kVideoId, is_webm ? kWebMMime : kAVCMime,
-                                   video_codecs);
+
+    auto video_codecs =
+        MakeCodecParameter(is_video_webm ? kVp9Codecs : kAVCCodecs);
+    status = chunk_demuxer_->AddId(
+        kVideoId, is_video_webm ? kVp9Mime : kAVCMime, video_codecs);
     CHECK_EQ(status, ChunkDemuxer::kOk);
   }
 
