@@ -31,7 +31,6 @@
       'copies': [{
         'destination': '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/',
         'files': [
-          '<(NDK_HOME)/sources/android/native_app_glue/android_native_app_glue.c',
           '<(NDK_HOME)/sources/android/cpufeatures/cpu-features.c',
         ],
       }],
@@ -44,6 +43,7 @@
         'accessibility_get_display_settings.cc',
         'accessibility_get_text_to_speech_settings.cc',
         'accessibility_set_captions_enabled.cc',
+        'android_main.cc',
         'application_android.cc',
         'application_android.h',
         'atomic_public.h',
@@ -149,7 +149,6 @@
         'window_get_platform_handle.cc',
         'window_get_size.cc',
         'window_internal.h',
-        '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/android_native_app_glue.c',
         '<(SHARED_INTERMEDIATE_DIR)/ndk-sources/cpu-features.c',
         '<(DEPTH)/starboard/accessibility.h',
         '<(DEPTH)/starboard/atomic.h',
