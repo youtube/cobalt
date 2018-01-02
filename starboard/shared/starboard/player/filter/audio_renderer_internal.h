@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "starboard/atomic.h"
+#include "starboard/common/optional.h"
 #include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
@@ -112,7 +113,7 @@ class AudioRenderer : public MediaTimeProvider,
                        bool* is_eos_reached) override;
   void ConsumeFrames(int frames_consumed) override;
 
-  void CreateAudioSinkAndResampler();
+  void OnFirstOutput();
   void LogFramesConsumed();
 
   void OnDecoderConsumed();
@@ -127,6 +128,7 @@ class AudioRenderer : public MediaTimeProvider,
   const int bytes_per_frame_;
 
   scoped_ptr<AudioResampler> resampler_;
+  optional<int> decoder_sample_rate_;
   AudioTimeStretcher time_stretcher_;
 
   std::vector<uint8_t> frame_buffer_;
