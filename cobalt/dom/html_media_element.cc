@@ -170,7 +170,6 @@ HTMLMediaElement::HTMLMediaElement(Document* document, base::Token tag_name)
       muted_(false),
       paused_(true),
       seeking_(false),
-      loop_(false),
       controls_(false),
       last_time_update_event_wall_time_(0),
       last_time_update_event_movie_time_(std::numeric_limits<float>::max()),
@@ -636,13 +635,18 @@ void HTMLMediaElement::set_autoplay(bool autoplay) {
 }
 
 bool HTMLMediaElement::loop() const {
-  MLOG() << loop_;
-  return loop_;
+  MLOG() << HasAttribute("loop");
+  return HasAttribute("loop");
 }
 
 void HTMLMediaElement::set_loop(bool loop) {
-  MLOG() << loop;
-  loop_ = loop;
+  // The value of 'loop' is true when the 'loop' attribute is present.
+  // The value of the attribute is irrelevant.
+  if (loop) {
+    SetAttribute("loop", "");
+  } else {
+    RemoveAttribute("loop");
+  }
 }
 
 void HTMLMediaElement::Play() {
