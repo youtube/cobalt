@@ -69,7 +69,8 @@ void VideoRenderAlgorithmImpl::Render(
   //
   // In the above example, this ensures advancement from frame timestamp 20
   // to frame timestamp 30 when the sample time is 19.
-  if (frames->size() > 1 && frames->front()->pts() == last_frame_pts_ &&
+  if (is_audio_playing && frames->size() > 1 &&
+      frames->front()->pts() == last_frame_pts_ &&
       last_frame_pts_ - kMediaTimeThreshold < media_time) {
     frames->pop_front();
   }
