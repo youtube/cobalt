@@ -296,7 +296,6 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   bool muted_;
   bool paused_;
   bool seeking_;
-  bool loop_;
   bool controls_;
 
   // The last time a timeupdate event was sent (wall clock).
