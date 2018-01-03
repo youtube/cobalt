@@ -19,8 +19,15 @@
     {
       'target_name': 'starboard_platform',
       'type': 'static_library',
-      'sources': ['<@(starboard_platform_sources)'],
+      'sources': [
+        '<@(starboard_platform_sources)',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.cc',
+        '<(DEPTH)/starboard/shared/starboard/player/video_dmp_writer.h',
+      ],
       'defines': [
+        'SB_PLAYER_ENABLE_VIDEO_DUMPER',
         # This must be defined when building Starboard, and must not when
         # building Starboard client code.
         'STARBOARD_IMPLEMENTATION',
