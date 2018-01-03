@@ -16,6 +16,9 @@
 
 #include "starboard/log.h"
 #include "starboard/shared/starboard/player/player_internal.h"
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+#include "starboard/shared/starboard/player/video_dmp_writer.h"
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
 void SbPlayerWriteSample(SbPlayer player,
                          SbMediaType sample_type,
@@ -50,6 +53,13 @@ void SbPlayerWriteSample(SbPlayer player,
     SB_DLOG(WARNING) << "|sample_buffer_sizes| cannot be NULL";
     return;
   }
+
+#if SB_PLAYER_ENABLE_VIDEO_DUMPER
+  using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
+  VideoDmpWriter::OnPlayerWriteSample(
+      player, sample_type, sample_buffers, sample_buffer_sizes,
+      number_of_sample_buffers, sample_pts, video_sample_info, sample_drm_info);
+#endif  // SB_PLAYER_ENABLE_VIDEO_DUMPER
 
   player->WriteSample(sample_type, sample_buffers, sample_buffer_sizes,
                       number_of_sample_buffers, sample_pts, video_sample_info,
