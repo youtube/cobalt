@@ -18,11 +18,9 @@
       'type': '<(gtest_target_type)',
       'includes': [
         '<(DEPTH)/starboard/shared/starboard/media/media_tests.gypi',
-        '<(DEPTH)/starboard/shared/starboard/player/filter/filter_tests.gypi',
       ],
       'sources': [
         '<(DEPTH)/starboard/common/test_main.cc',
-        '<@(filter_tests_sources)',
         '<@(media_tests_sources)',
         'jni_env_ext_test.cc',
       ],
