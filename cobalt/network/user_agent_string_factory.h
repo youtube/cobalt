@@ -30,8 +30,8 @@ class UserAgentStringFactory {
 
   // Creates user agent string for the current platform that follows the format
   // of Chromium's user agent, without pretending to be Chromium.
-  // Optionally includes information specified in YouTube TV HTML5 Technical
-  // Requirements (2016), see
+  // Optionally includes platform information specified in YouTube TV HTML5
+  // Technical Requirements (2016), see
   // https://docs.google.com/document/d/1STWxTx4PMz0BQpB29EcJFPMMUwPrk8_BD6ky_N6moaI/edit#heading=h.f921oqp9td36.
   std::string CreateUserAgentString();
 
@@ -44,7 +44,7 @@ class UserAgentStringFactory {
   std::string starboard_version_;
   std::string aux_field_;
 
-  struct YouTubeTVInfo {
+  struct PlatformInfo {
     enum DeviceType {
       kInvalidDeviceType,
       kAndroidTV,
@@ -60,7 +60,7 @@ class UserAgentStringFactory {
       kWirelessConnection,
     };
 
-    YouTubeTVInfo() : device_type(kInvalidDeviceType) {}
+    PlatformInfo() : device_type(kInvalidDeviceType) {}
 
     base::optional<std::string> network_operator;
     DeviceType device_type;
@@ -70,7 +70,7 @@ class UserAgentStringFactory {
     std::string model;
     base::optional<ConnectionType> connection_type;
   };
-  base::optional<YouTubeTVInfo> youtube_tv_info_;
+  base::optional<PlatformInfo> platform_info_;
 
  private:
   std::string CreatePlatformString();
