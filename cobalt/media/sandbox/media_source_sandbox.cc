@@ -106,7 +106,7 @@ class Application {
         player_helper_(media_sandbox_.GetMediaModule(),
                        base::Bind(&Application::OnChunkDemuxerOpened,
                                   base::Unretained(this))) {
-    DCHECK_EQ(argc, 3);
+    DCHECK_GE(argc, 3);
 
     // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened() asynchronously
     // during initialization of |player_helper_|.  Wait until it is set before
@@ -115,8 +115,8 @@ class Application {
       MessageLoop::current()->RunUntilIdle();
     }
 
-    std::string audio_path = ResolvePath(argv[1]);
-    std::string video_path = ResolvePath(argv[2]);
+    std::string audio_path = ResolvePath(argv[argc - 2]);
+    std::string video_path = ResolvePath(argv[argc - 1]);
 
     audio_file_.reset(
         new ScopedFile(audio_path.c_str(), kSbFileOpenOnly | kSbFileRead));
@@ -296,10 +296,9 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       DCHECK(!s_application);
-      if (data->argument_count != 3) {
+      if (data->argument_count < 3) {
         LOG(ERROR) << "Usage: " << data->argument_values[0]
-                   << " <audio file path> "
-                   << "<video file path>";
+                   << " [OPTIONS] <audio file path> <video file path>";
         SbSystemRequestStop(0);
         return;
       }
