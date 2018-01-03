@@ -96,15 +96,15 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
   }
 
   //   Device/FirmwareVersion (Brand, Model, ConnectionType)
-  if (youtube_tv_info_) {
+  if (platform_info_) {
     base::StringAppendF(
         &user_agent, ", %s_%s_%s/%s (%s, %s, %s)",
-        Sanitize(youtube_tv_info_->network_operator.value_or("")).c_str(),
+        Sanitize(platform_info_->network_operator.value_or("")).c_str(),
         CreateDeviceTypeString().c_str(),
-        Sanitize(youtube_tv_info_->chipset_model_number.value_or("")).c_str(),
-        Sanitize(youtube_tv_info_->firmware_version.value_or("")).c_str(),
-        Sanitize(youtube_tv_info_->brand).c_str(),
-        Sanitize(youtube_tv_info_->model).c_str(),
+        Sanitize(platform_info_->chipset_model_number.value_or("")).c_str(),
+        Sanitize(platform_info_->firmware_version.value_or("")).c_str(),
+        Sanitize(platform_info_->brand).c_str(),
+        Sanitize(platform_info_->model).c_str(),
         CreateConnectionTypeString().c_str());
   }
 
@@ -142,20 +142,20 @@ std::string UserAgentStringFactory::CreatePlatformString() {
 }
 
 std::string UserAgentStringFactory::CreateDeviceTypeString() {
-  switch (youtube_tv_info_->device_type) {
-    case YouTubeTVInfo::kBlueRayDiskPlayer:
+  switch (platform_info_->device_type) {
+    case PlatformInfo::kBlueRayDiskPlayer:
       return "BDP";
-    case YouTubeTVInfo::kGameConsole:
+    case PlatformInfo::kGameConsole:
       return "GAME";
-    case YouTubeTVInfo::kOverTheTopBox:
+    case PlatformInfo::kOverTheTopBox:
       return "OTT";
-    case YouTubeTVInfo::kSetTopBox:
+    case PlatformInfo::kSetTopBox:
       return "STB";
-    case YouTubeTVInfo::kTV:
+    case PlatformInfo::kTV:
       return "TV";
-    case YouTubeTVInfo::kAndroidTV:
+    case PlatformInfo::kAndroidTV:
       return "ATV";
-    case YouTubeTVInfo::kInvalidDeviceType:
+    case PlatformInfo::kInvalidDeviceType:
     default:
       NOTREACHED();
       return "";
@@ -163,11 +163,11 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
 }
 
 std::string UserAgentStringFactory::CreateConnectionTypeString() {
-  if (youtube_tv_info_->connection_type) {
-    switch (*youtube_tv_info_->connection_type) {
-      case YouTubeTVInfo::kWiredConnection:
+  if (platform_info_->connection_type) {
+    switch (*platform_info_->connection_type) {
+      case PlatformInfo::kWiredConnection:
         return "Wired";
-      case YouTubeTVInfo::kWirelessConnection:
+      case PlatformInfo::kWirelessConnection:
         return "Wireless";
       default:
         NOTREACHED();
