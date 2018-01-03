@@ -23,7 +23,6 @@
 #include "starboard/shared/internal_only.h"
 #include "starboard/shared/starboard/player/filter/video_frame_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
-#include "starboard/shared/starboard/player/job_queue.h"
 
 namespace starboard {
 namespace shared {
@@ -37,12 +36,21 @@ class VideoDecoder {
   typedef ::starboard::shared::starboard::player::InputBuffer InputBuffer;
   typedef ::starboard::shared::starboard::player::filter::VideoFrame VideoFrame;
 
-  enum Status { kNeedMoreInput, kBufferFull, kReleaseAllFrames };
+  enum Status {
+    kNeedMoreInput,    // Signals that more input is required to produce output.
+    kBufferFull,       // Signals that the decoder can no longer accept input.
+    kReleaseAllFrames  // Signals that all frames decoded should be released.
+                       // This can only happen during Reset() or dtor.
+  };
 
-  // |frame| can contain a decoded frame or be NULL.   The user of the class
-  // should only call WriteInputFrame() when |status| is |kNeedMoreInput| or
-  // when the instance is just created.  Also note that calling Reset() or dtor
-  // from this callback *will* result in deadlock.
+  // |frame| can contain a decoded frame or be NULL.  It has to be NULL when
+  // |status| is kReleaseAllFrames.  The user of the class should only call
+  // WriteInputFrame() when |status| is |kNeedMoreInput| or when the instance
+  // is just created or Reset() is just called.
+  // When |status| is |kNeedMoreInput|, it cannot become |kBufferFull| unless
+  // WriteInputBuffer() or WriteEndOfStream() is called.
+  // Also note that calling Reset() or dtor from this callback *will* result in
+  // deadlock.
   typedef std::function<void(Status status,
                              const scoped_refptr<VideoFrame>& frame)>
       DecoderStatusCB;
@@ -50,6 +58,8 @@ class VideoDecoder {
 
   virtual ~VideoDecoder() {}
 
+  // This function has to be called before any other functions to setup the
+  // stage.
   virtual void Initialize(const DecoderStatusCB& decoder_status_cb,
                           const ErrorCB& error_cb) = 0;
 
@@ -67,17 +77,24 @@ class VideoDecoder {
   // Send encoded video frame stored in |input_buffer| to decode.
   virtual void WriteInputBuffer(
       const scoped_refptr<InputBuffer>& input_buffer) = 0;
+
   // Note that there won't be more input data unless Reset() is called.
-  // OnDecoderStatusUpdate will still be called on Host during flushing until
-  // the |frame| is an EOS frame.
+  // |decoder_status_cb| can still be called multiple times afterwards to
+  // ensure that all remaining frames are returned until the |frame| is an EOS
+  // frame.
   virtual void WriteEndOfStream() = 0;
+
   // Clear any cached buffer of the codec and reset the state of the codec.
   // This function will be called during seek to ensure that there is no left
-  // over data from previous buffers.  No DecoderStatusCB call will be made
+  // over data from previous buffers.  |decoder_status_cb| won't be called
   // after this function returns unless WriteInputFrame() or WriteEndOfStream()
   // is called again.
   virtual void Reset() = 0;
 
+  // This function can only be called when the current SbPlayerOutputMode is
+  // |kSbPlayerOutputModeDecodeToTexture|.  It has to return valid value after
+  // the |decoder_status_cb| is called with a valid frame for the first time
+  // unless Reset() is called.
   // May be called from an arbitrary thread (e.g. a renderer thread).
   virtual SbDecodeTarget GetCurrentDecodeTarget() = 0;
 
