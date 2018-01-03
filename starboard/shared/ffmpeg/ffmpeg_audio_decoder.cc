@@ -67,9 +67,11 @@ void AudioDecoder::Initialize(const OutputCB& output_cb,
   SB_DCHECK(BelongsToCurrentThread());
   SB_DCHECK(output_cb);
   SB_DCHECK(!output_cb_);
-  SB_UNREFERENCED_PARAMETER(error_cb);
+  SB_DCHECK(error_cb);
+  SB_DCHECK(!error_cb_);
 
   output_cb_ = output_cb;
+  error_cb_ = error_cb;
 }
 
 void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
@@ -104,6 +106,7 @@ void AudioDecoder::Decode(const scoped_refptr<InputBuffer>& input_buffer,
     SB_DLOG(WARNING) << "avcodec_decode_audio4() failed with result: " << result
                      << " with input buffer size: " << input_buffer->size()
                      << " and frame decoded: " << frame_decoded;
+    error_cb_();
     return;
   }
 

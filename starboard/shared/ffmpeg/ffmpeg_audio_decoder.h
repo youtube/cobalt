@@ -55,6 +55,7 @@ class AudioDecoder : public starboard::player::filter::AudioDecoder,
   static const int kMaxDecodedAudiosSize = 64;
 
   OutputCB output_cb_;
+  ErrorCB error_cb_;
   SbMediaAudioCodec audio_codec_;
   AVCodecContext* codec_context_;
   AVFrame* av_frame_;
