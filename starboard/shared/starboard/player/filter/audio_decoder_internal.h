@@ -88,8 +88,8 @@ class AudioDecoder {
   // Return the sample rate of the incoming audio.  This should be used by the
   // audio renderer as the sample rate of the underlying audio stream can be
   // different than the sample rate stored in the meta data.
-  // Note that this function can be called from any thread, as it is called by
-  // AudioRendererImpl::GetCurrentMediaTime().
+  // This function can only be called after |output_cb| passed to Initialize()
+  // is called for the first time.
   virtual int GetSamplesPerSecond() const = 0;
 };
 
