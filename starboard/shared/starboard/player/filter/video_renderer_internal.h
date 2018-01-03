@@ -18,6 +18,7 @@
 #include <list>
 
 #include "starboard/common/ref_counted.h"
+#include "starboard/common/scoped_ptr.h"
 #include "starboard/log.h"
 #include "starboard/media.h"
 #include "starboard/mutex.h"

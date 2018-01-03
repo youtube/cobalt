@@ -18,11 +18,8 @@
 #include <functional>
 #include <map>
 
-#include "starboard/common/scoped_ptr.h"
 #include "starboard/condition_variable.h"
-#include "starboard/log.h"
 #include "starboard/mutex.h"
-#include "starboard/queue.h"
 #include "starboard/shared/internal_only.h"
 #include "starboard/time.h"
 
