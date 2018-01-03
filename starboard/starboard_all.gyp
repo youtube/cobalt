@@ -37,7 +37,7 @@
       'conditions': [
         ['has_platform_tests==1', {
           'dependencies': [
-            '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:starboard_platform_tests',
+            '<(DEPTH)/<(starboard_path)/starboard_platform_tests.gyp:*',
           ],
         }],
       ],
