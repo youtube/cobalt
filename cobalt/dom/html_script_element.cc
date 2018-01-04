@@ -151,7 +151,7 @@ void HTMLScriptElement::Prepare() {
   // Custom, not in any spec.
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(MessageLoop::current());
-  DCHECK(!loader_);
+  DCHECK(!loader_ || is_already_started_);
   TRACE_EVENT0("cobalt::dom", "HTMLScriptElement::Prepare()");
 
   // If the script element is marked as having "already started", then the user
