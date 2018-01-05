@@ -71,10 +71,15 @@ void JniEnvExt::OnThreadShutdown() {
 
 JniEnvExt* JniEnvExt::Get() {
   JNIEnv* env;
-  // Always attach in case someone detached. This is a no-op if still attached.
-  g_vm->AttachCurrentThread(&env, NULL);
-  // We don't actually use the value, but any non-NULL means we have to detach.
-  SbThreadSetLocalValue(g_tls_key, env);
+  if (JNI_OK != g_vm->GetEnv(reinterpret_cast<void**>(&env), JNI_VERSION_1_6)) {
+    // Tell the JVM our thread name so it doesn't change it.
+    char thread_name[16];
+    SbThreadGetName(thread_name, sizeof(thread_name));
+    JavaVMAttachArgs args { JNI_VERSION_1_6, thread_name, NULL };
+    g_vm->AttachCurrentThread(&env, &args);
+    // We don't use the value, but any non-NULL means we have to detach.
+    SbThreadSetLocalValue(g_tls_key, env);
+  }
   // The downcast is safe since we only add methods, not fields.
   return static_cast<JniEnvExt*>(env);
 }

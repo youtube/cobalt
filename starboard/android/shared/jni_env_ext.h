@@ -160,11 +160,12 @@ struct JniEnvExt : public JNIEnv {
     const jbyteArray byte_array = static_cast<jbyteArray>(
         CallObjectMethodOrAbort(str, "getBytes", "(Ljava/lang/String;)[B",
                                 charset));
-    jbyte* bytes = GetByteArrayElements(byte_array, NULL);
-    AbortOnException();
     jsize array_length = GetArrayLength(byte_array);
-    std::string result(reinterpret_cast<const char*>(bytes), array_length);
-    ReleaseByteArrayElements(byte_array, bytes, JNI_ABORT);
+    AbortOnException();
+    void* bytes = GetPrimitiveArrayCritical(byte_array, NULL);
+    AbortOnException();
+    std::string result(static_cast<const char*>(bytes), array_length);
+    ReleasePrimitiveArrayCritical(byte_array, bytes, JNI_ABORT);
     AbortOnException();
     DeleteLocalRef(byte_array);
     DeleteLocalRef(charset);
