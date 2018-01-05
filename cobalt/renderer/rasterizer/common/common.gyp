@@ -27,8 +27,6 @@
         'scratch_surface_cache.h',
         'streaming_best_fit_line.cc',
         'streaming_best_fit_line.h',
-        'surface_cache.cc',
-        'surface_cache.h',
         'utils.h',
         'utils.cc',
       ],

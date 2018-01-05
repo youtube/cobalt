@@ -31,12 +31,11 @@ namespace rasterizer {
 namespace egl {
 
 SoftwareRasterizer::SoftwareRasterizer(
-    backend::GraphicsContext* context, int surface_cache_size,
+    backend::GraphicsContext* context,
     bool purge_skia_font_caches_on_destruction)
     : context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(context)),
-      skia_rasterizer_(surface_cache_size,
-                       purge_skia_font_caches_on_destruction) {}
+      skia_rasterizer_(purge_skia_font_caches_on_destruction) {}
 
 void SoftwareRasterizer::Submit(
     const scoped_refptr<render_tree::Node>& render_tree,

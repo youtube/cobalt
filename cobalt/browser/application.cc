@@ -360,8 +360,6 @@ void SetIntegerIfSwitchIsSet(const char* switch_name, int* output) {
 
 void ApplyCommandLineSettingsToRendererOptions(
     renderer::RendererModule::Options* options) {
-  SetIntegerIfSwitchIsSet(browser::switches::kSurfaceCacheSizeInBytes,
-                          &options->surface_cache_size_in_bytes);
   SetIntegerIfSwitchIsSet(browser::switches::kScratchSurfaceCacheSizeInBytes,
                           &options->scratch_surface_cache_size_in_bytes);
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)

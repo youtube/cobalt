@@ -33,8 +33,6 @@
         'render_tree_node_visitor.h',
         'scratch_surface_cache.cc',
         'scratch_surface_cache.h',
-        'surface_cache_delegate.cc',
-        'surface_cache_delegate.h',
         'text_shaper.cc',
         'text_shaper.h',
         'typeface.cc',
