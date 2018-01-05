@@ -20,6 +20,7 @@
 #include "base/callback_helpers.h"
 #include "base/debug/trace_event.h"
 #include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
@@ -147,7 +148,7 @@ class HardwareFrontendImage::HardwareBackendImage {
                  "HardwareBackendImage::InitializeFromImageData()");
     backend->texture_ = cobalt_context->CreateTexture(
         image_data->PassTextureData());
-    backend->CommonInitialize(gr_context);
+    backend->CommonInitialize(gr_context, cobalt_context);
   }
 
   static void InitializeFromRawImageData(
@@ -161,7 +162,7 @@ class HardwareFrontendImage::HardwareBackendImage {
         texture_memory, offset, descriptor.size,
         ConvertRenderTreeFormatToGL(descriptor.pixel_format),
         descriptor.pitch_in_bytes);
-    backend->CommonInitialize(gr_context);
+    backend->CommonInitialize(gr_context, cobalt_context);
   }
 
   static void InitializeFromTexture(
@@ -170,7 +171,9 @@ class HardwareFrontendImage::HardwareBackendImage {
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::InitializeFromTexture()");
     backend->texture_ = texture.Pass();
-    backend->CommonInitialize(gr_context);
+    backend::GraphicsContextEGL* cobalt_context =
+        backend->texture_->graphics_context();
+    backend->CommonInitialize(gr_context, cobalt_context);
   }
 
   static void InitializeFromRenderTree(
@@ -206,10 +209,15 @@ class HardwareFrontendImage::HardwareBackendImage {
 
   // Initiate all texture initialization code here, which should be executed
   // on the rasterizer thread.
-  void CommonInitialize(GrContext* gr_context) {
+  void CommonInitialize(GrContext* gr_context,
+                        backend::GraphicsContextEGL* cobalt_context) {
+    SB_DCHECK(gr_context);
+    SB_DCHECK(cobalt_context);
     DCHECK(thread_checker_.CalledOnValidThread());
+
     TRACE_EVENT0("cobalt::renderer",
                  "HardwareBackendImage::CommonInitialize()");
+    backend::GraphicsContextEGL::ScopedMakeCurrent scoped(cobalt_context);
     if (!texture_->IsValid()) {
       // The system likely did not have enough GPU memory for the texture.
       LOG(ERROR) << "Invalid texture passed to HardwareBackendImage";

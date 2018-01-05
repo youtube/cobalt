@@ -67,6 +67,8 @@ class TextureEGL {
   // Returns an index to the texture that can be passed to OpenGL functions.
   GLuint gl_handle() const { return gl_handle_; }
 
+  GraphicsContextEGL* graphics_context() { return graphics_context_; }
+
  private:
   // A reference to the graphics context that this texture is associated with.
   GraphicsContextEGL* graphics_context_;
