@@ -68,17 +68,8 @@ std::string GetStartDeepLink() {
   return start_url;
 }
 
-// Work around JNIEnv::AttachCurrentThread() renaming our thread.
-void FixThreadName() {
-  char thread_name[16];
-  SbThreadGetName(thread_name, sizeof(thread_name));
-  JniEnvExt::Get();
-  SbThreadSetName(thread_name);
-}
-
 void* ThreadEntryPoint(void* context) {
   Semaphore* app_created_semaphore = static_cast<Semaphore*>(context);
-  FixThreadName();
 
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   ApplicationAndroid app(looper);
