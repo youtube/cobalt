@@ -34,8 +34,8 @@ const char kLogPathSwitch[] = "android_log_file";
 
 SbThread g_starboard_thread = kSbThreadInvalid;
 
-std::vector<char*> GetArgs() {
-  std::vector<char*> args;
+std::vector<std::string> GetArgs() {
+  std::vector<std::string> args;
   // Fake program name as args[0]
   args.push_back(SbStringDuplicate("android_main"));
 
@@ -49,8 +49,7 @@ std::vector<char*> GetArgs() {
   for (jint i = 0; i < argc; i++) {
     ScopedLocalJavaRef<jstring> element(
         env->GetObjectArrayElementOrAbort(args_array.Get(), i));
-    std::string utf_str = env->GetStringStandardUTFOrAbort(element.Get());
-    args.push_back(SbStringDuplicate(utf_str.c_str()));
+    args.push_back(env->GetStringStandardUTFOrAbort(element.Get()));
   }
 
   return args;
@@ -74,24 +73,15 @@ void* ThreadEntryPoint(void* context) {
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
   ApplicationAndroid app(looper);
 
-  // TODO: Implement move semantics in CommandLine and use it directly.
-  std::vector<char*> args(GetArgs());
-  {
-    CommandLine cl(args.size(), args.data());
-    if (cl.HasSwitch(kLogPathSwitch)) {
-      OpenLogFile(cl.GetSwitchValue(kLogPathSwitch).c_str());
-    }
+  CommandLine command_line(GetArgs());
+  if (command_line.HasSwitch(kLogPathSwitch)) {
+    OpenLogFile(command_line.GetSwitchValue(kLogPathSwitch).c_str());
   }
 
   // Signal ANativeActivity_onCreate() that it may proceed.
   app_created_semaphore->Put();
-
-  app.Run(args.size(), args.data(), GetStartDeepLink().c_str());
-
-  for (std::vector<char*>::iterator it = args.begin(); it != args.end(); ++it) {
-    SbMemoryDeallocate(*it);
-  }
-
+  // Enter the Starboard run loop forever.
+  app.Run(std::move(command_line), GetStartDeepLink().c_str());
   return NULL;
 }
 
