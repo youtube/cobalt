@@ -21,6 +21,7 @@
 
 #include "base/threading/thread_checker.h"
 #include "cobalt/render_tree/resource_provider.h"
+#include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 #include "third_party/glm/glm/vec2.hpp"
 #include "third_party/glm/glm/vec3.hpp"
@@ -33,8 +34,10 @@ namespace skia {
 class HardwareMesh : public render_tree::Mesh {
  public:
   HardwareMesh(scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
-               DrawMode draw_mode)
-      : vertices_(vertices.Pass()), draw_mode_(CheckDrawMode(draw_mode)) {
+               DrawMode draw_mode, backend::GraphicsContextEGL* cobalt_context)
+      : vertices_(vertices.Pass()),
+        draw_mode_(CheckDrawMode(draw_mode)),
+        cobalt_context_(cobalt_context) {
     DCHECK(vertices_);
     thread_checker_.DetachFromThread();
   }
@@ -64,6 +67,8 @@ class HardwareMesh : public render_tree::Mesh {
   // rendering it so that the graphics context has already been made current.
   const VertexBufferObject* GetVBO() const;
 
+  ~HardwareMesh() override;
+
  private:
   static GLenum CheckDrawMode(DrawMode mode) {
     switch (mode) {
@@ -85,6 +90,7 @@ class HardwareMesh : public render_tree::Mesh {
   mutable scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices_;
   mutable scoped_ptr<VertexBufferObject> vbo_;
   const GLenum draw_mode_;
+  backend::GraphicsContextEGL* cobalt_context_;
 
   base::ThreadChecker thread_checker_;
 };

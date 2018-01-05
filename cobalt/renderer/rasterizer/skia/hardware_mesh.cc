@@ -18,6 +18,8 @@
 
 #include <vector>
 
+#include "cobalt/renderer/backend/egl/graphics_context.h"
+
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
@@ -40,6 +42,14 @@ const VertexBufferObject* HardwareMesh::GetVBO() const {
   }
 
   return vbo_.get();
+}
+
+HardwareMesh::~HardwareMesh() {
+  // TODO: Support this function from being called from any thread.
+  DCHECK(thread_checker_.CalledOnValidThread());
+  backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
+      cobalt_context_);
+  vbo_.reset();
 }
 
 }  // namespace skia
