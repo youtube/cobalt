@@ -48,6 +48,14 @@ void Dispatch(SbEventType type, void* data, SbEventDataDestructor destructor) {
   }
 }
 
+void DeleteStartData(void* data) {
+  SbEventStartData* start_data = static_cast<SbEventStartData*>(data);
+  if (start_data) {
+    delete[] start_data->argument_values;
+  }
+  delete start_data;
+}
+
 }  // namespace
 
 // The next event ID to use for Schedule().
@@ -80,9 +88,9 @@ Application::~Application() {
   SbMemoryDeallocate(start_link_);
 }
 
-int Application::Run(int argc, char** argv, const char* link_data) {
+int Application::Run(CommandLine command_line, const char* link_data) {
   Initialize();
-  command_line_.reset(new CommandLine(argc, argv));
+  command_line_.reset(new CommandLine(command_line));
   if (link_data) {
     SetStartLink(link_data);
   }
@@ -90,9 +98,9 @@ int Application::Run(int argc, char** argv, const char* link_data) {
   return RunLoop();
 }
 
-int Application::Run(int argc, char** argv) {
+int Application::Run(CommandLine command_line) {
   Initialize();
-  command_line_.reset(new CommandLine(argc, argv));
+  command_line_.reset(new CommandLine(command_line));
   if (command_line_->HasSwitch(kLinkSwitch)) {
     std::string value = command_line_->GetSwitchValue(kLinkSwitch);
     if (!value.empty()) {
@@ -103,7 +111,7 @@ int Application::Run(int argc, char** argv) {
   return RunLoop();
 }
 
-CommandLine* Application::GetCommandLine() {
+const CommandLine* Application::GetCommandLine() {
   return command_line_.get();
 }
 
@@ -354,11 +362,16 @@ Application::Event* Application::CreateInitialEvent(SbEventType type) {
 #endif  // SB_API_VERSION >= 6
   SbEventStartData* start_data = new SbEventStartData();
   SbMemorySet(start_data, 0, sizeof(SbEventStartData));
-  start_data->argument_values =
-      const_cast<char**>(command_line_->GetOriginalArgv());
-  start_data->argument_count = command_line_->GetOriginalArgc();
+  const CommandLine::StringVector& args = command_line_->argv();
+  start_data->argument_count = static_cast<int>(args.size());
+  // Cobalt web_platform_tests expect an extra argv[argc] set to NULL.
+  start_data->argument_values = new char*[start_data->argument_count + 1];
+  start_data->argument_values[start_data->argument_count] = NULL;
+  for (int i=0; i < start_data->argument_count; i++) {
+    start_data->argument_values[i] = const_cast<char*>(args[i].c_str());
+  }
   start_data->link = start_link_;
-  return new Event(type, start_data, &DeleteDestructor<SbEventStartData>);
+  return new Event(type, start_data, &DeleteStartData);
 }
 
 int Application::RunLoop() {

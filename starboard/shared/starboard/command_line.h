@@ -14,6 +14,7 @@
 
 #include <map>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "starboard/types.h"
@@ -33,18 +34,43 @@ class CommandLine {
   // Construct a new command line from an argument list.
   CommandLine(int argc, const CharType* const* argv);
 
+  // Construct a new command line from a vector of strings.
+  explicit CommandLine(const StringVector& argv);
+
+  // Copy constructor
+  CommandLine(const CommandLine& other)
+      : argv_(other.argv_),
+        switches_(other.switches_),
+        begin_args_(other.begin_args_) {}
+
+  // Move constructor
+  CommandLine(CommandLine&& other) {
+    swap(*this, other);
+  }
+
   ~CommandLine();
+
+  // Copy/move assignment. The "copy" of the copy-and-swap idiom is done by the
+  // compiler to provide the by-value parameter, which comes from either the
+  // copy or move constructor depending on whether or not other was an rvalue.
+  CommandLine& operator=(CommandLine other) noexcept {
+    swap(*this, other);
+    return *this;
+  }
+
+  // Swaps two CommandLine values.
+  friend void swap(CommandLine& a, CommandLine& b) {
+    using std::swap;
+    swap(a.argv_, b.argv_);
+    swap(a.switches_, b.switches_);
+    swap(a.begin_args_, b.begin_args_);
+  }
 
   // Initialize from an argv vector.
   void InitFromArgv(int argc, const CharType* const* argv);
 
   // Returns the original command line string as a vector of strings.
   const StringVector& argv() const { return argv_; }
-
-  int GetOriginalArgc() const { return original_argument_count_; }
-  const CharType* const* GetOriginalArgv() const {
-    return original_argument_vector_;
-  }
 
   // Returns true if this command line contains the given switch.
   // (Switch names are case-insensitive).
@@ -91,9 +117,6 @@ class CommandLine {
 
   // The index after the program and switches, any arguments start here.
   size_t begin_args_;
-
-  int original_argument_count_;
-  const CharType* const* original_argument_vector_;
 };
 
 }  // namespace starboard
