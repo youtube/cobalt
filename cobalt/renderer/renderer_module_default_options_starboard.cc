@@ -39,12 +39,8 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::SoftwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes,
-          options.purge_skia_font_caches_on_destruction));
+          graphics_context, options.purge_skia_font_caches_on_destruction));
 #elif defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
-  // This rasterizer uses offscreen_target_cache_size_in_bytes instead of
-  // surface_cache_size_in_bytes.
-  DCHECK_EQ(0, options.surface_cache_size_in_bytes);
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::egl::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
@@ -55,31 +51,25 @@ scoped_ptr<rasterizer::Rasterizer> CreateRasterizer(
           options.purge_skia_font_caches_on_destruction,
           options.disable_rasterizer_caching));
 #else
-  // This rasterizer uses surface_cache_size_in_bytes instead of
-  // offscreen_target_cache_size_in_bytes.
-  DCHECK_EQ(0, options.offscreen_target_cache_size_in_bytes);
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::skia::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.skia_cache_size_in_bytes,
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER
 #elif SB_HAS(BLITTER)
 #if COBALT_FORCE_SOFTWARE_RASTERIZER
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::SoftwareRasterizer(
-          graphics_context, options.surface_cache_size_in_bytes,
-          options.purge_skia_font_caches_on_destruction));
+          graphics_context, options.purge_skia_font_caches_on_destruction));
 #else
   return scoped_ptr<rasterizer::Rasterizer>(
       new rasterizer::blitter::HardwareRasterizer(
           graphics_context, options.skia_glyph_texture_atlas_dimensions.width(),
           options.skia_glyph_texture_atlas_dimensions.height(),
           options.scratch_surface_cache_size_in_bytes,
-          options.surface_cache_size_in_bytes,
           options.software_surface_cache_size_in_bytes,
           options.purge_skia_font_caches_on_destruction));
 #endif  // COBALT_FORCE_SOFTWARE_RASTERIZER

@@ -123,8 +123,6 @@ extern const char kSoftwareSurfaceCacheSizeInBytes[];
 extern const char kSoftwareSurfaceCacheSizeInBytesHelp[];
 extern const char kFallbackSplashScreenURL[];
 extern const char kFallbackSplashScreenURLHelp[];
-extern const char kSurfaceCacheSizeInBytes[];
-extern const char kSurfaceCacheSizeInBytesHelp[];
 extern const char kVersion[];
 extern const char kVersionHelp[];
 extern const char kViewport[];

@@ -38,7 +38,6 @@ namespace blitter {
 class SoftwareRasterizer : public Rasterizer {
  public:
   explicit SoftwareRasterizer(backend::GraphicsContext* context,
-                              int surface_cache_size,
                               bool purge_skia_font_caches_on_destruction);
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,

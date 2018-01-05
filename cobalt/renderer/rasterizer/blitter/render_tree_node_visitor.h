@@ -35,8 +35,6 @@
 #include "cobalt/renderer/rasterizer/blitter/linear_gradient_cache.h"
 #include "cobalt/renderer/rasterizer/blitter/render_state.h"
 #include "cobalt/renderer/rasterizer/blitter/scratch_surface_cache.h"
-#include "cobalt/renderer/rasterizer/blitter/surface_cache_delegate.h"
-#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 
 #include "starboard/blitter.h"
 #include "third_party/skia/include/core/SkImageInfo.h"
@@ -64,8 +62,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitor(SbBlitterDevice device, SbBlitterContext context,
                         const RenderState& render_state,
                         ScratchSurfaceCache* scratch_surface_cache,
-                        SurfaceCacheDelegate* surface_cache_delegate,
-                        common::SurfaceCache* surface_cache,
                         CachedSoftwareRasterizer* software_surface_cache,
                         LinearGradientCache* linear_gradient_cache);
 
@@ -112,11 +108,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   // Manager for scratch surfaces used for intermediate rendering during render
   // tree traversal.
   ScratchSurfaceCache* scratch_surface_cache_;
-
-  SurfaceCacheDelegate* surface_cache_delegate_;
-  common::SurfaceCache* surface_cache_;
-  base::optional<SurfaceCacheDelegate::ScopedContext>
-      surface_cache_scoped_context_;
 
   // We fallback to software rasterization in order to render anything that we
   // cannot render via the Blitter API directly.  We cache the results.

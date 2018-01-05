@@ -79,24 +79,13 @@ RenderTreeNodeVisitor::RenderTreeNodeVisitor(
     const base::Closure& reset_skia_context_function,
     const RenderImageFallbackFunction& render_image_fallback_function,
     const RenderImageWithMeshFallbackFunction& render_image_with_mesh_function,
-    SurfaceCacheDelegate* surface_cache_delegate,
-    common::SurfaceCache* surface_cache, Type visitor_type)
+    Type visitor_type)
     : draw_state_(render_target),
       create_scratch_surface_function_(create_scratch_surface_function),
-      surface_cache_delegate_(surface_cache_delegate),
-      surface_cache_(surface_cache),
       visitor_type_(visitor_type),
       reset_skia_context_function_(reset_skia_context_function),
       render_image_fallback_function_(render_image_fallback_function),
-      render_image_with_mesh_function_(render_image_with_mesh_function) {
-  DCHECK_EQ(surface_cache_delegate_ == NULL, surface_cache_ == NULL);
-  if (surface_cache_delegate_) {
-    // Update our surface cache delegate to point to this render tree node
-    // visitor and our draw state.
-    surface_cache_scoped_context_.emplace(surface_cache_delegate_,
-                                          &draw_state_);
-  }
-}
+      render_image_with_mesh_function_(render_image_with_mesh_function) {}
 
 namespace {
 // Returns whether the specified node is within the canvas' bounds or not.
@@ -121,9 +110,6 @@ void RenderTreeNodeVisitor::Visit(
 #if ENABLE_RENDER_TREE_VISITOR_TRACING && !FILTER_RENDER_TREE_VISITOR_TRACING
   TRACE_EVENT0("cobalt::renderer", "Visit(CompositionNode)");
 #endif
-
-  common::SurfaceCache::Block cache_block(surface_cache_, composition_node);
-  if (cache_block.Cached()) return;
 
   const render_tree::CompositionNode::Children& children =
       composition_node->data().children();
@@ -278,7 +264,7 @@ void RenderTreeNodeVisitor::RenderFilterViaOffscreenSurface(
     RenderTreeNodeVisitor sub_visitor(
         canvas, create_scratch_surface_function_, reset_skia_context_function_,
         render_image_fallback_function_, render_image_with_mesh_function_,
-        surface_cache_delegate_, surface_cache_, kType_SubVisitor);
+        kType_SubVisitor);
     filter_node.source->Accept(&sub_visitor);
   }
 
@@ -489,9 +475,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::FilterNode* filter_node) {
     draw_state_.render_target->restore();
     draw_state_ = original_draw_state;
   } else {
-    common::SurfaceCache::Block cache_block(surface_cache_, filter_node);
-    if (cache_block.Cached()) return;
-
     RenderFilterViaOffscreenSurface(filter_node->data());
   }
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
@@ -744,10 +727,6 @@ void RenderTreeNodeVisitor::Visit(
   TRACE_EVENT0("cobalt::renderer", "Visit(MatrixTransformNode)");
 #endif
 
-  common::SurfaceCache::Block cache_block(surface_cache_,
-                                          matrix_transform_node);
-  if (cache_block.Cached()) return;
-
   // Concatenate the matrix transform to the render target and then continue
   // on with rendering our source.
   draw_state_.render_target->save();
@@ -755,19 +734,9 @@ void RenderTreeNodeVisitor::Visit(
   draw_state_.render_target->concat(
       CobaltMatrixToSkia(matrix_transform_node->data().transform));
 
-  // Since our scale may have changed, inform the surface cache system to update
-  // its scale.
-  if (surface_cache_delegate_) {
-    surface_cache_delegate_->UpdateCanvasScale();
-  }
-
   matrix_transform_node->data().source->Accept(this);
 
   draw_state_.render_target->restore();
-
-  if (surface_cache_delegate_) {
-    surface_cache_delegate_->UpdateCanvasScale();
-  }
 
 #if ENABLE_FLUSH_AFTER_EVERY_NODE
   draw_state_.render_target->flush();
@@ -1684,8 +1653,6 @@ void RenderTreeNodeVisitor::Visit(
   TRACE_EVENT0("cobalt::renderer", "Visit(RectShadowNode)");
 #endif
   DCHECK_EQ(1.0f, draw_state_.opacity);
-  common::SurfaceCache::Block cache_block(surface_cache_, rect_shadow_node);
-  if (cache_block.Cached()) return;
 
   if (rect_shadow_node->data().rounded_corners) {
     DrawRoundedRectShadowNode(rect_shadow_node, draw_state_.render_target);
@@ -1747,8 +1714,6 @@ void RenderTreeNodeVisitor::Visit(render_tree::TextNode* text_node) {
   TRACE_EVENT0("cobalt::renderer", "Visit(TextNode)");
 #endif
   DCHECK_EQ(1.0f, draw_state_.opacity);
-  common::SurfaceCache::Block cache_block(surface_cache_, text_node);
-  if (cache_block.Cached()) return;
 
   // If blur was used for any of the shadows, apply a little bit of blur
   // to all of them, to ensure that Skia follows the same path for rendering
