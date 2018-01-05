@@ -40,7 +40,7 @@ CachedSoftwareRasterizer::CachedSoftwareRasterizer(
     : cache_capacity_(cache_capacity),
       device_(device),
       context_(context),
-      software_rasterizer_(0, purge_skia_font_caches_on_destruction),
+      software_rasterizer_(purge_skia_font_caches_on_destruction),
       cache_memory_usage_(
           "Memory.CachedSoftwareRasterizer.CacheUsage", 0,
           "Total memory occupied by cached software-rasterized surfaces."),

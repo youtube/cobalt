@@ -22,14 +22,12 @@
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/backend/egl/utils.h"
-#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/egl/textured_mesh_renderer.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_mesh.h"
 #include "cobalt/renderer/rasterizer/skia/hardware_resource_provider.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor.h"
 #include "cobalt/renderer/rasterizer/skia/scratch_surface_cache.h"
-#include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
 #include "cobalt/renderer/rasterizer/skia/vertex_buffer_object.h"
 #include "third_party/glm/glm/gtc/matrix_inverse.hpp"
 #include "third_party/glm/glm/gtx/transform.hpp"
@@ -57,11 +55,9 @@ class HardwareRasterizer::Impl {
  public:
   Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
        int skia_atlas_height, int skia_cache_size_in_bytes,
-       int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+       int scratch_surface_cache_size_in_bytes,
        bool purge_skia_font_caches_on_destruction);
   ~Impl();
-
-  void AdvanceFrame();
 
   void Submit(const scoped_refptr<render_tree::Node>& render_tree,
               const scoped_refptr<backend::RenderTarget>& render_target,
@@ -83,9 +79,6 @@ class HardwareRasterizer::Impl {
   void MakeCurrent();
 
  private:
-  // Note: We cannot store a SkAutoTUnref<SkSurface> in the map because it is
-  // not copyable; so we must manually manage our references when adding /
-  // removing SkSurfaces from it.
   typedef base::linked_hash_map<int32_t, SkSurface*> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
@@ -128,9 +121,6 @@ class HardwareRasterizer::Impl {
   SkSurfaceMap sk_output_surface_map_;
 
   base::optional<ScratchSurfaceCache> scratch_surface_cache_;
-
-  base::optional<SurfaceCacheDelegate> surface_cache_delegate_;
-  base::optional<common::SurfaceCache> surface_cache_;
 
   base::optional<egl::TexturedMeshRenderer> textured_mesh_renderer_;
 
@@ -542,7 +532,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               int surface_cache_size_in_bytes,
                                bool purge_skia_font_caches_on_destruction)
     : graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
@@ -552,7 +541,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   DLOG(INFO) << "skia_cache_size_in_bytes: " << skia_cache_size_in_bytes;
   DLOG(INFO) << "scratch_surface_cache_size_in_bytes: "
              << scratch_surface_cache_size_in_bytes;
-  DLOG(INFO) << "surface_cache_size_in_bytes: " << surface_cache_size_in_bytes;
 
   graphics_context_->MakeCurrent();
   // Create a GrContext object that wraps the passed in Cobalt GraphicsContext
@@ -591,15 +579,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   int max_surface_size = std::max(gr_context_->getMaxRenderTargetSize(),
                                   gr_context_->getMaxTextureSize());
   DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
-
-  if (surface_cache_size_in_bytes > 0) {
-    surface_cache_delegate_.emplace(
-        create_sk_surface_function,
-        math::Size(max_surface_size, max_surface_size));
-
-    surface_cache_.emplace(&surface_cache_delegate_.value(),
-                           surface_cache_size_in_bytes);
-  }
 }
 
 HardwareRasterizer::Impl::~Impl() {
@@ -610,20 +589,9 @@ HardwareRasterizer::Impl::~Impl() {
     iter != sk_output_surface_map_.end(); iter++) {
     iter->second->unref();
   }
-  surface_cache_ = base::nullopt;
-  surface_cache_delegate_ = base::nullopt;
   scratch_surface_cache_ = base::nullopt;
   gr_context_.reset(NULL);
   graphics_context_->ReleaseCurrentContext();
-}
-
-void HardwareRasterizer::Impl::AdvanceFrame() {
-  // Update our surface cache to do per-frame calculations such as deciding
-  // which render tree nodes are candidates for caching in this upcoming
-  // frame.
-  if (surface_cache_) {
-    surface_cache_->Frame();
-  }
 }
 
 void HardwareRasterizer::Impl::Submit(
@@ -653,8 +621,6 @@ void HardwareRasterizer::Impl::Submit(
   // First reset the graphics context state for the pending render tree
   // draw calls, in case we have modified state in between.
   gr_context_->resetContext();
-
-  AdvanceFrame();
 
   // Get a SkCanvas that outputs to our hardware render target.
   SkCanvas* canvas = GetCanvasFromRenderTarget(render_target);
@@ -845,9 +811,7 @@ void HardwareRasterizer::Impl::RasterizeRenderTreeToCanvas(
       base::Bind(&HardwareRasterizer::Impl::RenderTextureEGL,
                  base::Unretained(this)),
       base::Bind(&HardwareRasterizer::Impl::RenderTextureWithMeshFilterEGL,
-                 base::Unretained(this)),
-      surface_cache_delegate_ ? &surface_cache_delegate_.value() : NULL,
-      surface_cache_ ? &surface_cache_.value() : NULL);
+                 base::Unretained(this)));
   DCHECK(render_tree);
   render_tree->Accept(&visitor);
 
@@ -859,13 +823,12 @@ void HardwareRasterizer::Impl::ResetSkiaState() { gr_context_->resetContext(); }
 HardwareRasterizer::HardwareRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
-    int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+    int scratch_surface_cache_size_in_bytes,
     bool purge_skia_font_caches_on_destruction)
-    : impl_(new Impl(
-          graphics_context, skia_atlas_width, skia_atlas_height,
-          skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          surface_cache_size_in_bytes, purge_skia_font_caches_on_destruction)) {
-}
+    : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
+                     skia_cache_size_in_bytes,
+                     scratch_surface_cache_size_in_bytes,
+                     purge_skia_font_caches_on_destruction)) {}
 
 HardwareRasterizer::~HardwareRasterizer() {}
 
@@ -887,10 +850,6 @@ void HardwareRasterizer::SubmitOffscreen(
 SkCanvas* HardwareRasterizer::GetCachedCanvas(
     const scoped_refptr<backend::RenderTarget>& render_target) {
   return impl_->GetCanvasFromRenderTarget(render_target);
-}
-
-void HardwareRasterizer::AdvanceFrame() {
-  impl_->AdvanceFrame();
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::GetResourceProvider() {
