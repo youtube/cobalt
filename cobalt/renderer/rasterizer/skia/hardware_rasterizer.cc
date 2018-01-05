@@ -590,6 +590,7 @@ HardwareRasterizer::Impl::~Impl() {
     iter->second->unref();
   }
   scratch_surface_cache_ = base::nullopt;
+  sk_output_surface_map_.clear();
   gr_context_.reset(NULL);
   graphics_context_->ReleaseCurrentContext();
 }

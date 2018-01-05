@@ -545,7 +545,7 @@ float HardwareResourceProvider::GetTextWidth(
 scoped_refptr<render_tree::Mesh> HardwareResourceProvider::CreateMesh(
     scoped_ptr<std::vector<render_tree::Mesh::Vertex> > vertices,
     render_tree::Mesh::DrawMode draw_mode) {
-  return new HardwareMesh(vertices.Pass(), draw_mode);
+  return new HardwareMesh(vertices.Pass(), draw_mode, cobalt_context_);
 }
 
 scoped_refptr<render_tree::Image> HardwareResourceProvider::DrawOffscreenImage(
