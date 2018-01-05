@@ -39,7 +39,7 @@ void SbSystemRequestStop(int error_level) {
   ApplicationAndroid* app = ApplicationAndroid::Get();
   app->SetExitOnActivityDestroy(error_level);
 
-  CommandLine* cl = app->GetCommandLine();
+  const CommandLine* cl = app->GetCommandLine();
 
   std::string path = cl->GetSwitchValue(kExitFilePathSwitch);
 

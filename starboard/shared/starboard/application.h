@@ -157,12 +157,18 @@ class Application {
   // Runs the application with the current thread as the Main Starboard Thread,
   // blocking until application exit. This method will dispatch all appropriate
   // initialization and teardown events. Returns the resulting error level.
-  int Run(int argc, char** argv, const char* link_data);
-  int Run(int argc, char** argv);
+  int Run(CommandLine command_line, const char* link_data);
+  int Run(CommandLine command_line);
+  int Run(int argc, char** argv, const char* link_data) {
+    return Run(CommandLine(argc, argv), link_data);
+  }
+  int Run(int argc, char** argv) {
+    return Run(CommandLine(argc, argv));
+  }
 
   // Retrieves the CommandLine for the application.
   // NULL until Run() is called.
-  CommandLine* GetCommandLine();
+  const CommandLine* GetCommandLine();
 
   // Signals that the application should transition from STARTED to PAUSED as
   // soon as possible. Does nothing if already PAUSED or SUSPENDED. May be
