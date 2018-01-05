@@ -35,8 +35,7 @@ namespace skia {
 // class can send the results to a display or render target.
 class SoftwareRasterizer {
  public:
-  explicit SoftwareRasterizer(int surface_cache_size,
-                              bool purge_skia_font_caches_on_destruction);
+  explicit SoftwareRasterizer(bool purge_skia_font_caches_on_destruction);
   ~SoftwareRasterizer();
 
   // Consume the render tree and output the results to the render target passed

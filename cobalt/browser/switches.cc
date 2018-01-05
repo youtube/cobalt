@@ -213,12 +213,11 @@ const char kOffscreenTargetCacheSizeInBytes[] =
     "offscreen_target_cache_size_in_bytes";
 const char kOffscreenTargetCacheSizeInBytesHelp[] =
     "Determines the amount of GPU memory the offscreen target atlases will "
-    "use. This is specific to the direct-GLES rasterizer and serves a similar "
-    "purpose as the surface_cache_size_in_bytes, but caches any render tree "
-    "nodes which require skia for rendering. Two atlases will be allocated "
-    "from this memory or multiple atlases of the frame size if the limit "
-    "allows. It is recommended that enough memory be reserved for two RGBA "
-    "atlases about a quarter of the frame size.";
+    "use. This is specific to the direct-GLES rasterizer and caches any render "
+    "tree nodes which require skia for rendering. Two atlases will be "
+    "allocated from this memory or multiple atlases of the frame size if the "
+    "limit allows. It is recommended that enough memory be reserved for two "
+    "RGBA atlases about a quarter of the frame size.";
 
 const char kReduceCpuMemoryBy[] = "reduce_cpu_memory_by";
 const char kReduceCpuMemoryByHelp[] =
@@ -283,13 +282,6 @@ const char kFallbackSplashScreenURLHelp[] =
     "(case-insensitive), no splash screen will be constructed. If "
     "no value is set, the URL in gyp_configuration.gypi or base.gypi will be "
     "used.";
-
-const char kSurfaceCacheSizeInBytes[] = "surface_cache_size_in_bytes";
-const char kSurfaceCacheSizeInBytesHelp[] =
-    "Determines the capacity of the surface cache.  The surface cache tracks "
-    "which render tree nodes are being re-used across frames and stores the "
-    "nodes that are most CPU-expensive to render into surfaces.  While it "
-    "depends on the platform, this setting may affect GPU memory usage.";
 
 const char kVersion[] = "version";
 const char kVersionHelp[] = "Prints the current version of Cobalt";
@@ -357,7 +349,6 @@ std::string HelpMessage() {
         {kSoftwareSurfaceCacheSizeInBytes,
          kSoftwareSurfaceCacheSizeInBytesHelp},
         {kFallbackSplashScreenURL, kFallbackSplashScreenURLHelp},
-        {kSurfaceCacheSizeInBytes, kSurfaceCacheSizeInBytesHelp},
         {kVersion, kVersionHelp}, {kViewport, kViewportHelp},
         {kVideoPlaybackRateMultiplier, kVideoPlaybackRateMultiplierHelp},
   };

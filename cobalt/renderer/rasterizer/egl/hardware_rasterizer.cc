@@ -103,7 +103,6 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
     : fallback_rasterizer_(new skia::HardwareRasterizer(
           graphics_context, skia_atlas_width, skia_atlas_height,
           skia_cache_size_in_bytes, scratch_surface_cache_size_in_bytes,
-          0 /* fallback rasterizer should not use a surface cache */,
           purge_skia_font_caches_on_destruction)),
       graphics_context_(
           base::polymorphic_downcast<backend::GraphicsContextEGL*>(
@@ -153,8 +152,6 @@ void HardwareRasterizer::Impl::Submit(
 
   backend::GraphicsContextEGL::ScopedMakeCurrent scoped_make_current(
       graphics_context_, render_target_egl);
-
-  fallback_rasterizer_->AdvanceFrame();
 
   // Update only the dirty pixels if the render target contents are preserved
   // between frames.

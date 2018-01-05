@@ -37,16 +37,13 @@ RendererModule::Options::Options()
 #if SB_HAS(GLES2)
 #if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
   software_surface_cache_size_in_bytes = 0;
-  surface_cache_size_in_bytes = 0;
   offscreen_target_cache_size_in_bytes = 4 * 1024 * 1024;
 #else
   software_surface_cache_size_in_bytes = 0;
-  surface_cache_size_in_bytes = 0;
   offscreen_target_cache_size_in_bytes = 0;
 #endif
 #else
   software_surface_cache_size_in_bytes = 8 * 1024 * 1024;
-  surface_cache_size_in_bytes = 0;
   offscreen_target_cache_size_in_bytes = 0;
 #endif
 
