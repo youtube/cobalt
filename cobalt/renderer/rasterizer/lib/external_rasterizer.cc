@@ -181,7 +181,10 @@ class ExternalRasterizer::Impl {
  public:
   Impl(backend::GraphicsContext* graphics_context, int skia_atlas_width,
        int skia_atlas_height, int skia_cache_size_in_bytes,
-       int scratch_surface_cache_size_in_bytes, int surface_cache_size_in_bytes,
+       int scratch_surface_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+       int offscreen_target_cache_size_in_bytes,
+#endif
        bool purge_skia_font_caches_on_destruction,
        bool disable_rasterizer_caching);
   ~Impl();
@@ -244,7 +247,9 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
                                int skia_atlas_width, int skia_atlas_height,
                                int skia_cache_size_in_bytes,
                                int scratch_surface_cache_size_in_bytes,
-                               int rasterizer_gpu_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+                               int offscreen_target_cache_size_in_bytes,
+#endif
                                bool purge_skia_font_caches_on_destruction,
                                bool disable_rasterizer_caching)
     : graphics_context_(
@@ -253,7 +258,9 @@ ExternalRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
       hardware_rasterizer_(graphics_context, skia_atlas_width,
                            skia_atlas_height, skia_cache_size_in_bytes,
                            scratch_surface_cache_size_in_bytes,
-                           rasterizer_gpu_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+                           offscreen_target_cache_size_in_bytes,
+#endif
                            purge_skia_font_caches_on_destruction
 #if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
                            , disable_rasterizer_caching
@@ -583,13 +590,17 @@ ExternalRasterizer::ExternalRasterizer(
     backend::GraphicsContext* graphics_context, int skia_atlas_width,
     int skia_atlas_height, int skia_cache_size_in_bytes,
     int scratch_surface_cache_size_in_bytes,
-    int rasterizer_gpu_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+    int offscreen_target_cache_size_in_bytes,
+#endif
     bool purge_skia_font_caches_on_destruction,
     bool disable_rasterizer_caching)
     : impl_(new Impl(graphics_context, skia_atlas_width, skia_atlas_height,
                      skia_cache_size_in_bytes,
                      scratch_surface_cache_size_in_bytes,
-                     rasterizer_gpu_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
+                     offscreen_target_cache_size_in_bytes,
+#endif
                      purge_skia_font_caches_on_destruction,
                      disable_rasterizer_caching)) {}
 

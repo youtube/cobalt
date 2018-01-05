@@ -66,18 +66,12 @@ class RendererModule {
     // re-rendering them.
     int software_surface_cache_size_in_bytes;
 
-    // Determines the capacity of the surface cache.  The surface cache tracks
-    // which render tree nodes are being re-used across frames and stores the
-    // nodes that are most CPU-expensive to render into surfaces.
-    int surface_cache_size_in_bytes;
-
     // Determines the amount of GPU memory the offscreen target atlases will
-    // use. This is specific to the direct-GLES rasterizer and serves a similar
-    // purpose as the surface_cache_size_in_bytes, but caches any render tree
-    // nodes which require skia for rendering. Two atlases will be allocated
-    // from this memory or multiple atlases of the frame size if the limit
-    // allows. It is recommended that enough memory be reserved for two RGBA
-    // atlases about a quarter of the frame size.
+    // use. This is specific to the direct-GLES rasterizer and caches any render
+    // tree nodes which require skia for rendering. Two atlases will be
+    // allocated from this memory or multiple atlases of the frame size if the
+    // limit allows. It is recommended that enough memory be reserved for two
+    // RGBA atlases about a quarter of the frame size.
     int offscreen_target_cache_size_in_bytes;
 
     // By default, some rasterizers may cache the output of certain render

@@ -27,9 +27,7 @@
 #include "cobalt/render_tree/punch_through_video_node.h"
 #include "cobalt/render_tree/rect_node.h"
 #include "cobalt/render_tree/text_node.h"
-#include "cobalt/renderer/rasterizer/common/surface_cache.h"
 #include "cobalt/renderer/rasterizer/skia/render_tree_node_visitor_draw_state.h"
-#include "cobalt/renderer/rasterizer/skia/surface_cache_delegate.h"
 #include "third_party/skia/include/core/SkCanvas.h"
 
 namespace cobalt {
@@ -90,8 +88,7 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
       const base::Closure& reset_skia_context_function,
       const RenderImageFallbackFunction& render_image_fallback_function,
       const RenderImageWithMeshFallbackFunction& render_image_with_mesh,
-      SurfaceCacheDelegate* surface_cache_delegate,
-      common::SurfaceCache* surface_cache, Type visitor_type = kType_Normal);
+      Type visitor_type = kType_Normal);
 
   void Visit(render_tree::animations::AnimateNode* animate_node) override {
     NOTREACHED();
@@ -117,11 +114,6 @@ class RenderTreeNodeVisitor : public render_tree::NodeVisitor {
   RenderTreeNodeVisitorDrawState draw_state_;
   const CreateScratchSurfaceFunction* create_scratch_surface_function_;
   Type visitor_type_;
-
-  SurfaceCacheDelegate* surface_cache_delegate_;
-  common::SurfaceCache* surface_cache_;
-  base::optional<SurfaceCacheDelegate::ScopedContext>
-      surface_cache_scoped_context_;
 
   base::Closure reset_skia_context_function_;
 

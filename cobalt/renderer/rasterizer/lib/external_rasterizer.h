@@ -37,7 +37,9 @@ class ExternalRasterizer : public Rasterizer {
                      int skia_atlas_width, int skia_atlas_height,
                      int skia_cache_size_in_bytes,
                      int scratch_surface_cache_size_in_bytes,
+#if defined(COBALT_FORCE_DIRECT_GLES_RASTERIZER)
                      int rasterizer_gpu_cache_size_in_bytes,
+#endif
                      bool purge_skia_font_caches_on_destruction,
                      bool disable_rasterizer_caching);
   virtual ~ExternalRasterizer();

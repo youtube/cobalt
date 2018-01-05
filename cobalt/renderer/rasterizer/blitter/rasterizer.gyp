@@ -48,7 +48,6 @@
         'render_tree_node_visitor.cc',
         'resource_provider.cc',
         'scratch_surface_cache.cc',
-        'surface_cache_delegate.cc',
       ],
 
       'dependencies': [
