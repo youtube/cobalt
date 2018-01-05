@@ -81,13 +81,10 @@ void* ThreadEntryPoint(void* context) {
   FixThreadName();
 
   ALooper* looper = ALooper_prepare(ALOOPER_PREPARE_ALLOW_NON_CALLBACKS);
-
   ApplicationAndroid app(looper);
 
   // TODO: Implement move semantics in CommandLine and use it directly.
   std::vector<char*> args(GetArgs());
-  std::string start_url(GetStartDeepLink());
-
   {
     CommandLine cl(args.size(), args.data());
     if (cl.HasSwitch(kLogPathSwitch)) {
@@ -98,7 +95,7 @@ void* ThreadEntryPoint(void* context) {
   // Signal ANativeActivity_onCreate() that it may proceed.
   app_created_semaphore->Put();
 
-  app.Run(args.size(), args.data());
+  app.Run(args.size(), args.data(), GetStartDeepLink().c_str());
 
   for (std::vector<char*>::iterator it = args.begin(); it != args.end(); ++it) {
     SbMemoryDeallocate(*it);
