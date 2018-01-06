@@ -167,8 +167,14 @@ class MEDIA_EXPORT Pipeline : public base::RefCountedThreadSafe<Pipeline> {
   virtual Ranges<base::TimeDelta> GetBufferedTimeRanges() = 0;
 
   // Get the duration of the media in microseconds.  If the duration has not
-  // been determined yet, then returns 0.
+  // been determined yet, then return 0.
   virtual base::TimeDelta GetMediaDuration() const = 0;
+
+#if SB_HAS(PLAYER_WITH_URL)
+  // Get the start date of the media in microseconds since 1601. If the start
+  // date has not been determined yet, then return 0.
+  virtual base::TimeDelta GetMediaStartDate() const = 0;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   // Gets the natural size of the video output in pixel units.  If there is no
   // video or the video has not been rendered yet, the width and height will
