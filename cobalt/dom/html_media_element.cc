@@ -546,6 +546,11 @@ float HTMLMediaElement::duration() const {
   return static_cast<float>(duration_);
 }
 
+int64_t HTMLMediaElement::GetStartDate() const {
+  MLOG() << start_date_;
+  return start_date_;
+}
+
 bool HTMLMediaElement::paused() const {
   MLOG() << paused_;
   return paused_;
@@ -1272,6 +1277,9 @@ void HTMLMediaElement::SetReadyState(WebMediaPlayer::ReadyState state) {
   if (ready_state_ >= WebMediaPlayer::kReadyStateHaveMetadata &&
       old_state < WebMediaPlayer::kReadyStateHaveMetadata) {
     duration_ = player_->GetDuration();
+#if SB_HAS(PLAYER_WITH_URL)
+    start_date_ = player_->GetStartDate();
+#endif
     ScheduleOwnEvent(base::Tokens::durationchange());
     ScheduleOwnEvent(base::Tokens::loadedmetadata());
   }

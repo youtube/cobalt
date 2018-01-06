@@ -460,6 +460,18 @@ float WebMediaPlayerImpl::GetDuration() const {
   return static_cast<float>(duration.InSecondsF());
 }
 
+#if SB_HAS(PLAYER_WITH_URL)
+int64_t WebMediaPlayerImpl::GetStartDate() const {
+  DCHECK_EQ(main_loop_, MessageLoop::current());
+
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return 0;
+
+  base::TimeDelta start_date = pipeline_->GetMediaStartDate();
+
+  return start_date.InMilliseconds();
+}
+#endif  // SB_HAS(PLAYER_WITH(URL)
+
 float WebMediaPlayerImpl::GetCurrentTime() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
   if (state_.paused) return static_cast<float>(state_.paused_time.InSecondsF());
