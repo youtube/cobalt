@@ -122,7 +122,7 @@ DebugWebServer::DebugWebServer(
       get_debug_server_callback_(get_debug_server_callback),
       websocket_id_(-1),
       // Local address will be set when the web server is successfully started.
-      local_address_("DevTools.Server", "<NOT RUNNING>",
+      local_address_("Cobalt.Server.DevTools", "<NOT RUNNING>",
                      "Address to connect to for remote debugging.") {
   // Construct the content root directory to serve files from.
   PathService::Get(paths::DIR_COBALT_WEB_ROOT, &content_root_dir_);
