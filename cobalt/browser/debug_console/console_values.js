@@ -20,8 +20,7 @@ function ConsoleValues() {
   this.DEFAULT_KEY = 'default';
   // Reduced space-separated list of CVal prefixes to display at start-up.
   this.DEFAULT_ACTIVE_SET =
-      'Cobalt DevTools WebDriver ' +
-      'Memory.CPU Memory.MainWebModule Memory.JS Memory.Font ' +
+      'Cobalt Memory.CPU Memory.MainWebModule Memory.JS Memory.Font ' +
       'Count.MainWebModule.ImageCache.Resource ' +
       'Count.MainWebModule.DOM.HtmlElement Count.MainWebModule.Layout.Box ' +
       'Event.Count.MainWebModule.KeyDown.DOM.HtmlElement.Added ' +
