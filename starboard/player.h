@@ -108,6 +108,10 @@ typedef struct SbPlayerInfo {
   // (PTS).
   SbMediaTime duration_pts;
 
+  // The result of getStartDate for the currently playing media stream, in
+  // microseconds since the epoch of January 1, 1601 UTC.
+  SbTime start_date;
+
   // The width of the currently displayed frame, in pixels, or 0 if not provided
   // by this player.
   int frame_width;
@@ -207,7 +211,7 @@ typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
 
 // --- Constants -------------------------------------------------------------
 
-// The value to pass into SbPlayerCreate's |duration_ptr| argument for cases
+// The value to pass into SbPlayerCreate's |duration_pts| argument for cases
 // where the duration is unknown, such as for live streams.
 #define SB_PLAYER_NO_DURATION (-1)
 
