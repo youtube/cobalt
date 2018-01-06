@@ -121,6 +121,9 @@ class WebMediaPlayer {
   virtual bool IsPaused() const = 0;
   virtual bool IsSeeking() const = 0;
   virtual float GetDuration() const = 0;
+#if SB_HAS(PLAYER_WITH_URL)
+  virtual int64_t GetStartDate() const = 0;
+#endif
   virtual float GetCurrentTime() const = 0;
 
   // Get rate of loading the resource.

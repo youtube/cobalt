@@ -382,6 +382,19 @@ base::TimeDelta StarboardPlayer::GetDuration() {
   return SbMediaTimeToTimeDelta(info.duration_pts);
 }
 
+base::TimeDelta StarboardPlayer::GetStartDate() {
+  base::AutoLock auto_lock(lock_);
+  if (state_ == kSuspended) {
+    return base::TimeDelta();
+  }
+
+  DCHECK(SbPlayerIsValid(player_));
+
+  SbPlayerInfo info = {};
+  SbPlayerGetInfo(player_, &info);
+  return base::TimeDelta::FromMicroseconds(info.start_date);
+}
+
 void StarboardPlayer::SetDrmSystem(SbDrmSystem drm_system) {
   drm_system_ = drm_system;
   SbPlayerSetDrmSystem(player_, drm_system);
@@ -413,7 +426,8 @@ void StarboardPlayer::Suspend() {
   set_bounds_helper_->SetPlayer(NULL);
   ShellMediaPlatform::Instance()->GetVideoFrameProvider()->SetOutputMode(
       ShellVideoFrameProvider::kOutputModeInvalid);
-  ShellMediaPlatform::Instance()->GetVideoFrameProvider()
+  ShellMediaPlatform::Instance()
+      ->GetVideoFrameProvider()
       ->ResetGetCurrentSbDecodeTargetFunction();
 
   SbPlayerDestroy(player_);

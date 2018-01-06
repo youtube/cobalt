@@ -96,6 +96,7 @@ class StarboardPlayer {
 
 #if SB_HAS(PLAYER_WITH_URL)
   base::TimeDelta GetDuration();
+  base::TimeDelta GetStartDate();
   void SetDrmSystem(SbDrmSystem drm_system);
 #endif  // SB_HAS(PLAYER_WITH_URL)
 

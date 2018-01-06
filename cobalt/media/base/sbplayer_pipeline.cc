@@ -109,6 +109,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   TimeDelta GetMediaTime() override;
   Ranges<TimeDelta> GetBufferedTimeRanges() override;
   TimeDelta GetMediaDuration() const override;
+#if SB_HAS(PLAYER_WITH_URL)
+  TimeDelta GetMediaStartDate() const override;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   void GetNaturalVideoSize(gfx::Size* out_size) const override;
 
   bool DidLoadingProgress() const override;
@@ -219,6 +222,9 @@ class MEDIA_EXPORT SbPlayerPipeline : public Pipeline,
   bool audio_read_in_progress_;
   bool video_read_in_progress_;
   TimeDelta duration_;
+#if SB_HAS(PLAYER_WITH_URL)
+  TimeDelta start_date_;
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
   scoped_refptr<SbPlayerSetBoundsHelper> set_bounds_helper_;
 
@@ -574,6 +580,13 @@ TimeDelta SbPlayerPipeline::GetMediaDuration() const {
   base::AutoLock auto_lock(lock_);
   return duration_;
 }
+
+#if SB_HAS(PLAYER_WITH_URL)
+TimeDelta SbPlayerPipeline::GetMediaStartDate() const {
+  base::AutoLock auto_lock(lock_);
+  return start_date_;
+}
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 void SbPlayerPipeline::GetNaturalVideoSize(gfx::Size* out_size) const {
   CHECK(out_size);
@@ -1023,6 +1036,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
     case kSbPlayerStatePresenting: {
 #if SB_HAS(PLAYER_WITH_URL)
       duration_ = player_->GetDuration();
+      start_date_ = player_->GetStartDate();
       buffering_state_cb_.Run(kHaveMetadata);
       int frame_width;
       int frame_height;
