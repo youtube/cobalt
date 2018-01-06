@@ -149,6 +149,9 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool IsPaused() const override;
   bool IsSeeking() const override;
   float GetDuration() const override;
+#if SB_HAS(PLAYER_WITH_URL)
+  int64_t GetStartDate() const override;
+#endif
   float GetCurrentTime() const override;
 
   // Get rate of loading the resource.
