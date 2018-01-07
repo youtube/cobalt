@@ -415,8 +415,10 @@ void SbPlayerPipeline::Seek(TimeDelta time, const PipelineStatusCB& seek_cb) {
   DCHECK(!seek_cb.is_null());
 
   if (audio_read_in_progress_ || video_read_in_progress_) {
-    message_loop_->PostTask(
-        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb));
+    const TimeDelta kDelay = TimeDelta::FromMilliseconds(50);
+    message_loop_->PostDelayedTask(
+        FROM_HERE, base::Bind(&SbPlayerPipeline::Seek, this, time, seek_cb),
+        kDelay);
     return;
   }
 
