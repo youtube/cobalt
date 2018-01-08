@@ -989,6 +989,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       NOTREACHED();
       break;
     case kSbPlayerStatePrerolling:
+      buffering_state_cb_.Run(kHaveMetadata);
       break;
     case kSbPlayerStatePresenting: {
 #if SB_HAS(PLAYER_WITH_URL)
