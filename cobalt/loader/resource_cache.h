@@ -70,8 +70,7 @@ class CachedResource
   typedef base::Callback<scoped_ptr<Loader>(
       const GURL&, const Origin&, const csp::SecurityCallback&,
       const base::Callback<void(const scoped_refptr<ResourceType>&)>&,
-      const base::Callback<void(const std::string&)>&)>
-      CreateLoaderFunction;
+      const base::Callback<void(const std::string&)>&)> CreateLoaderFunction;
 
   // This class can be used to attach success or error callbacks to
   // CachedResource objects that are executed when the resource finishes
@@ -115,7 +114,7 @@ class CachedResource
   // available.
   scoped_refptr<ResourceType> TryGetResource();
 
-  // Whethe not the resource located at |url_| is finished loading.
+  // Whether not the resource located at |url_| is finished loading.
   bool IsLoadingComplete();
 
   const GURL& url() const { return url_; }
