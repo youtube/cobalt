@@ -33,6 +33,7 @@
 #else  // defined(COBALT_MEDIA_SOURCE_2016)
 #include "media/base/video_frame.h"
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+#include "net/base/net_util.h"
 #include "starboard/event.h"
 #include "starboard/file.h"
 #include "starboard/system.h"
@@ -54,7 +55,7 @@ using base::TimeDelta;
 using render_tree::Image;
 using starboard::ScopedFile;
 
-std::string ResolvePath(const std::string& path) {
+FilePath ResolvePath(const char* path) {
   FilePath result(path);
   if (!result.IsAbsolute()) {
     FilePath content_path;
@@ -62,12 +63,55 @@ std::string ResolvePath(const std::string& path) {
     CHECK(content_path.IsAbsolute());
     result = content_path.Append(result);
   }
-  return result.value();
+  if (SbFileCanOpen(result.value().c_str(), kSbFileOpenOnly | kSbFileRead)) {
+    return result;
+  }
+  return FilePath();
+}
+
+GURL ResolveUrl(const char* url) {
+  GURL gurl(url);
+  if (gurl.is_valid()) {
+    return gurl;
+  }
+
+  // Assume the input is a path.  Try to figure out the path to this file and
+  // convert it to a URL.
+  FilePath path = ResolvePath(url);
+  if (path.empty()) {
+    return GURL();
+  }
+
+  return net::FilePathToFileURL(path);
+}
+
+void PrintUsage(const char* executable_path_name) {
+  std::string executable_file_name =
+      FilePath(executable_path_name).BaseName().value();
+  const char kExampleAdaptiveAudioPathName[] =
+      "cobalt/browser/testdata/media-element-demo/dash-audio.mp4";
+  const char kExampleAdaptiveVideoPathName[] =
+      "cobalt/browser/testdata/media-element-demo/dash-video-1080p.mp4";
+  const char kExampleProgressiveUrl[] =
+      "https://storage.googleapis.com/yt-cobalt-media-element-demo/"
+      "progressive.mp4";
+  LOG(ERROR) << "\n\n\n"  // Extra empty lines to separate from other messages
+             << "Usage: " << executable_file_name
+             << " [OPTIONS] <adaptive audio file path> "
+             << " <adaptive video file path>\n"
+             << "   or: " << executable_file_name
+             << " [OPTIONS] <progressive video path or url>\n"
+             << "Play adaptive video or progressive video\n\n"
+             << "For example:\n"
+             << executable_file_name << " " << kExampleAdaptiveAudioPathName
+             << " " << kExampleAdaptiveVideoPathName << "\n"
+             << executable_file_name << " " << kExampleProgressiveUrl << "\n\n";
 }
 
 #if defined(COBALT_MEDIA_SOURCE_2016)
 
 std::string MakeCodecParameter(const char* string) { return string; }
+
 void OnInitSegmentReceived(scoped_ptr<MediaTracks> tracks) {
   UNREFERENCED_PARAMETER(tracks);
 }
@@ -102,22 +146,33 @@ class Application {
       : init_cobalt_helper_(argc, argv),
         media_sandbox_(
             argc, argv,
-            FilePath(FILE_PATH_LITERAL("media_source_sandbox_trace.json"))),
-        player_helper_(media_sandbox_.GetMediaModule(),
-                       base::Bind(&Application::OnChunkDemuxerOpened,
-                                  base::Unretained(this))) {
-    DCHECK_GE(argc, 3);
-
-    // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened() asynchronously
-    // during initialization of |player_helper_|.  Wait until it is set before
-    // proceed.
-    while (!chunk_demuxer_) {
-      MessageLoop::current()->RunUntilIdle();
+            FilePath(FILE_PATH_LITERAL("media_source_sandbox_trace.json"))) {
+    if (argc > 2) {
+      FilePath audio_path = ResolvePath(argv[argc - 2]);
+      FilePath video_path = ResolvePath(argv[argc - 1]);
+      if (!audio_path.empty() && !video_path.empty()) {
+        is_adaptive_playback_ = true;
+        InitializeAdaptivePlayback(audio_path.value(), video_path.value());
+        return;
+      }
     }
 
-    std::string audio_path = ResolvePath(argv[argc - 2]);
-    std::string video_path = ResolvePath(argv[argc - 1]);
+    if (argc > 1) {
+      GURL video_url = ResolveUrl(argv[argc - 1]);
+      if (video_url.is_valid()) {
+        is_adaptive_playback_ = false;
+        InitializeProgressivePlayback(video_url);
+        return;
+      }
+    }
 
+    PrintUsage(argv[0]);
+    SbSystemRequestStop(0);
+  }
+
+ private:
+  void InitializeAdaptivePlayback(const std::string& audio_path,
+                                  const std::string& video_path) {
     audio_file_.reset(
         new ScopedFile(audio_path.c_str(), kSbFileOpenOnly | kSbFileRead));
     video_file_.reset(
@@ -135,9 +190,19 @@ class Application {
       return;
     }
 
-    LOG(INFO) << "Playing " << audio_path << " and " << video_path;
+    player_helper_.reset(
+        new WebMediaPlayerHelper(media_sandbox_.GetMediaModule(),
+                                 base::Bind(&Application::OnChunkDemuxerOpened,
+                                            base::Unretained(this))));
 
-    player_ = player_helper_.player();
+    // |chunk_demuxer_| will be set inside OnChunkDemuxerOpened()
+    // asynchronously during initialization of |player_helper_|.  Wait until
+    // it is set before proceed.
+    while (!chunk_demuxer_) {
+      MessageLoop::current()->RunUntilIdle();
+    }
+
+    LOG(INFO) << "Playing " << audio_path << " and " << video_path;
 
     AddSourceBuffers(IsWebM(audio_path), IsWebM(video_path));
 
@@ -147,6 +212,7 @@ class Application {
     chunk_demuxer_->SetTracksWatcher(kVideoId,
                                      base::Bind(OnInitSegmentReceived));
 #endif  // defined(COBALT_MEDIA_SOURCE_2016)
+    player_ = player_helper_->player();
 
     media_sandbox_.RegisterFrameCB(
         base::Bind(&Application::FrameCB, base::Unretained(this)));
@@ -155,21 +221,36 @@ class Application {
         SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
   }
 
- private:
+  void InitializeProgressivePlayback(const GURL& video_url) {
+    LOG(INFO) << "Playing " << video_url;
+
+    player_helper_.reset(new WebMediaPlayerHelper(
+        media_sandbox_.GetMediaModule(), media_sandbox_.GetFetcherFactory(),
+        video_url));
+    player_ = player_helper_->player();
+
+    media_sandbox_.RegisterFrameCB(
+        base::Bind(&Application::FrameCB, base::Unretained(this)));
+
+    timer_event_id_ =
+        SbEventSchedule(Application::OnTimer, this, kSbTimeSecond / 10);
+  }
+
   static void OnTimer(void* context) {
     Application* application = static_cast<Application*>(context);
     DCHECK(application);
     application->Tick();
   }
+
   void Tick() {
-    if (player_helper_.IsPlaybackFinished()) {
+    if (player_helper_->IsPlaybackFinished()) {
       media_sandbox_.RegisterFrameCB(MediaSandbox::FrameCB());
       LOG(INFO) << "Playback finished.";
       SbEventCancel(timer_event_id_);
       SbSystemRequestStop(0);
       return;
     }
-    if (!eos_appended_) {
+    if (is_adaptive_playback_ && !eos_appended_) {
       AppendData(kAudioId, audio_file_.get(), &audio_offset_);
       AppendData(kVideoId, video_file_.get(), &video_offset_);
       if (audio_offset_ == audio_file_->GetSize() &&
@@ -252,14 +333,14 @@ class Application {
     UNREFERENCED_PARAMETER(time);
 
 #if SB_HAS(GRAPHICS)
-    SbDecodeTarget decode_target = player_helper_.GetCurrentDecodeTarget();
+    SbDecodeTarget decode_target = player_helper_->GetCurrentDecodeTarget();
 
     if (SbDecodeTargetIsValid(decode_target)) {
       return media_sandbox_.resource_provider()->CreateImageFromSbDecodeTarget(
           decode_target);
     }
 
-    scoped_refptr<VideoFrame> frame = player_helper_.GetCurrentFrame();
+    scoped_refptr<VideoFrame> frame = player_helper_->GetCurrentFrame();
     return frame ? reinterpret_cast<Image*>(frame->texture_id()) : NULL;
 #else   // SB_HAS(GRAPHICS)
     return NULL;
@@ -269,9 +350,10 @@ class Application {
   const std::string kAudioId = "audio";
   const std::string kVideoId = "video";
 
+  bool is_adaptive_playback_;
   InitCobaltHelper init_cobalt_helper_;
   MediaSandbox media_sandbox_;
-  WebMediaPlayerHelper player_helper_;
+  scoped_ptr<WebMediaPlayerHelper> player_helper_;
   ChunkDemuxer* chunk_demuxer_ = NULL;
   WebMediaPlayer* player_ = NULL;
   scoped_ptr<ScopedFile> audio_file_;
@@ -296,12 +378,6 @@ void SbEventHandle(const SbEvent* event) {
     case kSbEventTypeStart: {
       SbEventStartData* data = static_cast<SbEventStartData*>(event->data);
       DCHECK(!s_application);
-      if (data->argument_count < 3) {
-        LOG(ERROR) << "Usage: " << data->argument_values[0]
-                   << " [OPTIONS] <audio file path> <video file path>";
-        SbSystemRequestStop(0);
-        return;
-      }
       s_application =
           new Application(data->argument_count, data->argument_values);
       break;
