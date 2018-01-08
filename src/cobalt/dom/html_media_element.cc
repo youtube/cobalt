@@ -594,7 +594,8 @@ void HTMLMediaElement::Play() {
     paused_ = false;
     ScheduleOwnEvent(base::Tokens::play());
 
-    if (ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
+    if (seeking_ ||
+        ready_state_ <= WebMediaPlayer::kReadyStateHaveCurrentData) {
       ScheduleOwnEvent(base::Tokens::waiting());
     } else if (ready_state_ >= WebMediaPlayer::kReadyStateHaveFutureData) {
       ScheduleOwnEvent(base::Tokens::playing());

@@ -824,6 +824,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       NOTREACHED();
       break;
     case kSbPlayerStatePrerolling:
+      buffering_state_cb_.Run(kHaveMetadata);
       break;
     case kSbPlayerStatePresenting:
       buffering_state_cb_.Run(kPrerollCompleted);
