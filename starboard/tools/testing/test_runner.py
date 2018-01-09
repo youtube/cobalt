@@ -38,16 +38,6 @@ _TESTS_PASSED_REGEX = r"\[  PASSED  \] (.*) tests?"
 _TESTS_FAILED_REGEX = r"\[  FAILED  \] (.*) tests?, listed below:"
 _SINGLE_TEST_FAILED_REGEX = r"\[  FAILED  \] (.*)"
 
-def RemoveCSI(a):
-  # Remove CSI(Control Sequence Introducer) from the string. Escape sequences
-  # sometimes appear in terminal outputs to specify colors.
-  # https://en.wikipedia.org/wiki/ANSI_escape_code
-  ESC = r'\x1b'
-  CSI = ESC + r'\['
-  CMD = '[@-~]'
-  pattern = '(' + CSI + '.*?' + CMD + ')'
-  return re.sub(pattern, '', a)
-
 def _FilterTests(target_list, filters, config_name):
   """Returns a Mapping of test targets -> filtered tests."""
 
@@ -367,15 +357,15 @@ class TestRunner(object):
     for idx, line in enumerate(results):
       total_tests_match = re.search(_TOTAL_TESTS_REGEX, line)
       if total_tests_match:
-        total_count = int(RemoveCSI(total_tests_match.group(1)))
+        total_count = int(total_tests_match.group(1))
 
       passed_match = re.search(_TESTS_PASSED_REGEX, line)
       if passed_match:
-        passed_count = int(RemoveCSI(passed_match.group(1)))
+        passed_count = int(passed_match.group(1))
 
       failed_match = re.search(_TESTS_FAILED_REGEX, line)
       if failed_match:
-        failed_count = int(RemoveCSI(failed_match.group(1)))
+        failed_count = int(failed_match.group(1))
         # Descriptions of all failed tests appear after this line
         failed_tests = self._CollectFailedTests(results[idx + 1:])
 
