@@ -171,7 +171,6 @@ VideoDecoder::VideoDecoder(SbMediaVideoCodec video_codec,
       decode_target_(kSbDecodeTargetInvalid),
       frame_width_(0),
       frame_height_(0),
-      has_written_buffer_since_reset_(false),
       first_buffer_received_(false) {
   if (!InitializeCodec()) {
     SB_LOG(ERROR) << "Failed to initialize video decoder.";
@@ -228,21 +227,23 @@ void VideoDecoder::WriteInputBuffer(
   if (!first_buffer_received_) {
     first_buffer_received_ = true;
     first_buffer_pts_ = input_buffer->pts();
-  }
 
-  if (!has_written_buffer_since_reset_) {
-    SB_LOG(INFO) << "Attempting to reconfigure with HDR metadata";
-    has_written_buffer_since_reset_ = true;
-    // If color metadata is present, is not "null", and different than our
-    // previously queued (which is possibly already set) color metadata, then
-    // queue up recreating the MediaCodec video decoder using the new meta data.
+    // If color metadata is present and is not an identity mapping, then
+    // teardown the codec so it can be reinitalized with the new metadata.
     auto* color_metadata = input_buffer->video_sample_info()->color_metadata;
-    if (color_metadata && !IsIdentity(*color_metadata) &&
-        !previous_color_metadata_) {
-      previous_color_metadata_ = *color_metadata;
+    if (color_metadata && !IsIdentity(*color_metadata)) {
+      SB_DCHECK(!color_metadata_) << "Unexpected residual color metadata.";
+      SB_LOG(INFO) << "Reinitializing codec with HDR color metadata.";
       TeardownCodec();
+      color_metadata_ = *color_metadata;
+    }
+
+    // Re-initialize the codec now if it was torn down either in |Reset| or
+    // because we need to change the color metadata.
+    if (media_decoder_ == NULL) {
       if (!InitializeCodec()) {
-        SB_LOG(ERROR) << "Failed to reinitialize codec with HDR metadata.";
+        // TODO: Communicate this failure to our clients somehow.
+        SB_LOG(ERROR) << "Failed to reinitialize codec.";
       }
     }
   }
@@ -268,10 +269,6 @@ void VideoDecoder::Reset() {
   TeardownCodec();
   number_of_frames_being_decoded_.store(0);
   first_buffer_received_ = false;
-  if (!InitializeCodec()) {
-    // TODO: Communicate this failure to our clients somehow.
-    SB_LOG(ERROR) << "Failed to initialize codec after reset.";
-  }
 }
 
 bool VideoDecoder::InitializeCodec() {
@@ -317,7 +314,7 @@ bool VideoDecoder::InitializeCodec() {
   SB_DCHECK(!drm_system_ || j_media_crypto);
   media_decoder_.reset(new MediaDecoder(
       this, video_codec_, width, height, j_output_surface, drm_system_,
-      previous_color_metadata_ ? &*previous_color_metadata_ : nullptr));
+      color_metadata_ ? &*color_metadata_ : nullptr));
   if (media_decoder_->is_valid()) {
     if (error_cb_) {
       media_decoder_->Initialize(error_cb_);
@@ -330,6 +327,7 @@ bool VideoDecoder::InitializeCodec() {
 
 void VideoDecoder::TeardownCodec() {
   media_decoder_.reset();
+  color_metadata_ = starboard::nullopt;
 
   starboard::ScopedLock lock(decode_target_mutex_);
   if (SbDecodeTargetIsValid(decode_target_)) {
