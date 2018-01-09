@@ -46,16 +46,18 @@ SbSocketError TranslateSocketErrno(int error) {
     case EWOULDBLOCK:
 #endif
       return kSbSocketPending;
-#if SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
     case ECONNRESET:
     case ENETRESET:
     case EPIPE:
       return kSbSocketErrorConnectionReset;
-#endif  // #if SB_API_VERSION >=
-        // SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+#endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+        //     SB_API_VERSION >=
+        //     SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
   }
 
-  SB_LOG(ERROR) << "ERROR: " << error;
+  SB_LOG(ERROR) << "Unknown posix socket error: " << error;
 
   // Here's where we would be more nuanced if we need to be.
   return kSbSocketErrorFailed;
