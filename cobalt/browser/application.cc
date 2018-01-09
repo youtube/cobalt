@@ -37,6 +37,8 @@
 #include "cobalt/base/init_cobalt.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/localized_strings.h"
+#include "cobalt/base/on_screen_keyboard_blurred_event.h"
+#include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/base/startup_timer.h"
@@ -642,6 +644,16 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
   event_dispatcher_.AddEventCallback(
       base::OnScreenKeyboardHiddenEvent::TypeId(),
       on_screen_keyboard_hidden_event_callback_);
+  on_screen_keyboard_focused_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardFocusedEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardFocusedEvent::TypeId(),
+      on_screen_keyboard_focused_event_callback_);
+  on_screen_keyboard_blurred_event_callback_ = base::Bind(
+      &Application::OnOnScreenKeyboardBlurredEvent, base::Unretained(this));
+  event_dispatcher_.AddEventCallback(
+      base::OnScreenKeyboardBlurredEvent::TypeId(),
+      on_screen_keyboard_blurred_event_callback_);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 #if defined(ENABLE_WEBDRIVER)
 #if defined(ENABLE_DEBUG_COMMAND_LINE_SWITCHES)
@@ -769,6 +781,15 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
       break;
     case kSbEventTypeOnScreenKeyboardHidden:
       DispatchEventInternal(new base::OnScreenKeyboardHiddenEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
+    case kSbEventTypeOnScreenKeyboardFocused:
+      DCHECK(starboard_event->data);
+      DispatchEventInternal(new base::OnScreenKeyboardFocusedEvent(
+          *static_cast<int*>(starboard_event->data)));
+      break;
+    case kSbEventTypeOnScreenKeyboardBlurred:
+      DispatchEventInternal(new base::OnScreenKeyboardBlurredEvent(
           *static_cast<int*>(starboard_event->data)));
       break;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
@@ -905,6 +926,22 @@ void Application::OnOnScreenKeyboardHiddenEvent(const base::Event* event) {
                "Application::OnOnScreenKeyboardHiddenEvent()");
   browser_module_->OnOnScreenKeyboardHidden(
       base::polymorphic_downcast<const base::OnScreenKeyboardHiddenEvent*>(
+          event));
+}
+
+void Application::OnOnScreenKeyboardFocusedEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardFocusedEvent()");
+  browser_module_->OnOnScreenKeyboardFocused(
+      base::polymorphic_downcast<const base::OnScreenKeyboardFocusedEvent*>(
+          event));
+}
+
+void Application::OnOnScreenKeyboardBlurredEvent(const base::Event* event) {
+  TRACE_EVENT0("cobalt::browser",
+               "Application::OnOnScreenKeyboardBlurredEvent()");
+  browser_module_->OnOnScreenKeyboardBlurred(
+      base::polymorphic_downcast<const base::OnScreenKeyboardBlurredEvent*>(
           event));
 }
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

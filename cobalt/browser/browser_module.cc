@@ -760,6 +760,22 @@ void BrowserModule::OnOnScreenKeyboardHidden(
     web_module_->InjectOnScreenKeyboardHiddenEvent(event->ticket());
   }
 }
+
+void BrowserModule::OnOnScreenKeyboardFocused(
+    const base::OnScreenKeyboardFocusedEvent* event) {
+  // Only inject focused events to the main WebModule.
+  if (web_module_) {
+    web_module_->InjectOnScreenKeyboardFocusedEvent(event->ticket());
+  }
+}
+
+void BrowserModule::OnOnScreenKeyboardBlurred(
+    const base::OnScreenKeyboardBlurredEvent* event) {
+  // Only inject blurred events to the main WebModule.
+  if (web_module_) {
+    web_module_->InjectOnScreenKeyboardBlurredEvent(event->ticket());
+  }
+}
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 #if defined(ENABLE_DEBUG_CONSOLE)

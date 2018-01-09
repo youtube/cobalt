@@ -78,6 +78,8 @@ class Application {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
   void OnOnScreenKeyboardHiddenEvent(const base::Event* event);
+  void OnOnScreenKeyboardFocusedEvent(const base::Event* event);
+  void OnOnScreenKeyboardBlurredEvent(const base::Event* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Called when a navigation occurs in the BrowserModule.
@@ -101,6 +103,8 @@ class Application {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
+  base::EventCallback on_screen_keyboard_focused_event_callback_;
+  base::EventCallback on_screen_keyboard_blurred_event_callback_;
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Thread checkers to ensure that callbacks for network and application events
