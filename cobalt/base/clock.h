@@ -49,6 +49,31 @@ class SystemMonotonicClock : public Clock {
   ~SystemMonotonicClock() override {}
 };
 
+// The MinimumResolutionClock modifies the output of an existing clock by
+// clamping its minimum resolution to a predefined amount.  This is implemented
+// by rounding down the existing clock's time to the previous multiple of the
+// desired clock resolution.
+class MinimumResolutionClock : public Clock {
+ public:
+  MinimumResolutionClock(scoped_refptr<Clock> parent,
+                         const base::TimeDelta& min_resolution)
+      : parent_(parent),
+        min_resolution_in_microseconds_(min_resolution.InMicroseconds()) {
+    DCHECK(parent);
+  }
+
+  base::TimeDelta Now() override {
+    base::TimeDelta now = parent_->Now();
+    int64 microseconds = now.InMicroseconds();
+    return base::TimeDelta::FromMicroseconds(
+        microseconds - (microseconds % min_resolution_in_microseconds_));
+  }
+
+ private:
+  scoped_refptr<Clock> parent_;
+  const int64_t min_resolution_in_microseconds_;
+};
+
 // The OffsetClock takes a parent clock and an offset upon construction, and
 // when queried for the time it returns the time of the parent clock offset by
 // the specified offset.
