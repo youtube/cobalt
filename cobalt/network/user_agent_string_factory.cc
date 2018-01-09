@@ -25,13 +25,39 @@
 
 #include "cobalt_build_id.h"  // NOLINT(build/include)
 
-#if defined(COBALT_ENABLE_LIB)
 namespace {
+
 // Max length including null terminator.
-const size_t kUserAgentPlatformMaxSuffixLength = 128;
-char g_user_agent_platform_suffix[kUserAgentPlatformMaxSuffixLength] = {0};
+const size_t kUserAgentPlatformSuffixMaxLength = 128;
+char g_user_agent_platform_suffix[kUserAgentPlatformSuffixMaxLength] = {0};
+
+bool g_device_type_override_set = false;
+SbSystemDeviceType g_device_type_override = kSbSystemDeviceTypeUnknown;
+
+// Max length including null terminator.
+const size_t kPropertyMaxLength = 512;
+bool g_brand_name_override_set = false;
+char g_brand_name_override[kPropertyMaxLength] = {0};
+bool g_model_name_override_set = false;
+char g_model_name_override[kPropertyMaxLength] = {0};
+
+bool ShouldOverrideDevice() {
+  return g_device_type_override_set || g_brand_name_override_set ||
+         g_model_name_override_set;
+}
+
+#if defined(COBALT_ENABLE_LIB)
+bool CopyStringAndTestIfSuccess(char* out_value,
+                                size_t value_length,
+                                const char* from_value) {
+  if (strlen(from_value) + 1 > value_length)
+    return false;
+  base::strlcpy(out_value, from_value, value_length);
+  return true;
+}
+#endif
+
 }  // namespace
-#endif  // defined(COBALT_ENABLE_LIB)
 
 namespace cobalt {
 namespace network {
@@ -103,9 +129,20 @@ std::string UserAgentStringFactory::CreateUserAgentString() {
         CreateDeviceTypeString().c_str(),
         Sanitize(platform_info_->chipset_model_number.value_or("")).c_str(),
         Sanitize(platform_info_->firmware_version.value_or("")).c_str(),
-        Sanitize(platform_info_->brand).c_str(),
-        Sanitize(platform_info_->model).c_str(),
+        Sanitize(g_brand_name_override_set ?
+            std::string(g_brand_name_override) : platform_info_->brand).c_str(),
+        Sanitize(g_model_name_override_set ?
+            std::string(g_model_name_override) : platform_info_->model).c_str(),
         CreateConnectionTypeString().c_str());
+  } else if (ShouldOverrideDevice()) {
+    // When Starboard does not report platform info but we are overriding the
+    // device.
+    base::StringAppendF(&user_agent, ", _%s_ (%s, %s)",
+        CreateDeviceTypeString().c_str(),
+        Sanitize(g_brand_name_override_set ?
+            g_brand_name_override : "").c_str(),
+        Sanitize(g_model_name_override_set ?
+            g_model_name_override : "").c_str());
   }
 
   if (!aux_field_.empty()) {
@@ -130,19 +167,22 @@ std::string UserAgentStringFactory::CreatePlatformString() {
     platform += "; ";
     platform += architecture_tokens_;
   }
-
-#if defined(COBALT_ENABLE_LIB)
   if (g_user_agent_platform_suffix[0] != '\0') {
     platform += "; ";
     platform += g_user_agent_platform_suffix;
   }
-#endif  // defined(COBALT_ENABLE_LIB)
 
   return platform;
 }
 
 std::string UserAgentStringFactory::CreateDeviceTypeString() {
-  switch (platform_info_->device_type) {
+  auto reported_device_type =
+      g_device_type_override_set ?
+          StarboardToPlatformInfoDeviceType(g_device_type_override) :
+          platform_info_ ? platform_info_->device_type :
+                           PlatformInfo::kInvalidDeviceType;
+
+  switch (reported_device_type) {
     case PlatformInfo::kBlueRayDiskPlayer:
       return "BDP";
     case PlatformInfo::kGameConsole:
@@ -155,6 +195,8 @@ std::string UserAgentStringFactory::CreateDeviceTypeString() {
       return "TV";
     case PlatformInfo::kAndroidTV:
       return "ATV";
+    case PlatformInfo::kUnknown:
+      return "UNKNOWN";
     case PlatformInfo::kInvalidDeviceType:
     default:
       NOTREACHED();
@@ -177,20 +219,101 @@ std::string UserAgentStringFactory::CreateConnectionTypeString() {
   return "";
 }
 
+UserAgentStringFactory::PlatformInfo::DeviceType
+UserAgentStringFactory::StarboardToPlatformInfoDeviceType(
+    SbSystemDeviceType device_type) {
+  switch (device_type) {
+    case kSbSystemDeviceTypeBlueRayDiskPlayer:
+      return PlatformInfo::kBlueRayDiskPlayer;
+      break;
+    case kSbSystemDeviceTypeGameConsole:
+      return PlatformInfo::kGameConsole;
+      break;
+    case kSbSystemDeviceTypeOverTheTopBox:
+      return PlatformInfo::kOverTheTopBox;
+      break;
+    case kSbSystemDeviceTypeSetTopBox:
+      return PlatformInfo::kSetTopBox;
+      break;
+    case kSbSystemDeviceTypeTV:
+      return PlatformInfo::kTV;
+      break;
+    case kSbSystemDeviceTypeAndroidTV:
+      return PlatformInfo::kAndroidTV;
+      break;
+    case kSbSystemDeviceTypeUnknown:
+      return PlatformInfo::kUnknown;
+      break;
+    case kSbSystemDeviceTypeDesktopPC:
+    default:
+      return PlatformInfo::kInvalidDeviceType;
+  }
+}
+
 }  // namespace network
 }  // namespace cobalt
 
 #if defined(COBALT_ENABLE_LIB)
 // Allow host app to append a suffix to the reported platform name.
 bool CbLibUserAgentSetPlatformNameSuffix(const char* suffix) {
-  size_t suffix_length = base::strlcpy(g_user_agent_platform_suffix, suffix,
-                                       kUserAgentPlatformMaxSuffixLength);
-  if (suffix_length >= kUserAgentPlatformMaxSuffixLength) {
+  if (!CopyStringAndTestIfSuccess(g_user_agent_platform_suffix,
+                                 kPropertyMaxLength, suffix)) {
     // If the suffix is too large then nothing is appended to the platform.
     g_user_agent_platform_suffix[0] = '\0';
     return false;
   }
 
   return true;
+}
+
+bool CbLibUserAgentSetBrandNameOverride(const char* value) {
+  if (!value) {
+    g_brand_name_override_set = false;
+    return true;
+  }
+
+  if (CopyStringAndTestIfSuccess(g_brand_name_override,
+                                 kPropertyMaxLength, value)) {
+    g_brand_name_override_set = true;
+    return true;
+  }
+
+  // Failed to reset/set value.
+  return false;
+}
+
+bool CbLibUserAgentSetModelNameOverride(const char* value) {
+  if (!value) {
+    g_model_name_override_set = false;
+    return true;
+  }
+
+  if (CopyStringAndTestIfSuccess(g_model_name_override,
+                                 kPropertyMaxLength, value)) {
+    g_model_name_override_set = true;
+    return true;
+  }
+
+  // Failed to reset/set value.
+  return false;
+}
+
+bool CbLibUserAgentSetDeviceTypeOverride(SbSystemDeviceType device_type) {
+  switch (device_type) {
+    case kSbSystemDeviceTypeBlueRayDiskPlayer:
+    case kSbSystemDeviceTypeGameConsole:
+    case kSbSystemDeviceTypeOverTheTopBox:
+    case kSbSystemDeviceTypeSetTopBox:
+    case kSbSystemDeviceTypeTV:
+    case kSbSystemDeviceTypeDesktopPC:
+    case kSbSystemDeviceTypeAndroidTV:
+    case kSbSystemDeviceTypeUnknown:
+      g_device_type_override_set = true;
+      g_device_type_override = device_type;
+      return true;
+    default:
+      g_device_type_override_set = false;
+      return false;
+  }
 }
 #endif  // defined(COBALT_ENABLE_LIB)

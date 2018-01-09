@@ -19,6 +19,7 @@
 
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
+#include "starboard/system.h"
 
 namespace cobalt {
 namespace network {
@@ -53,6 +54,7 @@ class UserAgentStringFactory {
       kOverTheTopBox,
       kSetTopBox,
       kTV,
+      kUnknown
     };
 
     enum ConnectionType {
@@ -70,6 +72,10 @@ class UserAgentStringFactory {
     std::string model;
     base::optional<ConnectionType> connection_type;
   };
+
+  static PlatformInfo::DeviceType StarboardToPlatformInfoDeviceType(
+      SbSystemDeviceType device_type);
+
   base::optional<PlatformInfo> platform_info_;
 
  private:

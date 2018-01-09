@@ -43,9 +43,9 @@ bool ShouldUsePlatformInfo(SbSystemDeviceType device_type) {
     case kSbSystemDeviceTypeSetTopBox:
     case kSbSystemDeviceTypeTV:
     case kSbSystemDeviceTypeAndroidTV:
+    case kSbSystemDeviceTypeUnknown:
       return true;
     case kSbSystemDeviceTypeDesktopPC:
-    case kSbSystemDeviceTypeUnknown:
     default:
       return false;
   }
@@ -90,29 +90,8 @@ UserAgentStringFactoryStarboard::UserAgentStringFactoryStarboard() {
 #endif  // SB_API_VERSION >= 5
 
     // Device Type
-    switch (device_type) {
-      case kSbSystemDeviceTypeBlueRayDiskPlayer:
-        platform_info_->device_type = PlatformInfo::kBlueRayDiskPlayer;
-        break;
-      case kSbSystemDeviceTypeGameConsole:
-        platform_info_->device_type = PlatformInfo::kGameConsole;
-        break;
-      case kSbSystemDeviceTypeOverTheTopBox:
-        platform_info_->device_type = PlatformInfo::kOverTheTopBox;
-        break;
-      case kSbSystemDeviceTypeSetTopBox:
-        platform_info_->device_type = PlatformInfo::kSetTopBox;
-        break;
-      case kSbSystemDeviceTypeTV:
-        platform_info_->device_type = PlatformInfo::kTV;
-        break;
-      case kSbSystemDeviceTypeAndroidTV:
-        platform_info_->device_type = PlatformInfo::kAndroidTV;
-        break;
-      case kSbSystemDeviceTypeDesktopPC:
-      default:
-        platform_info_->device_type = PlatformInfo::kInvalidDeviceType;
-    }
+    platform_info_->device_type =
+        StarboardToPlatformInfoDeviceType(device_type);
 
     // Chipset model number
     result = SbSystemGetProperty(kSbSystemPropertyChipsetModelNumber, value,
