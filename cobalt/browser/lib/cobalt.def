@@ -10,6 +10,9 @@ EXPORTS
 
     ; From cobalt/network/lib/user_agent.h:
     CbLibUserAgentSetPlatformNameSuffix
+    CbLibUserAgentSetDeviceTypeOverride
+    CbLibUserAgentSetBrandNameOverride
+    CbLibUserAgentSetModelNameOverride
 
     ; From cobalt/browser/lib/exported/main.h:
     CbLibMainSetCallbackRegistrationReadyCallback
