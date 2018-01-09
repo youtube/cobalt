@@ -136,12 +136,21 @@ SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 // Determine if the on screen keyboard is shown.
 SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
 
+// Notify the system that |keepFocus| has been set for the OnScreenKeyboard.
+// |keepFocus| true indicates that the user may not navigate focus off of the
+// OnScreenKeyboard via input; focus may only be moved via events sent by the
+// app. |keepFocus| false indicates that the user may navigate focus off of the
+// OnScreenKeyboard via input. |keepFocus| is initialized to false in the
+// OnScreenKeyboard constructor.
+SB_EXPORT void SbWindowSetOnScreenKeyboardKeepFocus(bool keep_focus);
+
 // Show the on screen keyboard and populate the input with text |input_text|.
 // Fire kSbEventTypeWindowSizeChange and kSbEventTypeOnScreenKeyboardShown if
 // necessary. kSbEventTypeOnScreenKeyboardShown has data |ticket|. The passed
 // in |input_text| will never be NULL, but may be an empty string. Calling
 // SbWindowShowOnScreenKeyboard() when the keyboard is already shown is
-// permitted, and the input will be replaced with |input_text|.
+// permitted, and the input will be replaced with |input_text|. Showing the on
+// screen keyboard does not give it focus.
 SB_EXPORT void SbWindowShowOnScreenKeyboard(SbWindow window,
                                             const char* input_text,
                                             int ticket);
@@ -152,6 +161,19 @@ SB_EXPORT void SbWindowShowOnScreenKeyboard(SbWindow window,
 // SbWindowHideOnScreenKeyboard() when the keyboard is already hidden is
 // permitted.
 SB_EXPORT void SbWindowHideOnScreenKeyboard(SbWindow window, int ticket);
+
+// Focus the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardFocused.
+// kSbEventTypeOnScreenKeyboardFocused has data |ticket|. Calling
+// SbWindowFocusOnScreenKeyboard() when the keyboard is already focused is
+// permitted. Calling SbWindowFocusOnScreenKeyboard while the on screen keyboard
+// is not showing does nothing and does not fire any event.
+SB_EXPORT void SbWindowFocusOnScreenKeyboard(SbWindow window, int ticket);
+// Blur the on screen keyboard. Fire kSbEventTypeOnScreenKeyboardBlurred.
+// kSbEventTypeOnScreenKeyboardBlurred has data |ticket|. Calling
+// SbWindowBlurOnScreenKeyboard() when the keyboard is already blurred is
+// permitted. Calling SbWindowBlurOnScreenKeyboard while the on screen keyboard
+// is not showing does nothing and does not fire any event.
+SB_EXPORT void SbWindowBlurOnScreenKeyboard(SbWindow window, int ticket);
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 

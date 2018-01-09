@@ -24,10 +24,11 @@ will not expose codec information, use a custom
 An event indicating that an `SbWindow`'s size has changed. The event data is
 `SbEventWindowSizeChangedData`, containing a `SbWindow` and `SbWindowSize`.
 
-### Add `SbWindowShowOnScreenKeyboard()`, `SbWindowHideOnScreenKeyboard()`, `SbWindowIsOnScreenKeyboardShown()`
+### Add `SbWindowShowOnScreenKeyboard()`, `SbWindowHideOnScreenKeyboard()`, `SbWindowFocusOnScreenKeyboard()`, `SbWindowBlurOnScreenKeyboard()`, `SbWindowIsOnScreenKeyboardShown()`, `SbWindowSetOnScreenKeyboardKeepFocus()`
 
-These methods show and hide a native on screen keyboard and determine if the on
-screen keyboard is shown. The on screen keyboard also handles
+These methods show, hide, focus, and blur a native on screen keyboard,
+determine if the on screen keyboard is shown, and set whether focus is kept to
+the on screen keyboard. The on screen keyboard also handles
 `kSbInputEventTypeInput`, which use a new field `input_text` of `SbInputData`.
 
 ## Version 7
