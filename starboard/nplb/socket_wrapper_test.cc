@@ -38,6 +38,7 @@ TEST_P(PairSbSocketWrapperTest, SunnyDay) {
   scoped_ptr<ConnectedTrioWrapped> trio =
       CreateAndConnectWrapped(GetServerAddressType(), GetClientAddressType(),
                               GetPortNumberForTests(), kSocketTimeout);
+  ASSERT_TRUE(trio);
   ASSERT_TRUE(trio->server_socket);
   ASSERT_TRUE(trio->server_socket->IsValid());
 
