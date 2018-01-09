@@ -75,6 +75,14 @@ class Window::RelayLoadEvent : public DocumentObserver {
   DISALLOW_COPY_AND_ASSIGN(RelayLoadEvent);
 };
 
+namespace {
+// Ensure that the timer resolution is at the lowest 20 microseconds in
+// order to mitigate potential Spectre-related attacks.  This is following
+// Mozilla's lead as described here:
+//   https://www.mozilla.org/en-US/security/advisories/mfsa2018-01/
+const int64_t kPerformanceTimerMinResolutionInMicroseconds = 20;
+}  // namespace
+
 Window::Window(int width, int height, float device_pixel_ratio,
                base::ApplicationState initial_application_state,
                cssom::CSSParser* css_parser, Parser* dom_parser,
@@ -130,9 +138,14 @@ Window::Window(int width, int height, float device_pixel_ratio,
           video_playback_rate_multiplier)),
       performance_(new Performance(
 #if defined(ENABLE_TEST_RUNNER)
-          clock_type == kClockTypeTestRunner ? test_runner_->GetClock() :
+          clock_type == kClockTypeTestRunner
+              ? test_runner_->GetClock()
+              :
 #endif
-                                             new base::SystemMonotonicClock())),
+              new base::MinimumResolutionClock(
+                  new base::SystemMonotonicClock(),
+                  base::TimeDelta::FromMicroseconds(
+                      kPerformanceTimerMinResolutionInMicroseconds)))),
       ALLOW_THIS_IN_INITIALIZER_LIST(document_(new Document(
           html_element_context_.get(),
           Document::Options(
