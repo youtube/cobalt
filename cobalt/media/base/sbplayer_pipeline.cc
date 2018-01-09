@@ -695,8 +695,6 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     audio_stream_ = audio_stream;
     video_stream_ = video_stream;
 
-    buffering_state_cb_.Run(kHaveMetadata);
-
     bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
     natural_size_ = video_stream_->video_decoder_config().natural_size();
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
@@ -826,6 +824,7 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       NOTREACHED();
       break;
     case kSbPlayerStatePrerolling:
+      buffering_state_cb_.Run(kHaveMetadata);
       break;
     case kSbPlayerStatePresenting:
       buffering_state_cb_.Run(kPrerollCompleted);
