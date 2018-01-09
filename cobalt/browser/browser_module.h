@@ -27,6 +27,8 @@
 #include "cobalt/account/account_manager.h"
 #include "cobalt/base/application_state.h"
 #include "cobalt/base/message_queue.h"
+#include "cobalt/base/on_screen_keyboard_blurred_event.h"
+#include "cobalt/base/on_screen_keyboard_focused_event.h"
 #include "cobalt/base/on_screen_keyboard_hidden_event.h"
 #include "cobalt/base/on_screen_keyboard_shown_event.h"
 #include "cobalt/browser/h5vcc_url_handler.h"
@@ -172,6 +174,10 @@ class BrowserModule {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
   void OnOnScreenKeyboardHidden(const base::OnScreenKeyboardHiddenEvent* event);
+  void OnOnScreenKeyboardFocused(
+      const base::OnScreenKeyboardFocusedEvent* event);
+  void OnOnScreenKeyboardBlurred(
+      const base::OnScreenKeyboardBlurredEvent* event);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
  private:

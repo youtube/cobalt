@@ -43,13 +43,17 @@ class OnScreenKeyboard : public EventTarget {
   OnScreenKeyboard(const base::Callback<SbWindow()>& get_sb_window_callback,
                    script::ScriptValueFactory* script_value_factory);
 
-  // Shows the on screen keyboard by calling a Starboard function
-  // and dispatches an onshow event.
+  // Shows the on screen keyboard by calling a Starboard function.
   scoped_ptr<VoidPromiseValue> Show();
 
-  // Hides the on screen keyboard by calling a Starboard function,
-  // and dispatches an onhide event.
+  // Hides the on screen keyboard by calling a Starboard function.
   scoped_ptr<VoidPromiseValue> Hide();
+
+  // Focuses the on screen keyboard by calling a Starboard function.
+  scoped_ptr<VoidPromiseValue> Focus();
+
+  // Blurs the on screen keyboard by calling a Starboard function.
+  scoped_ptr<VoidPromiseValue> Blur();
 
   std::string data() const { return data_; }
   void set_data(const std::string& data) { data_ = data; }
@@ -60,15 +64,29 @@ class OnScreenKeyboard : public EventTarget {
   const EventListenerScriptValue* onhide() const;
   void set_onhide(const EventListenerScriptValue& event_listener);
 
+  const EventListenerScriptValue* onfocus() const;
+  void set_onfocus(const EventListenerScriptValue& event_listener);
+
+  const EventListenerScriptValue* onblur() const;
+  void set_onblur(const EventListenerScriptValue& event_listener);
+
   const EventListenerScriptValue* oninput() const;
   void set_oninput(const EventListenerScriptValue& event_listener);
 
   // If the keyboard is shown.
   bool shown() const;
 
-  // Called by the WebModule to dispatch DOM show and hide events.
+  void set_keep_focus(bool keep_focus) {
+    keep_focus_ = keep_focus;
+    SbWindowSetOnScreenKeyboardKeepFocus(keep_focus);
+  }
+  bool keep_focus() const { return keep_focus_; }
+
+  // Called by the WebModule to dispatch DOM show, hide, focus, and blur events.
   void DispatchHideEvent(int ticket);
   void DispatchShowEvent(int ticket);
+  void DispatchFocusEvent(int ticket);
+  void DispatchBlurEvent(int ticket);
 
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
 
@@ -77,6 +95,8 @@ class OnScreenKeyboard : public EventTarget {
 
   TicketToPromiseMap ticket_to_hide_promise_map_;
   TicketToPromiseMap ticket_to_show_promise_map_;
+  TicketToPromiseMap ticket_to_focus_promise_map_;
+  TicketToPromiseMap ticket_to_blur_promise_map_;
 
   const base::Callback<SbWindow()> get_sb_window_callback_;
 
@@ -85,6 +105,8 @@ class OnScreenKeyboard : public EventTarget {
   std::string data_;
 
   int next_ticket_;
+
+  bool keep_focus_ = false;
 
   DISALLOW_COPY_AND_ASSIGN(OnScreenKeyboard);
 };

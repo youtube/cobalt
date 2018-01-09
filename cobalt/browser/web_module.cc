@@ -141,12 +141,18 @@ class WebModule::Impl {
   void InjectOnScreenKeyboardInputEvent(scoped_refptr<dom::Element> element,
                                         base::Token type,
                                         const dom::InputEventInit& event);
-  // Injects an on screen keyboard input event into the web module. Event is
+  // Injects an on screen keyboard shown event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardShownEvent(int ticket);
-  // Injects an on screen keyboard input event into the web module. Event is
+  // Injects an on screen keyboard hidden event into the web module. Event is
   // directed at the on screen keyboard element.
   void InjectOnScreenKeyboardHiddenEvent(int ticket);
+  // Injects an on screen keyboard focused event into the web module. Event is
+  // directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardFocusedEvent(int ticket);
+  // Injects an on screen keyboard blurred event into the web module. Event is
+  // directed at the on screen keyboard element.
+  void InjectOnScreenKeyboardBlurredEvent(int ticket);
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
@@ -750,6 +756,25 @@ void WebModule::Impl::InjectOnScreenKeyboardHiddenEvent(int ticket) {
 
   window_->on_screen_keyboard()->DispatchHideEvent(ticket);
 }
+
+void WebModule::Impl::InjectOnScreenKeyboardFocusedEvent(int ticket) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  DCHECK(window_->on_screen_keyboard());
+
+  window_->on_screen_keyboard()->DispatchFocusEvent(ticket);
+}
+
+void WebModule::Impl::InjectOnScreenKeyboardBlurredEvent(int ticket) {
+  DCHECK(thread_checker_.CalledOnValidThread());
+  DCHECK(is_running_);
+  DCHECK(window_);
+  DCHECK(window_->on_screen_keyboard());
+
+  window_->on_screen_keyboard()->DispatchBlurEvent(ticket);
+}
+
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
 void WebModule::Impl::InjectKeyboardEvent(scoped_refptr<dom::Element> element,
@@ -1293,6 +1318,30 @@ void WebModule::InjectOnScreenKeyboardHiddenEvent(int ticket) {
   message_loop()->PostTask(
       FROM_HERE, base::Bind(&WebModule::Impl::InjectOnScreenKeyboardHiddenEvent,
                             base::Unretained(impl_.get()), ticket));
+}
+
+void WebModule::InjectOnScreenKeyboardFocusedEvent(int ticket) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardFocusedEvent()", "ticket",
+               ticket);
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::InjectOnScreenKeyboardFocusedEvent,
+                 base::Unretained(impl_.get()), ticket));
+}
+
+void WebModule::InjectOnScreenKeyboardBlurredEvent(int ticket) {
+  TRACE_EVENT1("cobalt::browser",
+               "WebModule::InjectOnScreenKeyboardBlurredEvent()", "ticket",
+               ticket);
+  DCHECK(message_loop());
+  DCHECK(impl_);
+  message_loop()->PostTask(
+      FROM_HERE,
+      base::Bind(&WebModule::Impl::InjectOnScreenKeyboardBlurredEvent,
+                 base::Unretained(impl_.get()), ticket));
 }
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)

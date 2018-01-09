@@ -236,6 +236,10 @@ class WebModule : public LifecycleObserver {
   void InjectOnScreenKeyboardShownEvent(int ticket);
   // Injects an on screen keyboard hidden event into the web module.
   void InjectOnScreenKeyboardHiddenEvent(int ticket);
+  // Injects an on screen keyboard focused event into the web module.
+  void InjectOnScreenKeyboardFocusedEvent(int ticket);
+  // Injects an on screen keyboard blurred event into the web module.
+  void InjectOnScreenKeyboardBlurredEvent(int ticket);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 
   // Injects a keyboard event into the web module. The value for type
