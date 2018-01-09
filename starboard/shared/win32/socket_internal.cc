@@ -40,7 +40,8 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     case WSAEINPROGRESS:
     case WSAEWOULDBLOCK:
       return kSbSocketPending;
-#if SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+#if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
+    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
     case WSAECONNRESET:
     case WSAENETRESET:
       return kSbSocketErrorConnectionReset;
@@ -49,8 +50,9 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     //   https://msdn.microsoft.com/en-us/library/windows/desktop/ms681382(v=vs.85).aspx
     case ERROR_BROKEN_PIPE:
       return kSbSocketErrorConnectionReset;
-#endif  // #if SB_API_VERSION >=
-        // SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+#endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
+        //     SB_API_VERSION >=
+        //     SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
   }
 
   // Here's where we would be more nuanced if we need to be.
