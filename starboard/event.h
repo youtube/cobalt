@@ -239,6 +239,23 @@ typedef enum SbEventType {
   // have tickets passed in via SbWindowHideOnScreenKeyboard. System-triggered
   // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardHidden,
+
+  // The platform has focused the on screen keyboard. This event is triggered by
+  // the system or by the OnScreenKeyboard's focus method in javascript. The
+  // event has int data representing the ticket for looking up a promise
+  // reference stored by the on screen keyboard. Javascript-triggered events
+  // have tickets passed in via SbWindowFocusOnScreenKeyboard. System-triggered
+  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+  kSbEventTypeOnScreenKeyboardFocused,
+
+  // The platform has blurred the on screen keyboard. This event is triggered by
+  // the system or by the OnScreenKeyboard's blur method in javascript. The
+  // event has int data representing the ticket for looking up a promise
+  // reference stored by the on screen keyboard. Javascript-triggered events
+  // have tickets passed in via SbWindowBlurOnScreenKeyboard. System-triggered
+  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+  kSbEventTypeOnScreenKeyboardBlurred,
+
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
 } SbEventType;
 
