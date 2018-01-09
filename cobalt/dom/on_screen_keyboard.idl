@@ -12,17 +12,24 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Custom API for hiding, showing, and receiving input from an on
-// screen keyboard.
+// Custom API for hiding, showing, focusing, blurring, and receiving input
+// from an on screen keyboard.
 
 interface OnScreenKeyboard {
-  void show();
-  void hide();
+  Promise<void> show();
+  Promise<void> hide();
+  Promise<void> focus();
+  Promise<void> blur();
   readonly attribute boolean shown;
+  // If the keyboard should keep focus, preventing focus from moving away from
+  // the keyboard due to user input.
+  attribute boolean keepFocus;
 
   attribute DOMString data;
 
   attribute EventHandler onshow;
   attribute EventHandler onhide;
+  attribute EventHandler onfocus;
+  attribute EventHandler onblur;
   attribute EventHandler oninput;
 };

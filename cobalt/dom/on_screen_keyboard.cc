@@ -79,12 +79,76 @@ scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Hide() {
   return promise.Pass();
 }
 
+scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Focus() {
+  scoped_ptr<VoidPromiseValue> promise =
+      script_value_factory_->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference promise_reference(*promise);
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
+  SbWindow sb_window = get_sb_window_callback_.Run();
+
+  if (!sb_window) {
+    LOG(ERROR) << "OnScreenKeyboard::Focus invalid without SbWindow.";
+    return scoped_ptr<VoidPromiseValue>(NULL);
+  }
+  int ticket = next_ticket_++;
+  bool is_emplaced =
+      ticket_to_focus_promise_map_
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
+                               new VoidPromiseValue::StrongReference(*promise)))
+          .second;
+  DCHECK(is_emplaced);
+  SbWindowFocusOnScreenKeyboard(sb_window, ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+  return promise.Pass();
+}
+
+scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Blur() {
+  scoped_ptr<VoidPromiseValue> promise =
+      script_value_factory_->CreateBasicPromise<void>();
+  VoidPromiseValue::StrongReference promise_reference(*promise);
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
+  SbWindow sb_window = get_sb_window_callback_.Run();
+
+  if (!sb_window) {
+    LOG(ERROR) << "OnScreenKeyboard::Blur invalid without SbWindow.";
+    return scoped_ptr<VoidPromiseValue>(NULL);
+  }
+  int ticket = next_ticket_++;
+  bool is_emplaced =
+      ticket_to_blur_promise_map_
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
+                               new VoidPromiseValue::StrongReference(*promise)))
+          .second;
+  DCHECK(is_emplaced);
+  SbWindowBlurOnScreenKeyboard(sb_window, ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+  return promise.Pass();
+}
+
 const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onshow() const {
   return GetAttributeEventListener(base::Tokens::show());
 }
 void OnScreenKeyboard::set_onshow(
     const EventListenerScriptValue& event_listener) {
   SetAttributeEventListener(base::Tokens::show(), event_listener);
+}
+
+const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onfocus() const {
+  return GetAttributeEventListener(base::Tokens::focus());
+}
+void OnScreenKeyboard::set_onfocus(
+    const EventListenerScriptValue& event_listener) {
+  SetAttributeEventListener(base::Tokens::focus(), event_listener);
+}
+
+const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onblur() const {
+  return GetAttributeEventListener(base::Tokens::blur());
+}
+void OnScreenKeyboard::set_onblur(
+    const EventListenerScriptValue& event_listener) {
+  SetAttributeEventListener(base::Tokens::blur(), event_listener);
 }
 
 const EventTarget::EventListenerScriptValue* OnScreenKeyboard::onhide() const {
@@ -141,6 +205,38 @@ void OnScreenKeyboard::DispatchShowEvent(int ticket) {
     ticket_to_show_promise_map_.erase(it);
   }
   DispatchEvent(new dom::Event(base::Tokens::show()));
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+}
+
+void OnScreenKeyboard::DispatchFocusEvent(int ticket) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
+    TicketToPromiseMap::const_iterator it =
+        ticket_to_focus_promise_map_.find(ticket);
+    DCHECK(it != ticket_to_focus_promise_map_.end())
+        << "No promise matching ticket for OnScreenKeyboardFocused event.";
+    it->second->value().Resolve();
+    ticket_to_focus_promise_map_.erase(it);
+  }
+  DispatchEvent(new dom::Event(base::Tokens::focus()));
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(ticket);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+}
+
+void OnScreenKeyboard::DispatchBlurEvent(int ticket) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  if (ticket != kSbEventOnScreenKeyboardInvalidTicket) {
+    TicketToPromiseMap::const_iterator it =
+        ticket_to_blur_promise_map_.find(ticket);
+    DCHECK(it != ticket_to_blur_promise_map_.end())
+        << "No promise matching ticket for OnScreenKeyboardBlurred event.";
+    it->second->value().Resolve();
+    ticket_to_blur_promise_map_.erase(it);
+  }
+  DispatchEvent(new dom::Event(base::Tokens::blur()));
 #else   // SB_HAS(ON_SCREEN_KEYBOARD)
   UNREFERENCED_PARAMETER(ticket);
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
