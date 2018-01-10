@@ -156,15 +156,15 @@ All source locations are specified relative to `src/` (this directory).
     support the network needs of an HTTP User-Agent (like Chromium or Cobalt),
     an HTTP server, a DIAL server, and several abstractions for networking
     primitives. Also contains SPDY and QUIC implementations.
-  * `media/` - Chromium's Media library. Contains all the code that parses,
-    processes, and manages buffers of video and audio data. Media decoding is
-    passed off to decoding hardware, wherever possible.
   * `cobalt/` - The home of all Cobalt application code. This includes the Web
     Implementation, Layout Engine, Renderer, and some other Cobalt-specific
     features.
       * `cobalt/build/` - The core build generation system, `gyp_cobalt`, and
         configurations for supported platforms. (NOTE: This should eventually be
         mostly moved into `starboard/`.)
+      * `cobalt/media/` - Chromium's Media library. Contains all the code that
+        parses, processes, and manages buffers of video and audio data. It
+        send the buffers to the SbPlayer implementation for playback.
   * `starboard/` - Cobalt's porting layer. Please see Starboard's
     [`README.md`](starboard/README.md) for more detailed information about
     porting Starboard (and Cobalt) to a new platform.
