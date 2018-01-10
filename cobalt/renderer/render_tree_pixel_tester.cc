@@ -119,8 +119,8 @@ SkBitmap BlurBitmap(const SkBitmap& bitmap, float sigma) {
       bitmap.width(), bitmap.height(), kN32_SkColorType, kPremul_SkAlphaType));
 
   SkPaint paint;
-  SkAutoTUnref<SkBlurImageFilter> blur_filter(
-      SkBlurImageFilter::Create(sigma, sigma));
+  sk_sp<SkImageFilter> blur_filter(
+      SkBlurImageFilter::Make(sigma, sigma, nullptr));
   paint.setImageFilter(blur_filter);
 
   SkCanvas canvas(blurred_bitmap);
@@ -136,8 +136,8 @@ bool BitmapsAreEqual(const SkBitmap& bitmap_a, const SkBitmap& bitmap_b) {
     return false;
   }
 
-  SkAutoLockPixels lock_a(bitmap_a);
-  SkAutoLockPixels lock_b(bitmap_b);
+  // Do not need to lock pixels here.  See:
+  // https://bugs.chromium.org/p/skia/issues/detail?id=6481&desc=2
   void* pixels_a = reinterpret_cast<void*>(bitmap_a.getPixels());
   void* pixels_b = reinterpret_cast<void*>(bitmap_b.getPixels());
   size_t byte_count = bitmap_a.rowBytes() * bitmap_a.height();

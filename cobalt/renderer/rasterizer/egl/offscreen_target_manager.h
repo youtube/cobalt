@@ -36,7 +36,7 @@ namespace egl {
 // minimize the cost of switching render targets.
 class OffscreenTargetManager {
  public:
-  typedef base::Callback<SkSurface*(const backend::RenderTarget*)>
+  typedef base::Callback<sk_sp<SkSurface>(const backend::RenderTarget*)>
       CreateFallbackSurfaceFunction;
 
   struct TargetInfo {

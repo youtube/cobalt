@@ -475,7 +475,7 @@ OffscreenTargetManager::CreateOffscreenAtlas(const math::Size& size,
 
   if (create_canvas) {
     // Wrap the framebuffer as a skia surface.
-    atlas->skia_surface.reset(create_fallback_surface_.Run(atlas->framebuffer));
+    atlas->skia_surface = create_fallback_surface_.Run(atlas->framebuffer);
   }
 
   return atlas.Pass();

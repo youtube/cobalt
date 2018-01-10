@@ -122,7 +122,7 @@ class HardwareFrontendImage : public SinglePlaneImage {
   // the skia render tree visitor that is aware of skia::Images.  Since the
   // skia render tree should only be visited on the rasterizer thread, this
   // restraint should always be satisfied naturally.
-  const SkBitmap* GetBitmap() const override;
+  const sk_sp<SkImage>& GetImage() const override;
 
   const backend::TextureEGL* GetTextureEGL() const override;
 
@@ -207,11 +207,6 @@ class HardwareMultiPlaneImage : public MultiPlaneImage {
     return format_;
   }
 
-  // Forward the request to get a bitmap to the internal single-plane image
-  // specified by plane_index.
-  const SkBitmap* GetBitmap(int plane_index) const override {
-    return planes_[plane_index]->GetBitmap();
-  }
   const backend::TextureEGL* GetTextureEGL(int plane_index) const override {
     return planes_[plane_index]->GetTextureEGL();
   }

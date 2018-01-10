@@ -16,6 +16,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "third_party/skia/include/core/SkCanvas.h"
+#include "third_party/skia/include/core/SkRegion.h"
 
 namespace cobalt {
 namespace renderer {
@@ -26,7 +27,7 @@ namespace {
 
 class SkiaSurface : public common::ScratchSurfaceCache::Surface {
  public:
-  SkiaSurface(SkSurface* surface, const math::Size& size)
+  SkiaSurface(sk_sp<SkSurface> surface, const math::Size& size)
       : surface_(surface), size_(size) {}
 
   math::Size GetSize() const override { return size_; }
@@ -34,7 +35,7 @@ class SkiaSurface : public common::ScratchSurfaceCache::Surface {
   SkSurface* sk_surface() { return surface_.get(); }
 
  private:
-  SkAutoTUnref<SkSurface> surface_;
+  sk_sp<SkSurface> surface_;
   math::Size size_;
 };
 }  // namespace
@@ -51,12 +52,11 @@ ScratchSurfaceCache::Delegate::Delegate(
 
 common::ScratchSurfaceCache::Surface*
 ScratchSurfaceCache::Delegate::CreateSurface(const math::Size& size) {
-  SkSurface* sk_surface = create_sk_surface_function_.Run(size);
-  if (sk_surface) {
-    return new SkiaSurface(sk_surface, size);
-  } else {
-    return NULL;
+  sk_sp<SkSurface> sk_surface = create_sk_surface_function_.Run(size);
+  if (!sk_surface) {
+    return nullptr;
   }
+  return new SkiaSurface(sk_surface, size);
 }
 
 void ScratchSurfaceCache::Delegate::DestroySurface(
@@ -84,11 +84,11 @@ void ScratchSurfaceCache::Delegate::PrepareForUse(
   // us from drawing to pixels outside of the requested area, since the actual
   // sk_surface returned may be larger than the requested area.
   canvas->clipRect(SkRect::MakeWH(area.width(), area.height()),
-                   SkRegion::kReplace_Op);
+                   SkClipOp::kIntersect);
 
   // Clear the draw area to RGBA(0, 0, 0, 0), as expected for a fresh scratch
   // sk_surface, before returning.
-  canvas->drawARGB(0, 0, 0, 0, SkXfermode::kClear_Mode);
+  canvas->clear(SkColorSetARGB(0, 0, 0, 0));
 }
 
 SkSurface* CachedScratchSurface::GetSurface() {
