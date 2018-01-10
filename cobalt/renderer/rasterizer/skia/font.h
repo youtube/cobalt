@@ -40,11 +40,7 @@ class Font : public render_tree::Font {
  public:
   Font(SkiaTypeface* typeface, SkScalar size);
 
-  // Returns the contained SkTypeface_Cobalt object, which has its reference
-  // count incremented.
-  // NOTE: The caller is responsible for decrementing the reference count after
-  // finishing with the object.
-  SkTypeface_Cobalt* GetSkTypeface() const;
+  const sk_sp<SkTypeface_Cobalt>& GetSkTypeface() const;
 
   // Returns the pixel size described by this font.
   SkScalar size() const { return size_; }

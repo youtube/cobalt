@@ -28,35 +28,33 @@ namespace skia {
 
 namespace {
 
-SkSurface* CreateScratchSkSurface(const math::Size& size) {
-  return SkSurface::NewRaster(
+sk_sp<SkSurface> CreateScratchSkSurface(const math::Size& size) {
+  return SkSurface::MakeRaster(
       SkImageInfo::MakeN32Premul(size.width(), size.height()));
 }
 
 class SoftwareScratchSurface : public RenderTreeNodeVisitor::ScratchSurface {
  public:
-  explicit SoftwareScratchSurface(SkSurface* sk_surface)
+  explicit SoftwareScratchSurface(const sk_sp<SkSurface>& sk_surface)
       : surface_(sk_surface) {}
   SkSurface* GetSurface() override { return surface_.get(); }
 
  private:
-  SkAutoTUnref<SkSurface> surface_;
+  sk_sp<SkSurface> surface_;
 };
 
 scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
     const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "CreateScratchSurface()", "width",
                size.width(), "height", size.height());
-  SkSurface* sk_surface = CreateScratchSkSurface(size);
-  if (sk_surface) {
-    return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>(
-        new SoftwareScratchSurface(sk_surface));
-  } else {
+  sk_sp<SkSurface> sk_surface = CreateScratchSkSurface(size);
+  if (!sk_surface) {
     return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>();
   }
-}
 
-void ReturnScratchImage(SkSurface* surface) { surface->unref(); }
+  return scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>(
+      new SoftwareScratchSurface(sk_surface));
+}
 
 }  // namespace
 

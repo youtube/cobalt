@@ -18,6 +18,7 @@
 
 #include "base/containers/linked_hash_map.h"
 #include "base/debug/trace_event.h"
+#include "cobalt/renderer/backend/egl/framebuffer_render_target.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "cobalt/renderer/backend/egl/graphics_system.h"
 #include "cobalt/renderer/backend/egl/texture.h"
@@ -34,10 +35,13 @@
 #include "third_party/glm/glm/mat3x3.hpp"
 #include "third_party/skia/include/core/SkCanvas.h"
 #include "third_party/skia/include/core/SkSurface.h"
+#include "third_party/skia/include/gpu/GrBackendSurface.h"
 #include "third_party/skia/include/gpu/GrContext.h"
+#include "third_party/skia/include/gpu/GrContextOptions.h"
+#include "third_party/skia/include/gpu/GrRenderTarget.h"
 #include "third_party/skia/include/gpu/GrTexture.h"
-#include "third_party/skia/include/gpu/SkGrPixelRef.h"
-#include "third_party/skia/src/gpu/SkGpuDevice.h"
+#include "third_party/skia/include/gpu/gl/GrGLInterface.h"
+#include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace {
   // Some clients call Submit() multiple times with up to 2 different render
@@ -79,7 +83,7 @@ class HardwareRasterizer::Impl {
   void MakeCurrent();
 
  private:
-  typedef base::linked_hash_map<int32_t, SkSurface*> SkSurfaceMap;
+  typedef base::linked_hash_map<int32_t, sk_sp<SkSurface>> SkSurfaceMap;
   class CachedScratchSurfaceHolder
       : public RenderTreeNodeVisitor::ScratchSurface {
    public:
@@ -94,7 +98,7 @@ class HardwareRasterizer::Impl {
     CachedScratchSurface cached_scratch_surface_;
   };
 
-  SkSurface* CreateSkSurface(const math::Size& size);
+  sk_sp<SkSurface> CreateSkSurface(const math::Size& size);
   scoped_ptr<RenderTreeNodeVisitor::ScratchSurface> CreateScratchSurface(
       const math::Size& size);
 
@@ -138,18 +142,13 @@ SkSurfaceProps GetRenderTargetSurfaceProps() {
                         SkSurfaceProps::kLegacyFontHost_InitType);
 }
 
-SkSurface* CreateSkiaRenderTargetSurface(GrRenderTarget* render_target) {
-  SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
-  return SkSurface::NewRenderTargetDirect(render_target, &surface_props);
-}
-
 // Takes meta-data from a Cobalt RenderTarget object and uses it to fill out
 // a Skia backend render target descriptor.  Additionally, it also references
 // the actual render target object as well so that Skia can then recover
 // the Cobalt render target object.
 GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
-    cobalt::renderer::backend::RenderTarget* cobalt_render_target) {
-  const math::Size& size = cobalt_render_target->GetSize();
+    const cobalt::renderer::backend::RenderTarget& cobalt_render_target) {
+  const math::Size& size = cobalt_render_target.GetSize();
 
   GrBackendRenderTargetDesc skia_desc;
   skia_desc.fWidth = size.width();
@@ -157,9 +156,10 @@ GrBackendRenderTargetDesc CobaltRenderTargetToSkiaBackendRenderTargetDesc(
   skia_desc.fConfig = kRGBA_8888_GrPixelConfig;
   skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
   skia_desc.fSampleCnt = 0;
+  // Skia uses this for some clip operations.
   skia_desc.fStencilBits = 0;
   skia_desc.fRenderTargetHandle =
-      static_cast<GrBackendObject>(cobalt_render_target->GetPlatformHandle());
+      static_cast<GrBackendObject>(cobalt_render_target.GetPlatformHandle());
 
   return skia_desc;
 }
@@ -425,15 +425,14 @@ void HardwareRasterizer::Impl::RenderTextureEGL(
   SkISize canvas_size = draw_state->render_target->getBaseLayerSize();
   GL_CALL(glViewport(0, 0, canvas_size.width(), canvas_size.height()));
 
-  SkIRect canvas_boundsi;
-  draw_state->render_target->getClipDeviceBounds(&canvas_boundsi);
+  SkIRect canvas_boundsi = draw_state->render_target->getDeviceClipBounds();
   // We need to translate from Skia's top-left corner origin to GL's bottom-left
   // corner origin.
   GL_CALL(glScissor(
       canvas_boundsi.x(),
-      *current_surface_origin_ == kBottomLeft_GrSurfaceOrigin ?
-          canvas_size.height() - canvas_boundsi.height() - canvas_boundsi.y() :
-          canvas_boundsi.y(),
+      *current_surface_origin_ == kBottomLeft_GrSurfaceOrigin
+          ? canvas_size.height() - canvas_boundsi.height() - canvas_boundsi.y()
+          : canvas_boundsi.y(),
       canvas_boundsi.width(), canvas_boundsi.height()));
 
   glm::mat4 model_view_projection_matrix =
@@ -543,11 +542,14 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
              << scratch_surface_cache_size_in_bytes;
 
   graphics_context_->MakeCurrent();
-  // Create a GrContext object that wraps the passed in Cobalt GraphicsContext
-  // object.
-  gr_context_.reset(GrContext::Create(
-      kCobalt_GrBackend, reinterpret_cast<GrBackendContext>(graphics_context_),
-      skia_atlas_width, skia_atlas_height));
+
+  GrContextOptions context_options;
+  // Main Glyph cache is in Alpha8 format, so assume 1 byte per pixel.
+  context_options.fGlyphCacheTextureMaximumBytes =
+      skia_atlas_width * skia_atlas_height;
+  context_options.fAvoidStencilBuffers = true;
+  gr_context_.reset(
+      GrContext::Create(kOpenGL_GrBackend, NULL, context_options));
 
   DCHECK(gr_context_);
   // The GrContext manages a resource cache internally using GrResourceCache
@@ -559,9 +561,9 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   gr_context_->setResourceCacheLimits(kSkiaCacheMaxResources,
                                       skia_cache_size_in_bytes);
 
-  base::Callback<SkSurface*(const math::Size&)> create_sk_surface_function =
-      base::Bind(&HardwareRasterizer::Impl::CreateSkSurface,
-                 base::Unretained(this));
+  base::Callback<sk_sp<SkSurface>(const math::Size&)>
+      create_sk_surface_function = base::Bind(
+          &HardwareRasterizer::Impl::CreateSkSurface, base::Unretained(this));
 
   scratch_surface_cache_.emplace(create_sk_surface_function,
                                  scratch_surface_cache_size_in_bytes);
@@ -569,15 +571,15 @@ HardwareRasterizer::Impl::Impl(backend::GraphicsContext* graphics_context,
   // Setup a resource provider for resources to be used with a hardware
   // accelerated Skia rasterizer.
   resource_provider_.reset(new HardwareResourceProvider(
-      graphics_context_, gr_context_,
+      graphics_context_, gr_context_.get(),
       base::Bind(&HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget,
                  base::Unretained(this)),
       purge_skia_font_caches_on_destruction));
 
   graphics_context_->ReleaseCurrentContext();
 
-  int max_surface_size = std::max(gr_context_->getMaxRenderTargetSize(),
-                                  gr_context_->getMaxTextureSize());
+  int max_surface_size = std::max(gr_context_->caps()->maxRenderTargetSize(),
+                                  gr_context_->caps()->maxTextureSize());
   DLOG(INFO) << "Max renderer surface size: " << max_surface_size;
 }
 
@@ -585,10 +587,6 @@ HardwareRasterizer::Impl::~Impl() {
   graphics_context_->MakeCurrent();
   textured_mesh_renderer_ = base::nullopt;
 
-  for (SkSurfaceMap::iterator iter = sk_output_surface_map_.begin();
-    iter != sk_output_surface_map_.end(); iter++) {
-    iter->second->unref();
-  }
   scratch_surface_cache_ = base::nullopt;
   sk_output_surface_map_.clear();
   gr_context_.reset(NULL);
@@ -674,12 +672,12 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
 
   // Create a canvas from the render target.
   GrBackendRenderTargetDesc skia_desc =
-      CobaltRenderTargetToSkiaBackendRenderTargetDesc(render_target.get());
+      CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
   skia_desc.fOrigin = kTopLeft_GrSurfaceOrigin;
-  SkAutoTUnref<GrRenderTarget> skia_render_target(
-      gr_context_->wrapBackendRenderTarget(skia_desc));
-  SkSurface* sk_output_surface =
-      CreateSkiaRenderTargetSurface(skia_render_target);
+
+  SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
+  sk_sp<SkSurface> sk_output_surface = SkSurface::MakeFromBackendRenderTarget(
+      gr_context_.get(), skia_desc, &surface_props);
   SkCanvas* canvas = sk_output_surface->getCanvas();
 
   canvas->clear(SkColorSetARGB(0, 0, 0, 0));
@@ -687,7 +685,6 @@ void HardwareRasterizer::Impl::SubmitOffscreenToRenderTarget(
   // Render to the canvas and clean up.
   RasterizeRenderTreeToCanvas(render_tree, canvas, kTopLeft_GrSurfaceOrigin);
   canvas->flush();
-  sk_output_surface->unref();
 }
 
 render_tree::ResourceProvider* HardwareRasterizer::Impl::GetResourceProvider() {
@@ -702,39 +699,14 @@ void HardwareRasterizer::Impl::MakeCurrent() {
   graphics_context_->MakeCurrent();
 }
 
-SkSurface* HardwareRasterizer::Impl::CreateSkSurface(const math::Size& size) {
+sk_sp<SkSurface> HardwareRasterizer::Impl::CreateSkSurface(
+    const math::Size& size) {
   TRACE_EVENT2("cobalt::renderer", "HardwareRasterizer::CreateSkSurface()",
                "width", size.width(), "height", size.height());
-
-  // Create a texture of the specified size.  Then convert it to a render
-  // target and then convert that to a SkSurface which we return.
-  GrTextureDesc target_surface_desc;
-  target_surface_desc.fFlags =
-      kRenderTarget_GrTextureFlagBit | kNoStencil_GrTextureFlagBit;
-  target_surface_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
-  target_surface_desc.fWidth = size.width();
-  target_surface_desc.fHeight = size.height();
-  target_surface_desc.fConfig = kRGBA_8888_GrPixelConfig;
-  target_surface_desc.fSampleCnt = 0;
-
-  SkAutoTUnref<GrTexture> skia_texture(
-      gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
-  if (!skia_texture) {
-    // If we failed at creating a texture, try again using a different texture
-    // format.
-    target_surface_desc.fConfig = kBGRA_8888_GrPixelConfig;
-    skia_texture.reset(
-        gr_context_->createUncachedTexture(target_surface_desc, NULL, 0));
-  }
-  if (!skia_texture) {
-    return NULL;
-  }
-
-  GrRenderTarget* skia_render_target = skia_texture->asRenderTarget();
-  DCHECK(skia_render_target);
-
-  SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
-  return SkSurface::NewRenderTargetDirect(skia_render_target, &surface_props);
+  SkImageInfo image_info =
+      SkImageInfo::MakeN32(size.width(), size.height(), kPremul_SkAlphaType);
+  return SkSurface::MakeRenderTarget(gr_context_.get(), SkBudgeted::kYes,
+                                     image_info);
 }
 
 scoped_ptr<RenderTreeNodeVisitor::ScratchSurface>
@@ -753,7 +725,7 @@ HardwareRasterizer::Impl::CreateScratchSurface(const math::Size& size) {
 
 SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
     const scoped_refptr<backend::RenderTarget>& render_target) {
-  SkSurface* sk_output_surface;
+  sk_sp<SkSurface> sk_output_surface;
   int32_t surface_map_key = render_target->GetSerialNumber();
   SkSurfaceMap::iterator iter = sk_output_surface_map_.find(surface_map_key);
   if (iter == sk_output_surface_map_.end()) {
@@ -767,18 +739,19 @@ SkCanvas* HardwareRasterizer::Impl::GetCanvasFromRenderTarget(
           << "replacement of SkSurfaces or else it may indicate the surface "
           << "map is thrashing because the total number of RenderTargets ("
           << kMaxSkSurfaceCount << ") has been exceeded.";
-      iter->second->unref();
       sk_output_surface_map_.erase(iter);
     }
-    // Setup a Skia render target that wraps the passed in Cobalt render target.
-    SkAutoTUnref<GrRenderTarget> skia_render_target(
-        gr_context_->wrapBackendRenderTarget(
-            CobaltRenderTargetToSkiaBackendRenderTargetDesc(
-                render_target.get())));
 
     // Create an SkSurface from the render target so that we can acquire a
     // SkCanvas object from it in Submit().
-    sk_output_surface = CreateSkiaRenderTargetSurface(skia_render_target);
+    SkSurfaceProps surface_props = GetRenderTargetSurfaceProps();
+    // Create a canvas from the render target.
+    GrBackendRenderTargetDesc skia_desc =
+        CobaltRenderTargetToSkiaBackendRenderTargetDesc(*render_target);
+    skia_desc.fOrigin = kBottomLeft_GrSurfaceOrigin;
+    sk_output_surface = SkSurface::MakeFromBackendRenderTarget(
+        gr_context_.get(), skia_desc, &surface_props);
+
     sk_output_surface_map_[surface_map_key] = sk_output_surface;
   } else {
     sk_output_surface = sk_output_surface_map_[surface_map_key];

@@ -17,6 +17,8 @@
 
 #include <string>
 
+#include "SkMutex.h"
+#include "SkStream.h"
 #include "base/atomicops.h"
 #include "base/basictypes.h"
 #include "base/containers/small_map.h"
@@ -25,7 +27,6 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/memory/scoped_vector.h"
 #include "cobalt/base/c_val.h"
-#include "SkStream.h"
 
 // The SkFileMemoryChunkStream classes provide a stream type that mixes features
 // of both file streams and memory streams. While the stream initially reads
@@ -194,7 +195,7 @@ class SkFileMemoryChunkStream : public SkStreamAsset {
 
   SkFileMemoryChunkStreamProvider* const stream_provider_;
 
-  SkFILE* const file_;
+  SkFile* const file_;
   size_t file_length_;
   size_t file_position_;
 

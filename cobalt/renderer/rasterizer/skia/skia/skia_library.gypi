@@ -20,50 +20,36 @@
   'includes': [
     '../../../../../third_party/skia/gyp/core.gypi',
     '../../../../../third_party/skia/gyp/effects.gypi',
-    '../../../../../third_party/skia/gyp/record.gypi',
     '../../../../../third_party/skia/gyp/utils.gypi',
   ],
 
   'sources': [
-    '<(DEPTH)/third_party/skia/src/core/SkFlate.cpp',
-    '<(DEPTH)/third_party/skia/src/core/SkPath.cpp',
-    '<(DEPTH)/third_party/skia/src/core/SkTypeface.cpp',
-
-    '<(DEPTH)/third_party/skia/src/images/SkImageDecoder.cpp',
-    '<(DEPTH)/third_party/skia/src/images/SkImageDecoder_FactoryDefault.cpp',
-    '<(DEPTH)/third_party/skia/src/images/SkImageDecoder_FactoryRegistrar.cpp',
-
-    '<(DEPTH)/third_party/skia/src/images/SkImageDecoder_libpng.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkBmpBaseCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkBmpCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkBmpMaskCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkBmpRLECodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkBmpStandardCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkCodecImageGenerator.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkGifCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkMaskSwizzler.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkMasks.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkSampledCodec.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkSampler.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkStreamBuffer.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkSwizzler.cpp',
+    '<(DEPTH)/third_party/skia/src/codec/SkWbmpCodec.cpp',
     '<(DEPTH)/third_party/skia/src/images/SkImageEncoder.cpp',
-    '<(DEPTH)/third_party/skia/src/images/SkImageEncoder_Factory.cpp',
-
-    '<(DEPTH)/third_party/skia/src/images/SkScaledBitmapSampler.cpp',
-    '<(DEPTH)/third_party/skia/src/images/SkScaledBitmapSampler.h',
-
     '<(DEPTH)/third_party/skia/src/ports/SkDiscardableMemory_none.cpp',
+    '<(DEPTH)/third_party/skia/src/ports/SkImageGenerator_skia.cpp',
+    '<(DEPTH)/third_party/skia/src/sfnt/SkOTTable_name.cpp',
+    '<(DEPTH)/third_party/skia/src/sfnt/SkOTUtils.cpp',
+    '<(DEPTH)/third_party/skia/third_party/gif/SkGifImageReader.cpp',
+
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.cpp',
     '<(DEPTH)/third_party/skia/src/ports/SkFontHost_FreeType_common.h',
-    '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_chromium.cpp',
-    '<(DEPTH)/third_party/skia/src/ports/SkMemory_malloc.cpp',
-
-    '<(DEPTH)/third_party/skia/src/sfnt/SkOTTable_name.cpp',
-    '<(DEPTH)/third_party/skia/src/sfnt/SkOTTable_name.h',
-    '<(DEPTH)/third_party/skia/src/sfnt/SkOTUtils.cpp',
-    '<(DEPTH)/third_party/skia/src/sfnt/SkOTUtils.h',
-
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkDebugCanvas.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkDebugCanvas.h',
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkDrawCommand.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkDrawCommand.h',
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkObjectParser.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/debugger/SkObjectParser.h',
-
-    '<(DEPTH)/third_party/skia/include/images/SkMovie.h',
-    '<(DEPTH)/third_party/skia/include/images/SkPageFlipper.h',
-
-    '<(DEPTH)/third_party/skia/include/ports/SkFontMgr.h',
-    '<(DEPTH)/third_party/skia/include/ports/SkFontStyle.h',
+    '<(DEPTH)/third_party/skia/src/ports/SkGlobalInitialization_none.cpp',
   ],
 
   # Exclude all unused files in skia utils.gypi file
@@ -131,34 +117,27 @@
     '<(DEPTH)/third_party/skia/src/utils/mac/SkCreateCGImageRef.cpp',
 
     # windows
-    '<(DEPTH)/third_party/skia/include/utils/win/SkAutoCoInitialize.h',
-    '<(DEPTH)/third_party/skia/include/utils/win/SkHRESULT.h',
-    '<(DEPTH)/third_party/skia/include/utils/win/SkIStream.h',
-    '<(DEPTH)/third_party/skia/include/utils/win/SkTScopedComPtr.h',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkAutoCoInitialize.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkAutoCoInitialize.cpp',
-    '<(DEPTH)/third_party/skia/src/utils/win/SkDWrite.cpp',
     '<(DEPTH)/third_party/skia/src/utils/win/SkDWrite.h',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkDWrite.cpp',
     '<(DEPTH)/third_party/skia/src/utils/win/SkDWriteFontFileStream.cpp',
     '<(DEPTH)/third_party/skia/src/utils/win/SkDWriteFontFileStream.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkDWriteGeometrySink.cpp',
     '<(DEPTH)/third_party/skia/src/utils/win/SkDWriteGeometrySink.h',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkHRESULT.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkHRESULT.cpp',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkIStream.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkIStream.cpp',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkTScopedComPtr.h',
+    '<(DEPTH)/third_party/skia/src/utils/win/SkWGL.h',
     '<(DEPTH)/third_party/skia/src/utils/win/SkWGL_win.cpp',
 
     # testing
-    '<(DEPTH)/third_party/skia/src/fonts/SkGScalerContext.cpp',
-    '<(DEPTH)/third_party/skia/src/fonts/SkGScalerContext.h',
+    '<(DEPTH)/third_party/skia/src/fonts/SkRandomScalerContext.cpp',
+    '<(DEPTH)/third_party/skia/src/fonts/SkRandomScalerContext.h',
     '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.cpp',
     '<(DEPTH)/third_party/skia/src/fonts/SkTestScalerContext.h',
-
-    # Conflicts with cobalt implementation.
-    '<(DEPTH)/third_party/skia/src/gpu/gl/GrGLCreateNativeInterface_none.cpp',
-  ],
-
-  # Exclude Skia OpenGL backend source files.
-  'sources/': [
-    ['exclude', 'skia/src/gpu/GrGpuFactory.(h|cpp)$'],
   ],
 
   'direct_dependent_settings': {
@@ -173,17 +152,12 @@
       '<(DEPTH)/third_party/skia/include/pathops',
       '<(DEPTH)/third_party/skia/include/pipe',
       '<(DEPTH)/third_party/skia/include/ports',
+      '<(DEPTH)/third_party/skia/include/private',
       '<(DEPTH)/third_party/skia/include/utils',
     ],
   },
 
   'conditions': [
-    ['target_arch=="ps3"', {
-      # Disable warnings within Skia's repository.
-      'cflags': [
-        '--diag_suppress=1067,1576,1229,1780',
-      ],
-    }],
     ['target_os=="linux"', {
       'cflags': [
         '-Wno-deprecated-declarations',
@@ -199,7 +173,8 @@
         '../../../../../third_party/skia/gyp/gpu.gypi',
       ],
       'sources': [
-        '<@(skgpu_sources)',
+        '<@(skia_gpu_sources)',
+        '<@(skia_native_gpu_sources)',
       ],
     }],
   ],

@@ -30,7 +30,8 @@ namespace skia {
 
 class ScratchSurfaceCache {
  public:
-  typedef base::Callback<SkSurface*(const math::Size&)> CreateSkSurfaceFunction;
+  typedef base::Callback<sk_sp<SkSurface>(const math::Size&)>
+      CreateSkSurfaceFunction;
 
   ScratchSurfaceCache(CreateSkSurfaceFunction create_sk_surface_function,
                       int cache_capacity_in_bytes);
