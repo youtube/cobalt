@@ -51,7 +51,7 @@ class SoftwareImage : public SinglePlaneImage {
 
   const math::Size& GetSize() const override { return size_; }
 
-  const SkBitmap* GetBitmap() const override { return &bitmap_; }
+  const sk_sp<SkImage>& GetImage() const override { return image_; }
 
   bool EnsureInitialized() override { return false; }
 
@@ -62,7 +62,7 @@ class SoftwareImage : public SinglePlaneImage {
                   const render_tree::ImageDataDescriptor& descriptor);
 
   scoped_array<uint8_t> owned_pixel_data_;
-  SkBitmap bitmap_;
+  sk_sp<SkImage> image_;
   math::Size size_;
   bool is_opaque_;
 };
@@ -92,8 +92,13 @@ class SoftwareMultiPlaneImage : public MultiPlaneImage {
   render_tree::MultiPlaneImageFormat GetFormat() const override {
     return format_;
   }
-  const SkBitmap* GetBitmap(int plane_index) const override {
-    return planes_[plane_index]->GetBitmap();
+  const sk_sp<SkImage>& GetImage(int plane_index) const {
+    return planes_[plane_index]->GetImage();
+  }
+
+  const scoped_refptr<SoftwareImage>& GetSoftwareFrontendImage(
+      int plane_index) const {
+    return planes_[plane_index];
   }
 
   bool EnsureInitialized() override { return false; }

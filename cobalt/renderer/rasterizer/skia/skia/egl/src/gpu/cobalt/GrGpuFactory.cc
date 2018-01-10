@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#if 0
+// TODO: Delete this file.
+// Skia's GrGpuFactory.cpp seems to behave as required.
+
 #include "base/logging.h"
 #include "cobalt/renderer/backend/egl/graphics_context.h"
 #include "third_party/skia/include/gpu/gl/GrGLConfig.h"
@@ -33,3 +37,4 @@ GrGpu* GrGpu::Create(GrBackend backend, GrBackendContext backend_context,
 
   return NULL;
 }
+#endif

@@ -123,7 +123,7 @@ void RenderComplexLinearGradient(const LinearGradientBrush& brush,
   }
 
   SkiaColorStops skia_color_stops(color_stops);
-  SkAutoTUnref<SkShader> shader(SkGradientShader::CreateLinear(
+  sk_sp<SkShader> shader(SkGradientShader::MakeLinear(
       points, skia_color_stops.colors.data(), skia_color_stops.positions.data(),
       skia_color_stops.size(), SkShader::kClamp_TileMode,
       SkGradientShader::kInterpolateColorsInPremul_Flag, NULL));

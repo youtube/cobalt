@@ -12,11 +12,29 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#include "SkString.h"
 #include "SkTime.h"
+#include "SkTypes.h"
 
 #include "base/time.h"
 
-// static
+#include "starboard/time.h"
+
+// Taken from SkTime.cpp.
+void SkTime::DateTime::toISO8601(SkString* dst) const {
+  if (dst) {
+    int timeZoneMinutes = SkToInt(fTimeZoneMinutes);
+    char timezoneSign = timeZoneMinutes >= 0 ? '+' : '-';
+    int timeZoneHours = SkTAbs(timeZoneMinutes) / 60;
+    timeZoneMinutes = SkTAbs(timeZoneMinutes) % 60;
+    dst->printf("%04u-%02u-%02uT%02u:%02u:%02u%c%02d:%02d",
+                static_cast<unsigned>(fYear), static_cast<unsigned>(fMonth),
+                static_cast<unsigned>(fDay), static_cast<unsigned>(fHour),
+                static_cast<unsigned>(fMinute), static_cast<unsigned>(fSecond),
+                timezoneSign, timeZoneHours, timeZoneMinutes);
+  }
+}
+
 void SkTime::GetDateTime(DateTime* dt) {
   if (!dt) {
     return;
@@ -35,8 +53,6 @@ void SkTime::GetDateTime(DateTime* dt) {
   dt->fSecond = SkToU8(exploded.second);
 }
 
-// static
-SkMSec SkTime::GetMSecs() {
-  return static_cast<SkMSec>(
-      (base::Time::Now() - base::Time::UnixEpoch()).InMilliseconds());
+double SkTime::GetNSecs() {
+  return SbTimeGetMonotonicNow() * kSbTimeNanosecondsPerMicrosecond;
 }

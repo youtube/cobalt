@@ -20,6 +20,7 @@
 #include "cobalt/renderer/rasterizer/skia/font.h"
 
 #include "third_party/harfbuzz-ng/src/hb.h"
+#include "third_party/skia/include/core/SkTypeface.h"
 
 namespace cobalt {
 namespace renderer {
@@ -39,11 +40,12 @@ class HarfBuzzFontProvider {
     HarfBuzzFace();
     ~HarfBuzzFace();
 
-    void Init(SkTypeface* skia_face);
+    void Init(const sk_sp<SkTypeface_Cobalt>& skia_face);
 
     hb_face_t* get();
 
    private:
+    sk_sp<SkTypeface_Cobalt> typeface_;
     hb_face_t* face_;
   };
 

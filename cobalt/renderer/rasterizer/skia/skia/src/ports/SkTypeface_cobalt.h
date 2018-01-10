@@ -58,7 +58,7 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
  private:
   typedef SkTypeface_Cobalt INHERITED;
 
-  SkAutoTUnref<SkStreamAsset> stream_;
+  scoped_ptr<SkStreamAsset> stream_;
 };
 
 class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
