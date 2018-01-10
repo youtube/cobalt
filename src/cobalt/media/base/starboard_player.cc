@@ -491,8 +491,8 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
       return;
   }
 
+  DemuxerStream::Type stream_type = SbMediaTypeToDemuxerStreamType(type);
   if (state_ == kResuming) {
-    DemuxerStream::Type stream_type = SbMediaTypeToDemuxerStreamType(type);
     if (decoder_buffer_cache_.GetBuffer(stream_type)) {
       WriteBuffer(stream_type, decoder_buffer_cache_.GetBuffer(stream_type));
       decoder_buffer_cache_.AdvanceToNextBuffer(stream_type);
@@ -501,10 +501,20 @@ void StarboardPlayer::OnDecoderStatus(SbPlayer player, SbMediaType type,
     if (!decoder_buffer_cache_.GetBuffer(DemuxerStream::AUDIO) &&
         !decoder_buffer_cache_.GetBuffer(DemuxerStream::VIDEO)) {
       state_ = kPlaying;
+      // Invoke delayed requesting of another stream type
+      host_->OnNeedData(stream_type == DemuxerStream::AUDIO ?
+                        DemuxerStream::VIDEO : DemuxerStream::AUDIO);
+    } else {
+      // When we do resume, we need hold on OnNeedData until both streams'
+      // decoder_buffer_cache_ buffers are all pushed to the player
+      // Otherwise, when new requested data call WriteBuffer(), the
+      // decoder_buffer_cache_ will not be added because of kResuming
+      // state, and finally cause cached buffer gap in next resume
+      return;
     }
   }
 
-  host_->OnNeedData(SbMediaTypeToDemuxerStreamType(type));
+  host_->OnNeedData(stream_type);
 }
 
 void StarboardPlayer::OnPlayerStatus(SbPlayer player, SbPlayerState state,
