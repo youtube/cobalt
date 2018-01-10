@@ -19,7 +19,7 @@
 #include "base/file_util.h"
 #include "base/path_service.h"
 
-SkFontMgr* SkFontMgr::Factory() {
+sk_sp<SkFontMgr> SkFontMgr::Factory() {
   FilePath cobalt_font_directory;
   CHECK(PathService::Get(base::DIR_EXE, &cobalt_font_directory));
   cobalt_font_directory =
@@ -35,9 +35,11 @@ SkFontMgr* SkFontMgr::Factory() {
   SkTArray<SkString, true> default_families;
   default_families.push_back(SkString("sans-serif"));
 
-  return new SkFontMgr_Cobalt(cobalt_font_directory.value().c_str(),
-                              cobalt_font_directory.value().c_str(),
-                              system_font_config_directory.value().c_str(),
-                              system_font_files_directory.value().c_str(),
-                              default_families);
+  sk_sp<SkFontMgr> font_manager(new SkFontMgr_Cobalt(
+      cobalt_font_directory.value().c_str(),
+      cobalt_font_directory.value().c_str(),
+      system_font_config_directory.value().c_str(),
+      system_font_files_directory.value().c_str(), default_families));
+
+  return font_manager;
 }

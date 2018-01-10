@@ -111,33 +111,32 @@ bool SinglePlaneImage::EnsureInitialized() {
   return false;
 }
 
-const SkBitmap* SinglePlaneImage::GetBitmap() const {
+const sk_sp<SkImage>& SinglePlaneImage::GetImage() const {
   // This function will only ever get called if the Skia software renderer needs
   // to reference the image, and so should be called rarely.  In that case, the
   // first time it is called on this image, we will download the image data from
   // the Blitter API surface into a SkBitmap object where the pixel data lives
-  // in CPU memory.
-  if (!bitmap_) {
-    bitmap_.emplace();
-
+  // in CPU memory.  It will then create an SkImage from that SkBitmap object,
+  // and the pointer to the new SkImage object will be returned.
+  if (!image_) {
     SkImageInfo image_info = SkImageInfo::Make(
         size_.width(), size_.height(), kN32_SkColorType, kPremul_SkAlphaType);
-    bitmap_->allocPixels(image_info);
 
-    SkAutoLockPixels lock(*bitmap_);
-
+    SkBitmap bitmap;
+    bitmap.allocPixels(image_info);
     bool result = SbBlitterDownloadSurfacePixels(
         surface_, SkiaToBlitterPixelFormat(image_info.colorType()),
-        bitmap_->rowBytes(), bitmap_->getPixels());
+        bitmap.rowBytes(), bitmap.getPixels());
     if (!result) {
       LOG(WARNING) << "Failed to download surface pixel data so that it could "
                       "be accessed by software skia.";
-      bitmap_ = base::nullopt;
-      DCHECK(false);
+      NOTREACHED();
+    } else {
+      image_ = SkImage::MakeFromBitmap(bitmap);
     }
   }
 
-  return &bitmap_.value();
+  return image_;
 }
 
 SinglePlaneImage::~SinglePlaneImage() {

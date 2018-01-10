@@ -36,13 +36,9 @@ namespace skia {
 // than the thread making the character glyph queries.
 class SkiaTypeface : public render_tree::Typeface {
  public:
-  explicit SkiaTypeface(SkTypeface_Cobalt* typeface);
+  explicit SkiaTypeface(const sk_sp<SkTypeface_Cobalt>& typeface);
 
-  // Returns the contained SkTypeface_Cobalt object, which has its reference
-  // count incremented.
-  // NOTE: The caller is responsible for decrementing the reference count after
-  // finishing with the object.
-  SkTypeface_Cobalt* GetSkTypeface() const;
+  const sk_sp<SkTypeface_Cobalt>& GetSkTypeface() const;
 
   // From render_tree::Typeface
 
@@ -69,7 +65,7 @@ class SkiaTypeface : public render_tree::Typeface {
   typedef base::hash_map<int32, render_tree::GlyphIndex> CharacterToGlyphMap;
 
   // The underlying SkTypeface that was used to create this typeface.
-  SkAutoTUnref<SkTypeface_Cobalt> typeface_;
+  sk_sp<SkTypeface_Cobalt> typeface_;
 
   // The glyphs for characters are lazily computed and cached to speed up later
   // lookups. The page containing indices 0-255 is optimized within an array.

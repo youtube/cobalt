@@ -58,8 +58,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
           disable_synthetic_bolding(disable_synthetic_bolding),
           is_face_info_generated(false),
           face_style(SkTypeface::kNormal),
-          face_is_fixed_pitch(false),
-          typeface(NULL) {}
+          face_is_fixed_pitch(false) {}
 
     const SkString font_file_path;
     const int face_index;
@@ -74,7 +73,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
     SkTypeface::Style face_style;
     bool face_is_fixed_pitch;
 
-    SkAutoTUnref<SkTypeface> typeface;
+    sk_sp<SkTypeface> typeface;
   };
 
   SkFontStyleSet_Cobalt(
@@ -133,7 +132,7 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
   bool is_character_map_generated_;
   font_character_map::CharacterMap character_map_;
 
-  SkTArray<SkAutoTUnref<SkFontStyleSetEntry_Cobalt>, true> styles_;
+  SkTArray<sk_sp<SkFontStyleSetEntry_Cobalt>, true> styles_;
 
   friend class SkFontMgr_Cobalt;
 };
