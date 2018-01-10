@@ -24,30 +24,16 @@
 #include "cobalt/renderer/backend/egl/texture.h"
 #include "cobalt/renderer/rasterizer/skia/cobalt_skia_type_conversions.h"
 #include "cobalt/renderer/rasterizer/skia/gl_format_conversions.h"
-#include "third_party/skia/include/gpu/SkGrPixelRef.h"
+#include "third_party/skia/include/core/SkImage.h"
+#include "third_party/skia/include/core/SkPixelRef.h"
+#include "third_party/skia/include/gpu/gl/GrGLTypes.h"
+#include "third_party/skia/include/gpu/GrBackendSurface.h"
+#include "third_party/skia/src/gpu/GrResourceProvider.h"
 
 namespace cobalt {
 namespace renderer {
 namespace rasterizer {
 namespace skia {
-
-GrTexture* WrapCobaltTextureWithSkiaTexture(
-    GrContext* gr_context, backend::TextureEGL* cobalt_texture) {
-  // Setup a Skia texture descriptor to describe the texture we wish to have
-  // wrapped within a Skia GrTexture.
-  GrBackendTextureDesc desc;
-  desc.fFlags = kNone_GrBackendTextureFlag;
-  desc.fOrigin = kTopLeft_GrSurfaceOrigin;
-  desc.fWidth = cobalt_texture->GetSize().width();
-  desc.fHeight = cobalt_texture->GetSize().height();
-  desc.fConfig = ConvertGLFormatToGr(cobalt_texture->GetFormat());
-  desc.fSampleCnt = 0;
-
-  desc.fTextureHandle =
-      static_cast<GrBackendObject>(cobalt_texture->GetPlatformHandle());
-
-  return gr_context->wrapBackendTexture(desc);
-}
 
 HardwareImageData::HardwareImageData(
     scoped_ptr<backend::TextureDataEGL> texture_data,
@@ -226,23 +212,25 @@ class HardwareFrontendImage::HardwareBackendImage {
     }
 
     if (texture_->GetTarget() == GL_TEXTURE_2D) {
-      gr_texture_.reset(
-          WrapCobaltTextureWithSkiaTexture(gr_context, texture_.get()));
+      GrGLTextureInfo texture_info = {texture_->GetTarget(),
+                                      texture_->gl_handle()};
+      GrPixelConfig pixel_config = ConvertGLFormatToGr(texture_->GetFormat());
+      const math::Size& texture_size = texture_->GetSize();
+      gr_texture_.reset(new GrBackendTexture(texture_size.width(),
+                                             texture_size.height(),
+                                             pixel_config, texture_info));
+
       DCHECK(gr_texture_);
 
-      // Prepare a member SkBitmap that refers to the newly created GrTexture
-      // and will be the object that Skia draw calls will reference when
-      // referring to this image.
-      bitmap_.setInfo(gr_texture_->info());
-      bitmap_.setPixelRef(
-                 SkNEW_ARGS(SkGrPixelRef, (bitmap_.info(), gr_texture_)))
-          ->unref();
+      image_ = SkImage::MakeFromTexture(gr_context, *gr_texture_,
+                                        kTopLeft_GrSurfaceOrigin,
+                                        kPremul_SkAlphaType, nullptr);
     }
   }
 
-  const SkBitmap* GetBitmap() const {
+  const sk_sp<SkImage>& GetImage() const {
     DCHECK(thread_checker_.CalledOnValidThread());
-    return &bitmap_;
+    return image_;
   }
 
   const backend::TextureEGL* GetTextureEGL() const {
@@ -256,8 +244,8 @@ class HardwareFrontendImage::HardwareBackendImage {
   scoped_ptr<backend::TextureEGL> texture_;
 
   base::ThreadChecker thread_checker_;
-  SkAutoTUnref<GrTexture> gr_texture_;
-  SkBitmap bitmap_;
+  scoped_ptr<GrBackendTexture> gr_texture_;
+  sk_sp<SkImage> image_;
 
   InitializeFunction initialize_function_;
   bool initialized_task_executed_;
@@ -405,12 +393,12 @@ void HardwareFrontendImage::InitializeBackend() {
   }
 }
 
-const SkBitmap* HardwareFrontendImage::GetBitmap() const {
+const sk_sp<SkImage>& HardwareFrontendImage::GetImage() const {
   DCHECK_EQ(rasterizer_message_loop_, MessageLoop::current());
   // Forward this call to the backend image.  This method must be called from
   // the rasterizer thread (e.g. during a render tree visitation).  The backend
   // image will check that this is being called from the correct thread.
-  return backend_image_->GetBitmap();
+  return backend_image_->GetImage();
 }
 
 const backend::TextureEGL* HardwareFrontendImage::GetTextureEGL() const {

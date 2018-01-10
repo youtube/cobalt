@@ -21,7 +21,7 @@
 #include "cobalt/render_tree/image.h"
 #include "cobalt/render_tree/resource_provider.h"
 #include "starboard/decode_target.h"
-#include "third_party/skia/include/core/SkBitmap.h"
+#include "third_party/skia/include/core/SkImage.h"
 
 namespace cobalt {
 namespace renderer {
@@ -72,7 +72,7 @@ class Image : public render_tree::Image {
 // is stored contiguously.  This style of image is by far the most common.
 class SinglePlaneImage : public Image {
  public:
-  virtual const SkBitmap* GetBitmap() const = 0;
+  virtual const sk_sp<SkImage>& GetImage() const = 0;
 
   base::TypeId GetTypeId() const override {
     return base::GetTypeId<SinglePlaneImage>();
@@ -93,7 +93,6 @@ class SinglePlaneImage : public Image {
 class MultiPlaneImage : public Image {
  public:
   virtual render_tree::MultiPlaneImageFormat GetFormat() const = 0;
-  virtual const SkBitmap* GetBitmap(int plane_index) const = 0;
   virtual const backend::TextureEGL* GetTextureEGL(int plane_index) const {
     return NULL;
   }

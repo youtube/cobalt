@@ -15,12 +15,13 @@
 #include "cobalt/renderer/rasterizer/skia/skia/src/ports/SkTypeface_cobalt.h"
 
 #include "SkFontDescriptor.h"
+#include "SkFontStyle.h"
 #include "SkTypefaceCache.h"
 
 SkTypeface_Cobalt::SkTypeface_Cobalt(int face_index, Style style,
                                      bool is_fixed_pitch,
                                      const SkString& family_name)
-    : INHERITED(style, SkTypefaceCache::NewFontID(), is_fixed_pitch),
+    : INHERITED(SkFontStyle::FromOldStyle(style), is_fixed_pitch),
       face_index_(face_index),
       family_name_(family_name),
       synthesizes_bold_(!isBold()) {}
@@ -34,7 +35,7 @@ SkTypeface_CobaltStream::SkTypeface_CobaltStream(SkStreamAsset* stream,
                                                  bool is_fixed_pitch,
                                                  const SkString& family_name)
     : INHERITED(face_index, style, is_fixed_pitch, family_name),
-      stream_(SkRef(stream)) {
+      stream_(stream) {
   LOG(INFO) << "Created SkTypeface_CobaltStream: " << family_name.c_str() << "("
             << style << "); Size: " << stream_->getLength() << " bytes";
 }
@@ -44,8 +45,6 @@ void SkTypeface_CobaltStream::onGetFontDescriptor(SkFontDescriptor* descriptor,
   SkASSERT(descriptor);
   SkASSERT(serialize);
   descriptor->setFamilyName(family_name_.c_str());
-  descriptor->setFontFileName(NULL);
-  descriptor->setFontIndex(face_index_);
   *serialize = true;
 }
 
@@ -77,8 +76,6 @@ void SkTypeface_CobaltStreamProvider::onGetFontDescriptor(
   SkASSERT(descriptor);
   SkASSERT(serialize);
   descriptor->setFamilyName(family_name_.c_str());
-  descriptor->setFontFileName(stream_provider_->file_path().c_str());
-  descriptor->setFontIndex(face_index_);
   *serialize = false;
 }
 
@@ -92,6 +89,7 @@ size_t SkTypeface_CobaltStreamProvider::GetStreamLength() const {
   DLOG(WARNING)
       << "Requesting stream length of SkTypeface_CobaltStreamProvider. "
          "This requires a file load and should be used sparingly.";
-  SkAutoTUnref<SkFileMemoryChunkStream> stream(stream_provider_->OpenStream());
+  std::unique_ptr<SkFileMemoryChunkStream> stream(
+      stream_provider_->OpenStream());
   return stream->getLength();
 }

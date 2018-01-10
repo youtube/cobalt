@@ -43,7 +43,7 @@ SoftwareResourceProvider::SoftwareResourceProvider(
           purge_skia_font_caches_on_destruction) {
   // Initialize the font manager now to ensure that it doesn't get initialized
   // on multiple threads simultaneously later.
-  SkSafeUnref(SkFontMgr::RefDefault());
+  SkFontMgr::RefDefault();
 }
 
 SoftwareResourceProvider::~SoftwareResourceProvider() {
@@ -149,14 +149,15 @@ SoftwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   SkFontMgr_Cobalt* cobalt_font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
-  SkTypeface_Cobalt* typeface = base::polymorphic_downcast<SkTypeface_Cobalt*>(
-      cobalt_font_manager->MatchFaceName(font_face_name));
-  if (typeface != NULL) {
-    SkAutoTUnref<SkTypeface> typeface_unref_helper(typeface);
-    return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
+  sk_sp<SkTypeface_Cobalt> typeface(
+      base::polymorphic_downcast<SkTypeface_Cobalt*>(
+          cobalt_font_manager->MatchFaceName(font_face_name)));
+
+  if (!typeface) {
+    return nullptr;
   }
 
-  return NULL;
+  return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
 
 scoped_refptr<render_tree::Typeface>
@@ -167,10 +168,11 @@ SoftwareResourceProvider::GetCharacterFallbackTypeface(
                "SoftwareResourceProvider::GetCharacterFallbackTypeface()");
 
   SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  const char* language_cstr = language.c_str();
   SkAutoTUnref<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
           font_manager->matchFamilyStyleCharacter(
-              NULL, CobaltFontStyleToSkFontStyle(font_style), language.c_str(),
+              NULL, CobaltFontStyleToSkFontStyle(font_style), &language_cstr, 1,
               character)));
   return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
 }
@@ -197,13 +199,16 @@ SoftwareResourceProvider::CreateTypefaceFromRawData(
   // Free the raw data now that we're done with it.
   raw_data.reset();
 
-  SkAutoTUnref<SkData> skia_data(SkData::NewWithCopy(
-      sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
+  scoped_ptr<SkStreamAsset> stream;
+  {
+    sk_sp<SkData> skia_data(SkData::MakeWithCopy(
+        sanitized_data.get(), static_cast<size_t>(sanitized_data.Tell())));
+    stream.reset(new SkMemoryStream(skia_data));
+  }
 
-  SkAutoTUnref<SkStreamAsset> stream(new SkMemoryStream(skia_data));
-  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+  sk_sp<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
-          SkTypeface::CreateFromStream(stream)));
+          SkTypeface::MakeFromStream(stream.release()).release()));
   if (typeface) {
     return scoped_refptr<render_tree::Typeface>(new SkiaTypeface(typeface));
   } else {

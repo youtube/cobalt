@@ -81,7 +81,7 @@ class HardwareRasterizer::Impl {
                      backend::RenderTargetEGL* render_target,
                      const math::Rect& content_rect);
 
-  SkSurface* CreateFallbackSurface(
+  sk_sp<SkSurface> CreateFallbackSurface(
       const backend::RenderTarget* render_target);
 
   scoped_ptr<skia::HardwareRasterizer> fallback_rasterizer_;
@@ -275,7 +275,7 @@ void HardwareRasterizer::Impl::RasterizeTree(
   graphics_state_->EndFrame();
 }
 
-SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
+sk_sp<SkSurface> HardwareRasterizer::Impl::CreateFallbackSurface(
     const backend::RenderTarget* render_target) {
   // Wrap the given render target in a new skia surface.
   GrBackendRenderTargetDesc skia_desc;
@@ -287,13 +287,11 @@ SkSurface* HardwareRasterizer::Impl::CreateFallbackSurface(
   skia_desc.fStencilBits = 0;
   skia_desc.fRenderTargetHandle = render_target->GetPlatformHandle();
 
-  SkAutoTUnref<GrRenderTarget> skia_render_target(
-      GetFallbackContext()->wrapBackendRenderTarget(skia_desc));
   SkSurfaceProps skia_surface_props(
       SkSurfaceProps::kUseDistanceFieldFonts_Flag,
       SkSurfaceProps::kLegacyFontHost_InitType);
-  return SkSurface::NewRenderTargetDirect(
-      skia_render_target, &skia_surface_props);
+  return SkSurface::MakeFromBackendRenderTarget(GetFallbackContext(), skia_desc,
+                                                &skia_surface_props);
 }
 
 HardwareRasterizer::HardwareRasterizer(

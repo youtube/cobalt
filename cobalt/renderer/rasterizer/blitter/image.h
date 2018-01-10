@@ -91,10 +91,10 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
   // Overrides from skia::SinglePlaneImage.
   bool EnsureInitialized() override;
 
-  // When GetBitmap() is called on a blitter::SinglePlaneImage for the first
+  // When GetImage() is called on a blitter::SinglePlaneImage for the first
   // time, we do a one-time download of the pixel data from the Blitter API
-  // surface into a SkBitmap.
-  const SkBitmap* GetBitmap() const override;
+  // surface into a SkImage.
+  const sk_sp<SkImage>& GetImage() const override;
 
   bool IsOpaque() const override { return is_opaque_; }
 
@@ -113,7 +113,7 @@ class SinglePlaneImage : public skia::SinglePlaneImage {
 
   // This field is populated when GetBitmap() is called for the first time, and
   // after that is never modified.
-  mutable base::optional<SkBitmap> bitmap_;
+  mutable sk_sp<SkImage> image_;
 
   // If |delete_function| is provided, it will be called in the destructor
   // instead of manually calling SbBlitterDestroySurface(surface_).

@@ -78,7 +78,7 @@ bool ShouldFakeBoldText(const render_tree::FontProvider* font_provider,
   // https://www.w3.org/TR/css-fonts-3/#font-weight-prop
   // https://www.w3.org/TR/css-fonts-3/#font-style-matching
   if (font_provider->style().weight > 500) {
-    SkAutoTUnref<SkTypeface_Cobalt> typeface(font->GetSkTypeface());
+    const sk_sp<SkTypeface_Cobalt>& typeface(font->GetSkTypeface());
     return typeface->synthesizes_bold();
   }
   return false;

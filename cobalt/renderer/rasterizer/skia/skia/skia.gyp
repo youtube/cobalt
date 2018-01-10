@@ -30,6 +30,7 @@
       'includes': [
         'skia_common.gypi',
         'skia_library.gypi',
+        'skia_sksl.gypi',
       ],
     },
 

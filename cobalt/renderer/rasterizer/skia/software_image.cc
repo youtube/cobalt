@@ -60,7 +60,6 @@ void ConvertUV8ToARGBSkBitmap(
   bitmap->allocN32Pixels(descriptor.size.width(), descriptor.size.height());
   int row_pixels_dest = bitmap->rowBytes() / bitmap->bytesPerPixel();
 
-  bitmap->lockPixels();
   uint8_t* current_src = source_data;
   SkColor* current_dest = static_cast<SkColor*>(bitmap->getPixels());
   for (int row = 0; row < descriptor.size.height(); ++row) {
@@ -71,7 +70,6 @@ void ConvertUV8ToARGBSkBitmap(
     current_dest += row_pixels_dest;
     current_src += descriptor.pitch_in_bytes;
   }
-  bitmap->unlockPixels();
 }
 }  // namespace
 
@@ -85,10 +83,12 @@ void SoftwareImage::Initialize(
   size_ = descriptor.size;
 
   if (descriptor.pixel_format == render_tree::kPixelFormatUV8) {
+    // TODO: SKIA_M61_UNFINISHED_IMPLEMENATION: fix me
     // Convert UV8 to ARGB because Skia does not support any two-channel
     // formats.  This of course is not efficient, but efficiency in the software
     // renderer is not as important as completeness and correctness.
-    ConvertUV8ToARGBSkBitmap(source_data, descriptor, &bitmap_);
+    // ConvertUV8ToARGBSkBitmap(source_data, descriptor, image_.get());
+    NOTREACHED() << "Need to do this..";
   } else {
 // Check that the incoming pixel data is indeed in premultiplied alpha
 // format.
@@ -103,8 +103,10 @@ void SoftwareImage::Initialize(
         descriptor.size.width(), descriptor.size.height(),
         RenderTreeSurfaceFormatToSkia(descriptor.pixel_format),
         skia_alpha_format);
-    bitmap_.installPixels(premul_image_info, source_data,
-                          descriptor.pitch_in_bytes);
+    SkBitmap bitmap;
+    bitmap.installPixels(premul_image_info, source_data,
+                         descriptor.pitch_in_bytes);
+    image_ = SkImage::MakeFromBitmap(bitmap);
   }
 }
 
