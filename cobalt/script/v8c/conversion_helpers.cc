@@ -65,6 +65,39 @@ void ToJSValue(v8::Isolate* isolate,
   }
 }
 
+// base::Time -> JSValue
+void ToJSValue(v8::Isolate* isolate, const base::Time& time,
+               v8::Local<v8::Value>* out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+  *out_value =
+      v8::Date::New(isolate->GetCurrentContext(),
+                    time.is_null() ? std::numeric_limits<double>::quiet_NaN()
+                                   : time.ToJsTime())
+          .ToLocalChecked();
+}
+
+// JSValue -> base::Time
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 base::Time* out_time) {
+  TRACK_MEMORY_SCOPE("Javascript");
+
+  if (!value->IsObject()) {
+    exception_state->SetSimpleException(kNotObjectType);
+    return;
+  }
+  if (!value->IsDate()) {
+    exception_state->SetSimpleException(kNotDateType);
+    return;
+  }
+  // This number is milliseconds since 1970.
+  double result = v8::Local<v8::Date>::Cast(value)->ValueOf();
+  *out_time = std::isnan(result)
+                  ? base::Time()
+                  : base::Time::FromDoubleT(result /
+                                            base::Time::kMillisecondsPerSecond);
+}
+
 // JSValue -> ValueHandle
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
                  int conversion_flags, ExceptionState* exception_state,

@@ -1,6 +1,6 @@
 
 
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,6 +53,7 @@
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
 #include "cobalt/bindings/testing/interface_with_any.h"
 #include "cobalt/bindings/testing/interface_with_any_dictionary.h"
+#include "cobalt/bindings/testing/interface_with_date.h"
 #include "cobalt/bindings/testing/interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/named_constructor_interface.h"
 #include "cobalt/bindings/testing/named_getter_interface.h"
@@ -101,6 +102,7 @@
 #include "cobalt/bindings/testing/v8c_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/v8c_interface_with_any.h"
 #include "cobalt/bindings/testing/v8c_interface_with_any_dictionary.h"
+#include "cobalt/bindings/testing/v8c_interface_with_date.h"
 #include "cobalt/bindings/testing/v8c_interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/v8c_named_constructor_interface.h"
 #include "cobalt/bindings/testing/v8c_named_getter_interface.h"
@@ -176,6 +178,7 @@ using cobalt::bindings::testing::ImplementedInterface;
 using cobalt::bindings::testing::IndexedGetterInterface;
 using cobalt::bindings::testing::InterfaceWithAny;
 using cobalt::bindings::testing::InterfaceWithAnyDictionary;
+using cobalt::bindings::testing::InterfaceWithDate;
 using cobalt::bindings::testing::InterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::NamedConstructorInterface;
 using cobalt::bindings::testing::NamedGetterInterface;
@@ -228,6 +231,7 @@ using cobalt::bindings::testing::V8cImplementedInterface;
 using cobalt::bindings::testing::V8cIndexedGetterInterface;
 using cobalt::bindings::testing::V8cInterfaceWithAny;
 using cobalt::bindings::testing::V8cInterfaceWithAnyDictionary;
+using cobalt::bindings::testing::V8cInterfaceWithDate;
 using cobalt::bindings::testing::V8cInterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::V8cNamedConstructorInterface;
 using cobalt::bindings::testing::V8cNamedGetterInterface;
@@ -705,7 +709,7 @@ void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* i
 }
 
 inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
-  const int kInterfaceUniqueId = 52;
+  const int kInterfaceUniqueId = 53;
   // By convention, the |V8cGlobalEnvironment| that we are associated with
   // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
   // for it to be there in the first place, and could not have conflicted with
@@ -904,6 +908,11 @@ void V8cGlobalEnvironment::CreateGlobalObject(
           isolate_, "InterfaceWithAnyDictionary",
           v8::NewStringType::kInternalized).ToLocalChecked(),
       V8cInterfaceWithAnyDictionary::CreateTemplate(isolate_));
+  global_object_template->Set(
+      v8::String::NewFromUtf8(
+          isolate_, "InterfaceWithDate",
+          v8::NewStringType::kInternalized).ToLocalChecked(),
+      V8cInterfaceWithDate::CreateTemplate(isolate_));
   global_object_template->Set(
       v8::String::NewFromUtf8(
           isolate_, "InterfaceWithUnsupportedProperties",
@@ -1132,6 +1141,10 @@ void V8cGlobalEnvironment::CreateGlobalObject(
       InterfaceWithAnyDictionary::InterfaceWithAnyDictionaryWrappableType(),
       base::Bind(V8cInterfaceWithAnyDictionary::CreateWrapper),
       base::Bind(V8cInterfaceWithAnyDictionary::CreateTemplate));
+  wrapper_factory_->RegisterWrappableType(
+      InterfaceWithDate::InterfaceWithDateWrappableType(),
+      base::Bind(V8cInterfaceWithDate::CreateWrapper),
+      base::Bind(V8cInterfaceWithDate::CreateTemplate));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
       base::Bind(V8cInterfaceWithUnsupportedProperties::CreateWrapper),
