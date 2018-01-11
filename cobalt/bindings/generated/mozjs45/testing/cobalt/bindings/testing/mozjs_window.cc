@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -51,6 +51,7 @@
 #include "cobalt/bindings/testing/indexed_getter_interface.h"
 #include "cobalt/bindings/testing/interface_with_any.h"
 #include "cobalt/bindings/testing/interface_with_any_dictionary.h"
+#include "cobalt/bindings/testing/interface_with_date.h"
 #include "cobalt/bindings/testing/interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/mozjs_anonymous_named_getter_interface.h"
@@ -79,6 +80,7 @@
 #include "cobalt/bindings/testing/mozjs_indexed_getter_interface.h"
 #include "cobalt/bindings/testing/mozjs_interface_with_any.h"
 #include "cobalt/bindings/testing/mozjs_interface_with_any_dictionary.h"
+#include "cobalt/bindings/testing/mozjs_interface_with_date.h"
 #include "cobalt/bindings/testing/mozjs_interface_with_unsupported_properties.h"
 #include "cobalt/bindings/testing/mozjs_named_constructor_interface.h"
 #include "cobalt/bindings/testing/mozjs_named_getter_interface.h"
@@ -179,6 +181,7 @@ using cobalt::bindings::testing::ImplementedInterface;
 using cobalt::bindings::testing::IndexedGetterInterface;
 using cobalt::bindings::testing::InterfaceWithAny;
 using cobalt::bindings::testing::InterfaceWithAnyDictionary;
+using cobalt::bindings::testing::InterfaceWithDate;
 using cobalt::bindings::testing::InterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsAnonymousIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsAnonymousNamedGetterInterface;
@@ -211,6 +214,7 @@ using cobalt::bindings::testing::MozjsImplementedInterface;
 using cobalt::bindings::testing::MozjsIndexedGetterInterface;
 using cobalt::bindings::testing::MozjsInterfaceWithAny;
 using cobalt::bindings::testing::MozjsInterfaceWithAnyDictionary;
+using cobalt::bindings::testing::MozjsInterfaceWithDate;
 using cobalt::bindings::testing::MozjsInterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsNamedConstructorInterface;
 using cobalt::bindings::testing::MozjsNamedGetterInterface;
@@ -970,7 +974,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 52;
+  const int kInterfaceUniqueId = 53;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with
@@ -1205,6 +1209,10 @@ void MozjsGlobalEnvironment::CreateGlobalObject(
       InterfaceWithAnyDictionary::InterfaceWithAnyDictionaryWrappableType(),
       base::Bind(MozjsInterfaceWithAnyDictionary::CreateProxy),
       base::Bind(MozjsInterfaceWithAnyDictionary::PrototypeClass));
+  wrapper_factory_->RegisterWrappableType(
+      InterfaceWithDate::InterfaceWithDateWrappableType(),
+      base::Bind(MozjsInterfaceWithDate::CreateProxy),
+      base::Bind(MozjsInterfaceWithDate::PrototypeClass));
   wrapper_factory_->RegisterWrappableType(
       InterfaceWithUnsupportedProperties::InterfaceWithUnsupportedPropertiesWrappableType(),
       base::Bind(MozjsInterfaceWithUnsupportedProperties::CreateProxy),

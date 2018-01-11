@@ -26,7 +26,7 @@ namespace testing {
 
 class InterfaceWithAny : public script::Wrappable {
  public:
-  InterfaceWithAny() {}
+  InterfaceWithAny() = default;
 
   const script::ValueHandleHolder* GetAny() {
     if (!value_) {

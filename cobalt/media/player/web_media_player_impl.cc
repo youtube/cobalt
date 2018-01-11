@@ -461,14 +461,15 @@ float WebMediaPlayerImpl::GetDuration() const {
 }
 
 #if SB_HAS(PLAYER_WITH_URL)
-int64_t WebMediaPlayerImpl::GetStartDate() const {
+base::Time WebMediaPlayerImpl::GetStartDate() const {
   DCHECK_EQ(main_loop_, MessageLoop::current());
 
-  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing) return 0;
+  if (ready_state_ == WebMediaPlayer::kReadyStateHaveNothing)
+    return base::Time();
 
   base::TimeDelta start_date = pipeline_->GetMediaStartDate();
 
-  return start_date.InMilliseconds();
+  return base::Time::FromSbTime(start_date.InMicroseconds());
 }
 #endif  // SB_HAS(PLAYER_WITH(URL)
 
