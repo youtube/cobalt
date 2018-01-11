@@ -62,7 +62,7 @@ class MinimumResolutionClock : public Clock {
     DCHECK(parent);
   }
 
-  base::TimeDelta Now() override {
+  base::TimeDelta Now() OVERRIDE {
     base::TimeDelta now = parent_->Now();
     int64 microseconds = now.InMicroseconds();
     return base::TimeDelta::FromMicroseconds(
