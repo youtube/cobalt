@@ -400,12 +400,11 @@
     # video resolution is no larger than 1080p. If 0, then memory can grow
     # without bound. This must be larger than sum of 1080p video budget and non-
     # video budget.
-    'cobalt_media_buffer_max_capacity_1080p%': 36 * 1024 * 1024,
+    'cobalt_media_buffer_max_capacity_1080p%': 0,
     # The maximum amount of memory that will be used to store media buffers when
-    # video resolution is no larger than 4k. If 0, then memory can grow
-    # without bound. This must be larger than sum of 4k video budget and non-
-    # video budget.
-    'cobalt_media_buffer_max_capacity_4k%': 65 * 1024 * 1024,
+    # video resolution is 4k. If 0, then memory can grow without bound. This
+    # must be larger than sum of 4k video budget and non- video budget.
+    'cobalt_media_buffer_max_capacity_4k%': 0,
 
     # When the media stack needs more memory to store media buffers, it will
     # allocate extra memory in units of |cobalt_media_buffer_allocation_unit|.

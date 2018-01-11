@@ -2,6 +2,21 @@
 
 This document records all notable changes made to Cobalt since the last release.
 
+## Version 16
+
+ - **Add support for cobalt_media_buffer_max_capacity**
+
+   Allow bounding the max capacity allocated by decoder buffers, by setting the
+   gypi variables cobalt_media_buffer_max_capacity_1080p and
+   cobalt_media_buffer_max_capacity_4k. 1080p applies to all resolutions 1080p
+   and below. Those values default to 0, which imposes no bounds. If non-zero,
+   each capacity must be greater than or equal to the sum of the video budget
+   and non video budget for that resolution (see
+   cobalt_media_buffer_video_buffer_1080p, cobalt_media_buffer_non_video_budget,
+   etc.), and the max capacities must be greater than or equal to the
+   corresponding initial capacities: cobalt_media_buffer_initial_capacity_1080p
+   and cobalt_media_buffer_initial_capacity_4k.
+
 ## Version 14
  - **Add support for document.hasFocus()**
 
