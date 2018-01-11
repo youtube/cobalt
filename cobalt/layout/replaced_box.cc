@@ -265,9 +265,9 @@ void AnimateVideoWithLetterboxing(
     }
   }
 
-  // Reset the composition node from whatever it was before, we will recreate
+  // Reset the composition node from whatever it was before; we will recreate
   // it anew in each animation frame.
-  *composition_node_builder = CompositionNode::Builder();
+  composition_node_builder->Reset();
 
   // TODO: Detect better when the intrinsic video size is used for the
   //   node size, and trigger a re-layout from the media element when the size

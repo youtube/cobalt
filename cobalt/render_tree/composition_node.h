@@ -72,12 +72,6 @@ class CompositionNode : public Node {
       children_.swap(moved->children_);
     }
 
-    Builder& operator=(const Builder& other) {
-      offset_ = other.offset_;
-      children_ = other.children_;
-      return *this;
-    }
-
     bool operator==(const Builder& other) const {
       return offset_ == other.offset_ && children_ == other.children_;
     }
@@ -103,6 +97,11 @@ class CompositionNode : public Node {
 
     const math::Vector2dF& offset() const { return offset_; }
     void set_offset(const math::Vector2dF& offset) { offset_ = offset; }
+
+    void Reset() {
+      offset_ = math::Vector2dF();
+      ClearChildren();
+    }
 
    private:
     // A translation offset to be applied to each member of this composition
