@@ -41,6 +41,7 @@ enum MessageType {
   kSimpleTypeError,
   kSimpleRangeError,
   kSimpleReferenceError,
+  kNotDateType,
   kNotNullableType,
   kNotObjectType,
   kNotObjectOrFunction,

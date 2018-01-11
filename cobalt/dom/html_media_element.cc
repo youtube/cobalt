@@ -546,8 +546,8 @@ float HTMLMediaElement::duration() const {
   return static_cast<float>(duration_);
 }
 
-int64_t HTMLMediaElement::GetStartDate() const {
-  MLOG() << start_date_;
+base::Time HTMLMediaElement::GetStartDate() const {
+  MLOG() << start_date_.ToSbTime();
   return start_date_;
 }
 
