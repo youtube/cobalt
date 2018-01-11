@@ -32,6 +32,7 @@ ExceptionMessage kMessages[kNumMessageTypes] = {
     {kSimpleTypeError, kTypeError, " "},
     {kSimpleRangeError, kRangeError, " "},
     {kSimpleReferenceError, kReferenceError, " "},
+    {kNotDateType, kTypeError, "Value is not a Date."},
     {kNotNullableType, kTypeError, "Value is null but type is not nullable."},
     {kNotObjectType, kTypeError, "Value is not an object."},
     {kNotObjectOrFunction, kTypeError, "Value is not an object or function."},

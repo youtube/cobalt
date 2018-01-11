@@ -1,4 +1,4 @@
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -610,7 +610,7 @@ void InitializePrototypeAndInterfaceObject(
 }
 
 inline InterfaceData* GetInterfaceData(JSContext* context) {
-  const int kInterfaceUniqueId = 31;
+  const int kInterfaceUniqueId = 32;
   MozjsGlobalEnvironment* global_environment =
       static_cast<MozjsGlobalEnvironment*>(JS_GetContextPrivate(context));
   // By convention, the |MozjsGlobalEnvironment| that we are associated with

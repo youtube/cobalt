@@ -128,7 +128,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   float current_time(script::ExceptionState* exception_state) const;
   void set_current_time(float time, script::ExceptionState* exception_state);
   float duration() const;
-  int64_t GetStartDate() const;
+  base::Time GetStartDate() const;
   bool paused() const;
   float default_playback_rate() const;
   void set_default_playback_rate(float rate);
@@ -292,7 +292,7 @@ class HTMLMediaElement : public HTMLElement, private WebMediaPlayerClient {
   double previous_progress_time_;
 
   double duration_;
-  int64_t start_date_ = 0;
+  base::Time start_date_;
 
   bool playing_;
   bool have_fired_loaded_data_;

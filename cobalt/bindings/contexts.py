@@ -32,6 +32,10 @@ from v8_attributes import is_constructor_attribute
 from v8_interface import method_overloads_by_name
 
 
+def is_date_type(idl_type):
+  return str(idl_type) == 'Date'
+
+
 def is_object_type(idl_type):
   return str(idl_type) == 'object'
 
@@ -266,6 +270,8 @@ class ContextBuilder(object):
       cobalt_type = self.idl_sequence_type_to_cobalt(idl_type)
     elif idl_type.name == 'void':
       cobalt_type = 'void'
+    elif is_date_type(idl_type):
+      cobalt_type = 'base::Time'
     elif is_object_type(idl_type):
       cobalt_type = '::cobalt::script::ValueHandle'
     elif is_any_type(idl_type):

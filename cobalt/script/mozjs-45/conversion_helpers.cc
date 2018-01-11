@@ -16,6 +16,7 @@
 
 #include "nb/memory_scope.h"
 #include "third_party/mozjs-45/js/src/jsapi.h"
+#include "third_party/mozjs-45/js/src/vm/DateObject.h"
 
 namespace cobalt {
 namespace script {
@@ -56,6 +57,46 @@ void FromJSValue(JSContext* context, JS::HandleValue value,
   }
 
   *out_string = utf8_chars;
+}
+
+// base::Time -> JSValue
+void ToJSValue(JSContext* context, const base::Time& time,
+               JS::MutableHandleValue out_value) {
+  TRACK_MEMORY_SCOPE("Javascript");
+
+  JS::ClippedTime clipped_time = time.is_null() ? JS::ClippedTime::invalid()
+                                                : JS::TimeClip(time.ToJsTime());
+  JS::RootedObject object(context, JS::NewDateObject(context, clipped_time));
+  out_value.setObject(*object);
+}
+
+// JSValue -> base::Time
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 base::Time* out_time) {
+  TRACK_MEMORY_SCOPE("Javascript");
+
+  if (!value.isObject()) {
+    exception_state->SetSimpleException(kNotObjectType);
+    return;
+  }
+  bool is_date = false;
+  JS::RootedObject object(context, &value.toObject());
+  JS_ObjectIsDate(context, object, &is_date);
+  if (!is_date) {
+    exception_state->SetSimpleException(kNotDateType);
+    return;
+  }
+  bool is_valid = false;
+  js::DateIsValid(context, object, &is_valid);
+  if (!is_valid) {
+    *out_time = base::Time();
+    return;
+  }
+  // This number is milliseconds since 1970.
+  double result = value.toObject().as<js::DateObject>().UTCTime().toNumber();
+  *out_time =
+      base::Time::FromDoubleT(result / base::Time::kMillisecondsPerSecond);
 }
 
 // ValueHandle -> JSValue
