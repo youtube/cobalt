@@ -196,8 +196,7 @@ ShellDemuxer::ShellDemuxer(
       stopped_(false),
       flushing_(false),
       audio_reached_eos_(false),
-      video_reached_eos_(false),
-      ALLOW_THIS_IN_INITIALIZER_LIST(weak_ptr_factory_(this)) {
+      video_reached_eos_(false) {
   DCHECK(message_loop_);
   DCHECK(buffer_allocator_);
   DCHECK(data_source_);
@@ -237,19 +236,12 @@ void ShellDemuxer::Initialize(DemuxerHost* host,
     return;
   }
 
-  base::PostTaskAndReplyWithResult(
-      blocking_thread_.message_loop_proxy(), FROM_HERE,
-      base::Bind(&ShellDemuxer::ParseConfigBlocking, base::Unretained(this),
-                 status_cb),
-      // ParseConfigDone() will run on the current thread.  Use a WeakPtr to
-      // ensure that ParseConfigDone() won't run if the current instance is
-      // destroyed.
-      base::Bind(&ShellDemuxer::ParseConfigDone, weak_ptr_factory_.GetWeakPtr(),
-                 status_cb));
+  blocking_thread_.message_loop_proxy()->PostTask(
+      FROM_HERE, base::Bind(&ShellDemuxer::ParseConfigBlocking,
+                            base::Unretained(this), status_cb));
 }
 
-PipelineStatus ShellDemuxer::ParseConfigBlocking(
-    const PipelineStatusCB& status_cb) {
+void ShellDemuxer::ParseConfigBlocking(const PipelineStatusCB& status_cb) {
   DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
   DCHECK(!parser_);
 
@@ -264,17 +256,20 @@ PipelineStatus ShellDemuxer::ParseConfigBlocking(
     if (status == PIPELINE_OK) {
       status = DEMUXER_ERROR_COULD_NOT_PARSE;
     }
-    return status;
+    ParseConfigDone(status_cb, status);
+    return;
   }
 
   // instruct the parser to extract audio and video config from the file
   if (!parser_->ParseConfig()) {
-    return DEMUXER_ERROR_COULD_NOT_PARSE;
+    ParseConfigDone(status_cb, DEMUXER_ERROR_COULD_NOT_PARSE);
+    return;
   }
 
   // make sure we got a valid and complete configuration
   if (!parser_->IsConfigComplete()) {
-    return DEMUXER_ERROR_COULD_NOT_PARSE;
+    ParseConfigDone(status_cb, DEMUXER_ERROR_COULD_NOT_PARSE);
+    return;
   }
 
   // IsConfigComplete() should guarantee we know the duration
@@ -288,14 +283,14 @@ PipelineStatus ShellDemuxer::ParseConfigBlocking(
 
   // successful parse of config data, inform the nonblocking demuxer thread
   DCHECK_EQ(status, PIPELINE_OK);
-  return PIPELINE_OK;
+  ParseConfigDone(status_cb, PIPELINE_OK);
 }
 
 void ShellDemuxer::ParseConfigDone(const PipelineStatusCB& status_cb,
                                    PipelineStatus status) {
-  DCHECK(MessageLoopBelongsToCurrentThread());
+  DCHECK(blocking_thread_.message_loop_proxy()->BelongsToCurrentThread());
 
-  if (stopped_) {
+  if (HasStopCalled()) {
     return;
   }
 
@@ -325,7 +320,7 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
   scoped_refptr<ShellAU> au = parser_->GetNextAU(type);
   // fatal parsing error returns NULL or malformed AU
   if (!au || !au->IsValid()) {
-    if (!stopped_) {
+    if (!HasStopCalled()) {
       DLOG(ERROR) << "got back bad AU from parser";
       host_->OnDemuxerError(DEMUXER_ERROR_COULD_NOT_PARSE);
     }
@@ -365,7 +360,11 @@ void ShellDemuxer::Request(DemuxerStream::Type type) {
 void ShellDemuxer::AllocateBuffer() {
   DCHECK(requested_au_);
 
-  if (requested_au_ && !stopped_) {
+  if (HasStopCalled()) {
+    return;
+  }
+
+  if (requested_au_) {
     size_t total_buffer_size = audio_demuxer_stream_->GetTotalBufferSize() +
                                video_demuxer_stream_->GetTotalBufferSize();
     if (total_buffer_size >= COBALT_MEDIA_BUFFER_PROGRESSIVE_BUDGET) {
@@ -408,7 +407,7 @@ void ShellDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
   TRACE_EVENT2("media_stack", "ShellDemuxer::Download()", "type", event_type,
                "timestamp", requested_au_->GetTimestamp().InMicroseconds());
   // do nothing if stopped
-  if (stopped_) {
+  if (HasStopCalled()) {
     DLOG(INFO) << "aborting download task, stopped";
     return;
   }
@@ -465,10 +464,11 @@ void ShellDemuxer::Download(scoped_refptr<DecoderBuffer> buffer) {
 void ShellDemuxer::IssueNextRequest() {
   DCHECK(!requested_au_);
   // if we're stopped don't download anymore
-  if (stopped_) {
+  if (HasStopCalled()) {
     DLOG(INFO) << "stopped so request loop is stopping";
     return;
   }
+
   DemuxerStream::Type type = DemuxerStream::UNKNOWN;
   // if we have eos in one or both buffers the decision is easy
   if (audio_reached_eos_ || video_reached_eos_) {
@@ -517,7 +517,11 @@ void ShellDemuxer::Stop() {
   DCHECK(MessageLoopBelongsToCurrentThread());
   // set our internal stop flag, to not treat read failures as
   // errors anymore but as a natural part of stopping
-  stopped_ = true;
+  {
+    base::AutoLock auto_lock(lock_for_stopped_);
+    stopped_ = true;
+  }
+
   // stop the reader, which will stop the datasource and call back
   reader_->Stop();
 }
@@ -533,6 +537,11 @@ void ShellDemuxer::DataSourceStopped(const base::Closure& callback) {
   if (video_demuxer_stream_) video_demuxer_stream_->Stop();
 
   callback.Run();
+}
+
+bool ShellDemuxer::HasStopCalled() {
+  base::AutoLock auto_lock(lock_for_stopped_);
+  return stopped_;
 }
 
 void ShellDemuxer::Seek(base::TimeDelta time, const PipelineStatusCB& cb) {
