@@ -23,6 +23,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "base/time.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
@@ -428,6 +429,15 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
 // ValueHandle -> JSValue
 void ToJSValue(JSContext* context, const ValueHandleHolder* value_handle_holder,
                JS::MutableHandleValue out_value);
+
+// base::Time -> JSValue
+void ToJSValue(JSContext* context, const base::Time& time,
+               JS::MutableHandleValue out_value);
+
+// JSValue -> base::Time
+void FromJSValue(JSContext* context, JS::HandleValue value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 base::Time* out_time);
 
 // JSValue -> ValueHandle
 void FromJSValue(JSContext* context, JS::HandleValue value,

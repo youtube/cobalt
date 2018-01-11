@@ -150,8 +150,8 @@ class WebMediaPlayerImpl : public WebMediaPlayer,
   bool IsSeeking() const override;
   float GetDuration() const override;
 #if SB_HAS(PLAYER_WITH_URL)
-  int64_t GetStartDate() const override;
-#endif
+  base::Time GetStartDate() const override;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   float GetCurrentTime() const override;
 
   // Get rate of loading the resource.

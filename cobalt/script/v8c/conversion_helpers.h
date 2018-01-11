@@ -25,6 +25,7 @@
 #include "base/memory/scoped_ptr.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "base/time.h"
 #include "cobalt/base/compiler.h"
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
@@ -436,6 +437,15 @@ inline void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
 void ToJSValue(v8::Isolate* isolate,
                const ValueHandleHolder* value_handle_holder,
                v8::Local<v8::Value>* out_value);
+
+// base::Time -> JSValue
+void ToJSValue(v8::Isolate* isolate, const base::Time& time,
+               v8::Local<v8::Value>* out_value);
+
+// JSValue -> base::Time
+void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
+                 int conversion_flags, ExceptionState* exception_state,
+                 base::Time* out_time);
 
 // JSValue -> ValueHandle
 void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,

@@ -1,6 +1,6 @@
 
 
-// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -855,7 +855,7 @@ void InitializeTemplateAndInterfaceObject(v8::Isolate* isolate, InterfaceData* i
 }
 
 inline InterfaceData* GetInterfaceData(V8cGlobalEnvironment* global_environment) {
-  const int kInterfaceUniqueId = 42;
+  const int kInterfaceUniqueId = 43;
   // By convention, the |V8cGlobalEnvironment| that we are associated with
   // will hold our |InterfaceData| at index |kInterfaceUniqueId|, as we asked
   // for it to be there in the first place, and could not have conflicted with

@@ -45,7 +45,7 @@ interface HTMLMediaElement : HTMLElement {
   // playback state
   [RaisesException] attribute double currentTime;
   readonly attribute double duration;
-  long getStartDate();
+  Date getStartDate();
   readonly attribute boolean paused;
   attribute double defaultPlaybackRate;
   attribute double playbackRate;
