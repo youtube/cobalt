@@ -72,6 +72,12 @@ class CompositionNode : public Node {
       children_.swap(moved->children_);
     }
 
+    Builder& operator=(const Builder& other) {
+      offset_ = other.offset_;
+      children_ = other.children_;
+      return *this;
+    }
+
     bool operator==(const Builder& other) const {
       return offset_ == other.offset_ && children_ == other.children_;
     }
