@@ -17,8 +17,10 @@
 
 from __future__ import print_function
 
+import os
 import subprocess
 import sys
+import traceback
 
 import starboard.tools.abstract_launcher as abstract_launcher
 
@@ -37,7 +39,8 @@ class Launcher(abstract_launcher.AbstractLauncher):
         stdout=self.output_file,
         stderr=self.output_file)
     self.pid = self.proc.pid
-    self.proc.wait()
+    self.proc.communicate()
+    self.proc.poll()
     return self.proc.returncode
 
   def Kill(self):
@@ -48,6 +51,9 @@ class Launcher(abstract_launcher.AbstractLauncher):
       except OSError:
         sys.stderr.write("Error killing launcher with SIGKILL:\n")
         traceback.print_exc(file=sys.stderr)
+        # If for some reason Kill() fails then os_.exit(1) will kill the
+        # child process without cleanup. Otherwise the process will hang.
+        os._exit(1)
     else:
       sys.stderr.write("Kill() called before Run(), cannot kill.\n")
 
