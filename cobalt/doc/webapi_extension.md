@@ -17,7 +17,10 @@ window.myInterface.RunMyFunction()
 ## Build-level modifications
 
 In order to extend the interface, one should add the following lines to the
-`variables` section of their platform's gyp_configuration.gypi file:
+`variables` section of `<platform-directory>/cobalt/configuration.gypi` (see
+Starboard's
+[Application Customization](../../starboard/doc/building.md#application-customization)
+for more information):
 
 1. `cobalt_webapi_extension_source_idl_files`  
    This should be a list of [IDL files](https://en.wikipedia.org/wiki/Web_IDL)
