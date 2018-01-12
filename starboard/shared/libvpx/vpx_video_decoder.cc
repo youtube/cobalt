@@ -80,6 +80,14 @@ void VideoDecoder::WriteEndOfStream() {
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
+
+  if (!SbThreadIsValid(decoder_thread_)) {
+    // In case there is no WriteInputBuffer() call before WriteEndOfStream(),
+    // don't create the decoder thread and send the EOS frame directly.
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    return;
+  }
+
   queue_.Put(Event(kWriteEndOfStream));
 }
 
@@ -250,11 +258,11 @@ void VideoDecoder::DecodeOneBuffer(
       current_frame_width_, current_frame_height_,
       vpx_image->stride[VPX_PLANE_Y], pts, vpx_image->planes[VPX_PLANE_Y],
       vpx_image->planes[VPX_PLANE_U], vpx_image->planes[VPX_PLANE_V]);
-  decoder_status_cb_(kNeedMoreInput, frame);
-
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
     UpdateDecodeTarget(frame);
   }
+
+  decoder_status_cb_(kNeedMoreInput, frame);
 }
 
 // When in decode-to-texture mode, this returns the current decoded video frame.
