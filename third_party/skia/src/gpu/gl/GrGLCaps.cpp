@@ -55,7 +55,13 @@ GrGLCaps::GrGLCaps(const GrContextOptions& contextOptions,
     fSRGBDecodeDisableAffectsMipmaps = false;
     fClearToBoundaryValuesIsBroken = false;
     fClearTextureSupport = false;
+#if defined(COBALT)
+    // On some GL implementations, this feature might not be implemented.
+    // In the interest of greater compatibility, this feature is disabled.
+    fDrawArraysBaseVertexIsBroken = true;
+#else
     fDrawArraysBaseVertexIsBroken = false;
+#endif
     fUseDrawToClearStencilClip = false;
     fDisallowTexSubImageForUnormConfigTexturesEverBoundToFBO = false;
     fUseDrawInsteadOfAllRenderTargetWrites = false;
