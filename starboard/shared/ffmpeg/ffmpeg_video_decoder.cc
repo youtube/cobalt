@@ -208,6 +208,14 @@ void VideoDecoder::WriteEndOfStream() {
   // We have to flush the decoder to decode the rest frames and to ensure that
   // Decode() is not called when the stream is ended.
   stream_ended_ = true;
+
+  if (!SbThreadIsValid(decoder_thread_)) {
+    // In case there is no WriteInputBuffer() call before WriteEndOfStream(),
+    // don't create the decoder thread and send the EOS frame directly.
+    decoder_status_cb_(kBufferFull, VideoFrame::CreateEOSFrame());
+    return;
+  }
+
   queue_.Put(Event(kWriteEndOfStream));
 }
 
@@ -284,8 +292,15 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
   avcodec_get_frame_defaults(av_frame_);
 #endif  // LIBAVUTIL_VERSION_MAJOR > 52
   int frame_decoded = 0;
-  int result =
+  int decode_result =
       avcodec_decode_video2(codec_context_, av_frame_, &frame_decoded, packet);
+  if (decode_result < 0) {
+    SB_DLOG(ERROR) << "avcodec_decode_video2() failed with result "
+                   << decode_result;
+    error_cb_();
+    error_occured_ = true;
+    return false;
+  }
   if (frame_decoded == 0) {
     return false;
   }
@@ -300,16 +315,17 @@ bool VideoDecoder::DecodePacket(AVPacket* packet) {
   int pitch = AlignUp(av_frame_->width, kAlignment * 2);
 
   scoped_refptr<CpuVideoFrame> frame = CpuVideoFrame::CreateYV12Frame(
-      av_frame_->width, av_frame_->height, pitch,
-      codec_context_->reordered_opaque, av_frame_->data[0], av_frame_->data[1],
-      av_frame_->data[2]);
-  decoder_status_cb_(kBufferFull, frame);
+      av_frame_->width, av_frame_->height, pitch, av_frame_->reordered_opaque,
+      av_frame_->data[0], av_frame_->data[1], av_frame_->data[2]);
 
+  bool result = true;
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
-    return UpdateDecodeTarget(frame);
+    result = UpdateDecodeTarget(frame);
   }
 
-  return true;
+  decoder_status_cb_(kBufferFull, frame);
+
+  return result;
 }
 
 bool VideoDecoder::UpdateDecodeTarget(
