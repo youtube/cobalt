@@ -60,8 +60,6 @@ namespace {
         return "Pause";
       case ApplicationAndroid::AndroidCommand::kStop:
         return "Stop";
-      case ApplicationAndroid::AndroidCommand::kDestroy:
-        return "Destroy";
       case ApplicationAndroid::AndroidCommand::kInputQueueChanged:
         return "InputQueueChanged";
       case ApplicationAndroid::AndroidCommand::kNativeWindowCreated:
@@ -92,8 +90,7 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
       android_command_condition_(android_command_mutex_),
       activity_state_(AndroidCommand::kUndefined),
       window_(kSbWindowInvalid),
-      last_is_accessibility_high_contrast_text_enabled_(false),
-      exit_error_level_(0) {
+      last_is_accessibility_high_contrast_text_enabled_(false) {
   int pipefd[2];
   int err;
 
@@ -113,11 +110,11 @@ ApplicationAndroid::ApplicationAndroid(ALooper* looper)
 }
 
 ApplicationAndroid::~ApplicationAndroid() {
-  ALooper_removeFd(ALooper_forThread(), android_command_readfd_);
+  ALooper_removeFd(looper_, android_command_readfd_);
   close(android_command_readfd_);
   close(android_command_writefd_);
 
-  ALooper_removeFd(ALooper_forThread(), keyboard_inject_readfd_);
+  ALooper_removeFd(looper_, keyboard_inject_readfd_);
   close(keyboard_inject_readfd_);
   close(keyboard_inject_writefd_);
 }
@@ -219,7 +216,7 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     // Activity lifecycle since Cobalt can't do anything at all if it doesn't
     // have a window surface to draw on.
     case AndroidCommand::kNativeWindowCreated:
-     {
+      {
         ScopedLock lock(android_command_mutex_);
         native_window_ = static_cast<ANativeWindow*>(cmd.data);
         if (window_) {
@@ -286,21 +283,6 @@ void ApplicationAndroid::ProcessAndroidCommand() {
     case AndroidCommand::kPause:
     case AndroidCommand::kStop:
       sync_state = activity_state_ = cmd.type;
-      break;
-
-    // TODO: Ignore destroy since we're supposed to be tied to the application.
-    case AndroidCommand::kDestroy:
-      // Note this log line may not flush before exit.
-      // Even __android_log_close() does not seem to guarantee it.
-      // Also __android_log_close() is not available on all platforms.
-      // The actual exit code doesn't matter to Android, so just print it out.
-      SB_LOG(ERROR) << "***Stopping Application*** " << exit_error_level_;
-
-      // Inject the event to signal to the application to shutdown.  This
-      // event also signals to our Application super class that it should
-      // shutdown the event processing loop and return.
-      Inject(new Event(kSbEventTypeStop, NULL, NULL));
-
       break;
   }
 
@@ -395,10 +377,6 @@ Java_foo_cobalt_coat_CobaltA11yHelper_injectKeyEvent(JNIEnv* env,
   ApplicationAndroid::Get()->SendKeyboardInject(static_cast<SbKey>(key));
 }
 
-void ApplicationAndroid::SetExitOnActivityDestroy(int error_level) {
-  exit_error_level_ = error_level;
-}
-
 bool ApplicationAndroid::OnSearchRequested() {
   for (int i = 0; i < 2; i++) {
     SbInputData* data = new SbInputData();
@@ -412,7 +390,8 @@ bool ApplicationAndroid::OnSearchRequested() {
 }
 
 extern "C" SB_EXPORT_PLATFORM
-jboolean Java_foo_cobalt_coat_StarboardBridge_nativeOnSearchRequested() {
+jboolean Java_foo_cobalt_coat_StarboardBridge_nativeOnSearchRequested(
+    JniEnvExt* env, jobject unused_this) {
   return ApplicationAndroid::Get()->OnSearchRequested();
 }
 
@@ -432,6 +411,12 @@ void Java_foo_cobalt_coat_StarboardBridge_nativeHandleDeepLink(
     std::string utf_str = env->GetStringStandardUTFOrAbort(j_url);
     ApplicationAndroid::Get()->HandleDeepLink(utf_str.c_str());
   }
+}
+
+extern "C" SB_EXPORT_PLATFORM
+void Java_foo_cobalt_coat_StarboardBridge_nativeStopApp(
+    JniEnvExt* env, jobject unused_this, jint error_level) {
+  ApplicationAndroid::Get()->Stop(error_level);
 }
 
 }  // namespace shared
