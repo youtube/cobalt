@@ -43,7 +43,6 @@ class ApplicationAndroid
       kResume,
       kPause,
       kStop,
-      kDestroy,
       kInputQueueChanged,
       kNativeWindowCreated,
       kNativeWindowDestroyed,
@@ -65,7 +64,6 @@ class ApplicationAndroid
 
   SbWindow CreateWindow(const SbWindowOptions* options);
   bool DestroyWindow(SbWindow window);
-  void SetExitOnActivityDestroy(int error_level);
   bool OnSearchRequested();
   void HandleDeepLink(const char* link_url);
 
@@ -111,8 +109,6 @@ class ApplicationAndroid
   scoped_ptr<InputEventsGenerator> input_events_generator_;
 
   bool last_is_accessibility_high_contrast_text_enabled_;
-
-  int exit_error_level_;
 
   // Methods to process pipes attached to the Looper.
   void ProcessAndroidCommand();
