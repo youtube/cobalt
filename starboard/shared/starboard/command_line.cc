@@ -126,6 +126,9 @@ void CommandLine::InitFromArgv(int argc,
 
 void CommandLine::InitFromArgv(const StringVector& argv) {
   argv_ = StringVector(1);
+  if (!argv.empty()) {
+    argv_[0] = argv[0];
+  }
   begin_args_ = 1;
   AppendSwitchesAndArguments(this, argv);
 }
