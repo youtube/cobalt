@@ -106,23 +106,35 @@ void MaybeDump() {
   if (diff > kDumpInterval) {
     trace_data.last_dump_time = now;
     auto thread_id = SbThreadGetId();
-    SB_LOG(INFO) << "BEGIN_HEAP_DUMP: " << thread_id << " " << now;
+    SB_LOG(INFO) << "CJGT_BEGIN_HEAP_DUMP: " << thread_id << " " << now;
     for (const auto& pair : trace_data.thing2info) {
-      SB_LOG(INFO) << "HEAP_DUMP: " << thread_id << " "
-                   << static_cast<void*>(pair.first) << " "
-                   << pair.second.time << " " << pair.second.stack;
+      SB_LOG(INFO) << "CJGT_HEAP_DUMP: " << thread_id << " "
+                   << static_cast<void*>(pair.first) << " " << pair.second.time
+                   << " " << pair.second.stack;
     }
-    SB_LOG(INFO) << "END_HEAP_DUMP: " << thread_id << " " << now;
+    SB_LOG(INFO) << "CJGT_END_HEAP_DUMP: " << thread_id << " " << now;
   }
+}
+
+std::string GetThreadName() {
+  char buffer[120];
+  SbThreadGetName(buffer, SB_ARRAY_SIZE_INT(buffer));
+  return &buffer[0];
 }
 
 }  // namespace
 
-bool InitTrace(GCRuntime& gc) { return true; }
+bool InitTrace(GCRuntime& gc) {
+  SB_LOG(INFO) << "CJGT_THREAD_ID_TO_NAME: " << SbThreadGetId() << " "
+               << GetThreadName();
+  return true;
+}
 
 void FinishTrace() {}
 
-bool TraceEnabled() { return true; }
+bool TraceEnabled() {
+  return true;
+}
 
 void TraceNurseryAlloc(Cell* thing, size_t size) {
   // Don't do anything.  We will trace |thing| if it ends up getting
@@ -137,15 +149,23 @@ void TraceCreateObject(JSObject* object) {}
 
 void TraceMinorGCStart() {}
 
-void TracePromoteToTenured(Cell* src, Cell* dst) { StartTrackingThing(dst); }
+void TracePromoteToTenured(Cell* src, Cell* dst) {
+  StartTrackingThing(dst);
+}
 
-void TraceMinorGCEnd() { MaybeDump(); }
+void TraceMinorGCEnd() {
+  MaybeDump();
+}
 
 void TraceMajorGCStart() {}
 
-void TraceTenuredFinalize(Cell* thing) { StopTrackingThing(thing); }
+void TraceTenuredFinalize(Cell* thing) {
+  StopTrackingThing(thing);
+}
 
-void TraceMajorGCEnd() { MaybeDump(); }
+void TraceMajorGCEnd() {
+  MaybeDump();
+}
 
 void TraceTypeNewScript(js::ObjectGroup* group) {}
 
