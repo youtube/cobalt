@@ -220,14 +220,14 @@ class Application {
   // Injects an event of type kSbEventTypeLowMemory to the application.
   void InjectLowMemoryEvent();
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Inject a window size change event.
   //
   // |context|: A context value to pass to |callback| on event completion. Must
   // not be NULL if callback is not NULL.
   // |callback|: A function to call on event completion, from the main thread.
   void WindowSizeChanged(void* context, EventHandledCallback callback);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
   // Schedules an event into the event queue.  May be called from an external
   // thread.
