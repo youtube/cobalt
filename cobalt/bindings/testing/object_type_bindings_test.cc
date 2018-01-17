@@ -80,7 +80,17 @@ TEST_F(PlatformObjectBindingsTest, Prototype) {
   std::string result;
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.arbitraryObject);", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+
+  // We accept both of these results because (e.g.)
+  // "String(Object.getPrototypeOf(document.body));" will evaluate to "[object
+  // HTMLBodyElement]" on Chrome 63 and "[object HTMLBodyElementPrototype]" on
+  // Firefox 57.  So, when we use SpiderMonkey, we handle this in the style of
+  // Firefox, and when we use V8, we handle this in the style of Chrome.
+  bool is_arbitrary_interface_prototype_like =
+      (result == "[object ArbitraryInterfacePrototype]") ||
+      (result == "[object ArbitraryInterface]");
+  EXPECT_TRUE(is_arbitrary_interface_prototype_like)
+      << "Unexpected result: " << result;
 }
 
 #if defined(ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT)
@@ -179,7 +189,14 @@ TEST_F(PlatformObjectBindingsTest, ReturnDerivedClassWrapper) {
   EXPECT_CALL(test_mock(), base_interface());
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.baseInterface);", &result));
-  EXPECT_STREQ("[object DerivedInterfacePrototype]", result.c_str());
+
+  // See "PlatformObjectBindingsTest.Prototype" for why both of these are
+  // accepted.
+  bool is_derived_interface_prototype_like =
+      (result == "[object DerivedInterfacePrototype]") ||
+      (result == "[object DerivedInterface]");
+  EXPECT_TRUE(is_derived_interface_prototype_like)
+      << "Unexpected result: " << result;
 
   EXPECT_CALL(test_mock(), base_interface());
   EXPECT_CALL(*derived_interface_, DerivedOperation());
