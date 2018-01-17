@@ -219,11 +219,11 @@ typedef enum SbEventType {
   kSbEventTypeLowMemory,
 #endif  // SB_API_VERSION >= 6
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // The size or position of a SbWindow has changed. The data is
   // SbEventWindowSizeChangedData.
   kSbEventTypeWindowSizeChanged,
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // The platform has shown the on screen keyboard. This event is triggered by
   // the system or by the OnScreenKeyboard's show method in javascript. The
@@ -287,13 +287,13 @@ typedef struct SbEventStartData {
   const char* link;
 } SbEventStartData;
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
 // Event data for kSbEventTypeWindowSizeChanged events.
 typedef struct SbEventWindowSizeChangedData {
   SbWindow window;
   SbWindowSize size;
 } SbEventWindowSizeChangedData;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #define kSbEventIdInvalid (SbEventId)0
 
