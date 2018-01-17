@@ -45,7 +45,7 @@
 
 #if SB_HAS(MICROPHONE)
 
-#if SB_RELEASE_CANDIDATE_API_VERSION >= SB_MICROPHONE_LABEL_API_VERSION
+#if SB_API_VERSION >= SB_MICROPHONE_LABEL_API_VERSION
 #define kSbMicrophoneLabelSize 256
 #endif
 
@@ -98,7 +98,7 @@ typedef struct SbMicrophoneInfo {
   // The minimum read size required for each read from microphone.
   int min_read_size;
 
-#if SB_RELEASE_CANDIDATE_API_VERSION >= SB_MICROPHONE_LABEL_API_VERSION
+#if SB_API_VERSION >= SB_MICROPHONE_LABEL_API_VERSION
   // Name of the microphone. Can be empty. This should indicate the
   // friendly name of the microphone type. For example, "Headset Microphone".
   // The string must be null terminated.
