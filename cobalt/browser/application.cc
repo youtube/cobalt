@@ -628,12 +628,12 @@ Application::Application(const base::Closure& quit_closure, bool should_preload)
       base::Bind(&Application::OnDeepLinkEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::DeepLinkEvent::TypeId(),
                                      deep_link_event_callback_);
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   window_size_change_event_callback_ = base::Bind(
       &Application::OnWindowSizeChangedEvent, base::Unretained(this));
   event_dispatcher_.AddEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                      window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   on_screen_keyboard_shown_event_callback_ = base::Bind(
       &Application::OnOnScreenKeyboardShownEvent, base::Unretained(this));
@@ -711,10 +711,10 @@ Application::~Application() {
                                         network_event_callback_);
   event_dispatcher_.RemoveEventCallback(base::DeepLinkEvent::TypeId(),
                                         deep_link_event_callback_);
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   event_dispatcher_.RemoveEventCallback(base::WindowSizeChangedEvent::TypeId(),
                                         window_size_change_event_callback_);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
   app_status_ = kShutDownAppStatus;
 }
 
@@ -764,7 +764,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
 #endif  // SB_API_VERSION >= 6
       OnApplicationEvent(starboard_event->type);
       break;
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
     case kSbEventTypeWindowSizeChanged:
       DispatchEventInternal(new base::WindowSizeChangedEvent(
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
@@ -772,7 +772,7 @@ void Application::HandleStarboardEvent(const SbEvent* starboard_event) {
           static_cast<SbEventWindowSizeChangedData*>(starboard_event->data)
               ->size));
       break;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
     case kSbEventTypeOnScreenKeyboardShown:
       DCHECK(starboard_event->data);
@@ -903,14 +903,14 @@ void Application::OnDeepLinkEvent(const base::Event* event) {
   }
 }
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
 void Application::OnWindowSizeChangedEvent(const base::Event* event) {
   TRACE_EVENT0("cobalt::browser", "Application::OnWindowSizeChangedEvent()");
   const base::WindowSizeChangedEvent* window_size_change_event =
       base::polymorphic_downcast<const base::WindowSizeChangedEvent*>(event);
   browser_module_->OnWindowSizeChanged(window_size_change_event->size());
 }
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void Application::OnOnScreenKeyboardShownEvent(const base::Event* event) {
