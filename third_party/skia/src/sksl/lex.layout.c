@@ -22,6 +22,7 @@
 /* First, we deal with  platform-specific or compiler-specific issues. */
 
 /* begin standard C headers. */
+#include <errno.h>
 
 #if defined(STARBOARD)
 #include "starboard/client_porting/poem/stdio_poem.h"
@@ -30,7 +31,6 @@
 #else
 #include <stdio.h>
 #include <string.h>
-#include <errno.h>
 #include <stdlib.h>
 #endif
 
