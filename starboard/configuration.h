@@ -54,7 +54,7 @@
 // version, but be aware that small incompatible changes may still be made to
 // it.
 // The following will be uncommented when an API version is a release candidate.
-#define SB_RELEASE_CANDIDATE_API_VERSION 8
+// #define SB_RELEASE_CANDIDATE_API_VERSION 9
 
 // --- Experimental Feature Defines ------------------------------------------
 
@@ -67,10 +67,6 @@
 //   //   Add a function, `SbMyNewFeature()` to `starboard/feature.h` which
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
-
-#define SB_PLAYER_WITH_URL_API_VERSION 8
-#define SB_WINDOW_SIZE_CHANGED_API_VERSION 8
-#define SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION 8
 
 // Adds string label to SbMicrophoneInfo.
 // This should indicate the friendly name of the microphone type.
@@ -486,7 +482,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #error "New versions of Starboard specify player output mode at runtime."
 #endif
 
-#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < SB_PLAYER_WITH_URL_API_VERSION
+#if SB_HAS(PLAYER_WITH_URL) && SB_API_VERSION < 8
 #error "SB_HAS_PLAYER_WITH_URL is not supported in this API version."
 #endif
 
@@ -574,8 +570,7 @@ SB_COMPILE_ASSERT(sizeof(long) == 8,  // NOLINT(runtime/int)
 #endif  // !defined(SB_HAS_SPEECH_RECOGNIZER)
 #endif  // SB_API_VERSION >= 5
 
-#if SB_HAS(ON_SCREEN_KEYBOARD) && \
-    (SB_API_VERSION < SB_INPUT_ON_SCREEN_KEYBOARD_API_VERSION)
+#if SB_HAS(ON_SCREEN_KEYBOARD) && (SB_API_VERSION < 8)
 #error "SB_HAS_ON_SCREEN_KEYBOARD not supported in this API version."
 #endif
 
