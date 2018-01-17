@@ -26,7 +26,7 @@ namespace {
 
 class DateBindingsTest : public InterfaceBindingsTest<InterfaceWithDate> {};
 
-TEST_F(DateBindingsTest, All) {
+TEST_F(DateBindingsTest, NiceDates) {
   std::string result;
 
   // Date is initialized with default ctor, giving "Invalid Date".
@@ -37,30 +37,54 @@ TEST_F(DateBindingsTest, All) {
   EXPECT_TRUE(EvaluateScript("test.setDate(new Date(2014, 1, 1))", &result))
       << result;
   EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_STREQ("Sat Feb 01 2014 00:00:00 GMT-0800 (PST)", result.c_str());
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Sat Feb 01 2014 00:00:00",
+                      result.c_str());
+
   // Set date to July 4, 1776 03:02:01 (month is 0-based)
   EXPECT_TRUE(
       EvaluateScript("test.setDate(new Date(1776, 6, 4, 3, 2, 1))", &result))
       << result;
   EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_STREQ("Thu Jul 04 1776 03:02:01 GMT-0700 (PDT)", result.c_str());
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Thu Jul 04 1776 03:02:01",
+                      result.c_str());
 
-  // Set date to POSIX EPOC Jan 1, 1970 00:00:00 (month is 0-based)
-  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1970, 0))", &result))
+  // Set date to POSIX EPOC +1 second (month is 0-based)
+  EXPECT_TRUE(
+      EvaluateScript("test.setDate(new Date(1970, 0, 1, 0, 0, 1))", &result))
       << result;
   EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_STREQ("Thu Jan 01 1970 00:00:00 GMT-0800 (PST)", result.c_str());
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Thu Jan 01 1970 00:00:01",
+                      result.c_str());
 
-  // Set date to WIN32 EPOC Jan 1, 1601 00:00:00 (month is 0-based)
-  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1601, 0))", &result))
+  // Set date to WIN32 EPOC +1 second (month is 0-based)
+  EXPECT_TRUE(
+      EvaluateScript("test.setDate(new Date(1601, 0, 1, 0, 0, 1))", &result))
       << result;
   EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
-  EXPECT_STREQ("Mon Jan 01 1601 00:00:00 GMT-0800 (PST)", result.c_str());
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Mon Jan 01 1601 00:00:01",
+                      result.c_str());
 
   // Set date back to invalid.
   EXPECT_TRUE(EvaluateScript("test.setDate(new Date(NaN))", &result)) << result;
   EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
   EXPECT_STREQ("Invalid Date", result.c_str());
+}
+
+TEST_F(DateBindingsTest, EpocDates) {
+  std::string result;
+  // Set date to POSIX EPOC Jan 1, 1970 00:00:00 (month is 0-based)
+  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1970, 0))", &result))
+      << result;
+  EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Thu Jan 01 1970 00:00:00",
+                      result.c_str());
+
+  // Set date to WIN32 EPOC Jan 1, 1601 00:00:00 (month is 0-based)
+  EXPECT_TRUE(EvaluateScript("test.setDate(new Date(1601, 0))", &result))
+      << result;
+  EXPECT_TRUE(EvaluateScript("test.getDate()", &result)) << result;
+  EXPECT_PRED_FORMAT2(::testing::IsSubstring, "Mon Jan 01 1601 00:00:00",
+                      result.c_str());
 }
 
 }  // namespace
