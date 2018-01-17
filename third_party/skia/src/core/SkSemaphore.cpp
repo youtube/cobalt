@@ -8,7 +8,18 @@
 #include "../private/SkLeanWindows.h"
 #include "../private/SkSemaphore.h"
 
-#if defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
+#if defined(STARBOARD)
+#include "starboard/common/semaphore.h"
+
+    struct SkBaseSemaphore::OSSemaphore {
+      starboard::Semaphore fSemaphore;
+
+        OSSemaphore(): fSemaphore(0/*initial count*/)  {}
+
+        void signal(int n) { while (n -- > 0) { fSemaphore.Put(); } }
+        void wait() { fSemaphore.Take(); }
+    };
+#elif defined(SK_BUILD_FOR_MAC) || defined(SK_BUILD_FOR_IOS)
     #include <mach/mach.h>
     struct SkBaseSemaphore::OSSemaphore {
         semaphore_t fSemaphore;
