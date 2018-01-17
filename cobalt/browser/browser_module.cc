@@ -743,7 +743,7 @@ void BrowserModule::OnWindowMinimize() {
   SbSystemRequestSuspend();
 }
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
 void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
   math::Size math_size(size.width, size.height);
   if (web_module_) {
@@ -760,7 +760,7 @@ void BrowserModule::OnWindowSizeChanged(const SbWindowSize& size) {
 
   return;
 }
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 void BrowserModule::OnOnScreenKeyboardShown(

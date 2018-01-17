@@ -70,10 +70,10 @@ class Application {
   // Called to handle a deep link event.
   void OnDeepLinkEvent(const base::Event* event);
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Called to handle a window size change event.
   void OnWindowSizeChangedEvent(const base::Event* event);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShownEvent(const base::Event* event);
@@ -97,9 +97,9 @@ class Application {
   // Event callbacks.
   base::EventCallback network_event_callback_;
   base::EventCallback deep_link_event_callback_;
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   base::EventCallback window_size_change_event_callback_;
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   base::EventCallback on_screen_keyboard_shown_event_callback_;
   base::EventCallback on_screen_keyboard_hidden_event_callback_;
