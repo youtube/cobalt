@@ -166,10 +166,10 @@ class BrowserModule {
   void CheckMemory(const int64_t& used_cpu_memory,
                    const base::optional<int64_t>& used_gpu_memory);
 
-#if SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#if SB_API_VERSION >= 8
   // Called when a kSbEventTypeWindowSizeChange event is fired.
   void OnWindowSizeChanged(const SbWindowSize& size);
-#endif  // SB_API_VERSION >= SB_WINDOW_SIZE_CHANGED_API_VERSION
+#endif  // SB_API_VERSION >= 8
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   void OnOnScreenKeyboardShown(const base::OnScreenKeyboardShownEvent* event);
