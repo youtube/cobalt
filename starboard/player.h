@@ -206,8 +206,7 @@ typedef void (*SbPlayerEncryptedMediaInitDataEncounteredCB)(
     const char* init_data_type,
     const unsigned char* init_data,
     unsigned int init_data_length);
-#endif  // SB_API_VERSION >= SB_PLAYER_WITH_URL_API_VERSION  &&
-        // SB_HAS(PLAYER_WITH_URL)
+#endif  // SB_HAS(PLAYER_WITH_URL)
 
 // --- Constants -------------------------------------------------------------
 
