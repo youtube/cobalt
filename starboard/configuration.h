@@ -87,6 +87,9 @@
 // Minimum API version for supporting system-level closed caption settings.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
 
+// Add new keycode kSbKeyInstantReplay identical to OCAP's VK_INSTANT_REPLAY
+#define SB_INSTANT_REPLAY_KEY_VERSION SB_EXPERIMENTAL_API_VERSION
+
 // --- Release Candidate Feature Defines -------------------------------------
 
 // --- Common Detected Features ----------------------------------------------
