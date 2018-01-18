@@ -1361,6 +1361,11 @@ void BrowserModule::InitializeSystemWindow() {
   media_module_ =
       media::MediaModule::Create(system_window_.get(), GetResourceProvider(),
                                  options_.media_module_options);
+
+  if (web_module_) {
+    web_module_->SetCamera3D(input_device_manager_->camera_3d());
+    web_module_->SetWebMediaPlayerFactory(media_module_.get());
+  }
 }
 
 void BrowserModule::InstantiateRendererModule() {
@@ -1387,7 +1392,7 @@ void BrowserModule::DestroyRendererModule() {
   renderer_module_.reset();
 }
 
-void BrowserModule::UpdateFromSystemWindow() {
+void BrowserModule::UpdateScreenSize() {
   math::Size size = GetViewportSize();
   float video_pixel_ratio = system_window_->GetVideoPixelRatio();
 #if defined(ENABLE_DEBUG_CONSOLE)
@@ -1401,8 +1406,6 @@ void BrowserModule::UpdateFromSystemWindow() {
   }
 
   if (web_module_) {
-    web_module_->SetCamera3D(input_device_manager_->camera_3d());
-    web_module_->SetWebMediaPlayerFactory(media_module_.get());
     web_module_->SetSize(size, video_pixel_ratio);
   }
 }
@@ -1468,11 +1471,13 @@ void BrowserModule::StartOrResumeInternalPreStateUpdate(bool is_start) {
                is_start ? "true" : "false");
   if (!system_window_) {
     InitializeSystemWindow();
-    UpdateFromSystemWindow();
   } else {
     InstantiateRendererModule();
     media_module_->Resume(GetResourceProvider());
   }
+
+  // Propagate the current screen size.
+  UpdateScreenSize();
 
 #if defined(ENABLE_GPU_ARRAY_BUFFER_ALLOCATOR)
   // Start() and Resume() are not supported on platforms that allocate
