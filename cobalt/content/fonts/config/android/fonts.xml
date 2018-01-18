@@ -467,14 +467,8 @@
     <family>
         <font weight="400" style="normal">NanumGothic.ttf</font>
     </family>
-    <!--
-        Pages are included for NotoEmoji-Regular because it is part of the
-        Cobalt font package. Font files that come from Android do not include
-        pages; this protects from subtle bugs that could be caused by Android
-        modifying the characters that a font supports.
-    -->
-    <family pages="0,32-33,35-39,41,43,48,50,254,496-502,4068,4072">
-        <font weight="400" style="normal">NotoEmoji-Regular.ttf</font>
+    <family>
+        <font weight="400" style="normal">NotoColorEmoji.ttf</font>
     </family>
     <family>
         <font weight="400" style="normal">NotoSansSymbols-Regular-Subsetted2.ttf</font>

@@ -128,6 +128,7 @@
     'cobalt_font_package_override_fallback_lang_cjk_low_quality%': -1,
     'cobalt_font_package_override_fallback_lang_jp%': -1,
     'cobalt_font_package_override_fallback_historic%': -1,
+    'cobalt_font_package_override_fallback_color_emoji%': -1,
     'cobalt_font_package_override_fallback_emoji%': -1,
     'cobalt_font_package_override_fallback_symbols%': -1,
 

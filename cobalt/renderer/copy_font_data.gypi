@@ -34,7 +34,8 @@
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
         'package_fallback_historic': 1,
-        'package_fallback_emoji': 1,
+        'package_fallback_color_emoji': 1,
+        'package_fallback_emoji': 0,
         'package_fallback_symbols': 1,
       }],
 
@@ -50,6 +51,7 @@
         'package_fallback_lang_cjk_low_quality': 1,
         'package_fallback_lang_jp': 1,
         'package_fallback_historic': 0,
+        'package_fallback_color_emoji': 0,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 1,
       }],
@@ -65,6 +67,7 @@
         'package_fallback_lang_cjk_low_quality': 1,
         'package_fallback_lang_jp': 0,
         'package_fallback_historic': 0,
+        'package_fallback_color_emoji': 0,
         'package_fallback_emoji': 1,
         'package_fallback_symbols': 1,
       }],
@@ -80,6 +83,7 @@
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
         'package_fallback_historic': 0,
+        'package_fallback_color_emoji': 0,
         'package_fallback_emoji': 0,
         'package_fallback_symbols': 0,
       }],
@@ -90,9 +94,6 @@
         # files for those not in cobalt content.
         'source_font_config_dir': '<(static_contents_source_dir)/fonts/config/android',
 
-        # Emojis are currently included because Cobalt's version of Skia does
-        # not support Android's color emojis and will be removed when Skia is
-        # rebased.
         'package_named_sans_serif': 0,
         'package_named_serif': 0,
         'package_named_fcc_fonts': 0,
@@ -101,7 +102,8 @@
         'package_fallback_lang_cjk_low_quality': 0,
         'package_fallback_lang_jp': 0,
         'package_fallback_historic': 0,
-        'package_fallback_emoji': 1,
+        'package_fallback_color_emoji': 0,
+        'package_fallback_emoji': 0,
         'package_fallback_symbols': 0,
       }],
 
@@ -128,6 +130,9 @@
       }],
       [ 'cobalt_font_package_override_fallback_historic >= 0', {
         'package_fallback_historic': '<(cobalt_font_package_override_fallback_historic)',
+      }],
+      [ 'cobalt_font_package_override_fallback_color_emoji >= 0', {
+        'package_fallback_color_emoji': '<(cobalt_font_package_override_fallback_color_emoji)',
       }],
       [ 'cobalt_font_package_override_fallback_emoji >= 0', {
         'package_fallback_emoji': '<(cobalt_font_package_override_fallback_emoji)',
@@ -348,6 +353,11 @@
             '<(source_font_files_dir)/NotoSansSamaritan-Regular.ttf',
             '<(source_font_files_dir)/NotoSansShavian-Regular.ttf',
             '<(source_font_files_dir)/NotoSansUgaritic-Regular.ttf',
+          ],
+        }],
+        [ 'package_fallback_color_emoji >= 1', {
+          'files+': [
+            '<(source_font_files_dir)/NotoColorEmoji.ttf',
           ],
         }],
         [ 'package_fallback_emoji >= 1', {
