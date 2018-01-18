@@ -79,6 +79,8 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
 
  private:
   std::string GenerateAndAdvanceSessionId();
+  // Note: requires mutex_ to be held
+  void ReportKeyStatusChanged_Locked(const std::string& session_id);
 
   ::starboard::shared::starboard::ThreadChecker thread_checker_;
 
@@ -93,7 +95,17 @@ class SbDrmSystemPlayready : public SbDrmSystemPrivate {
   // |successful_requests_| can be accessed from more than one thread.  Guard
   // it by a mutex.
   Mutex mutex_;
-  std::map<std::string, scoped_refptr<License> > successful_requests_;
+
+  struct LicenseInfo {
+    LicenseInfo(SbDrmKeyStatus status, const scoped_refptr<License>& license)
+        : status_(status), license_(license) {}
+    LicenseInfo() : status_(kSbDrmKeyStatusError) {}
+
+    SbDrmKeyStatus status_;
+    scoped_refptr<License> license_;
+  };
+
+  std::map<std::string, LicenseInfo> successful_requests_;
 };
 
 }  // namespace win32
