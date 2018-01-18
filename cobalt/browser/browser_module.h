@@ -336,9 +336,8 @@ class BrowserModule {
   // Destroys the renderer module and dependent objects.
   void DestroyRendererModule();
 
-  // Updates all components that have already been created with information
-  // resulting from the creation of the system window.
-  void UpdateFromSystemWindow();
+  // Update web modules with the current viewport size.
+  void UpdateScreenSize();
 
   // Does all the steps for either a Suspend or the first half of a Start.
   void SuspendInternal(bool is_start);
