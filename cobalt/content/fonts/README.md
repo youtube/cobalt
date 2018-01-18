@@ -44,7 +44,8 @@ Example:
 *  'standard' -- The default package. It includes all sans-serif, serif, and FCC
                  fonts, non-CJK fallback fonts in both 'normal' and 'bold'
                  weights, 'normal' weight CJK ('bold' weight CJK is synthesized
-                 from it), and historic script fonts. This package is ~31.4MB.
+                 from it), historic script fonts, and color emojis. This package
+                 is ~38.3MB.
 
                  Package category values:
                   'package_named_sans_serif': 4,
@@ -55,7 +56,8 @@ Example:
                   'package_fallback_lang_cjk_low_quality': 0,
                   'package_fallback_lang_jp': 0,
                   'package_fallback_historic': 1,
-                  'package_fallback_emoji': 1,
+                  'package_fallback_color_emoji': 1,
+                  'package_fallback_emoji': 0,
                   'package_fallback_symbols': 1,
 
 *  'limited_with_jp' -- A significantly smaller package than 'standard'. This
@@ -67,7 +69,8 @@ Example:
                  low quality CJK. However, higher quality Japanese is still
                  included. Because low quality CJK cannot synthesize bold, bold
                  glyphs are unavailable in Chinese and Korean. Historic script
-                 fonts are not included. This package is ~11.5MB.
+                 fonts are not included. Uncolored emojis are used in place of
+                 the colored ones. This package is ~11.5MB.
 
                  Package category values:
                   'package_named_sans_serif': 2,
@@ -78,6 +81,7 @@ Example:
                   'package_fallback_lang_cjk_low_quality': 1,
                   'package_fallback_lang_jp': 1,
                   'package_fallback_historic': 0,
+                  'package_fallback_color_emoji': 0,
                   'package_fallback_emoji': 1,
                   'package_fallback_symbols': 1,
 
@@ -97,6 +101,7 @@ Example:
                   'package_fallback_lang_cjk_low_quality': 1,
                   'package_fallback_lang_jp': 0,
                   'package_fallback_historic': 0,
+                  'package_fallback_color_emoji': 0,
                   'package_fallback_emoji': 1,
                   'package_fallback_symbols': 1,
 
@@ -113,6 +118,7 @@ Example:
                   'package_fallback_lang_cjk_low_quality': 0,
                   'package_fallback_lang_jp': 0,
                   'package_fallback_historic': 0,
+                  'package_fallback_color_emoji': 0,
                   'package_fallback_emoji': 0,
                   'package_fallback_symbols': 0,
 
@@ -154,8 +160,11 @@ fonts from each category included within the package:
   *  'package_fallback_historic':
        Historic script fallback fonts.
 
+  *  'package_fallback_color_emoji':
+       Color emoji-related fallback fonts.
+
   *  'package_fallback_emoji':
-       Emoji-related fallback fonts.
+       Uncolored emoji-related fallback fonts.
 
   *  'package_fallback_symbols':
        Symbol-related fallback fonts.
@@ -211,6 +220,8 @@ The mapping between the override category name and the package category name:
        'package_fallback_lang_cjk_low_quality'
   *  'cobalt_font_package_override_fallback_lang_jp' ==>
        'package_fallback_lang_jp'
+  *  'cobalt_font_package_override_fallback_color_emoji' ==>
+       'package_fallback_color_emoji'
   *  'cobalt_font_package_override_fallback_emoji' ==>
        'package_fallback_emoji'
   *  'cobalt_font_package_override_fallback_symbols' ==>
