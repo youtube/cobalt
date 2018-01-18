@@ -371,6 +371,24 @@ BrowserModule::BrowserModule(const GURL& url,
 
 BrowserModule::~BrowserModule() {
   DCHECK_EQ(MessageLoop::current(), self_message_loop_);
+
+  // Transition into the suspended state from whichever state we happen to
+  // currently be in, to prepare for shutdown.
+  switch (application_state_) {
+    case base::kApplicationStateStarted:
+      Pause();
+    // Intentional fall-through.
+    case base::kApplicationStatePaused:
+    case base::kApplicationStatePreloading:
+      Suspend();
+      break;
+    case base::kApplicationStateStopped:
+      NOTREACHED() << "BrowserModule does not support the stopped state.";
+      break;
+    case base::kApplicationStateSuspended:
+      break;
+  }
+
   on_error_retry_timer_.Stop();
 #if SB_HAS(CORE_DUMP_HANDLER_SUPPORT)
   SbCoreDumpUnregisterHandler(BrowserModule::CoreDumpHandler, this);
