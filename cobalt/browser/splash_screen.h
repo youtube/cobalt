@@ -44,8 +44,7 @@ class SplashScreen : public LifecycleObserver {
                const GURL& initial_main_web_module_url,
                cobalt::browser::SplashScreenCache* splash_screen_cache,
                const base::Callback<void(base::TimeDelta)>&
-                   on_splash_screen_shutdown_complete,
-               const dom::Window::GetSbWindowCallback& get_sb_window_callback);
+                   on_splash_screen_shutdown_complete);
   ~SplashScreen();
 
   void SetSize(const math::Size& window_dimensions, float video_pixel_ratio) {
