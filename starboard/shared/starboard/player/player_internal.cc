@@ -29,6 +29,7 @@ SbMediaTime GetMediaTime(SbMediaTime media_pts,
 }  // namespace
 
 SbPlayerPrivate::SbPlayerPrivate(
+    SbMediaAudioCodec audio_codec,
     SbMediaTime duration_pts,
     SbPlayerDeallocateSampleFunc sample_deallocate_func,
     SbPlayerDecoderStatusFunc decoder_status_func,
@@ -49,12 +50,12 @@ SbPlayerPrivate::SbPlayerPrivate(
       total_video_frames_(0),
       dropped_video_frames_(0),
       worker_(new PlayerWorker(this,
+                               audio_codec,
                                player_worker_handler.Pass(),
                                decoder_status_func,
                                player_status_func,
                                this,
-                               context)) {
-}
+                               context)) {}
 
 void SbPlayerPrivate::Seek(SbMediaTime seek_to_pts, int ticket) {
   {

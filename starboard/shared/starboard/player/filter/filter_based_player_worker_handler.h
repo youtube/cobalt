@@ -23,6 +23,8 @@
 #include "starboard/media.h"
 #include "starboard/player.h"
 #include "starboard/shared/starboard/player/filter/audio_renderer_internal.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider.h"
+#include "starboard/shared/starboard/player/filter/media_time_provider_impl.h"
 #include "starboard/shared/starboard/player/filter/video_renderer_internal.h"
 #include "starboard/shared/starboard/player/input_buffer_internal.h"
 #include "starboard/shared/starboard/player/job_queue.h"
@@ -41,7 +43,7 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
       SbMediaVideoCodec video_codec,
       SbMediaAudioCodec audio_codec,
       SbDrmSystem drm_system,
-      const SbMediaAudioHeader& audio_header,
+      const SbMediaAudioHeader* audio_header,
       SbPlayerOutputMode output_mode,
       SbDecodeTargetGraphicsContextProvider* provider);
 
@@ -67,13 +69,14 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
   void OnError();
 
   SbDecodeTarget GetCurrentDecodeTarget() override;
+  MediaTimeProvider* GetMediaTimeProvider() const;
 
-  PlayerWorker* player_worker_;
-  JobQueue* job_queue_;
-  SbPlayer player_;
-  UpdateMediaTimeCB update_media_time_cb_;
-  GetPlayerStateCB get_player_state_cb_;
-  UpdatePlayerStateCB update_player_state_cb_;
+  PlayerWorker* player_worker_ = NULL;
+  JobQueue* job_queue_ = NULL;
+  SbPlayer player_ = kSbPlayerInvalid;
+  UpdateMediaTimeCB update_media_time_cb_ = NULL;
+  GetPlayerStateCB get_player_state_cb_ = NULL;
+  UpdatePlayerStateCB update_player_state_cb_ = NULL;
 
   SbMediaVideoCodec video_codec_;
   SbMediaAudioCodec audio_codec_;
@@ -85,12 +88,16 @@ class FilterBasedPlayerWorkerHandler : public PlayerWorker::Handler {
 #endif  // SB_API_VERSION >= 6
   SbMediaAudioHeader audio_header_;
 
+  // |media_time_provider_impl_| is used to provide the media playback time when
+  // there is no audio track.  In such case |audio_renderer_| will be NULL.
+  // When there is an audio track, |media_time_provider_impl_| will be NULL.
+  scoped_ptr<MediaTimeProviderImpl> media_time_provider_impl_;
   scoped_ptr<AudioRenderer> audio_renderer_;
   scoped_ptr<VideoRenderer> video_renderer_;
 
-  bool paused_;
-  double playback_rate_;
-  double volume_;
+  bool paused_ = false;
+  double playback_rate_ = 1.0;
+  double volume_ = 1.0;
   PlayerWorker::Bounds bounds_;
   JobQueue::JobToken update_job_token_;
   std::function<void()> update_job_;

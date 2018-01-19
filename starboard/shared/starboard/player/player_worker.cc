@@ -44,6 +44,7 @@ struct ThreadParam {
 }  // namespace
 
 PlayerWorker::PlayerWorker(Host* host,
+                           SbMediaAudioCodec audio_codec,
                            scoped_ptr<Handler> handler,
                            SbPlayerDecoderStatusFunc decoder_status_func,
                            SbPlayerStatusFunc player_status_func,
@@ -51,6 +52,7 @@ PlayerWorker::PlayerWorker(Host* host,
                            void* context)
     : thread_(kSbThreadInvalid),
       host_(host),
+      audio_codec_(audio_codec),
       handler_(handler.Pass()),
       decoder_status_func_(decoder_status_func),
       player_status_func_(player_status_func),
@@ -158,7 +160,9 @@ void PlayerWorker::DoSeek(SbMediaTime seek_to_pts, int ticket) {
   ticket_ = ticket;
 
   UpdatePlayerState(kSbPlayerStatePrerolling);
-  UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
+  if (audio_codec_ != kSbMediaAudioCodecNone) {
+    UpdateDecoderState(kSbMediaTypeAudio, kSbPlayerDecoderStateNeedsData);
+  }
   UpdateDecoderState(kSbMediaTypeVideo, kSbPlayerDecoderStateNeedsData);
 }
 
@@ -177,6 +181,7 @@ void PlayerWorker::DoWriteSample(
   }
 
   if (input_buffer->sample_type() == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
     SB_DCHECK(!pending_video_buffer_);
@@ -210,6 +215,7 @@ void PlayerWorker::DoWritePendingSamples() {
   write_pending_sample_job_token_.ResetToInvalid();
 
   if (pending_audio_buffer_) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     DoWriteSample(common::ResetAndReturn(&pending_audio_buffer_));
   }
   if (pending_video_buffer_) {
@@ -232,6 +238,7 @@ void PlayerWorker::DoWriteEndOfStream(SbMediaType sample_type) {
   }
 
   if (sample_type == kSbMediaTypeAudio) {
+    SB_DCHECK(audio_codec_ != kSbMediaAudioCodecNone);
     SB_DCHECK(!pending_audio_buffer_);
   } else {
     SB_DCHECK(!pending_video_buffer_);

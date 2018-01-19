@@ -52,7 +52,8 @@ SbPlayer SbPlayerCreate(SbWindow window,
   SB_UNREFERENCED_PARAMETER(window);
 
   const int64_t kDefaultBitRate = 0;
-  if (!SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
+  if (audio_codec != kSbMediaAudioCodecNone &&
+      !SbMediaIsAudioSupported(audio_codec, kDefaultBitRate)) {
     SB_LOG(ERROR) << "Unsupported audio codec " << audio_codec;
     return kSbPlayerInvalid;
   }
@@ -67,8 +68,9 @@ SbPlayer SbPlayerCreate(SbWindow window,
     return kSbPlayerInvalid;
   }
 
-  if (!audio_header) {
-    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader";
+  if (audio_codec != kSbMediaAudioCodecNone && !audio_header) {
+    SB_LOG(ERROR) << "SbPlayerCreate() requires a non-NULL SbMediaAudioHeader "
+                  << "when |audio_codec| is not kSbMediaAudioCodecNone";
     return kSbPlayerInvalid;
   }
 
@@ -81,11 +83,11 @@ SbPlayer SbPlayerCreate(SbWindow window,
 
   starboard::scoped_ptr<PlayerWorker::Handler> handler(
       new FilterBasedPlayerWorkerHandler(video_codec, audio_codec, drm_system,
-                                         *audio_header, output_mode, provider));
+                                         audio_header, output_mode, provider));
 
-  SbPlayer player = new SbPlayerPrivate(duration_pts, sample_deallocate_func,
-                                        decoder_status_func, player_status_func,
-                                        context, handler.Pass());
+  SbPlayer player = new SbPlayerPrivate(
+      audio_codec, duration_pts, sample_deallocate_func, decoder_status_func,
+      player_status_func, context, handler.Pass());
 
 #if SB_PLAYER_ENABLE_VIDEO_DUMPER
   using ::starboard::shared::starboard::player::video_dmp::VideoDmpWriter;
