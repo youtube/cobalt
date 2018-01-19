@@ -17,15 +17,10 @@
 buildscript {
     repositories {
         jcenter()
-        // Required prior to Gradle 4.1
-        // https://developer.android.com/studio/build/dependencies.html)
-        maven {
-            url 'https://maven.google.com/'
-            name 'Google'
-        }
+        google()
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:2.2.3'
+        classpath 'com.android.tools.build:gradle:3.0.1'
 
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
@@ -35,12 +30,7 @@ buildscript {
 allprojects {
     repositories {
         jcenter()
-        // Required prior to Gradle 4.1
-        // https://developer.android.com/studio/build/dependencies.html)
-        maven {
-            url 'https://maven.google.com/'
-            name 'Google'
-        }
+        google()
     }
     gradle.projectsEvaluated {
         tasks.withType(JavaCompile) {
@@ -59,7 +49,3 @@ task clean(type: Delete) {
 // Move the 'buildDir' for all projects into sub-directories of the root's original 'buildDir'
 def rootBuildDir = buildDir
 allprojects { buildDir = new File(rootBuildDir, project.name) }
-
-// Make the canonical path of the optional 'cobaltProductDir' available to all projects.
-def productDir = hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : null
-allprojects { project.ext.cobaltProductDir = productDir }
