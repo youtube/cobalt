@@ -526,6 +526,19 @@ void GrGLCaps::init(const GrContextOptions& contextOptions,
 
     GR_GL_GetIntegerv(gli, GR_GL_MAX_TEXTURE_SIZE, &fMaxTextureSize);
     GR_GL_GetIntegerv(gli, GR_GL_MAX_RENDERBUFFER_SIZE, &fMaxRenderTargetSize);
+
+#if defined(COBALT)
+    if (ctxInfo.renderer() == kGalliumLLVM_GrGLRenderer) {
+      // The Gallium renderer claims to support a max texture size of 8K.
+      // However, attempting to create 4k x 2k texture fails under this
+      // implementation.  Creating a 2k x 2k texture succeeds, so the new limit
+      // is set to 2048.
+      const int kRealMaxTextureSize = 2048;
+      fMaxTextureSize = SkTMin(kRealMaxTextureSize, fMaxTextureSize);
+      fMaxRenderTargetSize = SkTMin(kRealMaxTextureSize, fMaxRenderTargetSize);
+    }
+#endif
+
     // Our render targets are always created with textures as the color
     // attachment, hence this min:
     fMaxRenderTargetSize = SkTMin(fMaxTextureSize, fMaxRenderTargetSize);

@@ -232,6 +232,15 @@ GrGLVersion GrGLGetVersionFromString(const char* versionString) {
             if (!success) {
                 break;
             }
+#if defined(COBALT)
+            if (strstr(versionString, "Mesa")) {
+              // Some Mesa implementations, e.g. OpenGL ES 3.0 Mesa 11.2.0,
+              // will claim GL version 3.0, but do not adhere to the spec.
+              // E.g. it still requires internal and external formats for
+              // 2D textures to be the same.
+              client_version = SkTMin(client_version, 2);
+            }
+#endif
             return GR_GL_VER(client_version, 0);
         } while (0);
     }
@@ -364,10 +373,10 @@ GrGLRenderer GrGLGetRendererFromString(const char* rendererString) {
                 return kIntel6xxx_GrGLRenderer;
             }
         }
-        if (0 == strcmp("Mesa Offscreen", rendererString) || strstr(rendererString, "Gallium ")) {
+        if (0 == strcmp("Mesa Offscreen", rendererString)) {
             return kOSMesa_GrGLRenderer;
         }
-        if (strstr(rendererString, "llvmpipe")) {
+        if (strstr(rendererString, "llvmpipe") || strstr(rendererString, "Gallium ")) {
             return kGalliumLLVM_GrGLRenderer;
         }
         static const char kMaliTStr[] = "Mali-T";
