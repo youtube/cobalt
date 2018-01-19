@@ -217,6 +217,7 @@
         'node_list_live.h',
         'on_screen_keyboard.cc',
         'on_screen_keyboard.h',
+        'on_screen_keyboard_bridge.h',
         'performance.cc',
         'performance.h',
         'performance_timing.cc',

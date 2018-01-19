@@ -22,6 +22,7 @@
 #include "base/callback.h"
 #include "cobalt/base/tokens.h"
 #include "cobalt/dom/event_target.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/window.h"
 #include "cobalt/script/promise.h"
 #include "cobalt/script/wrappable.h"
@@ -40,7 +41,7 @@ class OnScreenKeyboard : public EventTarget {
                              std::unique_ptr<VoidPromiseValue::StrongReference>>
       TicketToPromiseMap;
 
-  OnScreenKeyboard(const base::Callback<SbWindow()>& get_sb_window_callback,
+  OnScreenKeyboard(OnScreenKeyboardBridge* bridge,
                    script::ScriptValueFactory* script_value_factory);
 
   // Shows the on screen keyboard by calling a Starboard function.
@@ -95,7 +96,7 @@ class OnScreenKeyboard : public EventTarget {
   TicketToPromiseMap ticket_to_focus_promise_map_;
   TicketToPromiseMap ticket_to_blur_promise_map_;
 
-  const base::Callback<SbWindow()> get_sb_window_callback_;
+  OnScreenKeyboardBridge* bridge_;
 
   script::ScriptValueFactory* const script_value_factory_;
 

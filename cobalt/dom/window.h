@@ -35,6 +35,7 @@
 #include "cobalt/dom/location.h"
 #include "cobalt/dom/media_query_list.h"
 #include "cobalt/dom/on_screen_keyboard.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/parser.h"
 #if defined(ENABLE_TEST_RUNNER)
 #include "cobalt/dom/test_runner.h"
@@ -148,7 +149,7 @@ class Window : public EventTarget,
       const base::Closure& ran_animation_frame_callbacks_callback,
       const CloseCallback& window_close_callback,
       const base::Closure& window_minimize_callback,
-      const base::Callback<SbWindow()>& get_sb_window_callback,
+      OnScreenKeyboardBridge* on_screen_keyboard_bridge,
       const scoped_refptr<input::Camera3D>& camera_3d,
       const scoped_refptr<cobalt::media_session::MediaSession>& media_session,
       int csp_insecure_allowed_token = 0, int dom_max_element_depth = 0,
