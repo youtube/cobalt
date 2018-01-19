@@ -1386,6 +1386,7 @@ scoped_refptr<Image> MakeAlternatingYUYVYImage(
   return resource_provider->CreateImage(image_data.Pass());
 }
 
+#if !SB_HAS(BLITTER)
 TEST_F(PixelTest, ThreePlaneYUVImageSupport) {
   // Tests that an ImageNode hooked up to a 3-plane YUV image works fine.
   scoped_refptr<Image> image =
@@ -1452,6 +1453,7 @@ TEST_F(PixelTest, YUV422UYVYImageScaledUpSupport) {
 
   TestTree(new ImageNode(image, math::Rect(output_surface_size())));
 }
+#endif  // !SB_HAS(BLITTER)
 
 // The software rasterizer does not support NV12 images.
 #if NV12_TEXTURE_SUPPORTED
@@ -1960,12 +1962,14 @@ TEST_F(PixelTest, ZoomedInImagesDoNotWrapInterpolated) {
 
 #endif  // BILINEAR_FILTERING_SUPPORTED
 
+#if !SB_HAS(BLITTER)
 TEST_F(PixelTest, YUV3PlaneImagesAreLinearlyInterpolated) {
   // Tests that three plane YUV images are bilinearly interpolated.
   scoped_refptr<Image> image = MakeI420Image(GetResourceProvider(), Size(8, 8));
 
   TestTree(new ImageNode(image, RectF(output_surface_size())));
 }
+#endif  // !SB_HAS(BLITTER)
 
 // The software rasterizer does not support NV12 images.
 #if NV12_TEXTURE_SUPPORTED
@@ -3792,6 +3796,7 @@ TEST_F(PixelTest, DrawOffscreenImage) {
   TestTree(new ImageNode(offscreen_image));
 }
 
+#if !SB_HAS(BLITTER)
 // Tests that offscreen rendering works fine with YUV images.
 TEST_F(PixelTest, DrawOffscreenYUVImage) {
   scoped_refptr<Image> image =
@@ -3802,6 +3807,7 @@ TEST_F(PixelTest, DrawOffscreenYUVImage) {
 
   TestTree(new ImageNode(offscreen_rendered_image));
 }
+#endif  // !SB_HAS(BLITTER)
 
 #if defined(ENABLE_MAP_TO_MESH)
 
