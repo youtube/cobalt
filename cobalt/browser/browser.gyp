@@ -82,6 +82,8 @@
         'memory_tracker/tool/tool_thread.h',
         'memory_tracker/tool/util.cc',
         'memory_tracker/tool/util.h',
+        'on_screen_keyboard_starboard_bridge.cc',
+        'on_screen_keyboard_starboard_bridge.h',
         'render_tree_combiner.cc',
         'render_tree_combiner.h',
         'resource_provider_array_buffer_allocator.cc',

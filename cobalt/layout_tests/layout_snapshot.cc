@@ -51,10 +51,6 @@ void WebModuleErrorCallback(base::RunLoop* run_loop, MessageLoop* message_loop,
   LOG(FATAL) << "Error loading document: " << error << ". URL: " << url;
   message_loop->PostTask(FROM_HERE, base::Bind(Quit, run_loop));
 }
-
-// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
-// on screen keyboard.
-SbWindow GetNullSbWindow() { return NULL; }
 }  // namespace
 
 browser::WebModule::LayoutResults SnapshotURL(
@@ -89,9 +85,9 @@ browser::WebModule::LayoutResults SnapshotURL(
       base::Bind(&WebModuleErrorCallback, &run_loop, MessageLoop::current()),
       browser::WebModule::CloseCallback() /* window_close_callback */,
       base::Closure() /* window_minimize_callback */,
-      base::Bind(&GetNullSbWindow), NULL /* can_play_type_handler */,
-      NULL /* web_media_player_factory */, &network_module, viewport_size, 1.f,
-      resource_provider, 60.0f, web_module_options);
+      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      &network_module, viewport_size, 1.f, resource_provider, 60.0f,
+      web_module_options);
 
   run_loop.Run();
 
