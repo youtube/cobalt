@@ -25,6 +25,11 @@ namespace filter {
 
 class MediaTimeProvider {
  public:
+  virtual void Play() = 0;
+  virtual void Pause() = 0;
+  virtual void SetPlaybackRate(double playback_rate) = 0;
+  virtual void Seek(SbMediaTime seek_to_pts) = 0;
+  // This function can be called from *any* thread.
   virtual SbMediaTime GetCurrentMediaTime(bool* is_playing,
                                           bool* is_eos_played) = 0;
 

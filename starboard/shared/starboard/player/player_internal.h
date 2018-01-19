@@ -30,6 +30,7 @@ struct SbPlayerPrivate
   typedef starboard::shared::starboard::player::PlayerWorker PlayerWorker;
 
   SbPlayerPrivate(
+      SbMediaAudioCodec audio_codec,
       SbMediaTime duration_pts,
       SbPlayerDeallocateSampleFunc sample_deallocate_func,
       SbPlayerDecoderStatusFunc decoder_status_func,
