@@ -49,7 +49,7 @@
         'media_sandbox.h',
         'web_media_player_helper.cc',
         'web_media_player_helper.h',
-        'media_source_sandbox.cc',
+        'web_media_player_sandbox.cc',
       ],
       'dependencies': [
         'media',
