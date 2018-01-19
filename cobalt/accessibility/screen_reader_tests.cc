@@ -129,10 +129,6 @@ class LiveRegionMutationTest : public ::testing::TestWithParam<TestInfo> {
   base::WaitableEvent quit_event_;
   scoped_ptr<accessibility::ScreenReader> screen_reader_;
 };
-
-// Return a NULL SbWindow, since we do not need to pass a valid SbWindow to an
-// on screen keyboard.
-SbWindow GetNullSbWindow() { return NULL; }
 }  // namespace
 
 TEST_P(TextAlternativeTest, TextAlternativeTest) {
@@ -182,10 +178,9 @@ TEST_P(LiveRegionMutationTest, DISABLED_LiveRegionMutationTest) {
       base::Bind(&LiveRegionMutationTest::OnError, base::Unretained(this)),
       base::Bind(&LiveRegionMutationTest::OnClose, base::Unretained(this)),
       base::Closure(), /* window_minimize_callback */
-      base::Bind(&GetNullSbWindow), NULL /* can_play_type_handler */,
-      NULL /* web_media_player_factory */, &network_module,
-      kDefaultViewportSize, kDefaultVideoPixelRatio, &resource_provider,
-      kRefreshRate, web_module_options);
+      NULL /* can_play_type_handler */, NULL /* web_media_player_factory */,
+      &network_module, kDefaultViewportSize, kDefaultVideoPixelRatio,
+      &resource_provider, kRefreshRate, web_module_options);
 
   // Wait for the test to quit.
   quit_event_.Wait();

@@ -592,7 +592,7 @@ WebModule::Impl::Impl(const ConstructionData& data)
       base::Bind(&WebModule::Impl::OnRanAnimationFrameCallbacks,
                  base::Unretained(this)),
       data.window_close_callback, data.window_minimize_callback,
-      data.get_sb_window_callback, data.options.camera_3d,
+      data.options.on_screen_keyboard_bridge, data.options.camera_3d,
       media_session_client_->GetMediaSession(),
       data.options.csp_insecure_allowed_token, data.dom_max_element_depth,
       data.options.video_playback_rate_multiplier,
@@ -1206,7 +1206,6 @@ WebModule::WebModule(
     const OnErrorCallback& error_callback,
     const CloseCallback& window_close_callback,
     const base::Closure& window_minimize_callback,
-    const dom::Window::GetSbWindowCallback& get_sb_window_callback,
     media::CanPlayTypeHandler* can_play_type_handler,
     media::WebMediaPlayerFactory* web_media_player_factory,
     network::NetworkModule* network_module, const math::Size& window_dimensions,
@@ -1216,8 +1215,8 @@ WebModule::WebModule(
   ConstructionData construction_data(
       initial_url, initial_application_state, render_tree_produced_callback,
       error_callback, window_close_callback, window_minimize_callback,
-      get_sb_window_callback, can_play_type_handler, web_media_player_factory,
-      network_module, window_dimensions, video_pixel_ratio, resource_provider,
+      can_play_type_handler, web_media_player_factory, network_module,
+      window_dimensions, video_pixel_ratio, resource_provider,
       kDOMMaxElementDepth, layout_refresh_rate, options);
 
   // Start the dedicated thread and create the internal implementation

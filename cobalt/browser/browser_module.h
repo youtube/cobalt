@@ -45,6 +45,7 @@
 #include "cobalt/dom/array_buffer.h"
 #include "cobalt/dom/input_event_init.h"
 #include "cobalt/dom/keyboard_event_init.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/input/input_device_manager.h"
@@ -516,6 +517,8 @@ class BrowserModule {
   // The splash screen. The pointer wrapped here should be non-NULL iff
   // the splash screen is currently displayed.
   scoped_ptr<SplashScreen> splash_screen_;
+
+  scoped_ptr<dom::OnScreenKeyboardBridge> on_screen_keyboard_bridge_;
 
   // Reset when the browser is paused, signalled to resume.
   base::WaitableEvent has_resumed_;
