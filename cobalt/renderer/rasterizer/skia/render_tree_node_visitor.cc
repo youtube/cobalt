@@ -585,62 +585,15 @@ void RenderMultiPlaneImage(MultiPlaneImage* multi_plane_image,
                            RenderTreeNodeVisitorDrawState* draw_state,
                            const math::RectF& destination_rect,
                            const math::Matrix3F* local_transform) {
-  SkMatrix skia_local_transform = CobaltMatrixToSkia(*local_transform);
+  UNREFERENCED_PARAMETER(multi_plane_image);
+  UNREFERENCED_PARAMETER(draw_state);
+  UNREFERENCED_PARAMETER(destination_rect);
+  UNREFERENCED_PARAMETER(local_transform);
 
-  const SkBitmap* y_bitmap = multi_plane_image->GetBitmap(0);
-  if (!y_bitmap) {
-    return;
-  }
-  DCHECK(!y_bitmap->isNull());
-  SkMatrix y_matrix = skia_local_transform;
-  ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(y_bitmap->width(), y_bitmap->height()), destination_rect,
-      &y_matrix);
-
-  const SkBitmap* u_bitmap = multi_plane_image->GetBitmap(1);
-  if (!u_bitmap) {
-    return;
-  }
-  DCHECK(!u_bitmap->isNull());
-  SkMatrix u_matrix = skia_local_transform;
-  ConvertLocalTransformMatrixToSkiaShaderFormat(
-      math::Size(u_bitmap->width(), u_bitmap->height()), destination_rect,
-      &u_matrix);
-
-  SkAutoTUnref<SkShader> yuv2rgb_shader;
-
-  switch (multi_plane_image->GetFormat()) {
-    case render_tree::kMultiPlaneImageFormatYUV2PlaneBT709:
-      yuv2rgb_shader.reset(SkNEW_ARGS(
-          SkNV122RGBShader,
-          (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix, *u_bitmap, u_matrix)));
-      break;
-    case render_tree::kMultiPlaneImageFormatYUV3PlaneBT709: {
-      const SkBitmap* v_bitmap = multi_plane_image->GetBitmap(2);
-      if (!v_bitmap) {
-        return;
-      }
-      DCHECK(!v_bitmap->isNull());
-      SkMatrix v_matrix = skia_local_transform;
-      ConvertLocalTransformMatrixToSkiaShaderFormat(
-          math::Size(v_bitmap->width(), v_bitmap->height()), destination_rect,
-          &v_matrix);
-      yuv2rgb_shader.reset(SkNEW_ARGS(
-          SkYUV2RGBShader, (kRec709_SkYUVColorSpace, *y_bitmap, y_matrix,
-                            *u_bitmap, u_matrix, *v_bitmap, v_matrix)));
-      break;
-    }
-    default: {
-      NOTREACHED() << "Unsupported multi plane image format.";
-      break;
-    }
-  }
-
-  SkPaint paint = CreateSkPaintForImageRendering(*draw_state,
-                                                 multi_plane_image->IsOpaque());
-  paint.setShader(yuv2rgb_shader);
-  draw_state->render_target->drawRect(CobaltRectFToSkiaRect(destination_rect),
-                                      paint);
+  // Multi-plane images like YUV images are not supported when using the
+  // software rasterizers.
+  NOTIMPLEMENTED();
+  NOTREACHED();
 }
 
 }  // namespace
