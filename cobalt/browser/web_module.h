@@ -43,6 +43,7 @@
 #include "cobalt/dom/keyboard_event_init.h"
 #include "cobalt/dom/local_storage_database.h"
 #include "cobalt/dom/media_source.h"
+#include "cobalt/dom/on_screen_keyboard_bridge.h"
 #include "cobalt/dom/pointer_event_init.h"
 #include "cobalt/dom/wheel_event_init.h"
 #include "cobalt/dom/window.h"
@@ -204,6 +205,9 @@ class WebModule : public LifecycleObserver {
     // Whether or not the WebModule is allowed to fetch from cache via
     // h5vcc-cache://.
     bool can_fetch_cache;
+
+    // The dom::OnScreenKeyboard forwards calls to this interface.
+    dom::OnScreenKeyboardBridge* on_screen_keyboard_bridge = NULL;
   };
 
   typedef layout::LayoutManager::LayoutResults LayoutResults;
@@ -218,7 +222,6 @@ class WebModule : public LifecycleObserver {
             const OnErrorCallback& error_callback,
             const CloseCallback& window_close_callback,
             const base::Closure& window_minimize_callback,
-            const dom::Window::GetSbWindowCallback& get_sb_window_callback,
             media::CanPlayTypeHandler* can_play_type_handler,
             media::WebMediaPlayerFactory* web_media_player_factory,
             network::NetworkModule* network_module,
@@ -316,7 +319,6 @@ class WebModule : public LifecycleObserver {
         const OnErrorCallback& error_callback,
         const CloseCallback& window_close_callback,
         const base::Closure& window_minimize_callback,
-        const dom::Window::GetSbWindowCallback& get_sb_window_callback,
         media::CanPlayTypeHandler* can_play_type_handler,
         media::WebMediaPlayerFactory* web_media_player_factory,
         network::NetworkModule* network_module,
@@ -330,7 +332,6 @@ class WebModule : public LifecycleObserver {
           error_callback(error_callback),
           window_close_callback(window_close_callback),
           window_minimize_callback(window_minimize_callback),
-          get_sb_window_callback(get_sb_window_callback),
           can_play_type_handler(can_play_type_handler),
           web_media_player_factory(web_media_player_factory),
           network_module(network_module),
@@ -347,7 +348,6 @@ class WebModule : public LifecycleObserver {
     OnErrorCallback error_callback;
     const CloseCallback& window_close_callback;
     const base::Closure& window_minimize_callback;
-    const dom::Window::GetSbWindowCallback& get_sb_window_callback;
     media::CanPlayTypeHandler* can_play_type_handler;
     media::WebMediaPlayerFactory* web_media_player_factory;
     network::NetworkModule* network_module;

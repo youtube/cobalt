@@ -32,6 +32,7 @@
 #include "cobalt/base/cobalt_paths.h"
 #include "cobalt/base/source_location.h"
 #include "cobalt/base/tokens.h"
+#include "cobalt/browser/on_screen_keyboard_starboard_bridge.h"
 #include "cobalt/browser/resource_provider_array_buffer_allocator.h"
 #include "cobalt/browser/screen_shot_writer.h"
 #include "cobalt/browser/storage_upgrade_handler.h"
@@ -264,6 +265,10 @@ BrowserModule::BrowserModule(const GURL& url,
           kScreenshotCommandShortHelp, kScreenshotCommandLongHelp)),
 #endif  // defined(ENABLE_SCREENSHOT)
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+      on_screen_keyboard_bridge_(new OnScreenKeyboardStarboardBridge(
+          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)))),
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
       has_resumed_(true, false),
 #if defined(COBALT_CHECK_RENDER_TIMEOUT)
       timeout_polling_thread_(kTimeoutPollingThreadName),
@@ -358,8 +363,7 @@ BrowserModule::BrowserModule(const GURL& url,
       &network_module_, GetViewportSize(), GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz,
       base::Bind(&BrowserModule::GetDebugServer, base::Unretained(this)),
-      options_.web_module_options.javascript_engine_options,
-      base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this))));
+      options_.web_module_options.javascript_engine_options));
   lifecycle_observers_.AddObserver(debug_console_.get());
 #endif  // defined(ENABLE_DEBUG_CONSOLE)
 
@@ -470,8 +474,7 @@ void BrowserModule::Navigate(const GURL& url) {
           &network_module_, viewport_size, GetResourceProvider(),
           kLayoutMaxRefreshFrequencyInHz, fallback_splash_screen_url_, url,
           splash_screen_cache_.get(),
-          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_),
-          base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this))));
+          base::Bind(&BrowserModule::DestroySplashScreen, weak_this_)));
       lifecycle_observers_.AddObserver(splash_screen_.get());
     }
   }
@@ -499,7 +502,9 @@ void BrowserModule::Navigate(const GURL& url) {
         true;
   }
 #endif  // defined(ENABLE_FAKE_MICROPHONE)
-
+  if (on_screen_keyboard_bridge_) {
+    options.on_screen_keyboard_bridge = on_screen_keyboard_bridge_.get();
+  }
   options.image_cache_capacity_multiplier_when_playing_video =
       COBALT_IMAGE_CACHE_CAPACITY_MULTIPLIER_WHEN_PLAYING_VIDEO;
   if (input_device_manager_) {
@@ -518,7 +523,6 @@ void BrowserModule::Navigate(const GURL& url) {
       base::Bind(&BrowserModule::OnError, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowClose, base::Unretained(this)),
       base::Bind(&BrowserModule::OnWindowMinimize, base::Unretained(this)),
-      base::Bind(&BrowserModule::GetSbWindow, base::Unretained(this)),
       can_play_type_handler_.get(), media_module_.get(), &network_module_,
       viewport_size, video_pixel_ratio, GetResourceProvider(),
       kLayoutMaxRefreshFrequencyInHz, options));

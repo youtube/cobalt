@@ -114,7 +114,7 @@ Window::Window(int width, int height, float device_pixel_ratio,
                const base::Closure& ran_animation_frame_callbacks_callback,
                const CloseCallback& window_close_callback,
                const base::Closure& window_minimize_callback,
-               const base::Callback<SbWindow()>& get_sb_window_callback,
+               OnScreenKeyboardBridge* on_screen_keyboard_bridge,
                const scoped_refptr<input::Camera3D>& camera_3d,
                const scoped_refptr<MediaSession>& media_session,
                int csp_insecure_allowed_token, int dom_max_element_depth,
@@ -178,14 +178,13 @@ Window::Window(int width, int height, float device_pixel_ratio,
           ran_animation_frame_callbacks_callback),
       window_close_callback_(window_close_callback),
       window_minimize_callback_(window_minimize_callback),
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-      on_screen_keyboard_(
-          new OnScreenKeyboard(get_sb_window_callback, script_value_factory)),
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+      // We only have an on_screen_keyboard_bridge when the platform supports
+      // it. Otherwise don't even expose it in the DOM.
+      on_screen_keyboard_(on_screen_keyboard_bridge
+                              ? new OnScreenKeyboard(on_screen_keyboard_bridge,
+                                                     script_value_factory)
+                              : NULL),
       splash_screen_cache_callback_(splash_screen_cache_callback) {
-#if !SB_HAS(ON_SCREEN_KEYBOARD)
-  UNREFERENCED_PARAMETER(get_sb_window_callback);
-#endif  // !SB_HAS(ON_SCREEN_KEYBOARD)
 #if !defined(ENABLE_TEST_RUNNER)
   UNREFERENCED_PARAMETER(clock_type);
 #endif
