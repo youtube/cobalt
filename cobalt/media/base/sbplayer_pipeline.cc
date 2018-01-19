@@ -791,7 +791,6 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   TRACE_EVENT0("cobalt::media", "SbPlayerPipeline::CreatePlayer");
 
   DCHECK(message_loop_->BelongsToCurrentThread());
-  DCHECK(audio_stream_);
   DCHECK(video_stream_);
 
   if (stopped_) {
@@ -809,8 +808,10 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
   // TODO:  Check |suspended_| here as the pipeline can be suspended before the
   // player is created.  In this case we should delay creating the player as the
   // creation of player may fail.
+  AudioDecoderConfig invalid_audio_config;
   const AudioDecoderConfig& audio_config =
-      audio_stream_->audio_decoder_config();
+      audio_stream_ ? audio_stream_->audio_decoder_config()
+                    : invalid_audio_config;
   const VideoDecoderConfig& video_config =
       video_stream_->video_decoder_config();
 
@@ -832,7 +833,9 @@ void SbPlayerPipeline::CreatePlayer(SbDrmSystem drm_system) {
     }
     output_mode_change_cb.Run();
 
-    UpdateDecoderConfig(audio_stream_);
+    if (audio_stream_) {
+      UpdateDecoderConfig(audio_stream_);
+    }
     UpdateDecoderConfig(video_stream_);
     return;
   }
@@ -877,8 +880,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
 
   DemuxerStream* audio_stream = demuxer_->GetStream(DemuxerStream::AUDIO);
   DemuxerStream* video_stream = demuxer_->GetStream(DemuxerStream::VIDEO);
-  if (audio_stream == NULL || video_stream == NULL) {
-    LOG(INFO) << "The video doesn't contain both an audio and a video track.";
+  if (video_stream == NULL) {
+    LOG(INFO) << "The video has to contain a video track.";
     ResetAndRunIfNotNull(&error_cb_, DEMUXER_ERROR_NO_SUPPORTED_STREAMS);
     return;
   }
@@ -888,7 +891,8 @@ void SbPlayerPipeline::OnDemuxerInitialized(PipelineStatus status) {
     audio_stream_ = audio_stream;
     video_stream_ = video_stream;
 
-    bool is_encrypted = audio_stream_->audio_decoder_config().is_encrypted();
+    bool is_encrypted =
+        audio_stream_ && audio_stream_->audio_decoder_config().is_encrypted();
     is_encrypted |= video_stream_->video_decoder_config().is_encrypted();
     bool natural_size_changed =
         (video_stream_->video_decoder_config().natural_size().width() !=
@@ -998,6 +1002,11 @@ void SbPlayerPipeline::OnNeedData(DemuxerStream::Type type) {
   }
 
   if (type == DemuxerStream::AUDIO) {
+    if (!audio_stream_) {
+      LOG(WARNING)
+          << "Calling OnNeedData() for audio data during audioless playback";
+      return;
+    }
     if (audio_read_in_progress_) {
       return;
     }
