@@ -150,6 +150,27 @@ void AudioRenderer::WriteEndOfStream() {
   first_input_written_ = true;
 }
 
+void AudioRenderer::SetVolume(double volume) {
+  SB_DCHECK(BelongsToCurrentThread());
+  audio_renderer_sink_->SetVolume(volume);
+}
+
+bool AudioRenderer::IsEndOfStreamPlayed() const {
+  return eos_state_.load() >= kEOSSentToSink &&
+         frames_sent_to_sink_.load() == frames_consumed_by_sink_.load();
+}
+
+bool AudioRenderer::CanAcceptMoreData() const {
+  SB_DCHECK(BelongsToCurrentThread());
+  return eos_state_.load() == kEOSNotReceived && can_accept_more_data_ &&
+         (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
+}
+
+bool AudioRenderer::IsSeekingInProgress() const {
+  SB_DCHECK(BelongsToCurrentThread());
+  return seeking_.load();
+}
+
 void AudioRenderer::Play() {
   SB_DCHECK(BelongsToCurrentThread());
 
@@ -185,11 +206,6 @@ void AudioRenderer::SetPlaybackRate(double playback_rate) {
       ProcessAudioData();
     }
   }
-}
-
-void AudioRenderer::SetVolume(double volume) {
-  SB_DCHECK(BelongsToCurrentThread());
-  audio_renderer_sink_->SetVolume(volume);
 }
 
 void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
@@ -228,22 +244,6 @@ void AudioRenderer::Seek(SbMediaTime seek_to_pts) {
   if (log_frames_consumed_closure_) {
     Schedule(log_frames_consumed_closure_, kSbTimeSecond);
   }
-}
-
-bool AudioRenderer::IsEndOfStreamPlayed() const {
-  return eos_state_.load() >= kEOSSentToSink &&
-         frames_sent_to_sink_.load() == frames_consumed_by_sink_.load();
-}
-
-bool AudioRenderer::CanAcceptMoreData() const {
-  SB_DCHECK(BelongsToCurrentThread());
-  return eos_state_.load() == kEOSNotReceived && can_accept_more_data_ &&
-         (!decoder_sample_rate_ || !time_stretcher_.IsQueueFull());
-}
-
-bool AudioRenderer::IsSeekingInProgress() const {
-  SB_DCHECK(BelongsToCurrentThread());
-  return seeking_.load();
 }
 
 SbMediaTime AudioRenderer::GetCurrentMediaTime(bool* is_playing,

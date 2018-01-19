@@ -96,6 +96,7 @@ class PlayerWorker {
   };
 
   PlayerWorker(Host* host,
+               SbMediaAudioCodec audio_codec,
                scoped_ptr<Handler> handler,
                SbPlayerDecoderStatusFunc decoder_status_func,
                SbPlayerStatusFunc player_status_func,
@@ -180,6 +181,7 @@ class PlayerWorker {
   scoped_ptr<JobQueue> job_queue_;
 
   Host* host_;
+  SbMediaAudioCodec audio_codec_;
   scoped_ptr<Handler> handler_;
 
   SbPlayerDecoderStatusFunc decoder_status_func_;

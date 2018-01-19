@@ -23,6 +23,7 @@
         '<(DEPTH)/starboard/shared/starboard/player/filter/audio_renderer_internal_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/fake_graphics_context_provider.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/fake_graphics_context_provider.h',
+        '<(DEPTH)/starboard/shared/starboard/player/filter/media_time_provider_impl_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/filter/video_decoder_test.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.cc',
         '<(DEPTH)/starboard/shared/starboard/player/video_dmp_common.h',

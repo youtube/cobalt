@@ -57,11 +57,7 @@ class AudioRenderer : public MediaTimeProvider,
   void WriteSample(const scoped_refptr<InputBuffer>& input_buffer);
   void WriteEndOfStream();
 
-  void Play();
-  void Pause();
-  void SetPlaybackRate(double playback_rate);
   void SetVolume(double volume);
-  void Seek(SbMediaTime seek_to_pts);
 
   bool IsEndOfStreamWritten() const {
     return eos_state_.load() >= kEOSWrittenToDecoder;
@@ -70,8 +66,13 @@ class AudioRenderer : public MediaTimeProvider,
   bool CanAcceptMoreData() const;
   bool IsSeekingInProgress() const;
 
-  // This function can be called from *any* thread.
-  SbMediaTime GetCurrentMediaTime(bool* is_playing, bool* is_eos_played);
+  // MediaTimeProvider methods
+  void Play() override;
+  void Pause() override;
+  void SetPlaybackRate(double playback_rate) override;
+  void Seek(SbMediaTime seek_to_pts) override;
+  SbMediaTime GetCurrentMediaTime(bool* is_playing,
+                                  bool* is_eos_played) override;
 
  protected:
   atomic_bool paused_;
