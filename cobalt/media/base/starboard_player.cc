@@ -130,7 +130,6 @@ StarboardPlayer::StarboardPlayer(
       playback_rate_(0.0),
       seek_pending_(false),
       state_(kPlaying) {
-  DCHECK(audio_config.IsValidConfig());
   DCHECK(video_config.IsValidConfig());
   DCHECK(host_);
   DCHECK(set_bounds_helper_);
@@ -528,23 +527,26 @@ void StarboardPlayer::CreatePlayer() {
   TRACE_EVENT0("cobalt::media", "StarboardPlayer::CreatePlayer");
   DCHECK(message_loop_->BelongsToCurrentThread());
 
-  SbMediaAudioHeader audio_header =
-      MediaAudioConfigToSbMediaAudioHeader(audio_config_);
+  SbMediaAudioCodec audio_codec = kSbMediaAudioCodecNone;
+  SbMediaAudioHeader audio_header;
+  bool has_audio = audio_config_.IsValidConfig();
+  if (has_audio) {
+    audio_header = MediaAudioConfigToSbMediaAudioHeader(audio_config_);
+    audio_codec = MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
+  }
 
-  SbMediaAudioCodec audio_codec =
-      MediaAudioCodecToSbMediaAudioCodec(audio_config_.codec());
   SbMediaVideoCodec video_codec =
       MediaVideoCodecToSbMediaVideoCodec(video_config_.codec());
 
   DCHECK(SbPlayerOutputModeSupported(output_mode_, video_codec, drm_system_));
 
-  player_ = SbPlayerCreate(window_, video_codec, audio_codec,
-                           SB_PLAYER_NO_DURATION, drm_system_, &audio_header,
-                           &StarboardPlayer::DeallocateSampleCB,
-                           &StarboardPlayer::DecoderStatusCB,
-                           &StarboardPlayer::PlayerStatusCB, this, output_mode_,
-                           ShellMediaPlatform::Instance()
-                               ->GetSbDecodeTargetGraphicsContextProvider());
+  player_ = SbPlayerCreate(
+      window_, video_codec, audio_codec, SB_PLAYER_NO_DURATION, drm_system_,
+      has_audio ? &audio_header : NULL, &StarboardPlayer::DeallocateSampleCB,
+      &StarboardPlayer::DecoderStatusCB, &StarboardPlayer::PlayerStatusCB, this,
+      output_mode_,
+      ShellMediaPlatform::Instance()
+          ->GetSbDecodeTargetGraphicsContextProvider());
   DCHECK(SbPlayerIsValid(player_));
 
   if (output_mode_ == kSbPlayerOutputModeDecodeToTexture) {
