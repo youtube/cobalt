@@ -20,164 +20,81 @@ final STARBOARD_APP = 'cobalt'
 //final STARBOARD_APP = 'starboard_glclear_example'
 //final STARBOARD_APP = 'starboard_window_example'
 
-// Maps the Android build type to the Cobalt build configuration type
-final COBALT_BUILD_TYPE_MAP = [
-        debug  : 'debug',
-        release: 'gold',
-]
+// Which Cobalt build config to build.
+final COBALT_BUILD_CONFIG = 'debug'
 
-// Maps the Android ABI to the Cobalt target architecture
-final COBALT_ARCH_MAP = [
-        'x86'        : 'x86',
-        'x86_64'     : 'x64',
-        'armeabi-v7a': 'arm',
-        'arm64-v8a'  : 'arm64',
-]
-final String[] SPLIT_ABI_NAMES = COBALT_ARCH_MAP.keySet()
+final String[] SUPPORTED_ABIS = [ 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a' ]
 
-final getProductDir = { configType, arch ->
-    // If 'cobaltProductDir' was specified on the command line (see root project),
-    // use that instead of the relative path up to the 'out' directory.
-    cobaltProductDir ?: "../../../../out/android-${arch}_${configType}"
+ext {
+    // Provide defaults if these properties aren't specified on the command line.
+    buildAbi = project.hasProperty('buildAbi') ? buildAbi : SUPPORTED_ABIS
+    cobaltProductDir =
+            project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
+    cobaltPlatformDeploy = project.hasProperty('cobaltPlatformDeploy') && cobaltPlatformDeploy
 }
 
 android {
     compileSdkVersion 27
-    buildToolsVersion "27.0.1"
-    publishNonDefault true
+    buildToolsVersion "27.0.2"
 
     defaultConfig {
         applicationId "foo.cobalt.coat"
-        // Note: Please also change these values in
-        // starboard/android.shared/platform_deploy.gypi
         minSdkVersion 21
         targetSdkVersion 27
         versionCode 1
         versionName "1.0"
         ndk {
-            abiFilters SPLIT_ABI_NAMES
+            abiFilters buildAbi
+        }
+        externalNativeBuild {
+            cmake {
+                arguments "-DCOBALT_TARGET=${STARBOARD_APP}"
+                arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
+                arguments "-DCOBALT_PLATFORM_DEPLOY=${cobaltPlatformDeploy}"
+            }
         }
     }
     splits {
         abi {
             enable true
             reset()
-            include SPLIT_ABI_NAMES
+            include buildAbi
         }
     }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=gold"
+            }
         }
         debug {
             debuggable true
             jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=${COBALT_BUILD_CONFIG}"
+            }
+        }
+    }
+    sourceSets {
+        // Add the directories symlinked by the CMake "cobalt_content" custom command.
+        release {
+            assets.srcDir "${buildDir}/intermediates/cmake/release/cobalt_content"
+        }
+        debug {
+            assets.srcDir "${buildDir}/intermediates/cmake/debug/cobalt_content"
         }
     }
     externalNativeBuild {
-        cmake {
-            path 'CMakeLists.txt'
-        }
-    }
-}
-
-// Flavors of the assemble tasks and externalNativeBuild (NDK/cmake) are created during evaluation
-// so we can only hook up to them after that's done.
-afterEvaluate {
-    android.buildTypes.each {
-        def buildType = it.name
-        def capBuildType = buildType.capitalize()
-        def configType = COBALT_BUILD_TYPE_MAP[buildType]
-
-        def nativeBuildTask = tasks.findByName("externalNativeBuild${capBuildType}")
-
-        // Find all the assemble task flavors actually being built
-        def assembleTask = tasks.findByName("assemble${capBuildType}")
-        def assembleFlavors = assembleTask.taskDependencies.getDependencies(assembleTask).findAll {
-            it.name.startsWith('assemble')
-        }
-        if (assembleFlavors.size() > 1) {
-            assembleTask.dependsOn checkMultipleFlavors
-        }
-
-        // Leverage Android Studio's determination to assemble only the ABI split needed for the
-        // target device, and only run the cobalt tasks of the same flavor.
-        assembleFlavors.each { assemble ->
-            def flavor = assemble.name.replaceFirst('assemble', '')
-            def cobaltCopyTaskName = "cobaltCopy${flavor}"
-            // Run our build & copy tasks only when the same flavor assemble task is required
-            assemble.dependsOn cobaltCopyTaskName
-            // Run cmake only after we copied our .so file to where it will be picked up
-            // (not using 'dependsOn' since we only want to run for flavors being assembled)
-            nativeBuildTask.mustRunAfter cobaltCopyTaskName
-        }
-
-        // Include the Cobalt content directory as assets in the APK. Take it from the first flavor
-        // for all architectures since we only need one and they're all the same.
-        def abi = assembleFlavors.first().name
-            .replaceFirst('assemble', '').replace(capBuildType, '').toLowerCase()
-        def arch = COBALT_ARCH_MAP[abi]
-        def cobaltContentDir = "${getProductDir(configType, arch)}/content/data"
-        android.sourceSets.getByName(buildType).assets.srcDir cobaltContentDir
-        // Add the static files in the assets directory.
-        android.sourceSets.getByName(buildType).assets.srcDir 'assets'
-    }
-}
-
-task checkMultipleFlavors {
-    doLast {
-        if (cobaltProductDir) {
-            throw new IllegalArgumentException(
-                    "Can't build multiple ABIs when cobaltProductDir is set")
-        }
-    }
-}
-
-// Make proxy assemble tasks just depend on the Android assemble task of the right flavor. This
-// makes them available to specify on the command line, unlike the flavors of the assemble tasks,
-// which aren't created until during evaluation phase. We do not capitalize the ABI in the task
-// name so that it's easy to generate in GYP.
-COBALT_ARCH_MAP.keySet().each { abi ->
-    task "cobaltAssembleForDeploy_${abi}" dependsOn "assemble${abi.capitalize()}Debug"
-}
-
-COBALT_BUILD_TYPE_MAP.each { buildType, configType ->
-    // Add a build directory for each buildType to the Android JNI sourceSets for libcoat.so
-    // so that it can be included in the APK (the assemble task will pick up all the ABIs it holds).
-    def cobaltBuildDir = "${buildDir}/intermediates/cobalt/${buildType}"
-    android.sourceSets.getByName(buildType).jniLibs.srcDir cobaltBuildDir
-
-    // Add build/copy tasks for each (buildType, abi) tuple to produce the Cobalt native library.
-    COBALT_ARCH_MAP.each { abi, arch ->
-        def productDir = getProductDir(configType, arch)
-
-        def buildTaskName = "cobaltBuild${abi.capitalize()}${buildType.capitalize()}"
-        def cobaltBuildTask = task(buildTaskName, type: Exec) {
-            def ninjaArgs = ['-C', productDir, STARBOARD_APP]
-            if (project.hasProperty('cobaltPlatformDeploy') && cobaltPlatformDeploy.toBoolean()) {
-                ninjaArgs.add(0, '-n')
-            }
-            commandLine = ['sh', 'cobalt-ninja.sh', *ninjaArgs]
-        }
-        cobaltBuildTask.mustRunAfter checkMultipleFlavors
-
-        def copyTaskName = "cobaltCopy${abi.capitalize()}${buildType.capitalize()}"
-        task(copyTaskName, type: Copy, dependsOn: buildTaskName) {
-            from "${productDir}/lib/lib${STARBOARD_APP}.so"
-            into "${cobaltBuildDir}/${abi}"
-            rename("lib${STARBOARD_APP}.so", 'libcoat.so')
-            doLast {
-                source.files.each { println it }
-            }
-        }
+        cmake.path 'CMakeLists.txt'
     }
 }
 
 dependencies {
-    compile fileTree(include: ['*.jar'], dir: 'libs')
-    compile 'com.android.support:support-annotations:27.0.1'
-    compile 'com.android.support:leanback-v17:27.0.1'
-    compile 'com.android.support:support-v4:27.0.1'
-    compile 'com.google.android.gms:play-services-auth:11.6.0'
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation 'com.android.support:support-annotations:27.0.2'
+    implementation 'com.android.support:leanback-v17:27.0.2'
+    implementation 'com.android.support:support-v4:27.0.2'
+    implementation 'com.google.android.gms:play-services-auth:11.8.0'
 }
