@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NestedPutForwardsInterface;
 using cobalt::bindings::testing::MozjsNestedPutForwardsInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsNestedPutForwardsInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsNestedPutForwardsInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNestedPutForwardsInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -129,6 +140,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "NestedPutForwardsInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -312,6 +325,7 @@ bool set_nestedForwardingAttribute(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "nestedForwardingAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -326,6 +340,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -490,8 +505,9 @@ JSObject* MozjsNestedPutForwardsInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

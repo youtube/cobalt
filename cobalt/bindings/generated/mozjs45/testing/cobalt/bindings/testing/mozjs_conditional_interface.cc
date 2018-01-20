@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::ConditionalInterface;
 using cobalt::bindings::testing::MozjsConditionalInterface;
@@ -89,7 +92,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsConditionalInterfaceHandler : public ProxyHandler {
  public:
@@ -109,6 +119,7 @@ MozjsConditionalInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsConditionalInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -127,6 +138,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "ConditionalInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -390,6 +403,7 @@ bool set_disabledAttribute(
 
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
+
 bool fcn_disabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -438,6 +452,7 @@ bool fcn_disabledOperation(
 
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
+
 bool fcn_enabledOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -488,6 +503,7 @@ bool fcn_enabledOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
   {  // Read/Write property
     "enabledAttribute",
@@ -508,16 +524,12 @@ const JSPropertySpec prototype_properties[] = {
 };
 
 const JSFunctionSpec prototype_functions[] = {
-
 #if defined(NO_ENABLE_CONDITIONAL_PROPERTY)
-
   JS_FNSPEC(
       "disabledOperation", fcn_disabledOperation, NULL,
       0, JSPROP_ENUMERATE, NULL),
 #endif  // NO_ENABLE_CONDITIONAL_PROPERTY
-
 #if defined(ENABLE_CONDITIONAL_PROPERTY)
-
   JS_FNSPEC(
       "enabledOperation", fcn_enabledOperation, NULL,
       0, JSPROP_ENUMERATE, NULL),
@@ -526,6 +538,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -690,8 +703,9 @@ JSObject* MozjsConditionalInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 
