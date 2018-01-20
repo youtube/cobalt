@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -53,6 +55,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::ObjectTypeBindingsInterface;
 using cobalt::bindings::testing::MozjsObjectTypeBindingsInterface;
@@ -99,7 +102,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsObjectTypeBindingsInterfaceHandler : public ProxyHandler {
  public:
@@ -119,6 +129,7 @@ MozjsObjectTypeBindingsInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsObjectTypeBindingsInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -137,6 +148,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "ObjectTypeBindingsInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -546,6 +559,7 @@ bool set_objectProperty(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "arbitraryObject",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -578,6 +592,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -742,8 +757,9 @@ JSObject* MozjsObjectTypeBindingsInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

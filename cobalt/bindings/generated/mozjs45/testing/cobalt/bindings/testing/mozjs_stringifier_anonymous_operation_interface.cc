@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::StringifierAnonymousOperationInterface;
 using cobalt::bindings::testing::MozjsStringifierAnonymousOperationInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsStringifierAnonymousOperationInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsStringifierAnonymousOperationInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsStringifierAnonymousOperationInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -125,6 +136,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "StringifierAnonymousOperationInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -244,8 +257,8 @@ bool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   return true;
 }
 
-
 const JSPropertySpec prototype_properties[] = {
+
   JS_PS_END
 };
 
@@ -255,6 +268,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -419,8 +433,9 @@ JSObject* MozjsStringifierAnonymousOperationInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

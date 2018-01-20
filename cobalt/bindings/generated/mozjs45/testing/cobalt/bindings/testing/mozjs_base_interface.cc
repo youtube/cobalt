@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::BaseInterface;
 using cobalt::bindings::testing::MozjsBaseInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsBaseInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsBaseInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsBaseInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -120,6 +131,8 @@ static base::LazyInstance<MozjsBaseInterfaceHandler>
     proxy_handler;
 
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -226,6 +239,7 @@ bool get_baseAttribute(
 }
 
 
+
 bool fcn_baseOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -275,6 +289,7 @@ bool fcn_baseOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Readonly attribute
     "baseAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -292,6 +307,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -465,8 +481,10 @@ JSObject* MozjsBaseInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
+
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   MozjsExceptionState exception_state(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -479,6 +497,8 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   args.rval().setObject(result_value.toObject());
   return true;
 }
+
+
 }  // namespace
 
 

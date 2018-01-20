@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NamedConstructorInterface;
 using cobalt::bindings::testing::MozjsNamedConstructorInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsNamedConstructorInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsNamedConstructorInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNamedConstructorInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -120,6 +131,8 @@ static base::LazyInstance<MozjsNamedConstructorInterfaceHandler>
     proxy_handler;
 
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -181,6 +194,7 @@ const JSClass interface_object_class_definition = {
 
 
 const JSPropertySpec prototype_properties[] = {
+
   JS_PS_END
 };
 
@@ -189,6 +203,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -362,8 +377,10 @@ JSObject* MozjsNamedConstructorInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
+
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   MozjsExceptionState exception_state(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -376,6 +393,8 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   args.rval().setObject(result_value.toObject());
   return true;
 }
+
+
 }  // namespace
 
 
