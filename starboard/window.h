@@ -142,7 +142,8 @@ SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
 // app. |keepFocus| false indicates that the user may navigate focus off of the
 // OnScreenKeyboard via input. |keepFocus| is initialized to false in the
 // OnScreenKeyboard constructor.
-SB_EXPORT void SbWindowSetOnScreenKeyboardKeepFocus(bool keep_focus);
+SB_EXPORT void SbWindowSetOnScreenKeyboardKeepFocus(SbWindow window,
+                                                    bool keep_focus);
 
 // Show the on screen keyboard and populate the input with text |input_text|.
 // Fire kSbEventTypeWindowSizeChange and kSbEventTypeOnScreenKeyboardShown if
