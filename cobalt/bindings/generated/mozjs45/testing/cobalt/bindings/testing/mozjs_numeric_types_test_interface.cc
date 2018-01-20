@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NumericTypesTestInterface;
 using cobalt::bindings::testing::MozjsNumericTypesTestInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsNumericTypesTestInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsNumericTypesTestInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNumericTypesTestInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -125,6 +136,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "NumericTypesTestInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -1983,6 +1996,7 @@ bool set_unrestrictedDoubleProperty(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_byteArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2047,6 +2061,7 @@ bool fcn_byteArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_byteReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2098,6 +2113,7 @@ bool fcn_byteReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_doubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2163,6 +2179,7 @@ bool fcn_doubleArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_doubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2214,6 +2231,7 @@ bool fcn_doubleReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_longArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2279,6 +2297,7 @@ bool fcn_longArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_longLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2343,6 +2362,7 @@ bool fcn_longLongArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_longLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2395,6 +2415,7 @@ bool fcn_longLongReturnOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_longReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2446,6 +2467,7 @@ bool fcn_longReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_octetArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2511,6 +2533,7 @@ bool fcn_octetArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_octetReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2562,6 +2585,7 @@ bool fcn_octetReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_shortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2627,6 +2651,7 @@ bool fcn_shortArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_shortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2678,6 +2703,7 @@ bool fcn_shortReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_unrestrictedDoubleArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2743,6 +2769,7 @@ bool fcn_unrestrictedDoubleArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_unrestrictedDoubleReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2794,6 +2821,7 @@ bool fcn_unrestrictedDoubleReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_unsignedLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -2859,6 +2887,7 @@ bool fcn_unsignedLongArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_unsignedLongLongArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2923,6 +2952,7 @@ bool fcn_unsignedLongLongArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_unsignedLongLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -2975,6 +3005,7 @@ bool fcn_unsignedLongLongReturnOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_unsignedLongReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -3026,6 +3057,7 @@ bool fcn_unsignedLongReturnOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_unsignedShortArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -3091,6 +3123,7 @@ bool fcn_unsignedShortArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_unsignedShortReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -3146,6 +3179,7 @@ bool fcn_unsignedShortReturnOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "byteProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -3322,6 +3356,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -3486,8 +3521,9 @@ JSObject* MozjsNumericTypesTestInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

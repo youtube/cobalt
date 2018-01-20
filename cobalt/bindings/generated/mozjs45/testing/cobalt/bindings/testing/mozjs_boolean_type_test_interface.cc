@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::BooleanTypeTestInterface;
 using cobalt::bindings::testing::MozjsBooleanTypeTestInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsBooleanTypeTestInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsBooleanTypeTestInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsBooleanTypeTestInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -125,6 +136,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "BooleanTypeTestInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -283,6 +296,7 @@ bool set_booleanProperty(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_booleanArgumentOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -347,6 +361,7 @@ bool fcn_booleanArgumentOperation(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_booleanReturnOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -402,6 +417,7 @@ bool fcn_booleanReturnOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "booleanProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -422,6 +438,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -586,8 +603,9 @@ JSObject* MozjsBooleanTypeTestInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

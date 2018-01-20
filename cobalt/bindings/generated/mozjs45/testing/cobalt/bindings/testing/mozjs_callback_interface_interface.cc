@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::CallbackInterfaceInterface;
 using cobalt::bindings::testing::MozjsCallbackInterfaceInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsCallbackInterfaceInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsCallbackInterfaceInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsCallbackInterfaceInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -129,6 +140,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "CallbackInterfaceInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -287,6 +300,7 @@ bool set_callbackAttribute(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_registerCallback(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -351,6 +365,7 @@ bool fcn_registerCallback(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_someOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -400,6 +415,7 @@ bool fcn_someOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "callbackAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -420,6 +436,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -584,8 +601,9 @@ JSObject* MozjsCallbackInterfaceInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 
