@@ -168,6 +168,22 @@ void OnScreenKeyboard::set_oninput(
   SetAttributeEventListener(base::Tokens::input(), event_listener);
 }
 
+void OnScreenKeyboard::set_keep_focus(bool keep_focus) {
+#if SB_HAS(ON_SCREEN_KEYBOARD)
+  CHECK(!get_sb_window_callback_.is_null());
+  SbWindow sb_window = get_sb_window_callback_.Run();
+
+  if (!sb_window) {
+    LOG(ERROR) << "OnScreenKeyboard::set_keep_focus invalid without SbWindow.";
+    return;
+  }
+  keep_focus_ = keep_focus;
+  SbWindowSetOnScreenKeyboardKeepFocus(sb_window, keep_focus);
+#else   // SB_HAS(ON_SCREEN_KEYBOARD)
+  UNREFERENCED_PARAMETER(keep_focus);
+#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+}
+
 bool OnScreenKeyboard::shown() const {
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   CHECK(!get_sb_window_callback_.is_null());
