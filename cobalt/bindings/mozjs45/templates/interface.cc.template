@@ -13,6 +13,7 @@
  # See the License for the specific language governing permissions and
  # limitations under the License.
  #}
+
 {% from 'macros.cc.template' import add_extra_arguments %}
 {% from 'macros.cc.template' import call_cobalt_function %}
 {% from 'macros.cc.template' import check_if_object_implements_interface with context %}
@@ -23,7 +24,9 @@
 {% from 'macros.cc.template' import overload_resolution_implementation with context %}
 {% from 'macros.cc.template' import set_attribute_implementation with context %}
 {% from 'macros.cc.template' import static_function_prologue %}
+
 {% extends "interface-base.cc.template" %}
+
 {% block includes %}
 {{ super() }}
 #include "{{generated_conversion_include}}"
@@ -50,7 +53,9 @@
 #include "third_party/mozjs-45/js/src/jsexn.h"
 {% endif %}
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
+
 {% endblock includes %}
+
 {% block using_directives %}
 {{ super() }}
 using cobalt::script::CallbackFunction;
@@ -77,21 +82,21 @@ using cobalt::script::mozjs::kConversionFlagTreatUndefinedAsEmptyString;
 using cobalt::script::mozjs::kConversionFlagObjectOnly;
 using cobalt::script::mozjs::kNoConversionFlags;
 {% endblock using_directives %}
+
 {% block enumeration_declarations %}
 {% if enumerations|length %}
 // Declare and define these in the same namespace that the other overloads
 // were brought into with the using declaration.
 {% for enumeration in enumerations %}
-void ToJSValue(
-    JSContext* context,
-    {{impl_class}}::{{enumeration.name}} in_enum,
-    JS::MutableHandleValue out_value);
+void ToJSValue(JSContext* context, {{impl_class}}::{{enumeration.name}} in_enum,
+               JS::MutableHandleValue out_value);
 void FromJSValue(JSContext* context, JS::HandleValue value,
                  int conversion_flags, ExceptionState* exception_state,
                  {{impl_class}}::{{enumeration.name}}* out_enum);
 {% endfor %}
 {% endif %}
 {% endblock enumeration_declarations %}
+
 {% block top_level_unnamed_namespace %}
 {% if is_global_interface %}
 JSObject* DummyFunctor(
@@ -103,9 +108,11 @@ JSObject* DummyFunctor(
 {% endblock top_level_unnamed_namespace %}
 
 {% block implementation %}
+
 namespace {
 
 {% if named_property_getter %}
+
 bool IsSupportedNamedProperty(JSContext* context, JS::HandleObject object,
                               const std::string& property_name) {
 {{ get_impl_class_instance(impl_class) }}
@@ -149,7 +156,9 @@ bool GetNamedProperty(
 }
 
 {% endif %}
+
 {% if named_property_setter %}
+
 bool SetNamedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -187,7 +196,9 @@ bool SetNamedProperty(
 }
 
 {% endif %}
+
 {% if named_property_deleter %}
+
 bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
                          const std::string& property_name) {
 {{ nonstatic_function_prologue(impl_class) }}
@@ -199,7 +210,9 @@ bool DeleteNamedProperty(JSContext* context, JS::HandleObject object,
 }
 
 {% endif %}
+
 {% if indexed_property_getter %}
+
 bool IsSupportedIndexProperty(JSContext* context, JS::HandleObject object,
                               uint32_t index) {
 {{ get_impl_class_instance(impl_class) }}
@@ -243,7 +256,9 @@ bool GetIndexedProperty(
 }
 
 {% endif %}
+
 {% if indexed_property_setter %}
+
 bool SetIndexedProperty(
   JSContext* context, JS::HandleObject object, JS::HandleId id,
   JS::MutableHandleValue vp, JS::ObjectOpResult& object_op_result) {
@@ -279,7 +294,9 @@ bool SetIndexedProperty(
 }
 
 {% endif %}
+
 {% if indexed_property_deleter %}
+
 bool DeleteIndexedProperty(
     JSContext* context, JS::HandleObject object, uint32_t index) {
 {{ nonstatic_function_prologue(impl_class) }}
@@ -291,6 +308,7 @@ bool DeleteIndexedProperty(
 }
 
 {% endif %}
+
 class {{binding_class}}Handler : public ProxyHandler {
  public:
   {{binding_class}}Handler()
@@ -309,6 +327,7 @@ ProxyHandler::NamedPropertyHooks
   {{ "SetNamedProperty" if named_property_setter else "NULL" }},
   {{ "DeleteNamedProperty" if named_property_deleter else "NULL" }},
 };
+
 ProxyHandler::IndexedPropertyHooks
 {{binding_class}}Handler::indexed_property_hooks = {
   {{ "IsSupportedIndexProperty" if indexed_property_getter else "NULL" }},
@@ -331,6 +350,7 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   return false;
 }
 {% endif %}
+
 {% for constant in constants %}
 bool get_{{constant.idl_name}}(
     JSContext* context, unsigned argc, JS::Value* vp) {
@@ -357,8 +377,8 @@ bool get_{{constant.idl_name}}(
   }
   return !exception_state.is_exception_set();
 }
-
 {% endfor %}
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -506,6 +526,7 @@ bool set_{{attribute.idl_name}}(
 #endif  // {{attribute.conditional}}
 {% endif %} {#- attribute.is_constructor_attribute #}
 {% endfor %}
+
 {%- for operation in operations + static_operations %}
 {% if operation.conditional %}
 #if defined({{operation.conditional}})
@@ -516,8 +537,8 @@ bool {{boundFunctionPrefix}}{{operation.idl_name}}{{overload.overload_index}}(
     JSContext* context, uint32_t argc, JS::Value *vp) {
 {{ function_implementation(overload) -}}
 }
-
 {% endfor %}
+
 bool {{boundFunctionPrefix}}{{operation.idl_name}}(
     JSContext* context, uint32_t argc, JS::Value *vp) {
 {% if operation.overloads|length == 1 %}
@@ -575,7 +596,6 @@ bool Stringifier(JSContext* context, unsigned argc, JS::Value *vp) {
   args.rval().set(JS::StringValue(rooted_string));
   return true;
 }
-
 {% endif %}
 
 const JSPropertySpec prototype_properties[] = {
@@ -587,6 +607,7 @@ const JSPropertySpec prototype_properties[] = {
       JSNATIVE_WRAPPER(NULL)
   },
 {% endfor %}
+
 {% for attribute in attributes if not attribute.is_constructor_attribute %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
@@ -619,9 +640,7 @@ const JSFunctionSpec prototype_functions[] = {
 {% endif %}
 {% for operation in operations %}
 {% if operation.conditional %}
-
 #if defined({{operation.conditional}})
-
 {% endif %}
   JS_FNSPEC(
       "{{ operation.idl_name }}", fcn_{{operation.idl_name}}, NULL,
@@ -641,25 +660,25 @@ const JSPropertySpec interface_object_properties[] = {
     { { &get_{{constant.idl_name}}, NULL } },
     JSNATIVE_WRAPPER(NULL),
   },
-
 {% endfor %}
+
 {% for attribute in static_attributes %}
 {% if attribute.conditional %}
 #if defined({{attribute.conditional}})
 {% endif %}
 {% if attribute.has_setter %}
   {  // Static read/write attribute.
-      "{{attribute.idl_name}}",
-      JSPROP_SHARED | JSPROP_ENUMERATE,
-      { { &staticget_{{attribute.idl_name}}, NULL } },
-      { { &staticset_{{attribute.idl_name}}, NULL } },
+    "{{attribute.idl_name}}",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &staticget_{{attribute.idl_name}}, NULL } },
+    { { &staticset_{{attribute.idl_name}}, NULL } },
   },
 {% else %}
   {  // Static readonly attribute.
-      "{{attribute.idl_name}}",
-      JSPROP_SHARED | JSPROP_ENUMERATE,
-      { { &staticget_{{attribute.idl_name}} } },
-      JSNATIVE_WRAPPER(NULL),
+    "{{attribute.idl_name}}",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &staticget_{{attribute.idl_name}} } },
+    JSNATIVE_WRAPPER(NULL),
   },
 {% endif %}
 {% if attribute.conditional %}
@@ -709,16 +728,16 @@ void InitializePrototypeAndInterfaceObject(
   DCHECK(!interface_data->interface_object);
   DCHECK(JS_IsGlobalObject(global_object));
 
-  {% if parent_interface %}
+{% if parent_interface %}
   JS::RootedObject parent_prototype(
       context, {{parent_interface}}::GetPrototype(context, global_object));
-  {% elif is_exception_interface %}
+{% elif is_exception_interface %}
   // Get Error prototype.
   JS::RootedObject parent_prototype(context);
   bool success_check = JS_GetClassPrototype(
       context, js::GetExceptionProtoKey(JSEXN_ERR), &parent_prototype);
   DCHECK(success_check);
-  {% else %}
+{% else %}
   JS::RootedObject parent_prototype(
       context, JS_GetObjectPrototype(context, global_object));
   {% endif %}
@@ -884,8 +903,8 @@ JSObject* {{binding_class}}::CreateProxy(
   WrapperPrivate::AddPrivateData(context, proxy, wrappable);
   return proxy;
 }
-
 {% endif %}
+
 // static
 const JSClass* {{binding_class}}::PrototypeClass(
       JSContext* context) {
@@ -929,18 +948,19 @@ JSObject* {{binding_class}}::GetInterfaceObject(
   DCHECK(interface_data->interface_object);
   return interface_data->interface_object;
 }
-
 {% endif %} {#- has_interface_object #}
 
 namespace {
+
 {% if constructor %}
+
 {% for overload in constructor.overloads if constructor.overloads|length > 1 %}
 bool Constructor{{overload.overload_index}}(
     JSContext* context, unsigned int argc, JS::Value* vp) {
 {{ constructor_implementation(overload) -}}
 }
-
 {% endfor %}
+
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 {% if constructor.overloads|length == 1 %}
 {{ constructor_implementation(constructor.overloads[0]) -}}
@@ -948,7 +968,9 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
 {{ overload_resolution_implementation(constructor, "Constructor")}}
 {% endif %}
 }
+
 {% endif %}
+
 }  // namespace
 
 {% endblock implementation %}
@@ -975,18 +997,18 @@ void MozjsGlobalEnvironment::CreateGlobalObject(
 {% if interface.conditional %}
 #if defined({{interface.conditional}})
 {% endif %}
-  {# Pass in a dummy CreateProxy for global interface #}
-  {% if interface.name == impl_class %}
+{# Pass in a dummy CreateProxy for global interface #}
+{% if interface.name == impl_class %}
   wrapper_factory_->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(DummyFunctor),
       base::Bind(Mozjs{{interface.name}}::PrototypeClass));
-  {% else %}
+{% else %}
   wrapper_factory_->RegisterWrappableType(
       {{interface.name}}::{{interface.name}}WrappableType(),
       base::Bind(Mozjs{{interface.name}}::CreateProxy),
       base::Bind(Mozjs{{interface.name}}::PrototypeClass));
-  {% endif %}
+{% endif %}
 {% if interface.conditional %}
 #endif  // defined({{interface.conditional}})
 {% endif %}
@@ -1010,6 +1032,7 @@ void GlobalEnvironment::CreateGlobalObject<{{impl_class}}>(
 {% endblock create_global_object_impl %}
 
 {%  block enumeration_definitions %}
+
 {% for enumeration in enumerations %}
 
 inline void ToJSValue(
@@ -1051,5 +1074,7 @@ inline void FromJSValue(JSContext* context, JS::HandleValue value,
     return;
   }
 }
+
 {% endfor %}
+
 {% endblock enumeration_definitions %}

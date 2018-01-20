@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::PutForwardsInterface;
 using cobalt::bindings::testing::MozjsPutForwardsInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsPutForwardsInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsPutForwardsInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsPutForwardsInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -129,6 +140,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "PutForwardsInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -365,6 +378,7 @@ bool staticset_staticForwardingAttribute(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "forwardingAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -379,11 +393,12 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   {  // Static read/write attribute.
-      "staticForwardingAttribute",
-      JSPROP_SHARED | JSPROP_ENUMERATE,
-      { { &staticget_staticForwardingAttribute, NULL } },
-      { { &staticset_staticForwardingAttribute, NULL } },
+    "staticForwardingAttribute",
+    JSPROP_SHARED | JSPROP_ENUMERATE,
+    { { &staticget_staticForwardingAttribute, NULL } },
+    { { &staticset_staticForwardingAttribute, NULL } },
   },
   JS_PS_END
 };
@@ -549,8 +564,9 @@ JSObject* MozjsPutForwardsInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

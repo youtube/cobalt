@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::NullableTypesTestInterface;
 using cobalt::bindings::testing::MozjsNullableTypesTestInterface;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsNullableTypesTestInterfaceHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsNullableTypesTestInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsNullableTypesTestInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -129,6 +140,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "NullableTypesTestInterface is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -587,6 +600,7 @@ bool set_nullableObjectProperty(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableBooleanArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -651,6 +665,7 @@ bool fcn_nullableBooleanArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableBooleanOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -702,6 +717,7 @@ bool fcn_nullableBooleanOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableNumericArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -767,6 +783,7 @@ bool fcn_nullableNumericArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableNumericOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -818,6 +835,7 @@ bool fcn_nullableNumericOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableObjectArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -883,6 +901,7 @@ bool fcn_nullableObjectArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableObjectOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -934,6 +953,7 @@ bool fcn_nullableObjectOperation(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_nullableStringArgument(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -999,6 +1019,7 @@ bool fcn_nullableStringArgument(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_nullableStringOperation(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1054,6 +1075,7 @@ bool fcn_nullableStringOperation(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Read/Write property
     "nullableBooleanProperty",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -1110,6 +1132,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -1274,8 +1297,9 @@ JSObject* MozjsNullableTypesTestInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 
