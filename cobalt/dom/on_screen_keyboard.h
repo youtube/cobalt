@@ -76,14 +76,7 @@ class OnScreenKeyboard : public EventTarget {
   // If the keyboard is shown.
   bool shown() const;
 
-  void set_keep_focus(bool keep_focus) {
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-    keep_focus_ = keep_focus;
-    SbWindowSetOnScreenKeyboardKeepFocus(keep_focus);
-#else   // SB_HAS(ON_SCREEN_KEYBOARD)
-    UNREFERENCED_PARAMETER(keep_focus);
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-  }
+  void set_keep_focus(bool keep_focus);
   bool keep_focus() const { return keep_focus_; }
 
   // Called by the WebModule to dispatch DOM show, hide, focus, and blur events.
