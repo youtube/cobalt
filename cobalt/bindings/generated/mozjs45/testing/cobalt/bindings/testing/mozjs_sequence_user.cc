@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -49,6 +51,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::SequenceUser;
 using cobalt::bindings::testing::MozjsSequenceUser;
@@ -91,7 +94,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsSequenceUserHandler : public ProxyHandler {
  public:
@@ -111,6 +121,7 @@ MozjsSequenceUserHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsSequenceUserHandler::indexed_property_hooks = {
   NULL,
@@ -124,6 +135,8 @@ static base::LazyInstance<MozjsSequenceUserHandler>
     proxy_handler;
 
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp);
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -182,6 +195,7 @@ const JSClass interface_object_class_definition = {
     Constructor,
 };
 
+
 bool fcn_getInterfaceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -233,6 +247,7 @@ bool fcn_getInterfaceSequence(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_getInterfaceSequenceSequenceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -286,6 +301,7 @@ bool fcn_getInterfaceSequenceSequenceSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_getLongSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -337,6 +353,7 @@ bool fcn_getLongSequence(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_getStringSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -390,6 +407,7 @@ bool fcn_getStringSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_getStringSequenceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -441,6 +459,7 @@ bool fcn_getStringSequenceSequence(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_getUnionOfStringAndStringSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -494,6 +513,7 @@ bool fcn_getUnionOfStringAndStringSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_getUnionSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -545,6 +565,7 @@ bool fcn_getUnionSequence(
   }
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_setInterfaceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -610,6 +631,7 @@ bool fcn_setInterfaceSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_setInterfaceSequenceSequenceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -673,6 +695,7 @@ bool fcn_setInterfaceSequenceSequenceSequence(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_setLongSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -738,6 +761,7 @@ bool fcn_setLongSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_setStringSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -801,6 +825,7 @@ bool fcn_setStringSequence(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_setStringSequenceSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -866,6 +891,7 @@ bool fcn_setStringSequenceSequence(
   return !exception_state.is_exception_set();
 }
 
+
 bool fcn_setUnionOfStringAndStringSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -929,6 +955,7 @@ bool fcn_setUnionOfStringAndStringSequence(
   result_value.set(JS::UndefinedHandleValue);
   return !exception_state.is_exception_set();
 }
+
 
 bool fcn_setUnionSequence(
     JSContext* context, uint32_t argc, JS::Value *vp) {
@@ -997,6 +1024,7 @@ bool fcn_setUnionSequence(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   JS_PS_END
 };
 
@@ -1047,6 +1075,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -1220,8 +1249,10 @@ JSObject* MozjsSequenceUser::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
+
 bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   MozjsExceptionState exception_state(context);
   JS::CallArgs args = JS::CallArgsFromVp(argc, vp);
@@ -1234,6 +1265,8 @@ bool Constructor(JSContext* context, unsigned int argc, JS::Value* vp) {
   args.rval().setObject(result_value.toObject());
   return true;
 }
+
+
 }  // namespace
 
 

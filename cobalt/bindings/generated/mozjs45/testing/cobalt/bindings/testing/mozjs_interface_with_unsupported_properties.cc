@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::InterfaceWithUnsupportedProperties;
 using cobalt::bindings::testing::MozjsInterfaceWithUnsupportedProperties;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsInterfaceWithUnsupportedPropertiesHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsInterfaceWithUnsupportedPropertiesHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsInterfaceWithUnsupportedPropertiesHandler::indexed_property_hooks = {
   NULL,
@@ -125,6 +136,8 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "InterfaceWithUnsupportedProperties is not constructible.");
   return false;
 }
+
+
 bool HasInstance(JSContext *context, JS::HandleObject type,
                    JS::MutableHandleValue vp, bool *success) {
   JS::RootedObject global_object(
@@ -234,6 +247,7 @@ bool get_supportedAttribute(
 
 
 const JSPropertySpec prototype_properties[] = {
+
   {  // Readonly attribute
     "supportedAttribute",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -248,6 +262,7 @@ const JSFunctionSpec prototype_functions[] = {
 };
 
 const JSPropertySpec interface_object_properties[] = {
+
   JS_PS_END
 };
 
@@ -412,8 +427,9 @@ JSObject* MozjsInterfaceWithUnsupportedProperties::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 

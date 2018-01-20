@@ -1,3 +1,5 @@
+
+
 // Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
@@ -47,6 +49,7 @@
 #include "third_party/mozjs-45/js/src/jsapi.h"
 #include "third_party/mozjs-45/js/src/jsfriendapi.h"
 
+
 namespace {
 using cobalt::bindings::testing::ConstantsInterface;
 using cobalt::bindings::testing::MozjsConstantsInterface;
@@ -87,7 +90,14 @@ namespace cobalt {
 namespace bindings {
 namespace testing {
 
+
 namespace {
+
+
+
+
+
+
 
 class MozjsConstantsInterfaceHandler : public ProxyHandler {
  public:
@@ -107,6 +117,7 @@ MozjsConstantsInterfaceHandler::named_property_hooks = {
   NULL,
   NULL,
 };
+
 ProxyHandler::IndexedPropertyHooks
 MozjsConstantsInterfaceHandler::indexed_property_hooks = {
   NULL,
@@ -125,6 +136,7 @@ bool DummyConstructor(JSContext* context, unsigned int argc, JS::Value* vp) {
       script::kTypeError, "ConstantsInterface is not constructible.");
   return false;
 }
+
 bool get_INTEGER_CONSTANT(
     JSContext* context, unsigned argc, JS::Value* vp) {
   COMPILE_ASSERT(ConstantsInterface::kIntegerConstant == 5,
@@ -144,7 +156,6 @@ bool get_INTEGER_CONSTANT(
   }
   return !exception_state.is_exception_set();
 }
-
 bool get_DOUBLE_CONSTANT(
     JSContext* context, unsigned argc, JS::Value* vp) {
   DCHECK_EQ(2.718, ConstantsInterface::kDoubleConstant) <<
@@ -239,6 +250,7 @@ const JSPropertySpec prototype_properties[] = {
       { { &get_DOUBLE_CONSTANT, NULL } },
       JSNATIVE_WRAPPER(NULL)
   },
+
   JS_PS_END
 };
 
@@ -253,7 +265,6 @@ const JSPropertySpec interface_object_properties[] = {
     { { &get_INTEGER_CONSTANT, NULL } },
     JSNATIVE_WRAPPER(NULL),
   },
-
   {
     "DOUBLE_CONSTANT",
     JSPROP_SHARED | JSPROP_ENUMERATE,
@@ -425,8 +436,9 @@ JSObject* MozjsConstantsInterface::GetInterfaceObject(
   return interface_data->interface_object;
 }
 
-
 namespace {
+
+
 }  // namespace
 
 
