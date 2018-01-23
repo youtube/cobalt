@@ -854,6 +854,13 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
     }
 
     if (extensions.has("GL_CHROMIUM_path_rendering")) {
+#if defined(COBALT)
+        // Do not rely on |GL_CHROMIUM_path_rendering| extension for greater
+        // compatibility.
+        // E.g. it is possible that ANGLE (which is used via GLX on Linux), does
+        // not map these functions for its EGL implemenation.
+        extensions.remove("GL_CHROMIUM_path_rendering");
+#else
         GET_PROC_SUFFIX(MatrixLoadf, CHROMIUM);
         GET_PROC_SUFFIX(MatrixLoadIdentity, CHROMIUM);
         GET_PROC_SUFFIX(PathCommands, CHROMIUM);
@@ -878,6 +885,7 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
         GET_PROC_SUFFIX(ProgramPathFragmentInputGen, CHROMIUM);
         // GL_CHROMIUM_path_rendering additions:
         GET_PROC_SUFFIX(BindFragmentInputLocation, CHROMIUM);
+#endif  // defined(COBALT)
     }
 
     if (extensions.has("GL_NV_framebuffer_mixed_samples")) {
