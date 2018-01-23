@@ -20,9 +20,6 @@ final STARBOARD_APP = 'cobalt'
 //final STARBOARD_APP = 'starboard_glclear_example'
 //final STARBOARD_APP = 'starboard_window_example'
 
-// Which Cobalt build config to build.
-final COBALT_BUILD_CONFIG = 'debug'
-
 final String[] SUPPORTED_ABIS = [ 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a' ]
 
 ext {
@@ -37,6 +34,15 @@ android {
     compileSdkVersion 27
     buildToolsVersion "27.0.2"
 
+    signingConfigs {
+        // A signing config that matches what is implicitly used for the "debug" build type.
+        debugConfig {
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+            storeFile file("${System.getProperty('user.home')}/.android/debug.keystore")
+            storePassword 'android'
+        }
+    }
     defaultConfig {
         applicationId "foo.cobalt.coat"
         minSdkVersion 21
@@ -62,34 +68,65 @@ android {
         }
     }
     buildTypes {
-        release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
-            externalNativeBuild {
-                cmake.arguments "-DCOBALT_CONFIG=gold"
-            }
-        }
         debug {
             debuggable true
             jniDebuggable true
             externalNativeBuild {
-                cmake.arguments "-DCOBALT_CONFIG=${COBALT_BUILD_CONFIG}"
+                cmake.arguments "-DCOBALT_CONFIG=debug"
             }
+            signingConfig signingConfigs.debugConfig
+        }
+        devel {
+            debuggable true
+            jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=devel"
+            }
+            signingConfig signingConfigs.debugConfig
+        }
+        qa {
+            debuggable true
+            jniDebuggable true
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=qa"
+            }
+            signingConfig signingConfigs.debugConfig
+        }
+        release {
+            minifyEnabled true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            externalNativeBuild {
+                cmake.arguments "-DCOBALT_CONFIG=gold"
+            }
+            signingConfig signingConfigs.debugConfig
         }
     }
     sourceSets {
         // Add the directories symlinked by the CMake "cobalt_content" custom command.
-        release {
-            assets.srcDir "${buildDir}/intermediates/cmake/release/cobalt_content"
-        }
         debug {
             assets.srcDir "${buildDir}/intermediates/cmake/debug/cobalt_content"
+        }
+        devel {
+            assets.srcDir "${buildDir}/intermediates/cmake/devel/cobalt_content"
+        }
+        qa {
+            assets.srcDir "${buildDir}/intermediates/cmake/qa/cobalt_content"
+        }
+        release {
+            assets.srcDir "${buildDir}/intermediates/cmake/release/cobalt_content"
         }
     }
     externalNativeBuild {
         cmake.path 'CMakeLists.txt'
     }
 }
+
+// Make proxy assemble tasks that just depend on the Android assemble task of the right build type.
+// We use lowercase build type in the task name so that it's easy to generate in GYP.
+task assembleCobalt_debug dependsOn "assembleDebug"
+task assembleCobalt_devel dependsOn "assembleDevel"
+task assembleCobalt_qa dependsOn "assembleQa"
+task assembleCobalt_release dependsOn "assembleRelease"
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
