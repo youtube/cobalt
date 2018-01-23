@@ -133,6 +133,10 @@ SB_EXPORT void* SbWindowGetPlatformHandle(SbWindow window);
 
 #if SB_HAS(ON_SCREEN_KEYBOARD)
 
+// System-triggered OnScreenKeyboard events have ticket value
+// kSbEventOnScreenKeyboardInvalidTicket.
+#define kSbEventOnScreenKeyboardInvalidTicket (-1)
+
 // Determine if the on screen keyboard is shown.
 SB_EXPORT bool SbWindowIsOnScreenKeyboardShown(SbWindow window);
 
