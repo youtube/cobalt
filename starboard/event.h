@@ -93,10 +93,6 @@
 extern "C" {
 #endif
 
-#if SB_HAS(ON_SCREEN_KEYBOARD)
-const int kSbEventOnScreenKeyboardInvalidTicket = -1;
-#endif  // SB_HAS(ON_SCREEN_KEYBOARD)
-
 // An enumeration of all possible event types dispatched directly by the
 // system. Each event is accompanied by a void* data argument, and each event
 // must define the type of the value pointed to by that data argument, if any.
@@ -226,34 +222,39 @@ typedef enum SbEventType {
 #endif  // SB_API_VERSION >= 8
 #if SB_HAS(ON_SCREEN_KEYBOARD)
   // The platform has shown the on screen keyboard. This event is triggered by
-  // the system or by the OnScreenKeyboard's show method in javascript. The
-  // event has int data representing the ticket for looking up a promise
-  // reference stored by the on screen keyboard. Javascript-triggered events
-  // have tickets passed in via SbWindowShowOnScreenKeyboard. System-triggered
-  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+  // the system or by the application's OnScreenKeyboard show method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the show method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowShowOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardShown,
-  // The platform has hidden the on screen keyboard. This event is triggered
-  // by the system or by the OnScreenKeyboard's hide method in javascript. The
-  // event has int data representing the ticket for looking up a promise
-  // reference stored by the on screen keyboard. Javascript-triggered events
-  // have tickets passed in via SbWindowHideOnScreenKeyboard. System-triggered
-  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+
+  // The platform has hidden the on screen keyboard. This event is triggered by
+  // the system or by the application's OnScreenKeyboard hide method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the hide method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowHideOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardHidden,
 
   // The platform has focused the on screen keyboard. This event is triggered by
-  // the system or by the OnScreenKeyboard's focus method in javascript. The
-  // event has int data representing the ticket for looking up a promise
-  // reference stored by the on screen keyboard. Javascript-triggered events
-  // have tickets passed in via SbWindowFocusOnScreenKeyboard. System-triggered
-  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+  // the system or by the application's OnScreenKeyboard focus method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the focus method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowFocusOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardFocused,
 
   // The platform has blurred the on screen keyboard. This event is triggered by
-  // the system or by the OnScreenKeyboard's blur method in javascript. The
-  // event has int data representing the ticket for looking up a promise
-  // reference stored by the on screen keyboard. Javascript-triggered events
-  // have tickets passed in via SbWindowBlurOnScreenKeyboard. System-triggered
-  // events have ticket value kSbEventOnScreenKeyboardInvalidTicket.
+  // the system or by the application's OnScreenKeyboard blur method. The event
+  // has int data representing a ticket. The ticket is used by the application
+  // to mark individual calls to the blur method as successfully completed.
+  // Events triggered by the application have tickets passed in via
+  // SbWindowBlurOnScreenKeyboard. System-triggered events have ticket value
+  // kSbEventOnScreenKeyboardInvalidTicket.
   kSbEventTypeOnScreenKeyboardBlurred,
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
