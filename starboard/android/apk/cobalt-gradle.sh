@@ -27,7 +27,14 @@ done
 
 export ANDROID_HOME
 export ANDROID_NDK_HOME
-echo "ANDROID_HOME: ${ANDROID_HOME}"
-echo "ANDROID_NDK_HOME: ${ANDROID_NDK_HOME}"
+echo "ANDROID_HOME=${ANDROID_HOME}"
+echo "ANDROID_NDK_HOME=${ANDROID_NDK_HOME}"
+echo "TASK: ${@: -1}"
 
-exec $(dirname $0)/gradlew "$@"
+# Allow up to 4 parallel gradle builds, distributing among lock files based
+# on a hash of the command and its arguments.
+BUCKETS=4
+MD5=$(echo "$@" | md5sum)
+LOCKNUM=$(( ${BUCKETS} * 0x${MD5:0:6} / 0x1000000 ))
+
+flock /var/lock/cobalt-gradle.lock.${LOCKNUM} $(dirname "$0")/gradlew "$@"

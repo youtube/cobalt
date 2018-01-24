@@ -46,6 +46,10 @@ task clean(type: Delete) {
     delete rootProject.buildDir
 }
 
-// Move the 'buildDir' for all projects into sub-directories of the root's original 'buildDir'
-def rootBuildDir = buildDir
-allprojects { buildDir = new File(rootBuildDir, project.name) }
+// Move the 'buildDir' for all projects into sub-directories of a shared top-level build directory,
+// which is either the root's original 'buildDir' or a custom location when building for platform
+// deploy.  Note that the platform deploy action sets a custom 'cobaltGradleDir' property rather
+// than setting 'buildDir' directly on the command line since Gradle trys to get smart about
+// 'buildDir' which can end up putting it at the wrong depth in the file system.
+def rootBuildDir = hasProperty('cobaltGradleDir') ? new File(cobaltGradleDir, 'build') : buildDir
+allprojects { buildDir = new File(rootBuildDir, project.name).canonicalFile }
