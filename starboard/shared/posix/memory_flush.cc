@@ -18,10 +18,6 @@
 
 #include <iomanip>
 
-#if SB_IS(ARCH_MIPS)
-#include <sys/cachectl.h>
-#endif
-
 #include "starboard/log.h"
 
 #if !SB_CAN(MAP_EXECUTABLE_MEMORY)
@@ -31,15 +27,10 @@
 
 void SbMemoryFlush(void* virtual_address, int64_t size_bytes) {
   char* memory = reinterpret_cast<char*>(virtual_address);
-#if !SB_IS(ARCH_ARM)
+#if !SB_IS(ARCH_ARM) && !SB_IS(ARCH_MIPS)
   int result = msync(memory, size_bytes, MS_SYNC);
   SB_DCHECK(result == 0) << "msync failed: 0x" << std::hex << result << " ("
                          << std::dec << result << "d)";
-#endif
-
-#if SB_IS(ARCH_MIPS)
-  _flush_cache(reinterpret_cast<char*>(memory), (size_t)size_bytes, BCACHE);
-  return;
 #endif
 
 #if !defined(__has_builtin)
