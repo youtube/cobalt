@@ -892,7 +892,13 @@ const GrGLInterface* GrGLAssembleGLESInterface(void* ctx, GrGLGetProc get) {
         GET_PROC_SUFFIX(CoverageModulation, NV);
     }
     if (extensions.has("GL_CHROMIUM_framebuffer_mixed_samples")) {
+#if defined(COBALT)
+        // Do not rely on |GL_CHROMIUM_framebuffer_mixed_samples| extension
+        // for greater compatability.
+        extensions.remove("GL_CHROMIUM_framebuffer_mixed_samples");
+#else
         GET_PROC_SUFFIX(CoverageModulation, CHROMIUM);
+#endif
     }
 
     if (extensions.has("GL_NV_bindless_texture")) {
