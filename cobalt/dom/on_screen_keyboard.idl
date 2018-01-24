@@ -15,7 +15,7 @@
 // Custom API for hiding, showing, focusing, blurring, and receiving input
 // from an on screen keyboard.
 
-interface OnScreenKeyboard {
+interface OnScreenKeyboard : EventTarget {
   Promise<void> show();
   Promise<void> hide();
   Promise<void> focus();
