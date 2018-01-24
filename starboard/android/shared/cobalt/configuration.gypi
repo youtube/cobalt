@@ -64,12 +64,4 @@
     'cobalt_webapi_extension_gyp_target':
     '<(DEPTH)/starboard/android/shared/cobalt/android_webapi_extension.gyp:android_webapi_extension',
   },
-
-  'target_defaults': {
-    'target_conditions': [
-      ['<!(python -c "import os.path; print os.path.isfile(\'<(DEPTH)/starboard/android/shared/private/keys.h\') & 1 | 0")==1', {
-        'defines': ['SB_HAS_SPEECH_API_KEY'],
-      }],
-    ],
-  }, # end of target_defaults
 }
