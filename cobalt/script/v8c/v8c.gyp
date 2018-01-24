@@ -18,6 +18,8 @@
       'target_name': 'engine',
       'type': 'static_library',
       'sources': [
+        'algorithm_helpers.cc',
+        'algorithm_helpers.h',
         'callback_function_conversion.h',
         'conversion_helpers.cc',
         'conversion_helpers.h',
@@ -29,8 +31,6 @@
         'type_traits.h',
         'union_type_conversion_forward.h',
         'union_type_conversion_impl.h',
-        'util/algorithm_helpers.cc',
-        'util/algorithm_helpers.h',
         'v8c_callback_function.h',
         'v8c_callback_interface.cc',
         'v8c_callback_interface.h',
