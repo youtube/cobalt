@@ -70,7 +70,7 @@ struct OffscreenTargetManager::OffscreenAtlas {
   AllocationMap allocation_map;
   size_t allocations_used;
   scoped_refptr<backend::FramebufferRenderTargetEGL> framebuffer;
-  SkAutoTUnref<SkSurface> skia_surface;
+  sk_sp<SkSurface> skia_surface;
   bool needs_flush;
 };
 

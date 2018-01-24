@@ -34,7 +34,7 @@ class GlyphBuffer : public render_tree::GlyphBuffer {
   const SkTextBlob* GetTextBlob() const;
 
  private:
-  SkAutoTUnref<const SkTextBlob> text_blob_;
+  sk_sp<const SkTextBlob> text_blob_;
 };
 
 }  // namespace skia

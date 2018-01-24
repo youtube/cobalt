@@ -120,7 +120,7 @@ class HardwareRasterizer::Impl {
   backend::GraphicsContextEGL* graphics_context_;
   scoped_ptr<render_tree::ResourceProvider> resource_provider_;
 
-  SkAutoTUnref<GrContext> gr_context_;
+  sk_sp<GrContext> gr_context_;
 
   SkSurfaceMap sk_output_surface_map_;
 
