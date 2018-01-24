@@ -359,7 +359,7 @@ void SkFontStyleSet_Cobalt::PurgeUnreferencedTypefaces() {
   // Walk each of the styles looking for any that have a non-NULL typeface.
   // These are purged if they are unreferenced outside of the style set.
   for (int i = 0; i < styles_.count(); ++i) {
-    SkAutoTUnref<SkTypeface>& typeface = styles_[i]->typeface;
+    sk_sp<SkTypeface>& typeface = styles_[i]->typeface;
     if (typeface.get() != NULL && typeface->unique()) {
       typeface.reset(NULL);
     }

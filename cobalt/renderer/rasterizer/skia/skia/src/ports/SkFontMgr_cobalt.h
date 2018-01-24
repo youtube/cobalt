@@ -139,7 +139,7 @@ class SkFontMgr_Cobalt : public SkFontMgr {
 
   SkFileMemoryChunkStreamManager local_typeface_stream_manager_;
 
-  SkTArray<SkAutoTUnref<SkFontStyleSet_Cobalt>, true> families_;
+  SkTArray<sk_sp<SkFontStyleSet_Cobalt>, true> families_;
 
   SkTArray<SkString> family_names_;
   // Map names to the back end so that all names for a given family refer to
