@@ -74,7 +74,7 @@ HardwareResourceProvider::~HardwareResourceProvider() {
   if (purge_skia_font_caches_on_destruction_) {
     text_shaper_.PurgeCaches();
 
-    SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+    sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
     SkFontMgr_Cobalt* cobalt_font_manager =
         base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
     cobalt_font_manager->PurgeCaches();
@@ -426,8 +426,8 @@ bool HardwareResourceProvider::HasLocalFontFamily(
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::HasLocalFontFamily()");
 
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkFontStyleSet> style_set(
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  sk_sp<SkFontStyleSet> style_set(
       font_manager->matchFamily(font_family_name));
   return style_set->count() > 0;
 }
@@ -437,8 +437,8 @@ scoped_refptr<render_tree::Typeface> HardwareResourceProvider::GetLocalTypeface(
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::GetLocalTypeface()");
 
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
-  SkAutoTUnref<SkTypeface_Cobalt> typeface(
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  sk_sp<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(
           font_manager->matchFamilyStyle(
               font_family_name, CobaltFontStyleToSkFontStyle(font_style))));
@@ -451,7 +451,7 @@ HardwareResourceProvider::GetLocalTypefaceByFaceNameIfAvailable(
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::GetLocalTypefaceIfAvailable()");
 
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
   SkFontMgr_Cobalt* cobalt_font_manager =
       base::polymorphic_downcast<SkFontMgr_Cobalt*>(font_manager.get());
 
@@ -472,7 +472,7 @@ HardwareResourceProvider::GetCharacterFallbackTypeface(
   TRACE_EVENT0("cobalt::renderer",
                "HardwareResourceProvider::GetCharacterFallbackTypeface()");
 
-  SkAutoTUnref<SkFontMgr> font_manager(SkFontMgr::RefDefault());
+  sk_sp<SkFontMgr> font_manager(SkFontMgr::RefDefault());
   const char* language_cstr = language.c_str();
   sk_sp<SkTypeface_Cobalt> typeface(
       base::polymorphic_downcast<SkTypeface_Cobalt*>(

@@ -541,10 +541,6 @@
       'COBALT_MEDIA_BUFFER_NON_VIDEO_BUDGET=<(cobalt_media_buffer_non_video_budget)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_1080P=<(cobalt_media_buffer_video_budget_1080p)',
       'COBALT_MEDIA_BUFFER_VIDEO_BUDGET_4K=<(cobalt_media_buffer_video_budget_4k)',
-      # Temporary redirect of various obsolete skia symbols.
-      'SkAutoTUnref=sk_sp',
-      'SK_OVERRIDE=override',
-      'SkNEW_ARGS(type,args)=new type args'
     ],
     'conditions': [
       ['cobalt_media_source_2016 == 1', {
