@@ -77,14 +77,14 @@ TEST(SbSocketSendToTest, RainyDayUnconnectedSocket) {
   EXPECT_EQ(-1, result);
 
 #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
 #else
   EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(socket));
 #endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+        // SB_API_VERSION >= 9
 
   EXPECT_TRUE(SbSocketDestroy(socket));
 }
@@ -114,14 +114,14 @@ TEST_P(PairSbSocketSendToTest, RainyDaySendToClosedSocket) {
   EXPECT_TRUE(SbThreadJoin(send_thread, &thread_result));
 
 #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    SB_API_VERSION >= 9
   EXPECT_SB_SOCKET_ERROR_IN(SbSocketGetLastError(trio.server_socket),
                             kSbSocketErrorConnectionReset,
                             kSbSocketErrorFailed);
 #else
   EXPECT_SB_SOCKET_ERROR_IS_ERROR(SbSocketGetLastError(trio.server_socket));
 #endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+        // SB_API_VERSION >= 9
 
   // Clean up the server socket.
   EXPECT_TRUE(SbSocketDestroy(trio.server_socket));
