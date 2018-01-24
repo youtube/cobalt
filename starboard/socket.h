@@ -65,13 +65,13 @@ typedef enum SbSocketError {
   kSbSocketPending,
 
 #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    SB_API_VERSION >= 9
   // This socket error is generated when the connection is reset unexpectedly
   // and the connection is now invalid.
   // This might happen for example if an read packet has the "TCP RST" bit set.
   kSbSocketErrorConnectionReset,
 #endif  // SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        // SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+        // SB_API_VERSION >= 9
 
   // The operation failed for some other reason not specified above.
   kSbSocketErrorFailed,
