@@ -59,7 +59,6 @@
     }],
     ['gl_type != "none"', {
       'sources': [
-        'egl/src/gpu/cobalt/GrGpuFactory.cc',
         'src/gpu/gl/GrGLCreateNativeInterface_cobalt.cc',
       ],
     }],

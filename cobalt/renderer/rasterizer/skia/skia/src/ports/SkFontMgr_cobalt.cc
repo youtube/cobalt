@@ -158,7 +158,7 @@ SkTypeface* SkFontMgr_Cobalt::onMatchFamilyStyle(
   SkTypeface* typeface = NULL;
 
   if (family_name != NULL) {
-    SkAutoTUnref<SkFontStyleSet> family(matchFamily(family_name));
+    sk_sp<SkFontStyleSet> family(matchFamily(family_name));
     typeface = family->matchStyle(style);
   }
 
@@ -285,7 +285,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
       fallback_name.printf("%.2x##fallback", families_.count());
     }
 
-    SkAutoTUnref<SkFontStyleSet_Cobalt> new_family(new SkFontStyleSet_Cobalt(
+    sk_sp<SkFontStyleSet_Cobalt> new_family(new SkFontStyleSet_Cobalt(
         family_info, font_files_directory, &local_typeface_stream_manager_,
         &family_mutex_));
 
@@ -322,7 +322,7 @@ void SkFontMgr_Cobalt::BuildNameToFamilyMap(
           new_family.get());
     }
 
-    for (SkAutoTUnref<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
+    for (sk_sp<SkFontStyleSet_Cobalt::SkFontStyleSetEntry_Cobalt>*
              family_style_entry = new_family->styles_.begin();
          family_style_entry != new_family->styles_.end();
          ++family_style_entry) {
@@ -384,13 +384,13 @@ void SkFontMgr_Cobalt::FindDefaultFamily(
   CHECK(!families_.empty());
 
   for (size_t i = 0; i < default_families.count(); ++i) {
-    SkAutoTUnref<SkFontStyleSet_Cobalt> check_family(
+    sk_sp<SkFontStyleSet_Cobalt> check_family(
         onMatchFamily(default_families[i].c_str()));
     if (check_family.get() == NULL) {
       continue;
     }
 
-    SkAutoTUnref<SkTypeface> check_typeface(
+    sk_sp<SkTypeface> check_typeface(
         check_family->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
       default_family_ = check_family.get();
@@ -399,7 +399,7 @@ void SkFontMgr_Cobalt::FindDefaultFamily(
   }
 
   if (default_family_ == NULL) {
-    SkAutoTUnref<SkTypeface> check_typeface(
+    sk_sp<SkTypeface> check_typeface(
         families_[0]->MatchStyleWithoutLocking(SkFontStyle()));
     if (check_typeface.get() != NULL) {
       default_family_ = families_[0].get();
