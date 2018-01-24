@@ -8,6 +8,23 @@ version previous to it.
 
 **NOTE: Starboard versions 3 and below are no longer supported.**
 
+## Version 9
+
+### Add string label to `SbMicrophoneInfo`.
+
+This should indicate the friendly name of the microphone type.
+
+### Introduce additional SbSocketError enum values.
+
+Instead of the single generic kSbSocketErrorFailed to indicate socket errors,
+the enum kSbSocketErrorConnectionReset has been introduced corresponding to
+various dropped TCP connection errors.  This is particularly useful in
+identifying socket errors that can be retried.
+
+### Add new keycode kSbKeyInstantReplay
+
+Identical to OCAP's `VK_INSTANT_REPLAY`
+
 ## Version 8
 
 ### Add `SbPlayerCreateWithUrl()`, `SbPlayerSetDrmSystem()`, `SbPlayerOutputModeSupportedWithUrl()`

@@ -41,7 +41,7 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     case WSAEWOULDBLOCK:
       return kSbSocketPending;
 #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    SB_API_VERSION >= 9
     case WSAECONNRESET:
     case WSAENETRESET:
       return kSbSocketErrorConnectionReset;
@@ -51,8 +51,7 @@ SbSocketError TranslateSocketErrorStatus(int error) {
     case ERROR_BROKEN_PIPE:
       return kSbSocketErrorConnectionReset;
 #endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        //     SB_API_VERSION >=
-        //     SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+        //     SB_API_VERSION >= 9
   }
 
   // Here's where we would be more nuanced if we need to be.
