@@ -30,9 +30,10 @@
 #include "cobalt/base/enable_if.h"
 #include "cobalt/base/token.h"
 #include "cobalt/script/sequence.h"
+#include "cobalt/script/v8c/algorithm_helpers.h"
+#include "cobalt/script/v8c/helpers.h"
 #include "cobalt/script/v8c/type_traits.h"
 #include "cobalt/script/v8c/union_type_conversion_forward.h"
-#include "cobalt/script/v8c/util/algorithm_helpers.h"
 #include "cobalt/script/v8c/v8c_callback_interface_holder.h"
 #include "cobalt/script/v8c/v8c_global_environment.h"
 #include "cobalt/script/v8c/v8c_user_object_holder.h"
@@ -618,71 +619,81 @@ void FromJSValue(v8::Isolate* isolate, v8::Local<v8::Value> value,
     exception_state->SetSimpleException(kNotObjectType);
     return;
   }
+
+  // 2. Let method be ? GetMethod(V, @@iterator).
+  // 3. If method is undefined, throw a TypeError.
+  v8::Local<v8::Object> iterable = value.As<v8::Object>();
+
+  v8::Local<v8::Object> iterator;
+  V8cExceptionState* v8c_exception_state =
+      base::polymorphic_downcast<V8cExceptionState*>(exception_state);
+  if (!GetIterator(isolate, iterable, v8c_exception_state).ToLocal(&iterator)) {
+    DCHECK(v8c_exception_state->is_exception_set());
+    return;
+  }
+
+  v8::Local<v8::String> next_key = NewInternalString(isolate, "next");
+  v8::Local<v8::String> value_key = NewInternalString(isolate, "value");
+  v8::Local<v8::String> done_key = NewInternalString(isolate, "done");
   v8::Local<v8::Context> context = isolate->GetCurrentContext();
-  v8::MaybeLocal<v8::Object> maybe_iterable = value->ToObject(context);
-  v8::Local<v8::Object> iterable;
-  if (!maybe_iterable.ToLocal(&iterable)) {
-    exception_state->SetSimpleException(kNotObjectType);
-    return;
-  }
 
-  // 2. Let method be the result of GetMethod(V, @@iterator).
-  // 3. ReturnIfAbrupt(method).
-  // 4. If method is undefined, throw a TypeError.
-  // 5. Return the result of creating a sequence from V and method.
+  // 4. Return the result of creating a sequence from V and method.
   // https://heycam.github.io/webidl/#create-sequence-from-iterable
-  // 5.1. Let iter be GetIterator(iterable, method).
-  // JS::RootedObject iter(context);
-  // if (!util::GetIterator(context, iterable, &iter)) {
-  //   exception_state->SetSimpleException(kNotIterableType);
-  //   return;
-  // }
-  v8::Local<v8::Object> iter;
-  if (!util::GetIterator(isolate, iterable, &iter)) {
-    exception_state->SetSimpleException(kNotIterableType);
-    return;
-  }
+  for (;;) {
+    // Let next be ? IteratorStep(iter).
+    v8::Local<v8::Value> next;
+    if (!iterator->Get(context, next_key).ToLocal(&next)) {
+      v8c_exception_state->ReThrow(&try_catch);
+      return;
+    }
+    if (!next->IsFunction()) {
+      exception_state->SetSimpleException(kTypeError,
+                                          "Iterator.next should be callable.");
+      return;
+    }
 
-  // 5.2. ReturnIfAbrupt(iter).
-  // 5.3. Initialize i to be 0.
-  // 5.4. Repeat
-  while (true) {
-    // 5.4.1. Let next be IteratorStep(iter).
-    // 5.4.2. ReturnIfAbrupt(next).
-    // 5.4.3. If next is false, then return an IDL sequence value of type
-    //        sequence<T> of length i, where the value of the element at index j
-    //        is Sj.
-    v8::Local<v8::Object> next;
-    if (!util::IteratorStep(isolate, iter, &next)) {
+    v8::Local<v8::Value> next_result;
+    if (!next.As<v8::Function>()
+             ->Call(context, iterator, 0, nullptr)
+             .ToLocal(&next_result)) {
+      v8c_exception_state->ReThrow(&try_catch);
+      return;
+    }
+    if (!next_result->IsObject()) {
+      exception_state->SetSimpleException(
+          kTypeError, "Iterator.next did not return an object.");
+      return;
+    }
+
+    // Let nextItem be ? IteratorValue(next).
+    v8::Local<v8::Object> result_object = next_result.As<v8::Object>();
+    v8::Local<v8::Value> next_item;
+    v8::Local<v8::Value> done;
+    if (!result_object->Get(context, value_key).ToLocal(&next_item) ||
+        !result_object->Get(context, done_key).ToLocal(&done)) {
+      v8c_exception_state->ReThrow(&try_catch);
+      return;
+    }
+
+    bool done_as_bool;
+    if (!done->BooleanValue(context).To(&done_as_bool)) {
+      v8c_exception_state->ReThrow(&try_catch);
+      return;
+    }
+    if (done_as_bool) {
       break;
     }
 
-    // 5.4.4. Let nextItem be IteratorValue(next).
-    // 5.4.5. ReturnIfAbrupt(nextItem).
-    v8::Local<v8::Value> next_item;
-    if (!util::IteratorValue(isolate, next, &next_item)) {
-      exception_state->SetSimpleException(kDoesNotImplementInterface);
-      util::IteratorClose(isolate, iter);
-      return;
-    }
-
-    // 5.4.6. Initialize Si to the result of converting nextItem to an IDL value
-    //        of type T.
+    // Initialize S_i to the result of converting nextItem to an IDL value
+    // of type T.
     T idl_next_item;
     FromJSValue(isolate, next_item, conversion_flags, exception_state,
                 &idl_next_item);
-    if (try_catch.HasCaught()) {
-      // Exception converting element into to sequence element type.
-      util::IteratorClose(isolate, iter);
+    if (v8c_exception_state->is_exception_set()) {
       return;
     }
     out_sequence->push_back(idl_next_item);
-
-    // 5.4.7. Set i to i + 1.
   }
-
-  util::IteratorClose(isolate, iter);
-  return;
 }
 
 }  // namespace v8c
