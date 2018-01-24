@@ -33,7 +33,7 @@ class SkTypeface_Cobalt : public SkTypeface_FreeType {
   bool synthesizes_bold() const { return synthesizes_bold_; }
 
  protected:
-  void onGetFamilyName(SkString* family_name) const SK_OVERRIDE;
+  void onGetFamilyName(SkString* family_name) const override;
 
   int face_index_;
   SkString family_name_;
@@ -49,11 +49,11 @@ class SkTypeface_CobaltStream : public SkTypeface_Cobalt {
                           bool is_fixed_pitch, const SkString& family_name);
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
-                           bool* serialize) const SK_OVERRIDE;
+                           bool* serialize) const override;
 
-  SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+  SkStreamAsset* onOpenStream(int* face_index) const override;
 
-  size_t GetStreamLength() const SK_OVERRIDE;
+  size_t GetStreamLength() const override;
 
  private:
   typedef SkTypeface_Cobalt INHERITED;
@@ -69,11 +69,11 @@ class SkTypeface_CobaltStreamProvider : public SkTypeface_Cobalt {
       bool disable_synthetic_bolding);
 
   void onGetFontDescriptor(SkFontDescriptor* descriptor,
-                           bool* serialize) const SK_OVERRIDE;
+                           bool* serialize) const override;
 
-  SkStreamAsset* onOpenStream(int* face_index) const SK_OVERRIDE;
+  SkStreamAsset* onOpenStream(int* face_index) const override;
 
-  size_t GetStreamLength() const SK_OVERRIDE;
+  size_t GetStreamLength() const override;
 
  private:
   typedef SkTypeface_Cobalt INHERITED;

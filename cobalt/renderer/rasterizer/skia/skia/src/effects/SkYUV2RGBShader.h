@@ -38,11 +38,11 @@ class SkYUV2RGBShader : public SkShaderBase {
                          const ContextRec& rec);
     virtual ~YUV2RGBShaderContext();
 
-    virtual uint32_t getFlags() const SK_OVERRIDE;
+    uint32_t getFlags() const override;
 
-    virtual void shadeSpan(int x, int y, SkPMColor[], int count) SK_OVERRIDE;
+    void shadeSpan(int x, int y, SkPMColor[], int count) override;
 
-    virtual void set3DMask(const SkMask* mask) SK_OVERRIDE {
+    void set3DMask(const SkMask* mask) override {
         // forward to our proxy
         y_shader_context_->set3DMask(mask);
         u_shader_context_->set3DMask(mask);
@@ -61,16 +61,16 @@ class SkYUV2RGBShader : public SkShaderBase {
 
 #if SK_SUPPORT_GPU
   sk_sp<GrFragmentProcessor> asFragmentProcessor(const AsFPArgs&) const
-      SK_OVERRIDE;
+      override;
 #endif
 
   SK_TO_STRING_OVERRIDE()
   SK_DECLARE_PUBLIC_FLATTENABLE_DESERIALIZATION_PROCS(SkYUV2RGBShader)
 
  protected:
-  virtual void flatten(SkWriteBuffer&) const SK_OVERRIDE;
+  void flatten(SkWriteBuffer&) const override;
   SkShaderBase::Context* onMakeContext(const ContextRec& rec,
-                                       SkArenaAlloc* storage) const SK_OVERRIDE;
+                                       SkArenaAlloc* storage) const override;
 
  private:
   void InitializeShaders();

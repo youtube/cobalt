@@ -1656,13 +1656,13 @@ void RenderText(SkCanvas* render_target,
                   color.b() * 255);
 
     if (blur_sigma > 0.0f) {
-      SkAutoTUnref<SkMaskFilter> mf(
+      sk_sp<SkMaskFilter> mf(
           SkBlurMaskFilter::Make(kNormal_SkBlurStyle, blur_sigma,
                                  SkBlurMaskFilter::kHighQuality_BlurFlag));
       paint.setMaskFilter(mf);
     }
 
-    SkAutoTUnref<const SkTextBlob> text_blob(skia_glyph_buffer->GetTextBlob());
+    sk_sp<const SkTextBlob> text_blob(skia_glyph_buffer->GetTextBlob());
     render_target->drawTextBlob(text_blob.get(), position.x(), position.y(),
                                 paint);
   }

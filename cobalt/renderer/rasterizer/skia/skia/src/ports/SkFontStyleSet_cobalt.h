@@ -82,16 +82,16 @@ class SkFontStyleSet_Cobalt : public SkFontStyleSet {
       SkMutex* const manager_owned_mutex);
 
   // From SkFontStyleSet
-  virtual int count() SK_OVERRIDE;
+  int count() override;
   // NOTE: SkFontStyleSet_Cobalt does not support getStyle(), as publicly
   // accessing styles by index is unsafe.
-  virtual void getStyle(int index, SkFontStyle* style,
-                        SkString* name) SK_OVERRIDE;
+  void getStyle(int index, SkFontStyle* style,
+                        SkString* name) override;
   // NOTE: SkFontStyleSet_Cobalt does not support createTypeface(), as
   // publicly accessing styles by index is unsafe.
-  virtual SkTypeface* createTypeface(int index) SK_OVERRIDE;
+  SkTypeface* createTypeface(int index) override;
 
-  virtual SkTypeface* matchStyle(const SkFontStyle& pattern) SK_OVERRIDE;
+  SkTypeface* matchStyle(const SkFontStyle& pattern) override;
 
   const SkString& get_family_name() const { return family_name_; }
 
