@@ -123,11 +123,7 @@ bool SbSystemGetProperty(SbSystemPropertyId property_id,
       return CopyStringAndTestIfSuccess(out_value, value_length, "N/A");
 
     case kSbSystemPropertySpeechApiKey:
-#ifdef SB_HAS_SPEECH_API_KEY
-      return CopyStringAndTestIfSuccess(out_value, value_length, kSpeechApiKey);
-#else
       return false;
-#endif  // SB_HAS_SPEECH_API_KEY
     case kSbSystemPropertyUserAgentAuxField: {
       JniEnvExt* env = JniEnvExt::Get();
       ScopedLocalJavaRef<jstring> aux_string(
