@@ -42,12 +42,12 @@
 
 // The maximum API version allowed by this version of the Starboard headers,
 // inclusive.
-#define SB_MAXIMUM_API_VERSION 9
+#define SB_MAXIMUM_API_VERSION 10
 
 // The API version that is currently open for changes, and therefore is not
 // stable or frozen. Production-oriented ports should avoid declaring that they
 // implement the experimental Starboard API version.
-#define SB_EXPERIMENTAL_API_VERSION 9
+#define SB_EXPERIMENTAL_API_VERSION 10
 
 // The next API version to be frozen, but is still subject to emergency
 // changes. It is reasonable to base a port on the Release Candidate API
@@ -68,23 +68,8 @@
 //   //   exposes functionality for my new feature.
 //   #define SB_MY_EXPERIMENTAL_FEATURE_VERSION SB_EXPERIMENTAL_API_VERSION
 
-// Adds string label to SbMicrophoneInfo.
-// This should indicate the friendly name of the microphone type.
-#define SB_MICROPHONE_LABEL_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Introduce additional SbSocketError enum values.
-// Instead of the single generic kSbSocketErrorFailed to indicate socket errors,
-// the enum kSbSocketErrorConnectionReset has been introduced corresponding to
-// various dropped TCP connection errors.  This is particularly useful in
-// identifying socket errors that can be retried.
-#define SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION \
-  SB_EXPERIMENTAL_API_VERSION
-
 // Minimum API version for supporting system-level closed caption settings.
 #define SB_ACCESSIBILITY_CAPTIONS_API_VERSION SB_EXPERIMENTAL_API_VERSION
-
-// Add new keycode kSbKeyInstantReplay identical to OCAP's VK_INSTANT_REPLAY
-#define SB_INSTANT_REPLAY_KEY_VERSION SB_EXPERIMENTAL_API_VERSION
 
 // --- Release Candidate Feature Defines -------------------------------------
 

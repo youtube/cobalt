@@ -47,14 +47,13 @@ SbSocketError TranslateSocketErrno(int error) {
 #endif
       return kSbSocketPending;
 #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) || \
-    SB_API_VERSION >= SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+    SB_API_VERSION >= 9
     case ECONNRESET:
     case ENETRESET:
     case EPIPE:
       return kSbSocketErrorConnectionReset;
 #endif  // #if SB_HAS(SOCKET_ERROR_CONNECTION_RESET_SUPPORT) ||
-        //     SB_API_VERSION >=
-        //     SB_ADDITIONAL_SOCKET_CONNECTION_ERRORS_API_VERSION
+        //     SB_API_VERSION >= 9
   }
 
   SB_LOG(ERROR) << "Unknown posix socket error: " << error;
