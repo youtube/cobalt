@@ -14,21 +14,18 @@
 
 apply plugin: 'com.android.application'
 
-// This is which native app to build on top of our Starboard implementation.
-final STARBOARD_APP = 'cobalt'
-//final STARBOARD_APP = 'starboard_blitter_example'
-//final STARBOARD_APP = 'starboard_glclear_example'
-//final STARBOARD_APP = 'starboard_window_example'
-
+final DEFAULT_COBALT_TARGET = 'cobalt'
 final String[] SUPPORTED_ABIS = [ 'x86', 'x86_64', 'armeabi-v7a', 'arm64-v8a' ]
 
 ext {
     // Provide defaults if these properties aren't specified on the command line.
-    buildAbi = project.hasProperty('buildAbi') ? buildAbi : SUPPORTED_ABIS
+    buildAbi = project.hasProperty('cobaltBuildAbi') ? cobaltBuildAbi : SUPPORTED_ABIS
+    cobaltTarget = project.hasProperty('cobaltTarget') ? cobaltTarget : DEFAULT_COBALT_TARGET
     cobaltProductDir =
             project.hasProperty('cobaltProductDir') ? new File(cobaltProductDir).canonicalPath : ''
-    cobaltPlatformDeploy = project.hasProperty('cobaltPlatformDeploy') && cobaltPlatformDeploy
 }
+
+println "TARGET: ${cobaltTarget}"
 
 android {
     compileSdkVersion 27
@@ -54,9 +51,9 @@ android {
         }
         externalNativeBuild {
             cmake {
-                arguments "-DCOBALT_TARGET=${STARBOARD_APP}"
+                arguments "-DCOBALT_TARGET=${cobaltTarget}"
                 arguments "-DCOBALT_PRODUCT_DIR=${cobaltProductDir}"
-                arguments "-DCOBALT_PLATFORM_DEPLOY=${cobaltPlatformDeploy}"
+                arguments "-DCOBALT_PLATFORM_DEPLOY=${project.hasProperty('cobaltDeployApk')}"
             }
         }
     }
@@ -117,16 +114,29 @@ android {
         }
     }
     externalNativeBuild {
-        cmake.path 'CMakeLists.txt'
+        cmake {
+            path 'CMakeLists.txt'
+            if (project.hasProperty('cobaltGradleDir')) {
+                // Resolve relative to the current dir at config time by getting a canonical File.
+                buildStagingDirectory new File(cobaltGradleDir, 'externalNativeBuild').canonicalFile
+            }
+        }
     }
 }
 
-// Make proxy assemble tasks that just depend on the Android assemble task of the right build type.
-// We use lowercase build type in the task name so that it's easy to generate in GYP.
-task assembleCobalt_debug dependsOn "assembleDebug"
-task assembleCobalt_devel dependsOn "assembleDevel"
-task assembleCobalt_qa dependsOn "assembleQa"
-task assembleCobalt_release dependsOn "assembleRelease"
+// When running in the platform deploy action, make tasks that depend on the appropriate Android
+// assemble tasks, then the move the assembled "app" apk to the desired path for deployment.
+if (project.hasProperty('cobaltDeployApk')) {
+    android.applicationVariants.all { variant ->
+        task "assembleCobalt_${variant.name}"(dependsOn: "assemble${variant.name.capitalize()}") {
+            def assembledApk = variant.outputs[0].outputFile
+            def deployApk = new File(cobaltDeployApk).canonicalFile
+            doLast {
+                assembledApk.renameTo(deployApk)
+            }
+        }
+    }
+}
 
 dependencies {
     implementation fileTree(include: ['*.jar'], dir: 'libs')
