@@ -46,12 +46,8 @@ def _ParseCommandLineArguments(argv):
       formatter_class=argparse.RawDescriptionHelpFormatter,
       description=textwrap.dedent(__doc__))
 
-  default_config, _ = build.GetDefaultConfigAndPlatform()
   parser.add_argument('-C', '--config', dest='build_configs', metavar='CONFIG',
-                      action='append',
-                      choices=config.GetAll(),
-                      default=([default_config] if default_config
-                               else config.GetAll()),
+                      action='append', default=[], choices=config.GetAll(),
                       help='Specifies build configurations. Supported '
                       'configurations are %s. Can be specified multiple '
                       'times, creates all configurations if nothing is '
@@ -97,6 +93,15 @@ def _SetLogLevel(verbose_count):
     logging_level = logging.DEBUG
   logging.getLogger().setLevel(logging_level)
 
+def _GetBuildConfigs(build_configs):
+  if build_configs:
+    return build_configs
+  else:
+    default_config, _ = build.GetDefaultConfigAndPlatform()
+    if default_config:
+      return default_config
+    else:
+      return config.GetAll()
 
 def main(argv):
   _SetupLogging()
@@ -113,7 +118,7 @@ def main(argv):
     logging.error(e)
     return RETVAL_ERROR
 
-  for config_name in options.build_configs:
+  for config_name in _GetBuildConfigs(options.build_configs):
     logging.info('Building config: %s', config_name)
     gyp_return = gyp_runner.BuildConfig(config_name)
     if gyp_return:
