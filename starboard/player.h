@@ -71,10 +71,18 @@ typedef enum SbPlayerState {
   // The player has been destroyed, and will send no more callbacks.
   kSbPlayerStateDestroyed,
 
+#if SB_HAS(PLAYER_WITH_URL)
+  // The following error codes are used by the URL player to report detailed
+  // errors.  They are not required in non-URL player mode.
+  kSbPlayerWithUrlStateNetworkError,
+  kSbPlayerWithUrlStateDecodeError,
+  kSbPlayerWithUrlStateSrcNotSupportedError,
+#else   //  SB_HAS(PLAYER_WITH_URL)
   // The player encountered an error. It expects an SbPlayerDestroy() call
   // to tear down the player. Calls to other functions may be ignored and
   // callbacks may not be triggered.
   kSbPlayerStateError,
+#endif  //  SB_HAS(PLAYER_WITH_URL)
 } SbPlayerState;
 
 typedef enum SbPlayerOutputMode {
