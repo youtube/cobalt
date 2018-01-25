@@ -1065,9 +1065,21 @@ void SbPlayerPipeline::OnPlayerStatus(SbPlayerState state) {
       break;
     case kSbPlayerStateDestroyed:
       break;
+#if SB_HAS(PLAYER_WITH_URL)
+    case kSbPlayerWithUrlStateNetworkError:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_NETWORK);
+      break;
+    case kSbPlayerWithUrlStateDecodeError:
+      ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
+      break;
+    case kSbPlayerWithUrlStateSrcNotSupportedError:
+      ResetAndRunIfNotNull(&error_cb_, DECODER_ERROR_NOT_SUPPORTED);
+      break;
+#else   //  SB_HAS(PLAYER_WITH_URL)
     case kSbPlayerStateError:
       ResetAndRunIfNotNull(&error_cb_, PIPELINE_ERROR_DECODE);
       break;
+#endif  // SB_HAS(PLAYER_WITH_URL)
   }
 }
 
