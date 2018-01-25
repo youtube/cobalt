@@ -167,6 +167,7 @@ v8.log
 /third_party/bison
 /third_party/cacheinvalidation/src
 /third_party/cdm
+/third_party/ce_cdm
 /third_party/chromeos_login_manager
 /third_party/chromeos_text_input
 /third_party/cros
