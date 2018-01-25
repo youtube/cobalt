@@ -33,6 +33,7 @@ namespace cobalt {
 namespace dom {
 
 class Window;
+class OnScreenKeyboardMockBridge;
 
 class OnScreenKeyboard : public EventTarget {
  public:
@@ -94,6 +95,8 @@ class OnScreenKeyboard : public EventTarget {
   void TraceMembers(script::Tracer* tracer) override;
 
  private:
+  friend class OnScreenKeyboardMockBridge;
+
   ~OnScreenKeyboard() override {}
 
   TicketToPromiseMap ticket_to_hide_promise_map_;

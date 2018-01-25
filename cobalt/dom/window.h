@@ -350,6 +350,7 @@ class Window : public EventTarget,
 
   // Custom on screen keyboard.
   const scoped_refptr<OnScreenKeyboard>& on_screen_keyboard() const;
+  void ReleaseOnScreenKeyboard();
 
   void OnStartDispatchEvent(const scoped_refptr<dom::Event>& event);
   void OnStopDispatchEvent(const scoped_refptr<dom::Event>& event);
