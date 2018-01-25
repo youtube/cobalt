@@ -1,0 +1,89 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "22c2fc14_bf99f4b9",
+        "filename": "src/starboard/creator/ci20x11/gcc/4.9/gyp_configuration.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-01-25T23:33:47Z",
+      "side": 1,
+      "message": "As I understand it, the problem is we don\u0027t know whether we\u0027re going to run tests or build, but you don\u0027t want to require the toolchain just to run the tests.\n\nHowever, if you forget to set this (or perhaps didn\u0027t know) and try to build, I think you\u0027ll just end up getting a python stack trace for an uninitialized variable like self.toolchain_dir or something.\n\nIn an effort to make this problem as self-diagnosing as possible, pls just build the toolchain_dir as late as possible when you need it (eg in GetVariables).\n\nThis should let you achieve what you want while also being more helpful than a python stack trace.\n\n(and elsewhere)",
+      "revId": "702c18eb9d2e13a84a32019c93380c8c77d488c8",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "1e975b4f_906517fb",
+        "filename": "src/starboard/creator/ci20x11/gyp_configuration.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 37,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-01-25T23:33:47Z",
+      "side": 1,
+      "message": "For the tests that you\u0027d like to filter out independent of toolchain/build config, please consolidate them in src/starboard/creator/shared/ as well",
+      "revId": "702c18eb9d2e13a84a32019c93380c8c77d488c8",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "d3b8a374_a51b4b46",
+        "filename": "src/starboard/creator/ci20x11/system_get_property.cc",
+        "patchSetId": 2
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-01-25T23:33:47Z",
+      "side": 1,
+      "message": "nit \"const char kFriendlyName[] \u003d...\" instead and elsewhere",
+      "revId": "702c18eb9d2e13a84a32019c93380c8c77d488c8",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "2c465398_3c462688",
+        "filename": "src/starboard/creator/shared/gyp_configuration.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 22,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-01-25T23:33:47Z",
+      "side": 1,
+      "message": "pls just delete lines you end up not needing (and elsewhere)",
+      "revId": "702c18eb9d2e13a84a32019c93380c8c77d488c8",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "cf4599ca_f1c67800",
+        "filename": "src/starboard/creator/shared/launcher.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 5220
+      },
+      "writtenOn": "2018-01-25T23:33:47Z",
+      "side": 1,
+      "message": "Pls just point to the one in linux/shared/launcher.py if you can.",
+      "revId": "702c18eb9d2e13a84a32019c93380c8c77d488c8",
+      "serverId": "52989804-5fae-3d7a-867c-a33f4af59155",
+      "unresolved": true
+    }
+  ]
+}
