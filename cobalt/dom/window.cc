@@ -648,6 +648,8 @@ const scoped_refptr<OnScreenKeyboard>& Window::on_screen_keyboard() const {
   return on_screen_keyboard_;
 }
 
+void Window::ReleaseOnScreenKeyboard() { on_screen_keyboard_ = nullptr; }
+
 Window::~Window() {
   html_element_context_->page_visibility_state()->RemoveObserver(this);
 }
