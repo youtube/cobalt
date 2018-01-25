@@ -9,6 +9,7 @@
 5-2-use-numerical-font-weights-in-family-face-matching
 5-2-use-specified-font-family-if-available
 5-2-use-system-fallback-if-no-matching-family-is-found
+color-emojis-should-render-properly
 synthetic-bolding-should-not-occur-on-bold-font
 synthetic-bolding-should-occur-on-non-bold-font
 text-bounds-should-be-calculated-properly-when-containing-zero-height-font-runs
