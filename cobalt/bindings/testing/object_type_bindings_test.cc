@@ -17,6 +17,7 @@
 #include "cobalt/bindings/testing/derived_interface.h"
 #include "cobalt/bindings/testing/object_type_bindings_interface.h"
 #include "cobalt/bindings/testing/script_object_owner.h"
+#include "cobalt/bindings/testing/utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 using ::testing::_;
@@ -81,16 +82,8 @@ TEST_F(PlatformObjectBindingsTest, Prototype) {
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.arbitraryObject);", &result));
 
-  // We accept both of these results because (e.g.)
-  // "String(Object.getPrototypeOf(document.body));" will evaluate to "[object
-  // HTMLBodyElement]" on Chrome 63 and "[object HTMLBodyElementPrototype]" on
-  // Firefox 57.  So, when we use SpiderMonkey, we handle this in the style of
-  // Firefox, and when we use V8, we handle this in the style of Chrome.
-  bool is_arbitrary_interface_prototype_like =
-      (result == "[object ArbitraryInterfacePrototype]") ||
-      (result == "[object ArbitraryInterface]");
-  EXPECT_TRUE(is_arbitrary_interface_prototype_like)
-      << "Unexpected result: " << result;
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 #if defined(ENGINE_DEFINES_ATTRIBUTES_ON_OBJECT)
@@ -190,13 +183,8 @@ TEST_F(PlatformObjectBindingsTest, ReturnDerivedClassWrapper) {
   EXPECT_TRUE(
       EvaluateScript("Object.getPrototypeOf(test.baseInterface);", &result));
 
-  // See "PlatformObjectBindingsTest.Prototype" for why both of these are
-  // accepted.
-  bool is_derived_interface_prototype_like =
-      (result == "[object DerivedInterfacePrototype]") ||
-      (result == "[object DerivedInterface]");
-  EXPECT_TRUE(is_derived_interface_prototype_like)
-      << "Unexpected result: " << result;
+  EXPECT_TRUE(IsAcceptablePrototypeString("DerivedInterface", result))
+      << result;
 
   EXPECT_CALL(test_mock(), base_interface());
   EXPECT_CALL(*derived_interface_, DerivedOperation());
