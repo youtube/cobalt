@@ -14,6 +14,7 @@
 
 #include "cobalt/base/polymorphic_downcast.h"
 #include "cobalt/bindings/testing/bindings_test_base.h"
+#include "cobalt/bindings/testing/utils.h"
 #include "cobalt/bindings/testing/window_mock.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -100,7 +101,8 @@ TEST_F(GlobalInterfaceBindingsTest, ConstructorExists) {
 TEST_F(GlobalInterfaceBindingsTest, ConstructorPrototype) {
   std::string result;
   EXPECT_TRUE(EvaluateScript("ArbitraryInterface.prototype", &result));
-  EXPECT_STREQ("[object ArbitraryInterfacePrototype]", result.c_str());
+  EXPECT_TRUE(IsAcceptablePrototypeString("ArbitraryInterface", result))
+      << result;
 }
 
 TEST_F(GlobalInterfaceBindingsTest,
