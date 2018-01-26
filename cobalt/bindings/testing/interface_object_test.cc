@@ -92,15 +92,6 @@ TEST_F(InterfaceObjectTest, ConstructorPropertyIsInterfaceObject) {
   EXPECT_STREQ("true", result.c_str());
 }
 
-// If [NoInterfaceObject] extended attribute is specified, there should be no
-// constructor property on the prototype.
-TEST_F(NoInterfaceObjectTest, NoConstructorProperty) {
-  std::string result;
-  EXPECT_TRUE(EvaluateScript(
-      "Object.getPrototypeOf(test).hasOwnProperty(\"constructor\");", &result));
-  EXPECT_STREQ("false", result.c_str());
-}
-
 // Interface object for non-callback interface is a function object.
 TEST_F(NoInterfaceObjectTest, NoInterfaceObjectGlobalProperty) {
   std::string result;
