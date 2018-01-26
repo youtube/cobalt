@@ -59,15 +59,20 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         clang.GetClangSpecification())
     raspi_home = self._GetRasPiHome()
 
-    toolchain = os.path.realpath(os.path.join(
-        raspi_home,
-        'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
+    toolchain = os.path.realpath(
+        os.path.join(
+            raspi_home,
+            'tools/arm-bcm2708/gcc-linaro-arm-linux-gnueabihf-raspbian-x64'))
     toolchain_bin_dir = os.path.join(toolchain, 'bin')
     env_variables.update({
         'CC': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-gcc'),
         'CXX': os.path.join(toolchain_bin_dir, 'arm-linux-gnueabihf-g++'),
     })
     return env_variables
+
+  def GetLauncherPath(self):
+    """Gets the path to the launcher module for this platform."""
+    return os.path.dirname(__file__)
 
   def GetTestFilters(self):
     filters = super(RaspiPlatformConfig, self).GetTestFilters()
@@ -76,14 +81,13 @@ class RaspiPlatformConfig(platform_configuration.PlatformConfiguration):
         # disable the related tests.
         test_filter.TestFilter(
             'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-                    'SunnyDayDestination/1'),
+            'SunnyDayDestination/1'),
         test_filter.TestFilter(
             'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-                    'SunnyDaySourceForDestination/1'),
+            'SunnyDaySourceForDestination/1'),
         test_filter.TestFilter(
             'nplb', 'SbSocketAddressTypes/SbSocketGetInterfaceAddressTest.'
-                    'SunnyDaySourceNotLoopback/1'),
-
+            'SunnyDaySourceNotLoopback/1'),
         test_filter.TestFilter('starboard_platform_tests',
                                test_filter.FILTER_ALL),
         test_filter.TestFilter('nplb_blitter_pixel_tests',
