@@ -203,7 +203,8 @@ typedef enum SbEventType {
 
   // The platform's accessibility settings have changed. The application should
   // query the accessibility settings using the appropriate APIs to get the
-  // new settings.
+  // new settings. Note this excludes captions settings changes, which
+  // causes kSbEventTypeAccessibilityCaptionSettingsChanged to fire.
   kSbEventTypeAccessiblitySettingsChanged,
 
 #if SB_API_VERSION >= 6
@@ -258,6 +259,11 @@ typedef enum SbEventType {
   kSbEventTypeOnScreenKeyboardBlurred,
 
 #endif  // SB_HAS(ON_SCREEN_KEYBOARD)
+#if SB_HAS(CAPTIONS)
+  // One or more of the fields returned by SbAccessibilityGetCaptionSettings
+  // has changed.
+  kSbEventTypeAccessibilityCaptionSettingsChanged,
+#endif  // SB_HAS(CAPTIONS)
 } SbEventType;
 
 // Structure representing a Starboard event and its data.
