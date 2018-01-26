@@ -43,8 +43,6 @@ class MozjsEngine : public JavaScriptEngine {
   static void GCCallback(JSRuntime* runtime, JSGCStatus status, void* data);
   static void FinalizeCallback(JSFreeOp* free_op, JSFinalizeStatus status,
                                bool is_compartment, void* data);
-  bool ReportJSError(JSContext* context, const char* message,
-                     JSErrorReport* report);
 
   base::ThreadChecker thread_checker_;
 
