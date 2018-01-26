@@ -142,8 +142,11 @@ void OnScreenKeyboard::DispatchHideEvent(int ticket) {
   if (bridge_->IsValidTicket(ticket)) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_hide_promise_map_.find(ticket);
-    DCHECK(it != ticket_to_hide_promise_map_.end())
-        << "No promise matching ticket for OnScreenKeyboardHidden event.";
+    if (it == ticket_to_hide_promise_map_.end()) {
+      LOG(ERROR)
+          << "No promise matching ticket for OnScreenKeyboardHidden event.";
+      return;
+    }
     it->second->value().Resolve();
     ticket_to_hide_promise_map_.erase(it);
   }
@@ -154,8 +157,11 @@ void OnScreenKeyboard::DispatchShowEvent(int ticket) {
   if (bridge_->IsValidTicket(ticket)) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_show_promise_map_.find(ticket);
-    DCHECK(it != ticket_to_show_promise_map_.end())
-        << "No promise matching ticket for OnScreenKeyboardShown event.";
+    if (it == ticket_to_show_promise_map_.end()) {
+      LOG(ERROR)
+          << "No promise matching ticket for OnScreenKeyboardShown event.";
+      return;
+    }
     it->second->value().Resolve();
     ticket_to_show_promise_map_.erase(it);
   }
@@ -166,8 +172,11 @@ void OnScreenKeyboard::DispatchFocusEvent(int ticket) {
   if (bridge_->IsValidTicket(ticket)) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_focus_promise_map_.find(ticket);
-    DCHECK(it != ticket_to_focus_promise_map_.end())
-        << "No promise matching ticket for OnScreenKeyboardFocused event.";
+    if (it == ticket_to_focus_promise_map_.end()) {
+      LOG(ERROR)
+          << "No promise matching ticket for OnScreenKeyboardFocused event.";
+      return;
+    }
     it->second->value().Resolve();
     ticket_to_focus_promise_map_.erase(it);
   }
@@ -178,8 +187,11 @@ void OnScreenKeyboard::DispatchBlurEvent(int ticket) {
   if (bridge_->IsValidTicket(ticket)) {
     TicketToPromiseMap::const_iterator it =
         ticket_to_blur_promise_map_.find(ticket);
-    DCHECK(it != ticket_to_blur_promise_map_.end())
-        << "No promise matching ticket for OnScreenKeyboardBlurred event.";
+    if (it == ticket_to_blur_promise_map_.end()) {
+      LOG(ERROR)
+          << "No promise matching ticket for OnScreenKeyboardBlurred event.";
+      return;
+    }
     it->second->value().Resolve();
     ticket_to_blur_promise_map_.erase(it);
   }
