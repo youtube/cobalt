@@ -27,6 +27,7 @@
 #include "base/message_loop_proxy.h"
 #include "base/optional.h"
 #include "base/stringprintf.h"
+#include "cobalt/base/c_val.h"
 #include "cobalt/base/language.h"
 #include "cobalt/base/startup_timer.h"
 #include "cobalt/base/tokens.h"
@@ -308,6 +309,9 @@ class WebModule::Impl {
   // Simple flag used for basic error checking.
   bool is_running_;
 
+  // Whether or not a render tree has been produced but not yet rasterized.
+  base::CVal<bool, base::CValPublic> is_render_tree_rasterization_pending_;
+
   // Object that provides renderer resources like images and fonts.
   render_tree::ResourceProvider* resource_provider_;
   // The type id of resource provider being used by the WebModule. Whenever this
@@ -445,6 +449,9 @@ class WebModule::Impl::DocumentLoadedObserver : public dom::DocumentObserver {
 WebModule::Impl::Impl(const ConstructionData& data)
     : name_(data.options.name),
       is_running_(false),
+      is_render_tree_rasterization_pending_(
+          StringPrintf("%s.IsRenderTreeRasterizationPending", name_.c_str()),
+          false, "True when a render tree is produced but not yet rasterized."),
       resource_provider_(data.resource_provider),
       resource_provider_type_id_(data.resource_provider->GetTypeId()) {
   // Currently we rely on a platform to explicitly specify that it supports
@@ -842,19 +849,13 @@ void WebModule::Impl::OnRenderTreeProduced(
   DCHECK(thread_checker_.CalledOnValidThread());
   DCHECK(is_running_);
 
-  LayoutResults layout_results_with_callback(layout_results.render_tree,
-                                             layout_results.layout_time);
-
-  // Notify the stat tracker that a render tree has been produced.
+  is_render_tree_rasterization_pending_ = true;
   web_module_stat_tracker_->OnRenderTreeProduced();
 
-  // If the stat tracker is expecting to be notified of the rasterization time
-  // of the next render tree, then set a callback for this layout.
-  if (web_module_stat_tracker_->IsRenderTreeRasterizationPending()) {
-    layout_results_with_callback.on_rasterized_callback =
-        base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
-                   base::Unretained(this), base::MessageLoopProxy::current());
-  }
+  LayoutResults layout_results_with_callback(
+      layout_results.render_tree, layout_results.layout_time,
+      base::Bind(&WebModule::Impl::OnRenderTreeRasterized,
+                 base::Unretained(this), base::MessageLoopProxy::current()));
 
 #if defined(ENABLE_DEBUG_CONSOLE)
   debug_overlay_->OnRenderTreeProduced(layout_results_with_callback);
@@ -874,6 +875,7 @@ void WebModule::Impl::ProcessOnRenderTreeRasterized(
     const base::TimeTicks& on_rasterize_time) {
   DCHECK(thread_checker_.CalledOnValidThread());
   web_module_stat_tracker_->OnRenderTreeRasterized(on_rasterize_time);
+  is_render_tree_rasterization_pending_ = false;
 }
 
 #if defined(ENABLE_PARTIAL_LAYOUT_CONTROL)
