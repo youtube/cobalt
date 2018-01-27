@@ -648,6 +648,7 @@ void BrowserModule::OnRenderTreeProduced(
     splash_screen_->Shutdown();
   }
   if (application_state_ == base::kApplicationStatePreloading) {
+    layout_results.on_rasterized_callback.Run();
     return;
   }
 

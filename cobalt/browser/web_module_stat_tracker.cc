@@ -124,7 +124,6 @@ void WebModuleStatTracker::OnRenderTreeProduced() { EndCurrentEvent(true); }
 
 void WebModuleStatTracker::OnRenderTreeRasterized(
     const base::TimeTicks& on_rasterize_time) {
-  DCHECK(should_track_event_stats_);
   for (const auto& event_stats : event_stats_list_) {
     if (event_stats->is_render_tree_rasterization_pending) {
       event_stats->is_render_tree_rasterization_pending = false;
@@ -132,17 +131,6 @@ void WebModuleStatTracker::OnRenderTreeRasterized(
           on_rasterize_time - event_stats->start_time;
     }
   }
-}
-
-bool WebModuleStatTracker::IsRenderTreeRasterizationPending() const {
-  if (should_track_event_stats_) {
-    for (const auto& event_stats : event_stats_list_) {
-      if (event_stats->is_render_tree_rasterization_pending) {
-        return true;
-      }
-    }
-  }
-  return false;
 }
 
 WebModuleStatTracker::EventStats::EventStats(const std::string& name)

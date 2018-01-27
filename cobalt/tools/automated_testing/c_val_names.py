@@ -67,8 +67,12 @@ def event_value_dictionary(event_type):
   return 'Event.MainWebModule.{}.ValueDictionary'.format(event_type)
 
 
-def layout_is_render_tree_pending():
+def is_render_tree_generation_pending():
   return 'MainWebModule.Layout.IsRenderTreePending'
+
+
+def is_render_tree_rasterization_pending():
+  return 'MainWebModule.IsRenderTreeRasterizationPending'
 
 
 def memory_font_cache_resource_loaded():
