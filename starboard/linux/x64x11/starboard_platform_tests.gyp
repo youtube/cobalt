@@ -13,7 +13,7 @@
 # limitations under the License.
 {
   'includes': [
-    '<(DEPTH)/starboard/shared/starboard/player/filter/filter_tests.gypi',
+    '<(DEPTH)/starboard/shared/starboard/player/filter/testing/filter_tests.gypi',
   ],
   'targets': [
     {
