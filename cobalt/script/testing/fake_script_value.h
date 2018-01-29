@@ -26,22 +26,25 @@ template <class T>
 class FakeScriptValue : public cobalt::script::ScriptValue<T> {
  public:
   typedef cobalt::script::ScriptValue<T> BaseClass;
+
   explicit FakeScriptValue(const T* listener)
       : value_(listener) {}
-
-  void RegisterOwner(script::Wrappable*) override {}
-  void DeregisterOwner(script::Wrappable*) override {}
-  void PreventGarbageCollection() override {}
-  void AllowGarbageCollection() override {}
-  const T* GetScriptValue(void) const override { return value_; }
-  scoped_ptr<BaseClass> MakeCopy() const override {
-    return make_scoped_ptr<BaseClass>(new FakeScriptValue(value_));
-  }
 
   bool EqualTo(const BaseClass& other) const override {
     const FakeScriptValue* other_script_object =
         base::polymorphic_downcast<const FakeScriptValue*>(&other);
     return value_ == other_script_object->value_;
+  }
+
+  void TraceMembers(Tracer*) override {};
+
+  void RegisterOwner(script::Wrappable*) override {}
+  void DeregisterOwner(script::Wrappable*) override {}
+  void PreventGarbageCollection() override {}
+  void AllowGarbageCollection() override {}
+  const T* GetScriptValue() const override { return value_; }
+  scoped_ptr<BaseClass> MakeCopy() const override {
+    return make_scoped_ptr<BaseClass>(new FakeScriptValue(value_));
   }
 
  private:
