@@ -61,7 +61,7 @@ void CORSPreflightCache::AppendEntry(
   if (methods_vec.size() == 1 && methods_vec.at(0) == "*") {
     new_entry->allow_all_methods = true;
   } else {
-    for (auto method : methods_vec) {
+    for (const auto& method : methods_vec) {
       net::URLFetcher::RequestType request_type;
       if (MethodNameToRequestType(method, &request_type)) {
         new_entry->methods.insert(request_type);
@@ -74,7 +74,7 @@ void CORSPreflightCache::AppendEntry(
   }
   // TODO: Consider change this function to use std::copy with std::inserter.
   // Currently compilers on some machines do not support it.
-  for (auto headername : headernames_vec) {
+  for (const auto& headername : headernames_vec) {
     new_entry->headernames.insert(headername);
   }
 
@@ -124,7 +124,7 @@ bool CORSPreflightCache::HaveEntry(
   // name("Authentication") and last preflight allowed * headers.
   if (entry_ptr->allow_all_headers_except_non_wildcard) {
     bool has_auth_header = false;
-    for (auto header : unsafe_headernames) {
+    for (const auto& header : unsafe_headernames) {
       if (SbStringCompareNoCase(header.c_str(), kAuthorization)) {
         has_auth_header = true;
         break;
@@ -137,7 +137,7 @@ bool CORSPreflightCache::HaveEntry(
   }
   // If last preflight does not allow arbitrary header, then match each header
   // with allowed headers.
-  for (auto unsafe_headername : unsafe_headernames) {
+  for (const auto& unsafe_headername : unsafe_headernames) {
     if (entry_ptr->headernames.find(unsafe_headername) ==
         entry_ptr->headernames.end()) {
       return false;
