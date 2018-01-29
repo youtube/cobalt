@@ -125,6 +125,9 @@ void* ThreadEntryPoint(void* context) {
   // shutting down the Activity.
   g_app_running = false;
 
+  // Our launcher.py looks for this to know when the app (test) is done.
+  SB_LOG(INFO) << "***Application Stopped*** " << error_level;
+
   // Since we cannot reliably flush the exit code in the log, we write a file to
   // our app files directory.
   if (!exit_file_path.empty()) {
