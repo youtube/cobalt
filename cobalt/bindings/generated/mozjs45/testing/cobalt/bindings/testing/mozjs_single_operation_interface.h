@@ -41,9 +41,11 @@ class MozjsSingleOperationInterface : public SingleOperationInterface {
       const scoped_refptr<script::Wrappable>& callback_this,
       const scoped_refptr<ArbitraryInterface>& value,
       bool* had_exception) const override;
+
   JSObject* handle() const { return implementing_object_.GetObject(); }
   const JS::Value& value() const { return implementing_object_.GetValue(); }
   bool WasCollected() const { return implementing_object_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { implementing_object_.Trace(js_tracer); }
 
  private:
   JSContext* context_;

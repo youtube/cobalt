@@ -54,6 +54,17 @@ class V8cUserObjectHolder
     return *this;
   }
 
+  bool EqualTo(const BaseClass& other) const override {
+    v8::HandleScope handle_scope(isolate_);
+    const V8cUserObjectHolder* v8c_other =
+        base::polymorphic_downcast<const V8cUserObjectHolder*>(&other);
+    return v8_value() == v8c_other->v8_value();
+  }
+
+  void TraceMembers(Tracer* tracer) override {
+    handle_.Get().RegisterExternalReference(isolate_);
+  }
+
   void RegisterOwner(Wrappable* owner) override {
     V8cGlobalEnvironment* global_environment =
         V8cGlobalEnvironment::GetFromIsolate(isolate_);
@@ -90,21 +101,14 @@ class V8cUserObjectHolder
     }
   }
 
+  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
+    return handle_.IsEmpty() ? nullptr : &handle_;
+  }
+
   scoped_ptr<BaseClass> MakeCopy() const override {
     v8::HandleScope handle_scope(isolate_);
     return make_scoped_ptr<BaseClass>(
         new V8cUserObjectHolder(isolate_, v8_value()));
-  }
-
-  bool EqualTo(const BaseClass& other) const override {
-    v8::HandleScope handle_scope(isolate_);
-    const V8cUserObjectHolder* v8c_other =
-        base::polymorphic_downcast<const V8cUserObjectHolder*>(&other);
-    return v8_value() == v8c_other->v8_value();
-  }
-
-  const typename V8cUserObjectType::BaseType* GetScriptValue() const override {
-    return handle_.IsEmpty() ? nullptr : &handle_;
   }
 
   v8::Local<v8::Value> v8_value() const { return handle_.NewLocal(isolate_); }

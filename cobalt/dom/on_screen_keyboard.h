@@ -38,7 +38,7 @@ class OnScreenKeyboard : public EventTarget {
   typedef script::ScriptValue<script::Promise<void>> VoidPromiseValue;
 
   typedef std::unordered_map<int,
-                             std::unique_ptr<VoidPromiseValue::StrongReference>>
+                             std::unique_ptr<VoidPromiseValue::TracedReference>>
       TicketToPromiseMap;
 
   OnScreenKeyboard(OnScreenKeyboardBridge* bridge,
@@ -87,6 +87,7 @@ class OnScreenKeyboard : public EventTarget {
   void DispatchBlurEvent(int ticket);
 
   DEFINE_WRAPPABLE_TYPE(OnScreenKeyboard);
+  void TraceMembers(script::Tracer* tracer) override;
 
  private:
   ~OnScreenKeyboard() override {}
