@@ -34,6 +34,7 @@ class PromiseWrapper {
 
   PromiseWrapper(JSContext* context, JS::HandleValue promise_wrapper);
 
+  WeakHeapObject& get() { return weak_promise_wrapper_; }
   const WeakHeapObject& get() const { return weak_promise_wrapper_; }
   JSObject* GetPromise() const;
   void Resolve(JS::HandleValue value) const;

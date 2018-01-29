@@ -27,8 +27,8 @@ $var MAX_MEMBERS = 4
 #include "cobalt/base/type_id.h"
 #include "cobalt/script/mozjs-45/mozjs_exception_state.h"
 #include "cobalt/script/mozjs-45/mozjs_global_environment.h"
-#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/mozjs_user_object_holder.h"
+#include "cobalt/script/mozjs-45/mozjs_value_handle.h"
 #include "cobalt/script/mozjs-45/type_traits.h"
 #include "cobalt/script/union_type.h"
 

@@ -95,6 +95,7 @@ class MozjsCallbackFunction<R(void)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -155,6 +156,7 @@ class MozjsCallbackFunction<R(A1)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -217,6 +219,7 @@ class MozjsCallbackFunction<R(A1, A2)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -281,6 +284,7 @@ class MozjsCallbackFunction<R(A1, A2, A3)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -347,6 +351,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -416,6 +421,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -487,6 +493,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;
@@ -560,6 +567,7 @@ class MozjsCallbackFunction<R(A1, A2, A3, A4, A5, A6, A7)>
   JSObject* handle() const { return weak_function_.GetObject(); }
   const JS::Value& value() const { return weak_function_.GetValue(); }
   bool WasCollected() const { return weak_function_.WasCollected(); }
+  void Trace(JSTracer* js_tracer) { weak_function_.Trace(js_tracer); }
 
  private:
   JSContext* context_;

@@ -36,12 +36,21 @@ namespace mozjs {
 class MozjsTracer : public ::cobalt::script::Tracer {
  public:
   explicit MozjsTracer(JSTracer* js_tracer) : js_tracer_(js_tracer) {}
+
   void Trace(Traceable* traceable) override;
 
+  // Traverse the embedder heap and JavaScript heap, starting from
+  // |wrappable|.  For any reachable |Traceable|s that have corresponding
+  // wrappers, feed those wrappers to the SpiderMonkey-side tracer.  In the
+  // case that they don't, add them to |frontier_|, and trace them ourselves.
   void TraceFrom(Wrappable* wrappable);
 
+  // This is primarly exposed for |MozjsUserObjectHolder|'s implementation of
+  // |TraceMembers|.
+  JSTracer* js_tracer() const { return js_tracer_; }
+
  private:
-  JSTracer* js_tracer_;
+  JSTracer* const js_tracer_;
   // Pending |Traceable|s that we must traverse ourselves, since they did not
   // have a |WrapperPrivate|, or were not a wrapper.
   std::vector<Traceable*> frontier_;

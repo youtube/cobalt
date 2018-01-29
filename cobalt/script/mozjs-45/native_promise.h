@@ -69,6 +69,7 @@ class NativePromise : public Promise<T> {
   JSObject* handle() const { return promise_resolver_->get().GetObject(); }
   const JS::Value& value() const { return promise_resolver_->get().GetValue(); }
   bool WasCollected() const { return promise_resolver_->get().WasCollected(); }
+  void Trace(JSTracer* js_tracer) { promise_resolver_->get().Trace(js_tracer); }
 
   // The Promise JS object (not the resolver).
   JSObject* promise() const { return promise_resolver_->GetPromise(); }

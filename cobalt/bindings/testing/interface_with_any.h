@@ -37,13 +37,14 @@ class InterfaceWithAny : public script::Wrappable {
   }
 
   void SetAny(const script::ValueHandleHolder& value) {
-    value_.reset(new script::ValueHandleHolder::Reference(this, value));
+    value_.reset(new script::ValueHandleHolder::TracedReference(value));
   }
 
   DEFINE_WRAPPABLE_TYPE(InterfaceWithAny);
+  void TraceMembers(script::Tracer* tracer) override { tracer->Trace(value_); }
 
  private:
-  scoped_ptr<script::ValueHandleHolder::Reference> value_;
+  scoped_ptr<script::ValueHandleHolder::TracedReference> value_;
 };
 
 }  // namespace testing

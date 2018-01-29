@@ -29,21 +29,21 @@ class WeakHeapObject {
  public:
   WeakHeapObject(JSContext* context, JS::HandleValue value);
   WeakHeapObject(const WeakHeapObject& other);
-
   WeakHeapObject& operator=(const WeakHeapObject& rhs);
+
+  ~WeakHeapObject();
+
   const JS::Value& GetValue() const { return value_.get(); }
   JSObject* GetObject() const {
     return value_.toObjectOrNull();
   }
 
-  void Trace(JSTracer* trace);
+  void Trace(JSTracer* js_tracer);
   bool IsObject() const;
   bool IsGcThing() const;
 
   // Whether the value was a GC Thing and has been actually GC'd.
   bool WasCollected() const;
-
-  ~WeakHeapObject();
 
  private:
   void Initialize(WeakHeapObjectManager* weak_heap_object_manager,
