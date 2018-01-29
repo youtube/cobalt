@@ -21,6 +21,7 @@
 
 namespace cobalt {
 namespace dom {
+
 OnScreenKeyboard::OnScreenKeyboard(
     OnScreenKeyboardBridge* bridge,
     script::ScriptValueFactory* script_value_factory)
@@ -33,12 +34,11 @@ OnScreenKeyboard::OnScreenKeyboard(
 scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Show() {
   scoped_ptr<VoidPromiseValue> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
   int ticket = next_ticket_++;
   bool is_emplaced =
       ticket_to_show_promise_map_
-          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
-                               new VoidPromiseValue::StrongReference(*promise)))
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::TracedReference>(
+                               new VoidPromiseValue::TracedReference(*promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Show(data_.c_str(), ticket);
@@ -48,12 +48,11 @@ scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Show() {
 scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Hide() {
   scoped_ptr<VoidPromiseValue> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
   int ticket = next_ticket_++;
   bool is_emplaced =
       ticket_to_hide_promise_map_
-          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
-                               new VoidPromiseValue::StrongReference(*promise)))
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::TracedReference>(
+                               new VoidPromiseValue::TracedReference(*promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Hide(ticket);
@@ -63,12 +62,11 @@ scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Hide() {
 scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Focus() {
   scoped_ptr<VoidPromiseValue> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
   int ticket = next_ticket_++;
   bool is_emplaced =
       ticket_to_focus_promise_map_
-          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
-                               new VoidPromiseValue::StrongReference(*promise)))
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::TracedReference>(
+                               new VoidPromiseValue::TracedReference(*promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Focus(ticket);
@@ -78,12 +76,11 @@ scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Focus() {
 scoped_ptr<OnScreenKeyboard::VoidPromiseValue> OnScreenKeyboard::Blur() {
   scoped_ptr<VoidPromiseValue> promise =
       script_value_factory_->CreateBasicPromise<void>();
-  VoidPromiseValue::StrongReference promise_reference(*promise);
   int ticket = next_ticket_++;
   bool is_emplaced =
       ticket_to_blur_promise_map_
-          .emplace(ticket, std::unique_ptr<VoidPromiseValue::StrongReference>(
-                               new VoidPromiseValue::StrongReference(*promise)))
+          .emplace(ticket, std::unique_ptr<VoidPromiseValue::TracedReference>(
+                               new VoidPromiseValue::TracedReference(*promise)))
           .second;
   DCHECK(is_emplaced);
   bridge_->Blur(ticket);
@@ -196,6 +193,15 @@ void OnScreenKeyboard::DispatchBlurEvent(int ticket) {
     ticket_to_blur_promise_map_.erase(it);
   }
   DispatchEvent(new dom::Event(base::Tokens::blur()));
+}
+
+void OnScreenKeyboard::TraceMembers(script::Tracer* tracer) {
+  EventTarget::TraceMembers(tracer);
+
+  tracer->TraceValues(ticket_to_hide_promise_map_);
+  tracer->TraceValues(ticket_to_show_promise_map_);
+  tracer->TraceValues(ticket_to_focus_promise_map_);
+  tracer->TraceValues(ticket_to_blur_promise_map_);
 }
 
 }  // namespace dom

@@ -18,6 +18,7 @@
 #include "base/basictypes.h"
 #include "base/logging.h"
 #include "base/memory/scoped_ptr.h"
+#include "cobalt/script/tracer.h"
 
 namespace cobalt {
 namespace script {
@@ -41,8 +42,44 @@ class Wrappable;
 // detached from the rest of the graph of JavaScript GC things, and can safely
 // be garbage collected.
 template <class T>
-class ScriptValue {
+class ScriptValue : public Traceable {
  public:
+  // A reference type for when a |Traceable| owns a |ScriptValue|, and only
+  // wants to keep it alive if the owning object continues to get traced. This
+  // is the preferred reference type in that if you can use it, you should (as
+  // opposed to legacy types |Reference| or |StrongReference|, which predate
+  // the TraceMembers system).
+  class TracedReference : public Traceable {
+   public:
+    explicit TracedReference(scoped_ptr<ScriptValue> script_value)
+        : referenced_value_(script_value.Pass()) {
+      DCHECK(referenced_value_);
+    }
+
+    explicit TracedReference(const ScriptValue& script_value)
+        : referenced_value_(script_value.MakeCopy()) {
+      DCHECK(referenced_value_);
+    }
+
+    const T& value() const { return *(referenced_value_->GetScriptValue()); }
+
+    // Return the referenced ScriptValue. This ScriptValue can
+    // be passed back into the JavaScript bindings layer where the referenced
+    // JavaScript object can be extracted from the ScriptValue.
+    const ScriptValue<T>& referenced_value() const {
+      return *(referenced_value_.get());
+    }
+
+    void TraceMembers(Tracer* tracer) override {
+      tracer->Trace(referenced_value_.get());
+    }
+
+   private:
+    scoped_ptr<ScriptValue> referenced_value_;
+
+    DISALLOW_COPY_AND_ASSIGN(TracedReference);
+  };
+
   // The Reference class maintains the ownership relationship between a
   // Wrappable and the JavaScript value wrapped by a ScriptValue. This is an
   // RAII object in that creation of a Reference instance will mark the

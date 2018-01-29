@@ -57,6 +57,31 @@ class MozjsUserObjectHolder
     DCHECK(!persistent_root_);
   }
 
+  bool EqualTo(const BaseClass& other) const override {
+    const MozjsUserObjectHolder* mozjs_other =
+        base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
+    if (!handle_) {
+      return !mozjs_other->handle_;
+    } else if (!mozjs_other->handle_) {
+      return false;
+    }
+
+    DCHECK(handle_);
+    DCHECK(mozjs_other->handle_);
+
+    JS::RootedValue value1(context_, js_value());
+    JS::RootedValue value2(context_, mozjs_other->js_value());
+    return util::IsSameGcThing(context_, value1, value2);
+  }
+
+  void TraceMembers(Tracer* tracer) override {
+    if (handle_) {
+      MozjsTracer* mozjs_tracer =
+          base::polymorphic_downcast<MozjsTracer*>(tracer);
+      handle_->Trace(mozjs_tracer->js_tracer());
+    }
+  }
+
   void RegisterOwner(Wrappable* owner) override {
     JSAutoRequest auto_request(context_);
     JS::RootedValue owned_value(context_, js_value());
@@ -110,23 +135,6 @@ class MozjsUserObjectHolder
     JS::RootedValue rooted_value(context_, js_value());
     return make_scoped_ptr<BaseClass>(
         new MozjsUserObjectHolder(context_, rooted_value));
-  }
-
-  bool EqualTo(const BaseClass& other) const override {
-    const MozjsUserObjectHolder* mozjs_other =
-        base::polymorphic_downcast<const MozjsUserObjectHolder*>(&other);
-    if (!handle_) {
-      return !mozjs_other->handle_;
-    } else if (!mozjs_other->handle_) {
-      return false;
-    }
-
-    DCHECK(handle_);
-    DCHECK(mozjs_other->handle_);
-
-    JS::RootedValue value1(context_, js_value());
-    JS::RootedValue value2(context_, mozjs_other->js_value());
-    return util::IsSameGcThing(context_, value1, value2);
   }
 
   const JS::Value& js_value() const {
