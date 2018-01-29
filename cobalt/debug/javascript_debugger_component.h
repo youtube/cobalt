@@ -65,7 +65,7 @@ class JavaScriptDebuggerComponent : public script::ScriptDebugger::Delegate {
 
   // Script location, corresponding to physical breakpoint, etc.
   struct ScriptLocation {
-    ScriptLocation(const std::string script_id, int line_number,
+    ScriptLocation(const std::string& script_id, int line_number,
                    int column_number)
         : script_id(script_id),
           line_number(line_number),
