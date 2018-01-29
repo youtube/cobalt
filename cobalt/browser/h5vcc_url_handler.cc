@@ -57,13 +57,13 @@ std::string GetH5vccUrlQueryParam(const GURL& url, const std::string& name) {
     DLOG(WARNING) << "Query parameter " << name << " not found in URL.";
     return "";
   }
-  size_t name_end = query.find("=", name_start);
+  size_t name_end = query.find('=', name_start);
   if (name_end == std::string::npos) {
     DLOG(WARNING) << "Value of " << name << " not found in URL.";
     return "";
   }
   size_t value_start = name_end - name_start + 1;
-  size_t value_end = query.find_first_of("&", value_start);
+  size_t value_end = query.find_first_of('&', value_start);
   if (value_end != std::string::npos) {
     value_end -= value_start;
   }
