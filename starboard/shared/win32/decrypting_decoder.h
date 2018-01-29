@@ -63,7 +63,7 @@ class DecryptingDecoder {
   void Reset();
 
  private:
-  void ActivateDecryptor();
+  bool ActivateDecryptor();
 
   // TODO: Clarify the thread pattern of this class.
   const std::string type_;  // For debugging purpose.

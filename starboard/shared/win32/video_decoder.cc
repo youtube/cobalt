@@ -169,8 +169,6 @@ VideoDecoder::VideoDecoder(
   ComPtr<ID3D11DeviceContext> d3d_context;
   d3d_device_->GetImmediateContext(d3d_context.GetAddressOf());
   CheckResult(d3d_context.As(&video_context_));
-
-  InitializeCodec();
 }
 
 VideoDecoder::~VideoDecoder() {
@@ -199,6 +197,7 @@ void VideoDecoder::Initialize(const DecoderStatusCB& decoder_status_cb,
   SB_DCHECK(error_cb);
   decoder_status_cb_ = decoder_status_cb;
   error_cb_ = error_cb;
+  InitializeCodec();
 }
 
 void VideoDecoder::WriteInputBuffer(

@@ -203,7 +203,11 @@ bool DecryptingDecoder::TryWriteInputBuffer(
           drm_system_->GetLicense(key_id, key_id_size);
       if (license && license->usable()) {
         decryptor_.reset(new MediaTransform(license->decryptor()));
-        ActivateDecryptor();
+        bool success = ActivateDecryptor();
+        if (!success) {
+          decryptor_.reset();
+          return false;
+        }
       }
     }
     if (!decryptor_) {
@@ -257,7 +261,7 @@ void DecryptingDecoder::Drain() {
   }
 }
 
-void DecryptingDecoder::ActivateDecryptor() {
+bool DecryptingDecoder::ActivateDecryptor() {
   SB_DCHECK(decryptor_);
 
   ComPtr<IMFMediaType> decoder_output_type = decoder_->GetCurrentOutputType();
@@ -290,7 +294,7 @@ void DecryptingDecoder::ActivateDecryptor() {
       std::min(decoder_protection_version, decryption_protection_version);
   if (protection_version < SAMPLE_PROTECTION_VERSION_RC4) {
     SB_NOTREACHED();
-    return;
+    return true;
   }
 
   BYTE* cert_data = NULL;
@@ -305,6 +309,11 @@ void DecryptingDecoder::ActivateDecryptor() {
   hr = decryption_sample_protection->InitOutputProtection(
       protection_version, 0, cert_data, cert_data_size, &crypt_seed,
       &crypt_seed_size);
+  if (FAILED(hr)) {
+    // This can happen if we call InitOutputProtection while procesing
+    // a UWP resume event or shortly after.
+    return false;
+  }
   CheckResult(hr);
 
   hr = decoder_sample_protection->InitInputProtection(
@@ -331,9 +340,10 @@ void DecryptingDecoder::ActivateDecryptor() {
     output_type->GetGUID(MF_MT_SUBTYPE, &sub_type);
     if (IsEqualGUID(sub_type, original_sub_type)) {
       decoder_->SetOutputType(output_type);
-      return;
+      return true;
     }
   }
+  return true;
 }
 
 void DecryptingDecoder::Reset() {
