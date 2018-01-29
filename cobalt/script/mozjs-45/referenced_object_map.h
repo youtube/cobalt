@@ -25,28 +25,20 @@ namespace cobalt {
 namespace script {
 namespace mozjs {
 
-// Maintains a set of JSObjects that are reachable from a given object. This
-// relationship is registered by mapping a key to a JSObject. The calling code
-// should ensure that a key uniquely identifies the entity that holds a
-// reference to the JSObjects.
-// During garbage collection, supply a key to TraceReferencedObjects to trace
-// all objects that are registered as being reachable from the object
-// represented by that key.
+// Maintains a set of |JSObject|s that are reachable from a given object. This
+// relationship is registered by mapping a |Wrappable| to a |JSObject|. During
+// garbage collection, supply a |Wrappable| to |TraceReferencedObjects| to
+// trace all objects that are registered as being reachable from the object.
 class ReferencedObjectMap {
  public:
   explicit ReferencedObjectMap(JSContext* context);
 
-  // Reinterpret the pointer as an integer to be used as a key for tracking
-  // referenced objects.
-  static intptr_t GetKeyForWrappable(const Wrappable* wrappable) {
-    return reinterpret_cast<intptr_t>(wrappable);
-  }
+  void AddReferencedObject(const Wrappable* wrappable, JS::HandleValue referee);
+  void RemoveReferencedObject(const Wrappable* wrappable,
+                              JS::HandleValue referee);
 
-  void AddReferencedObject(intptr_t key, JS::HandleValue referee);
-  void RemoveReferencedObject(intptr_t key, JS::HandleValue referee);
-
-  // Trace all objects referenced from this WrapperPrivate*.
-  void TraceReferencedObjects(JSTracer* trace, intptr_t key);
+  // Trace all objects referenced from this |wrappable|.
+  void TraceReferencedObjects(JSTracer* trace, const Wrappable* wrappable);
 
   // Remove any referenced objects that are NULL. It may be the case that a
   // weak reference to an object was garbage collected, so remove it from the
@@ -54,11 +46,11 @@ class ReferencedObjectMap {
   void RemoveNullReferences();
 
  private:
-  typedef base::hash_multimap<intptr_t, WeakHeapObject>
+  typedef base::hash_multimap<const Wrappable*, WeakHeapObject>
       ReferencedObjectMultiMap;
 
   base::ThreadChecker thread_checker_;
-  JSContext* context_;
+  JSContext* const context_;
   ReferencedObjectMultiMap referenced_objects_;
 };
 

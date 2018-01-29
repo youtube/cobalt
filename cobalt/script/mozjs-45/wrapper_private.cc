@@ -125,10 +125,8 @@ void WrapperPrivate::Trace(JSTracer* trace, JSObject* object) {
 
     MozjsGlobalEnvironment* global_environment =
         MozjsGlobalEnvironment::GetFromContext(wrapper_private->context_);
-    intptr_t key = ReferencedObjectMap::GetKeyForWrappable(
-        wrapper_private->wrappable_.get());
-    global_environment->referenced_objects()->TraceReferencedObjects(trace,
-                                                                     key);
+    global_environment->referenced_objects()->TraceReferencedObjects(
+        trace, wrapper_private->wrappable_);
     MozjsTracer mozjs_tracer(trace);
     mozjs_tracer.TraceFrom(wrapper_private->wrappable_);
   }

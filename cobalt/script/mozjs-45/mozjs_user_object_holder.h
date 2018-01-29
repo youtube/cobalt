@@ -66,9 +66,8 @@ class MozjsUserObjectHolder
     if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
-      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->AddReferencedObject(
-          key, owned_value);
+          owner, owned_value);
     }
   }
 
@@ -80,9 +79,8 @@ class MozjsUserObjectHolder
     if (!owned_value.isNullOrUndefined() && owned_value.isGCThing()) {
       MozjsGlobalEnvironment* global_environment =
           MozjsGlobalEnvironment::GetFromContext(context_);
-      intptr_t key = ReferencedObjectMap::GetKeyForWrappable(owner);
       global_environment->referenced_objects()->RemoveReferencedObject(
-          key, owned_value);
+          owner, owned_value);
     }
   }
 
@@ -142,7 +140,7 @@ class MozjsUserObjectHolder
   }
 
  private:
-  typedef base::hash_map<const Wrappable*, base::WeakPtr<WrapperPrivate> >
+  typedef base::hash_map<const Wrappable*, base::WeakPtr<WrapperPrivate>>
       WrappableAndPrivateHashMap;
 
   JSContext* context_;
